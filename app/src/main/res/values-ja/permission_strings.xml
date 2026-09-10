@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="permissions_intro">各機能に必要な権限をここから設定できます。権限の許可と、通知ログなどの検知・保存設定は別々に選べます。</string>
+    <string name="permissions_open_failed">権限の設定画面を開けませんでした。</string>
+    <string name="permissions_notifications">通知の表示</string>
+    <string name="permissions_notifications_desc">常駐サービスの通知や、コマンドから送る通知を表示します。通知の種類ごとの設定も開けます。</string>
+    <string name="permissions_listener">通知の読み取り</string>
+    <string name="permissions_listener_desc">他のアプリの通知を読み、ログ保存や自動化ルールで使います。</string>
+    <string name="permissions_accessibility">ユーザー補助</string>
+    <string name="permissions_accessibility_desc">座標取得、タップ、スワイプなどのAndroid操作に使います。</string>
+    <string name="permissions_overlay">他のアプリの上に表示</string>
+    <string name="permissions_overlay_desc">フローティングパネルやツールを他のアプリの上に表示します。</string>
+    <string name="permissions_storage">共有ストレージ</string>
+    <string name="permissions_storage_desc">/sdcardなどの共有ストレージを読み書きします。ファイル選択画面で指定するフォルダーは、そのフォルダーごとに許可します。</string>
+    <string name="permissions_sms">SMSの受信</string>
+    <string name="permissions_sms_desc">届いたSMSを読み、SMSログや自動化ルールで使います。</string>
+    <string name="permissions_battery">電池最適化からの除外</string>
+    <string name="permissions_battery_desc">画面消灯中もバックグラウンド処理を続けやすくします。</string>
+    <string name="permissions_write_settings">システム設定の変更</string>
+    <string name="permissions_write_settings_desc">指定した時間だけ、画面の自動消灯までの時間を変更します。</string>
+    <string name="permissions_usage">使用状況へのアクセス</string>
+    <string name="permissions_usage_desc">端末の通信量を読み、設定した通信量の上限判定に使います。</string>
+    <string name="permissions_install">アプリ更新のインストール</string>
+    <string name="permissions_install_desc">ダウンロードしたAPKを、このアプリからAndroidのインストーラーへ渡せるようにします。</string>
+    <string name="permissions_admin">端末管理者</string>
+    <string name="permissions_admin_desc">画面ロック解除の失敗・成功を検知します。遠隔ロックやデータ消去には使いません。</string>
+    <string name="permissions_ime">キーボードの有効化</string>
+    <string name="permissions_ime_desc">内蔵キーボードをAndroidの入力方法として使えるようにします。</string>
+    <string name="permissions_usb">USB機器</string>
+    <string name="permissions_usb_desc">機器を接続してから、機器ごとにアクセスを許可します。許可は取り外すまで有効です。</string>
+    <string name="permissions_usb_empty">接続されているUSB機器がありません。</string>
+    <string name="permissions_root">rootアクセス</string>
+    <string name="permissions_root_desc">ボタンを押したときだけrootを要求し、chrootが使えるか確認します。</string>
+    <string name="permissions_root_checked">以前の確認でchrootを有効化済みです。現在のrootアクセスはボタンで再確認できます。</string>
+    <string name="permissions_app_details">アプリ情報</string>
+    <string name="permissions_app_details_desc">アプリの権限やAndroidの制限を管理します。許可の確認画面が出なくなった場合も、ここから変更できます。</string>
+    <string name="permissions_manage">設定を開く</string>
+    <string name="permissions_request">許可を求める</string>
+    <string name="permissions_granted">有効・許可済み</string>
+    <string name="permissions_missing">無効・未許可</string>
+    <string name="tools_automation_actions">操作自動化</string>
+    <string name="tools_automation_rules">自動化ルール</string>
+    <string name="tools_automation_actions_desc">タップ・スワイプ・待機・アプリ操作を手順として組みます。管理画面で作成・編集・実行・停止と履歴の確認ができます。</string>
+    <string name="permissions_tab_access">権限</string>
+    <string name="permissions_tab_logs">通知・ログ</string>
+    <string name="permissions_log_missing">「権限」タブで許可してください: %1$s</string>
+</resources>

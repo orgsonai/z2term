@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="permissions_intro">각 기능에 필요한 권한을 여기에서 설정합니다. 권한과 알림 감지·저장 설정은 별도로 선택합니다.</string>
+    <string name="permissions_open_failed">권한 설정을 열 수 없습니다.</string>
+    <string name="permissions_notifications">알림 표시</string>
+    <string name="permissions_notifications_desc">상주 서비스와 명령으로 보내는 알림을 표시합니다. Android에서 알림 유형별 설정도 관리할 수 있습니다.</string>
+    <string name="permissions_listener">알림 읽기</string>
+    <string name="permissions_listener_desc">다른 앱의 알림을 읽어 로그와 자동화 규칙에 사용합니다.</string>
+    <string name="permissions_accessibility">접근성</string>
+    <string name="permissions_accessibility_desc">좌표 선택, 탭, 스와이프 등의 Android 동작에 사용합니다.</string>
+    <string name="permissions_overlay">다른 앱 위에 표시</string>
+    <string name="permissions_overlay_desc">다른 앱 위에 플로팅 패널과 도구를 표시합니다.</string>
+    <string name="permissions_storage">공유 저장소</string>
+    <string name="permissions_storage_desc">/sdcard 등의 공유 저장소를 읽고 씁니다. 파일 선택기로 지정하는 폴더는 폴더별로 허용합니다.</string>
+    <string name="permissions_sms">SMS 수신</string>
+    <string name="permissions_sms_desc">수신한 SMS를 읽어 SMS 로그와 자동화 규칙에 사용합니다.</string>
+    <string name="permissions_battery">배터리 최적화 제외</string>
+    <string name="permissions_battery_desc">화면이 꺼진 동안에도 백그라운드 처리를 계속할 수 있도록 합니다.</string>
+    <string name="permissions_write_settings">시스템 설정 변경</string>
+    <string name="permissions_write_settings_desc">지정한 기간 동안 화면 자동 꺼짐 시간을 변경합니다.</string>
+    <string name="permissions_usage">사용 정보 접근</string>
+    <string name="permissions_usage_desc">기기의 통신량을 읽어 설정한 데이터 한도를 확인합니다.</string>
+    <string name="permissions_install">앱 업데이트 설치</string>
+    <string name="permissions_install_desc">다운로드한 APK를 이 앱에서 Android 설치 프로그램으로 전달하도록 허용합니다.</string>
+    <string name="permissions_admin">기기 관리자</string>
+    <string name="permissions_admin_desc">화면 잠금 해제의 실패와 성공을 감지합니다. 원격 잠금이나 데이터 삭제에는 사용하지 않습니다.</string>
+    <string name="permissions_ime">키보드 활성화</string>
+    <string name="permissions_ime_desc">내장 키보드를 Android 입력 방법으로 사용할 수 있게 합니다.</string>
+    <string name="permissions_usb">USB 기기</string>
+    <string name="permissions_usb_desc">기기를 연결한 뒤 기기별 접근을 허용합니다. 권한은 연결을 해제할 때까지 유효합니다.</string>
+    <string name="permissions_usb_empty">연결된 USB 기기가 없습니다.</string>
+    <string name="permissions_root">root 접근</string>
+    <string name="permissions_root_desc">버튼을 눌렀을 때만 root를 요청하고 chroot 지원을 확인합니다.</string>
+    <string name="permissions_root_checked">이전 확인으로 chroot가 활성화되었습니다. 버튼으로 현재 root 접근을 다시 확인할 수 있습니다.</string>
+    <string name="permissions_app_details">앱 정보</string>
+    <string name="permissions_app_details_desc">앱 권한과 Android 제한을 관리합니다. 권한 요청 창이 표시되지 않을 때도 여기에서 변경할 수 있습니다.</string>
+    <string name="permissions_manage">설정 열기</string>
+    <string name="permissions_request">권한 요청</string>
+    <string name="permissions_granted">활성화됨 / 허용됨</string>
+    <string name="permissions_missing">비활성화됨 / 허용되지 않음</string>
+    <string name="tools_automation_actions">동작 자동화</string>
+    <string name="tools_automation_rules">자동화 규칙</string>
+    <string name="tools_automation_actions_desc">탭, 스와이프, 대기와 앱 동작을 순서로 구성합니다. 관리 화면에서 만들기, 편집, 실행, 중지와 기록 확인을 할 수 있습니다.</string>
+    <string name="permissions_tab_access">권한</string>
+    <string name="permissions_tab_logs">알림 및 로그</string>
+    <string name="permissions_log_missing">권한 탭에서 다음을 허용하세요: %1$s</string>
+</resources>

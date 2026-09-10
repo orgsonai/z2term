@@ -12,7 +12,9 @@ Handle gestures, action sequences and variable-speed scrolling from 0.8.570 rema
 
 ## Second stage implemented (0.8.572-alpha / 580)
 
-**Action macro GUI (0.8.572)**: Settings → Automation opens the list, creation, step editing, ordering, duplication, execution, stopping and history. Pick tap/hold points or swipe endpoints over the target app and return them as pixels or percentages. Selection consumes touch input and ends on cancellation, screen changes, screen off, disconnection or after two minutes. GUI text editing shares definitions with the CLI, with unsaved-change confirmation and stale-save detection. The screen respects app lock. Build and device behavior not yet verified.
+**Action macro GUI (0.8.572)**: Command list → Automation → Action automation opens the list, creation, step editing, ordering, duplication, execution, stopping and history. Pick tap/hold points or swipe endpoints on the screen and return them as pixels or percentages. Since 0.8.579, picking requires no app launch or target directive. Selection consumes touch input and ends on cancellation, screen changes, screen off, disconnection or after two minutes. GUI text editing shares definitions with the CLI, with unsaved-change confirmation and stale-save detection. The screen respects app lock. Build and device behavior not yet verified.
+
+**Coordinate-only picking and settings restoration (0.8.579)**: Pick coordinates moves the existing settings and editor tasks to the background and immediately starts coordinate selection. No launch or target step is required. Navigate allows normal interaction before resuming selection on the desired screen. Picking checks no target window and returns only numbers to the draft; saving and execution retain their target requirements and window checks. Settings visibility and scroll position return after backgrounding or unlocking, and the locked editor no longer overwrites its retained scroll position. Build and device behavior not yet verified.
 
 ## Third stage implemented (0.8.573-alpha / 581)
 

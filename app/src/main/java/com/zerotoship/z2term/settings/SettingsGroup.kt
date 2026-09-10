@@ -7,7 +7,7 @@ import com.zerotoship.z2term.R
  * 設定ページの項目グループ (アコーディオンの単位)。
  *
  * 設定項目が増えて 1 本の長いリストでは目的の設定に辿り着けなくなったため、関連する
- * セクションをこの 7 グループに束ね、開閉できるようにした (要望)。**宣言順が画面上の
+ * セクションをグループに束ね、開閉できるようにした (要望)。**宣言順が画面上の
  * 表示順**で、機能の関連が近いものが隣り合うよう並べ替えてある。
  *
  * [id] は開閉状態の永続化キー ([SettingsGroupStore]) に使う固定文字列。**改名しないこと**
@@ -32,7 +32,7 @@ enum class SettingsGroup(
 
     /**
      * キーボードの大きさ / 独自キーボードスタイル / キーボード位置 (横画面) /
-     * 内蔵キーボードを他でも使う (IME) / 日本語 IME 学習履歴 / 言語。
+     * 日本語 IME 学習履歴 / 言語。入力方法の有効化は権限グループ。
      *
      * 「入力・言語」グループはここへ統合した (要望)。⚠ どれも**打つときの設定**で、
      * キーボードを探した人が別のグループを開き直すことになっていたため。
@@ -45,7 +45,7 @@ enum class SettingsGroup(
         true
     ),
 
-    /** ディストロ / OS データの削除 / ストレージ / GUI */
+    /** ディストロ / OS データの削除 / GUI */
     LINUX(
         "linux",
         R.string.settings_group_linux,
@@ -53,8 +53,8 @@ enum class SettingsGroup(
         false
     ),
 
-    /** 常駐サーバー / 通知検知 / システムイベント検知 / ロック解除の失敗監視 / プロセス保護 */
-    AUTOMATION(
+    /** Permissions and notification/event logging. Keep the persisted accordion ID. */
+    PERMISSIONS(
         "automation",
         R.string.settings_group_automation,
         R.string.settings_group_automation_desc,

@@ -76,6 +76,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -304,7 +305,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // ⌨ ツールバーボタンのトリプルタップで開く、その場でのサイズ調整。
     // トグルバーを非表示にしている利用者にも必ず入り口が残る。
     var keyboardSizeBarOpen by remember { mutableStateOf(false) }
-    var settingsOpen by remember { mutableStateOf(false) }
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
     // 常駐サーバーが稼働中か (🔒 の薄くロック表示・タップ時ダイアログの出し分けに使う)。
     // supervisor の起動/停止は UI 外で起きるので周期ポーリングで追従する (ServersSheet と同方式)。
     var serversRunning by remember { mutableStateOf(ServerDaemonManager.isRunning) }
@@ -334,7 +335,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // 手順の案内 (⚙設定 → メンテナンス → 案内を表示 / はじめの案内から開く)。非 null の間出す。
     // GUI タブから選んだ案内もここへ流れてくるので、画面をまたぐ [GuideHost] に持たせる。
     val activeGuide = GuideHost.current
-    var snippetsSheetOpen by remember { mutableStateOf(false) }
+    var snippetsSheetOpen by rememberSaveable { mutableStateOf(false) }
     var clipHistoryOpen by remember { mutableStateOf(false) }
     // 端末ログ (⚪): 記録状態はセッションが持ち、詳細設定シートの開閉だけ画面側で持つ。
     var logSheetOpen by remember { mutableStateOf(false) }
@@ -1159,8 +1160,8 @@ private fun GuiTabScreen(
     var ctrlSticky by remember { mutableStateOf(false) }
     // 画面消灯ロックは設定 (keepScreenOn) に永続化した端末タブ共通の状態 (画面跨ぎで維持・再起動で復元)。
     val keepScreenOn = settings.keepScreenOn
-    var settingsOpen by remember { mutableStateOf(false) }
-    var snippetsSheetOpen by remember { mutableStateOf(false) }
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    var snippetsSheetOpen by rememberSaveable { mutableStateOf(false) }
     var clipHistoryOpen by remember { mutableStateOf(false) }
     // ☰ アプリ一覧シート (0.8.499)。GUI タブにしか無い。
     var appsSheetOpen by remember { mutableStateOf(false) }

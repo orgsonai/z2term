@@ -1,81 +1,147 @@
 package com.zerotoship.z2term.service
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertNull
+import org.junit.Assert.*
 import org.junit.Test
 
-/**
- * 会話 (MessagingStyle) の「前回の続きから」判定
- * ([NotificationLogService.freshMessageText]) の検証。
- *
- * 実機で、続けて届いた 4 通が 1 回の通知にまとめられ、`EXTRA_TEXT` からは
- * **最後の 1 通を短くしたものしか取れずに 3 通が記録から消えていた** (0.8.358 で修正)。
- * 会話の全文は `EXTRA_MESSAGES` にあるが、そちらは**毎回、直近の数通をまるごと**載せてくる
- * ので、前回の続きだけを切り出す必要がある。
- */
+private typealias Message = NotificationText.Message
+
+/** Regressions: batched updates, repeated new text and notification-history reposts. */
 class NotificationFreshMessagesTest {
+    private fun body(vararg messages: Message) =
+        NotificationText.Body(messages.joinToString("\n") { it.text }, messages.toList())
 
-    private fun sig(m: Pair<Long, String>) = NotificationLogService.messageSig(m)
-    private fun fresh(all: List<Pair<Long, String>>, prev: String?) =
-        NotificationLogService.freshMessageText(all, prev)
+    private fun content(
+        current: List<Message> = emptyList(), history: List<Message> = emptyList(),
+        big: String = "", text: String = "", lines: List<String> = emptyList()
+    ) = NotificationText.body(current, history, big, text, lines, emptyList())
 
-    private val conversation = listOf(
-        10L to "午後①",
-        20L to "午後②",
-        30L to "午後③",
-        40L to "午後④",
-    )
-
-    /** 実機の症状そのもの: 4 通まとめて 1 回で届く。初回なので 4 通とも残る。 */
-    @Test
-    fun firstTimeKeepsEveryMessage() {
-        assertEquals("午後①\n午後②\n午後③\n午後④", fresh(conversation, null))
+    @Test fun capturesEveryBatchedMessageAndOnlyNewEntriesOnUpdate() {
+        val tracker = NotificationText.History()
+        val first = Message(1L, "first")
+        val second = Message(2L, "second")
+        assertEquals("first\nsecond", tracker.fresh("chat", body(first, second), "title"))
+        assertNull(tracker.fresh("chat", body(first, second), "title"))
+        assertEquals("third\nfourth", tracker.fresh("chat",
+            body(first, second, Message(3L, "third"), Message(4L, "fourth")), "title"))
     }
 
-    /** ②まで記録済みなら、続きの ③④ だけ。 */
-    @Test
-    fun onlyWhatCameAfterTheMark() {
-        assertEquals("午後③\n午後④", fresh(conversation, sig(20L to "午後②")))
+    @Test fun identicalTextWithANewTimestampIsNotDiscardedByContentDedup() {
+        val tracker = NotificationText.History()
+        assertEquals("yes", tracker.fresh("chat", body(Message(1L, "yes")), "title"))
+        assertEquals("yes", tracker.fresh("chat", body(Message(1L, "yes"), Message(2L, "yes")), "title"))
+        assertNull(tracker.fresh("chat", body(Message(1L, "yes"), Message(2L, "yes")), "title"))
     }
 
-    /** 最後まで記録済み = 新着ゼロ。null を返す (空文字だと題名だけの行が残る)。 */
-    @Test
-    fun nothingNewReturnsNull() {
-        assertNull(fresh(conversation, sig(40L to "午後④")))
+    @Test fun repeatedIdenticalMessagesWithoutTimesUseOccurrenceCounts() {
+        val tracker = NotificationText.History()
+        val message = Message(0L, "yes")
+        assertEquals("yes", tracker.fresh("chat", body(message), "title"))
+        assertEquals("yes", tracker.fresh("chat", body(message, message), "title"))
+        assertNull(tracker.fresh("chat", body(message, message), "title"))
     }
 
-    /** 印が会話の中に無い (初回・LRU からあふれた・送り手が印を変えた) なら全部返す。 */
-    @Test
-    fun unknownMarkFallsBackToEverything() {
-        assertEquals("午後①\n午後②\n午後③\n午後④", fresh(conversation, sig(99L to "知らない発言")))
+    @Test fun differentSendersAtTheSameTimestampRemainDifferentMessages() {
+        val tracker = NotificationText.History()
+        val first = Message(1L, "yes", "sender-a")
+        assertEquals("yes", tracker.fresh("chat", body(first), "title"))
+        assertEquals("yes", tracker.fresh("chat", body(first, Message(1L, "yes", "sender-b")), "title"))
     }
 
-    @Test
-    fun emptyConversationReturnsNull() {
-        assertNull(fresh(emptyList(), null))
-        assertNull(fresh(emptyList(), sig(10L to "午後①")))
+    @Test fun historicAndCurrentArraysOverlapWithoutLosingIntermediateMessages() {
+        val tracker = NotificationText.History()
+        val first = Message(1L, "first")
+        val second = Message(2L, "second")
+        val third = Message(3L, "third")
+        assertEquals("first", tracker.fresh("chat", body(first), "title"))
+        val update = content(current = listOf(second, third), history = listOf(first, second))
+        assertEquals("first\nsecond\nthird", update.text)
+        assertEquals("second\nthird", tracker.fresh("chat", update, "title"))
+        assertNull(tracker.fresh("chat", update, "title"))
     }
 
-    /** 同じ本文が会話に 2 度あるときは、**新しい側**を続きの起点にする。 */
-    @Test
-    fun repeatedTextResumesFromTheLatestMatch() {
-        val repeated = listOf(1L to "はい", 2L to "ありがとう", 3L to "はい", 4L to "また明日")
-        assertEquals("また明日", fresh(repeated, sig(3L to "はい")))
+    @Test fun inboxLinesTakePrecedenceOverTheShortSummary() {
+        val tracker = NotificationText.History()
+        val initial = content(text = "New messages", lines = listOf("first", "second"))
+        assertEquals("first\nsecond", tracker.fresh("inbox", initial, "title"))
+        val update = content(text = "New messages", lines = listOf("first", "second", "third"))
+        assertEquals("third", tracker.fresh("inbox", update, "title"))
+        assertNull(tracker.fresh("inbox", update, "title"))
     }
 
-    /** 印は時刻と本文の両方を映す (同時刻に複数届く / 時刻を持たない送り手がいるため)。 */
-    @Test
-    fun markReflectsBothTimeAndText() {
-        assertEquals(sig(1L to "a"), sig(1L to "a"))
-        assertNotEquals(sig(1L to "a"), sig(2L to "a"))
-        assertNotEquals(sig(1L to "a"), sig(1L to "b"))
+    @Test fun expandedTextKeepsItsEndingAndDoesNotRepeatWhenShortHistoryReturns() {
+        val tracker = NotificationText.History()
+        val full = "begin " + "long message ".repeat(1000) + "THE END"
+        val short = Message(1L, "begin…", "sender")
+        val expanded = content(current = listOf(short), big = full)
+        assertEquals(full, tracker.fresh("chat", expanded, "title"))
+        assertNull(tracker.fresh("chat", expanded, "title"))
+        val next = content(current = listOf(Message(2L, "next")), history = listOf(short))
+        assertEquals("next", tracker.fresh("chat", next, "title"))
     }
 
-    /** 時刻を持たない送り手 (全部 0) でも、本文が違えば続きを切り出せる。 */
-    @Test
-    fun worksWhenSenderHasNoTimestamps() {
-        val noTime = listOf(0L to "一通目", 0L to "二通目", 0L to "三通目")
-        assertEquals("三通目", fresh(noTime, sig(0L to "二通目")))
+    @Test fun laterFullTextCanCorrectAnEarlierShortNotificationOnce() {
+        val tracker = NotificationText.History()
+        val short = Message(1L, "begin…")
+        assertEquals("begin…", tracker.fresh("chat", body(short), "title"))
+        val full = content(current = listOf(short), big = "begin and the complete ending")
+        assertEquals("begin and the complete ending", tracker.fresh("chat", full, "title"))
+        assertNull(tracker.fresh("chat", full, "title"))
+        assertNull(tracker.fresh("chat", body(short), "title"))
+    }
+
+    @Test fun genericDisplayTextNeverReplacesTheActualMessageOrExpandedBody() {
+        assertEquals("yes", content(current = listOf(Message(1L, "yes")), text = "New messages are available").text)
+        assertEquals("yes", content(big = "yes", text = "New messages are available").text)
+        assertEquals("begin complete ending", content(big = "begin…", text = "begin complete ending").text)
+    }
+
+    @Test fun summaryAndChildNotificationsDoNotDuplicateTheSameKnownMessage() {
+        val tracker = NotificationText.History()
+        val first = body(Message(1L, "hello", "sender"))
+        assertEquals("hello", tracker.fresh("child", first, "title", group = "app:group"))
+        assertNull(tracker.fresh("summary", first, "group title", group = "app:group"))
+        assertEquals("hello", tracker.fresh("summary", body(Message(2L, "hello", "sender")),
+            "group title", group = "app:group"))
+        assertNull(tracker.fresh("child", body(Message(2L, "hello", "sender")), "title", group = "app:group"))
+    }
+
+    @Test fun differentConversationsDoNotSuppressEachOther() {
+        val tracker = NotificationText.History()
+        val message = body(Message(1L, "yes", "sender"))
+        assertEquals("yes", tracker.fresh("one", message, "title", group = "app:one"))
+        assertEquals("yes", tracker.fresh("two", message, "title", group = "app:two"))
+    }
+
+    @Test fun dismissalRetainsConversationHistoryButAllowsANewOrdinaryNotification() {
+        val tracker = NotificationText.History()
+        val message = body(Message(1L, "message"))
+        assertEquals("message", tracker.fresh("chat", message, "title"))
+        tracker.removed("chat")
+        assertNull(tracker.fresh("chat", message, "title"))
+        val ordinary = NotificationText.Body("status")
+        assertEquals("status", tracker.fresh("other", ordinary, "title"))
+        assertNull(tracker.fresh("other", ordinary, "title"))
+        tracker.removed("other")
+        assertEquals("status", tracker.fresh("other", ordinary, "title"))
+    }
+
+    @Test fun ordinaryCrossKeyRepostsAreDeduplicatedWithoutDroppingTimedNewMessages() {
+        val tracker = NotificationText.History()
+        val text = NotificationText.Body("same")
+        assertEquals("same", tracker.fresh("one", text, "title", app = "app", now = 100L))
+        assertNull(tracker.fresh("two", text, "title", app = "app", now = 200L))
+        assertEquals("same", tracker.fresh("three", text, "title", app = "app", now = 20_000L))
+        assertEquals("same", tracker.fresh("chat", text, "title", eventTime = 1L, app = "app"))
+        assertNull(tracker.fresh("chat", text, "title", eventTime = 1L, app = "app"))
+        assertEquals("same", tracker.fresh("chat", text, "title", eventTime = 2L, app = "app"))
+    }
+
+    @Test fun plainGroupRepostsUseTheEventTimeAndDistinctKeys() {
+        val tracker = NotificationText.History()
+        val text = NotificationText.Body("same")
+        assertEquals("same", tracker.fresh("child", text, "title", 1L, "app:group"))
+        assertNull(tracker.fresh("summary", text, "title", 1L, "app:group"))
+        assertEquals("same", tracker.fresh("child", text, "title", 2L, "app:group"))
+        assertNull(tracker.fresh("summary", text, "title", 2L, "app:group"))
     }
 }

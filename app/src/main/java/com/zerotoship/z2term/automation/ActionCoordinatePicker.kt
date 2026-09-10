@@ -33,16 +33,19 @@ internal object ActionCoordinatePicker {
     fun isActive(request: String) = session?.request == request
     fun consume(request: String): Result? = result?.takeIf { it.request == request }?.also { result = null }
 
-    fun start(service: AndroidActions, request: String, target: String, swipe: Boolean, elements: Boolean = false) {
+    fun start(service: AndroidActions, request: String, swipe: Boolean, target: String? = null) {
         check(!active && !ActionRuntime.running && !AndroidActions.gesturesInFlight()) { service.getString(R.string.action_pick_busy) }
-        ActionDefinition.packageName(target)
-        val launch = service.packageManager.getLaunchIntentForPackage(target)
-            ?: error(service.getString(R.string.action_pick_target))
-        val next = Session(service, request, target, swipe, ActionRuntime.screen(service), elements)
+        // Only UI-element selection has an app target. Coordinate selection measures the screen.
+        val launch = target?.let {
+            ActionDefinition.packageName(it)
+            service.packageManager.getLaunchIntentForPackage(it)
+                ?: error(service.getString(R.string.action_pick_launch_failed, it))
+        }
+        val next = Session(service, request, target, swipe, ActionRuntime.screen(service))
         EdgeRuntime.suspendForActions(true)
         result = null; session = next
         try {
-            service.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            launch?.let { service.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             next.show()
         } catch (e: Exception) {
             next.finish(null, e.message, returnToEditor = false)
@@ -54,12 +57,13 @@ internal object ActionCoordinatePicker {
         session?.let { it.finish(null, it.service.getString(R.string.action_pick_cancelled), returnToEditor = false) }
     }
 
-    private class Session(val service: AndroidActions, val request: String, val target: String,
-        val swipe: Boolean, val screen: ActionDefinition.Screen, val elements: Boolean) {
+    private class Session(val service: AndroidActions, val request: String, val target: String?,
+        val swipe: Boolean, val screen: ActionDefinition.Screen) {
+        private val elements = target != null
         private val main = Handler(Looper.getMainLooper())
         private val wm = service.getSystemService(WindowManager::class.java)
         private var window: View? = null
-        private var capturing = false
+        private var capturing = !elements
         private var loading = false
         private var choices = emptyList<ActionSelector>()
         private var lookup: Job? = null
@@ -86,7 +90,7 @@ internal object ActionCoordinatePicker {
             loading = true; render()
             lookup = CoroutineScope(Dispatchers.Main.immediate).launch {
                 try {
-                    val found = AndroidActions.inspectUi(target).flatMap { it.selectors() }.distinct()
+                    val found = AndroidActions.inspectUi(requireNotNull(target)).flatMap { it.selectors() }.distinct()
                     if (session !== this@Session) return@launch
                     choices = found
                     if (found.isEmpty()) Toast.makeText(service, R.string.action_ui_empty, Toast.LENGTH_LONG).show()
@@ -128,14 +132,13 @@ internal object ActionCoordinatePicker {
             val accept = button(if (elements) R.string.action_ui_read else if (capturing) R.string.action_edit_apply else R.string.action_edit_pick,
                 EdgeSettingsUi.Kind.PRIMARY, !loading && (!capturing || points != null)) {
                 try {
-                    check(AndroidActions.targetMatches(target)) { service.getString(R.string.action_pick_target) }
-                    if (elements) readElements()
+                    if (elements) {
+                        check(AndroidActions.targetMatches(requireNotNull(target))) { service.getString(R.string.action_pick_foreground, target) }
+                        readElements()
+                    }
                     else if (!capturing) { capturing = true; points = null; render() }
                     else {
                         val selected = points ?: return@button
-                        val bounds = AndroidActions.coordinateTargetBounds(target)
-                        check(bounds != null && bounds.contains(selected[0].toInt(), selected[1].toInt()) &&
-                            bounds.contains(selected[2].toInt(), selected[3].toInt())) { service.getString(R.string.action_pick_target) }
                         check(ActionRuntime.screen(service) == screen && unlocked()) { service.getString(R.string.action_pick_cancelled) }
                         finish(selected, null)
                     }
@@ -143,6 +146,10 @@ internal object ActionCoordinatePicker {
                     Toast.makeText(service, e.message, Toast.LENGTH_LONG).show()
                     if (window == null) finish(null, e.message)
                 }
+            }
+            if (capturing) button(R.string.action_pick_navigate) {
+                capturing = false; points = null
+                try { render() } catch (e: Exception) { finish(null, e.message) }
             }
             button(R.string.action_pick_move) {
                 bottom = !bottom
@@ -159,9 +166,10 @@ internal object ActionCoordinatePicker {
                     adapter = ArrayAdapter(service, android.R.layout.simple_list_item_1, choices.map { it.toString() })
                     setOnItemClickListener { _, _, index, _ ->
                         try {
-                            check(AndroidActions.targetMatches(target) && unlocked() && ActionRuntime.screen(service) == screen) {
-                                service.getString(R.string.action_pick_target)
+                            check(AndroidActions.targetMatches(requireNotNull(target))) {
+                                service.getString(R.string.action_pick_foreground, target)
                             }
+                            check(unlocked() && ActionRuntime.screen(service) == screen) { service.getString(R.string.action_pick_cancelled) }
                             finish(null, null, selector = choices[index])
                         } catch (e: Exception) { Toast.makeText(service, e.message, Toast.LENGTH_LONG).show() }
                     }

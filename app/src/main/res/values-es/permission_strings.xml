@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="permissions_intro">Configura aquí los permisos de cada función. Los permisos y la detección o el registro de notificaciones se eligen por separado.</string>
+    <string name="permissions_open_failed">No se pudo abrir la configuración de permisos.</string>
+    <string name="permissions_notifications">Mostrar notificaciones</string>
+    <string name="permissions_notifications_desc">Muestra avisos de servicios residentes y comandos. Android permite configurar cada categoría.</string>
+    <string name="permissions_listener">Leer notificaciones</string>
+    <string name="permissions_listener_desc">Lee notificaciones de otras apps para el registro y las reglas de automatización.</string>
+    <string name="permissions_accessibility">Accesibilidad</string>
+    <string name="permissions_accessibility_desc">Permite seleccionar coordenadas, tocar, deslizar y realizar otras acciones de Android.</string>
+    <string name="permissions_overlay">Mostrar sobre otras apps</string>
+    <string name="permissions_overlay_desc">Muestra paneles flotantes y herramientas sobre otras apps.</string>
+    <string name="permissions_storage">Almacenamiento compartido</string>
+    <string name="permissions_storage_desc">Lee y escribe en el almacenamiento compartido, incluido /sdcard. Las carpetas elegidas en el selector se autorizan por separado.</string>
+    <string name="permissions_sms">Recibir SMS</string>
+    <string name="permissions_sms_desc">Lee SMS entrantes para el registro y las reglas de automatización.</string>
+    <string name="permissions_battery">Excluir de la optimización de batería</string>
+    <string name="permissions_battery_desc">Facilita que los servicios sigan funcionando con la pantalla apagada.</string>
+    <string name="permissions_write_settings">Modificar ajustes del sistema</string>
+    <string name="permissions_write_settings_desc">Cambia temporalmente el tiempo de apagado automático de pantalla.</string>
+    <string name="permissions_usage">Acceso al uso</string>
+    <string name="permissions_usage_desc">Lee el consumo de datos del dispositivo para aplicar el límite configurado.</string>
+    <string name="permissions_install">Instalar actualizaciones</string>
+    <string name="permissions_install_desc">Permite que esta app abra el instalador de Android con un APK descargado.</string>
+    <string name="permissions_admin">Administrador del dispositivo</string>
+    <string name="permissions_admin_desc">Detecta intentos fallidos y correctos de desbloqueo. No permite bloquear ni borrar datos a distancia.</string>
+    <string name="permissions_ime">Activar teclado</string>
+    <string name="permissions_ime_desc">Habilita el teclado integrado como método de entrada de Android.</string>
+    <string name="permissions_usb">Dispositivos USB</string>
+    <string name="permissions_usb_desc">Conecta un dispositivo y autoriza su acceso. El permiso dura hasta desconectarlo.</string>
+    <string name="permissions_usb_empty">No hay dispositivos USB conectados.</string>
+    <string name="permissions_root">Acceso root</string>
+    <string name="permissions_root_desc">Solicita root y comprueba chroot solo al pulsar el botón.</string>
+    <string name="permissions_root_checked">chroot se habilitó tras una comprobación anterior. El botón comprueba de nuevo el acceso root actual.</string>
+    <string name="permissions_app_details">Información de la app</string>
+    <string name="permissions_app_details_desc">Gestiona permisos y restricciones de Android. Si ya no aparece la solicitud de permiso, cámbialo aquí.</string>
+    <string name="permissions_manage">Abrir ajustes</string>
+    <string name="permissions_request">Solicitar permiso</string>
+    <string name="permissions_granted">Activado / permitido</string>
+    <string name="permissions_missing">Desactivado / no permitido</string>
+    <string name="tools_automation_actions">Automatizar acciones</string>
+    <string name="tools_automation_rules">Reglas de automatización</string>
+    <string name="tools_automation_actions_desc">Combina toques, deslizamientos, esperas y acciones de apps. Abre el gestor para crear, editar, ejecutar, detener y consultar el historial.</string>
+    <string name="permissions_tab_access">Permisos</string>
+    <string name="permissions_tab_logs">Notificaciones y registros</string>
+    <string name="permissions_log_missing">Autoriza lo siguiente en la pestaña Permisos: %1$s</string>
+</resources>

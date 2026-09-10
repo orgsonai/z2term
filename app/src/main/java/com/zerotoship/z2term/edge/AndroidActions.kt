@@ -214,18 +214,12 @@ class AndroidActions : AccessibilityService() {
 
         internal fun pickUiElements(request: String, target: String) {
             val service = active ?: error("Enable z2term Android actions in Accessibility settings")
-            com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, target, swipe = false, elements = true)
+            com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, swipe = false, target = target)
         }
 
-        internal fun pickCoordinates(request: String, target: String, swipe: Boolean) {
+        internal fun pickCoordinates(request: String, swipe: Boolean) {
             val service = active ?: error("Enable z2term Android actions in Accessibility settings")
-            com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, target, swipe)
-        }
-
-        internal fun coordinateTargetBounds(packageName: String): Rect? {
-            val service = active ?: return null
-            val target = service.focusedTarget() ?: return null
-            return target.bounds.takeIf { service.windowPackages[target.id] == packageName }?.let { Rect(it) }
+            com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, swipe)
         }
 
         internal fun gesturesInFlight(): Boolean = active?.let { it.coordinateStroke.inFlight || it.autoScroll.inFlight } == true

@@ -1,12 +1,9 @@
 package com.zerotoship.z2term.ui.settings
 
-import android.Manifest
 import android.app.StatusBarManager
-import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
@@ -62,6 +59,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -85,8 +83,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.R
@@ -100,9 +96,7 @@ import com.zerotoship.z2term.legal.LicensesDialog
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.RootProbe
 import com.zerotoship.z2term.service.NotificationLogService
-import com.zerotoship.z2term.service.PasswordWatchAdmin
 import com.zerotoship.z2term.service.ServerDaemonManager
-import com.zerotoship.z2term.service.ScreenTimeout
 import com.zerotoship.z2term.service.SmsLogReceiver
 import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.service.TerminalService
@@ -202,6 +196,7 @@ fun SettingsSheet(
     val actualEngine by session.actualEngine.collectAsState()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val permissionRefresh = rememberPermissionRefresh()
     val scope = rememberCoroutineScope()
     // distro 切替でダウンロードが要るとき、確認ダイアログの対象 spec を保持 (M8-6 T7)。
     var pendingDistroSwitch by remember { mutableStateOf<DistroSpec?>(null) }
@@ -223,9 +218,6 @@ fun SettingsSheet(
     var linuxGroupY by remember { mutableStateOf(0) }
     // IME 学習履歴の管理シート。非 null の間 [ImeHistorySheet] を表示する (キーボードパッチ)。
     var imeHistoryOpen by remember { mutableStateOf(false) }
-    var serversOpen by remember { mutableStateOf(false) }
-    // 自動化ルール (z2-when) の管理シート。📜 の「自動化」タブと同じ中身をここからも開ける。
-    var whenRulesOpen by remember { mutableStateOf(false) }
     // カスタム配列エディタは別 Dialog ではなく、設定画面の同じ Surface 内で固定ページに切り替える。
     var keyLayoutEditingId by remember { mutableStateOf<String?>(null) }
     // 持ち出し / 引き継ぎ (0.8.239)。秘密を含めるときだけ合言葉を要る形にする。
@@ -274,19 +266,6 @@ fun SettingsSheet(
         }
     }
     val cacheTotal = cacheItems?.sumOf { it.bytes }
-    // L1: 電池最適化の除外状態。システム設定から戻った時 (ON_RESUME) に再判定して
-    // トグル表示を実態に同期させる (除外の追加/解除はシステム UI 側で行われるため)。
-    var batteryIgnoring by remember { mutableStateOf(BatteryGuard.isIgnoring(context)) }
-    DisposableEffect(context) {
-        val owner = context as? androidx.lifecycle.LifecycleOwner
-        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                batteryIgnoring = BatteryGuard.isIgnoring(context)
-            }
-        }
-        owner?.lifecycle?.addObserver(obs)
-        onDispose { owner?.lifecycle?.removeObserver(obs) }
-    }
     // root セルフテスト実行中フラグ (連打防止 + ボタン表記切替)。
     var rootProbing by remember { mutableStateOf(false) }
     // root セルフテストを (再)実行する共通処理。成功で chroot を解放する。
@@ -641,47 +620,6 @@ fun SettingsSheet(
                     onEditLayout = { keyLayoutEditingId = it },
                 )
 
-                // 内蔵キーボードを OS の入力方法として出す (Z2ImeService)。⚠ 有効化も選択も
-                // ユーザーの操作でしか行えない (OS の決まり) ので、ここは 2 つの画面へ送るだけ。
-                // 「有効にする」→ OS の入力方法一覧、「切り替える」→ キーボード選択ダイアログ。
-                // キーボードの設定なので**キーボードのグループ**に置く (以前は自動化の下にあり、
-                // キーボードを探した人が見つけられなかった)。
-                Section(title = stringResource(R.string.settings_section_ime)) {
-                    Text(
-                        text = stringResource(R.string.settings_ime_desc),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    ActionButton(
-                        label = stringResource(R.string.settings_ime_enable),
-                        onClick = {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
-                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                )
-                            }
-                        }
-                    )
-                    ActionButton(
-                        label = stringResource(R.string.settings_ime_pick),
-                        onClick = {
-                            runCatching {
-                                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE)
-                                    as android.view.inputmethod.InputMethodManager
-                                imm.showInputMethodPicker()
-                            }
-                        }
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_ime_note),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-
                 // IME 学習履歴 (キーボードパッチ): 件数表示 + 管理ボタン (シートを開く)
                 Section(title = stringResource(R.string.settings_section_ime_history)) {
                     val historyVersion by com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.versionFlow.collectAsState()
@@ -1003,8 +941,6 @@ fun SettingsSheet(
 
                 SshAccessHelper(session = session)
 
-                StorageAccessHelper()
-
                 // 外部 SD カードを proot 内へ認識させる ON/OFF + 検出されたパスの表示。
                 // ON のときだけ ExternalStorageDetector を呼ぶ (OFF 時はゼロコスト)。
                 // マウントの実反映は次のセッション再起動時 (proot 起動引数として渡すため)。
@@ -1085,472 +1021,266 @@ fun SettingsSheet(
                 )
             }
 
-            SettingsGroupSection(SettingsGroup.AUTOMATION) {
-                Section(title = stringResource(R.string.action_macro_title)) {
-                    Text(
-                        text = stringResource(R.string.action_edit_intro),
-                        color = ZtsTextSecondary,
-                        fontSize = 12.sp
+            SettingsGroupSection(SettingsGroup.PERMISSIONS) {
+                var notificationSettings by rememberSaveable { mutableStateOf(false) }
+                PermissionSettingsTabs(notificationSettings, onSelect = { notificationSettings = it })
+                if (!notificationSettings) {
+                    PermissionsSection(
+                        rootAvailable = settings.engineSelectorUnlocked,
+                        rootUnlocked = settings.rootChrootUnlocked,
+                        rootProbing = rootProbing,
+                        onRootProbe = { runRootProbe(true) }
                     )
-                    ActionButton(
-                        label = stringResource(R.string.action_edit_open),
-                        onClick = { context.startActivity(Intent(context,
-                            com.zerotoship.z2term.automation.ActionMacrosActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                    )
-                }
 
-                // 通信量の上限 (0.8.388)。使いすぎに気付くのはたいてい絞られてからなので、
-                // 自分で決めた量で止まれるようにする。
-                NetLimitSection(settings = settings, session = session)
-
-                // L1: バックグラウンドでのプロセス kill 対策。電池最適化の除外トグル +
-                // Android 12/13 の phantom process killing 無効化手順 (adb) の案内。
-                Section(title = stringResource(R.string.settings_section_process_guard)) {
-                    ToggleField(
-                        title = stringResource(R.string.settings_battery_opt_toggle),
-                        description = stringResource(R.string.settings_battery_opt_toggle_desc),
-                        checked = batteryIgnoring,
-                        // 実際の除外追加/解除はシステム UI で行う。トグル状態は ON_RESUME で同期。
-                        onChange = { wantOn ->
-                            if (wantOn) BatteryGuard.requestExemption(context)
-                            else BatteryGuard.openOptimizationSettings(context)
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.settings_phantom_title),
-                        color = ZtsTextPrimary,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_phantom_desc),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    // コマンド例の見た目・コピー操作は他セクション (読むコマンド等) と揃える。
-                    CopyableCommand(
-                        label = stringResource(R.string.settings_cmd_copy_label),
-                        command = BatteryGuard.PHANTOM_DISABLE_ADB
-                    )
-                    // 省電力モード (WakeLock/WifiLock を握らない)。0.8.309 で 📜 サーバータブから
-                    // ここへ移した。⚠ **サーバーだけの設定ではない** — 🔒 バックグラウンド常駐にも
-                    // 効き、自動化 (z2-when → HeadlessRun) は自前のロックを持たず**常駐側が握って
-                    // いるロックへの相乗り**で動くので、反応の速さもこれで変わる。上の 2 つと同じ
-                    // 「端末に眠らせるか / 起こしておくか」の設定なので、このセクションに並べる。
-                    // ⛔ **`TerminalService.start` の呼び直しを落とさない**。あちらは
-                    // onStartCommand でしか省電力を判定しないので (TerminalService.kt:98-106)、
-                    // これが無いとトグルしても次の起動までロックが切り替わらない。
-                    // 呼び直しは idempotent で、🔒 が OFF なら何も起きない。
-                    ToggleField(
-                        title = stringResource(R.string.settings_low_power),
-                        description = stringResource(R.string.settings_low_power_desc),
-                        checked = settings.serversLowPower,
-                        onChange = {
-                            session.setServersLowPower(it)
-                            if (settings.keepAliveService) TerminalService.start(context)
-                        }
-                    )
-                }
-
-                // 常駐サーバー: 任意のサーバー (sshd/http/smb 等) を起動コマンドとして登録し、
-                // アプリを開かず自動常駐させる。管理は専用シート (ServersSheet) で行う。
-                Section(title = stringResource(R.string.settings_section_servers)) {
-                    Text(
-                        text = stringResource(R.string.settings_servers_desc),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    ActionButton(
-                        label = stringResource(R.string.settings_open_servers),
-                        onClick = { serversOpen = true }
-                    )
-                }
-
-                // 自動化ルール (z2-when)。一覧・ON/OFF・ログ・▶試す・一時停止は 1 つの画面
-                // ([WhenRulesBody]) にまとめ、常駐サーバーと同じくここからも開けるようにする。
-                Section(title = stringResource(R.string.settings_section_automation_rules)) {
-                    Text(
-                        text = stringResource(R.string.settings_automation_rules_desc),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    ActionButton(
-                        label = stringResource(R.string.settings_open_when_rules),
-                        onClick = { whenRulesOpen = true }
-                    )
-                }
-
-                // 画面の自動消灯 (z2-screen): OS 全体の「画面消灯までの時間」を期限つきで延ばす。
-                // ⚠ ツールバーの🔅 (アプリを開いている間だけ) とは別物。ここは許可の状態を見せて
-                // 許可画面へ送るだけで、掛ける/外すは端末側の z2-screen が担う (時間指定が要るため)。
-                Section(title = stringResource(R.string.settings_section_screen_timeout)) {
-                    // 許可は OS の設定画面で変わるので remember しない (キャッシュすると、許可して
-                    // 戻ってきても「未許可」のままに見える)。AppOps の問い合わせだけなので毎回読む。
-                    val allowed = ScreenTimeout.canWrite(context)
-                    Text(
-                        text = stringResource(R.string.settings_screen_timeout_desc),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Text(
-                        text = if (allowed) stringResource(R.string.settings_screen_timeout_granted)
-                        else stringResource(R.string.settings_screen_timeout_missing),
-                        color = if (allowed) ZtsGreen else ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    ActionButton(
-                        label = stringResource(R.string.settings_screen_timeout_grant),
-                        onClick = {
-                            runCatching { context.startActivity(ScreenTimeout.manageIntent(context)) }
-                        }
-                    )
-                    CopyableCommand(
-                        label = stringResource(R.string.settings_screen_timeout_cmd_label),
-                        command = "z2-screen keepon 1h"
-                    )
-                }
-
-                // 通知検知 (汎用入口): OS の「通知アクセス」許可 + 設定 ON のとき、届いた通知を
-                // ~/.z2term/notifications.jsonl へ生ログ追記する。加工・配信はユーザーがターミナル側で自由に。
-                Section(title = stringResource(R.string.settings_section_notif)) {
-                    val granted = remember(serversOpen, settings.notificationCaptureEnabled) {
-                        NotificationManagerCompat.getEnabledListenerPackages(context)
-                            .contains(context.packageName)
+                    Section(stringResource(R.string.settings_section_process_guard)) {
+                        Text(stringResource(R.string.settings_phantom_title), color = ZtsTextPrimary, fontSize = 12.sp)
+                        Text(stringResource(R.string.settings_phantom_desc), color = ZtsTextSecondary, fontSize = 10.sp)
+                        CopyableCommand(label = stringResource(R.string.settings_cmd_copy_label), command = BatteryGuard.PHANTOM_DISABLE_ADB)
                     }
-                    ToggleField(
-                        title = stringResource(R.string.settings_notif_capture),
-                        description = stringResource(R.string.settings_notif_capture_desc),
-                        checked = settings.notificationCaptureEnabled,
-                        onChange = { session.setNotificationCaptureEnabled(it) }
+
+                } else {
+                    NotificationPermissionHints(
+                        notifications = settings.notificationCaptureEnabled,
+                        sms = settings.smsCaptureEnabled,
+                        admin = settings.unlockWatchEnabled,
+                        onOpen = { notificationSettings = false }
                     )
-                    Text(
-                        text = if (granted) stringResource(R.string.settings_notif_access_granted)
-                        else stringResource(R.string.settings_notif_access_missing),
-                        color = if (granted) ZtsGreen else ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    ActionButton(
-                        label = stringResource(R.string.settings_notif_grant),
-                        onClick = {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                )
+                    // 通知検知 (汎用入口): OS の「通知アクセス」許可 + 設定 ON のとき、届いた通知を
+                    // ~/.z2term/notifications.jsonl へ生ログ追記する。加工・配信はユーザーがターミナル側で自由に。
+                    Section(title = stringResource(R.string.settings_section_notif)) {
+                        ToggleField(
+                            title = stringResource(R.string.settings_notif_capture),
+                            description = stringResource(R.string.settings_notif_capture_desc),
+                            checked = settings.notificationCaptureEnabled,
+                            onChange = { session.setNotificationCaptureEnabled(it) }
+                        )
+                        // ログ保存の ON/OFF (検知とは独立)。OFF なら検知だけ行いファイルには書かない。
+                        ToggleField(
+                            title = stringResource(R.string.settings_notif_log),
+                            description = stringResource(R.string.settings_notif_log_desc),
+                            checked = settings.notificationLogEnabled,
+                            onChange = { session.setNotificationLogEnabled(it) }
+                        )
+
+                        // 出力フォーマット: プリセットで埋めてから自由に編集できるテンプレート。
+                        val fmtPresets = remember {
+                            listOf(
+                                "jsonl" to "",
+                                "readable" to "[{time}] {app}\\n{title}\\n{text}\\n",
+                                "line" to "{time} [{app}] {title1}: {text1}",
+                                "tsv" to "{time}\\t{app}\\t{title1}\\t{text1}",
+                            )
+                        }
+                        val fmtSelected = fmtPresets.firstOrNull { it.second == settings.notificationLogFormat }?.first ?: ""
+                        ChipRow(
+                            options = fmtPresets.map { it.first },
+                            selected = fmtSelected,
+                            labels = mapOf(
+                                "jsonl" to "JSONL",
+                                "readable" to stringResource(R.string.settings_notif_fmt_readable),
+                                "line" to stringResource(R.string.settings_notif_fmt_line),
+                                "tsv" to "TSV",
+                            ),
+                            onSelect = { id ->
+                                session.setNotificationLogFormat(fmtPresets.first { it.first == id }.second)
                             }
-                        }
-                    )
+                        )
+                        TextField(
+                            title = stringResource(R.string.settings_notif_fmt_title),
+                            placeholder = "{time} [{app}] {title1}: {text1}",
+                            value = settings.notificationLogFormat,
+                            onChange = { session.setNotificationLogFormat(it) }
+                        )
+                        ToggleField(
+                            title = stringResource(R.string.settings_log_prepend),
+                            description = stringResource(R.string.settings_log_prepend_desc),
+                            checked = settings.notificationLogPrepend,
+                            onChange = { session.setNotificationLogPrepend(it) }
+                        )
+                        LogSizeWarning(
+                            bytes = remember(permissionRefresh, settings.notificationLogPrepend) {
+                                NotificationLogService.logFile(context).length()
+                            },
+                            prepend = settings.notificationLogPrepend,
+                            path = "~/" + NotificationLogService.LOG_REL
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_notif_fmt_help),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
 
-                    // ログ保存の ON/OFF (検知とは独立)。OFF なら検知だけ行いファイルには書かない。
-                    ToggleField(
-                        title = stringResource(R.string.settings_notif_log),
-                        description = stringResource(R.string.settings_notif_log_desc),
-                        checked = settings.notificationLogEnabled,
-                        onChange = { session.setNotificationLogEnabled(it) }
-                    )
-
-                    // 出力フォーマット: プリセットで埋めてから自由に編集できるテンプレート。
-                    val fmtPresets = remember {
-                        listOf(
-                            "jsonl" to "",
-                            "readable" to "[{time}] {app}\\n{title}\\n{text}\\n",
-                            "line" to "{time} [{app}] {title1}: {text1}",
-                            "tsv" to "{time}\\t{app}\\t{title1}\\t{text1}",
+                        Text(
+                            text = stringResource(R.string.settings_notif_logpath),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        CopyableCommand(
+                            label = stringResource(R.string.settings_cmd_read_label),
+                            command = readLogCommand(
+                                "~/" + NotificationLogService.LOG_REL,
+                                settings.notificationLogPrepend
+                            )
                         )
                     }
-                    val fmtSelected = fmtPresets.firstOrNull { it.second == settings.notificationLogFormat }?.first ?: ""
-                    ChipRow(
-                        options = fmtPresets.map { it.first },
-                        selected = fmtSelected,
-                        labels = mapOf(
-                            "jsonl" to "JSONL",
-                            "readable" to stringResource(R.string.settings_notif_fmt_readable),
-                            "line" to stringResource(R.string.settings_notif_fmt_line),
-                            "tsv" to "TSV",
-                        ),
-                        onSelect = { id ->
-                            session.setNotificationLogFormat(fmtPresets.first { it.first == id }.second)
+
+                    // SMS 受信検知 (汎用入口): RECEIVE_SMS 許可 + 設定 ON のとき、着信 SMS を ~/.z2term/sms.jsonl へ追記。
+                    // 通知と違い機微通知の伏せ字 (Android 15+) やロック状態の影響を受けないので OTP を確実に取れる。
+                    Section(title = stringResource(R.string.settings_section_sms)) {
+                        ToggleField(
+                            title = stringResource(R.string.settings_sms_capture),
+                            description = stringResource(R.string.settings_sms_capture_desc),
+                            checked = settings.smsCaptureEnabled,
+                            onChange = { session.setSmsCaptureEnabled(it) }
+                        )
+
+                        // 出力フォーマット: プリセットで埋めてから自由に編集できるテンプレート。
+                        val smsPresets = remember {
+                            listOf(
+                                "jsonl" to "",
+                                "readable" to "[{time}] {from}\\n{body}\\n",
+                                "line" to "{time} [{from}] {body1}",
+                                "tsv" to "{time}\\t{from}\\t{body1}",
+                            )
                         }
-                    )
-                    TextField(
-                        title = stringResource(R.string.settings_notif_fmt_title),
-                        placeholder = "{time} [{app}] {title1}: {text1}",
-                        value = settings.notificationLogFormat,
-                        onChange = { session.setNotificationLogFormat(it) }
-                    )
-                    ToggleField(
-                        title = stringResource(R.string.settings_log_prepend),
-                        description = stringResource(R.string.settings_log_prepend_desc),
-                        checked = settings.notificationLogPrepend,
-                        onChange = { session.setNotificationLogPrepend(it) }
-                    )
-                    LogSizeWarning(
-                        bytes = remember(serversOpen, settings.notificationLogPrepend) {
-                            NotificationLogService.logFile(context).length()
-                        },
-                        prepend = settings.notificationLogPrepend,
-                        path = "~/" + NotificationLogService.LOG_REL
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_notif_fmt_help),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-
-                    Text(
-                        text = stringResource(R.string.settings_notif_logpath),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    CopyableCommand(
-                        label = stringResource(R.string.settings_cmd_read_label),
-                        command = readLogCommand(
-                            "~/" + NotificationLogService.LOG_REL,
-                            settings.notificationLogPrepend
-                        )
-                    )
-                }
-
-                // SMS 受信検知 (汎用入口): RECEIVE_SMS 許可 + 設定 ON のとき、着信 SMS を ~/.z2term/sms.jsonl へ追記。
-                // 通知と違い機微通知の伏せ字 (Android 15+) やロック状態の影響を受けないので OTP を確実に取れる。
-                Section(title = stringResource(R.string.settings_section_sms)) {
-                    var smsGranted by remember {
-                        mutableStateOf(
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS)
-                                == PackageManager.PERMISSION_GRANTED
-                        )
-                    }
-                    val smsPermLauncher = rememberLauncherForActivityResult(
-                        ActivityResultContracts.RequestPermission()
-                    ) { granted -> smsGranted = granted }
-                    ToggleField(
-                        title = stringResource(R.string.settings_sms_capture),
-                        description = stringResource(R.string.settings_sms_capture_desc),
-                        checked = settings.smsCaptureEnabled,
-                        onChange = { enabled ->
-                            session.setSmsCaptureEnabled(enabled)
-                            // ON にした瞬間に許可が無ければ実行時許可を求める (無いと検知しても届かない)。
-                            if (enabled && !smsGranted) {
-                                smsPermLauncher.launch(Manifest.permission.RECEIVE_SMS)
+                        val smsSelected = smsPresets.firstOrNull { it.second == settings.smsLogFormat }?.first ?: ""
+                        ChipRow(
+                            options = smsPresets.map { it.first },
+                            selected = smsSelected,
+                            labels = mapOf(
+                                "jsonl" to "JSONL",
+                                "readable" to stringResource(R.string.settings_notif_fmt_readable),
+                                "line" to stringResource(R.string.settings_notif_fmt_line),
+                                "tsv" to "TSV",
+                            ),
+                            onSelect = { id ->
+                                session.setSmsLogFormat(smsPresets.first { it.first == id }.second)
                             }
-                        }
-                    )
-                    Text(
-                        text = if (smsGranted) stringResource(R.string.settings_sms_perm_granted)
-                        else stringResource(R.string.settings_sms_perm_missing),
-                        color = if (smsGranted) ZtsGreen else ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    ActionButton(
-                        label = stringResource(R.string.settings_sms_grant),
-                        onClick = { smsPermLauncher.launch(Manifest.permission.RECEIVE_SMS) }
-                    )
-
-                    // 出力フォーマット: プリセットで埋めてから自由に編集できるテンプレート。
-                    val smsPresets = remember {
-                        listOf(
-                            "jsonl" to "",
-                            "readable" to "[{time}] {from}\\n{body}\\n",
-                            "line" to "{time} [{from}] {body1}",
-                            "tsv" to "{time}\\t{from}\\t{body1}",
+                        )
+                        TextField(
+                            title = stringResource(R.string.settings_sms_fmt_title),
+                            placeholder = "{time} [{from}] {body1}",
+                            value = settings.smsLogFormat,
+                            onChange = { session.setSmsLogFormat(it) }
+                        )
+                        ToggleField(
+                            title = stringResource(R.string.settings_log_prepend),
+                            description = stringResource(R.string.settings_log_prepend_desc),
+                            checked = settings.smsLogPrepend,
+                            onChange = { session.setSmsLogPrepend(it) }
+                        )
+                        LogSizeWarning(
+                            bytes = remember(permissionRefresh, settings.smsLogPrepend) {
+                                SmsLogReceiver.logFile(context).length()
+                            },
+                            prepend = settings.smsLogPrepend,
+                            path = "~/" + SmsLogReceiver.LOG_REL
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_sms_help),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        CopyableCommand(
+                            label = stringResource(R.string.settings_cmd_read_label),
+                            command = readLogCommand("~/" + SmsLogReceiver.LOG_REL, settings.smsLogPrepend)
                         )
                     }
-                    val smsSelected = smsPresets.firstOrNull { it.second == settings.smsLogFormat }?.first ?: ""
-                    ChipRow(
-                        options = smsPresets.map { it.first },
-                        selected = smsSelected,
-                        labels = mapOf(
-                            "jsonl" to "JSONL",
-                            "readable" to stringResource(R.string.settings_notif_fmt_readable),
-                            "line" to stringResource(R.string.settings_notif_fmt_line),
-                            "tsv" to "TSV",
-                        ),
-                        onSelect = { id ->
-                            session.setSmsLogFormat(smsPresets.first { it.first == id }.second)
-                        }
-                    )
-                    TextField(
-                        title = stringResource(R.string.settings_sms_fmt_title),
-                        placeholder = "{time} [{from}] {body1}",
-                        value = settings.smsLogFormat,
-                        onChange = { session.setSmsLogFormat(it) }
-                    )
-                    ToggleField(
-                        title = stringResource(R.string.settings_log_prepend),
-                        description = stringResource(R.string.settings_log_prepend_desc),
-                        checked = settings.smsLogPrepend,
-                        onChange = { session.setSmsLogPrepend(it) }
-                    )
-                    LogSizeWarning(
-                        bytes = remember(serversOpen, settings.smsLogPrepend) {
-                            SmsLogReceiver.logFile(context).length()
-                        },
-                        prepend = settings.smsLogPrepend,
-                        path = "~/" + SmsLogReceiver.LOG_REL
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_sms_help),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    CopyableCommand(
-                        label = stringResource(R.string.settings_cmd_read_label),
-                        command = readLogCommand("~/" + SmsLogReceiver.LOG_REL, settings.smsLogPrepend)
-                    )
-                }
 
-                // システムイベント検知 (汎用入口): 設定 ON のとき FG サービスが常駐し、画面 ON/OFF・ロック解除・
-                // 充電・電池・Wi‑Fi のイベントを ~/.z2term/events.jsonl へ追記する。加工はユーザーがターミナル側で。
-                Section(title = stringResource(R.string.settings_section_events)) {
-                    ToggleField(
-                        title = stringResource(R.string.settings_events_capture),
-                        description = stringResource(R.string.settings_events_capture_desc),
-                        checked = settings.systemEventCaptureEnabled,
-                        onChange = { enabled ->
-                            session.setSystemEventCaptureEnabled(enabled)
-                            SystemEventService.sync(context, enabled)
-                        }
-                    )
-
-                    // 出力フォーマット: プリセットで埋めてから自由に編集できるテンプレート。
-                    val evtPresets = remember {
-                        listOf(
-                            "jsonl" to "",
-                            "line" to "{time} {event} {level}{ssid}",
-                            "tsv" to "{time}\\t{event}\\t{level}\\t{ssid}",
-                        )
-                    }
-                    val evtSelected = evtPresets.firstOrNull { it.second == settings.systemEventLogFormat }?.first ?: ""
-                    ChipRow(
-                        options = evtPresets.map { it.first },
-                        selected = evtSelected,
-                        labels = mapOf(
-                            "jsonl" to "JSONL",
-                            "line" to stringResource(R.string.settings_notif_fmt_line),
-                            "tsv" to "TSV",
-                        ),
-                        onSelect = { id ->
-                            session.setSystemEventLogFormat(evtPresets.first { it.first == id }.second)
-                        }
-                    )
-                    TextField(
-                        title = stringResource(R.string.settings_notif_fmt_title),
-                        placeholder = "{time} {event} {level}{ssid}",
-                        value = settings.systemEventLogFormat,
-                        onChange = { session.setSystemEventLogFormat(it) }
-                    )
-                    ToggleField(
-                        title = stringResource(R.string.settings_log_prepend),
-                        description = stringResource(R.string.settings_log_prepend_desc),
-                        checked = settings.systemEventLogPrepend,
-                        onChange = { session.setSystemEventLogPrepend(it) }
-                    )
-                    LogSizeWarning(
-                        bytes = remember(serversOpen, settings.systemEventLogPrepend) {
-                            SystemEventService.logFile(context).length()
-                        },
-                        prepend = settings.systemEventLogPrepend,
-                        path = "~/" + SystemEventService.LOG_REL
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_events_fmt_help),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_events_logpath),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    CopyableCommand(
-                        label = stringResource(R.string.settings_cmd_read_label),
-                        command = readLogCommand(
-                            "~/" + SystemEventService.LOG_REL,
-                            settings.systemEventLogPrepend
-                        )
-                    )
-                }
-
-                // ロック解除の失敗監視 (盗難対策マクロの検知入口): 設定 ON + 端末管理者が有効なとき、
-                // ロック解除の失敗/成功を events.jsonl へ unlock_failed / unlock_succeeded として流す。
-                // 撮影・送信・警報などのアクションはハードコードせず、ユーザーがマクロで組む。
-                Section(title = stringResource(R.string.settings_section_unlock_watch)) {
-                    // 端末管理者の有効/無効は OS 側の画面で変わるため、遷移から戻ってきた時点で
-                    // 必ず読み直す。remember のキー任せだと戻っても再評価されず、有効化したのに
-                    // 「未設定」のまま・ボタンも「有効化」のままで、押すと既に有効な管理者に対して
-                    // 追加ダイアログを出そうとして何も起きない (= 壊れて見える) ことになる。
-                    var adminActive by remember { mutableStateOf(PasswordWatchAdmin.isActive(context)) }
-                    val adminLauncher = rememberLauncherForActivityResult(
-                        ActivityResultContracts.StartActivityForResult()
-                    ) {
-                        // 戻り値 (RESULT_OK/CANCELED) ではなく DPM に現在の状態を聞き直す。
-                        // セキュリティ設定から無効化して戻ってきた場合もこれで追従する。
-                        adminActive = PasswordWatchAdmin.isActive(context)
-                    }
-                    ToggleField(
-                        title = stringResource(R.string.settings_unlock_watch),
-                        description = stringResource(R.string.settings_unlock_watch_desc),
-                        checked = settings.unlockWatchEnabled,
-                        onChange = { session.setUnlockWatchEnabled(it) }
-                    )
-                    Text(
-                        text = if (adminActive) stringResource(R.string.settings_unlock_watch_admin_active)
-                        else stringResource(R.string.settings_unlock_watch_admin_missing),
-                        color = if (adminActive) ZtsGreen else ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    // 端末管理者の有効化ダイアログ (EXTRA_DEVICE_ADMIN は ComponentName parcelable なので
-                    // z2-intent 等では組めず、アプリ内から起動する)。有効化済みなら管理者一覧を開いて無効化に導く。
-                    ActionButton(
-                        label = if (adminActive) stringResource(R.string.settings_unlock_watch_admin_manage)
-                        else stringResource(R.string.settings_unlock_watch_admin_grant),
-                        onClick = {
-                            val intent = if (adminActive) {
-                                Intent(Settings.ACTION_SECURITY_SETTINGS)
-                            } else {
-                                Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
-                                    .putExtra(
-                                        DevicePolicyManager.EXTRA_DEVICE_ADMIN,
-                                        PasswordWatchAdmin.component(context)
-                                    )
-                                    .putExtra(
-                                        DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                                        context.getString(R.string.settings_unlock_watch_admin_explain)
-                                    )
+                    // システムイベント検知 (汎用入口): 設定 ON のとき FG サービスが常駐し、画面 ON/OFF・ロック解除・
+                    // 充電・電池・Wi‑Fi のイベントを ~/.z2term/events.jsonl へ追記する。加工はユーザーがターミナル側で。
+                    Section(title = stringResource(R.string.settings_section_events)) {
+                        ToggleField(
+                            title = stringResource(R.string.settings_events_capture),
+                            description = stringResource(R.string.settings_events_capture_desc),
+                            checked = settings.systemEventCaptureEnabled,
+                            onChange = { enabled ->
+                                session.setSystemEventCaptureEnabled(enabled)
+                                SystemEventService.sync(context, enabled)
                             }
-                            // FLAG_ACTIVITY_NEW_TASK を付けて startActivity すると別タスクで開き、
-                            // 戻っても設定シートに帰ってこない。launcher なら同じタスクで開き、
-                            // 戻った時点で上のコールバックが発火して表示も更新される。
-                            runCatching { adminLauncher.launch(intent) }.onFailure {
-                                // 端末ポリシーで管理者追加が禁止されている等。黙って無反応にしない。
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.settings_unlock_watch_admin_failed),
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
+                        )
+
+                        // 出力フォーマット: プリセットで埋めてから自由に編集できるテンプレート。
+                        val evtPresets = remember {
+                            listOf(
+                                "jsonl" to "",
+                                "line" to "{time} {event} {level}{ssid}",
+                                "tsv" to "{time}\\t{event}\\t{level}\\t{ssid}",
+                            )
                         }
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_unlock_watch_help),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
+                        val evtSelected = evtPresets.firstOrNull { it.second == settings.systemEventLogFormat }?.first ?: ""
+                        ChipRow(
+                            options = evtPresets.map { it.first },
+                            selected = evtSelected,
+                            labels = mapOf(
+                                "jsonl" to "JSONL",
+                                "line" to stringResource(R.string.settings_notif_fmt_line),
+                                "tsv" to "TSV",
+                            ),
+                            onSelect = { id ->
+                                session.setSystemEventLogFormat(evtPresets.first { it.first == id }.second)
+                            }
+                        )
+                        TextField(
+                            title = stringResource(R.string.settings_notif_fmt_title),
+                            placeholder = "{time} {event} {level}{ssid}",
+                            value = settings.systemEventLogFormat,
+                            onChange = { session.setSystemEventLogFormat(it) }
+                        )
+                        ToggleField(
+                            title = stringResource(R.string.settings_log_prepend),
+                            description = stringResource(R.string.settings_log_prepend_desc),
+                            checked = settings.systemEventLogPrepend,
+                            onChange = { session.setSystemEventLogPrepend(it) }
+                        )
+                        LogSizeWarning(
+                            bytes = remember(permissionRefresh, settings.systemEventLogPrepend) {
+                                SystemEventService.logFile(context).length()
+                            },
+                            prepend = settings.systemEventLogPrepend,
+                            path = "~/" + SystemEventService.LOG_REL
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_events_fmt_help),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_events_logpath),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        CopyableCommand(
+                            label = stringResource(R.string.settings_cmd_read_label),
+                            command = readLogCommand(
+                                "~/" + SystemEventService.LOG_REL,
+                                settings.systemEventLogPrepend
+                            )
+                        )
+                    }
+
+                    // ロック解除の失敗監視 (盗難対策マクロの検知入口): 設定 ON + 端末管理者が有効なとき、
+                    // ロック解除の失敗/成功を events.jsonl へ unlock_failed / unlock_succeeded として流す。
+                    // 撮影・送信・警報などのアクションはハードコードせず、ユーザーがマクロで組む。
+                    Section(title = stringResource(R.string.settings_section_unlock_watch)) {
+                        ToggleField(
+                            title = stringResource(R.string.settings_unlock_watch),
+                            description = stringResource(R.string.settings_unlock_watch_desc),
+                            checked = settings.unlockWatchEnabled,
+                            onChange = { session.setUnlockWatchEnabled(it) }
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_unlock_watch_help),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
                 }
             }
 
@@ -2044,11 +1774,6 @@ fun SettingsSheet(
         ImeHistorySheet(onDismiss = { imeHistoryOpen = false })
     }
 
-    // 常駐サーバー管理シート。設定シートと**重ねて**開く。
-    if (whenRulesOpen) {
-        WhenRulesSheet(onDismiss = { whenRulesOpen = false })
-    }
-
     if (backupExportOpen) {
         BackupExportDialog(
             onDismiss = { backupExportOpen = false },
@@ -2061,10 +1786,6 @@ fun SettingsSheet(
             onDismiss = { backupImportUri = null },
             onDone = { backupImportUri = null }
         )
-    }
-
-    if (serversOpen) {
-        ServersSheet(session = session, onDismiss = { serversOpen = false })
     }
 
     // ロックされた🔒トグルをタップしたときの終了ダイアログ (ツールバー側と同じ出口)。
@@ -2509,22 +2230,11 @@ private fun SettingsGroupSection(
  * 期待外れとしてしか受け取られない。
  */
 @Composable
-private fun NetLimitSection(settings: AppSettings.Snapshot, session: TerminalSession) {
+internal fun NetLimitSection(settings: AppSettings.Snapshot, session: TerminalSession) {
     val context = LocalContext.current
 
-    // 「使用状況へのアクセス」の許可。⚠ **システム設定でしか変えられない**ので、戻ってきた
-    // とき (ON_RESUME) に見直す (電池最適化の除外と同じ扱い)。
-    var usageAccess by remember { mutableStateOf(NetGuard.hasUsageAccess(context)) }
-    DisposableEffect(context) {
-        val owner = context as? androidx.lifecycle.LifecycleOwner
-        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                usageAccess = NetGuard.hasUsageAccess(context)
-            }
-        }
-        owner?.lifecycle?.addObserver(obs)
-        onDispose { owner?.lifecycle?.removeObserver(obs) }
-    }
+    val permissionRevision = rememberPermissionRefresh()
+    val usageAccess = remember(context, permissionRevision) { NetGuard.hasUsageAccess(context) }
 
     // 使用量は問い合わせが重いので画面を止めない。設定を変えたら・許可が変わったら測り直す。
     val status by produceState<NetGuard.Status?>(
@@ -3262,7 +2972,7 @@ private fun TipItem(@StringRes titleRes: Int, @StringRes bodyRes: Int) {
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+internal fun Section(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -3897,7 +3607,7 @@ private fun TextField(
 }
 
 @Composable
-private fun ActionButton(
+internal fun ActionButton(
     label: String,
     danger: Boolean = false,
     onClick: () -> Unit

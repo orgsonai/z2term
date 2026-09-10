@@ -1,6 +1,6 @@
 # Android action macros
 
-Working version 0.8.578-alpha / versionCode 586. **Build and device behavior not yet verified.**
+Working version 0.8.581-alpha / versionCode 589. **Build and device behavior not yet verified.**
 
 `z2-action` stores named text definitions and runs them through one shared runtime from the CLI, shell macros, panels, tiles and `z2-when`. `z2-macro actions` is an alias. Panels need not be enabled. Execution requires enabling z2term Android actions through `z2-key permission`.
 
@@ -28,7 +28,7 @@ Definitions live in the shared home at `/root/.z2term/actions/NAME.actions`. Use
 
 ## Create and edit through the GUI (0.8.574)
 
-Open Settings → Automation → Android action macros → Manage action macros. Panels need not be enabled.
+Open Command list → Automation → Action automation → Manage action macros. Panels need not be enabled.
 
 1. Choose New and enter a name using letters, digits, underscores or hyphens.
 2. Choose Add step, select Launch app and pick the target application. Add a wait to allow its screen to become ready.
@@ -38,17 +38,19 @@ Open Settings → Automation → Android action macros → Manage action macros.
 
 Tap a saved name to edit it; the list also offers duplication, execution and deletion. It shows execution state, step progress, a Stop button and up to 32 recent start/branch/end records. Macros run from this screen should start by launching their target app as needed. Closing unsaved edits asks for confirmation; rotation retains the name, definition and current step draft.
 
-### Pick coordinates over the target app
+### Pick screen coordinates only (0.8.579)
 
-Choose Pick coordinates while editing a tap, hold or swipe. This opens the app specified by the preceding launch or target directive. Enable z2term Android actions in Accessibility settings first.
+Choose Pick coordinates while editing a tap, hold or swipe. z2term moves its settings and editor tasks to the background and immediately enters coordinate selection. No launch or target step is required, and no other app is launched automatically. Enable z2term Android actions in Accessibility settings first.
 
-- Navigate the target app normally, then press Pick coordinates in the floating controls.
-- Tap a point or draw from the start to the end of a swipe. These selection touches do not operate the underlying app. A swipe captures straight-line endpoints only; edit its duration separately.
-- Draw again to adjust, then choose Apply to return to the numeric fields. Controls can move between the top and bottom; Cancel returns to editing. Only positions inside the target window and above the keyboard are accepted.
+- Tap a point or draw from the start to the end of a swipe. Selection touches do not operate the underlying screen. A swipe captures straight-line endpoints only; edit its duration separately.
+- Use Navigate to operate the screen normally and reach another screen. Press Pick coordinates in the floating controls to resume selection.
+- Draw again to adjust, then choose Apply to return to the numeric fields. Controls can move between the top and bottom; Cancel returns to editing. Selection does not check the app package or restrict points to a target window.
 - Coordinates return in the selected unit (px / percent), together with the screen dimensions and rotation. If existing screen metadata differs, review other coordinates before explicitly changing the screen setting.
 - Selection cancels on screen off, lock, geometry/rotation changes, accessibility disconnection or after two minutes. Selection and macro execution are mutually exclusive; edge panels are temporarily hidden.
 
-Coordinate selection does not record operations, capture images or retrieve UI-element content. Numeric input remains available through the CLI using the same definition format.
+Only the selected values return to the step draft; picking adds no launch, wait or target directives. It does not record operations, capture images or read UI elements. Saving and executing a macro still requires an operation target. Execution checks that the app is focused and that points are inside its window, above the keyboard. Numeric input through the CLI uses the same definition format.
+
+Settings visibility and scroll position return after backgrounding or unlocking the app. The action editor also retains its draft, current step and scroll position. Settings and editor contents remain hidden while locked. Build and device behavior not yet verified.
 
 ## Repetition, conditions and reuse (0.8.573)
 

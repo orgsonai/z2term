@@ -132,60 +132,6 @@ fun SshAccessHelper(session: TerminalSession) {
     }
 }
 
-/**
- * 端末から Android 共有ストレージ (/sdcard) を読み書きするための権限ヘルパー。
- *
- * proot は `/sdcard` に `/storage/emulated/0` をバインドしているが、全ファイル
- * アクセス権が無いと中身が見えない (EACCES)。ここから許可画面へ誘導する。
- * 権限付与後は `cd /sdcard` で Download や写真などへ移動できる。
- */
-@Composable
-fun StorageAccessHelper() {
-    val context = LocalContext.current
-    val granted = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager()
-        else true  // API 29 は requestLegacyExternalStorage で従来権限が効く
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = stringResource(R.string.storage_access_title),
-            color = ZtsTextSecondary,
-            fontSize = 12.sp,
-            fontFamily = FontFamily.Monospace
-        )
-        Text(
-            text = if (granted) stringResource(R.string.storage_access_granted)
-                   else stringResource(R.string.storage_access_denied),
-            color = if (granted) ZtsGreen else ZtsTextPrimary,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace
-        )
-        if (!granted) {
-            Row {
-                HelperButton(
-                    label = stringResource(R.string.storage_access_grant_button),
-                    accent = true,
-                    onClick = {
-                        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                data = "package:${context.packageName}".toUri()
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                        } else {
-                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = "package:${context.packageName}".toUri()
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                        }
-                        runCatching { context.startActivity(intent) }
-                    }
-                )
-            }
-        }
-    }
-}
-
 @Composable
 private fun HelperButton(
     label: String,

@@ -4,7 +4,7 @@
     <string name="action_macro_running">En ejecución: %1$s</string>
     <string name="action_macro_stop">Detener macro</string>
     <string name="action_edit_open">Gestionar macros de acciones</string>
-    <string name="action_edit_intro">Crea, edita y ejecuta secuencias de acciones Android. Añade el inicio de una app y una espera antes de los gestos.</string>
+    <string name="action_edit_intro">Crea, edita y ejecuta secuencias de acciones Android. Usa Elegir coordenadas para seleccionar posiciones en pantalla.</string>
     <string name="action_edit_title">Editar macro de acciones</string>
     <string name="action_edit_close">Cerrar</string>
     <string name="action_edit_new">Nueva</string>
@@ -58,11 +58,11 @@
     <string name="action_edit_step">Editar paso</string>
     <string name="action_edit_pick">Elegir coordenadas</string>
     <string name="action_pick_busy">Finaliza la selección o la macro actual primero.</string>
-    <string name="action_pick_target">Añade un paso de inicio o destino. Elige dentro de esa app, por encima del teclado.</string>
+    <string name="action_pick_target">Añade un paso de inicio o destino para elegir elementos de esa app.</string>
     <string name="action_pick_cancelled">Selección cancelada (cancelación, cambio de pantalla, bloqueo, desconexión o límite de 2 minutos).</string>
-    <string name="action_pick_prepare">Prepara la app y pulsa Elegir coordenadas. Puedes usarla hasta iniciar la selección.</string>
-    <string name="action_pick_swipe">Dibuja el gesto y pulsa Aplicar. Los toques no actúan sobre la app. Puedes dibujar de nuevo.</string>
-    <string name="action_pick_point">Toca un punto y pulsa Aplicar. Los toques no actúan sobre la app. Toca otro para cambiarlo.</string>
+    <string name="action_pick_prepare">Puedes usar la pantalla normalmente. Ve a la pantalla deseada y pulsa Elegir coordenadas.</string>
+    <string name="action_pick_swipe">Dibuja el gesto y pulsa Aplicar. Los toques de selección no se envían detrás. Usa Navegar para manejar la pantalla.</string>
+    <string name="action_pick_point">Toca un punto y pulsa Aplicar. Los toques de selección no se envían detrás. Usa Navegar para manejar la pantalla.</string>
     <string name="action_pick_move">Mover controles</string>
     <string name="action_pick_screen">La pantalla guardada es distinta. Revisa las coordenadas antes de actualizarla.</string>
     <string name="action_state_queued">Iniciando</string>
@@ -104,4 +104,8 @@
     <string name="action_ui_read">Leer elementos</string>
     <string name="action_ui_empty">No hay elementos seleccionables en esta pantalla.</string>
     <string name="action_edit_screen_hint">Déjalo vacío si solo usas elementos. Los gestos por coordenadas necesitan las dimensiones de pantalla.</string>
+    <string name="action_pick_navigate">Navegar</string>
+    <string name="action_pick_background_failed">No se pudo mover el editor al fondo. Pulsa Elegir coordenadas de nuevo.</string>
+    <string name="action_pick_launch_failed">No se puede abrir %1$s para elegir elementos. Revisa el destino y si la app está habilitada.</string>
+    <string name="action_pick_foreground">Muestra %1$s en primer plano para elegir sus elementos.</string>
 </resources>

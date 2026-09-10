@@ -4,7 +4,7 @@
     <string name="action_macro_running">執行中：%1$s</string>
     <string name="action_macro_stop">停止巨集</string>
     <string name="action_edit_open">管理操作巨集</string>
-    <string name="action_edit_intro">建立、編輯和執行 Android 操作序列。在觸控操作前加入啟動應用程式和等待。</string>
+    <string name="action_edit_intro">建立、編輯和執行Android操作步驟。點「取得座標」可選擇螢幕上的位置。</string>
     <string name="action_edit_title">編輯操作巨集</string>
     <string name="action_edit_close">關閉</string>
     <string name="action_edit_new">新增</string>
@@ -58,11 +58,11 @@
     <string name="action_edit_step">編輯步驟</string>
     <string name="action_edit_pick">取得座標</string>
     <string name="action_pick_busy">請先結束座標選擇或目前的巨集。</string>
-    <string name="action_pick_target">請先新增啟動或目標步驟。在該應用程式內、鍵盤上方選擇座標。</string>
+    <string name="action_pick_target">選擇元素前，請先新增應用程式啟動或目標指定步驟。</string>
     <string name="action_pick_cancelled">座標選擇已取消（取消、螢幕變更、鎖定、中斷或超過 2 分鐘）。</string>
-    <string name="action_pick_prepare">準備好目標應用程式後點「取得座標」。開始選擇前可正常操作。</string>
-    <string name="action_pick_swipe">畫出滑動路徑後點「套用」。觸控不會操作應用程式。可重新繪製。</string>
-    <string name="action_pick_point">點選位置後點「套用」。觸控不會操作應用程式。可重新選擇。</string>
+    <string name="action_pick_prepare">現在可以正常操作螢幕。進入所需畫面後點「取得座標」。</string>
+    <string name="action_pick_swipe">畫出滑動路徑後點「套用」。選擇時的觸控不會傳到後方。點「操作螢幕」可恢復正常操作。</string>
+    <string name="action_pick_point">點選位置後點「套用」。選擇時的觸控不會傳到後方。點「操作螢幕」可恢復正常操作。</string>
     <string name="action_pick_move">移動控制列</string>
     <string name="action_pick_screen">已儲存的螢幕不同。更新螢幕設定前請檢查既有座標。</string>
     <string name="action_state_queued">等待啟動</string>
@@ -104,4 +104,8 @@
     <string name="action_ui_read">取得元素</string>
     <string name="action_ui_empty">目前畫面沒有可選擇的元素。</string>
     <string name="action_edit_screen_hint">僅使用介面元素時可留空。座標操作需要螢幕資訊。</string>
+    <string name="action_pick_navigate">操作螢幕</string>
+    <string name="action_pick_background_failed">無法將編輯器移到背景。請再次點「取得座標」。</string>
+    <string name="action_pick_launch_failed">無法開啟用於選擇元素的應用程式（%1$s）。請檢查目標及應用程式是否已啟用。</string>
+    <string name="action_pick_foreground">請將用於選擇元素的應用程式（%1$s）切換到前景。</string>
 </resources>

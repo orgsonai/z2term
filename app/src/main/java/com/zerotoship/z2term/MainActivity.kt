@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -40,6 +41,7 @@ import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.lang.ref.WeakReference
 
 /**
  * エントリ Activity。
@@ -74,6 +76,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        instance = WeakReference(this)
         enableEdgeToEdge()
 
         requestNotificationPermissionIfNeeded()
@@ -113,6 +116,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = ZtsBgPrimary
                 ) {
+                    // Preserve settings and their scroll position while the locked UI is absent.
+                    val unlockedState = rememberSaveableStateHolder()
                     val lock by AppLock.state.collectAsState()
                     when (lock) {
                         // 設定を読んでいる最中。⛔ ここで端末を出さない (一瞬でも見えれば
@@ -124,7 +129,9 @@ class MainActivity : ComponentActivity() {
                         )
                         // ⚠ 端末画面は**解除後に初めて組み立てる**。ロック中も裏の
                         // セッションは動き続けるが、画面としては存在させない。
-                        AppLock.State.UNLOCKED -> TerminalScreen()
+                        AppLock.State.UNLOCKED -> unlockedState.SaveableStateProvider("terminal") {
+                            TerminalScreen()
+                        }
                     }
                 }
             }
@@ -200,6 +207,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onDestroy() {
+        if (instance.get() === this) instance.clear()
+        super.onDestroy()
+    }
+
     override fun onResume() {
         super.onResume()
         // 隠していた幕を外す (ロックを使っていないときは何もしていない)。
@@ -273,8 +285,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private companion object {
+    companion object {
+        private var instance = WeakReference<MainActivity>(null)
+
+        /** Keep settings and sessions intact when the coordinate picker moves both tasks away. */
+        internal fun moveToBackground() { instance.get()?.moveTaskToBack(true) }
+
         /** 共有 Intent を処理済みにする印 (同じ Intent での二重挿入を防ぐ)。 */
-        const val EXTRA_SHARE_HANDLED = "com.zerotoship.z2term.SHARE_HANDLED"
+        private const val EXTRA_SHARE_HANDLED = "com.zerotoship.z2term.SHARE_HANDLED"
     }
 }

@@ -72,7 +72,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * 常駐サーバー管理シート (設定の「常駐サーバー」から開く)。
+ * 常駐サーバー管理。コマンド一覧の「サーバー」タブに集約。
  *
  * 任意のサーバー (sshd/http/smb 等) を **起動コマンド**として登録し、[ServerDaemonService] で
  * まとめて常駐させる。特定サーバーはハードコードせず、ユーザーがコマンドを自由に書く汎用機構。
@@ -126,8 +126,7 @@ fun ServersSheet(
 /**
  * 常駐サーバー管理の本体 (シートの中身)。スクロールは呼び出し側が持つ。
  *
- * 設定シートの「サーバーを管理」([ServersSheet]) と、ツールシート (📜) の
- * 「サーバー」タブの両方から同じ UI を使うためにここへ切り出してある。
+ * コマンド一覧の「サーバー」タブで、定義・稼働・バックグラウンド動作を管理する。
  */
 @Composable
 fun ServersBody(session: TerminalSession) {
@@ -239,11 +238,6 @@ fun ServersBody(session: TerminalSession) {
             onChange = { session.setServersAutostartOnBoot(it) }
         )
 
-        // ⚠ **省電力モードはここに無い** (0.8.309 で ⚙設定 → 自動化 → プロセス保護へ移した)。
-        // あれは常駐サーバーだけの設定ではなく、🔒 バックグラウンド常駐にも自動化の反応速度にも
-        // 効く。サーバーを使っていない人からは「自分に関係のある設定」に見えなかった。
-        // ⛔ 両方に出さない (同じトグルが 2 か所にあると、どちらが効いているのか分からなくなる)。
-
         if (entries.isEmpty()) {
             HintBox(stringResource(R.string.servers_empty))
         } else {
@@ -276,6 +270,17 @@ fun ServersBody(session: TerminalSession) {
 
         Spacer(modifier = Modifier.height(2.dp))
         HintBox(stringResource(R.string.servers_hint))
+        Spacer(modifier = Modifier.height(12.dp))
+        ToggleField(
+            title = stringResource(R.string.settings_low_power),
+            description = stringResource(R.string.settings_low_power_desc),
+            checked = settings.serversLowPower,
+            onChange = {
+                session.setServersLowPower(it)
+                if (settings.keepAliveService) com.zerotoship.z2term.service.TerminalService.start(context)
+            }
+        )
+        NetLimitSection(settings = settings, session = session)
     }
 
     pendingDelete?.let { target ->

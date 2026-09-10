@@ -139,8 +139,7 @@ fun WhenRulesSheet(onDismiss: () -> Unit) {
 /**
  * 自動化タブの本体 (シートの中身)。スクロールは呼び出し側が持つ。
  *
- * 設定シートの「ルールを管理」([WhenRulesSheet]) と、ツールシート (📜) の「自動化」タブの
- * 両方から同じ UI を使うために切り出してある ([ServersBody] と同じ作り)。
+ * コマンド一覧 → 自動化 → 自動化ルールで管理する。スクロールは呼び出し側が持つ。
  */
 @Composable
 fun WhenRulesBody() {

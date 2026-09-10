@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="permissions_intro">Manage the permissions needed by each feature here. Permission settings and notification logging are separate.</string>
+    <string name="permissions_open_failed">Could not open the permission settings.</string>
+    <string name="permissions_notifications">Show notifications</string>
+    <string name="permissions_notifications_desc">Persistent service notifications and messages sent by commands. Manage notification categories in Android settings.</string>
+    <string name="permissions_listener">Read notifications</string>
+    <string name="permissions_listener_desc">Read notifications from other apps for logging and automation rules.</string>
+    <string name="permissions_accessibility">Accessibility</string>
+    <string name="permissions_accessibility_desc">Coordinate picking, taps, swipes and other Android actions.</string>
+    <string name="permissions_overlay">Display over other apps</string>
+    <string name="permissions_overlay_desc">Show floating panels and tools over other apps.</string>
+    <string name="permissions_storage">Shared storage</string>
+    <string name="permissions_storage_desc">Read and write shared storage, including /sdcard. Folder access selected in a file picker is granted for that folder.</string>
+    <string name="permissions_sms">Receive SMS</string>
+    <string name="permissions_sms_desc">Read incoming SMS for the SMS log and automation rules.</string>
+    <string name="permissions_battery">Battery optimization exemption</string>
+    <string name="permissions_battery_desc">Allow background services to keep working while the screen is off.</string>
+    <string name="permissions_write_settings">Modify system settings</string>
+    <string name="permissions_write_settings_desc">Change the screen timeout for a specified duration.</string>
+    <string name="permissions_usage">Usage access</string>
+    <string name="permissions_usage_desc">Read device traffic usage for the configured data limit.</string>
+    <string name="permissions_install">Install app updates</string>
+    <string name="permissions_install_desc">Allow this app to open the Android installer for a downloaded APK.</string>
+    <string name="permissions_admin">Device administrator</string>
+    <string name="permissions_admin_desc">Detect failed and successful screen unlocks. Does not enable remote locking or erasing.</string>
+    <string name="permissions_ime">Enable the keyboard</string>
+    <string name="permissions_ime_desc">Make the built-in keyboard available as an Android input method.</string>
+    <string name="permissions_usb">USB devices</string>
+    <string name="permissions_usb_desc">Connect a device, then allow access to that device. Permission lasts until it is disconnected.</string>
+    <string name="permissions_usb_empty">No connected USB device is available.</string>
+    <string name="permissions_root">Root access</string>
+    <string name="permissions_root_desc">Request root and check chroot support only when you press the button.</string>
+    <string name="permissions_root_checked">chroot was enabled after a successful check. Press the button to check current root access again.</string>
+    <string name="permissions_app_details">App information</string>
+    <string name="permissions_app_details_desc">Manage app permissions and Android restrictions. If a permission request no longer appears, change it here.</string>
+    <string name="permissions_manage">Open settings</string>
+    <string name="permissions_request">Request permission</string>
+    <string name="permissions_granted">Enabled / allowed</string>
+    <string name="permissions_missing">Not enabled / not allowed</string>
+    <string name="tools_automation_actions">Action automation</string>
+    <string name="tools_automation_rules">Automation rules</string>
+    <string name="tools_automation_actions_desc">Create sequences of taps, swipes, waits and app actions. Open the manager to create, edit, run or stop them and view history.</string>
+    <string name="permissions_tab_access">Permissions</string>
+    <string name="permissions_tab_logs">Notifications and logs</string>
+    <string name="permissions_log_missing">Allow the following in the Permissions tab: %1$s</string>
+</resources>

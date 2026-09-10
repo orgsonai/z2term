@@ -4,7 +4,7 @@
     <string name="action_macro_running">Running: %1$s</string>
     <string name="action_macro_stop">Stop macro</string>
     <string name="action_edit_open">Manage action macros</string>
-    <string name="action_edit_intro">Create, edit and run Android action sequences. Add an app launch and a wait before touch actions.</string>
+    <string name="action_edit_intro">Create, edit and run Android action sequences. Use Pick coordinates to choose positions on the screen.</string>
     <string name="action_edit_title">Edit action macro</string>
     <string name="action_edit_close">Close</string>
     <string name="action_edit_new">New</string>
@@ -58,11 +58,11 @@
     <string name="action_edit_step">Edit step</string>
     <string name="action_edit_pick">Pick coordinates</string>
     <string name="action_pick_busy">Finish coordinate selection or the current macro first.</string>
-    <string name="action_pick_target">Add a launch or target step first. Pick inside that app, above the keyboard.</string>
+    <string name="action_pick_target">Add a launch or target step first to choose elements from that app.</string>
     <string name="action_pick_cancelled">Coordinate selection cancelled (cancel, screen change, lock, disconnection or 2-minute limit).</string>
-    <string name="action_pick_prepare">Prepare the target app, then choose Pick coordinates. You can use the app until selection starts.</string>
-    <string name="action_pick_swipe">Draw the swipe, then Apply. Touches here do not operate the app. Draw again to retry.</string>
-    <string name="action_pick_point">Touch a point, then Apply. Touches here do not operate the app. Touch again to adjust.</string>
+    <string name="action_pick_prepare">You can use the screen normally. Navigate to the desired screen, then choose Pick coordinates.</string>
+    <string name="action_pick_swipe">Draw the swipe, then Apply. Selection touches stay here. Use Navigate to operate the screen.</string>
+    <string name="action_pick_point">Touch a point, then Apply. Selection touches stay here. Use Navigate to operate the screen.</string>
     <string name="action_pick_move">Move controls</string>
     <string name="action_pick_screen">The saved screen differs. Review existing coordinates before updating the screen setting.</string>
     <string name="action_state_queued">Starting</string>
@@ -104,4 +104,8 @@
     <string name="action_ui_read">Read elements</string>
     <string name="action_ui_empty">No selectable elements on this screen.</string>
     <string name="action_edit_screen_hint">Leave blank for UI elements only. Coordinate steps require saved screen geometry.</string>
+    <string name="action_pick_navigate">Navigate</string>
+    <string name="action_pick_background_failed">Could not move the editor to the background. Try Pick coordinates again.</string>
+    <string name="action_pick_launch_failed">Cannot open %1$s for element selection. Check the target and whether the app is enabled.</string>
+    <string name="action_pick_foreground">Bring %1$s to the foreground to choose its elements.</string>
 </resources>

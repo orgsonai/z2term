@@ -12,8 +12,8 @@
     <string name="settings_group_keyboard_desc">Tamaño del teclado, métodos de entrada, diccionarios e idioma de la aplicación</string>
     <string name="settings_group_linux">Entorno Linux</string>
     <string name="settings_group_linux_desc">SO, shell, almacenamiento y entorno gráfico</string>
-    <string name="settings_group_automation">Servidores permanentes y automatización</string>
-    <string name="settings_group_automation_desc">Funcionamiento en segundo plano, servidores, notificaciones e integración con eventos</string>
+    <string name="settings_group_automation">Permisos y notificaciones</string>
+    <string name="settings_group_automation_desc">Permisos y registros de notificaciones, SMS y eventos</string>
     <string name="settings_group_app_lock">Bloqueo de la aplicación</string>
     <string name="settings_group_app_lock_desc">Comprobar quién eres antes de abrirla</string>
     <string name="settings_group_maintenance">Mantenimiento</string>
@@ -627,9 +627,9 @@
     <string name="notif_capture_service_label">Detección de notificaciones (registro)</string>
     <string name="settings_section_notif">Detección de notificaciones</string>
     <string name="settings_notif_capture">Capturar notificaciones</string>
-    <string name="settings_notif_capture_desc">Cuando está activado (y se ha concedido el acceso a las notificaciones), se detectan las notificaciones que llegan. Que se escriban o no en un archivo lo controla \"Guardar el registro de notificaciones\", más abajo. Es un enganche genérico: tú decides qué filtrar o servir desde la terminal. Todo se queda en el dispositivo.</string>
+    <string name="settings_notif_capture_desc">Con acceso a notificaciones, detecta avisos y sus actualizaciones. El registro se configura abajo. No se puede obtener contenido que no llegue como notificación o que oculte la app emisora o Android. Todo es local.</string>
     <string name="settings_notif_log">Guardar el registro de notificaciones</string>
-    <string name="settings_notif_log_desc">Escribe las notificaciones detectadas en ~/.z2term/notifications.jsonl. Cuando está desactivado, se siguen detectando pero no se escribe nada. Si una misma notificación se vuelve a publicar varias veces, se anota una sola vez.</string>
+    <string name="settings_notif_log_desc">Guarda textos largos recibidos y nuevas entradas de conversaciones o avisos agrupados en ~/.z2term/notifications.jsonl. Elimina republicaciones y mensajes anteriores, conservando nuevos mensajes con horas o remitentes distintos. Desactivado, no guarda nada.</string>
     <string name="settings_notif_access_granted">Acceso a las notificaciones: concedido</string>
     <string name="settings_notif_access_missing">Acceso a las notificaciones: no concedido (toca abajo para concederlo)</string>
     <string name="settings_notif_grant">Conceder el acceso a las notificaciones</string>
@@ -978,8 +978,8 @@
     <string name="guide_step_setup">Preparar los enganches y los mosaicos (una sola vez)</string>
     <string name="guide_step_help">Ver cómo se escribe (la sintaxis completa)</string>
     <string name="guide_step_list">Listar lo que hay registrado</string>
-    <string name="guide_step_when">Registrar el disparador (también aparece en Ajustes -> Reglas de automatización)</string>
-    <string name="guide_step_when_charge">Registrar el disparador de carga (también aparece en Ajustes -> Reglas de automatización)</string>
+    <string name="guide_step_when">Registrar el disparador (Lista de comandos &gt; Automatización &gt; Reglas de automatización)</string>
+    <string name="guide_step_when_charge">Registrar el disparador de carga (Lista de comandos &gt; Automatización &gt; Reglas de automatización)</string>
     <string name="guide_step_when_headset">Registrar también el disparador de los auriculares</string>
     <string name="guide_step_try_event">Simular que acaba de empezar la carga y ejecutarla</string>
     <string name="guide_step_when_missed">Registrar una segunda para detectar también las llamadas perdidas</string>

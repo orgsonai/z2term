@@ -12,8 +12,8 @@
     <string name="settings_group_keyboard_desc">键盘大小、输入方式、词典、显示语言</string>
     <string name="settings_group_linux">Linux 环境</string>
     <string name="settings_group_linux_desc">系统、Shell、存储、图形界面</string>
-    <string name="settings_group_automation">常驻服务与自动化</string>
-    <string name="settings_group_automation_desc">后台运行、服务器、通知与事件联动</string>
+    <string name="settings_group_automation">权限与通知</string>
+    <string name="settings_group_automation_desc">应用权限及通知、短信、事件日志</string>
     <string name="settings_group_app_lock">应用锁</string>
     <string name="settings_group_app_lock_desc">打开前先验证身份</string>
     <string name="settings_group_maintenance">维护</string>
@@ -625,9 +625,9 @@
     <string name="notif_capture_service_label">通知检测（日志）</string>
     <string name="settings_section_notif">通知检测</string>
     <string name="settings_notif_capture">检测通知</string>
-    <string name="settings_notif_capture_desc">开启并且已授予“通知使用权”时，会检测收到的通知。是否写入文件由下面的“保存通知日志”决定。这是一个通用入口，筛选和分发都可以在终端一侧自由实现。完全本地处理。</string>
+    <string name="settings_notif_capture_desc">获得通知使用权后，检测通知及其更新。是否保存由下方设置决定。未作为通知送达的内容，或发送应用、Android隐藏的正文，无法获取。完全本地处理。</string>
     <string name="settings_notif_log">保存通知日志</string>
-    <string name="settings_notif_log_desc">把检测到的通知写入 ~/.z2term/notifications.jsonl。关闭时只做检测，不写入任何内容。同一条通知即使被反复重新显示，也只记录一行。</string>
+    <string name="settings_notif_log_desc">将收到的长文、会话历史和汇总通知中的新消息保存到 ~/.z2term/notifications.jsonl。排除重复发布和旧消息，保留接收时间或发送者不同的新消息。关闭时不保存。</string>
     <string name="settings_notif_access_granted">通知使用权: 已授予</string>
     <string name="settings_notif_access_missing">通知使用权: 未授予（点击下方按钮授予）</string>
     <string name="settings_notif_grant">授予通知使用权</string>
@@ -971,8 +971,8 @@
     <string name="guide_step_setup">准备好接口和磁贴位（最开始做一次）</string>
     <string name="guide_step_help">查看用法（完整的写法一览）</string>
     <string name="guide_step_list">列出已经登记的内容</string>
-    <string name="guide_step_when">登记触发条件（在 ⚙设置 → 自动化规则 里也能看到）</string>
-    <string name="guide_step_when_charge">登记充电的触发条件（在 ⚙设置 → 自动化规则 里也能看到）</string>
+    <string name="guide_step_when">注册触发条件（命令列表 → 自动化 → 自动化规则）</string>
+    <string name="guide_step_when_charge">注册充电触发条件（命令列表 → 自动化 → 自动化规则）</string>
     <string name="guide_step_when_headset">把耳机的触发条件也登记上</string>
     <string name="guide_step_try_event">假装刚开始充电，跑一次试试</string>
     <string name="guide_step_when_missed">如果也要记未接来电，就再登记一条</string>

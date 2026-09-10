@@ -12,8 +12,8 @@
     <string name="settings_group_keyboard_desc">鍵盤大小、輸入方式、詞典、顯示語言</string>
     <string name="settings_group_linux">Linux 環境</string>
     <string name="settings_group_linux_desc">系統、Shell、儲存、圖形介面</string>
-    <string name="settings_group_automation">常駐服務與自動化</string>
-    <string name="settings_group_automation_desc">背景執行、伺服器、通知與事件聯動</string>
+    <string name="settings_group_automation">權限與通知</string>
+    <string name="settings_group_automation_desc">應用程式權限及通知、簡訊、事件日誌</string>
     <string name="settings_group_app_lock">應用程式鎖</string>
     <string name="settings_group_app_lock_desc">開啟前先驗證身分</string>
     <string name="settings_group_maintenance">維護</string>
@@ -625,9 +625,9 @@
     <string name="notif_capture_service_label">通知偵測（日誌）</string>
     <string name="settings_section_notif">通知偵測</string>
     <string name="settings_notif_capture">偵測通知</string>
-    <string name="settings_notif_capture_desc">開啟並且已授予“通知使用權”時，會偵測收到的通知。是否寫入檔案由下面的“儲存通知日誌”決定。這是一個通用入口，篩選和分發都可以在終端機一側自由實現。完全本機處理。</string>
+    <string name="settings_notif_capture_desc">取得通知使用權後，偵測通知及其更新。是否儲存由下方設定決定。未作為通知送達的內容，或傳送應用程式、Android隱藏的本文，無法取得。完全本機處理。</string>
     <string name="settings_notif_log">儲存通知日誌</string>
-    <string name="settings_notif_log_desc">把偵測到的通知寫入 ~/.z2term/notifications.jsonl。關閉時只做偵測，不寫入任何內容。同一條通知即使被反覆重新顯示，也只記錄一行。</string>
+    <string name="settings_notif_log_desc">將收到的長文、對話歷史和彙總通知中的新訊息儲存到 ~/.z2term/notifications.jsonl。排除重複發布和舊訊息，保留接收時間或傳送者不同的新訊息。關閉時不儲存。</string>
     <string name="settings_notif_access_granted">通知使用權: 已授予</string>
     <string name="settings_notif_access_missing">通知使用權: 未授予（點選下方按鈕授予）</string>
     <string name="settings_notif_grant">授予通知使用權</string>
@@ -971,8 +971,8 @@
     <string name="guide_step_setup">準備好介面和圖塊位（最開始做一次）</string>
     <string name="guide_step_help">查看用法（完整的寫法一覽）</string>
     <string name="guide_step_list">列出已經登記的內容</string>
-    <string name="guide_step_when">登記觸發條件（在 ⚙設定 → 自動化規則 裡也能看到）</string>
-    <string name="guide_step_when_charge">登記充電的觸發條件（在 ⚙設定 → 自動化規則 裡也能看到）</string>
+    <string name="guide_step_when">註冊觸發條件（指令列表 → 自動化 → 自動化規則）</string>
+    <string name="guide_step_when_charge">註冊充電觸發條件（指令列表 → 自動化 → 自動化規則）</string>
     <string name="guide_step_when_headset">把耳機的觸發條件也登記上</string>
     <string name="guide_step_try_event">假裝剛開始充電，跑一次試試</string>
     <string name="guide_step_when_missed">如果也要記未接來電，就再登記一條</string>

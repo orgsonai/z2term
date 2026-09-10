@@ -153,7 +153,7 @@ class ActionMacrosActivity : ComponentActivity() {
         super.onPause()
     }
     override fun onSaveInstanceState(outState: Bundle) {
-        outState.putInt("editorScrollY", scrollView?.scrollY ?: editorScrollY)
+        outState.putInt("editorScrollY", if (renderedEditing) scrollView?.scrollY ?: editorScrollY else editorScrollY)
         outState.putBoolean("editing", editing); outState.putString("name", name)
         outState.putString("originalName", originalName); outState.putString("baseline", baseline)
         outState.putString("initial", initial); outState.putString("raw", raw); outState.putBoolean("textMode", textMode)
@@ -208,8 +208,9 @@ class ActionMacrosActivity : ComponentActivity() {
             setMargins(dp(EdgeSettingsUi.GUTTER), dp(top), dp(EdgeSettingsUi.GUTTER), dp(bottom))
         })
     private fun render() {
-        if (editing && renderedEditing && scrollView?.isLaidOut == true) editorScrollY = scrollView?.scrollY ?: editorScrollY
-        renderedEditing = editing
+        if (renderedEditing && scrollView?.isLaidOut == true) editorScrollY = scrollView?.scrollY ?: editorScrollY
+        // A lock screen has no editor scroll position to save over the retained draft.
+        renderedEditing = editing && AppLock.state.value == AppLock.State.UNLOCKED
         val root = column().apply { setBackgroundColor(EdgeSettingsUi.canvas(this@ActionMacrosActivity)) }
         val toolbar = EdgeSettingsUi.row(this).apply {
             setPadding(dp(EdgeSettingsUi.GUTTER), dp(10), dp(10), dp(10))
@@ -234,7 +235,7 @@ class ActionMacrosActivity : ComponentActivity() {
             if (AppLock.state.value == AppLock.State.LOCKED)
                 gutter(button(R.string.lock_prompt_title, EdgeSettingsUi.Kind.PRIMARY) { promptUnlock() }, top = 16)
         } else if (editing) renderEditor() else renderList()
-        if (editing) scrollView?.post { scrollView?.scrollTo(0, editorScrollY) }
+        if (renderedEditing) scrollView?.post { scrollView?.scrollTo(0, editorScrollY) }
     }
     /**
      * Platform dialogs keep their own chrome, but their content is ours: give it this app's ground
@@ -423,15 +424,23 @@ class ActionMacrosActivity : ComponentActivity() {
             },
             pick = { line ->
                 val document = ActionEditorDocument(raw)
-                val target = document.targetBefore(if (stepLine < 0) insertionGroup().end else stepLine) ?: error(getString(R.string.action_pick_target))
                 val screen = ActionRuntime.screen(this)
                 val savedScreen = document.header("screen")
                 check(savedScreen == null || savedScreen == "current" || savedScreen == screen.toString()) { getString(R.string.action_pick_screen) }
                 val request = UUID.randomUUID().toString()
                 ActionEditorDocument.singleLine(line)
-                ActionDefinition.parse("version=1\nscreen=$screen\ntarget $target\n$line")
-                AndroidActions.pickCoordinates(request, target, line.trim().split(Regex("\\s+")).first() == "swipe")
+                // Validate the form values without requiring an execution target in the draft.
+                ActionDefinition.parse("version=1\nscreen=$screen\ntarget org.example.target\n$line")
+                AndroidActions.pickCoordinates(request, line.trim().split(Regex("\\s+")).first() == "swipe")
                 stepDraft = line; pickRequest = request
+                try {
+                    // The editor has its own task; also move the settings task behind other apps.
+                    com.zerotoship.z2term.MainActivity.moveToBackground()
+                    check(moveTaskToBack(true)) { getString(R.string.action_pick_background_failed) }
+                } catch (e: Exception) {
+                    ActionCoordinatePicker.cancel(); ActionCoordinatePicker.consume(request); pickRequest = null
+                    throw e
+                }
             })
     }
     private fun save() {

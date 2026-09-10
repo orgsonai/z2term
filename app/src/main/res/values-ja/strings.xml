@@ -14,8 +14,8 @@
     <string name="settings_group_keyboard_desc">キーボードの大きさ・入力方法・辞書・表示言語</string>
     <string name="settings_group_linux">Linux 環境</string>
     <string name="settings_group_linux_desc">OS・シェル・ストレージ・GUI</string>
-    <string name="settings_group_automation">常駐サーバー・自動化</string>
-    <string name="settings_group_automation_desc">バックグラウンド動作・サーバー・通知やイベント連携</string>
+    <string name="settings_group_automation">権限・通知</string>
+    <string name="settings_group_automation_desc">アプリの権限と、通知・SMS・イベントのログ</string>
     <string name="settings_group_app_lock">アプリロック</string>
     <string name="settings_group_app_lock_desc">開くときに本人確認を求める</string>
     <string name="settings_group_maintenance">メンテナンス</string>
@@ -668,9 +668,9 @@
     <string name="notif_capture_service_label">通知検知（ログ）</string>
     <string name="settings_section_notif">通知検知</string>
     <string name="settings_notif_capture">通知を検知する</string>
-    <string name="settings_notif_capture_desc">ON かつ「通知アクセス」許可があるとき、届いた通知を検知します。ファイルに残すかは下の「通知ログを保存する」で選べます。汎用の入口で、絞り込み/配信はターミナル側で自由に。完全ローカル。</string>
+    <string name="settings_notif_capture_desc">ON かつ「通知アクセス」許可があるとき、通知とその更新を検知します。保存は下の設定で選べます。通知自体が届かない内容や、送信元・Androidが伏せた本文は取得できません。完全ローカル。</string>
     <string name="settings_notif_log">通知ログを保存する</string>
-    <string name="settings_notif_log_desc">検知した通知を ~/.z2term/notifications.jsonl へ書き出します。OFF にすると検知だけ行い、ファイルには一切書きません。同じ通知が何度も再表示されても 1 行だけ記録します。</string>
+    <string name="settings_notif_log_desc">受け取った長文・会話履歴・まとめ通知の新着分を ~/.z2term/notifications.jsonl へ保存します。同じ通知の再送や過去メッセージは重複除外し、別の受信時刻・送信者の新着は残します。OFFでは保存しません。</string>
     <string name="settings_notif_access_granted">通知アクセス: 許可済み</string>
     <string name="settings_notif_access_missing">通知アクセス: 未許可（下のボタンから許可）</string>
     <string name="settings_notif_grant">通知アクセスを許可</string>
@@ -1042,8 +1042,8 @@
     <string name="guide_step_setup">受け口とタイル枠を用意する（最初に 1 回）</string>
     <string name="guide_step_help">使い方（書き方の一覧）を見る</string>
     <string name="guide_step_list">登録したものを一覧する</string>
-    <string name="guide_step_when">きっかけを登録する（⚙設定 → 自動化ルール にも出ます）</string>
-    <string name="guide_step_when_charge">充電のきっかけを登録する（⚙設定 → 自動化ルール にも出ます）</string>
+    <string name="guide_step_when">きっかけを登録する（コマンド一覧 → 自動化 → 自動化ルール）</string>
+    <string name="guide_step_when_charge">充電のきっかけを登録する（コマンド一覧 → 自動化 → 自動化ルール）</string>
     <string name="guide_step_when_headset">イヤホンのきっかけも登録する</string>
     <string name="guide_step_try_event">充電したことにして動かしてみる</string>
     <string name="guide_step_when_missed">不在着信も控えるなら、もう 1 本登録する</string>

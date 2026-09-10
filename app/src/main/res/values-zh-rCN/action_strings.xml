@@ -4,7 +4,7 @@
     <string name="action_macro_running">正在运行：%1$s</string>
     <string name="action_macro_stop">停止宏</string>
     <string name="action_edit_open">管理操作宏</string>
-    <string name="action_edit_intro">创建、编辑和运行 Android 操作序列。在触控操作前添加应用启动和等待。</string>
+    <string name="action_edit_intro">创建、编辑和执行Android操作步骤。点“获取坐标”可选择屏幕上的位置。</string>
     <string name="action_edit_title">编辑操作宏</string>
     <string name="action_edit_close">关闭</string>
     <string name="action_edit_new">新建</string>
@@ -58,11 +58,11 @@
     <string name="action_edit_step">编辑步骤</string>
     <string name="action_edit_pick">获取坐标</string>
     <string name="action_pick_busy">请先结束坐标选择或当前宏。</string>
-    <string name="action_pick_target">请先添加启动或目标步骤。在该应用内、键盘上方选择坐标。</string>
+    <string name="action_pick_target">选择元素前，请先添加应用启动或目标指定步骤。</string>
     <string name="action_pick_cancelled">坐标选择已取消（取消、屏幕变化、锁屏、断开或超过 2 分钟）。</string>
-    <string name="action_pick_prepare">准备好目标应用后点「获取坐标」。开始选择前可正常操作应用。</string>
-    <string name="action_pick_swipe">画出滑动路径后点「应用」。触摸不会操作应用。可重新绘制。</string>
-    <string name="action_pick_point">点选位置后点「应用」。触摸不会操作应用。可重新选择。</string>
+    <string name="action_pick_prepare">现在可以正常操作屏幕。进入所需画面后点“获取坐标”。</string>
+    <string name="action_pick_swipe">画出滑动路径后点“应用”。选择时的触摸不会传到后方。点“操作屏幕”可恢复正常操作。</string>
+    <string name="action_pick_point">点选位置后点“应用”。选择时的触摸不会传到后方。点“操作屏幕”可恢复正常操作。</string>
     <string name="action_pick_move">移动控件</string>
     <string name="action_pick_screen">已保存的屏幕不同。更新屏幕设置前请检查现有坐标。</string>
     <string name="action_state_queued">等待启动</string>
@@ -104,4 +104,8 @@
     <string name="action_ui_read">获取元素</string>
     <string name="action_ui_empty">当前画面没有可选择的元素。</string>
     <string name="action_edit_screen_hint">仅使用界面元素时可留空。坐标操作需要屏幕信息。</string>
+    <string name="action_pick_navigate">操作屏幕</string>
+    <string name="action_pick_background_failed">无法将编辑器移到后台。请再次点“获取坐标”。</string>
+    <string name="action_pick_launch_failed">无法打开用于选择元素的应用（%1$s）。请检查目标及应用是否已启用。</string>
+    <string name="action_pick_foreground">请将用于选择元素的应用（%1$s）切换到前台。</string>
 </resources>

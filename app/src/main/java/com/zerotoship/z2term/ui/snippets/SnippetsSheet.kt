@@ -1,6 +1,12 @@
 package com.zerotoship.z2term.ui.snippets
 
+import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
+import com.zerotoship.z2term.automation.ActionMacrosActivity
+import com.zerotoship.z2term.ui.settings.ActionButton
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -8,6 +14,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -88,6 +97,7 @@ import java.util.UUID
 
 /** ツールシートのタブ。スニペット / SSH・SFTP / 常駐サーバーを 1 枚にまとめる。 */
 private enum class ToolsTab { SNIPPETS, HISTORY, SSH, SERVERS, WHEN }
+private enum class AutomationTab { ACTIONS, RULES }
 
 /**
  * ツールシート (ツールバーの 📜 から開く)。
@@ -97,8 +107,8 @@ private enum class ToolsTab { SNIPPETS, HISTORY, SSH, SERVERS, WHEN }
  *  - 履歴 (B2): 端末で実行した過去コマンドを絞り込んでタップで挿入。読み取り専用で、
  *    シェルの履歴ファイル (`~/.bash_history` / `~/.zsh_history`) をそのまま見る。
  *  - 接続先: SSH / SFTP と、その SSH に追加した FTP / SMB / WebDAV / VNC を開く。
- *  - サーバー: 常駐サーバーの起動/停止・ON/OFF・編集 (設定シートと同じ [ServersBody])。
- *    毎回設定画面を開かずここから管理できる。
+ *  - サーバー: 常駐サーバーの起動/停止・ON/OFF・編集 ([ServersBody])。
+ *  - 自動化: 操作自動化の管理画面と、自動化ルールを切り替える。
  *
  * [showSshTab] は呼び出し元が接続先機能を提供できない特殊画面だけ false にできる。
  * サーバータブは [serverSession] が渡されたときだけ出す。
@@ -130,10 +140,8 @@ fun SnippetsSheet(
         forceClose = true
         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
     }
-    var tab by remember { mutableStateOf(ToolsTab.SNIPPETS) }
-    // タブ切替時はスクロールを先頭へ戻す (前のタブの位置を引き継がない)。
-    LaunchedEffect(tab) { scrollState.scrollTo(0) }
-
+    var tab by rememberSaveable { mutableStateOf(ToolsTab.SNIPPETS) }
+    var automationTab by rememberSaveable { mutableStateOf(AutomationTab.RULES) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -144,40 +152,41 @@ fun SnippetsSheet(
         dragHandle = { Z2TermDragHandle(onClose = closeSheet) }
     ) {
         BackHandler(onBack = closeSheet)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                // ⚠ 中身の量に関わらず**常に全高**にする。付けないとシートが内容の高さに縮み、
-                // 項目の少ないタブでは背が低くなる。すると**タブバーの位置がタブごとに動き**、
-                // 切り替えた先で前のタブのタブバーがあった場所を押してしまう (誤タップ)。
-                // 高さが変わらなければ、どのタブでもタブバーは同じ場所にある。
-                // `fillMaxHeight` ではなく `weight` なのは、上のドラッグハンドルの分を
-                // 差し引いた残り全部を取るため (fillMaxHeight だとハンドルの分だけはみ出す)。
-                .weight(1f)
-                .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // 履歴タブは常に出るので、タブバーは必ず表示する。
-            run {
-                ToolsTabBar(
-                    selected = tab,
-                    showSsh = showSshTab,
-                    showServers = serverSession != null,
-                    onSelect = { tab = it }
-                )
+        Column(Modifier.fillMaxWidth().weight(1f)) {
+            ToolsTabBar(
+                selected = tab, showSsh = showSshTab, showServers = serverSession != null,
+                onSelect = { tab = it; scope.launch { scrollState.scrollTo(0) } }
+            )
+            if (tab == ToolsTab.WHEN) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AutomationTab.entries.forEach { option ->
+                        TabChip(
+                            label = stringResource(if (option == AutomationTab.ACTIONS) R.string.tools_automation_actions else R.string.tools_automation_rules),
+                            selected = automationTab == option, modifier = Modifier.weight(1f),
+                            onSelect = { automationTab = option; scope.launch { scrollState.scrollTo(0) } }
+                        )
+                    }
+                }
             }
-            when (tab) {
-                ToolsTab.SNIPPETS -> SnippetsBody(onRun = onRun, onDismiss = onDismiss)
-                ToolsTab.HISTORY -> HistoryBody(onRun = { cmd -> onRun(cmd); onDismiss() })
-                ToolsTab.SSH -> SshProfilesBody(
-                    onConnect = { p -> onConnect(p); onDismiss() },
-                    onSftp = { p -> onSftp(p); onDismiss() },
-                    onService = { p, service -> onService(p, service); onDismiss() }
-                )
-                ToolsTab.SERVERS -> serverSession?.let { ServersBody(session = it) }
-                ToolsTab.WHEN -> WhenRulesBody()
+            Column(
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(scrollState)
+                    .padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                when (tab) {
+                    ToolsTab.SNIPPETS -> SnippetsBody(onRun = onRun, onDismiss = onDismiss)
+                    ToolsTab.HISTORY -> HistoryBody(onRun = { cmd -> onRun(cmd); onDismiss() })
+                    ToolsTab.SSH -> SshProfilesBody(
+                        onConnect = { p -> onConnect(p); onDismiss() },
+                        onSftp = { p -> onSftp(p); onDismiss() },
+                        onService = { p, service -> onService(p, service); onDismiss() }
+                    )
+                    ToolsTab.SERVERS -> serverSession?.let { ServersBody(session = it) }
+                    ToolsTab.WHEN -> when (automationTab) {
+                        AutomationTab.ACTIONS -> ActionAutomationBody()
+                        AutomationTab.RULES -> WhenRulesBody()
+                    }
+                }
             }
         }
     }
@@ -194,26 +203,26 @@ private fun ToolsTabBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp),
+            .horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         TabChip(
             label = stringResource(R.string.tools_tab_snippets),
             selected = selected == ToolsTab.SNIPPETS,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.widthIn(min = 64.dp),
             onSelect = { onSelect(ToolsTab.SNIPPETS) }
         )
         TabChip(
             label = stringResource(R.string.tools_tab_history),
             selected = selected == ToolsTab.HISTORY,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.widthIn(min = 64.dp),
             onSelect = { onSelect(ToolsTab.HISTORY) }
         )
         if (showSsh) {
             TabChip(
                 label = stringResource(R.string.tools_tab_ssh),
                 selected = selected == ToolsTab.SSH,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.widthIn(min = 64.dp),
                 onSelect = { onSelect(ToolsTab.SSH) }
             )
         }
@@ -221,7 +230,7 @@ private fun ToolsTabBar(
             TabChip(
                 label = stringResource(R.string.tools_tab_servers),
                 selected = selected == ToolsTab.SERVERS,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.widthIn(min = 64.dp),
                 onSelect = { onSelect(ToolsTab.SERVERS) }
             )
         }
@@ -229,41 +238,32 @@ private fun ToolsTabBar(
         TabChip(
             label = stringResource(R.string.tools_tab_when),
             selected = selected == ToolsTab.WHEN,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.widthIn(min = 64.dp),
             onSelect = { onSelect(ToolsTab.WHEN) }
         )
     }
 }
 
 @Composable
-private fun TabChip(
-    label: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onSelect: () -> Unit
-) {
-    val bg = if (selected) ZtsGreen.copy(alpha = 0.18f) else ZtsBgCard
-    val border = if (selected) ZtsGreen else ZtsBorder
-    val fg = if (selected) ZtsGreen else ZtsTextPrimary
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(8.dp))
-            .clickable(onClick = onSelect)
-            .padding(vertical = 8.dp),
-        contentAlignment = Alignment.Center
+private fun TabChip(label: String, selected: Boolean, modifier: Modifier = Modifier, onSelect: () -> Unit) {
+    Column(
+        modifier.width(IntrinsicSize.Max).selectable(selected = selected, role = Role.Tab, onClick = onSelect),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            // タブが 3 つ並ぶと幅が窮屈なので 12sp・1 行固定 (溢れは「…」)。
-            text = label,
-            color = fg,
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        Text(label, modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+            color = if (selected) ZtsGreen else ZtsTextPrimary, fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+        Box(Modifier.fillMaxWidth().height(2.dp).background(if (selected) ZtsGreen else ZtsBorder))
+    }
+}
+
+@Composable
+private fun ActionAutomationBody() {
+    val context = LocalContext.current
+    Text(stringResource(R.string.tools_automation_actions_desc), color = ZtsTextSecondary, fontSize = 12.sp)
+    ActionButton(stringResource(R.string.action_edit_open)) {
+        runCatching { context.startActivity(Intent(context, ActionMacrosActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            .onFailure { android.widget.Toast.makeText(context, R.string.action_edit_error, android.widget.Toast.LENGTH_LONG).show() }
     }
 }
 

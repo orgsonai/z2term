@@ -41,7 +41,7 @@ minute). **Do not write in style B what style A can express.**
 
 ## 2. One-time setup
 
-1. **Enable triggers**: app ⚙ Settings → "**Resident servers & automation**" →
+1. **Enable triggers**: app ⚙ Settings → "**Permissions and notifications**" → "**Notifications and logs**" →
    - Turn on "**System event detection**". `z2-when`'s `charge:` / `battery:` / `wifi:` /
      `sensor:` / `file:` / `event:` and the `events.jsonl` log all depend on it.
    - If you use notifications too, turn on "**Notification detection**" (and grant the OS
@@ -60,7 +60,7 @@ minute). **Do not write in style B what style A can express.**
    ⚠ **A command is one line.** A rule file holds one item per line, so a newline throws away
    everything after it (since 0.8.272 newlines are folded into spaces on registration, but for
    anything long it is safer to **put it in a script file and register that path**).
-3. **To keep something resident** (only for style B): ⚙ Settings → "**Resident servers**" → register
+3. **To keep something resident** (only for style B): Command list → **Servers** → register
    your script's start command; it then runs without opening the app and after reboot (also turn on
    "auto-start on boot").
 4. Handy tool: install `jq` (JSON parsing). e.g. Alpine `apk add jq` / Debian-family `apt install jq`.
@@ -592,7 +592,7 @@ z2-when notify:otp run 'z2-notify -h -c "$Z2_WHEN_OTP" "One-time code" "$Z2_WHEN
 z2-noti list        # key / package / app label / title / text, as TSV
 ```
 
-- Needs notification access (⚙ Settings → Resident servers & automation → Notification detection).
+- Needs notification access (Settings → Permissions and notifications → Permissions → Read notifications).
 - **Read-only.** Pressing or dismissing other apps' notification buttons is deliberately not offered
   (it would also press their pay and send buttons).
 - To react the moment one arrives, use `z2-when notify:*` (3-A). `z2-noti` is for counting or
@@ -666,7 +666,7 @@ z2-when wifi:disconnect run 'z2-server stop sshd'
 - Starting and stopping also **persists as the enabled/disabled state** (the same switch as in the app).
 - ⚠ **With low-power mode on, no locks are taken even after a start** (that setting chose battery on
   purpose, so this is correct). `z2-server start` says so when it happens. The setting lives under
-  ⚙ Settings → Automation → Background process protection.
+  Command list → Servers.
 - ⚠ Stopping the last one **does not tear the residency down** (that would take a standing tunnel with
   it). Use [Stop] on the servers tab to stop everything.
 
@@ -920,7 +920,7 @@ A script is run in one of **two ways**, and **mixing them up causes real trouble
 
 | Kind | How you run it | What is in it |
 |---|---|---|
-| **Resident** (keeps running) | Register a start command in `⚙ Settings → Resident servers` (e.g. `sh ~/.z2term/macros/watch.sh`). Turn on "auto-start on boot" and it runs without opening the app and after a reboot | Anything built on the 5-0 skeleton (it has a watch loop; no bundled sample does) |
+| **Resident** (keeps running) | Register a start command in `⚙ Command list → Servers` (e.g. `sh ~/.z2term/macros/watch.sh`). Turn on "auto-start on boot" and it runs without opening the app and after a reboot | Anything built on the 5-0 skeleton (it has a watch loop; no bundled sample does) |
 | **One-shot** (runs once and exits) | Register it with `z2-when` / assign it to a widget button / run it by hand | Anything shaped like 5-A ("just the work") |
 
 ⚠ **Never register a one-shot script as a resident server.** The supervisor treats "it exited" as
@@ -1110,7 +1110,7 @@ On Android 15+ an **SMS OTP delivered as a notification can be redacted**, so no
 never sees it (the same is true of other automation apps' notification triggers). That is why z2term
 has "SMS detection", which **reads the SMS body itself** — redaction and the lock screen do not apply.
 
-- Setup: `⚙ Settings → SMS detection` **ON**, and allow receiving SMS in the dialog that appears
+- Setup: Settings → Permissions and notifications → Permissions: allow receiving SMS; then turn SMS detection on under Notifications and logs
 - Recorded to: `~/.z2term/sms.jsonl` (fields: `ts` `time` `from` `body`)
 - **Shortest form** (`sms:otp` does the extraction; it works whether or not logging is on):
 
@@ -1406,8 +1406,7 @@ The trick is to explicitly say **stay within this guide** so the AI won't reach 
   keeps the device out of Doze, and every `sleep` and `wc` a watch loop starts costs thousands of
   ptrace-mediated syscalls inside the engine (a single 2-second watcher measured **3 seconds of CPU per
   minute**). ① Can that macro be expressed as a `z2-when` trigger? (then you need no resident script at
-  all → section 1, style A) ② If residency really is needed, widen `POLL` (15 s or more) ③ `⚙ Settings → Automation →
-  Background process protection → Low-power mode` stops the app from holding the WakeLock/WifiLock (at the cost of slower reactions
+  all → section 1, style A) ② If residency really is needed, widen `POLL` (15 s or more) ③ `Command list → Servers → Low-power mode` stops the app from holding the WakeLock/WifiLock (at the cost of slower reactions
   while the screen is off).
 - **A tile does nothing when tapped** → the reason is in `~/.z2term/tile/run.log` (failures never
   reach the screen). `command not found` means you assigned something outside the macro folder by

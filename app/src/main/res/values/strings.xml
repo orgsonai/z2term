@@ -14,8 +14,8 @@
     <string name="settings_group_keyboard_desc">Keyboard size, input methods, dictionaries and app language</string>
     <string name="settings_group_linux">Linux environment</string>
     <string name="settings_group_linux_desc">OS, shell, storage and GUI</string>
-    <string name="settings_group_automation">Resident servers and automation</string>
-    <string name="settings_group_automation_desc">Background operation, servers, notifications and event integration</string>
+    <string name="settings_group_automation">Permissions and notifications</string>
+    <string name="settings_group_automation_desc">App permissions and notification, SMS and event logs</string>
     <string name="settings_group_app_lock">App lock</string>
     <string name="settings_group_app_lock_desc">Ask who you are before opening</string>
     <string name="settings_group_maintenance">Maintenance</string>
@@ -673,9 +673,9 @@
     <string name="notif_capture_service_label">Notification detection (log)</string>
     <string name="settings_section_notif">Notification detection</string>
     <string name="settings_notif_capture">Capture notifications</string>
-    <string name="settings_notif_capture_desc">When on (and notification access is granted), incoming notifications are detected. Whether they are written to a file is controlled by \"Save notification log\" below. A generic hook — you decide what to filter/serve from the terminal. Fully local.</string>
+    <string name="settings_notif_capture_desc">With notification access granted, detect notifications and their updates. Choose logging below. Content that never arrives as a notification, or is hidden by the sender or Android, cannot be retrieved. Fully local.</string>
     <string name="settings_notif_log">Save notification log</string>
-    <string name="settings_notif_log_desc">Write detected notifications to ~/.z2term/notifications.jsonl. When off, notifications are still detected but nothing is written. Repeated re-posts of the same notification are logged only once.</string>
+    <string name="settings_notif_log_desc">Save received long text and new conversation or inbox entries to ~/.z2term/notifications.jsonl. Deduplicate reposts and past messages while retaining new messages with distinct times or senders. When off, nothing is saved.</string>
     <string name="settings_notif_access_granted">Notification access: granted</string>
     <string name="settings_notif_access_missing">Notification access: not granted (tap below to grant)</string>
     <string name="settings_notif_grant">Grant notification access</string>
@@ -1057,8 +1057,8 @@
     <string name="guide_step_setup">Set up the hooks and tile slots (once)</string>
     <string name="guide_step_help">See how to write it (the full syntax)</string>
     <string name="guide_step_list">List what is registered</string>
-    <string name="guide_step_when">Register the trigger (it also shows under Settings -> Automation rules)</string>
-    <string name="guide_step_when_charge">Register the charging trigger (it also shows under Settings -> Automation rules)</string>
+    <string name="guide_step_when">Register the trigger (Command list &gt; Automation &gt; Automation rules)</string>
+    <string name="guide_step_when_charge">Register the charging trigger (Command list &gt; Automation &gt; Automation rules)</string>
     <string name="guide_step_when_headset">Register the headset trigger too</string>
     <string name="guide_step_try_event">Pretend charging just started and run it</string>
     <string name="guide_step_when_missed">Register a second one to catch missed calls too</string>
