@@ -107,6 +107,11 @@
         android:requestLegacyExternalStorage="true"
         tools:targetApi="35">
 
+        <!-- Keep drafts separate from MainActivity's singleTask stack when opening a target app. -->
+        <activity android:name=".automation.ActionMacrosActivity" android:exported="false"
+            android:launchMode="singleTask" android:excludeFromRecents="true"
+            android:taskAffinity="${applicationId}.action_editor"
+            android:theme="@android:style/Theme.DeviceDefault.DayNight" />
         <service android:name=".automation.ActionService"
             android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

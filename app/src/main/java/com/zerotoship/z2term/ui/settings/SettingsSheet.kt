@@ -1086,6 +1086,19 @@ fun SettingsSheet(
             }
 
             SettingsGroupSection(SettingsGroup.AUTOMATION) {
+                Section(title = stringResource(R.string.action_macro_title)) {
+                    Text(
+                        text = stringResource(R.string.action_edit_intro),
+                        color = ZtsTextSecondary,
+                        fontSize = 12.sp
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.action_edit_open),
+                        onClick = { context.startActivity(Intent(context,
+                            com.zerotoship.z2term.automation.ActionMacrosActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    )
+                }
+
                 // 通信量の上限 (0.8.388)。使いすぎに気付くのはたいてい絞られてからなので、
                 // 自分で決めた量で止まれるようにする。
                 NetLimitSection(settings = settings, session = session)

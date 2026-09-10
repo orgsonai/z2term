@@ -16,7 +16,12 @@ internal class ActionStore(private val root: File) {
         root.listFiles().orEmpty().filter { it.isFile && it.extension == "actions" && !Files.isSymbolicLink(it.toPath()) }
             .map { it.nameWithoutExtension }.sorted()
     }
-    fun read(name: String): ActionDefinition = synchronized(lock) {
+    fun snapshot(name: String): ActionProgram = synchronized(lock) { ActionProgram.load(name, ::read) }
+
+    fun read(name: String): ActionDefinition = ActionDefinition.parse(readText(name))
+
+    /** The editor must also be able to repair a definition that no longer parses. */
+    fun readText(name: String): String = synchronized(lock) {
         val file = file(name)
         require(file.isFile) { "No action macro: $name" }
         val text = file.inputStream().use { input ->
@@ -30,8 +35,27 @@ internal class ActionStore(private val root: File) {
             require(size <= ActionDefinition.MAX_BYTES) { "Definition exceeds 64 KiB" }
             String(bytes, 0, size, Charsets.UTF_8)
         }
-        ActionDefinition.parse(text)
+        text
     }
+
+    /** Null means a new name. Check and replace under the same lock as CLI saves. */
+    fun saveEdited(name: String, raw: String, screen: ActionDefinition.Screen, expected: String?): ActionDefinition = synchronized(lock) {
+        checkUnchanged(name, expected)
+        save(name, raw, screen)
+    }
+
+    fun deleteEdited(name: String, expected: String) = synchronized(lock) {
+        checkUnchanged(name, expected)
+        delete(name)
+    }
+
+    private fun checkUnchanged(name: String, expected: String?) {
+        val actual = if (file(name).exists()) readText(name) else null
+        if (actual != expected) throw EditConflict()
+    }
+
+    class EditConflict : IllegalStateException("The saved macro changed. Reopen it or save under another name.")
+
     fun save(name: String, raw: String, screen: ActionDefinition.Screen): ActionDefinition = synchronized(lock) {
         val file = file(name)
         val definition = ActionDefinition.parse(raw, screen)

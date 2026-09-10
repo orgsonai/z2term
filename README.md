@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.571-alpha (versionCode 579), working version; build not yet verified.** Named Android action macros share coordinate gestures, waits, app launches, shell commands and timed scrolling across the CLI, panels, tiles and existing macros, with cancellation, completion tracking, deadlines and history. This update also fills four languages of missing edge-panel translations reported by GitHub CI. See [action macro usage](docs/en/ACTION-MACROS.md). Published APKs and release history are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
+**0.8.574-alpha (versionCode 582), working version; build not yet verified.** Android action macros can click or wait for UI elements by text, description or ID, with selectors chosen over the target app or inspected through the CLI. Repeat/condition blocks now have a hierarchical GUI for adding, moving, duplicating and deleting complete blocks. Saved definitions, coordinate selection, cancellation and deadlines share the existing runtime. See [action macro usage](docs/en/ACTION-MACROS.md). Published APKs and release history are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
 
 ## Features
 

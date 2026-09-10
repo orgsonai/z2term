@@ -7,6 +7,10 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         override fun toString() = "${width}x${height}@$rotation"
     }
     sealed interface Step {
+        data class Repeat(val count: Int?, val body: List<Step>) : Step
+        data class Branch(val condition: String, val yes: List<Step>, val no: List<Step>) : Step
+        data class Call(val name: String) : Step
+        data class Ui(val target: String, val operation: String, val selector: ActionSelector, val timeoutMs: Long = 0) : Step
         data class Wait(val ms: Long) : Step
         data class Launch(val packageName: String) : Step
         data class Key(val name: String) : Step
@@ -27,6 +31,20 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
     companion object {
         const val MAX_BYTES = 65536
         const val MAX_STEPS = 64
+        const val MAX_NESTING = 8
+        fun macroName(value: String): String {
+            require(value.matches(Regex("[A-Za-z0-9_-]{1,64}"))) { "Macro names use 1..64 letters, digits, _ or -" }
+            return value
+        }
+        fun allSteps(steps: List<Step>): List<Step> = steps.flatMap { step ->
+            listOf(step) + when (step) {
+                is Step.Repeat -> allSteps(step.body)
+                is Step.Branch -> allSteps(step.yes) + allSteps(step.no)
+                else -> emptyList()
+            }
+        }
+        private data class Block(val kind: String, val argument: String, val parent: MutableList<Step>,
+            val target: String?, var yes: List<Step>? = null)
         fun packageName(value: String): String {
             require(value.matches(Regex("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+"))) { "Invalid application package ID" }
             return value
@@ -34,7 +52,9 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         fun parse(raw: String, current: Screen? = null): ActionDefinition {
             require(raw.toByteArray(Charsets.UTF_8).size <= MAX_BYTES && '\u0000' !in raw) { "Definition exceeds 64 KiB or contains NUL" }
             val headers = linkedMapOf<String, String>()
-            val steps = mutableListOf<Step>()
+            var steps = mutableListOf<Step>()
+            val blocks = mutableListOf<Block>()
+            var size = 0
             var target: String? = null
             var body = false
             val lines = raw.replace("\r\n", "\n").lines().map { original ->
@@ -59,8 +79,56 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 fun millis(i: Int, low: Long, high: Long): Long = words[i].toLongOrNull()?.also {
                     require(it in low..high) { "Duration must be $low..$high ms" }
                 } ?: throw IllegalArgumentException("Invalid duration")
-                fun destination() = target ?: throw IllegalArgumentException("Set target PACKAGE or launch PACKAGE before coordinates/scroll")
+                fun destination() = target ?: throw IllegalArgumentException("Set target PACKAGE or launch PACKAGE before coordinates/scroll/UI elements")
+                if (words[0] in setOf("repeat", "if", "else", "end", "call")) {
+                    require(headers["version"] == "2") { "Control flow requires version=2" }
+                    when (words[0]) {
+                        "repeat", "if" -> {
+                            if (words[0] == "repeat") {
+                                count(2)
+                                require(words[1] == "forever" || words[1].toIntOrNull()?.let { it in 1..10000 } == true) {
+                                    "repeat requires 1..10000 or forever"
+                                }
+                            } else ActionCondition.validate(line.dropWhile { !it.isWhitespace() }.trim())
+                            require(blocks.size < MAX_NESTING) { "At most $MAX_NESTING nested blocks" }
+                            blocks += Block(words[0], if (words[0] == "repeat") words[1]
+                                else line.dropWhile { !it.isWhitespace() }.trim(), steps, target)
+                            steps = mutableListOf()
+                            size++
+                        }
+                        "else" -> {
+                            count(1)
+                            val block = blocks.lastOrNull()
+                            require(block != null && block.kind == "if" && block.yes == null) { "else requires an unmatched if" }
+                            require(steps.isNotEmpty()) { "Empty if branch" }
+                            block.yes = steps.toList(); steps = mutableListOf(); target = block.target
+                        }
+                        "end" -> {
+                            count(1)
+                            require(blocks.isNotEmpty()) { "Unexpected end" }
+                            require(steps.isNotEmpty()) { "Empty control-flow block" }
+                            val block = blocks.removeAt(blocks.lastIndex)
+                            val closed = if (block.kind == "repeat") Step.Repeat(
+                                block.argument.takeUnless { it == "forever" }?.toInt(), steps.toList())
+                            else Step.Branch(block.argument, block.yes ?: steps.toList(),
+                                if (block.yes != null) steps.toList() else emptyList())
+                            steps = block.parent; steps += closed; target = block.target
+                        }
+                        "call" -> { count(2); steps += Step.Call(macroName(words[1])); size++ }
+                    }
+                    require(size <= MAX_STEPS) { "At most $MAX_STEPS steps including control flow" }
+                    return@map original
+                }
+                val before = steps.size
                 when (words[0]) {
+                    "click", "long-click", "wait-ui" -> {
+                        require(headers["version"] == "2") { "UI elements require version=2" }
+                        val wait = words[0] == "wait-ui"
+                        require(words.size >= if (wait) 3 else 2) { "UI operation requires a selector" }
+                        val ms = if (wait) millis(1, 1, 30000) else 0
+                        val selector = line.split(Regex("\\s+"), limit = if (wait) 3 else 2).last()
+                        steps += Step.Ui(destination(), words[0], ActionSelector.parse(selector), ms)
+                    }
                     "target" -> { count(2); target = packageName(words[1]) }
                     "launch" -> { count(2); target = packageName(words[1]); steps += Step.Launch(words[1]) }
                     "wait" -> { count(2); steps += Step.Wait(millis(1, 0, 30000)) }
@@ -93,10 +161,12 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                     }
                     else -> throw IllegalArgumentException("Unknown step: ${words[0]}")
                 }
-                require(steps.size <= MAX_STEPS) { "At most $MAX_STEPS steps" }
+                size += steps.size - before
+                require(size <= MAX_STEPS) { "At most $MAX_STEPS steps" }
                 original
             }
-            require(headers["version"] == "1") { "Start the definition with version=1" }
+            require(blocks.isEmpty()) { "Missing end for control-flow block" }
+            require(headers["version"] in setOf("1", "2")) { "Start the definition with version=1 or version=2" }
             require(steps.isNotEmpty()) { "No executable steps" }
             val timeout = (headers["timeout"] ?: "30").toLongOrNull()
             require(timeout != null && timeout in 1..300) { "timeout must be 1..300 seconds" }
@@ -105,8 +175,9 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                     ?: throw IllegalArgumentException("screen must be WIDTHxHEIGHT@ROTATION or current when saving")
                 Screen(match.groupValues[1].toInt(), match.groupValues[2].toInt(), match.groupValues[3].toInt())
             }
-            if (steps.any { it is Step.Stroke || it is Step.Scroll }) require(screen != null) { "Coordinates/scroll require screen=current or saved geometry" }
-            steps.filterIsInstance<Step.Stroke>().forEach { it.points(screen!!) }
+            val flat = allSteps(steps)
+            if (flat.any { it is Step.Stroke || it is Step.Scroll }) require(screen != null) { "Coordinates/scroll require screen=current or saved geometry" }
+            flat.filterIsInstance<Step.Stroke>().forEach { it.points(screen!!) }
             return ActionDefinition(lines.joinToString("\n").trimEnd() + "\n", timeout * 1000, screen, steps.toList())
         }
     }

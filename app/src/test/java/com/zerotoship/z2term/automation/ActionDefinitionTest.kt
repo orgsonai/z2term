@@ -33,7 +33,7 @@ class ActionDefinitionTest {
         assertNull(ActionDefinition.parse("version=1\nwait 20\nkey back").screen)
     }
     @Test fun rejectsDuplicateHeadersUnknownStepsAndUnboundedFiles() {
-        for (text in listOf("version=2\nwait 0", "version=1\nversion=1\nwait 0", "version=1\ntimeout=301\nwait 0",
+        for (text in listOf("version=3\nwait 0", "version=1\nversion=1\nwait 0", "version=1\ntimeout=301\nwait 0",
             "version=1\nunknown 20", "version=1\ncommand", "version=1\nwait 0\nscreen=10x10@0",
             "version=1\n" + "wait 0\n".repeat(65), "version=1\ncommand " + "a".repeat(65536))) {
             rejects { ActionDefinition.parse(text) }

@@ -13,7 +13,7 @@
     <string name="edge_no_command">コマンドが割り当てられていません。</string>
     <string name="edge_overlay_help">z2-edge permission で「他のアプリの上に重ねて表示」を許可してから、z2-edge on を実行してください。</string>
     <string name="edge_accessibility_label">z2term Android 操作</string>
-    <string name="edge_accessibility_description">コマンド・マクロ・設定したジェスチャーからの要求に応じて、Androidの全体操作・座標操作・自動スクロールを行います。ウィンドウの変化を検知してスクロールを停止します。対象の識別にウィンドウの範囲・フォーカス・パッケージ情報を使います。UIノードや入力した文字は読み取りません。</string>
+    <string name="edge_accessibility_description">コマンド・マクロ・ジェスチャーの要求に応じてAndroid操作を行い、ウィンドウの範囲・フォーカス・パッケージ情報を使います。要素指定マクロや明示的な要素選択・一覧取得では、対象アプリの表示文字・説明・要素IDも読み取ります。編集可能な入力欄とパスワード欄は対象外です。画面録画や常時の内容取得は行いません。</string>
     <string name="edge_accessibility_help">この操作には「重ねて表示」とは別の「ユーザー補助（アクセシビリティ）」が必要です。z2-key permission で「z2term Android 操作」を有効にしてください。制限される場合は z2-key app-info でアプリ情報を開き、メニューから「制限付き設定を許可」を選びます。</string>
     <string name="edge_add_app">＋アプリ</string>
     <string name="edge_pick_app">アプリを選択</string>

@@ -22,10 +22,14 @@ import java.util.UUID
 /** Shared by CLI, shell macros, tiles, triggers and panels. State belongs to the main thread. */
 internal object ActionRuntime {
     private val main = Handler(Looper.getMainLooper())
-    private data class Run(val id: String, val name: String, val definition: ActionDefinition, val context: Context,
+    private data class Run(val id: String, val name: String, val program: ActionProgram, val context: Context,
         val screen: ActionDefinition.Screen, val engine: ActionExecution, val runner: EdgeRunner,
         val listeners: MutableList<(JSONObject) -> Unit> = mutableListOf(), var step: Int = 0,
-        var target: String? = null, var service: ActionService? = null, var watchdog: Runnable? = null)
+        val history: MutableList<String> = mutableListOf(), var historyLoaded: Boolean = false,
+        var cancelHistoryFlush: (() -> Unit)? = null,
+        var target: String? = null, var service: ActionService? = null, var watchdog: Runnable? = null) {
+        val definition get() = program.root
+    }
     private var current: Run? = null
     private var retiringService: ActionService? = null
     private val results = linkedMapOf<String, JSONObject>()
@@ -45,16 +49,21 @@ internal object ActionRuntime {
         return { main.removeCallbacks(task) }
     }
     fun start(context: Context, name: String): String {
-        val definition = store(context).read(name)
+        val program = store(context).snapshot(name)
         return EdgeRuntime.onMain {
+            check(!ActionCoordinatePicker.active) { context.getString(com.zerotoship.z2term.R.string.action_pick_busy) }
             check(current == null) { "An action macro is already running; use z2-action status or stop" }
             check(retiringService == null) { "Wait for the previous execution service to stop" }
             check(AndroidActions.connected()) { "Enable z2term Android actions using z2-key permission" }
             check(!AndroidActions.gesturesInFlight()) { "Wait for the previous gesture to finish" }
             val geometry = screen(context)
-            require(definition.screen == null || definition.screen == geometry) { "Saved screen size/orientation differs; edit and save the macro again" }
+            program.definitions.forEach { (macro, definition) ->
+                require(definition.screen == null || definition.screen == geometry) {
+                    "Saved screen size/orientation differs in $macro; edit and save it again"
+                }
+            }
             val app = context.applicationContext
-            val run = Run(UUID.randomUUID().toString(), name, definition, app, geometry, ActionExecution(::schedule), EdgeRunner(app))
+            val run = Run(UUID.randomUUID().toString(), name, program, app, geometry, ActionExecution(::schedule), EdgeRunner(app))
             checkDevice(run)
             current = run
             try {
@@ -86,6 +95,10 @@ internal object ActionRuntime {
         run.engine.start(run.definition, { step, done -> execute(run, step, done) }, { index, step ->
             run.step = index
             log(run, "step", when (step) {
+                is ActionDefinition.Step.Repeat -> "repeat"
+                is ActionDefinition.Step.Branch -> "if"
+                is ActionDefinition.Step.Call -> "call"
+                is ActionDefinition.Step.Ui -> step.operation
                 is ActionDefinition.Step.Wait -> "wait"
                 is ActionDefinition.Step.Launch -> "launch"
                 is ActionDefinition.Step.Key -> "key"
@@ -93,7 +106,17 @@ internal object ActionRuntime {
                 is ActionDefinition.Step.Stroke -> "stroke"
                 is ActionDefinition.Step.Scroll -> "scroll"
             })
-        }, { result -> finish(run, result) })
+        }, { result -> finish(run, result) },
+            resolve = { run.program.definitions.getValue(it) },
+            condition = { spec ->
+                checkDevice(run)
+                val state = com.zerotoship.z2term.service.Z2ApiBridge.stateSnapshot(run.context).toMutableMap()
+                AndroidActions.focusedPackage()?.let { state["foreground"] = it }
+                ActionCondition.matches(spec, state)
+            },
+            name = run.name,
+            branch = { _, matched -> log(run, "branch", matched.toString()) })
+
         return true
     }
     private fun checkDevice(run: Run) {
@@ -107,6 +130,26 @@ internal object ActionRuntime {
         checkDevice(run)
         fun done(error: String?) { run.target = null; completed(error) }
         when (step) {
+            is ActionDefinition.Step.Repeat, is ActionDefinition.Step.Branch, is ActionDefinition.Step.Call ->
+                error("Control flow must be handled by the execution engine")
+            is ActionDefinition.Step.Ui -> {
+                if (step.operation == "wait-ui") return ActionUiWait(::schedule).start(step.timeoutMs,
+                    { callback ->
+                        // Launch returns before its window is focused. Wait for that first arrival too.
+                        if (run.target == null && !AndroidActions.targetMatches(step.target)) {
+                            val noWork: () -> Unit = {}
+                            callback(false, null)
+                            noWork
+                        } else {
+                            run.target = step.target
+                            checkDevice(run)
+                            AndroidActions.queryUi(step, callback)
+                        }
+                    }, ::done)
+                run.target = step.target
+                checkDevice(run)
+                return AndroidActions.queryUi(step) { found, error -> done(error ?: if (found) null else "UI element not found") }
+            }
             is ActionDefinition.Step.Wait -> return schedule(step.ms) { done(null) }
             is ActionDefinition.Step.Launch -> {
                 val intent = run.context.packageManager.getLaunchIntentForPackage(step.packageName) ?: error("No launchable app: ${step.packageName}")
@@ -187,17 +230,39 @@ internal object ActionRuntime {
         else results.values.lastOrNull() ?: JSONObject().put("state", "idle")
     }
     private fun json(run: Run, state: String) = JSONObject().put("id", run.id).put("name", run.name)
-        .put("state", state).put("step", run.step).put("total", run.definition.steps.size)
-    private fun log(run: Run, state: String, detail: String? = null) {
-        val file = File(run.context.filesDir, "shared_home/.z2term/actions/.history.jsonl")
+        .put("state", state).put("step", run.step)
+        .put("total", if (run.program.hasControlFlow) JSONObject.NULL else run.definition.steps.size)
+        .put("action_macro", run.engine.macro.ifBlank { run.name }).put("path", run.engine.path)
+        .put("iteration", run.engine.iteration).put("call_depth", run.engine.callDepth)
+    private fun historyFile(context: Context) = File(context.filesDir, "shared_home/.z2term/actions/.history.jsonl")
+    private fun readHistory(context: Context): List<String> {
+        val file = historyFile(context)
+        return if (file.isFile && file.length() <= 262144) file.readLines().takeLast(256) else emptyList()
+    }
+    private fun flushHistory(run: Run) {
+        run.cancelHistoryFlush?.invoke(); run.cancelHistoryFlush = null
+        val file = historyFile(run.context)
         file.parentFile?.mkdirs()
+        file.writeText(run.history.joinToString("\n", postfix = "\n"))
+    }
+    private fun log(run: Run, state: String, detail: String? = null) {
+        if (!run.historyLoaded) {
+            run.history += readHistory(run.context)
+            run.historyLoaded = true
+        }
         val event = json(run, state).put("time", System.currentTimeMillis()).put("detail", detail?.take(500) ?: JSONObject.NULL)
-        val kept = if (file.isFile && file.length() <= 262144) file.readLines().takeLast(255) else emptyList()
-        file.writeText((kept + event.toString()).joinToString("\n", postfix = "\n"))
+        run.history += event.toString()
+        while (run.history.size > 256) run.history.removeAt(0)
+        // Loops can emit many immediate steps. Keep progress live, but batch disk snapshots.
+        if (state !in setOf("step", "branch")) flushHistory(run)
+        else if (run.cancelHistoryFlush == null) run.cancelHistoryFlush = schedule(250) {
+            run.cancelHistoryFlush = null
+            try { flushHistory(run) }
+            catch (e: Exception) { stop(run.id, e.message ?: "Cannot save action history") }
+        }
     }
     fun history(context: Context): String = EdgeRuntime.onMain {
-        val file = File(context.filesDir, "shared_home/.z2term/actions/.history.jsonl")
-        val lines = if (file.isFile && file.length() <= 262144) file.readLines().takeLast(256) else emptyList()
+        val lines = current?.takeIf { it.historyLoaded }?.history ?: readHistory(context)
         JSONArray().apply { lines.forEach { put(JSONObject(it)) } }.toString()
     }
 }

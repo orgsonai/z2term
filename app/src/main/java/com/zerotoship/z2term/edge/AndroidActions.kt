@@ -13,8 +13,9 @@ import android.graphics.Rect
 import android.view.accessibility.AccessibilityWindowInfo
 import android.view.accessibility.AccessibilityEvent
 import org.json.JSONObject
+import kotlinx.coroutines.*
 
-/** Global actions and scroll gestures. Reads window bounds/focus, never nodes or typed text. */
+/** Global/coordinate actions use window metadata; explicit UI requests inspect non-editable nodes. */
 class AndroidActions : AccessibilityService() {
     private val autoScroll by lazy { AndroidAutoScroll(this) }
     private val coordinateStroke by lazy { AndroidStroke(this) }
@@ -49,7 +50,10 @@ class AndroidActions : AccessibilityService() {
         } finally { currentWindows.forEach { it.recycle() } }
     }
 
-    override fun onServiceConnected() { active = this }
+    override fun onServiceConnected() {
+        serviceInfo = serviceInfo.apply { flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS }
+        active = this
+    }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && event.windowId >= 0) {
             event.packageName?.toString()?.let { windowPackages[event.windowId] = it }
@@ -60,15 +64,25 @@ class AndroidActions : AccessibilityService() {
             if (runCatching { focusedTarget() }.getOrNull() != scrollTarget) autoScroll.stop()
         }
     }
-    override fun onInterrupt() { autoScroll.stop() }
+    override fun onInterrupt() {
+        autoScroll.stop()
+        com.zerotoship.z2term.automation.ActionRuntime.stop(reason = "Accessibility interrupted")
+        com.zerotoship.z2term.automation.ActionCoordinatePicker.cancel()
+    }
     override fun onUnbind(intent: Intent?): Boolean {
         autoScroll.stop()
-        if (active === this) active = null
+        if (active === this) {
+            com.zerotoship.z2term.automation.ActionCoordinatePicker.cancel()
+            active = null
+        }
         return super.onUnbind(intent)
     }
     override fun onDestroy() {
         autoScroll.stop()
-        if (active === this) active = null
+        if (active === this) {
+            com.zerotoship.z2term.automation.ActionCoordinatePicker.cancel()
+            active = null
+        }
         super.onDestroy()
     }
 
@@ -159,10 +173,59 @@ class AndroidActions : AccessibilityService() {
         fun connected() = active != null
 
         /** Uses package metadata from window events without retrieving UI nodes. */
+        internal fun focusedPackage(): String? {
+            val service = active ?: return null
+            val target = service.focusedTarget() ?: return null
+            return service.windowPackages[target.id]
+        }
+
         internal fun targetMatches(packageName: String): Boolean {
             val service = active ?: return false
             val target = service.focusedTarget() ?: return false
             return service.windowPackages[target.id] == packageName
+        }
+
+        private fun uiTarget(service: AndroidActions, targetPackage: String): AndroidUiElements.Window {
+            check(active === service) { "Accessibility disconnected" }
+            check(service.getSystemService(android.os.PowerManager::class.java).isInteractive &&
+                !service.getSystemService(android.app.KeyguardManager::class.java).isKeyguardLocked) { "Screen is off or locked" }
+            val target = service.focusedTarget() ?: error("No focused application window")
+            check(service.windowPackages[target.id] == targetPackage) { "Target app is not focused" }
+            return AndroidUiElements.Window(target.id, Rect(target.bounds))
+        }
+
+        internal fun queryUi(step: com.zerotoship.z2term.automation.ActionDefinition.Step.Ui,
+            done: (Boolean, String?) -> Unit): () -> Unit {
+            val service = active ?: error("Accessibility disconnected")
+            val job = CoroutineScope(Dispatchers.Main.immediate).launch {
+                try { done(AndroidUiElements.query(service, step) { uiTarget(service, step.target) }, null) } catch (e: CancellationException) { throw e } catch (e: Exception) {
+                    if (step.operation == "wait-ui" && e is AndroidUiElements.Changed) done(false, null)
+                    else done(false, e.message ?: "UI lookup failed")
+                }
+            }
+            return { job.cancel() }
+        }
+
+        internal suspend fun inspectUi(targetPackage: String): List<AndroidUiElements.Entry> {
+            com.zerotoship.z2term.automation.ActionDefinition.packageName(targetPackage)
+            val service = active ?: error("Accessibility disconnected")
+            return AndroidUiElements.inspect(service, targetPackage) { uiTarget(service, targetPackage) }
+        }
+
+        internal fun pickUiElements(request: String, target: String) {
+            val service = active ?: error("Enable z2term Android actions in Accessibility settings")
+            com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, target, swipe = false, elements = true)
+        }
+
+        internal fun pickCoordinates(request: String, target: String, swipe: Boolean) {
+            val service = active ?: error("Enable z2term Android actions in Accessibility settings")
+            com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, target, swipe)
+        }
+
+        internal fun coordinateTargetBounds(packageName: String): Rect? {
+            val service = active ?: return null
+            val target = service.focusedTarget() ?: return null
+            return target.bounds.takeIf { service.windowPackages[target.id] == packageName }?.let { Rect(it) }
         }
 
         internal fun gesturesInFlight(): Boolean = active?.let { it.coordinateStroke.inFlight || it.autoScroll.inFlight } == true

@@ -13,7 +13,7 @@
     <string name="edge_no_command">未分配命令。</string>
     <string name="edge_overlay_help">用 z2-edge permission 允许 z2term 显示在其他应用上层，然后运行 z2-edge on。</string>
     <string name="edge_accessibility_label">z2term Android操作</string>
-    <string name="edge_accessibility_description">根据命令、宏或已配置手势的请求，执行Android全局操作、坐标手势和自动滚动。检测窗口变化以停止滚动。使用窗口边界、焦点及包名信息识别目标，不读取界面节点或输入的文字。</string>
+    <string name="edge_accessibility_description">根据命令、宏或手势请求执行Android操作，使用窗口边界、焦点和包名信息。元素宏及明确请求的元素选择或检查还会读取目标应用中的显示文本、说明和资源ID。排除可编辑输入框及密码框。不录屏或持续读取界面内容。</string>
     <string name="edge_accessibility_help">此操作需要无障碍权限，与显示在其他应用上层的权限不同。用 z2-key permission 启用 z2term Android操作。若受限制，用 z2-key app-info 并在菜单中允许受限设置。</string>
     <string name="edge_add_app">+ 应用</string>
     <string name="edge_pick_app">选择应用</string>

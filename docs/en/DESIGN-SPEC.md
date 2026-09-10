@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-10 / Target version: 0.8.571-alpha (versionCode 579)
+Last updated: 2026-09-10 / Target version: 0.8.574-alpha (versionCode 582)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2200,9 +2200,15 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
 
 **Named Android action macros (0.8.571)**: Save text definitions through the CLI and run coordinate taps, holds, swipes, waits, app launches, shell commands and timed scrolling through one runtime. Execution provides one active run, completion tracking, cancellation, deadlines and history. Panels, tiles, existing macros and z2-when call the same definitions. See [Android action macros](ACTION-MACROS.md) for syntax, limits and examples. Build and device behavior not yet verified.
 
+**Action macro GUI (0.8.572)**: Settings → Automation opens the list, creation, step editing, ordering, duplication, execution, stopping and history. Pick tap/hold points or swipe endpoints over the target app and return them as pixels or percentages. Selection consumes touch input and ends on cancellation, screen changes, screen off, disconnection or after two minutes. GUI text editing shares definitions with the CLI, with unsaved-change confirmation and stale-save detection. The screen respects app lock. Build and device behavior not yet verified.
+
+**Action macro repetition, branching and reuse (0.8.573)**: version=2 adds counted/infinite loops, conditions based on device state or the focused package, and calls to saved macros. The complete call graph is validated and frozen before execution; cycles are rejected. Root and child deadlines, cancellation and a 10000-instruction run limit remain shared. The GUI offers loop/branch templates and a saved-macro picker; hierarchical block forms are added in 0.8.574. Progress includes location, iteration and branch outcomes. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
+
+**UI elements and block editing (0.8.574)**: Click/long-click by visible text, description or resource ID, and wait for elements with deadlines. Choose selectors over the target app or inspect through the CLI. Explicit element requests read only the target window, excluding editable/password fields. The hierarchical GUI adds children, moves across groups, duplicates/removes complete blocks and manages else branches. Text, comments and line endings are retained, with shared cancellation and deadlines. See [usage](ACTION-MACROS.md). Build and device behavior not verified; added tests not run.
+
 **Shared actions and gestures (unreleased)**: Appearance → Gestures assigns an ordered action list to tap, double tap, swipe up/down/inward/outward. Add, remove and move actions in the GUI; an empty list disables a gesture. Hold remains reserved for editing/relocation. Assigned directions take precedence over immediate button dragging; hold to relocate instead. Appearance previews never execute actions.
 
-Actions include toggling this panel, Back, Home, Recents, notifications, launching an installed app selected from a list, waiting, commands, single up/down swipes, variable/fixed auto-scroll, stop, faster, slower and reverse. For example, compose “Launch app → Wait → Swipe up once”. Commands wait for exit and single swipes wait for Android completion before advancing. Failure/cancellation stops the remaining actions. Launch completion means the launch request was accepted; add an explicit delay for screen readiness. Waiting for UI elements is not implemented.
+Actions include toggling this panel, Back, Home, Recents, notifications, launching an installed app selected from a list, waiting, commands, single up/down swipes, variable/fixed auto-scroll, stop, faster, slower and reverse. For example, compose “Launch app → Wait → Swipe up once”. Commands wait for exit and single swipes wait for Android completion before advancing. Failure/cancellation stops the remaining actions. Launch completion means the launch request was accepted; add an explicit delay for screen readiness. Use wait-ui in named action macros to wait for UI elements.
 
 Limits: 16 actions, 0–30000ms per wait, 60000ms total waits, 30 seconds per command and three minutes per sequence. A new handle touch, screen-off, rotation, reload or service shutdown cancels the sequence. A new sequence cancels its predecessor; late callbacks cannot restart cancelled work. Starting continuous auto-scroll advances to the next action once started; scrolling may continue after the sequence finishes.
 
@@ -2373,7 +2379,7 @@ reload clears the cache. `z2-app list` returns package/label JSON for MAIN/LAUNC
 exports PNG. Manifest visibility is restricted to MAIN/LAUNCHER; no `QUERY_ALL_PACKAGES` permission.
 
 `z2-key` exposes back/home/recents/shade/quicksettings/screenshot/split through an explicitly enabled
-AccessibilityService and reports OS rejection. It retrieves window IDs, bounds and focus and observes window-change events for auto-scroll, but does not read UI nodes or typed text. `status` lists available actions and `permission` opens the OS settings. Home also works through a
+AccessibilityService and reports OS rejection. Global actions and auto-scroll use window metadata. Explicit element macros, selection and inspection also read visible text, descriptions and IDs in the target window, excluding editable/password fields. `status` lists available actions and `permission` opens the OS settings. Home also works through a
 HOME Intent without the service. Split requests OS docking only, not application launch into split screen.
 `z2-intent -p package` resolves its launcher activity. `--window full` aliases ordinary launch; it cannot force
 fullscreen. Meter/graph/slider/image/log/term types are unsupported.

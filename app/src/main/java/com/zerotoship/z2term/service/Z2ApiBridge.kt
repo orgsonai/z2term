@@ -122,6 +122,7 @@ object Z2ApiBridge {
     private val mainHandler = Handler(Looper.getMainLooper())
     // FileObserver スレッドを塞がないよう、ハンドリングは専用シングルスレッドへ。
     private val appPickerBusy = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val actionInspectorBusy = java.util.concurrent.atomic.AtomicBoolean(false)
     private val worker = Executors.newSingleThreadExecutor { r ->
         Thread(r, "z2api-bridge").apply { isDaemon = true }
     }
@@ -240,6 +241,18 @@ object Z2ApiBridge {
                     } finally { appPickerBusy.set(false) }
                 }.apply { isDaemon = true; name = "z2-app-picker"; start() }
                 return
+            }
+            if (cmd == "action" && args.firstOrNull() == "inspect") {
+                require(needResp && args.size == 2) { "action inspect PACKAGE requires a response" }
+                check(actionInspectorBusy.compareAndSet(false, true)) { "UI inspection is already running" }
+                Thread {
+                    try {
+                        writeResponse(id, ok = true, data = com.zerotoship.z2term.automation.ActionCommands.command(context, args))
+                    } catch (e: Exception) {
+                        writeResponse(id, ok = false, data = e.message ?: "UI inspection failed")
+                    } finally { actionInspectorBusy.set(false) }
+                }.apply { isDaemon = true; name = "z2-ui-inspector"; start() }
+                return // Keep stop and shell commands responsive while an app supplies its UI tree.
             }
             if (cmd == "action" && args.firstOrNull() == "wait") {
                 require(needResp && args.size == 2) { "action wait RUN_ID requires a response" }

@@ -11,6 +11,15 @@ internal object ActionCommands {
             "show" -> { count(2); store.read(args[1]).text }
             "save" -> { count(3); store.save(args[1], args[2], ActionRuntime.screen(context)); args[1] }
             "delete" -> { count(2); store.delete(args[1]); "" }
+            "inspect" -> {
+                count(2)
+                val entries = kotlinx.coroutines.runBlocking { com.zerotoship.z2term.edge.AndroidActions.inspectUi(args[1]) }
+                org.json.JSONArray().apply { entries.forEach { entry ->
+                    put(org.json.JSONObject().put("id", entry.id ?: org.json.JSONObject.NULL)
+                        .put("text", entry.text ?: org.json.JSONObject.NULL)
+                        .put("desc", entry.description ?: org.json.JSONObject.NULL))
+                } }.toString()
+            }
             "screen" -> { count(1); "screen=${ActionRuntime.screen(context)}" }
             "start" -> { count(2); ActionRuntime.start(context, args[1]) }
             "status", "stop" -> {

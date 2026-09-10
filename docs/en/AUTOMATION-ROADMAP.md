@@ -10,15 +10,22 @@ The shared runtime allows one run, waits for completion, handles cancellation/de
 
 Handle gestures, action sequences and variable-speed scrolling from 0.8.570 remain available. They can invoke shared macros through the CLI.
 
-## Next stages
+## Second stage implemented (0.8.572-alpha / 580)
 
-| Priority | Extension | Scope |
-|---|---|---|
-| 1 | Coordinate selection and step editing | Pick points/paths over other screens; numeric input, insertion, ordering and waits; write back to the same text |
-| 2 | Repetition, branching and reuse | Counted/infinite loops, conditions and nested named macros; preserve cancellation, deadlines and history |
-| 3 | UI-element targeting | Match text, descriptions or IDs, wait for elements and use bounded retries |
-| Investigation | Operation capture | Capture and edit operations; investigate full-screen recording and image recognition separately |
+**Action macro GUI (0.8.572)**: Settings → Automation opens the list, creation, step editing, ordering, duplication, execution, stopping and history. Pick tap/hold points or swipe endpoints over the target app and return them as pixels or percentages. Selection consumes touch input and ends on cancellation, screen changes, screen off, disconnection or after two minutes. GUI text editing shares definitions with the CLI, with unsaved-change confirmation and stale-save detection. The screen respects app lock. Build and device behavior not yet verified.
 
-Coordinate capture must consume the selection touch, offer cancellation and record display size/rotation. Percentages alone do not accommodate app layout changes. Future UI-element reading must be distinguished from the current use of window metadata.
+## Third stage implemented (0.8.573-alpha / 581)
 
-Related: [Design specification](DESIGN-SPEC.md), [Handbook](HANDBOOK.md), [Android gesture dispatch](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService#dispatchGesture(android.accessibilityservice.GestureDescription,%20android.accessibilityservice.AccessibilityService.GestureResultCallback,%20android.os.Handler)).
+**Action macro repetition, branching and reuse (0.8.573)**: version=2 adds counted/infinite loops, conditions based on device state or the focused package, and calls to saved macros. The complete call graph is validated and frozen before execution; cycles are rejected. Root and child deadlines, cancellation and a 10000-instruction run limit remain shared. The GUI offers loop/branch templates and a saved-macro picker; blocks are edited as text. Progress includes location, iteration and branch outcomes. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
+
+## Fourth stage implemented (0.8.574-alpha / 582)
+
+**UI elements and block editing (0.8.574)**: Click/long-click by visible text, description or resource ID, and wait for elements with deadlines. Choose selectors over the target app or inspect through the CLI. Explicit element requests read only the target window, excluding editable/password fields. The hierarchical GUI adds children, moves across groups, duplicates/removes complete blocks and manages else branches. Text, comments and line endings are retained, with shared cancellation and deadlines. See [usage](ACTION-MACROS.md). Build and device behavior not verified; added tests not run.
+
+## Verification after implementation
+
+After a user-run build, check element waits immediately after launch, ambiguous matches, cancellation during lookup, returning selected elements to drafts, and moves across repeats/branches. The agent has not run a phone build.
+
+## Remaining investigations
+
+Operation capture, full-screen recording and image recognition need separate implementation and data-scope investigation. Coordinate selection consumes its touches; element requests inspect only the explicitly targeted window.

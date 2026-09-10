@@ -13,7 +13,7 @@
     <string name="edge_no_command">할당된 명령이 없습니다.</string>
     <string name="edge_overlay_help">z2-edge permission으로 다른 앱 위에 표시를 허용한 후 z2-edge on을 실행하세요.</string>
     <string name="edge_accessibility_label">z2term Android 동작</string>
-    <string name="edge_accessibility_description">명령, 매크로 또는 설정한 제스처에 따라 Android 전역 동작, 좌표 동작과 자동 스크롤을 실행합니다. 창 변경을 감지하여 스크롤을 멈춥니다. 창 경계, 포커스와 패키지 정보로 대상을 확인하며 UI 노드나 입력한 글자는 읽지 않습니다.</string>
+    <string name="edge_accessibility_description">명령, 매크로 또는 제스처 요청에 따라 Android 동작을 실행하며 창 경계, 포커스와 패키지 정보를 사용합니다. 요소 매크로와 명시적인 요소 선택·조회는 대상 앱의 표시 글자, 설명과 리소스 ID도 읽습니다. 편집 가능한 입력란과 비밀번호란은 제외됩니다. 화면 녹화나 상시 내용 수집은 하지 않습니다.</string>
     <string name="edge_accessibility_help">이 동작에는 다른 앱 위에 표시와 별개인 접근성 권한이 필요합니다. z2-key permission으로 z2term Android 동작을 켜세요. 제한되면 z2-key app-info를 실행하고 메뉴에서 제한된 설정을 허용하세요.</string>
     <string name="edge_add_app">+ 앱</string>
     <string name="edge_pick_app">앱 선택</string>
