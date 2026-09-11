@@ -85,7 +85,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.585-alpha (versionCode 593)、リリースビルド・lint検証済み。通知関連の単体テスト28件成功。** 通知の受信Bundleを直接読み、標準デコーダーによる1,024文字への再短縮を防ぎます。通知全体の時刻変更や、通常通知と会話通知に載る同じ本文の再保存を抑えます。送信元・OSですでに省略された本文は復元できません。前版のエッジメモ・タブの改善、管理画面集約と座標だけの取得も含みます。[設計仕様](docs/ja/DESIGN-SPEC.md)。公開済みAPKは[GitHub Releases](https://github.com/orgsonai/z2term/releases)にあります。
+**0.8.586-alpha (versionCode 594)、ビルド未検証・実機未確認。** エッジパネルのメモ帳はダブルタップで編集を開始します。操作マクロの一覧・作成・編集・実行・停止・履歴を「操作自動化」タブ内に表示し、その場で設定できます。未保存の変更確認と座標取得からの復帰を引き継ぎます。[設計仕様](docs/ja/DESIGN-SPEC.md)。公開済みAPKは[GitHub Releases](https://github.com/orgsonai/z2term/releases)にあります。
 
 ## 機能
 

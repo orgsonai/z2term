@@ -53,12 +53,18 @@ internal object ActionCoordinatePicker {
         }
     }
 
+    /** Keep the return destination with this request, without retaining an activity instance. */
+    fun returnTo(request: String, activity: android.app.Activity) {
+        session?.takeIf { it.request == request }?.returnIntent = Intent(activity, activity::class.java)
+    }
+
     fun cancel() {
         session?.let { it.finish(null, it.service.getString(R.string.action_pick_cancelled), returnToEditor = false) }
     }
 
     private class Session(val service: AndroidActions, val request: String, val target: String?,
         val swipe: Boolean, val screen: ActionDefinition.Screen) {
+        var returnIntent = Intent(service, ActionMacrosActivity::class.java)
         private val elements = target != null
         private val main = Handler(Looper.getMainLooper())
         private val wm = service.getSystemService(WindowManager::class.java)
@@ -245,7 +251,7 @@ internal object ActionCoordinatePicker {
             result = Result(request, screen, points, error, selector)
             runCatching { EdgeRuntime.suspendForActions(false) }
             if (returnToEditor && unlocked()) runCatching {
-                service.startActivity(Intent(service, ActionMacrosActivity::class.java)
+                service.startActivity(Intent(returnIntent)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP))
             }
         }

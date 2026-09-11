@@ -1,6 +1,6 @@
 # Android action macros
 
-Working version 0.8.584-alpha / versionCode 592. **Build verified; action-macro device behavior not yet verified.**
+Working version 0.8.586-alpha / versionCode 594. **Build and device behavior not yet verified.**
 
 `z2-action` stores named text definitions and runs them through one shared runtime from the CLI, shell macros, panels, tiles and `z2-when`. `z2-macro actions` is an alias. Panels need not be enabled. Execution requires enabling z2term Android actions through `z2-key permission`.
 
@@ -28,7 +28,7 @@ Definitions live in the shared home at `/root/.z2term/actions/NAME.actions`. Use
 
 ## Create and edit through the GUI (0.8.574)
 
-Open Command list → Automation → Action automation → Manage action macros. Panels need not be enabled.
+Open Command list → Automation → Action automation. The list and editor appear directly inside the tab (0.8.586). Panels need not be enabled.
 
 1. Choose New and enter a name using letters, digits, underscores or hyphens.
 2. Choose Add step, select Launch app and pick the target application. Add a wait to allow its screen to become ready.
@@ -36,15 +36,17 @@ Open Command list → Automation → Action automation → Manage action macros.
 4. Switch to Text to edit the complete definition. Comments, blank lines and untouched shell commands are preserved. Repair unsupported lines in text mode. More than 256 source rows open in text mode.
 5. Save uses the same validation as the CLI. Changing the name saves a separate copy and leaves the original intact. Existing names and definitions changed or deleted through the CLI while editing are protected from accidental replacement. Reopen a conflicting definition or save under another name.
 
-Tap a saved name to edit it; the list also offers duplication, execution and deletion. It shows execution state, step progress, a Stop button and up to 32 recent start/branch/end records. Macros run from this screen should start by launching their target app as needed. Closing unsaved edits asks for confirmation; rotation retains the name, definition and current step draft.
+Tap a saved name to edit it; the list also offers duplication, execution and deletion. It shows execution state, step progress, a Stop button and up to 32 recent start/branch/end records. Macros run from this screen should start by launching their target app as needed. Rotation retains the name, definition and current step draft.
+
+Closing, going back or switching tabs checks for unsaved edits. Swipe dismissal is blocked while editing; use Close to confirm discarding changes.
 
 ### Pick screen coordinates only (0.8.579)
 
-Choose Pick coordinates while editing a tap, hold or swipe. z2term moves its settings and editor tasks to the background and immediately enters coordinate selection. No launch or target step is required, and no other app is launched automatically. Enable z2term Android actions in Accessibility settings first.
+Choose Pick coordinates while editing a tap, hold or swipe. z2term moves the tools task containing the editor to the background and immediately enters coordinate selection. No launch or target step is required, and no other app is launched automatically. Enable z2term Android actions in Accessibility settings first.
 
 - Tap a point or draw from the start to the end of a swipe. Selection touches do not operate the underlying screen. A swipe captures straight-line endpoints only; edit its duration separately.
 - Use Navigate to operate the screen normally and reach another screen. Press Pick coordinates in the floating controls to resume selection.
-- Draw again to adjust, then choose Apply to return to the numeric fields. Controls can move between the top and bottom; Cancel returns to editing. Selection does not check the app package or restrict points to a target window.
+- Draw again to adjust, then choose Apply to return to the numeric fields. Controls can move between the top and bottom; Cancel returns to editing inside the original Action automation tab. Selection does not check the app package or restrict points to a target window.
 - Coordinates return in the selected unit (px / percent), together with the screen dimensions and rotation. If existing screen metadata differs, review other coordinates before explicitly changing the screen setting.
 - Selection cancels on screen off, lock, geometry/rotation changes, accessibility disconnection or after two minutes. Selection and macro execution are mutually exclusive; edge panels are temporarily hidden.
 

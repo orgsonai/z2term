@@ -675,9 +675,11 @@ Settings are split into **9 groups** (Display / Keyboard and input / Linux envir
 
 > **How to use (Tips)** (0.8.399): double taps, long presses, flicks — the gestures that **show nothing on screen** are collected here. That toolbar buttons have a second function, how to close and reorder tabs, the ESC and ⌫ flicks, scrolling inside a GUI app, that `z2gui clean` reinstalls the GUI when the desktop stops coming up (0.8.519), that typing `z2term` lists the built-in commands, and that an AI can write your macros. These are things you would never run into by accident, so open it once.
 
+**Notes and action macros (0.8.586)**: Double-tap an edge-panel note to begin editing; a single tap leaves the keyboard closed. Command list → Automation → Action automation directly contains the macro list, creation, editing, duplication, running, stopping and history. Switching tabs, closing or going back confirms unsaved changes. Coordinate picking returns to the editor inside the original tab. Build and device behavior not yet verified.
+
 **Command list tabs (0.8.583, 0.8.584)**: Top tabs return to equal-width rounded buttons, with a green border and tinted background when selected and 12sp monospace labels on one line. The Action automation / Automation rules subtabs retain the newer underline design. The fixed top position and restored tab selection remain available.
 
-**Management consolidation (0.8.581)**: Manage resident servers and automation in the Command list tool. Servers contains definitions, start/stop, startup on boot, low-power mode and the data limit. Automation switches between Action automation and Automation rules. Action automation opens the existing manager for creation, editing, execution, stopping and history; rules are edited in the tool.
+**Management consolidation (0.8.581)**: Manage resident servers and automation in the Command list tool. Servers contains definitions, start/stop, startup on boot, low-power mode and the data limit. Automation switches between Action automation and Automation rules. From 0.8.586, action automation also handles creation, editing, execution, stopping and history directly inside its tab, alongside inline rule editing.
 
 The former settings group is now Permissions and notifications, with Permissions and Notifications and logs tabs. Permissions includes notification posting and reading, Accessibility, overlays, shared storage, SMS, battery exemption, system settings, usage access, APK installation, device administration, IME and attached USB devices. Root rechecking is available after unlocking the developer engine controls. Folder-specific grants remain with the feature that selects the folder.
 
@@ -987,7 +989,7 @@ Deleting a child detaches its reference; deleting a parent preserves child panel
 
 In settings, hold an item name and drag before/after another item to save every item’s `order`. Dropping outside leaves the order unchanged. Settings also expose item deletion and app launch-mode selection.
 
-“+ Note” in settings adds a note to the active tab. `type=note` shows its contents; tap to edit with Undo and Redo.
+“+ Note” in settings adds a note to the active tab. `type=note` shows its contents; double-tap to edit with Undo and Redo (0.8.586). A single tap does not start editing, and dragging still scrolls.
 A blank note label (including whitespace only) hides the internal ID, icon and heading row so the body starts at the top (0.8.582).
 The note item settings include Ruled lines (off by default, `note-lines=on|off`), including wrapped lines.
 While editing, icon buttons for Undo, Redo, smaller text and larger text appear below the body. Text size is 10–32sp (default 16sp, `note-size`), saved per note item and applied to both reading and editing.

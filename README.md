@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.585-alpha (versionCode 593), release build and lint verified; all 28 notification unit tests passed.** Notification message Bundles are read directly to avoid the platform decoder truncating delivered text to 1,024 UTF-16 units. Notification timestamp changes and copies across plain and conversation notifications no longer cause the same reposts. Content already omitted by the sender or OS cannot be recovered. The previous edge-note and tab improvements, management consolidation and coordinate-only picking remain included. See [design spec](docs/en/DESIGN-SPEC.md). Published APKs are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
+**0.8.586-alpha (versionCode 594), build and device behavior not yet verified.** Edge-panel notes begin editing on a double tap. The Action automation tab directly contains macro listing, creation, editing, running, stopping and history, with unsaved-change confirmation and a return to the embedded editor after coordinate picking. See [design spec](docs/en/DESIGN-SPEC.md). Published APKs are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
 
 ## Features
 

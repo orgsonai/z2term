@@ -11,7 +11,7 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.edge.AppCatalog
 import com.zerotoship.z2term.edge.EdgeSettingsUi
 
-/** A single source line is replaced only after Apply. The activity retains the form draft. */
+/** A single source line is replaced only after Apply. The shared editor retains the form draft. */
 internal object ActionStepEditor {
     private data class Kind(val verb: String, val label: Int, val fields: List<Int>, val defaults: List<String>)
     private val kinds = listOf(

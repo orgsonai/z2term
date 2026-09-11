@@ -1,12 +1,11 @@
 package com.zerotoship.z2term.ui.snippets
 
-import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.semantics.Role
-import com.zerotoship.z2term.automation.ActionMacrosActivity
-import com.zerotoship.z2term.ui.settings.ActionButton
+import com.zerotoship.z2term.automation.ActionMacrosBody
+import com.zerotoship.z2term.automation.ActionMacrosState
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -127,34 +126,44 @@ fun SnippetsSheet(
 ) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    val actionMacros = rememberSaveable(saver = ActionMacrosState.saver) { ActionMacrosState() }
     var forceClose by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
-        // スクロール途中の下スワイプで誤って閉じないよう、最上部のときだけスワイプ閉じを許可。
+        // 最上部だけスワイプ閉じを許可。マクロ編集中は閉じるボタン・戻るから未保存確認を通す。
         confirmValueChange = { target ->
-            if (target == SheetValue.Hidden) forceClose || scrollState.value == 0 else true
+            if (target != SheetValue.Hidden || forceClose) true
+            else actionMacros.editor?.let { !it.editing && it.scrollY == 0 } ?: (scrollState.value == 0)
         }
     )
     val closeSheet: () -> Unit = {
         forceClose = true
         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
     }
+    val requestClose: () -> Unit = { actionMacros.requestLeave(closeSheet) }
     var tab by rememberSaveable { mutableStateOf(ToolsTab.SNIPPETS) }
     var automationTab by rememberSaveable { mutableStateOf(AutomationTab.RULES) }
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = requestClose,
         sheetState = sheetState,
         containerColor = ZtsBgPrimary,
         contentColor = ZtsTextPrimary,
         scrimColor = Color.Black.copy(alpha = 0.55f),
         contentWindowInsets = { WindowInsets.systemBars },
-        dragHandle = { Z2TermDragHandle(onClose = closeSheet) }
+        dragHandle = { Z2TermDragHandle(onClose = requestClose) }
     ) {
-        BackHandler(onBack = closeSheet)
+        BackHandler {
+            val editor = actionMacros.editor
+            if (editor?.editing == true) editor.leave() else requestClose()
+        }
         Column(Modifier.fillMaxWidth().weight(1f)) {
             ToolsTabBar(
                 selected = tab, showSsh = showSshTab, showServers = serverSession != null,
-                onSelect = { tab = it; scope.launch { scrollState.scrollTo(0) } }
+                onSelect = { selected ->
+                    if (selected != tab) actionMacros.requestLeave {
+                        tab = selected; scope.launch { scrollState.scrollTo(0) }
+                    }
+                }
             )
             if (tab == ToolsTab.WHEN) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -162,28 +171,33 @@ fun SnippetsSheet(
                         AutomationTabChip(
                             label = stringResource(if (option == AutomationTab.ACTIONS) R.string.tools_automation_actions else R.string.tools_automation_rules),
                             selected = automationTab == option, modifier = Modifier.weight(1f),
-                            onSelect = { automationTab = option; scope.launch { scrollState.scrollTo(0) } }
+                            onSelect = {
+                                if (option != automationTab) actionMacros.requestLeave {
+                                    automationTab = option; scope.launch { scrollState.scrollTo(0) }
+                                }
+                            }
                         )
                     }
                 }
             }
-            Column(
-                Modifier.weight(1f).fillMaxWidth().verticalScroll(scrollState)
-                    .padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                when (tab) {
-                    ToolsTab.SNIPPETS -> SnippetsBody(onRun = onRun, onDismiss = onDismiss)
-                    ToolsTab.HISTORY -> HistoryBody(onRun = { cmd -> onRun(cmd); onDismiss() })
-                    ToolsTab.SSH -> SshProfilesBody(
-                        onConnect = { p -> onConnect(p); onDismiss() },
-                        onSftp = { p -> onSftp(p); onDismiss() },
-                        onService = { p, service -> onService(p, service); onDismiss() }
-                    )
-                    ToolsTab.SERVERS -> serverSession?.let { ServersBody(session = it) }
-                    ToolsTab.WHEN -> when (automationTab) {
-                        AutomationTab.ACTIONS -> ActionAutomationBody()
-                        AutomationTab.RULES -> WhenRulesBody()
+            if (tab == ToolsTab.WHEN && automationTab == AutomationTab.ACTIONS) {
+                ActionMacrosBody(actionMacros, Modifier.weight(1f).fillMaxWidth(), onClose = requestClose)
+            } else {
+                Column(
+                    Modifier.weight(1f).fillMaxWidth().verticalScroll(scrollState)
+                        .padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    when (tab) {
+                        ToolsTab.SNIPPETS -> SnippetsBody(onRun = onRun, onDismiss = onDismiss)
+                        ToolsTab.HISTORY -> HistoryBody(onRun = { cmd -> onRun(cmd); onDismiss() })
+                        ToolsTab.SSH -> SshProfilesBody(
+                            onConnect = { p -> onConnect(p); onDismiss() },
+                            onSftp = { p -> onSftp(p); onDismiss() },
+                            onService = { p, service -> onService(p, service); onDismiss() }
+                        )
+                        ToolsTab.SERVERS -> serverSession?.let { ServersBody(session = it) }
+                        ToolsTab.WHEN -> WhenRulesBody()
                     }
                 }
             }
@@ -279,16 +293,6 @@ private fun AutomationTabChip(label: String, selected: Boolean, modifier: Modifi
             color = if (selected) ZtsGreen else ZtsTextPrimary, fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
         Box(Modifier.fillMaxWidth().height(2.dp).background(if (selected) ZtsGreen else ZtsBorder))
-    }
-}
-
-@Composable
-private fun ActionAutomationBody() {
-    val context = LocalContext.current
-    Text(stringResource(R.string.tools_automation_actions_desc), color = ZtsTextSecondary, fontSize = 12.sp)
-    ActionButton(stringResource(R.string.action_edit_open)) {
-        runCatching { context.startActivity(Intent(context, ActionMacrosActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-            .onFailure { android.widget.Toast.makeText(context, R.string.action_edit_error, android.widget.Toast.LENGTH_LONG).show() }
     }
 }
 

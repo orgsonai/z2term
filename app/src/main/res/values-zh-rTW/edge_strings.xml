@@ -39,7 +39,7 @@
     <string name="edge_delete">刪除</string>
     <string name="edge_note">筆記</string>
     <string name="edge_add_note">+ 筆記</string>
-    <string name="edge_note_empty">輕觸以寫筆記</string>
+    <string name="edge_note_empty">輕觸兩下以寫筆記</string>
     <string name="edge_undo">復原</string>
     <string name="edge_redo">重做</string>
     <string name="edge_split_unavailable">此Android版本無法從全螢幕啟動分割畫面。請先將終端機置於分割畫面。</string>

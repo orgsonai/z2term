@@ -39,7 +39,7 @@
     <string name="edge_delete">삭제</string>
     <string name="edge_note">메모</string>
     <string name="edge_add_note">+ 메모</string>
-    <string name="edge_note_empty">눌러서 메모 작성</string>
+    <string name="edge_note_empty">두 번 눌러서 메모 작성</string>
     <string name="edge_undo">실행 취소</string>
     <string name="edge_redo">다시 실행</string>
     <string name="edge_split_unavailable">이 Android 버전은 전체 화면에서 분할 화면을 시작할 수 없습니다. 먼저 터미널을 분할 화면으로 전환하세요.</string>

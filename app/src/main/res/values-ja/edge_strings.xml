@@ -39,7 +39,7 @@
     <string name="edge_delete">削除</string>
     <string name="edge_note">メモ</string>
     <string name="edge_add_note">＋メモ</string>
-    <string name="edge_note_empty">タップしてメモを書く</string>
+    <string name="edge_note_empty">ダブルタップしてメモを書く</string>
     <string name="edge_undo">戻す</string>
     <string name="edge_redo">やり直す</string>
     <string name="edge_split_unavailable">このAndroidでは全画面から分割を開始できません。先に端末画面を分割表示にしてください。</string>

@@ -2,6 +2,8 @@
 
 Principle (2026-09-10): build broad Android automation that combines triggers, conditions and multiple actions into reusable saved macros. Commands and text remain authoritative. GUI editing, coordinate selection and previews are helpers; no capability should require GUI-only configuration. Shell macros and `z2-when` provide existing integration, while bars, tiles and gestures call the same macros.
 
+**Notes and action macros (0.8.586)**: Double-tap an edge-panel note to begin editing; a single tap leaves the keyboard closed. Command list → Automation → Action automation directly contains the macro list, creation, editing, duplication, running, stopping and history. Switching tabs, closing or going back confirms unsaved changes. Coordinate picking returns to the editor inside the original tab. Build and device behavior not yet verified.
+
 ## First stage implemented (0.8.571-alpha / 579)
 
 **Build and device behavior not yet verified.** Added named text definitions with save/show/delete; `z2-action run/start/wait/status/stop/history`; coordinate taps, holds and swipes; waits, app launch, Android global actions, shell commands and timed auto-scroll. `z2-macro actions` provides the same entry point.

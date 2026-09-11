@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.view.Gravity
 import android.widget.EditText
 import android.widget.ImageButton
@@ -14,6 +16,21 @@ import android.widget.TextView
 internal object EdgeNoteUi {
     fun preview(context: Context, ruled: Boolean): TextView = object : TextView(context) {
         private val rules = Rules(this, ruled)
+        private val taps = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(event: MotionEvent) = true
+            override fun onDoubleTap(event: MotionEvent): Boolean = performClick()
+        }).apply { setIsLongpressEnabled(false) }
+
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            if (!isEnabled) return false
+            taps.onTouchEvent(event)
+            // Do not send single taps to TextView's click handler. Parent scrolling can still cancel.
+            return true
+        }
+
+        // Keep the normal click action for accessibility services and keyboard activation.
+        override fun performClick(): Boolean = super.performClick()
+
         override fun onDraw(canvas: Canvas) {
             rules.draw(canvas)
             super.onDraw(canvas)
