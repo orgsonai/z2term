@@ -13,7 +13,7 @@
     <string name="edge_no_command">コマンドが割り当てられていません。</string>
     <string name="edge_overlay_help">z2-edge permission で「他のアプリの上に重ねて表示」を許可してから、z2-edge on を実行してください。</string>
     <string name="edge_accessibility_label">z2term Android 操作</string>
-    <string name="edge_accessibility_description">コマンド・マクロ・ジェスチャーの要求に応じてAndroid操作を行い、ウィンドウの範囲・フォーカス・パッケージ情報を使います。要素指定マクロや明示的な要素選択・一覧取得では、対象アプリの表示文字・説明・要素IDも読み取ります。編集可能な入力欄とパスワード欄は対象外です。画面録画や常時の内容取得は行いません。</string>
+    <string name="edge_accessibility_description">コマンド・マクロ・ジェスチャーの要求に応じてAndroid操作を行い、ウィンドウの範囲・フォーカス・パッケージ情報を使います。要素指定マクロや明示的な要素選択・一覧取得では、表示文字・説明・要素IDも読み取ります。要素取得では編集可能な入力欄とパスワード欄を除外します。自動色のバーを表示中は、周囲の明暗判定のため定期的に画面画像を取得します。画像は保存・送信せず、判定後に破棄します。</string>
     <string name="edge_accessibility_help">この操作には「重ねて表示」とは別の「ユーザー補助（アクセシビリティ）」が必要です。z2-key permission で「z2term Android 操作」を有効にしてください。制限される場合は z2-key app-info でアプリ情報を開き、メニューから「制限付き設定を許可」を選びます。</string>
     <string name="edge_add_app">＋アプリ</string>
     <string name="edge_pick_app">アプリを選択</string>
@@ -187,4 +187,10 @@
     <string name="edge_note_lines">罫線</string>
     <string name="edge_note_smaller">メモの文字を小さく</string>
     <string name="edge_note_larger">メモの文字を大きく</string>
+    <string name="edge_bar_color">バーの色</string>
+    <string name="edge_bar_color_help">自動は背景に合わせて白・黒を切り替えます。Android 11以降と「z2term Android 操作」のユーザー補助が必要です。判定できない場合も白黒の縁取りを表示します。白・黒の固定では画面画像を取得しません。</string>
+    <string name="edge_note_background">メモの背景色</string>
+    <string name="edge_note_color">メモの文字色</string>
+    <string name="edge_note_colors_help">色見本または #RRGGBB で指定します。自動に戻すと背景はテーマに従い、文字は背景に合わせます。保存すると反映されます。</string>
+    <string name="edge_color_invalid">#RRGGBB（例: #FFFFFF）で入力してください。</string>
 </resources>

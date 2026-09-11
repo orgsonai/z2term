@@ -11,10 +11,12 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge handle ID bar --side right --offset 30% --length 6% --size 6 --open swipe
         |# z2-edge handle ID button --run 'z2-key back'  直接実行するボタン
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
+        |# --bar-color auto|white|black  バーの自動色／白／黒。自動はAndroid 11以降＋ユーザー補助が必要。
         |# 板は項目だけを表示。余白長押しで設定。取っ手長押し後、動かさず離すと設定。
         |# バー幅: --size 2〜48dp、ボタン: 32〜96dp。バーは300ms長押し後に移動。
         |# z2-edge handle ID off                  取っ手を隠す
         |# z2-edge set ID:memo type=note file=~/memo.txt
+        |# メモの色: note-background=#FFF4BD note-color=#000000（空値で自動へ戻す）
         |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
         |# z2-edge panel ID width=80% height=60% fit=content|fixed
@@ -59,9 +61,11 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge handle ID bar --side right --offset 30% --length 6% --size 6 --open swipe
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
         |# Panels show items only by default. Hold whitespace, or hold/release a handle without moving, for settings.
+        |# --bar-color auto|white|black: automatic needs Android 11+ and Accessibility.
         |# Bar: --size 2..48 dp; button: 32..96 dp. Hold 300ms to move a handle; bar hit area is at least 24dp.
         |# z2-edge handle ID off
         |# z2-edge set ID:memo type=note file=~/memo.txt
+        |# Note colours: note-background=#FFF4BD note-color=#000000 (empty resets to automatic).
         |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
         |# z2-edge panel ID 'actions-double-tap=launch:org.example.app|wait:500|swipe-up'

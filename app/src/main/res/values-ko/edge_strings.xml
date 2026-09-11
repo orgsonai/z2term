@@ -13,7 +13,7 @@
     <string name="edge_no_command">할당된 명령이 없습니다.</string>
     <string name="edge_overlay_help">z2-edge permission으로 다른 앱 위에 표시를 허용한 후 z2-edge on을 실행하세요.</string>
     <string name="edge_accessibility_label">z2term Android 동작</string>
-    <string name="edge_accessibility_description">명령, 매크로 또는 제스처 요청에 따라 Android 동작을 실행하며 창 경계, 포커스와 패키지 정보를 사용합니다. 요소 매크로와 명시적인 요소 선택·조회는 대상 앱의 표시 글자, 설명과 리소스 ID도 읽습니다. 편집 가능한 입력란과 비밀번호란은 제외됩니다. 화면 녹화나 상시 내용 수집은 하지 않습니다.</string>
+    <string name="edge_accessibility_description">명령, 매크로 또는 제스처 요청에 따라 창 경계, 포커스와 패키지 정보로 Android 동작을 수행합니다. 명시적인 요소 요청은 편집·비밀번호 노드를 제외한 표시 글자, 설명과 ID를 읽습니다. 자동 색상 막대가 표시되는 동안 주변 밝기 분석을 위해 화면 이미지를 주기적으로 가져옵니다. 이미지는 저장하거나 전송하지 않으며 분석 후 해제합니다.</string>
     <string name="edge_accessibility_help">이 동작에는 다른 앱 위에 표시와 별개인 접근성 권한이 필요합니다. z2-key permission으로 z2term Android 동작을 켜세요. 제한되면 z2-key app-info를 실행하고 메뉴에서 제한된 설정을 허용하세요.</string>
     <string name="edge_add_app">+ 앱</string>
     <string name="edge_pick_app">앱 선택</string>
@@ -172,4 +172,10 @@
     <string name="edge_note_lines">줄 표시</string>
     <string name="edge_note_smaller">메모 글자 크기 줄이기</string>
     <string name="edge_note_larger">메모 글자 크기 키우기</string>
+    <string name="edge_bar_color">막대 색상</string>
+    <string name="edge_bar_color_help">자동은 배경에 따라 흰색과 검은색을 전환합니다. Android 11 이상과 z2term Android 동작 접근성이 필요합니다. 분석할 수 없어도 대비 테두리는 유지됩니다. 고정 색상은 화면 이미지를 가져오지 않습니다.</string>
+    <string name="edge_note_background">메모 배경색</string>
+    <string name="edge_note_color">메모 글자색</string>
+    <string name="edge_note_colors_help">색상 견본 또는 #RRGGBB로 지정합니다. 자동은 테마 배경과 배경에 맞는 글자색을 사용합니다. 저장하면 적용됩니다.</string>
+    <string name="edge_color_invalid">#RRGGBB 형식으로 입력하세요. 예: #FFFFFF.</string>
 </resources>

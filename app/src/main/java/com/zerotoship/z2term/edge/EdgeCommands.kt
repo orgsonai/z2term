@@ -86,7 +86,7 @@ object EdgeCommands {
                     when (option) {
                         "--side" -> fields["side"] = value
                         "--offset", "--length" -> fields[option.removePrefix("--")] = value.removeSuffix("%")
-                        "--size", "--run", "--label", "--alpha", "--open" -> fields[option.removePrefix("--")] = value
+                        "--size", "--run", "--label", "--alpha", "--open", "--bar-color" -> fields[option.removePrefix("--")] = value
                         "--at" -> {
                             val point = value.split(',')
                             require(point.size == 2) { "--at X%,Y%" }

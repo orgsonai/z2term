@@ -82,7 +82,8 @@ object EdgeItemEditor {
         val fields = linkedMapOf("label" to R.string.edge_item_label, "icon" to R.string.edge_item_icon,
             "run" to R.string.edge_item_run, "state" to R.string.edge_item_state,
             "on-select" to R.string.edge_item_select, "every" to R.string.edge_item_every,
-            "timeout" to R.string.edge_item_timeout, "out" to R.string.edge_item_out, "file" to R.string.edge_item_file)
+            "timeout" to R.string.edge_item_timeout, "out" to R.string.edge_item_out, "file" to R.string.edge_item_file,
+            "note-background" to R.string.edge_note_background, "note-color" to R.string.edge_note_color)
         fields.forEach { (key, label) ->
             val group = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
             group.addView(EdgeSettingsUi.caption(context, context.getString(label)))
@@ -92,6 +93,7 @@ object EdgeItemEditor {
             }
             entries[key] = entry; groups[key] = group
             group.addView(entry)
+            if (key in setOf("note-background", "note-color")) EdgeColorField.add(context, group, entry, label)
             if (key == "icon") EdgeItemPickers.icons(context, group, entry)
             if (key == "run" && appCommand == null) EdgeItemPickers.macros(context, group, entry)
             group.addView(EdgeSettingsUi.spacer(context, 12))
@@ -107,7 +109,7 @@ object EdgeItemEditor {
                     "state" -> selected == "toggle"
                     "on-select" -> selected == "list"
                     "every" -> selected in listOf("text", "toggle", "list")
-                    "file" -> selected == "note"
+                    "file", "note-background", "note-color" -> selected == "note"
                     "run", "timeout", "out" -> selected != "note"
                     else -> true
                 }
@@ -144,7 +146,7 @@ object EdgeItemEditor {
                 entries.forEach { (key, entry) ->
                     // Preserve hidden values; only visible fields are edited.
                     if (groups.getValue(key).visibility == View.VISIBLE) {
-                        val value = entry.text.toString()
+                        val value = if (key in setOf("note-background", "note-color")) entry.text.toString().trim() else entry.text.toString()
                         if (value.isEmpty()) values.remove(key) else values[key] = value
                     }
                 }

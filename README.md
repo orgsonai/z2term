@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.586-alpha (versionCode 594), build and device behavior not yet verified.** Edge-panel notes begin editing on a double tap. The Action automation tab directly contains macro listing, creation, editing, running, stopping and history, with unsaved-change confirmation and a return to the embedded editor after coordinate picking. See [design spec](docs/en/DESIGN-SPEC.md). Published APKs are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
+**0.8.587-alpha (versionCode 595), build and device behavior not yet verified.** Edge bars automatically switch between white and black using the nearby background, with a contrasting outline (Android 11+ and Accessibility required). Fixed white or black is also available. Each note supports background and text colours through swatches or #RRGGBB. See [design spec](docs/en/DESIGN-SPEC.md). Published APKs are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
 
 ## Features
 

@@ -47,6 +47,7 @@ object EdgeRuntime {
     private var runner: EdgeRunner? = null
     private var panels = emptyList<EdgeStore.Panel>()
     private val handles = linkedMapOf<String, TextView>()
+    private var handleContrast: EdgeHandleContrast? = null
     private val values = mutableMapOf<String, String>()
     private val badges = mutableMapOf<String, String>()
     private val renderers = mutableMapOf<String, (String) -> Unit>()
@@ -313,6 +314,7 @@ object EdgeRuntime {
     }
 
     private fun removeHandles() {
+        handleContrast?.dispose(); handleContrast = null
         cancelHandleActions()
         scrollSessionAvailable = false
         stopHandleScroll()
@@ -325,6 +327,7 @@ object EdgeRuntime {
     private fun showHandles() {
         if (!unlocked() || actionsSuspended) return
         removeHandles()
+        val contrastTargets = mutableListOf<EdgeHandleContrast.Target>()
         panels.filter { it.handle != "off" && panels.none { parent -> it.id in parent.tabs } }.forEach { panel ->
             val (width, height) = screenSize()
             val f = panel.fields
@@ -343,12 +346,16 @@ object EdgeRuntime {
             var relocating = false
             var previewRight: Boolean? = null
             val barBackground = background(round = true)
+            var blackBar = f["bar-color"] == "black"
             val view = object : TextView(ui()) {
                 override fun onDraw(canvas: android.graphics.Canvas) {
                     if (!button) {
                         // Keep the complete shape independent of the wider touch target.
                         val visibleWidth = if (relocating) this.width else size.coerceAtMost(this.width)
                         val left = if (right && !relocating) this.width - visibleWidth else 0
+                        barBackground.setColor(if (blackBar) Color.BLACK else Color.WHITE)
+                        barBackground.setStroke(minOf(dp(1).coerceAtLeast(1), (visibleWidth / 4).coerceAtLeast(1)),
+                            if (blackBar) Color.WHITE else Color.BLACK)
                         barBackground.cornerRadius = minOf(visibleWidth, this.height) / 2f
                         barBackground.setBounds(left, 0, left + visibleWidth, this.height)
                         barBackground.draw(canvas)
@@ -361,7 +368,8 @@ object EdgeRuntime {
                 }
             }.apply {
                 text = badges[panel.id] ?: if (button) "≡" else ""
-                textSize = 16f; setTextColor(colors().second)
+                textSize = 16f
+                setTextColor(if (button) colors().second else if (blackBar) Color.WHITE else Color.BLACK)
                 background = if (button) background(true) else null; gravity = Gravity.CENTER
                 alpha = f["alpha"]?.toFloatOrNull() ?: 1f
                 setPadding(0, 0, 0, 0); maxLines = 2
@@ -518,8 +526,34 @@ object EdgeRuntime {
             }
             wm().addView(view, p)
             handles[panel.id] = view
+            if (!button && f["bar-color"].orEmpty() in setOf("", "auto")) {
+                contrastTargets.add(EdgeHandleContrast.Target(area = {
+                    if (!view.isAttachedToWindow || !view.isShown || relocating || view.width == 0 || view.height == 0) null
+                    else {
+                        val location = IntArray(2).also(view::getLocationOnScreen)
+                        val visibleWidth = size.coerceAtMost(view.width)
+                        val gap = dp(2).coerceAtLeast(1)
+                        val strip = dp(4).coerceAtLeast(1)
+                        // Exclude the bar itself so sampling cannot alternate its own colour.
+                        val x = if (right) location[0] + view.width - visibleWidth - gap - strip
+                            else location[0] + visibleWidth + gap
+                        android.graphics.Rect(x, location[1], x + strip, location[1] + view.height)
+                    }
+                }, paint = { black ->
+                    blackBar = black
+                    view.setTextColor(if (black) Color.WHITE else Color.BLACK)
+                    view.invalidate()
+                }))
+            }
+        }
+        if (contrastTargets.isNotEmpty()) {
+            handleContrast = EdgeHandleContrast(contrastTargets) {
+                unlocked() && !actionsSuspended && panelView == null
+            }.also { it.refresh() }
         }
     }
+
+    internal fun refreshHandleContrast(): Unit = onMain { handleContrast?.refresh(); Unit }
 
     private fun leaveEditor(action: () -> Unit) {
         val guarded = { runCatching(action).onFailure { fail(it) }; Unit }
@@ -1251,11 +1285,13 @@ object EdgeRuntime {
                     val note = notes.getOrPut(file.path) { EdgeNote(file, noteStore.noteHistoryFile(file)) }
                     val ruled = item.fields["note-lines"] == "on"
                     var fontSize = item.fields["note-size"]?.toIntOrNull() ?: 16
-                    val preview = EdgeNoteUi.preview(ui(), ruled).apply {
+                    val noteColor = EdgeNoteColor.parse(item.fields["note-color"])
+                    val noteBackground = EdgeNoteColor.parse(item.fields["note-background"])
+                    val preview = EdgeNoteUi.preview(ui(), ruled, noteColor, noteBackground).apply {
                         text = note.text.ifEmpty { app!!.getString(R.string.edge_note_empty) }
                         textSize = fontSize.toFloat()
                     }
-                    val editor = EdgeNoteUi.editor(ui(), ruled).apply {
+                    val editor = EdgeNoteUi.editor(ui(), ruled, noteColor, noteBackground).apply {
                         setText(note.text); minLines = 3; maxLines = 12
                         textSize = fontSize.toFloat()
                         contentDescription = label.ifBlank { app!!.getString(R.string.edge_note) }

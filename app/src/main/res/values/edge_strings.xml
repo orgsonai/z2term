@@ -13,7 +13,7 @@
     <string name="edge_no_command">No command assigned.</string>
     <string name="edge_overlay_help">Allow z2term to display over other apps using z2-edge permission, then run z2-edge on.</string>
     <string name="edge_accessibility_label">z2term Android actions</string>
-    <string name="edge_accessibility_description">Performs Android actions requested by commands, macros or gestures. Uses window bounds, focus and package metadata. UI-element macros and explicit element selection/inspection also read visible text, descriptions and resource IDs in the target app. Editable and password fields are excluded. Does not record screens or continuously read UI content.</string>
+    <string name="edge_accessibility_description">Performs Android actions requested by commands, macros or gestures, using window bounds, focus and package metadata. Explicit UI-element requests also read visible text, descriptions and resource IDs, excluding editable and password nodes. While automatic-colour bars are visible, periodically captures screen images to sample nearby brightness. Images are not saved or sent and are released after sampling.</string>
     <string name="edge_accessibility_help">This action requires Accessibility, a separate permission from display over other apps. Use z2-key permission to enable z2term Android actions. If restricted, use z2-key app-info and allow restricted settings in its menu.</string>
     <string name="edge_add_app">+ App</string>
     <string name="edge_pick_app">Choose an app</string>
@@ -187,4 +187,10 @@
     <string name="edge_note_lines">Ruled lines</string>
     <string name="edge_note_smaller">Decrease note text size</string>
     <string name="edge_note_larger">Increase note text size</string>
+    <string name="edge_bar_color">Bar colour</string>
+    <string name="edge_bar_color_help">Automatic switches between white and black using the background. Requires Android 11 or later and z2term Android actions accessibility. A contrasting outline remains when sampling is unavailable. Fixed white or black does not capture screen images.</string>
+    <string name="edge_note_background">Note background colour</string>
+    <string name="edge_note_color">Note text colour</string>
+    <string name="edge_note_colors_help">Choose a swatch or enter #RRGGBB. Automatic uses the theme background and adapts the text to the background. Changes apply when saved.</string>
+    <string name="edge_color_invalid">Enter #RRGGBB, for example #FFFFFF.</string>
 </resources>

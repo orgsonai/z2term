@@ -42,7 +42,7 @@ object EdgeAppearanceEditor {
             "length" to "6", "alpha" to "1", "width" to "360", "height" to "72%",
             "title" to "off", "close" to "off", "tabbar" to "off", "add" to "off", "settings" to "off",
             "labels" to "", "fit" to "content", "place" to "handle", "at" to "", "flow" to "",
-            "columns" to "auto", "icon-size" to "40", "handle" to "off", "side" to "right", "open" to "",
+            "columns" to "auto", "icon-size" to "40", "handle" to "off", "bar-color" to "auto", "side" to "right", "open" to "",
             "offset" to "30", "x" to "85", "y" to "30",
             "gesture-up" to "", "gesture-down" to "", "gesture-double-tap" to "",
             "gesture-scroll" to "off", "gesture-speed" to "600", "gesture-range" to "160", "scroll-x" to "50", "scroll-y" to "50").toMutableMap()
@@ -181,6 +181,9 @@ object EdgeAppearanceEditor {
         choice("handle", R.string.edge_handle_kind, listOf("off", "bar", "button"),
             listOf(R.string.edge_option_off, R.string.edge_handle_bar, R.string.edge_handle_button))
         choice("side", R.string.edge_handle_side, listOf("left", "right"), listOf(R.string.edge_place_left, R.string.edge_place_right))
+        choice("bar-color", R.string.edge_bar_color, listOf("auto", "white", "black"),
+            listOf(R.string.edge_option_auto, R.string.theme_color_white, R.string.theme_color_black))
+        help(R.string.edge_bar_color_help)
         control("size", R.string.edge_adjust_size, 2, 96) { it.toString() }
         control("length", R.string.edge_adjust_length, 1, 100) { it.toString() }
         control("alpha", R.string.edge_adjust_alpha, 5, 100) { (it / 100f).toString() }

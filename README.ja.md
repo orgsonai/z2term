@@ -85,7 +85,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.586-alpha (versionCode 594)、ビルド未検証・実機未確認。** エッジパネルのメモ帳はダブルタップで編集を開始します。操作マクロの一覧・作成・編集・実行・停止・履歴を「操作自動化」タブ内に表示し、その場で設定できます。未保存の変更確認と座標取得からの復帰を引き継ぎます。[設計仕様](docs/ja/DESIGN-SPEC.md)。公開済みAPKは[GitHub Releases](https://github.com/orgsonai/z2term/releases)にあります。
+**0.8.587-alpha (versionCode 595)、ビルド未検証・実機未確認。** エッジパネルのバーを背景に合わせて白・黒へ自動切替し、反対色の縁取りで見やすくします（Android 11以降・ユーザー補助が必要）。白・黒の固定も選べます。メモごとの背景色・文字色を、色見本または#RRGGBBから設定できます。[設計仕様](docs/ja/DESIGN-SPEC.md)。公開済みAPKは[GitHub Releases](https://github.com/orgsonai/z2term/releases)。
 
 ## 機能
 

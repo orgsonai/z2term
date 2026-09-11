@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-11 / Target version: 0.8.586-alpha (versionCode 594)
+Last updated: 2026-09-11 / Target version: 0.8.587-alpha (versionCode 595)
+
+**Bar and note colours (0.8.587)**: Bars automatically choose white or black from the nearby background, with a thin opposite-colour outline. Appearance → Handle → Bar colour offers Automatic, White and Black. Automatic sampling requires Android 11+ and z2term Android actions accessibility. Each note supports background and text colours through swatches or #RRGGBB. Unspecified colours inherit the existing palette; a custom background with automatic text chooses contrasting text. Ruled lines and the editing cursor follow the note colours. Build and device behavior not yet verified.
 
 **Notes and action macros (0.8.586)**: Double-tap an edge-panel note to begin editing; a single tap leaves the keyboard closed. Command list → Automation → Action automation directly contains the macro list, creation, editing, duplication, running, stopping and history. Switching tabs, closing or going back confirms unsaved changes. Coordinate picking returns to the editor inside the original tab. Build and device behavior not yet verified.
 
@@ -2390,12 +2392,14 @@ Omitted defaults, comments and runtime state are excluded. Reads neither update 
 Unknown types/fields and invalid numeric values fail explicitly.
 
 - `EdgeStore`: up to 64 panels with 64 items each. Panel fields: `handle=bar|button|off`, `side=left|right`,
-  percentage `offset`/`length`/`x`/`y`, `size` (stored as 2–96dp, clamped per handle type as above), `open`, `alpha`, `label` and an optional direct-action `run`.
+  percentage `offset`/`length`/`x`/`y`, `size` (stored as 2–96dp, clamped per handle type as above), `open`, `alpha`, `bar-color=auto|white|black` (default auto), `label` and an optional direct-action `run`.
+  Note items accept `note-background` / `note-color` (#RRGGBB, opaque RGB; omitted/empty means automatic).
   Dragging a button writes its coordinates back to the same file. Items sort by `order`, then ID.
   `width` / `height` accept percentages of the usable display (>0 through 100%) or plain dp values (>0 through 10000).
   Defaults: 360dp wide, at most 72% high. Dimensions fit the display; short content shrinks the panel and overflow scrolls vertically.
 - `EdgeRuntime`: main-thread `TYPE_APPLICATION_OVERLAY` bars/buttons and panels. Close using an outside tap, Back, or the optional Close button. A transparent full-screen window consumes outside taps so they never activate the app behind it. Screen-off hides handles too; unlock restores them. Rotation recalculates
   positions. Closing discards unsent input.
+- `EdgeHandleContrast`: uses the Android 11+ [accessibility screenshot API](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService#takeScreenshot(int,%20java.util.concurrent.Executor,%20android.accessibilityservice.AccessibilityService.TakeScreenshotCallback)). Automatic bars share one image about once per second, copied once on a worker. Each bar samples 27 points within a 4dp strip on its inward side. Images are released after sampling and never saved or sent. Excluding the bar itself and using a luminance dead band avoids feedback flicker. Moved or replaced views reject stale results; disconnecting, removing handles or stopping ends updates. Capture failures back off while retaining the contrasting outline.
 - `EdgeService`: explicit opt-in with `z2-edge on`, a notification with Stop, and no wake lock.
   Missing overlay permission fails. The overlay is shown before starting the FGS, as Android 15 requires.
   Saved ON state is restored at app startup/foreground return; foreground return retries restricted starts.

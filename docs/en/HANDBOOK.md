@@ -861,6 +861,10 @@ when a `z2-when` rule fired **without opening the app**.
 
 ## 9.6. Floating edge panels
 
+**Bar colour (0.8.587)**: Panel editor → **Appearance → Handle → Bar colour** offers Automatic, White and Black. Automatic samples the background just inward of the bar about once per second, choosing black over light backgrounds and white over dark backgrounds. A thin opposite-colour outline remains visible. This requires Android 11+ and z2term Android actions accessibility, enabled through Settings → Permissions and notifications. When sampling is unavailable the outline remains; fixed-colour bars do not request sampling. Images are never saved or sent. Sampling stops when the screen is off or locked or the handles are removed, and pauses while the panel is open or handles are suspended for action macros.
+
+**Note colours (0.8.587)**: **Items → Edit note** provides Note background colour and Note text colour. Choose a swatch or enter #RRGGBB, then save to apply to both viewing and editing. Automatic clears the override. A custom background with automatic text chooses contrasting white or black. Ruled lines and the cursor follow the text colour. Changes use the existing Save, Cancel and unsaved-change confirmation, preserving the note text and undo/redo history. Build and device behavior not yet verified.
+
 **Adding items and switching tabs (unreleased)**: “+” opens item editing with choices to add an app or a custom macro/command slot. Custom slots can select saved macros like tiles or accept commands directly. The icon field offers a preview list of bundled and saved z2-icon images. Add and settings controls remain 48dp tall and adapt to 24–32dp widths so both fit side by side in narrow panels. Swipe across a normal menu to switch tabs: left/right for vertical and grid layouts, up/down for horizontal layouts (left/up advances, right/down goes back). No initial tab tap is required; the first and last tabs do not wrap. Input editing, long presses and scrolling along the item layout retain their behavior. Tap the bar to open its menu, then **long-press outside the menu** to open bar editing; Settings → Tips also describes this shortcut.
 
 **Named Android action macros (0.8.571)**: Save text definitions through the CLI and run coordinate taps, holds, swipes, waits, app launches, shell commands and timed scrolling through one runtime. Execution provides one active run, completion tracking, cancellation, deadlines and history. Panels, tiles, existing macros and z2-when call the same definitions. See [Android action macros](ACTION-MACROS.md) for syntax, limits and examples. Build and device behavior not yet verified.
@@ -921,10 +925,12 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Arrangement | `flow=vertical\|horizontal\|grid` (omitted/empty follows tab layout) |
 | Grid columns and icon size | `columns=auto` or 1–16; `icon-size=16..192` dp (default 40) |
 | Handle shape, position, activation | `handle` / `side` / `offset` / `x` / `y` / `size` / `length` / `alpha` / `open` (also via `z2-edge handle`) |
+| Bar colour | `bar-color=auto\|white\|black` (default auto; also `z2-edge handle ID bar --bar-color white`) |
 | Add, name and order tabs | `z2-edge tab PARENT ID LABEL`, `panel ID label=Name`, `panel PARENT tabs=a,b` |
 | Add/delete panels | `panel ID label=Name handle=bar side=right` / `delete ID` |
 | Add/edit/delete/reorder items | `set ID:item key=value ...` / `remove ID:item` / `set ID:item order=N` |
 | App launch mode / add note | Item `run=z2-intent -p PACKAGE --window MODE` / `type=note` |
+| Note background / text colour | Item `note-background` / `note-color` = `#RRGGBB` (omitted/empty means automatic; writable with `z2-edge set ID:memo`) |
 
 Optional add/settings controls are icons at the end. Tab/note addition and item editing live in settings. Run items can also be reordered directly in the menu.
 Vertical, horizontal and grid layouts are available; horizontal rows scroll sideways. Automatic grid columns follow icon size; an explicit flow applies to all item types.

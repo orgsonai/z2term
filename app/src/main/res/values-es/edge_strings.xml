@@ -13,7 +13,7 @@
     <string name="edge_no_command">No hay ningún comando asignado.</string>
     <string name="edge_overlay_help">Permite que z2term se muestre sobre otras aplicaciones con z2-edge permission y luego ejecuta z2-edge on.</string>
     <string name="edge_accessibility_label">Acciones Android de z2term</string>
-    <string name="edge_accessibility_description">Realiza acciones Android solicitadas por comandos, macros o gestos. Usa límites, foco y paquete de las ventanas. Las macros de elementos y la selección o inspección explícita también leen texto visible, descripciones e IDs de la aplicación destino. Excluye campos editables y contraseñas. No graba la pantalla ni lee contenido de forma continua.</string>
+    <string name="edge_accessibility_description">Realiza acciones Android solicitadas por comandos, macros o gestos usando límites, foco y paquete de las ventanas. Las solicitudes explícitas de elementos leen texto, descripciones e IDs, excluyendo nodos editables y de contraseñas. Con barras de color automático visibles, captura imágenes periódicamente para medir el brillo cercano. Las imágenes no se guardan ni se envían y se liberan tras el análisis.</string>
     <string name="edge_accessibility_help">Esta acción necesita Accesibilidad, un permiso distinto de mostrar sobre otras aplicaciones. Usa z2-key permission para activar las acciones Android de z2term. Si están restringidas, usa z2-key app-info y permite los ajustes restringidos en su menú.</string>
     <string name="edge_add_app">+ Aplicación</string>
     <string name="edge_pick_app">Elegir aplicación</string>
@@ -172,4 +172,10 @@
     <string name="edge_note_lines">Renglones</string>
     <string name="edge_note_smaller">Reducir el tamaño del texto de la nota</string>
     <string name="edge_note_larger">Aumentar el tamaño del texto de la nota</string>
+    <string name="edge_bar_color">Color de la barra</string>
+    <string name="edge_bar_color_help">Automático alterna blanco y negro según el fondo. Requiere Android 11 o posterior y Accesibilidad de acciones Android de z2term. Si no se puede analizar, conserva un borde de contraste. Los colores fijos no capturan imágenes.</string>
+    <string name="edge_note_background">Color de fondo de la nota</string>
+    <string name="edge_note_color">Color del texto de la nota</string>
+    <string name="edge_note_colors_help">Elige una muestra o escribe #RRGGBB. Automático usa el fondo del tema y adapta el texto al fondo. Se aplica al guardar.</string>
+    <string name="edge_color_invalid">Introduce #RRGGBB, por ejemplo #FFFFFF.</string>
 </resources>

@@ -4,6 +4,7 @@
     android:canRetrieveWindowContent="true"
     android:accessibilityFlags="flagRetrieveInteractiveWindows|flagReportViewIds"
     android:canPerformGestures="true"
+    android:canTakeScreenshot="true"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
     android:description="@string/edge_accessibility_description"
     android:notificationTimeout="100" />

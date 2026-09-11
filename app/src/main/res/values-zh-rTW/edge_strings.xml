@@ -13,7 +13,7 @@
     <string name="edge_no_command">未指派命令。</string>
     <string name="edge_overlay_help">用 z2-edge permission 允許 z2term 顯示於其他應用程式上層，再執行 z2-edge on。</string>
     <string name="edge_accessibility_label">z2term Android操作</string>
-    <string name="edge_accessibility_description">依命令、巨集或手勢要求執行Android操作，使用視窗邊界、焦點和套件資訊。元素巨集及明確要求的元素選擇或檢查還會讀取目標應用程式的顯示文字、說明和資源ID。排除可編輯輸入欄位及密碼欄位。不錄製螢幕或持續讀取介面內容。</string>
+    <string name="edge_accessibility_description">依命令、巨集或手勢要求，利用視窗邊界、焦點和套件資訊執行Android操作。明確的元素要求還讀取顯示文字、說明和ID，排除可編輯及密碼節點。自動色彩觸發條顯示時，會定期取得螢幕影像以判斷附近亮度。影像不儲存、不傳送，分析後立即釋放。</string>
     <string name="edge_accessibility_help">此操作需要無障礙權限，與顯示於其他應用程式上層的權限不同。用 z2-key permission 啟用 z2term Android操作。若受限制，用 z2-key app-info 並在選單中允許受限制的設定。</string>
     <string name="edge_add_app">+ 應用程式</string>
     <string name="edge_pick_app">選擇應用程式</string>
@@ -172,4 +172,10 @@
     <string name="edge_note_lines">橫線</string>
     <string name="edge_note_smaller">縮小筆記字級</string>
     <string name="edge_note_larger">放大筆記字級</string>
+    <string name="edge_bar_color">觸發條色彩</string>
+    <string name="edge_bar_color_help">自動依背景切換白色和黑色。需要Android 11以上及z2term Android操作無障礙服務。無法判斷時仍保留對比描邊。固定白色或黑色不會取得螢幕影像。</string>
+    <string name="edge_note_background">便箋背景色</string>
+    <string name="edge_note_color">便箋文字色</string>
+    <string name="edge_note_colors_help">選擇色樣或輸入#RRGGBB。自動使用佈景主題背景，並依背景調整文字色彩。儲存後生效。</string>
+    <string name="edge_color_invalid">請輸入#RRGGBB，例如#FFFFFF。</string>
 </resources>

@@ -53,6 +53,7 @@ class AndroidActions : AccessibilityService() {
     override fun onServiceConnected() {
         serviceInfo = serviceInfo.apply { flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS }
         active = this
+        EdgeRuntime.refreshHandleContrast()
     }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && event.windowId >= 0) {
@@ -74,6 +75,7 @@ class AndroidActions : AccessibilityService() {
         if (active === this) {
             com.zerotoship.z2term.automation.ActionCoordinatePicker.cancel()
             active = null
+            EdgeRuntime.refreshHandleContrast()
         }
         return super.onUnbind(intent)
     }
@@ -82,6 +84,7 @@ class AndroidActions : AccessibilityService() {
         if (active === this) {
             com.zerotoship.z2term.automation.ActionCoordinatePicker.cancel()
             active = null
+            EdgeRuntime.refreshHandleContrast()
         }
         super.onDestroy()
     }
@@ -171,6 +174,8 @@ class AndroidActions : AccessibilityService() {
         fun outsideTouch(event: android.view.MotionEvent) { active?.autoScroll?.outsideTouch(event) }
 
         fun connected() = active != null
+
+        internal fun contrastService(): AndroidActions? = active
 
         /** Uses package metadata from window events without retrieving UI nodes. */
         internal fun focusedPackage(): String? {
