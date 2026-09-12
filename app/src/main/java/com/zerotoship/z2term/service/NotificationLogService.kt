@@ -36,6 +36,7 @@ class NotificationLogService : NotificationListenerService() {
     private val timestampFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
     private val triggers = Executors.newSingleThreadExecutor()
     private val history = NotificationText.History()
+    private val trace = NotificationTrace()
     private val settingsReady = CompletableDeferred<Unit>()
     private data class Policy(val capture: Boolean = false, val log: Boolean = true,
         val template: String = "", val prepend: Boolean = false)
@@ -84,8 +85,14 @@ class NotificationLogService : NotificationListenerService() {
         val extracted = runCatching {
             val ex = n.extras ?: Bundle.EMPTY
             stripBidi(ex.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()) to extractBody(n, ex)
-        }.getOrElse { Log.w(TAG, "notification extraction failed: " + it.message); return }
-        val (title, body) = extracted
+        }
+        // Record every delivered update before deduplication; a later active snapshot cannot
+        // explain which fields were available while a batch was arriving.
+        runCatching { trace.record(sbn, extracted.getOrNull()?.second) }
+            .onFailure { Log.w(TAG, "notification trace failed") }
+        val (title, body) = extracted.getOrElse {
+            Log.w(TAG, "notification extraction failed: " + it.message); return
+        }
         if (title.isEmpty() && body.text.isEmpty()) return
         val key = sbn.key ?: sbn.packageName
         val category = n.category.orEmpty()
@@ -169,6 +176,16 @@ class NotificationLogService : NotificationListenerService() {
          * OS が bind したインスタンスからしか呼べない)。
          */
         @Volatile private var instance: NotificationLogService? = null
+
+        internal fun traceCommand(args: List<String>): String {
+            require(args.size in 1..2) { "trace: start [package] | dump | stop" }
+            val svc = instance ?: error("z2-noti: notification listener is not connected")
+            check(svc.connected) { "z2-noti: notification listener is not connected" }
+            if (args.first() == "start") check(svc.policy.capture) {
+                "z2-noti: enable notification capture before starting a trace"
+            }
+            return svc.trace.command(args.first(), args.getOrNull(1).orEmpty())
+        }
 
         /**
          * いま出ている通知を TSV (key / パッケージ / アプリ名 / タイトル / 本文) で返す (0.8.236)。

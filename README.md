@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.587-alpha (versionCode 595), build and device behavior not yet verified.** Edge bars automatically switch between white and black using the nearby background, with a contrasting outline (Android 11+ and Accessibility required). Fixed white or black is also available. Each note supports background and text colours through swatches or #RRGGBB. See [design spec](docs/en/DESIGN-SPEC.md). Published APKs are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
+**0.8.588-alpha (versionCode 596), build and device behavior not yet verified.** `z2-noti trace` adds temporary diagnostics for the types and lengths of delivered notification fields and conversation history, without retaining text values. This distinguishes missing input from extraction loss; truncated bodies and generic notices during bursts remain unresolved. The user verified the previous version's bar/note colours and screen interactions. See [design spec](docs/en/DESIGN-SPEC.md). Published APKs are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
 
 ## Features
 

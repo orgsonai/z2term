@@ -866,7 +866,7 @@ object Z2ApiBridge {
     }.getOrDefault(emptyMap())
 
     /**
-     * `z2-noti` (0.8.236)。いま出ている通知を TSV で返す**だけ**。
+     * `z2-noti`: 現在の通知をTSVで返す。traceは受信時の型・文字数を一時記録する。
      *
      * ⚠ **「押す」「消す」は意図的に提供しない。** 通知のボタンを押せるということは、
      * 他アプリの決済ボタンや送信ボタンも押せるということで、**誤爆の実害がこのアプリの外に出る**。
@@ -876,8 +876,9 @@ object Z2ApiBridge {
     private fun notiCmd(args: List<String>): String = when (args.getOrNull(0)) {
         "list", null, "" -> NotificationLogService.activeNotificationsTsv()
             ?: throw IllegalStateException(
-                "z2-noti: 通知アクセスが許可されていません (設定 › 常駐サーバー・自動化 › 通知検知)"
+                "z2-noti: 通知アクセスが許可されていません (設定 › 権限・通知 › 通知検知)"
             )
+        "trace" -> NotificationLogService.traceCommand(args.drop(1))
         else -> throw IllegalArgumentException("z2-noti: unknown subcommand: ${args[0]}")
     }
 

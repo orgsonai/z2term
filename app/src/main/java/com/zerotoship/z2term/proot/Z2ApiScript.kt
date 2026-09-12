@@ -213,6 +213,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     val noti = "#!/bin/sh\n" + m.notiHelp + "\n" + helpCase + """
         |case "${d}{1:-list}" in
         |  list) exec /usr/local/bin/z2api 1 noti list ;;
+        |  trace) exec /usr/local/bin/z2api 1 noti "${d}@" ;;
         |  *) echo "${m.notiUsage}" >&2; exit 1 ;;
         |esac
     """.trimMargin() + "\n"

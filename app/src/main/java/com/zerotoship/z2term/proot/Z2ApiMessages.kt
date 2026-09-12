@@ -1727,58 +1727,76 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
 
     val notiHelp: String = t(
         en = """
+        |# z2-noti trace start [package] / trace dump / trace stop
+        |# Trace: enable capture first; 5 minutes, latest 128 events, memory only.
+        |# Field types and UTF-16 lengths, never text values. dump/stop return JSON; start resets it.
         |# z2-noti list  … the notifications currently on screen, as TSV
         |#                 (key / package / app name / title / body)
         |# Reading only. There is deliberately no way to press or dismiss a notification:
         |# that would also press other apps' pay and send buttons.
-        |# Needs notification access (Settings > resident servers & automation).
+        |# Needs notification access (Settings > Permissions and notifications).
         |# See also: z2-when notify:otp / notify:pkg=<part> / notify:contains=<part>
     """.trimMargin(),
         ja = """
+        |# z2-noti trace start [package] / trace dump / trace stop
+        |# 診断: 通知検知ONが前提。5分間・最新128件をメモリ内だけに保持します。
+        |# 型とUTF-16文字数を記録し、本文の値は保持しません。dump/stopでJSON、startで初期化。
         |# z2-noti list  … いま出ている通知を TSV で表示
         |#                 (key / パッケージ / アプリ名 / タイトル / 本文)
         |# 読むだけです。通知のボタンを「押す」「消す」は意図的に用意していません
         |# (他アプリの決済・送信ボタンまで押せてしまうため)。
-        |# 通知アクセスの許可が要ります (設定 › 常駐サーバー・自動化 › 通知検知)。
+        |# 通知アクセスの許可が要ります (設定 › 権限・通知 › 通知検知)。
         |# 併せて: z2-when notify:otp / notify:pkg=<部分> / notify:contains=<部分>
     """.trimMargin(),
         "zh-CN" to """
+        |# z2-noti trace start [package] / trace dump / trace stop
+        |# 诊断需先开启通知检测；仅在内存保留5分钟内最新128条记录。
+        |# 只记录字段类型和UTF-16长度，不保留文本值。dump/stop输出JSON，start清空旧记录。
         |# z2-noti list  … 以 TSV 显示当前正在显示的通知
         |#                 (key / 包名 / 应用名 / 标题 / 正文)
         |# 只是读取。“按下”“清除”通知是**有意**没有提供的
         |# (那样连其他应用的支付、发送按钮都能按下去)。
-        |# 需要通知使用权 (设置 › 常驻服务与自动化 › 通知检测)。
+        |# 需要通知使用权 (设置 › 权限与通知 › 通知检测)。
         |# 另见: z2-when notify:otp / notify:pkg=<片段> / notify:contains=<片段>
     """.trimMargin(),
         "zh-TW" to """
+        |# z2-noti trace start [package] / trace dump / trace stop
+        |# 診斷需先開啟通知偵測；僅在記憶體保留5分鐘內最新128筆紀錄。
+        |# 只記錄欄位型別和UTF-16長度，不保留文字值。dump/stop輸出JSON，start清空舊紀錄。
         |# z2-noti list  … 以 TSV 顯示當前正在顯示的通知
         |#                 (key / 套件名稱 / 應用程式名 / 標題 / 正文)
         |# 只是讀取。“按下”“清除”通知是**有意**沒有提供的
         |# (那樣連其他應用程式的支付、發送按鈕都能按下去)。
-        |# 需要通知使用權 (設定 › 常駐服務與自動化 › 通知偵測)。
+        |# 需要通知使用權 (設定 › 權限與通知 › 通知偵測)。
         |# 另見: z2-when notify:otp / notify:pkg=<片段> / notify:contains=<片段>
     """.trimMargin(),
         "es" to """
+        |# z2-noti trace start [package] / trace dump / trace stop
+        |# Activa la captura primero: 5 minutos, últimos 128 eventos, solo en memoria.
+        |# Tipos y longitudes UTF-16, sin valores de texto. dump/stop dan JSON; start borra lo anterior.
         |# z2-noti list  … las notificaciones que hay ahora en pantalla, en TSV
         |#                 (key / paquete / nombre de la app / título / cuerpo)
         |# Solo lectura. A propósito no hay forma de pulsar ni de descartar una notificación:
         |# eso pulsaría también los botones de pagar y enviar de otras aplicaciones.
-        |# Hace falta el acceso a las notificaciones (Ajustes > servidores permanentes y automatización).
+        |# Hace falta el acceso a las notificaciones (Ajustes > Permisos y notificaciones).
         |# Ver también: z2-when notify:otp / notify:pkg=<parte> / notify:contains=<parte>
     """,
         "ko" to """
+        |# z2-noti trace start [package] / trace dump / trace stop
+        |# 알림 감지를 먼저 켜세요. 5분 동안 최신 128건을 메모리에만 기록합니다.
+        |# 형식과 UTF-16 길이만 기록하며 본문 값은 저장하지 않습니다. dump/stop은 JSON, start는 초기화.
         |# z2-noti list  … 지금 화면에 있는 알림을 TSV로
         |#                 (key / 패키지 / 앱 이름 / 제목 / 본문)
         |# 읽기만 합니다. 알림을 누르거나 지우는 방법은 일부러 두지 않았습니다:
         |# 그것은 다른 앱의 결제・전송 버튼까지 누르게 되기 때문입니다.
-        |# 알림 접근 권한이 필요합니다 (설정 > 상주 서버・자동화).
+        |# 알림 접근 권한이 필요합니다 (설정 > 권한・알림).
         |# 함께 보기: z2-when notify:otp / notify:pkg=<일부> / notify:contains=<일부>
     """.trimMargin()
     )
 
     val notiUsage: String =
-        t(en = "usage: z2-noti list", ja = "usage: z2-noti list", "zh-CN" to "usage: z2-noti list", "zh-TW" to "usage: z2-noti list", "es" to "uso: z2-noti list",
-        "ko" to "사용법: z2-noti list")
+        t(en = "usage: z2-noti list | trace start [package] | trace dump | trace stop", ja = "usage: z2-noti list | trace start [package] | trace dump | trace stop", "zh-CN" to "usage: z2-noti list | trace start [package] | trace dump | trace stop", "zh-TW" to "usage: z2-noti list | trace start [package] | trace dump | trace stop", "es" to "uso: z2-noti list | trace start [package] | trace dump | trace stop",
+        "ko" to "사용법: z2-noti list | trace start [package] | trace dump | trace stop")
 
     // --- z2-alarm ---
 

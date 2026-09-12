@@ -85,7 +85,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.587-alpha (versionCode 595)、ビルド未検証・実機未確認。** エッジパネルのバーを背景に合わせて白・黒へ自動切替し、反対色の縁取りで見やすくします（Android 11以降・ユーザー補助が必要）。白・黒の固定も選べます。メモごとの背景色・文字色を、色見本または#RRGGBBから設定できます。[設計仕様](docs/ja/DESIGN-SPEC.md)。公開済みAPKは[GitHub Releases](https://github.com/orgsonai/z2term/releases)。
+**0.8.588-alpha (versionCode 596)、ビルド未検証・実機未確認。** `z2-noti trace` に、通知の本文候補・会話履歴の型と文字数を一時記録する診断を追加しました。本文の値は保持せず、受信時点での欠落と抽出時の欠落を切り分けます。全文欠落・連続受信時の案内文の原因は未確定です。前版のバー・メモの配色と画面操作は利用者が確認済みです。[設計仕様](docs/ja/DESIGN-SPEC.md)。公開済みAPKは[GitHub Releases](https://github.com/orgsonai/z2term/releases)。
 
 ## 機能
 
