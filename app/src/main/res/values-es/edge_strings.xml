@@ -178,4 +178,13 @@
     <string name="edge_note_color">Color del texto de la nota</string>
     <string name="edge_note_colors_help">Elige una muestra o escribe #RRGGBB. Automático usa el fondo del tema y adapta el texto al fondo. Se aplica al guardar.</string>
     <string name="edge_color_invalid">Introduce #RRGGBB, por ejemplo #FFFFFF.</string>
+    <string name="edge_button_state">Mostrar ON/OFF</string>
+    <string name="edge_button_state_desc">ON se indica mediante el borde y el fondo. Automático refleja el estado real de funciones compatibles, incluidos cambios externos. Para macros temporales, seleccione ON durante ejecución; OFF al terminar. La consulta de estado tiene prioridad; las tareas independientes requieren una consulta.</string>
+    <string name="edge_item_off">Comando para desactivar (vacío: el mismo comando)</string>
+    <string name="edge_button_source">Origen del estado</string>
+    <string name="edge_source_auto">Automático (funciones compatibles)</string>
+    <string name="edge_source_torch">Linterna</string>
+    <string name="edge_source_screen">Evitar suspensión de pantalla</string>
+    <string name="edge_source_process">ON durante ejecución; OFF al terminar</string>
+    <string name="edge_source_remember">Recordar cambios correctos</string>
 </resources>

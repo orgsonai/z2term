@@ -18,6 +18,7 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.icon.IconStore
 import com.zerotoship.z2term.service.HeadlessRun
 import com.zerotoship.z2term.service.ScreenTimeout
+import com.zerotoship.z2term.service.TorchState
 import java.io.File
 import java.util.concurrent.Executor
 import java.util.function.Consumer
@@ -55,7 +56,24 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
 
     override fun onTileAdded() = render()
 
-    override fun onStartListening() = render()
+    private val stateListener: () -> Unit = { render() }
+
+    override fun onStartListening() {
+        runCatching { TorchState.start(applicationContext) }
+        TorchState.addListener(stateListener)
+        ScreenTimeout.addListener(stateListener)
+        render()
+    }
+
+    override fun onStopListening() {
+        TorchState.removeListener(stateListener)
+        ScreenTimeout.removeListener(stateListener)
+    }
+
+    override fun onDestroy() {
+        onStopListening()
+        super.onDestroy()
+    }
 
     override fun onClick() {
         val assigned = TileStore.get(this, slot)
@@ -108,6 +126,19 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
     /** 走っていれば止め、走っていなければ実行する (D1 ウィジェットのボタンと同じ約束)。 */
     private fun toggle(assigned: TileStore.Slot) {
         val app = applicationContext
+        if (TileStore.isTorch(assigned.command)) {
+            Thread {
+                runCatching {
+                    val on = TorchState.command(app, "status") == "on"
+                    val command = if (on) assigned.offCommand ?: "z2-torch off" else assigned.command
+                    HeadlessRun.launch(app, TileStore.scriptFor(app, assigned, command),
+                        File(File(app.filesDir, "shared_home"), TileStore.LOG_REL),
+                        TileStore.runKey(slot), onExit = { render() })
+                }.onFailure { Log.w(TAG, "tile $slot torch failed", it) }
+                render()
+            }.apply { isDaemon = true; name = "tile-$slot-torch"; start() }
+            return
+        }
         // 入 / 切の 2 コマンドを持つ枠 (`--off`)。押すたびに反対側を走らせる。
         // ⚠ こちらは**止めない** — 利用者が「切るときはこれ」と書いた以上、走っているものを
         // 殺すのではなくそのコマンドを走らせるのが約束 (`z2-torch off` で消えるのであって、
@@ -191,6 +222,12 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
                 tile.state = if (on) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
                 tile.label = assigned.label
                 tile.subtitle = getString(if (on) R.string.tile_subtitle_pair_on else R.string.tile_subtitle_pair_off)
+            } else if (TileStore.isTorch(assigned.command)) {
+                val on = TorchState.current()
+                tile.state = when (on) { true -> Tile.STATE_ACTIVE; false -> Tile.STATE_INACTIVE; null -> Tile.STATE_UNAVAILABLE }
+                tile.label = assigned.label
+                tile.subtitle = if (on == null) "" else getString(
+                    if (on) R.string.tile_subtitle_pair_on else R.string.tile_subtitle_pair_off)
             } else if (assigned.isPair) {
                 // 入 / 切の枠。緑 = アプリが「入にした」と覚えている状態 (実態を見に行く方法は
                 // 無い。詳しくは TileStore.isOn)。

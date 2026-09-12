@@ -7,6 +7,7 @@ import android.util.Log
 import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.LocalPtyChannel
+import com.zerotoship.z2term.service.TerminalAudioOutputs
 import com.zerotoship.z2term.channel.ProcessChannel
 import com.zerotoship.z2term.backup.AutoBackup
 import com.zerotoship.z2term.channel.SshChannel
@@ -378,13 +379,34 @@ class TerminalSession(
      */
     @Volatile private var selfClosed = false
 
+    private val audioOutputs = TerminalAudioOutputs()
+
+    /** Only the running local terminal may create an output, never an SSH connection. */
+    fun audioCommand(action: String, distro: String, token: String): String = synchronized(audioOutputs) {
+        if (action == "close") {
+            audioOutputs.close(token)
+            return@synchronized "closed"
+        }
+        check(!selfClosed && isRunning && channel is LocalPtyChannel && _distroId.value == distro) {
+            "z2-audio: run this command in a local Linux terminal tab"
+        }
+        when (action) {
+            "open" -> audioOutputs.open()
+            "ready" -> if (audioOutputs.ready(token)) "ready" else "waiting"
+            else -> error("z2-audio: unknown audio operation")
+        }
+    }
+
     /**
      * 意図してチャネルを畳む。⚠ **畳むときは必ずここを通すこと** — 直接
      * `channel?.close()` を書くと [selfClosed] が立たず、利用者がタブを閉じただけで
      * 「外から殺された」と記録される。
      */
     private fun closeChannel() {
-        selfClosed = true
+        synchronized(audioOutputs) {
+            selfClosed = true
+            audioOutputs.closeAll()
+        }
         channel?.close()
         channel = null
         sshHost = null
@@ -983,6 +1005,8 @@ class TerminalSession(
             } finally {
                 val code = ch.exitCode ?: -1
                 _uiState.update { it.copy(state = TerminalState.EXITED) }
+                // An old read job can finish after a restart; do not close the new tab's audio.
+                if (channel === ch) audioOutputs.closeAll()
                 // タブの木が**外から**殺されたときは、理由をその場で残す (0.8.378)。
                 // ⚠ アプリのプロセスが死ぬ場合と違って OS の ApplicationExitInfo には残らない
                 //   ので、ここで書かないと後から辿る手段が無い ([ExitReasons] の KDoc 参照)。

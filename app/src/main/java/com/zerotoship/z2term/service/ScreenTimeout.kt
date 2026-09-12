@@ -50,6 +50,10 @@ object ScreenTimeout {
     private const val MAX_SECONDS = 24L * 60 * 60
 
     private val lock = Any()
+    private val listeners = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
+    fun addListener(listener: () -> Unit) { listeners.add(listener) }
+    fun removeListener(listener: () -> Unit) { listeners.remove(listener) }
+    private fun changed() { listeners.forEach { it() } }
 
     // --- 公開 API (Z2ApiBridge から呼ぶ) ---
 
@@ -89,6 +93,7 @@ object ScreenTimeout {
             write(context, NEVER_MS)
         }
         schedule(context, until)
+        changed()
         return statusJson(context)
     }
 
@@ -99,6 +104,7 @@ object ScreenTimeout {
     fun cancel(context: Context): String {
         // 書き戻せたときだけ予約を外す。失敗したまま外すと、あとで戻す機会が無くなる。
         if (restoreNow(context)) unschedule(context)
+        changed()
         return statusJson(context)
     }
 
@@ -106,7 +112,12 @@ object ScreenTimeout {
      * 期限が来たときに [ScreenTimeoutReceiver] から呼ぶ。書き戻して保存を消す。
      */
     fun onExpired(context: Context) {
-        restoreNow(context)
+        // An alarm already being delivered may belong to a superseded deadline.
+        synchronized(lock) {
+            val saved = load(context) ?: return
+            if (saved.until <= System.currentTimeMillis()) restoreNow(context) else schedule(context, saved.until)
+        }
+        changed()
     }
 
     /**
@@ -114,8 +125,11 @@ object ScreenTimeout {
      * 期限を過ぎていればその場で書き戻し、まだなら予約を貼り直す。
      */
     fun restoreOrReschedule(context: Context) {
-        val saved = synchronized(lock) { load(context) } ?: return
-        if (saved.until <= System.currentTimeMillis()) restoreNow(context) else schedule(context, saved.until)
+        synchronized(lock) {
+            val saved = load(context) ?: return
+            if (saved.until <= System.currentTimeMillis()) restoreNow(context) else schedule(context, saved.until)
+        }
+        changed()
     }
 
     /**

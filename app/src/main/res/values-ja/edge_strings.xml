@@ -193,4 +193,13 @@
     <string name="edge_note_color">メモの文字色</string>
     <string name="edge_note_colors_help">色見本または #RRGGBB で指定します。自動に戻すと背景はテーマに従い、文字は背景に合わせます。保存すると反映されます。</string>
     <string name="edge_color_invalid">#RRGGBB（例: #FFFFFF）で入力してください。</string>
+    <string name="edge_button_state">ON/OFFを表示</string>
+    <string name="edge_button_state_desc">ONの間は枠と背景色で示します。「自動」は対応する機能の実態に連動し、他の場所での変更も反映します。時限マクロは「実行中はON・終了時にOFF」を選べます。状態取得コマンドを指定した場合はそちらを優先します。別プロセスを起動してすぐ終了するマクロは状態取得を設定してください。</string>
+    <string name="edge_item_off">OFFにするコマンド（空欄なら同じコマンド）</string>
+    <string name="edge_button_source">状態の連動先</string>
+    <string name="edge_source_auto">自動（対応する機能と連動）</string>
+    <string name="edge_source_torch">トーチライト</string>
+    <string name="edge_source_screen">画面の消灯防止</string>
+    <string name="edge_source_process">実行中はON・終了時にOFF</string>
+    <string name="edge_source_remember">成功した切替状態を記憶</string>
 </resources>

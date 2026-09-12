@@ -523,12 +523,12 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
 
     val torchHelp: String =
         t(
-            en = "# z2-torch on|off|toggle  (default toggle). Prints the resulting state (on/off).",
-            ja = "# z2-torch on|off|toggle  (既定 toggle)。結果の点灯状態 (on/off) を出力。",
-            "zh-CN" to "# z2-torch on|off|toggle  (默认 toggle)。输出结果的点亮状态 (on/off)。",
-            "zh-TW" to "# z2-torch on|off|toggle  (預設 toggle)。輸出結果的點亮狀態 (on/off)。",
-            "es" to "# z2-torch on|off|toggle  (toggle por omisión). Imprime el estado resultante (on/off).",
-            "ko" to "# z2-torch on|off|toggle  (기본값 toggle). 그 결과 상태를 출력합니다 (on/off)."
+            en = "# z2-torch on|off|toggle|status  (default toggle). status reads Android state, including external changes (on/off).",
+            ja = "# z2-torch on|off|toggle|status  (既定 toggle)。statusで実際の点灯状態(on/off)を取得。外部操作も反映します。",
+            "zh-CN" to "# z2-torch on|off|toggle|status  (默认 toggle)。status查询实际状态(on/off)，包括外部更改。",
+            "zh-TW" to "# z2-torch on|off|toggle|status  (預設 toggle)。status查詢實際狀態(on/off)，包括外部變更。",
+            "es" to "# z2-torch on|off|toggle|status  (toggle por omisión). status consulta el estado real (on/off), incluidos cambios externos.",
+            "ko" to "# z2-torch on|off|toggle|status  (기본값 toggle). status로 외부 변경을 포함한 실제 상태(on/off)를 조회합니다."
         )
 
     val mediaHelp: String =
@@ -870,9 +870,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   With --off you get **two commands**: tapping alternates between them and the tile
         |#   stays "on"-looking while it is on. Use it where turning off is its own command
         |#   (z2-torch on / off).
-        |#   ⚠ That on/off is only what the app remembers — running z2-torch off in the terminal
-        |#     instead leaves the tile showing "on". (z2-screen keepon is the exception: the app
-        |#     holds that state for real, so its tile follows the terminal.)
+        |#   Ordinary pairs remember successful toggles. Direct z2-torch assignments follow Android
+        |#   observations, including external changes. z2-screen keepon follows its actual active setting.
         |#
         |# Putting it on the panel
         |#   On Android 13+ `set` asks you right away whether to put the tile on the panel, and
@@ -925,9 +924,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   実行中はタイルが ON の見た目になります (色は OS のもの)。
         |#   --off を付けると**入 / 切の 2 コマンド**になり、押すたびに交互に走ります
         |#   (入の間タイルは ON の見た目)。切るのが別コマンドのもの (z2-torch on / off) 向けです。
-        |#   ⚠ この入 / 切は**アプリが覚えているだけ**です。端末から直接 z2-torch off を打つと
-        |#     タイルは入のままになります (z2-screen keepon だけは例外で、アプリが実態を
-        |#     持っているので端末から切ってもタイルが揃います)。
+        |#   通常の組は切替状態を記憶します。z2-torchの直接割当はAndroidの実態に連動し、
+        |#   外部からのON/OFFも反映します。z2-screen keeponも実際の有効状態に連動します。
         |#
         |# パネルに置く
         |#   Android 13 以降では、set したその場で**パネルに置いてよいか聞きます**。そのダイアログ
@@ -979,9 +977,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   运行期间磁贴看起来是“开”的 (颜色是 OS 的，不是我们的)。
         |#   加上 --off 就变成**开 / 关两条命令**，每按一次交替执行
         |#   (开着的期间磁贴显示为“开”)。适合关闭需要另一条命令的场合 (z2-torch on / off)。
-        |#   ⚠ 这个开 / 关**只是应用自己记着的**。如果直接在终端里敲 z2-torch off，
-        |#     磁贴仍然显示为开 (只有 z2-screen keepon 是例外，因为应用持有真实状态，
-        |#     从终端关掉磁贴也会跟着变)。
+        |#   普通命令对记住切换状态。直接分配的z2-torch跟随Android的实际状态，包括外部更改。
+        |#   z2-screen keepon也跟随实际有效状态。
         |#
         |# 放到面板上
         |#   Android 13 以上会在 set 的当场**询问是否放到面板上**，而且那个对话框里会显示
@@ -1030,9 +1027,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   執行期間圖塊看起來是“開”的 (顏色是 OS 的，不是我們的)。
         |#   加上 --off 就變成**開 / 關兩條指令**，每按一次交替執行
         |#   (開著的期間圖塊顯示為“開”)。適合關閉需要另一條指令的場合 (z2-torch on / off)。
-        |#   ⚠ 這個開 / 關**只是應用程式自己記著的**。如果直接在終端機裡敲 z2-torch off，
-        |#     圖塊仍然顯示為開 (只有 z2-screen keepon 是例外，因為應用程式持有真實狀態，
-        |#     從終端機關掉圖塊也會跟著變)。
+        |#   一般指令組記住切換狀態。直接指派的z2-torch跟隨Android的實際狀態，包括外部變更。
+        |#   z2-screen keepon也跟隨實際有效狀態。
         |#
         |# 放到面板上
         |#   Android 13 以上會在 set 的當場**詢問是否放到面板上**，而且那個對話方塊裡會顯示
@@ -1083,9 +1079,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   Con --off tienes **dos comandos**: cada toque alterna entre ellos y el mosaico se queda
         |#   con aspecto de encendido mientras lo esté. Úsalo cuando apagar sea su propio comando
         |#   (z2-torch on / off).
-        |#   ⚠ Ese encendido/apagado es solo lo que recuerda la aplicación: si ejecutas z2-torch off
-        |#     en la terminal, el mosaico se queda mostrando «encendido». (z2-screen keepon es la
-        |#     excepción: ahí la aplicación guarda el estado de verdad y el mosaico sigue a la terminal.)
+        |#   Los pares normales recuerdan el estado. Las asignaciones directas de z2-torch reflejan
+        |#   el estado real de Android y cambios externos; z2-screen keepon sigue su ajuste activo.
         |#
         |# Colocarlo en el panel
         |#   En Android 13+, `set` te pregunta al momento si colocar el mosaico en el panel, y ese
@@ -1138,9 +1133,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   도는 동안 타일이 「켜짐」으로 보입니다 (색은 시스템의 것이지 우리 것이 아닙니다).
         |#   --off를 주면 **명령이 두 개**가 되어, 누를 때마다 번갈아 실행하고 켜져 있는 동안
         |#   타일도 켜진 모습으로 남습니다. 끄는 것이 따로 명령일 때 쓰세요 (z2-torch on / off).
-        |#   ⚠ 그 켜짐/꺼짐은 앱이 기억하는 것일 뿐입니다: 터미널에서 z2-torch off를 실행하면
-        |#     타일은 「켜짐」인 채로 남습니다. (z2-screen keepon만 예외로, 앱이 진짜 상태를
-        |#     들고 있어서 타일이 터미널을 따라갑니다.)
+        |#   일반 명령 쌍은 전환 상태를 기억합니다. z2-torch 직접 할당은 외부 변경을 포함한
+        |#   Android 실제 상태를 반영합니다. z2-screen keepon도 실제 활성 상태를 따릅니다.
         |#
         |# 패널에 놓기
         |#   Android 13 이상에서는 `set`이 그 자리에서 타일을 패널에 놓을지 묻고, 그 대화상자에는

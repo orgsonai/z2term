@@ -21,8 +21,8 @@ class NotificationTraceTest {
                 putCharSequence(Notification.EXTRA_TEXT, text)
             }
         }
-        return StatusBarNotification(pkg, pkg, 1, "private tag", 12345, 0,
-            n, Process.myUserHandle(), null, 123L)
+        return StatusBarNotification(pkg, pkg, 1, "private tag", 12345, 0, 0,
+            n, Process.myUserHandle(), 123L)
     }
 
     @Test fun receivedLengthsSurviveWithoutKeepingTextValues() {

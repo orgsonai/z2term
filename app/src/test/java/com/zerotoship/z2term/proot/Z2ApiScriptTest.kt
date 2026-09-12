@@ -22,6 +22,26 @@ class Z2ApiScriptTest {
     /** 英語版。文言だけを差し替える作りなので、**両方**が同じ検証を通らないと意味がない。 */
     private val scriptsEn = z2ApiScripts(lang = "en")
 
+    @Test fun edgeRunMetadataIsSeparateFromCommandArguments() {
+        val dir = Files.createTempDirectory("edge-api").toFile()
+        try {
+            val dispatcher = File(dir, "z2api").apply {
+                writeText(scripts.getValue("z2api").replace("DIR=/storage/app/z2api", "DIR='${dir.absolutePath}'"))
+            }
+            val token = "token\nwith ${'$'}(exit 9)"
+            val process = ProcessBuilder("sh", dispatcher.absolutePath, "0", "torch", "on", "two\nlines").apply {
+                environment()["Z2_EDGE_RUN"] = token
+            }.redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.waitFor())
+            val lines = File(dir, "req").listFiles()!!.single().readLines()
+            fun decode(line: String) = String(java.util.Base64.getDecoder().decode(line.substring(2)), Charsets.UTF_8)
+            assertEquals("CMD torch", lines.first())
+            assertEquals(token, decode(lines.single { it.startsWith("E ") }))
+            assertEquals(listOf("on", "two\nlines"), lines.filter { it.startsWith("A ") }.map(::decode))
+        } finally { dir.deleteRecursively() }
+    }
+
     /** 行頭の `|` (trimMargin の剥がし漏れ) は POSIX sh では常に構文エラー (0.8.187 の事故)。 */
     @Test
     fun noMarginLeak() {

@@ -758,6 +758,7 @@ class ProotLauncher(private val context: Context) {
         // 自分自身への attach を断るための目印 (proot 経路の `Z2_SESSION_ID` と同じ)。
         // ⚠ `env -i` で組み立てているので、ここに書かない限り渡らない。
         val sessionEnv = if (sessionId.isNotBlank()) " Z2_SESSION_ID=${shq(sessionId)}" else ""
+        val apiStorage = context.getExternalFilesDir(null)
         return buildString {
             append("export PATH=/system/bin:/system/xbin:/vendor/bin:\$PATH\n")
             append("RFS=").append(rfs).append('\n')
@@ -768,7 +769,7 @@ class ProotLauncher(private val context: Context) {
             append("for m in dev/pts dev/shm dev proc sys")
             // HOME 隔離オーバーレイは root より先に剥がす (root の lazy umount で取り残されないよう)。
             for ((_, dst) in homeOverlayBinds) append(' ').append(shq(dst.trimStart('/')))
-            append(" root sdcard sdcard_ext system apex")
+            append(" root sdcard sdcard_ext storage/app system apex")
             for (vol in externalVolumes) {
                 append(' ').append(shq(vol.trimStart('/')))
             }
@@ -792,6 +793,13 @@ class ProotLauncher(private val context: Context) {
                 append(" \"\$RFS/").append(rel).append("\" 2>/dev/null\n")
             }
             append("mount -o bind /sdcard \"\$RFS/sdcard\" 2>/dev/null\n")
+            // The file API bridge must reach the same app directory in both execution engines.
+            // Terminal audio uses it to allocate/release Android playback, without a GUI tab.
+            if (apiStorage != null) {
+                append("mkdir -p \"\$RFS/storage/app\"\n")
+                append("mount -o bind ").append(shq(apiStorage.absolutePath))
+                    .append(" \"\$RFS/storage/app\" || echo 'z2term: Android API storage mount failed' >&2\n")
+            }
             // 外部 SD カード (設定で ON のときだけ呼び出し側が渡す)。
             // /sdcard_ext は最初の1つのエイリアス。proot 経路と同じ取り扱いに揃える。
             for ((i, vol) in externalVolumes.withIndex()) {
@@ -818,6 +826,7 @@ class ProotLauncher(private val context: Context) {
             append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR TMPDIR=/tmp")
             append(displayEnv)
             append(sessionEnv)
+            append(" Z2_DISTRO_ID=").append(shq(File(rootfs).name))
             // 制御端末を取り直してジョブ制御 / Ctrl+C を効かせる。
             // chroot は su(magiskd)経由で起動するため root shell が PTY を制御端末として
             // 所有できず "no job control" になり、Ctrl+C(VINTR)の SIGINT が走行中コマンドへ

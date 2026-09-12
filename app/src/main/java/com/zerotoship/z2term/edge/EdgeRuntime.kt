@@ -33,6 +33,8 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.service.HeadlessRun
+import com.zerotoship.z2term.service.ScreenTimeout
+import com.zerotoship.z2term.service.TorchState
 import java.io.File
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
@@ -52,6 +54,15 @@ object EdgeRuntime {
     private val badges = mutableMapOf<String, String>()
     private val renderers = mutableMapOf<String, (String) -> Unit>()
     private val revisions = mutableMapOf<String, Int>()
+    private val buttonRuns = EdgeButtonRuns()
+    private val nativeStateListener: () -> Unit = {
+        main.post {
+            if (app != null) panels.forEach { panel -> panel.items.filter { it.isStateButton }.forEach { item ->
+                if (buttonSource(panel.id, item) in setOf("torch", "screen")) renderButton(panel.id, item)
+            } }
+        }
+        Unit
+    }
     private val scheduled = mutableListOf<Runnable>()
     private val retries = mutableMapOf<String, Runnable>()
     private var panelView: EdgePanelWindow? = null
@@ -188,6 +199,9 @@ object EdgeRuntime {
         }
         windowContext!!.registerComponentCallbacks(configurationCallback!!)
         runner = EdgeRunner(app!!)
+        runCatching { TorchState.start(app!!) }
+        TorchState.addListener(nativeStateListener)
+        ScreenTimeout.addListener(nativeStateListener)
         receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 runCatching {
@@ -251,6 +265,9 @@ object EdgeRuntime {
         receiver?.let { r -> app?.let { runCatching { it.unregisterReceiver(r) } } }
         receiver = null
         runner?.cancelAll(); runner = null
+        buttonRuns.clear()
+        TorchState.removeListener(nativeStateListener)
+        ScreenTimeout.removeListener(nativeStateListener)
         panels = emptyList(); values.clear(); badges.clear(); revisions.clear(); iconCache.evictAll()
         configurationCallback?.let { windowContext?.unregisterComponentCallbacks(it) }
         configurationCallback = null; windowContext = null
@@ -1035,7 +1052,7 @@ object EdgeRuntime {
                 }
                 scheduled.add(autosave); main.postDelayed(autosave, 10000)
             }
-            panel.items.filter { !settings && it.type in setOf("text", "toggle", "list") }.forEach { item ->
+            panel.items.filter { !settings && (it.type in setOf("text", "toggle", "list") || it.isStateButton) }.forEach { item ->
                 refresh(panel.id, item)
                 if (item.every > 0) {
                     val gen = generation
@@ -1240,7 +1257,39 @@ object EdgeRuntime {
         renderers["$target:status"] = { status.text = it; status.visibility = if (it.isBlank()) View.GONE else View.VISIBLE }
         when (item.type) {
             "run" -> {
-                title.setOnClickListener { execute(panelId, item, item.command) }
+                if (item.isStateButton) {
+                    val render: (String) -> Unit = { value ->
+                        val on = EdgeStore.parseButtonState(value)
+                        val state = if (on == true) "ON" else if (on == false) "OFF" else "—"
+                        title.isSelected = on == true
+                        title.background = GradientDrawable().apply {
+                            val accent = EdgeEditorUi.accent(ui())
+                            setColor(if (on == true) (accent and 0x00ffffff) or 0x30000000 else Color.TRANSPARENT)
+                            setStroke(dp(if (on == true) 2 else 1).coerceAtLeast(1),
+                                if (on == true) accent else (EdgeEditorUi.foreground(ui()) and 0x00ffffff) or 0x60000000)
+                        }
+                        // State is conveyed visually by the existing button, and spoken by accessibility.
+                        if (android.os.Build.VERSION.SDK_INT >= 30) {
+                            title.contentDescription = label
+                            title.stateDescription = state
+                        } else title.contentDescription = "$label, $state"
+                    }
+                    renderers["$target:button"] = render
+                    renderButton(panelId, item)
+                }
+                title.setOnClickListener {
+                    val source = buttonSource(panelId, item)
+                    val on = item.isStateButton && buttonState(panelId, item) == true
+                    if (on && source == "process") {
+                        val owner = runner
+                        owner?.stopAction("action:$target") {
+                            if (app != null && runner === owner &&
+                                runCatching { store(app!!).item(target) }.getOrNull() == item) {
+                                item.fields["off"]?.takeIf { it.isNotBlank() }?.let { execute(panelId, item, it) }
+                            }
+                        }
+                    } else execute(panelId, item, EdgeButtonSource.action(item, on, source))
+                }
                 title.setOnLongClickListener {
                     it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                     it.startDragAndDrop(null, View.DragShadowBuilder(it), ItemDrag(panelId, item.id), 0)
@@ -1379,7 +1428,8 @@ object EdgeRuntime {
     }
 
     private fun refresh(panel: String, item: EdgeStore.Item) {
-        val command = if (item.type == "toggle") item.fields["state"].orEmpty() else item.command
+        if (buttonSource(panel, item) != null) { renderButton(panel, item); return }
+        val command = if (item.type == "toggle" || item.isStateButton) item.fields["state"].orEmpty() else item.command
         if (command.isBlank()) return // push-only item
         val target = "$panel:${item.id}"
         if (runner?.isRunning("read:$target") == true || runner?.isRunning("action:$target") == true || target in retries) return
@@ -1400,15 +1450,21 @@ object EdgeRuntime {
         val target = "$panel:${item.id}"
         if (command.isBlank()) { renderers["$target:status"]?.invoke(app!!.getString(R.string.edge_no_command)); return false }
         if (!refresh) runner?.cancelRead(target)
-        if (!refresh && item.type == "run" && item.fields["out"].orEmpty() in setOf("", "none")) close()
+        if (!refresh && item.type == "run" && !item.isStateButton && item.fields["out"].orEmpty() in setOf("", "none")) close()
         val gen = generation
         val revision = revisions[target] ?: 0
+        val nextButtonState = if (item.isStateButton && !refresh) store(app!!).buttonState(panel, item) != true else false
         val owner = runner!!
-        val script = EdgeMacroCommand.resolve(command, com.zerotoship.z2term.widget.WidgetStore.availableMacros(app!!))
+        val token = if (item.isStateButton && !refresh) java.util.UUID.randomUUID().toString() else null
+        val script = (token?.let { "export Z2_EDGE_RUN=${HeadlessRun.shSingleQuote(it)}; " } ?: "") +
+            EdgeMacroCommand.resolve(command, com.zerotoship.z2term.widget.WidgetStore.availableMacros(app!!))
         val accepted = owner.run((if (refresh) "read:" else "action:") + target, script, item.timeout, input, value) { result ->
+            if (token != null) buttonRuns.finish(token)
             if (app == null || runner !== owner) return@run
+            val source = buttonSource(panel, item)
+            if (source != null) renderButton(panel, item)
             val visible = gen == generation && openId == panel
-            if (refresh && item.type == "toggle" && result.error == null &&
+            if (refresh && (item.type == "toggle" || item.isStateButton) && result.error == null &&
                 result.output.trim() !in setOf("on", "off", "true", "false", "1", "0")) {
                 if (visible) renderers["$target:status"]?.invoke("state must return on/off, true/false or 1/0")
                 return@run
@@ -1416,7 +1472,18 @@ object EdgeRuntime {
             if (visible) renderers["$target:status"]?.invoke(result.error.orEmpty())
             else if (!refresh && result.error != null) fail(IllegalStateException(result.error))
             if (result.error == null) {
-                if (refresh || item.fields["out"] == "panel") {
+                if (item.isStateButton && source == null && (revisions[target] ?: 0) == revision) {
+                    if (refresh) {
+                        if (visible) putButtonState(panel, item, EdgeStore.parseButtonState(result.output)!!)
+                    } else if (item.fields["state"].isNullOrBlank()) {
+                        putButtonState(panel, item, nextButtonState)
+                    } else if (visible) {
+                        refresh(panel, item)
+                    }
+                }
+                if (refresh && item.isStateButton) {
+                    // The query result is a state, not command output for the text area.
+                } else if (refresh || item.fields["out"] == "panel") {
                     val sameItem = panels.firstOrNull { it.id == panel }?.items?.contains(item) == true
                     if (sameItem && (!refresh || visible) && (revisions[target] ?: 0) == revision) put(target, result.output)
                 } else when (item.fields["out"]) {
@@ -1426,8 +1493,41 @@ object EdgeRuntime {
                 if (visible) after?.invoke()
             }
         }
+        if (accepted && token != null) buttonRuns.start(token, EdgeButtonRuns.Run(panel, item, revision))
+        if (accepted && item.isStateButton) renderButton(panel, item)
         renderers["$target:status"]?.invoke(app!!.getString(if (accepted) R.string.edge_updating else R.string.edge_busy))
         return accepted
+    }
+
+    private fun buttonSource(panel: String, item: EdgeStore.Item): String? = EdgeButtonSource.resolve(
+        item, store(app!!).buttonSource(panel, item), com.zerotoship.z2term.widget.WidgetStore.availableMacros(app!!))
+
+    private fun buttonState(panel: String, item: EdgeStore.Item): Boolean? = when (buttonSource(panel, item)) {
+        "torch" -> TorchState.current()
+        "screen" -> ScreenTimeout.keepOnUntil(app!!) != null
+        "process" -> buttonRuns.running(panel, item)
+        else -> store(app!!).buttonState(panel, item) ?: if (item.fields["state"].isNullOrBlank()) false else null
+    }
+
+    private fun renderButton(panel: String, item: EdgeStore.Item) {
+        if (panels.firstOrNull { it.id == panel }?.items?.contains(item) != true) return
+        renderers["$panel:${item.id}:button"]?.invoke(buttonState(panel, item)?.let { if (it) "on" else "off" } ?: "")
+    }
+
+    /** A macro can reveal its state source while making an API call; never inspect shell text. */
+    fun observeButtonSource(token: String, source: String): Unit = onMain {
+        val run = buttonRuns.get(token) ?: return@onMain
+        val context = app ?: return@onMain
+        val target = "${run.panel}:${run.item.id}"
+        if (!run.item.fields["state"].isNullOrBlank() ||
+            run.item.fields["button-source"].orEmpty() !in setOf("", "auto") ||
+            (revisions[target] ?: 0) != run.revision) return@onMain
+        val on = when (source) {
+            "torch" -> TorchState.current() == true
+            "screen" -> ScreenTimeout.keepOnUntil(context) != null
+            else -> return@onMain
+        }
+        if (store(context).saveButtonState(run.panel, run.item, on, source)) renderButton(run.panel, run.item)
     }
 
     private fun put(target: String, text: String) {
@@ -1435,15 +1535,24 @@ object EdgeRuntime {
         renderers[target]?.invoke(values[target].orEmpty())
     }
 
+    private fun putButtonState(panel: String, item: EdgeStore.Item, on: Boolean) {
+        runCatching {
+            if (store(app!!).saveButtonState(panel, item, on)) {
+                renderButton(panel, item)
+            }
+        }.onFailure { fail(it) }
+    }
+
     fun push(context: Context, target: String, text: String, state: Boolean = false) = onMain {
         val item = store(context).item(target)
         require(item.type != "note") { "Edit the note file directly; push is for live values" }
         require(store(context).enabled() && app != null) { "Enable the panel first: z2-edge on" }
         require(text.toByteArray().size <= 65536) { "Value exceeds 64 KiB" }
-        if (state) require(item.type == "toggle" && text in setOf("on", "off")) { "state requires a toggle and on|off" }
+        if (state) require((item.type == "toggle" || item.isStateButton) && text in setOf("on", "off")) { "state requires a toggle or state button and on|off" }
         if (item.type == "toggle") require(text.trim() in setOf("on", "off", "true", "false", "1", "0")) { "Invalid toggle state" }
         revisions[target] = (revisions[target] ?: 0) + 1
-        put(target, text)
+        if (state && item.isStateButton) putButtonState(target.substringBefore(':'), item, text == "on")
+        else put(target, text)
     }
 
     fun badge(context: Context, id: String, value: String) = onMain {

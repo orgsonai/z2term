@@ -178,4 +178,13 @@
     <string name="edge_note_color">메모 글자색</string>
     <string name="edge_note_colors_help">색상 견본 또는 #RRGGBB로 지정합니다. 자동은 테마 배경과 배경에 맞는 글자색을 사용합니다. 저장하면 적용됩니다.</string>
     <string name="edge_color_invalid">#RRGGBB 형식으로 입력하세요. 예: #FFFFFF.</string>
+    <string name="edge_button_state">ON/OFF 표시</string>
+    <string name="edge_button_state_desc">ON은 테두리와 배경으로 표시합니다. 자동은 지원 기능의 실제 상태와 외부 변경을 반영합니다. 시간제한 매크로는 실행 중 ON・종료 시 OFF를 선택하세요. 상태 조회 명령이 우선하며, 별도 백그라운드 작업은 상태 조회가 필요합니다.</string>
+    <string name="edge_item_off">OFF로 전환할 명령(비우면 같은 명령)</string>
+    <string name="edge_button_source">상태 연동 대상</string>
+    <string name="edge_source_auto">자동 (지원 기능 감지)</string>
+    <string name="edge_source_torch">손전등</string>
+    <string name="edge_source_screen">화면 자동 꺼짐 방지</string>
+    <string name="edge_source_process">실행 중 ON・종료 시 OFF</string>
+    <string name="edge_source_remember">성공한 전환 상태 기억</string>
 </resources>

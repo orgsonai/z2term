@@ -81,10 +81,8 @@ object TileStore {
     /**
      * 入 / 切の枠 ([Slot.isPair]) が「いま入っているか」。
      *
-     * ⚠ **これはアプリが覚えているだけ**で、実際に点いているかを見に行っているのではない
-     * (`z2-torch` の光を Android から読む方法は無い)。端末から直接 `z2-torch off` を打つと
-     * タイルの表示だけ入のまま残る。`z2-screen` を特別扱いしているのは、あちらだけは
-     * **アプリが実態を持っている**ため ([isScreenKeepOn])。
+     * This is remembered state for arbitrary command pairs. Direct torch assignments use Android
+     * observations instead; screen keep-on assignments use the saved active setting.
      */
     fun isOn(context: Context, n: Int): Boolean =
         prefs(context).getBoolean(KEY_ON_PREFIX + n, false)
@@ -247,6 +245,9 @@ object TileStore {
         val parts = command.trim().split(Regex("\\s+"))
         return parts.size >= 3 && parts[0] == "z2-screen" && parts[1] == "keepon" && parts[2] != "off"
     }
+
+    internal fun isTorch(command: String): Boolean =
+        com.zerotoship.z2term.edge.EdgeButtonSource.direct(command) == "torch"
 
     /** [remaining] の単位。タイルに出す文言 (`残り %d 分`) を選ぶためだけのもの。 */
     enum class RemainUnit { HOURS, MINUTES, SECONDS }

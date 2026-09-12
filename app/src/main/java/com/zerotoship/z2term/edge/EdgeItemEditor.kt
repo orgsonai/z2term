@@ -73,6 +73,24 @@ object EdgeItemEditor {
         val groups = linkedMapOf<String, LinearLayout>()
         val basic = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         draft.addView(basic)
+        val buttonState = EdgeSettingsUi.switchOf(context, item?.isStateButton == true).apply {
+            text = context.getString(R.string.edge_button_state)
+            setTextColor(EdgeSettingsUi.foreground(context))
+            minHeight = EdgeEditorUi.dp(context, 48)
+        }
+        basic.addView(buttonState)
+        val buttonStateHelp = EdgeSettingsUi.body(context, context.getString(R.string.edge_button_state_desc))
+        basic.addView(buttonStateHelp)
+        val sourceGroup = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        val source = EdgeSettingsUi.dress(context, Spinner(context)).apply {
+            adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
+                listOf(R.string.edge_source_auto, R.string.edge_source_torch, R.string.edge_source_screen,
+                    R.string.edge_source_process, R.string.edge_source_remember).map { context.getString(it) })
+            setSelection(EdgeButtonSource.choices.indexOf(item?.fields?.get("button-source") ?: "auto").coerceAtLeast(0))
+            contentDescription = context.getString(R.string.edge_button_source)
+        }
+        EdgeSettingsUi.labeled(context, sourceGroup, context.getString(R.string.edge_button_source), source)
+        basic.addView(sourceGroup)
         val noteLines = EdgeSettingsUi.switchOf(context, item?.fields?.get("note-lines") == "on").apply {
             text = context.getString(R.string.edge_note_lines)
             setTextColor(EdgeSettingsUi.foreground(context))
@@ -80,7 +98,7 @@ object EdgeItemEditor {
         }
         val advanced = EdgeSettingsUi.section(context, draft, context.getString(R.string.edge_advanced), sub = true)
         val fields = linkedMapOf("label" to R.string.edge_item_label, "icon" to R.string.edge_item_icon,
-            "run" to R.string.edge_item_run, "state" to R.string.edge_item_state,
+            "run" to R.string.edge_item_run, "off" to R.string.edge_item_off, "state" to R.string.edge_item_state,
             "on-select" to R.string.edge_item_select, "every" to R.string.edge_item_every,
             "timeout" to R.string.edge_item_timeout, "out" to R.string.edge_item_out, "file" to R.string.edge_item_file,
             "note-background" to R.string.edge_note_background, "note-color" to R.string.edge_note_color)
@@ -95,7 +113,7 @@ object EdgeItemEditor {
             group.addView(entry)
             if (key in setOf("note-background", "note-color")) EdgeColorField.add(context, group, entry, label)
             if (key == "icon") EdgeItemPickers.icons(context, group, entry)
-            if (key == "run" && appCommand == null) EdgeItemPickers.macros(context, group, entry)
+            if ((key == "run" && appCommand == null) || key == "off") EdgeItemPickers.macros(context, group, entry)
             group.addView(EdgeSettingsUi.spacer(context, 12))
             val optional = key in listOf("every", "timeout", "out", "file") || (appCommand != null && key == "run")
             (if (optional) advanced else basic).addView(group)
@@ -103,12 +121,17 @@ object EdgeItemEditor {
         basic.addView(noteLines, LinearLayout.LayoutParams(-1, -2))
         fun showFields() {
             val selected = types[type.selectedItemPosition]
+            buttonState.visibility = if (selected == "run") View.VISIBLE else View.GONE
+            val stateButton = selected == "run" && buttonState.isChecked
+            buttonStateHelp.visibility = if (stateButton) View.VISIBLE else View.GONE
+            sourceGroup.visibility = if (stateButton) View.VISIBLE else View.GONE
             noteLines.visibility = if (selected == "note") View.VISIBLE else View.GONE
             groups.forEach { (key, group) ->
                 val visible = when (key) {
-                    "state" -> selected == "toggle"
+                    "state" -> selected == "toggle" || stateButton
+                    "off" -> stateButton
                     "on-select" -> selected == "list"
-                    "every" -> selected in listOf("text", "toggle", "list")
+                    "every" -> selected in listOf("text", "toggle", "list") || stateButton
                     "file", "note-background", "note-color" -> selected == "note"
                     "run", "timeout", "out" -> selected != "note"
                     else -> true
@@ -120,9 +143,12 @@ object EdgeItemEditor {
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) = showFields()
         }
+        buttonState.setOnCheckedChangeListener { _, _ -> showFields() }
         showFields()
         session.track(outer) {
             types[type.selectedItemPosition] != (item?.type ?: "run") ||
+                buttonState.isChecked != (item?.isStateButton == true) ||
+                EdgeButtonSource.choices[source.selectedItemPosition] != (item?.fields?.get("button-source") ?: "auto") ||
                 launchMode != AppLaunchCommand.modeFrom(appCommand.orEmpty()) ||
                 scaleFreeform != AppLaunchCommand.scalesFreeform(appCommand.orEmpty()) ||
                 noteLines.isChecked != (item?.fields?.get("note-lines") == "on") ||
@@ -134,6 +160,8 @@ object EdgeItemEditor {
             session.discard(outer) {
                 entries.forEach { (key, entry) -> entry.setText(item?.fields?.get(key).orEmpty()) }
                 type.setSelection(types.indexOf(item?.type ?: "run"))
+                buttonState.isChecked = item?.isStateButton == true
+                source.setSelection(EdgeButtonSource.choices.indexOf(item?.fields?.get("button-source") ?: "auto").coerceAtLeast(0))
                 noteLines.isChecked = item?.fields?.get("note-lines") == "on"
                 if (cancelled != null) cancelled() else draft.visibility = View.GONE
             }
@@ -142,6 +170,11 @@ object EdgeItemEditor {
             runCatching {
                 val values = item?.fields.orEmpty().toMutableMap()
                 values["type"] = types[type.selectedItemPosition]
+                if (values["type"] == "run") values["button-state"] = if (buttonState.isChecked) "on" else "off"
+                if (values["type"] == "run" && buttonState.isChecked) {
+                    val selected = EdgeButtonSource.choices[source.selectedItemPosition]
+                    if (selected == "auto") values.remove("button-source") else values["button-source"] = selected
+                }
                 if (values["type"] == "note") values["note-lines"] = if (noteLines.isChecked) "on" else "off"
                 entries.forEach { (key, entry) ->
                     // Preserve hidden values; only visible fields are edited.

@@ -63,9 +63,9 @@ internal object EdgeNoteUi {
             highlightColor = ColorUtils.setAlphaComponent(foreground, 64)
             if (this is EditText) {
                 textCursorDrawable?.mutate()?.let { it.setTint(foreground); textCursorDrawable = it }
-                textSelectHandle?.mutate()?.let { it.setTint(foreground); textSelectHandle = it }
-                textSelectHandleLeft?.mutate()?.let { it.setTint(foreground); textSelectHandleLeft = it }
-                textSelectHandleRight?.mutate()?.let { it.setTint(foreground); textSelectHandleRight = it }
+                textSelectHandle?.mutate()?.let { it.setTint(foreground); setTextSelectHandle(it) }
+                textSelectHandleLeft?.mutate()?.let { it.setTint(foreground); setTextSelectHandleLeft(it) }
+                textSelectHandleRight?.mutate()?.let { it.setTint(foreground); setTextSelectHandleRight(it) }
             }
         }
         setPadding(EdgeEditorUi.dp(context, 12), EdgeEditorUi.dp(context, 8),

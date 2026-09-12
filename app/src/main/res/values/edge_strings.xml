@@ -193,4 +193,13 @@
     <string name="edge_note_color">Note text colour</string>
     <string name="edge_note_colors_help">Choose a swatch or enter #RRGGBB. Automatic uses the theme background and adapts the text to the background. Changes apply when saved.</string>
     <string name="edge_color_invalid">Enter #RRGGBB, for example #FFFFFF.</string>
+    <string name="edge_button_state">Show ON/OFF</string>
+    <string name="edge_button_state_desc">ON uses the button border and background. Automatic follows supported device features, including changes made elsewhere. For a timed macro, select ON while running; OFF on exit. A state command takes priority; detached background tasks need a state query.</string>
+    <string name="edge_item_off">Command to turn OFF (empty: use the same command)</string>
+    <string name="edge_button_source">State source</string>
+    <string name="edge_source_auto">Automatic (detect supported features)</string>
+    <string name="edge_source_torch">Flashlight</string>
+    <string name="edge_source_screen">Prevent screen sleep</string>
+    <string name="edge_source_process">ON while running; OFF on exit</string>
+    <string name="edge_source_remember">Remember successful toggles</string>
 </resources>

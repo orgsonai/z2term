@@ -63,6 +63,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |tmp="${d}DIR/req/.${d}id.tmp"
         |{
         |  echo "CMD ${d}cmd"
+        |  [ -z "${d}{Z2_EDGE_RUN:-}" ] || printf 'E %s\n' "${d}(printf '%s' "${d}Z2_EDGE_RUN" | base64 | tr -d '\n')"
         |  for a in "${d}@"; do
         |    printf 'A %s\n' "${d}(printf '%s' "${d}a" | base64 | tr -d '\n')"
         |  done
@@ -937,6 +938,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     return linkedMapOf(
         *z2EdgeScripts(lang).toList().toTypedArray(),
         "z2-action" to z2ActionScript(lang),
+        "z2-audio" to z2AudioScript(lang),
         "z2api" to dispatcher,
         "z2-session" to session,
         "z2-usb" to usb,

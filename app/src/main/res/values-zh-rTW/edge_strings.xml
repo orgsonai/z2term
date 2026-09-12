@@ -178,4 +178,13 @@
     <string name="edge_note_color">便箋文字色</string>
     <string name="edge_note_colors_help">選擇色樣或輸入#RRGGBB。自動使用佈景主題背景，並依背景調整文字色彩。儲存後生效。</string>
     <string name="edge_color_invalid">請輸入#RRGGBB，例如#FFFFFF。</string>
+    <string name="edge_button_state">顯示ON/OFF</string>
+    <string name="edge_button_state_desc">ON透過邊框和背景表示。自動跟隨支援功能的實際狀態，也反映外部變更。定時巨集可選擇執行時ON・結束時OFF。狀態查詢指令優先；啟動獨立背景工作後立即結束的巨集需要設定狀態查詢。</string>
+    <string name="edge_item_off">關閉命令（留白時使用相同命令）</string>
+    <string name="edge_button_source">狀態來源</string>
+    <string name="edge_source_auto">自動（識別支援的功能）</string>
+    <string name="edge_source_torch">手電筒</string>
+    <string name="edge_source_screen">防止螢幕休眠</string>
+    <string name="edge_source_process">執行時ON・結束時OFF</string>
+    <string name="edge_source_remember">記住成功切換的狀態</string>
 </resources>

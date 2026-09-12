@@ -14,8 +14,6 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraManager
 import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -137,13 +135,12 @@ object Z2ApiBridge {
     @Volatile private var tts: TextToSpeech? = null
     private val ttsReady = AtomicBoolean(false)
     private val pendingSpeech = ConcurrentLinkedQueue<String>()
-    // z2-torch のトグル用に最後に設定した点灯状態を保持 (best-effort)。
-    @Volatile private var torchOn = false
 
     /** Application.onCreate から呼ぶ。idempotent。 */
     fun start(context: Context) {
         if (observer != null) return
         val appCtx = context.applicationContext
+        runCatching { TorchState.start(appCtx) }.onFailure { Log.d(TAG, "Torch observation unavailable", it) }
         val base = appCtx.getExternalFilesDir(null)
         if (base == null) {
             Log.w(TAG, "external files dir unavailable — bridge disabled")
@@ -172,6 +169,7 @@ object Z2ApiBridge {
     }
 
     fun stop() {
+        TorchState.stop()
         observer?.stopWatching()
         observer = null
         reqDir = null
@@ -190,6 +188,7 @@ object Z2ApiBridge {
         val cmd: String
         val args: List<String>
         var needResp = false
+        var edgeRun: String? = null
         try {
             var c: String? = null
             val a = ArrayList<String>()
@@ -198,6 +197,7 @@ object Z2ApiBridge {
                     line.startsWith("CMD ") -> c = line.substring(4).trim()
                     line.startsWith("A ") -> a.add(decode(line.substring(2).trim()))
                     line.startsWith("R ") -> needResp = line.substring(2).trim() == "1"
+                    line.startsWith("E ") -> edgeRun = decode(line.substring(2).trim()).takeIf { it.matches(Regex("[0-9a-f-]{36}")) }
                 }
             }
             cmd = c ?: run { file.delete(); return }
@@ -262,6 +262,12 @@ object Z2ApiBridge {
                 return // Leave the request worker free for stop and for commands within the macro.
             }
             val result = dispatch(context, cmd, args)
+            if (edgeRun != null && (cmd == "torch" && args.firstOrNull() != "status" ||
+                    cmd == "screen" && args.firstOrNull() in setOf("keepon", "off"))) {
+                // Observation must not turn a successful device operation into a failed command.
+                runCatching { com.zerotoship.z2term.edge.EdgeRuntime.observeButtonSource(edgeRun!!, cmd) }
+                    .onFailure { Log.w(TAG, "Could not link edge button state", it) }
+            }
             if (needResp) writeResponse(id, ok = true, data = result ?: "")
         } catch (e: Exception) {
             Log.w(TAG, "cmd '$cmd' failed", e)
@@ -297,6 +303,16 @@ object Z2ApiBridge {
             "torch" -> torchSet(context, args.getOrNull(0).orEmpty())
             "media" -> { doMedia(context, args.getOrNull(0).orEmpty()); null }
             "volume" -> volumeSet(context, args.getOrNull(0).orEmpty())
+            "audio" -> {
+                require(args.size in 3..4) { "audio OP SESSION DISTRO [TOKEN]" }
+                val session = SessionManager.sessions.value.filterIsInstance<TerminalSession>()
+                    .firstOrNull { it.id == args[1] }
+                if (session == null && args[0] == "close") "closed"
+                else {
+                    requireNotNull(session) { "z2-audio: local terminal session has ended" }
+                    session.audioCommand(args[0], args[2], args.getOrNull(3).orEmpty())
+                }
+            }
             "intent" -> { doIntent(context, args); null }
             "edge" -> com.zerotoship.z2term.edge.EdgeCommands.command(context, args)
             "action" -> com.zerotoship.z2term.automation.ActionCommands.command(context, args)
@@ -1514,25 +1530,9 @@ object Z2ApiBridge {
     }
 
     /**
-     * フラッシュライト (トーチ) を制御する。[mode] は `on` / `off` / `toggle`。
-     * `CameraManager.setTorchMode` は権限不要。フラッシュ付きカメラが無ければ例外。
-     * 戻り値は結果の点灯状態 (`on` / `off`)。
+     * Control or query the flashlight using Android observations, including external changes.
      */
-    private fun torchSet(context: Context, mode: String): String {
-        val cm = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        val camId = cm.cameraIdList.firstOrNull { id ->
-            cm.getCameraCharacteristics(id).get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
-        } ?: throw IllegalStateException("no camera flash available")
-        val on = when (mode.lowercase()) {
-            "on", "1", "true" -> true
-            "off", "0", "false" -> false
-            "toggle", "" -> !torchOn
-            else -> throw IllegalArgumentException("usage: on | off | toggle")
-        }
-        cm.setTorchMode(camId, on)
-        torchOn = on
-        return if (on) "on" else "off"
-    }
+    private fun torchSet(context: Context, mode: String): String = TorchState.command(context, mode)
 
     /**
      * メディア再生を制御する。[action] = `play`/`pause`/`playpause`/`next`/`previous`(`prev`)/`stop`。

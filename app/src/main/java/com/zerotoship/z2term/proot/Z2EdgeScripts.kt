@@ -37,10 +37,15 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge on | off | toggle | status | reload     有効化・停止・状態・定義の再読込
         |# z2-edge open ID [--toggle] | close                パネルを開く・閉じる
         |# z2-edge push ID:項目 '文字列'           表示を外から更新（- なら標準入力）
-        |# z2-edge state ID:項目 on|off           toggle の表示を更新
+        |# z2-edge state ID:項目 on|off           toggle / ON・OFFボタンの表示を更新
         |# z2-edge badge ID '87%'                 取っ手へ文字を表示（空文字で消去）
         |# 型: run / text / toggle / list / input / note。run が既定。
         |# toggle: run=切替コマンド state=状態を読むコマンド（on/off・1/0・true/false）。
+        |# run: button-state=on でON/OFFをボタンの枠と背景色で表示。off=OFF用コマンド（省略時はrunと同じ）。
+        |# button-source=auto|torch|screen|process|remember（既定auto）。torch/screenは実態に連動。
+        |# autoは直接コマンドとマクロ内のAPI操作から連動先を取得。processは実行中ON、終了・停止時OFF。
+        |# state=状態取得コマンド（任意）は連動先より優先。未対応の動作は状態取得または更新通知を設定。
+        |# ON/OFFボタンは開き直し・再起動でも状態を保持。コマンド定義を変えると記録を無効化。
         |# list: run=一覧を読むコマンド。各行は 表示<TAB>値。on-select の ${d}1 に値を渡す。
         |# input: 入力した文字を run の標準入力へ渡す。閉じると未送信の入力は消えます。
         |# out=none|panel|toast|notify、order=整数、timeout=1〜300秒（既定30）。
@@ -89,6 +94,11 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge badge ID '87%'                  Empty string clears the badge
         |# Types: run (default), text, toggle, list, input, note.
         |# toggle: run changes state; state reads on/off, 1/0, or true/false.
+        |# run: button-state=on shows ON/OFF using the button border and background. off=OFF command (default: run).
+        |# button-source=auto|torch|screen|process|remember (default auto). torch/screen follow actual state.
+        |# auto detects direct commands and API operations in macros; process is ON while running, OFF on exit/stop.
+        |# Optional state= query takes priority. Other effects need a state query or pushed updates.
+        |# Button state survives reopening/restart and is invalidated when its command definition changes.
         |# list: run outputs label<TAB>value per line; on-select receives the value as ${d}1.
         |# input: run receives entered text on stdin; closing discards unsent input.
         |# out=none|panel|toast|notify, order=integer, timeout=1..300 seconds (default 30).

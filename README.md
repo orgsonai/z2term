@@ -85,7 +85,9 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.588-alpha (versionCode 596), build and device behavior not yet verified.** `z2-noti trace` adds temporary diagnostics for the types and lengths of delivered notification fields and conversation history, without retaining text values. This distinguishes missing input from extraction loss; truncated bodies and generic notices during bursts remain unresolved. The user verified the previous version's bar/note colours and screen interactions. See [design spec](docs/en/DESIGN-SPEC.md). Published APKs are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
+**0.8.592-alpha (versionCode 600)**: `z2-audio run COMMAND ARG...` plays local Linux audio on Android without opening a GUI. Install dependencies with `z2-audio install`. Edge run items show their state through the button border and background, without additional ON/OFF text or check marks. Torch buttons follow external changes, screen keep-on buttons follow expiry, and macros can use ON while running with automatic OFF on exit. The bundled bell and heart now have continuous contours from their rounded tops to the rim or tip. Device audio and UI behavior have not yet been verified.
+
+Also includes temporary notification diagnostics through `z2-noti trace`, recording types and lengths of received fields and extracted text without retaining text values. Missing notification text remains under investigation.
 
 ## Features
 

@@ -18,6 +18,8 @@ class EdgeRunner(private val context: Context) {
         val delivered = AtomicBoolean(false)
         @Volatile var failure: String? = null
         @Volatile var timer: Runnable? = null
+        @Volatile var stopping = false
+        @Volatile var afterStop: (() -> Unit)? = null
     }
     private val main = Handler(Looper.getMainLooper())
     private val jobs = ConcurrentHashMap<String, Job>()
@@ -58,20 +60,22 @@ class EdgeRunner(private val context: Context) {
                 job.timer?.let { main.removeCallbacks(it) }
                 val result = runCatching {
                     val code = read(status).trim()
-                    val error = failure ?: job.failure ?: if (code != "0") read(errors).trim().take(2000).ifBlank { "Command exited: $code" }
+                    val error = if (job.stopping) null else failure ?: job.failure ?: if (code != "0") read(errors).trim().take(2000).ifBlank { "Command exited: $code" }
                         else if (output.length() > 65536) "Output exceeds 64 KiB" else null
                     Result(read(output), error)
                 }.getOrElse { Result("", it.message ?: "Cannot read output") }
                 output.delete(); errors.delete(); status.delete()
                 jobs.remove(key, job)
-                main.post { if (!job.cancelled.get()) done(result) }
+                main.post {
+                    if (!job.cancelled.get()) { done(result); job.afterStop?.invoke() }
+                }
             }
-            if (job.cancelled.get()) { complete(); return@execute }
+            if (job.cancelled.get() || job.stopping) { complete(); return@execute }
             val launched = runCatching {
                 HeadlessRun.launch(context, script, null, job.name, onExit = { complete() })
             }.getOrDefault(false)
             if (!launched) complete("Cannot start command in the selected Linux environment")
-            else if (job.cancelled.get()) HeadlessRun.stop(job.name)
+            else if (job.cancelled.get() || job.stopping) HeadlessRun.stop(job.name)
             else {
                 val timer = Runnable {
                 if (jobs[key] === job && !job.delivered.get()) {
@@ -83,7 +87,7 @@ class EdgeRunner(private val context: Context) {
                 }
                 }
                 job.timer = timer
-                if (!job.delivered.get()) main.postDelayed(timer, timeout * 1000)
+                if (!job.delivered.get() && !job.stopping) main.postDelayed(timer, timeout * 1000)
             }
         }
         return true
@@ -93,6 +97,16 @@ class EdgeRunner(private val context: Context) {
     fun cancelRead(target: String) = cancel { it == "read:$target" }
     fun cancelAll() = cancel { true }
     fun cancelJob(key: String) = cancel { it == key }
+
+    /** Keep the execution lease until exit is observed, including a stop during startup. */
+    fun stopAction(key: String, after: () -> Unit = {}) {
+        val job = jobs[key] ?: return
+        if (job.stopping) return
+        job.afterStop = after
+        job.stopping = true
+        job.timer?.let { main.removeCallbacks(it) }
+        workers.execute { HeadlessRun.stop(job.name) }
+    }
 
     private fun cancel(matches: (String) -> Boolean) {
         jobs.entries.filter { matches(it.key) }.forEach { (key, job) ->

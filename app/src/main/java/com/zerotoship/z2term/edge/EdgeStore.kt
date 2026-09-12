@@ -7,6 +7,8 @@ class EdgeStore(val root: File) {
     data class Item(val id: String, val fields: Map<String, String>) {
         val type get() = fields["type"] ?: "run"
         val command get() = fields["run"].orEmpty()
+        val isStateButton get() = type == "run" && fields["button-state"] == "on"
+        fun actionCommand(on: Boolean) = if (isStateButton && on) fields["off"].orEmpty().ifBlank { command } else command
         val order get() = fields["order"]?.toIntOrNull() ?: 0
         val every get() = fields["every"]?.toLongOrNull() ?: 0L
         val timeout get() = fields["timeout"]?.toLongOrNull() ?: 30L
@@ -91,7 +93,33 @@ class EdgeStore(val root: File) {
         val f = File(directory(panelId), "$itemId.item")
         require(f.isFile) { "No item: $target" }
         check(f.delete()) { "Cannot remove $target" }
+        File(directory(panelId), "$itemId.button-state").delete()
     }
+
+    /** Remember successful actions, tied to the command definition so edits never reuse stale state. */
+    @Synchronized fun buttonState(panelId: String, item: Item): Boolean? {
+        val data = read(File(directory(panelId), "${item.id}.button-state"))
+        if (data["signature"] != buttonSignature(item)) return null
+        return parseButtonState(data["value"].orEmpty())
+    }
+
+    @Synchronized fun buttonSource(panelId: String, item: Item): String? {
+        val data = read(File(directory(panelId), "${item.id}.button-state"))
+        return data["source"]?.takeIf { data["signature"] == buttonSignature(item) && it in setOf("torch", "screen") }
+    }
+
+    @Synchronized fun saveButtonState(panelId: String, item: Item, on: Boolean, source: String? = null): Boolean {
+        require(source == null || source in setOf("torch", "screen"))
+        if (runCatching { this.item("$panelId:${item.id}") }.getOrNull() != item) return false
+        writeAtomic(File(directory(panelId), "${item.id}.button-state"),
+            "signature=${buttonSignature(item)}\nvalue=${if (on) "on" else "off"}\n" +
+                (source?.let { "source=$it\n" } ?: ""))
+        return true
+    }
+
+    private fun buttonSignature(item: Item): String = java.security.MessageDigest.getInstance("SHA-256")
+        .digest(encode(item.fields.filterKeys { it in setOf("type", "run", "off", "state", "button-state", "button-source") }.toSortedMap()).toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
 
     fun noteFile(panelId: String, item: Item): File {
         require(item.type == "note") { "Not a note" }
@@ -166,6 +194,11 @@ class EdgeStore(val root: File) {
     }
 
     companion object {
+        fun parseButtonState(value: String): Boolean? = when (value.trim()) {
+            "on", "true", "1" -> true
+            "off", "false", "0" -> false
+            else -> null
+        }
         fun validId(id: String) = id.matches(Regex("[A-Za-z0-9_-]{1,64}"))
         fun target(raw: String): Pair<String, String> {
             val parts = raw.split(':')
@@ -200,10 +233,12 @@ class EdgeStore(val root: File) {
         }
 
         fun validateItem(values: Map<String, String>) {
-            val allowed = setOf("type", "label", "icon", "run", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color")
+            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color")
             require(values.keys.all { it in allowed }) { "Unknown item field: ${values.keys - allowed}" }
             val type = values["type"] ?: "run"
             require(type in setOf("run", "text", "toggle", "list", "input", "note")) { "Unsupported type: $type" }
+            values["button-state"]?.let { require(it in setOf("on", "off")) { "button-state: on|off" } }
+            values["button-source"]?.let { require(it in EdgeButtonSource.choices) { "button-source: auto|torch|screen|process|remember" } }
             listOf("note-background", "note-color").forEach { key ->
                 values[key]?.let { require(it.isEmpty() || EdgeNoteColor.parse(it) != null) { "$key: #RRGGBB or empty" } }
             }

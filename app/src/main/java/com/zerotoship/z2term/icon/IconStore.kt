@@ -186,7 +186,14 @@ object IconStore {
 
     /** [target] のドット絵 (正規形テキスト)。未設定なら null。 */
     fun text(context: Context, target: String): String? =
-        prefs(context).getString(target, null)?.takeIf { it.isNotBlank() }
+        prefs(context).getString(target, null)?.takeIf { it.isNotBlank() }?.let(::updatedBuiltinArt)
+
+    /** Read old, unedited stock assignments using their corrected shape and original grid size. */
+    internal fun updatedBuiltinArt(art: String): String {
+        val (name, grid) = IconSamples.legacySample(art) ?: return art
+        val replacement = IconSamples.get(name) ?: return art
+        return toText(parse(zoomText(parse(replacement), grid), grid))
+    }
 
     /**
      * [target] の絵が [autoAssign] の入れたものか。`z2-icon list` が「自動」と「自分で入れた」を
