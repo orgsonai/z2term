@@ -266,31 +266,55 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-share <text> … hand text to Android's share sheet (send it on to another app).
         |# All arguments are joined into one body. Which app it goes to is chosen on screen,
         |# so this needs someone to be there — it is not for a macro running unattended.
+        |# z2-share --qr [file]: start experimental QR sharing; omit file to open the picker.
+        |# --qr-status: JSON status/link. --qr-stop: stop. File paths: HOME or shared storage.
+        |# Uses Cloudflare and internet; copies the file locally; the public link lasts 30 minutes.
+        |# z2-share -- <text>: share literal text even when it begins with an option.
     """.trimMargin(),
         ja = """
         |# z2-share <テキスト> … Android の共有メニューに渡す (他アプリへ送る)。
         |# 引数はつなげて 1 つの本文にします。送り先は画面で選ぶので、人がいるときのものです
         |# (裏で走らせるマクロ向きではありません)。
+        |# z2-share --qr [ファイル]: 試験提供のQR共有を開始。省略するとファイル選択画面を開きます。
+        |# --qr-status: 状態・リンクをJSONで表示。--qr-stop: 停止。パスはHOME内または共有ストレージ。
+        |# Cloudflareとインターネットを利用し、端末内にコピーを作ります。公開リンクは30分有効です。
+        |# z2-share -- <テキスト>: オプションで始まる文字列もそのまま共有できます。
     """.trimMargin(),
         "zh-CN" to """
         |# z2-share <文本> … 交给 Android 的分享菜单 (转交给其他应用)。
         |# 所有参数会拼成一段正文。发给哪个应用要在屏幕上选，所以这是给有人在的时候用的
         |# (不适合在后台自己跑的宏)。
+        |# z2-share --qr [文件]: 开始试用二维码分享；省略文件则打开选择器。
+        |# --qr-status: JSON状态和链接。--qr-stop: 停止。路径限HOME或共享存储。
+        |# 使用Cloudflare和互联网，先在本机复制文件。公开链接有效期为30分钟。
+        |# z2-share -- <文本>: 按原文分享以选项开头的文本。
     """.trimMargin(),
         "zh-TW" to """
         |# z2-share <文字> … 交給 Android 的分享選單 (轉交給其他應用程式)。
         |# 所有參數會拼成一段正文。發給哪個應用程式要在螢幕上選，所以這是給有人在的時候用的
         |# (不適合在背景自己跑的巨集)。
+        |# z2-share --qr [檔案]: 開始試用QR碼分享；省略檔案則開啟選擇器。
+        |# --qr-status: JSON狀態和連結。--qr-stop: 停止。路徑限HOME或共用儲存空間。
+        |# 使用Cloudflare和網際網路，先在本機複製檔案。公開連結有效期間為30分鐘。
+        |# z2-share -- <文字>: 按原文分享以選項開頭的文字。
     """.trimMargin(),
         "es" to """
         |# z2-share <texto> … pasa el texto al menú de compartir de Android (lo envía a otra app).
         |# Todos los argumentos se unen en un solo cuerpo. La aplicación de destino se elige en la
         |# pantalla, así que hace falta alguien delante: no es para una macro que corre sola.
+        |# z2-share --qr [archivo]: inicia el envío QR experimental; sin archivo abre el selector.
+        |# --qr-status: estado/enlace JSON. --qr-stop: detener. Rutas: HOME o almacenamiento compartido.
+        |# Usa Cloudflare e internet y crea una copia local. El enlace público dura 30 minutos.
+        |# z2-share -- <texto>: comparte texto literal aunque empiece por una opción.
     """.trimMargin(),
         "ko" to """
         |# z2-share <텍스트> … 텍스트를 Android 공유 메뉴로 넘깁니다 (다른 앱으로 보냅니다).
         |# 인수는 모두 이어 붙여 하나의 본문이 됩니다. 보낼 앱은 화면에서 고르므로 누군가 앞에
         |# 있어야 합니다: 혼자 도는 매크로에는 맞지 않습니다.
+        |# z2-share --qr [파일]: 시험 QR 공유 시작. 파일을 생략하면 선택 화면을 엽니다.
+        |# --qr-status: JSON 상태와 링크. --qr-stop: 중지. 경로는 HOME 또는 공유 저장소입니다.
+        |# Cloudflare와 인터넷을 사용하며 로컬 사본을 만듭니다. 공개 링크는 30분간 유효합니다.
+        |# z2-share -- <텍스트>: 옵션으로 시작하는 텍스트도 그대로 공유합니다.
     """.trimMargin()
     )
 

@@ -45,6 +45,9 @@ object AppColors {
     /** 現在適用中テーマ名 (重複適用の抑制用) */
     private var currentThemeName: String? = null
 
+    /** Construct global state before any composition or background palette update starts. */
+    fun ensureInitialized() = Unit
+
     /**
      * ターミナルテーマからアプリ全体パレットを導出して適用する。
      *

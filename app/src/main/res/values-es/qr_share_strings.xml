@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qr_share_title">Compartir archivos por QR</string>
+    <string name="qr_share_entry">Enviar un archivo por QR</string>
+    <string name="qr_share_experimental">Experimental · Cloudflare Quick Tunnels</string>
+    <string name="qr_share_explanation">Ambos dispositivos necesitan internet. El archivo se envía a través de Cloudflare con un enlace público válido durante 30 minutos. Este servicio de prueba no garantiza disponibilidad.</string>
+    <string name="qr_share_choose">Elegir archivo</string>
+    <string name="qr_share_start">Iniciar envío</string>
+    <string name="qr_share_stop">Detener envío</string>
+    <string name="qr_share_close">Cerrar</string>
+    <string name="qr_share_preparing">Preparando una copia…</string>
+    <string name="qr_share_connecting">Conectando…</string>
+    <string name="qr_share_ready">Listo para recibir</string>
+    <string name="qr_share_stopping">Deteniendo…</string>
+    <string name="qr_share_stopped">Envío detenido</string>
+    <string name="qr_share_failed">Error al compartir</string>
+    <string name="qr_share_scan">Escanea el QR con el otro dispositivo, abre el enlace y guarda el archivo.</string>
+    <string name="qr_share_copy">Copiar enlace</string>
+    <string name="qr_share_copied">Enlace copiado</string>
+    <string name="qr_share_expires">Caduca a las %1$s</string>
+    <string name="qr_share_sent">Enviado: %1$s (incluye descargas repetidas)</string>
+    <string name="qr_share_background">Puedes cerrar esta pantalla. Mantén z2term en ejecución hasta terminar la descarga. Detén el envío aquí o desde la notificación.</string>
+    <string name="qr_share_download">Descargar</string>
+    <string name="qr_share_busy">Ya se está compartiendo un archivo. Detén el envío primero.</string>
+    <string name="qr_share_start_failed">No se pudo iniciar el envío. Abre z2term e inténtalo de nuevo.</string>
+    <string name="qr_share_transfer_failed">Error de transferencia. Comprueba la conexión y el espacio libre e inténtalo de nuevo.</string>
+    <string name="qr_share_connect_failed">No se pudo conectar al intermediario público. Comprueba la conexión o inténtalo más tarde.</string>
+    <string name="qr_share_file_failed">No se pudo leer el archivo. Vuelve a seleccionarlo.</string>
+    <string name="qr_share_space_failed">No hay espacio libre suficiente para preparar el archivo.</string>
+    <string name="qr_share_native_missing">Falta el componente de envío integrado. Reinstala una compilación completa.</string>
+    <string name="qr_share_path_scope">El comando admite archivos de HOME o del almacenamiento compartido. Para otros archivos, usa el selector.</string>
+</resources>

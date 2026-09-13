@@ -1073,6 +1073,7 @@ private fun runGuideCommand(
  */
 internal fun stopEverythingAndQuit(context: Context) {
     com.zerotoship.z2term.automation.ActionRuntime.stop(reason = "App shutdown")
+    com.zerotoship.z2term.share.QrShareManager.stop(context)
     ServerDaemonService.stop(context)
     SystemEventService.stop(context)
     SessionManager.shutdown()

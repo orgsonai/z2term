@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qr_share_title">QRファイル共有</string>
+    <string name="qr_share_entry">QRでファイルを渡す</string>
+    <string name="qr_share_experimental">試験提供 · Cloudflare Quick Tunnels</string>
+    <string name="qr_share_explanation">双方のインターネット接続を使い、選択したファイルをCloudflare経由で送ります。公開リンクの有効期間は30分です。試用サービスのため稼働保証はありません。</string>
+    <string name="qr_share_choose">ファイルを選ぶ</string>
+    <string name="qr_share_start">共有を開始</string>
+    <string name="qr_share_stop">共有を停止</string>
+    <string name="qr_share_close">閉じる</string>
+    <string name="qr_share_preparing">共有用のコピーを準備中…</string>
+    <string name="qr_share_connecting">接続中…</string>
+    <string name="qr_share_ready">受け取り可能</string>
+    <string name="qr_share_stopping">停止中…</string>
+    <string name="qr_share_stopped">共有を停止しました</string>
+    <string name="qr_share_failed">共有できませんでした</string>
+    <string name="qr_share_scan">相手の端末でQRを読み取り、リンクを開いて保存してください。</string>
+    <string name="qr_share_copy">リンクをコピー</string>
+    <string name="qr_share_copied">リンクをコピーしました</string>
+    <string name="qr_share_expires">有効期限: %1$s</string>
+    <string name="qr_share_sent">送信量: %1$s（再ダウンロードを含む）</string>
+    <string name="qr_share_background">この画面は閉じても構いません。転送完了までz2termを動かしてください。共有はこの画面または通知から停止できます。</string>
+    <string name="qr_share_download">ダウンロード</string>
+    <string name="qr_share_busy">共有中のファイルがあります。先に停止してください。</string>
+    <string name="qr_share_start_failed">共有を開始できません。z2termを開いて再試行してください。</string>
+    <string name="qr_share_transfer_failed">転送に失敗しました。通信状態と空き容量を確認して再試行してください。</string>
+    <string name="qr_share_connect_failed">公開用の中継に接続できません。通信状態を確認するか、時間をおいて再試行してください。</string>
+    <string name="qr_share_file_failed">ファイルを読み取れません。選び直してください。</string>
+    <string name="qr_share_space_failed">共有用のファイルを準備する空き容量がありません。</string>
+    <string name="qr_share_native_missing">共有用の同梱部品がありません。完全なビルドを再インストールしてください。</string>
+    <string name="qr_share_path_scope">コマンドではHOME内または共有ストレージのファイルを指定してください。それ以外は画面のファイル選択を利用できます。</string>
+</resources>

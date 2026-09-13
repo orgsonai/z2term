@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.595-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.596-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -32,7 +32,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 **Once one Linux OS is installed**, **three small cards** appear above the terminal (post a notification / turn on the flashlight / open the reminder guide) — the first time only. (Before 0.8.339 they also appeared before an OS was installed, where tapping them did nothing, so they now wait until the install is done.) **Tapping one runs that line as it stands** — anything half-typed is thrown away with `Ctrl-C` first, so nothing mixes in. The ✕ on the right drops a card you do not want. Once all three are gone they never come back. To see them again: Settings > Maintenance > "Show the intro again".
 That's all the setup you need.
 
-> ℹ️ **The APK is ~21MB.** It does not bundle the Linux OS itself, which keeps it small — and keeps every update that small too. **Installing Linux requires a network connection** to download and verify the OS from its official site. Android integration commands need no OS download. ⚠ Up to 0.8.358 there was also a ~190MB build with the OS bundled (`full`); **0.8.359 dropped it and ships one build only** (it made you choose without offering anything beyond skipping that first download).
+> ℹ️ **The APK is ~36MB.** It does not bundle the Linux OS itself, which keeps it small — and keeps every update that small too. **Installing Linux requires a network connection** to download and verify the OS from its official site. Android integration commands need no OS download. ⚠ Up to 0.8.358 there was also a ~190MB build with the OS bundled (`full`); **0.8.359 dropped it and ships one build only** (it made you choose without offering anything beyond skipping that first download).
 
 ### Checking whether a newer version is out
 
@@ -759,6 +759,38 @@ Pick "End session only" for a clean slate, or "Stop everything and quit" to stop
 
 ---
 
+**Startup race fix (0.8.596)**: A theme initialization crash found after the device update is addressed by constructing the shared palette during Application startup and applying the asynchronously loaded theme on the main thread. This prevents composition from racing with the first creation of palette state.
+
+**Audio recording investigation (0.8.596)**: A report says Android screen recording captures ordinary videos but misses `z2-audio` playback. Startup diagnostics now log AudioTrack usage, content type, capture policy and format. On the device, playback uses USAGE_MEDIA / CONTENT_TYPE_MOVIE and the app permits playback capture. The cause of missing audio during screen recording remains unconfirmed; this change adds diagnostics only.
+
+### Send a file by QR (experimental, 0.8.596)
+
+Open **Command list → Servers → Send a file by QR**.
+
+1. Use **Choose a file** to select one file.
+2. Press **Start sharing**. The QR appears after the private copy and public link are ready.
+3. The recipient scans the QR with an Android or iPhone camera, opens the link and saves the file using **Download**. No receiver app needs to be installed.
+4. Press **Stop sharing** on this screen or its notification when finished. Sharing also ends automatically 30 minutes after the link becomes ready.
+
+**No shared Wi-Fi network, Linux installation or VPS is needed.** The route is sender's z2term → Cloudflare relay → recipient's browser. Both devices need internet access, and mobile data is consumed when using a mobile connection. This experimental feature uses Cloudflare Quick Tunnels without an uptime guarantee. Provider limits or connectivity problems may prevent a connection.
+
+The relay's DNS record can take time to become available. If the recipient cannot open the link, keep sharing active, wait briefly and reload the page.
+
+Anyone who knows the link can download during its lifetime; give it to the intended recipient. Starting creates a private copy in the app, requiring as much free storage as the selected file; stopping removes it. The copy stays fixed even if the original file changes. Closing the screen keeps sharing active. Keep z2term running and connected until the download finishes. Force-stopping, updating or rebooting ends sharing without automatic restart. **Stop everything and quit** ends it too.
+
+The terminal provides the same controls:
+
+```sh
+z2-share --qr                       # Open file selection
+z2-share --qr "$HOME/report.pdf"    # Start sharing a chosen file
+z2-share --qr-status                # JSON state, link and expiry
+z2-share --qr-stop                  # Stop sharing
+```
+
+CLI paths are limited to regular files under HOME or shared storage. OS-specific directories inside Linux HOME resolve to that OS's isolated files. Use the screen's file picker for other locations. One file can be shared at a time; repeat and partial downloads are supported while the link remains active. The sent-byte total includes repeated downloads and can exceed the file size. Existing text sharing remains `z2-share "text"`; use `z2-share -- "--qr"` to share text that starts with a reserved QR option.
+
+---
+
 ## 9.5. Home screen widget (use it without opening the app)
 
 Puts Z2Term's **current state** on your home screen and runs **your favourite macros with a single tap**.
@@ -1167,6 +1199,8 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-ask [-t sec] [-H hint] [-d default] "question"` | **Ask a question and get the answer** (0.8.267). It arrives as a notification with a **reply field**, so it can be answered from the shade without opening the app. The answer goes to stdout: `name=$(z2-ask "Branch name?")`. Dismissing it, or the timeout (5 min by default), **fails without printing anything**, so `|| exit` expresses "give up if there is no answer". If you only need a choice from a list, `z2-notify -b` fits better |
 | `z2-toast "message"` | Toast (short message at the bottom of the screen) |
 | `z2-share "text"` | Hand text to Android's share sheet |
+| `z2-share --qr [file]` | Open QR file sharing; start when a file is given (experimental, requires internet) |
+| `z2-share --qr-status` / `--qr-stop` | Check QR sharing status / stop sharing |
 | `z2-open <URL or path>` | Open a URL or file in the default app |
 | `z2-img [-w COLS] [-r ROWS] [--clear] <file>...` | **Draw a picture in the terminal** (0.8.495). PNG / JPEG / WebP / GIF / BMP. Pass `-` to read one image from stdin (`curl -s <url> \| z2-img -`). By default it **fits the terminal width**; `-w` (columns) and `-r` (rows) set it explicitly. `--clear` removes every picture drawn so far. Given several files, it prints each name on its own line before the picture. ⚠ **Pictures only appear in a z2term tab, or in a terminal that speaks the kitty graphics protocol.** Over `ssh` or inside a pager you just get gibberish. ⚠ By default it **only writes to a terminal** — down a pipe or into a file the bytes are indistinguishable from garbage — so pass `-f` if you really mean it. ⚠ The aspect ratio assumes a cell is twice as tall as it is wide; if it looks squashed, tune it with `Z2_IMG_ASPECT=0.45 z2-img photo.jpg` (smaller = taller). ⚠ **Large photos are subsampled while decoding** (4 megapixels max). Only a few hundred pixels ever reach the screen, so nothing looks different, but the original resolution is not kept in memory |
 | `z2-clip get` / `z2-clip set [text]` | Get / set the clipboard (set reads stdin if no argument). ⚠ **Writing only works while you are looking at z2term** (or while z2term is the input method you use) — since Android 10 a `set` from a macro running in the background is dropped silently. For macros triggered by calls, SMS or notifications, use the `z2-notify -c` copy button instead (0.8.335) |

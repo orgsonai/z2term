@@ -1,6 +1,22 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-13 / Target version: 0.8.595-alpha (versionCode 603)
+Last updated: 2026-09-14 / Target version: 0.8.596-alpha (versionCode 604)
+
+**0.8.596-alpha (versionCode 604): experimental QR file sharing.** Command list → Servers → Send a file by QR opens selection, start, QR/link, status and stop controls. The CLI exposes `z2-share --qr [FILE]`, `--qr-status` and `--qr-stop`. It runs natively on Android without Linux, a shared Wi-Fi network or a VPS. Both devices use the internet through Cloudflare Quick Tunnels; sharing ends 30 minutes after readiness. The trial relay provides no uptime guarantee.
+
+- `share/QrShareManager` owns one active transfer and its service identity. `QrShareService` is an independent `dataSync` FGS with notification actions for reopening and stopping. Expiry uses monotonic time. `START_NOT_STICKY` prevents automatic publication after process restart or update. Stop everything and quit includes this service.
+- The selected file streams into `cacheDir/qr-share/<UUID>/payload` before publication. This immutable snapshot avoids loading the whole file into memory or exposing subsequent source changes. Free space is checked. Stop/failure closes connections and the tunnel and removes the snapshot; a later start removes orphaned snapshots left by process death.
+- The CLI preserves quoted/space-containing absolute paths and passes HOME and the OS ID. Only shared home, shared storage and that OS's isolated HOME files are accepted, using the existing `ProotLauncher` bind list. Unrelated private directories and non-regular files are rejected. The GUI copies from a SAF URI and can select other Linux locations through the file picker.
+- `QrFileServer` listens on an ephemeral loopback port and serves only fixed paths containing a random 256-bit token. Request paths never become filesystem paths. Filenames are HTML-escaped and downloads use UTF-8 `Content-Disposition`. GET/HEAD, single Range and repeated downloads are supported, with no-store and CSP headers. There is no download-count expiry, so previews and HEAD requests cannot consume a link.
+- `QrTunnelDns` queries Android’s configured DNS without cached answers to avoid retaining early NXDOMAIN responses for newly provisioned names. Device DNS settings stay unchanged. IPv6 targets are excluded when the current network has no outward-facing IPv6 address; IPv4 is preferred.
+- Bundled `libz2tunnel.so` makes an outbound HTTP/2 connection. A public HTTPS health probe must return the exact token before the QR appears. Connectivity loss hides the URL until a subsequent probe succeeds. Public URLs, tokens and raw provider logs are never persisted; diagnostics record failure categories and connector exit codes.
+- Cloudflare relays a public link: anyone who knows it can download during its lifetime. No password authentication or additional device-to-device encryption is added. The sender must remain running and connected. Only one file is shared at a time. ZXing Core 3.5.4 generates the QR.
+
+**Verification (0.8.596)**: 1,142 of 1,144 unit tests passed; two existing RDP tests were skipped. Debug, signed release and instrumentation APK builds passed with zero lint errors. In addition to the PC HTTP integration test, two Android QR tests and four shell, distro-deletion and edge-panel regression tests passed. The bundled Android connector reached public HTTPS; the device and a separate PC verified the SHA-256 of a synthetic 1 MiB file, with Range, immutable snapshot and stopped-download checks on the device. Decoding the QR from the actual device screen produced the tested URL. DNS propagation required retries after publication. Release and debug version 604 were installed on the device with app data retained, and their versions were verified. An actual iPhone, manual SAF selection, network switching, large files and a full 30-minute expiry remain untested.
+
+**Startup race fix (0.8.596)**: A theme initialization crash found after the device update is addressed by constructing the shared palette during Application startup and applying the asynchronously loaded theme on the main thread. This prevents composition from racing with the first creation of palette state. After reinstalling the corrected release and debug builds, three fresh process launches of each build completed without a crash (six launches total).
+
+**Audio recording investigation (0.8.596)**: A report says Android screen recording captures ordinary videos but misses `z2-audio` playback. Startup diagnostics now log AudioTrack usage, content type, capture policy and format. On the device, playback uses USAGE_MEDIA / CONTENT_TYPE_MOVIE and the app permits playback capture. The cause of missing audio during screen recording remains unconfirmed; this change adds diagnostics only.
 
 **0.8.595-alpha (versionCode 603)**: The edge panel Manage page now displays recreation commands with a Copy commands button. It exports saved settings and items as `z2-edge` commands. Selecting a parent includes its tabs and their order; selecting a child preserves existing parent settings and other tabs. Note contents, referenced scripts and images need separate backups.
 
@@ -3520,6 +3536,8 @@ built-in keyboard**".
 ---
 
 ## 9. Build / bundled assets
+
+For QR sharing, `scripts/build-qr-tunnel.sh` verifies pinned Cloudflare Tunnel 2026.9.1 source with SHA-256 and builds an Android arm64 PIE using Go 1.26+ and the NDK. Generated files are `libz2tunnel.so` and `assets/licenses/QR-Tunnel.txt`, containing notices for the actual Go dependencies and runtime. Both are git-ignored; Gradle assets/JNI merging and lint depend on generation. `build-bundle.sh` also builds them. Initial source/dependency downloads require internet access. Build on a PC using half its logical CPUs.
 
 ```bash
 bash scripts/build-bundle.sh          # generate all bundled assets at once

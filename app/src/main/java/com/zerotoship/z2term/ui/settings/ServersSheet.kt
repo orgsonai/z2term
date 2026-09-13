@@ -186,6 +186,10 @@ fun ServersBody(session: TerminalSession) {
             return@Column
         }
 
+        androidx.compose.material3.OutlinedButton(shape = androidx.compose.ui.graphics.RectangleShape, onClick = {
+            context.startActivity(android.content.Intent(context, com.zerotoship.z2term.share.QrShareActivity::class.java))
+        }) { Text(stringResource(R.string.qr_share_entry)) }
+
         // ヘッダ + 新規追加
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp),

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qr_share_title">二维码文件分享</string>
+    <string name="qr_share_entry">通过二维码发送文件</string>
+    <string name="qr_share_experimental">试用功能 · Cloudflare Quick Tunnels</string>
+    <string name="qr_share_explanation">双方都需要联网。所选文件通过Cloudflare发送，公开链接有效期为30分钟。试用服务不保证可用性。</string>
+    <string name="qr_share_choose">选择文件</string>
+    <string name="qr_share_start">开始分享</string>
+    <string name="qr_share_stop">停止分享</string>
+    <string name="qr_share_close">关闭</string>
+    <string name="qr_share_preparing">正在准备副本…</string>
+    <string name="qr_share_connecting">正在连接…</string>
+    <string name="qr_share_ready">可以接收</string>
+    <string name="qr_share_stopping">正在停止…</string>
+    <string name="qr_share_stopped">已停止分享</string>
+    <string name="qr_share_failed">分享失败</string>
+    <string name="qr_share_scan">用另一台设备扫描二维码，打开链接并保存文件。</string>
+    <string name="qr_share_copy">复制链接</string>
+    <string name="qr_share_copied">已复制链接</string>
+    <string name="qr_share_expires">到期时间：%1$s</string>
+    <string name="qr_share_sent">已发送：%1$s（包含重复下载）</string>
+    <string name="qr_share_background">可以关闭此页面。下载完成前请保持z2term运行。可在此页面或通知中停止分享。</string>
+    <string name="qr_share_download">下载</string>
+    <string name="qr_share_busy">已有文件正在分享，请先停止。</string>
+    <string name="qr_share_start_failed">无法开始分享，请打开z2term后重试。</string>
+    <string name="qr_share_transfer_failed">传输失败，请检查网络和可用存储空间后重试。</string>
+    <string name="qr_share_connect_failed">无法连接公开中继，请检查网络或稍后重试。</string>
+    <string name="qr_share_file_failed">无法读取所选文件，请重新选择。</string>
+    <string name="qr_share_space_failed">没有足够的空间准备文件。</string>
+    <string name="qr_share_native_missing">缺少内置分享组件，请重新安装完整版本。</string>
+    <string name="qr_share_path_scope">命令支持HOME或共享存储中的文件，其他文件请使用文件选择器。</string>
+</resources>

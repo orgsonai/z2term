@@ -132,6 +132,21 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     """.trimMargin() + "\n"
 
     val share = "#!/bin/sh\n" + m.shareHelp + "\n" + helpCaseLong + """
+        |case "${d}1" in
+        |  --qr)
+        |    shift
+        |    [ ${d}# -le 1 ] || { echo "usage: z2-share --qr [file]" >&2; exit 1; }
+        |    [ ${d}# -ne 0 ] || exec /usr/local/bin/z2api 1 qr-share show
+        |    path="${d}1"
+        |    case "${d}path" in /*) ;; *) path="${d}PWD/${d}path" ;; esac
+        |    [ -f "${d}path" ] || { echo "z2-share: file not found: ${d}path" >&2; exit 1; }
+        |    path=${d}(readlink -f "${d}path") || exit 1
+        |    exec /usr/local/bin/z2api 1 qr-share start "${d}path" "${d}HOME" "${d}{Z2_DISTRO_ID:-}" ;;
+        |  --qr-status|--qr-stop)
+        |    [ ${d}# -eq 1 ] || { echo "usage: z2-share --qr-status | --qr-stop" >&2; exit 1; }
+        |    exec /usr/local/bin/z2api 1 qr-share "${d}{1#--qr-}" ;;
+        |  --) shift ;;
+        |esac
         |[ ${d}# -ge 1 ] || { echo "usage: z2-share <text>" >&2; exit 1; }
         |exec /usr/local/bin/z2api 0 share "${d}*"
     """.trimMargin() + "\n"

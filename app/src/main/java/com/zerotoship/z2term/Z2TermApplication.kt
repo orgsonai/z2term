@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -47,6 +48,8 @@ class Z2TermApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // A composition must not observe palette state first created by a concurrent worker.
+        AppColors.ensureInitialized()
         Log.i(TAG, "Z2Term application starting (version=${BuildConfig.VERSION_NAME})")
         // proot 内 `/storage/app/z2gui.events` (= 外部 files dir の同名ファイル) を監視開始。
         // 二重 start しても idempotent。Activity/Service ライフサイクルから独立して常駐する。
@@ -69,7 +72,9 @@ class Z2TermApplication : Application() {
                 // 独自テーマは別 DataStore を非同期で読むので、組み込みに無い名前のときだけ待つ。
                 val custom = if (AvailableThemes.none { it.name == name })
                     withTimeoutOrNull(3000) { CustomThemeStore.theme.first { it != null } } else null
-                AppColors.applyFrom(resolveTheme(name, custom))
+                withContext(Dispatchers.Main.immediate) {
+                    AppColors.applyFrom(resolveTheme(name, custom))
+                }
             }.onFailure { Log.w(TAG, "app palette not applied: ${it.message}") }
         }
         // 繋ぎっぱなしの受付 (z2-session attach)。z2api と違い常時 listen しておく必要がある。

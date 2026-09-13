@@ -61,6 +61,9 @@ app/src/main/jniLibs/arm64-v8a/libz2usb.so
 # z2-session attach の繋ぐ側（scripts/build-z2root.sh で生成、含めない）
 app/src/main/jniLibs/arm64-v8a/libz2attach.so
 app/src/main/jniLibs/arm64-v8a/libz2android.so
+app/src/main/jniLibs/arm64-v8a/libz2tunnel.so
+app/src/main/jniLibs/arm64-v8a/libz2tunnel.so.tmp
+app/src/main/assets/licenses/QR-Tunnel.txt
 
 # プログラミングフォント（scripts/fetch-fonts.sh で取得、含めない）
 app/src/main/assets/fonts/*.ttf

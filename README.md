@@ -53,11 +53,11 @@ happy with, Z2Term's reason to exist is the second, third and fourth rows of tha
 
 - Go to the latest: **<https://github.com/orgsonai/z2term/releases/latest>**
 
-Every release ships one APK: `z2term-<version>.apk` (~21MB).
+Every release ships one APK: `z2term-<version>.apk` (~36MB).
 
 It bundles no OS and no third-party prebuilts, so **the first launch asks you to pick a distribution
 in Settings › Linux environment** (0.8.314; Alpine is fetched from the official CDN, verified by
-SHA-256, and updates never re-download it). That keeps every update at ~21MB, which matters because
+SHA-256, and updates never re-download it). That keeps every update at ~36MB, which matters because
 automatic updates (below) fetch the whole APK each time — there are no delta updates outside Google Play.
 
 ⚠ **Up to 0.8.358 there was a second, ~190MB APK with Alpine bundled (the `full` flavor).
@@ -81,9 +81,15 @@ Pick whichever fits:
 - **Manual** — download the newer APK from Releases and tap it (installs over the top; your data stays).
 - **Automatic** — add `https://github.com/orgsonai/z2term` to
   [Obtainium](https://github.com/ImranR98/Obtainium). It watches these Releases and updates the app
-  with one tap when a new version appears — no app store involved. Each such update is only ~21MB.
+  with one tap when a new version appears — no app store involved. Each such update is only ~36MB.
 
 ## Current version
+
+**0.8.596-alpha (versionCode 604)**: Command list → Servers → **Send a file by QR** opens file selection, sharing, QR display and stop controls. `z2-share --qr filename` starts the same flow. Linux, a shared Wi-Fi network and a VPS are unnecessary; both devices use the internet through Cloudflare. Links expire after 30 minutes. This experimental feature uses Cloudflare Quick Tunnels without an uptime guarantee. It creates a private copy of the chosen file on the sender, so sufficient free storage is required.
+
+**Startup race fix (0.8.596)**: A theme initialization crash found after the device update is addressed by constructing the shared palette during Application startup and applying the asynchronously loaded theme on the main thread. This prevents composition from racing with the first creation of palette state.
+
+**Audio recording investigation (0.8.596)**: A report says Android screen recording captures ordinary videos but misses `z2-audio` playback. Startup diagnostics now log AudioTrack usage, content type, capture policy and format. On the device, playback uses USAGE_MEDIA / CONTENT_TYPE_MOVIE and the app permits playback capture. The cause of missing audio during screen recording remains unconfirmed; this change adds diagnostics only.
 
 **0.8.595-alpha (versionCode 603)**: The edge panel Manage page now displays recreation commands with a Copy commands button. It exports saved settings and items as `z2-edge` commands. Selecting a parent includes its tabs and their order; selecting a child preserves existing parent settings and other tabs. Note contents, referenced scripts and images need separate backups.
 
@@ -120,7 +126,7 @@ Also includes temporary notification diagnostics through `z2-noti trace`, record
 - **First-run cards** — three small cards on the first launch (post a notification / flashlight / let a PC connect). Tapping one **puts the command on the input line — it never runs by itself**; they disappear once tapped and never return.
 - **Receive from Share** — pick z2term in another app's share sheet and the text (or, for files, a path under `~/z2term-inbox/`) is **inserted** on the terminal's input line — never executed.
 - **Tidy toolbar** — choose which buttons appear from settings (⚙ settings stays pinned to the right edge); long-press and drag to reorder, **either on the toolbar itself or in settings**.
-- **No prebuilts, one download** — a single ~21MB APK that bundles no third-party prebuilts; the distribution is downloaded at first launch and verified by SHA-256.
+- **No prebuilts, one download** — a single ~36MB APK that bundles no third-party prebuilts; the distribution is downloaded at first launch and verified by SHA-256.
 
 ### Not yet supported / under consideration
 
@@ -138,6 +144,8 @@ Also includes temporary notification diagnostics through `z2-noti trace`, record
 | Gradle | 9.3.1 |
 | NDK | 27.0+ |
 | CMake | 3.22.1+ |
+| Go | 1.26+ (builds the QR tunnel from source) |
+| Other tools | Python 3, curl, tar, sha256sum |
 | Min SDK | 29 (Android 10) |
 | Target SDK | 35 (Android 15) |
 
@@ -145,16 +153,19 @@ Also includes temporary notification diagnostics through `z2-noti trace`, record
 
 ### 1. Collect the git-ignored bundled artifacts (one command)
 
-Several artifacts are bundled into the APK but **kept out of git** (built/fetched by `scripts/`), so a fresh `clone` or a `clean` has none of them. Collect them all with a single master script — this is the only way to gather them, so every machine (PC or phone) ends up with the same set rather than each assembling a different mix:
+Several artifacts are bundled into the APK but **kept out of git** (built/fetched by `scripts/`), so a fresh `clone` or a `clean` has none of them. Collect them with the master script on a PC:
 
 ```bash
 bash scripts/build-bundle.sh
 ```
 
-It runs the two generators and verifies the common payload:
+It runs three generators and verifies the common payload:
 
 1. `build-z2root.sh` → `libz2root.so` / `libz2accept.so` (needs an NDK)
 2. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` `-Regular.ttf`
+3. `build-qr-tunnel.sh` → `libz2tunnel.so` and `assets/licenses/QR-Tunnel.txt` (requires Go and an NDK)
+
+The connector is built for Android from pinned Cloudflare Tunnel 2026.9.1 source with SHA-256 verification. The first build needs internet access for source and Go dependencies. Gradle also generates the connector and notices automatically before packaging.
 
 A final manifest step prints `OK` / `MISS` per artifact. Linux rootfs archives are downloaded at runtime and are never APK build inputs.
 

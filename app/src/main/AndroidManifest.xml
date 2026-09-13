@@ -23,6 +23,7 @@
 
     <!-- Foreground Service（M3 で本格利用、M1 では宣言のみ） -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <!-- Android 13+ で永続通知に必須 -->
@@ -107,6 +108,9 @@
         android:requestLegacyExternalStorage="true"
         tools:targetApi="35">
 
+        <activity android:name=".share.QrShareActivity" android:exported="false" />
+        <service android:name=".share.QrShareService" android:exported="false"
+            android:foregroundServiceType="dataSync" />
         <!-- Keep drafts separate from MainActivity's singleTask stack when opening a target app. -->
         <activity android:name=".automation.ActionMacrosActivity" android:exported="false"
             android:launchMode="singleTask" android:excludeFromRecents="true"

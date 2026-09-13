@@ -31,6 +31,7 @@ xz = "1.10"
 okhttp = "5.3.0"
 # SMBJ は SMB2/3 専用。現行 Bouncy Castle と同じ版へ揃える。
 smbj = "0.15.0"
+zxing = "3.5.4"
 
 # Testing
 junit = "4.13.2"
@@ -67,6 +68,7 @@ xz = { group = "org.tukaani", name = "xz", version.ref = "xz" }
 # Remote files
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
+zxing = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
