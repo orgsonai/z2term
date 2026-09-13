@@ -29,6 +29,9 @@ class PtyProcess private constructor(
     private val fd: Int,
     private val pid: Int
 ) {
+    @Volatile private var closed = false
+    @Volatile private var reaped = false
+    @Volatile private var completedExitCode: Int? = null
     private val fileDescriptor: FileDescriptor = createFileDescriptor(fd)
 
     /** PTY からの読み込みストリーム（プロセス出力） */
@@ -39,7 +42,7 @@ class PtyProcess private constructor(
 
     /** プロセスが生存しているか */
     val isAlive: Boolean
-        get() = nativeIsAlive(pid)
+        get() = !closed && !reaped && nativeIsAlive(pid)
 
     /** forkpty() で受け取ったシェル側 PID (== セッションリーダ pgid)。 */
     val shellPid: Int
@@ -50,11 +53,15 @@ class PtyProcess private constructor(
      * シェルがプロンプトで待機中はシェル自身の pgid、TUI 実行中はその TUI の pgid を返す。
      * 取得失敗 (fd 無効 / 端末でない) は -1。
      */
-    fun foregroundPgid(): Int = nativeForegroundPgid(fd)
+    fun foregroundPgid(): Int = if (closed) -1 else nativeForegroundPgid(fd)
 
     /** 終了コード（プロセスがまだ生きている場合は null） */
     val exitCode: Int?
-        get() = if (isAlive) null else nativeGetExitCode(pid)
+        get() = completedExitCode ?: if (isAlive) null else {
+            // WNOHANG can return "not exited yet" while close() is still stopping the engine.
+            nativeGetExitCode(pid).takeIf { it >= 0 }
+                ?.also { completedExitCode = it; reaped = true }
+        }
 
     /**
      * 端末サイズ変更を PTY に伝える。
@@ -62,7 +69,7 @@ class PtyProcess private constructor(
      * @param cols 列数
      */
     fun resize(rows: Int, cols: Int) {
-        if (rows <= 0 || cols <= 0) return
+        if (closed || rows <= 0 || cols <= 0) return
         nativeResize(fd, rows, cols)
     }
 
@@ -71,7 +78,7 @@ class PtyProcess private constructor(
      * @param signal POSIX シグナル番号 (例: SIGHUP=1, SIGINT=2, SIGTERM=15, SIGKILL=9)
      */
     fun sendSignal(signal: Int) {
-        nativeSendSignal(pid, signal)
+        if (!closed && !reaped) nativeSendSignal(pid, signal)
     }
 
     /**
@@ -80,7 +87,10 @@ class PtyProcess private constructor(
      * - プロセスに SIGHUP を送信
      * - waitpid で回収（ゾンビ防止）
      */
+    @Synchronized
     fun close() {
+        if (closed) return
+        closed = true
         try {
             writer.close()
         } catch (e: IOException) {
@@ -91,7 +101,9 @@ class PtyProcess private constructor(
         } catch (e: IOException) {
             // ignore
         }
-        nativeClose(fd, pid)
+        // Java streams own this fd. Closing its old integer again can close an unrelated new fd.
+        if (!reaped) nativeClose(-1, pid)
+        reaped = true
     }
 
     /**
@@ -106,7 +118,10 @@ class PtyProcess private constructor(
      * マスタ fd を閉じると、カーネルが端末のフォアグラウンドプロセスグループへ SIGHUP を
      * 送り、結局ルートごと落ちて同じ道連れが起きる（[waitFor] で待ってから呼ぶ）。
      */
+    @Synchronized
     fun detach() {
+        if (closed) return
+        closed = true
         try {
             writer.close()
         } catch (e: IOException) {
@@ -121,7 +136,10 @@ class PtyProcess private constructor(
 
     /** プロセスの終了を待つ（ブロッキング） */
     fun waitFor(): Int {
-        return nativeWaitFor(pid)
+        if (reaped) return completedExitCode ?: -1
+        return nativeWaitFor(pid).also {
+            if (it >= 0) { completedExitCode = it; reaped = true }
+        }
     }
 
     companion object {

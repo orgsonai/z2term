@@ -202,10 +202,10 @@
     <string name="settings_kb_height_landscape">Keyboard height (landscape)</string>
     <string name="settings_kb_height_desc">Portrait and landscape heights are remembered separately and switch automatically with the screen orientation.</string>
     <string name="settings_section_delete_os">Delete OS data (free storage)</string>
-    <string name="settings_delete_os_desc">Delete data for OS images you don\'t use to free up space. Deleting removes all packages, settings and files inside that OS.</string>
+    <string name="settings_delete_os_desc">You can also delete the selected OS after confirmation. This removes OS-specific data and downloaded images to free space. The shared home is kept.</string>
     <string name="settings_delete_os_empty">No OS data to delete yet.</string>
     <string name="settings_delete_os_button">Delete</string>
-    <string name="settings_delete_os_in_use">In use (can\'t delete)</string>
+    <string name="settings_delete_os_in_use">Selected</string>
     <!-- 一覧からの削除確認 (0.8.452)。UI のミスタップだけを止める。CLI からの削除は通さない。 -->
     <string name="confirm_delete_item_msg">“%1$s” will be deleted and cannot be restored.</string>
     <string name="confirm_delete_ssh_profile_title">Delete this connection?</string>
@@ -214,7 +214,7 @@
     <string name="confirm_delete_server_title">Delete this server?</string>
     <string name="confirm_delete_when_rule_title">Delete this rule?</string>
     <string name="confirm_delete_os_title">Delete %1$s data?</string>
-    <string name="confirm_delete_os_msg">All packages, settings and files inside %1$s will be erased. This cannot be undone. Delete anyway?</string>
+    <string name="confirm_delete_os_msg">Terminal, GUI and background processes using %1$s will stop. Its packages, settings, files, OS-specific home directories and downloaded images will be deleted. The shared home is kept. Affected tabs switch to a remaining OS, or to the Android shell if none remain. This cannot be undone. Delete this OS?</string>
     <string name="action_delete_os">Delete</string>
     <string name="confirm_close_busy_title">Close this tab?</string>
     <string name="confirm_close_busy_msg">A process is still running in this tab. Closing it will terminate the running program. Close anyway?</string>
@@ -254,7 +254,7 @@
     <string name="settings_trace_log_toggle">Trace log (developer)</string>
     <string name="settings_trace_log_toggle_desc">Records every z2root syscall into z2root_trace.log.</string>
     <string name="settings_trace_log_warning">⚠ For development/diagnostics only. Turning it on makes the log grow huge and quickly fills device storage. Keep it OFF in normal use.</string>
-    <string name="settings_engine_android_sh">Android sh (fallback)</string>
+    <string name="settings_engine_android_sh">Android sh</string>
     <string name="tab_popup_engine_label">Engine</string>
     <string name="tab_popup_engine_gui">GUI (Linux)</string>
     <string name="settings_engine_unlock_ok">Engine selector unlocked. Pick the engine below.</string>
@@ -1080,11 +1080,11 @@
     <string name="guide_ask_qr_text">Text or URL to turn into a QR code</string>
 
     <!-- Shown when no Linux OS is installed at all (the state every fresh install starts in). -->
-    <string name="no_os_title">No Linux OS is installed yet</string>
+    <string name="no_os_title">Android shell is ready</string>
     <string name="no_os_action">Settings -> Linux environment: pick the OS you want and install it</string>
-    <string name="no_os_hint">Any of them is a fine place to start. The terminal stays idle until one is installed (this notice goes away once it is)</string>
+    <string name="no_os_hint">Use z2-* commands, automation and edge panels without Linux. Run z2help for the available commands. Install Linux when you need Linux tools.</string>
     <string name="no_os_settings_action">Tap here to jump to "Linux environment" and pick the OS you want</string>
-    <string name="no_os_settings_hint">Picking an OS starts the download. Once it is installed, this notice goes away</string>
+    <string name="no_os_settings_hint">Linux is optional for Android commands and panels. Select an OS here to download Linux tools.</string>
     <plurals name="paste_preview_lines">
         <item quantity="one">%1$d line</item>
         <item quantity="other">%1$d lines</item>
@@ -1258,4 +1258,8 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="gui_apps_empty">No GUI application to launch was found. Install one from a terminal tab (e.g. pacman -S gthumb), then tap Refresh to see it here.</string>
     <string name="gui_apps_window_hint">To switch between open windows, long-press an empty part of the desktop and choose "Windows".</string>
     <string name="gui_apps_terminal_badge">terminal</string>
+    <string name="settings_delete_os_progress">Stopping processes and deleting OS data…</string>
+    <string name="settings_delete_os_busy">This OS is starting, installing or being deleted. Try again after the operation finishes.</string>
+    <string name="settings_delete_os_mounted">This OS still has active root chroot processes or mounts. Deletion was stopped to protect shared data. Stop chroot and unmount the OS, then try again.</string>
+    <string name="settings_delete_os_failed">Could not delete all OS data. Some data may remain. Check the diagnostic log for details.</string>
 </resources>

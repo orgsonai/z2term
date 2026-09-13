@@ -87,6 +87,9 @@ import androidx.core.net.toUri
 import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.SessionManager
+import com.zerotoship.z2term.core.DistroDeletion
+import com.zerotoship.z2term.distro.DistroDataDeletion
+import com.zerotoship.z2term.distro.DistroOperations
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.distro.DistroSpec
@@ -246,6 +249,11 @@ fun SettingsSheet(
     // OS データ削除: 再スキャン用カウンタ + 削除確認ダイアログ対象 distro id。
     var osDataRefresh by remember { mutableStateOf(0) }
     var pendingOsDelete by remember { mutableStateOf<String?>(null) }
+    val deletingOs by DistroDeletion.deleting.collectAsState()
+    var osDeleteError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(deletingOs) {
+        if (deletingOs == null) { osDataRefresh++; noOs = !session.hasAnyDistro() }
+    }
     // キャッシュ削除: 再集計用カウンタ + 削除確認ダイアログの表示フラグ。
     var cacheRefresh by remember { mutableStateOf(0) }
     var pendingCacheClear by remember { mutableStateOf(false) }
@@ -901,7 +909,7 @@ fun SettingsSheet(
                 }
 
                 // OS データ削除 (ストレージ解放)。rootfs を持つ OS を列挙し、不要なものを削除できる。
-                // 使用中の OS は壊れた稼働状態を避けるため削除不可 (入れ直しはクリーンインストールで)。
+                // 選択中も確認後に削除できる。稼働中の対象 OS は削除処理側で停止する。
                 //
                 // OS 一覧はディレクトリ列挙だけで即座に確定させ (行数=セクション高さを最初から固定)、
                 // 重い使用量計算 (rootfs 全走査) だけを後から非同期で埋める。こうしないと、
@@ -919,6 +927,10 @@ fun SettingsSheet(
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
+                    if (deletingOs != null) {
+                        Text(stringResource(R.string.settings_delete_os_progress), color = ZtsTextSecondary, fontSize = 12.sp)
+                    }
+                    osDeleteError?.let { Text(it, color = ZtsError, fontSize = 12.sp) }
                     if (installedOs.isEmpty()) {
                         Text(
                             text = stringResource(R.string.settings_delete_os_empty),
@@ -933,6 +945,7 @@ fun SettingsSheet(
                                 // 集計前は "…"。文字数は変わっても 1 行高は不変なので位置ずれは起きない。
                                 sizeLabel = osSizes[os.id]?.let { formatStorageSize(it) } ?: "…",
                                 isActive = os.id == settings.distroId,
+                                enabled = deletingOs == null,
                                 onDelete = { pendingOsDelete = os.id }
                             )
                         }
@@ -1674,7 +1687,17 @@ fun SettingsSheet(
             message = stringResource(R.string.confirm_delete_os_msg, name),
             confirmLabel = stringResource(R.string.action_delete_os),
             onConfirm = {
-                session.deleteDistroData(id) { osDataRefresh++ }
+                osDeleteError = null
+                DistroDeletion.delete(context, id) { error ->
+                    osDataRefresh++
+                    cacheRefresh++
+                    osDeleteError = when (error) {
+                        null -> null
+                        is DistroOperations.Busy -> context.getString(R.string.settings_delete_os_busy)
+                        is DistroDataDeletion.Mounted -> context.getString(R.string.settings_delete_os_mounted)
+                        else -> context.getString(R.string.settings_delete_os_failed)
+                    }
+                }
                 pendingOsDelete = null
             },
             onCancel = { pendingOsDelete = null }
@@ -3676,12 +3699,13 @@ private fun formatStorageSize(bytes: Long): String {
     return if (mb >= 1024) "%.1f GB".format(mb / 1024.0) else "%.0f MB".format(mb)
 }
 
-/** OS データ削除セクションの 1 行: 名前 + 使用量 + 削除ボタン (使用中は削除不可)。 */
+/** OS データ削除セクションの 1 行: 名前 + 使用量 + 選択中の印 + 削除ボタン。 */
 @Composable
 private fun OsDataRow(
     name: String,
     sizeLabel: String,
     isActive: Boolean,
+    enabled: Boolean,
     onDelete: () -> Unit
 ) {
     Row(
@@ -3707,27 +3731,27 @@ private fun OsDataRow(
         if (isActive) {
             Text(
                 text = stringResource(R.string.settings_delete_os_in_use),
+                modifier = Modifier.padding(end = 12.dp),
                 color = ZtsTextSecondary,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace
             )
-        } else {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(ZtsBgSecondary)
-                    .border(1.dp, ZtsError, RoundedCornerShape(8.dp))
-                    .clickable(onClick = onDelete)
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_delete_os_button),
-                    color = ZtsError,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
+        }
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(ZtsBgSecondary)
+                .border(1.dp, ZtsError, RoundedCornerShape(8.dp))
+                .clickable(enabled = enabled, onClick = onDelete)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.settings_delete_os_button),
+                color = if (enabled) ZtsError else ZtsTextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.Monospace
+            )
         }
     }
 }

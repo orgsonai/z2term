@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
  * [com.zerotoship.z2term.widget.StatusWidgetProvider] (ウィジェットからのマクロ実行) で同じなので、
  * ここに 1 本化する。呼び元が違っても挙動 (ログの肥大対策・pty の詰まり回避) がズレない。
  *
- * 実行は常に [ProotLauncher.launch] (proot/z2root)。root chroot モードでも `launchChroot` は
+ * OS未導入時はAndroid標準シェル、それ以外は [ProotLauncher.launch] (proot/z2root)。root chroot モードでも `launchChroot` は
  * 追加引数を取らないため、単発実行はエンジン経路に統一する (同じ distro で動くので挙動は変わらない)。
  *
  * **背景へ逃がしたプロセスは生き残る**: スクリプトが `sshd --lan` のようにデーモンを起こして
@@ -80,8 +80,12 @@ object HeadlessRun {
     ): Boolean {
         val settings = runCatching { runBlocking { AppSettings(context).flow.first() } }.getOrNull() ?: return false
         val distroId = settings.distroId
+        val launcher = ProotLauncher(context)
+        // Only a genuinely empty installation uses Android. A missing selected distro must
+        // still fail when another distro exists; do not silently change existing automation.
+        val androidShell = !launcher.hasAnyDistro()
         val rootfs = File(context.filesDir, "distros/$distroId")
-        if (!rootfs.exists()) {
+        if (!androidShell && !rootfs.exists()) {
             Log.w(TAG, "rootfs missing for $distroId; cannot run $name")
             return false
         }
@@ -94,9 +98,9 @@ object HeadlessRun {
         }
 
         val spec = DistroSpec.byId(distroId) ?: DistroSpec.ALPINE
-        val launcher = ProotLauncher(context)
         val process = runCatching {
-            launcher.launch(
+            if (androidShell) launcher.launchAndroidSh(extraArgs = listOf("-c", script))
+            else launcher.launch(
                 distroId = distroId, command = "/bin/sh", rows = 24, cols = 80,
                 fallbackShell = spec.defaultShell,
                 extraArgs = listOf("-lc", script),
@@ -110,7 +114,7 @@ object HeadlessRun {
             return false
         }
 
-        Log.i(TAG, "launched $name on $distroId")
+        Log.i(TAG, "launched $name on ${if (androidShell) "android-sh" else distroId}")
         // 同名の前回分が残っていたら畳んでおく (キーを上書きして取り違えないように)。
         running.put(name, process)?.let { old -> runCatching { old.close() } }
         // 出力を流し切る (誰も読まないと pty バッファが埋まり、実行側の書込みが詰まる)。

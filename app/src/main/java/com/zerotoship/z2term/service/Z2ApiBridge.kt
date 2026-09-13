@@ -470,7 +470,7 @@ object Z2ApiBridge {
                 // (画面で確認ダイアログ or 案内を出す)。判定は永続値を await するので
                 // runOnMainSync の外で行う。
                 val plan = kotlinx.coroutines.runBlocking { created.startupPlan() }
-                if (plan is TerminalSession.StartupPlan.Start) {
+                if (plan is TerminalSession.StartupPlan.Start || plan is TerminalSession.StartupPlan.NeedOsInstall) {
                     runOnMainSync { created.startTerminal() }
                 }
                 val index = SessionManager.sessions.value.indexOfFirst { it.id == created.id } + 1

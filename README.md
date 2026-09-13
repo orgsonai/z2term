@@ -85,7 +85,9 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.592-alpha (versionCode 600)**: `z2-audio run COMMAND ARG...` plays local Linux audio on Android without opening a GUI. Install dependencies with `z2-audio install`. Edge run items show their state through the button border and background, without additional ON/OFF text or check marks. Torch buttons follow external changes, screen keep-on buttons follow expiry, and macros can use ON while running with automatic OFF on exit. The bundled bell and heart now have continuous contours from their rounded tops to the rim or tip. Device audio and UI behavior have not yet been verified.
+**0.8.595-alpha (versionCode 603)**: The edge panel Manage page now displays recreation commands with a Copy commands button. It exports saved settings and items as `z2-edge` commands. Selecting a parent includes its tabs and their order; selecting a child preserves existing parent settings and other tabs. Note contents, referenced scripts and images need separate backups.
+
+**0.8.594-alpha (versionCode 602)**: The Android system shell now starts without a Linux installation. Android `z2-*` helpers, automation, edge panels, tiles and widget commands can run using the shared home. `z2help` lists the supported scope. Existing Linux execution paths are preserved; Linux packages and the audio/image helpers still require Linux. The selected OS can also be deleted after confirmation; removing the last OS moves affected tabs to the Android shell and keeps shared home.
 
 Also includes temporary notification diagnostics through `z2-noti trace`, recording types and lengths of received fields and extracted text without retaining text values. Missing notification text remains under investigation.
 

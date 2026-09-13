@@ -187,4 +187,10 @@
     <string name="edge_source_screen">防止屏幕休眠</string>
     <string name="edge_source_process">运行时ON・结束时OFF</string>
     <string name="edge_source_remember">记住成功切换的状态</string>
+    <string name="edge_recreate_commands">重建命令</string>
+    <string name="edge_copy_commands">复制命令</string>
+    <string name="edge_recreate_panel_help">重建所选面板的已保存设置和全部项目。</string>
+    <string name="edge_recreate_group_help">按保存的顺序重建所选父面板及其全部子标签页。</string>
+    <string name="edge_recreate_tab_help">重建所选标签页。父面板不存在时创建；已存在时保留其他标签页并将此标签页追加到末尾。已注册的标签页保持原有位置。</string>
+    <string name="edge_recreate_files_help">相同 ID 的设置会被添加或更新。现有项目和未指定的设置会保留。不包含未保存的编辑、笔记正文、引用的脚本和图片。请单独备份这些文件。</string>
 </resources>

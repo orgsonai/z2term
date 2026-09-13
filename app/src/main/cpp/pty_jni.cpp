@@ -254,7 +254,9 @@ Java_com_zerotoship_z2term_pty_PtyProcess_nativeWaitFor(
         jobject /* companion */,
         jint pid) {
     int status = 0;
-    if (waitpid(pid, &status, 0) < 0) {
+    pid_t result;
+    do { result = waitpid(pid, &status, 0); } while (result < 0 && errno == EINTR);
+    if (result < 0) {
         return -1;
     }
     if (WIFEXITED(status)) return WEXITSTATUS(status);
@@ -289,20 +291,27 @@ Java_com_zerotoship_z2term_pty_PtyProcess_nativeClose(
         jint fd,
         jint pid) {
     LOGI("Closing PTY: fd=%d, pid=%d", fd, pid);
-    close(fd);
+    if (fd >= 0) close(fd);
+    int status;
+    const auto pollChild = [&]() {
+        pid_t result;
+        do { result = waitpid(pid, &status, WNOHANG); } while (result < 0 && errno == EINTR);
+        return result;
+    };
+    // A concurrent reader may already have reaped this child. Never signal a reused PID.
+    if (pollChild() != 0) return;
     // SIGHUP 送信
     kill(pid, SIGHUP);
     // 1秒待ってまだ生きていたら SIGKILL
     for (int i = 0; i < 10; ++i) {
         usleep(100 * 1000);  // 100ms
-        if (kill(pid, 0) != 0) break;  // 死んでいる
+        if (pollChild() != 0) return;
     }
     if (kill(pid, 0) == 0) {
         kill(pid, SIGKILL);
     }
-    // waitpid で回収（ノンブロッキング）
-    int status;
-    waitpid(pid, &status, WNOHANG);
+    // Do not return to filesystem deletion until the killed engine has exited.
+    while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
 }
 
 /**

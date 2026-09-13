@@ -201,10 +201,10 @@
     <string name="settings_kb_height_landscape">キーボードの高さ（横画面）</string>
     <string name="settings_kb_height_desc">縦画面と横画面で別々の高さを記憶し、画面の向きに合わせて自動で切り替わる。</string>
     <string name="settings_section_delete_os">OS データの削除（ストレージ解放）</string>
-    <string name="settings_delete_os_desc">使わない OS のデータを削除して空き容量を増やせる。削除すると、その OS に入れたパッケージ・設定・ファイルはすべて消える。</string>
+    <string name="settings_delete_os_desc">選択中の OS も、確認後に削除できます。OS 専用データとダウンロード済みイメージを削除して空き容量を増やします。共有ホームは残ります。</string>
     <string name="settings_delete_os_empty">削除できる OS データはまだありません。</string>
     <string name="settings_delete_os_button">削除</string>
-    <string name="settings_delete_os_in_use">使用中（削除不可）</string>
+    <string name="settings_delete_os_in_use">選択中</string>
     <!-- 一覧からの削除確認 (0.8.452)。UI のミスタップだけを止める。CLI からの削除は通さない。 -->
     <string name="confirm_delete_item_msg">「%1$s」は削除され、元に戻せません。</string>
     <string name="confirm_delete_ssh_profile_title">この接続先を削除しますか？</string>
@@ -213,7 +213,7 @@
     <string name="confirm_delete_server_title">このサーバーを削除しますか？</string>
     <string name="confirm_delete_when_rule_title">このルールを削除しますか？</string>
     <string name="confirm_delete_os_title">%1$s のデータを削除しますか？</string>
-    <string name="confirm_delete_os_msg">%1$s に入れたパッケージ・設定・ファイルがすべて消えます。この操作は元に戻せません。本当に削除しますか？</string>
+    <string name="confirm_delete_os_msg">%1$s を使うターミナル・GUI・常駐処理を終了し、この OS のパッケージ・設定・ファイル・OS 専用ホーム領域・ダウンロード済みイメージを削除します。共有ホームは残ります。対象タブは残っている OS へ移り、OS がなくなる場合は Android シェルへ移ります。この操作は元に戻せません。削除しますか？</string>
     <string name="action_delete_os">削除する</string>
     <string name="confirm_close_busy_title">このタブを閉じますか？</string>
     <string name="confirm_close_busy_msg">このタブではまだ何かが動作中です。閉じると実行中のプログラムが終了します。閉じてもよいですか？</string>
@@ -253,7 +253,7 @@
     <string name="settings_trace_log_toggle">トレースログ (開発用)</string>
     <string name="settings_trace_log_toggle_desc">z2root の全 syscall を z2root_trace.log に記録します。</string>
     <string name="settings_trace_log_warning">⚠ 開発・障害調査用です。ON にするとログが膨大になり端末の空き容量をすぐ圧迫します。普段は OFF のままにしてください。</string>
-    <string name="settings_engine_android_sh">Android sh (フォールバック)</string>
+    <string name="settings_engine_android_sh">Android sh</string>
     <string name="tab_popup_engine_label">エンジン</string>
     <string name="tab_popup_engine_gui">GUI (Linux)</string>
     <string name="settings_engine_unlock_ok">エンジン選択を解放しました。下でエンジンを選べます。</string>
@@ -1065,11 +1065,11 @@
     <string name="guide_ask_qr_text">QR にしたい文字列や URL</string>
 
     <!-- OS が 1 つも入っていないときの案内 (新規インストール直後は全員この状態)。 -->
-    <string name="no_os_title">Linux の OS がまだ入っていません</string>
+    <string name="no_os_title">Android標準シェルを利用できます</string>
     <string name="no_os_action">⚙設定 → Linux環境 から、使いたい OS を選んで入れる</string>
-    <string name="no_os_hint">どれから始めても構いません。入れるまで端末は動きません（入れるとこの案内は出なくなります）</string>
+    <string name="no_os_hint">OSを入れずにz2-*、自動化、エッジパネルを使えます。使えるコマンドはz2helpで確認できます。Linuxのツールが必要になったらOSを導入してください。</string>
     <string name="no_os_settings_action">ここをタップ → 「Linux環境」へ移動して、使いたい OS を選ぶ</string>
-    <string name="no_os_settings_hint">OS を 1 つ選ぶとダウンロードが始まります。入れ終わると、この案内は出なくなります</string>
+    <string name="no_os_settings_hint">Android操作やパネルにはOSの導入は不要です。Linuxのツールが必要なら、ここからOSを選んでダウンロードできます。</string>
     <plurals name="paste_preview_lines">
         <item quantity="other">%1$d 行</item>
     </plurals>
@@ -1242,4 +1242,8 @@ SSH 接続先 %3$d 件
     <string name="gui_apps_empty">起動できる GUI アプリが見つかりませんでした。端末タブでアプリを入れて (例: pacman -S gthumb)「更新」を押すとここに並びます。</string>
     <string name="gui_apps_window_hint">開いている窓を切り替えるには、デスクトップの何もないところを長押しして「窓」を選びます。</string>
     <string name="gui_apps_terminal_badge">端末</string>
+    <string name="settings_delete_os_progress">処理を終了して OS データを削除しています…</string>
+    <string name="settings_delete_os_busy">この OS は起動・インストール・削除の処理中です。完了してから再度お試しください。</string>
+    <string name="settings_delete_os_mounted">この OS には root chroot の使用中プロセスまたはマウントが残っています。共有データを保護するため削除を中止しました。chroot を終了し、マウントを解除してから再度お試しください。</string>
+    <string name="settings_delete_os_failed">OS データをすべて削除できませんでした。一部が残っている可能性があります。詳細は診断ログを確認してください。</string>
 </resources>

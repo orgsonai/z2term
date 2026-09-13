@@ -202,4 +202,10 @@
     <string name="edge_source_screen">画面の消灯防止</string>
     <string name="edge_source_process">実行中はON・終了時にOFF</string>
     <string name="edge_source_remember">成功した切替状態を記憶</string>
+    <string name="edge_recreate_commands">再作成コマンド</string>
+    <string name="edge_copy_commands">コマンドをコピー</string>
+    <string name="edge_recreate_panel_help">選択中のパネルの保存済み設定と全項目を再作成します。</string>
+    <string name="edge_recreate_group_help">選択中の親パネルと、その配下の全タブを保存済みの順序で再作成します。</string>
+    <string name="edge_recreate_tab_help">選択中のタブを再作成します。親がなければ作成し、既存の親では他のタブを残して末尾に追加します。登録済みのタブの順序は変えません。</string>
+    <string name="edge_recreate_files_help">同じ ID には設定を追加・更新します。現在の項目や未指定の設定は残ります。未保存の編集、メモ本文、参照先のスクリプト・画像は含まれません。ファイルは別途バックアップしてください。</string>
 </resources>

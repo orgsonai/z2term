@@ -17,6 +17,7 @@ import com.zerotoship.z2term.service.NetGuard
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.distro.DistroDownloader
 import com.zerotoship.z2term.distro.DistroInstaller
+import com.zerotoship.z2term.distro.DistroOperations
 import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.emulator.TerminalEmulator
 import com.zerotoship.z2term.emulator.resolveTheme
@@ -29,6 +30,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -104,7 +106,7 @@ class TerminalSession(
 
     /**
      * このタブが実際に起動した distro の id (proot 起動成功時に確定)。セッション復元の
-     * 保存対象。未起動 / android-sh フォールバック中は復元値 (or null) のまま。
+     * 保存対象。未起動時は復元値、android-shではnull。
      */
     private val _distroId = MutableStateFlow(restoreDistroId)
     val distroId: StateFlow<String?> = _distroId.asStateFlow()
@@ -363,6 +365,7 @@ class TerminalSession(
 
     private var channel: ProcessChannel? = null
     private var readJob: Job? = null
+    private var distroRemovalPaused = false
 
     /**
      * いま SSH で繋いでいる相手 (0.8.388)。通信量の上限で**切るかどうかの判断にだけ**使う —
@@ -607,7 +610,7 @@ class TerminalSession(
     fun startTerminal(distroOverride: DistroSpec? = null) {
         // IDLE 以外なら起動済み/起動中なので何もしない。
         // SSH と PTY の二重起動レースを防ぐため、STARTING 含めて弾く。
-        if (_uiState.value.state != TerminalState.IDLE) return
+        if (distroRemovalPaused || _uiState.value.state != TerminalState.IDLE) return
         _uiState.update { it.copy(state = TerminalState.STARTING) }
 
         scope.launch {
@@ -624,89 +627,110 @@ class TerminalSession(
                 ?: DistroSpec.byId(persisted.distroId)
                 ?: DistroSpec.ALPINE
             try {
-                if (!launcher.isEngineAvailable()) {
-                    Log.w(TAG, "z2root binary not present; falling back to android-sh")
-                    writeBanner(appContext.getString(R.string.banner_z2root_missing))
-                    fallbackToAndroidSh()
-                    return@launch
-                }
+                DistroOperations.use(spec.id).use {
+                    // A new tab, restart, or z2-session new must not download the default OS.
+                    // Explicit selection in Settings still installs the chosen distro.
+                    if (distroOverride == null && !launcher.hasAnyDistro() &&
+                        downloader.resolveLocalArchive(spec, detectAbiId()) == null) {
+                        fallbackToAndroidSh()
+                        return@launch
+                    }
+                    if (!launcher.isEngineAvailable()) {
+                        Log.w(TAG, "z2root binary not present; falling back to android-sh")
+                        writeBanner(appContext.getString(R.string.banner_z2root_missing))
+                        fallbackToAndroidSh()
+                        return@launch
+                    }
 
-                if (!launcher.isDistroReady(spec.id)) {
-                    // 初回 / バージョン更新どちらの経路でも同じバナーで案内
-                    val rootfsExists = java.io.File(appContext.filesDir, "distros/${spec.id}").exists()
-                    val banner = if (rootfsExists)
-                        appContext.getString(R.string.banner_extracting_update, spec.displayName)
-                    else
-                        appContext.getString(R.string.banner_extracting_first, spec.displayName)
-                    writeBanner(banner)
-                    _uiState.update { it.copy(state = TerminalState.INSTALLING) }
+                    if (!launcher.isDistroReady(spec.id)) {
+                        // 初回 / バージョン更新どちらの経路でも同じバナーで案内
+                        val rootfsExists = java.io.File(appContext.filesDir, "distros/${spec.id}").exists()
+                        val banner = if (rootfsExists)
+                            appContext.getString(R.string.banner_extracting_update, spec.displayName)
+                        else
+                            appContext.getString(R.string.banner_extracting_first, spec.displayName)
+                        writeBanner(banner)
+                        _uiState.update { it.copy(state = TerminalState.INSTALLING) }
 
-                    // rootfs アーカイブが未取得なら先にダウンロードする。
-                    if (downloader.resolveLocalArchive(spec, detectAbiId()) == null) {
-                        val dlError = downloadDistroArchive(spec)
-                        if (dlError != null) {
-                            writeBanner(appContext.getString(R.string.banner_download_failed, spec.displayName, dlError.message))
-                            writeBanner(appContext.getString(R.string.banner_check_network))
-                            _uiState.update { it.copy(state = TerminalState.ERROR) }
+                        // rootfs アーカイブが未取得なら先にダウンロードする。
+                        if (downloader.resolveLocalArchive(spec, detectAbiId()) == null) {
+                            val dlError = downloadDistroArchive(spec)
+                            if (dlError != null) {
+                                writeBanner(appContext.getString(R.string.banner_download_failed, spec.displayName, dlError.message))
+                                writeBanner(appContext.getString(R.string.banner_check_network))
+                                _uiState.update { it.copy(state = TerminalState.ERROR) }
+                                return@launch
+                            }
+                        }
+
+                        var installError: Throwable? = null
+                        withContext(Dispatchers.IO) {
+                            installer.install(spec).collect { progress ->
+                                when (progress) {
+                                    is DistroInstaller.Progress.Started -> writeBanner(appContext.getString(R.string.banner_extraction_start))
+                                    is DistroInstaller.Progress.Extracting -> Unit
+                                    is DistroInstaller.Progress.Configuring -> writeBanner(appContext.getString(R.string.banner_extraction_configuring))
+                                    is DistroInstaller.Progress.Completed -> writeBanner(appContext.getString(R.string.banner_extraction_complete, spec.displayName))
+                                    is DistroInstaller.Progress.Failed -> installError = progress.error
+                                }
+                            }
+                        }
+
+                        if (installError != null) {
+                            writeBanner(appContext.getString(R.string.banner_extraction_failed, spec.displayName, installError?.message ?: ""))
+                            writeBanner(appContext.getString(R.string.banner_extraction_fallback))
+                            fallbackToAndroidSh()
                             return@launch
                         }
                     }
 
-                    var installError: Throwable? = null
-                    withContext(Dispatchers.IO) {
-                        installer.install(spec).collect { progress ->
-                            when (progress) {
-                                is DistroInstaller.Progress.Started -> writeBanner(appContext.getString(R.string.banner_extraction_start))
-                                is DistroInstaller.Progress.Extracting -> Unit
-                                is DistroInstaller.Progress.Configuring -> writeBanner(appContext.getString(R.string.banner_extraction_configuring))
-                                is DistroInstaller.Progress.Completed -> writeBanner(appContext.getString(R.string.banner_extraction_complete, spec.displayName))
-                                is DistroInstaller.Progress.Failed -> installError = progress.error
-                            }
+                    _uiState.update { it.copy(state = TerminalState.STARTING) }
+                    writeBanner(appContext.getString(R.string.banner_distro_starting, spec.displayName))
+
+                    val (rows, cols) = currentSize()
+                    // 空の command は rootfs の /etc/passwd に設定された root のログインシェルを使う。
+                    // ユーザーが OS 内で chsh 等により変更した値を、アプリ側から上書きしない。
+                    val shell = ""
+                    // P3 (CUI⇄GUI 連動): このタブの display 番号を proot env に渡す。
+                    // exportDisplay=true で `DISPLAY=:N` も付与され、端末内 `z2run <gui-app>` が同じ
+                    // :N の Xvnc を起動 → 対応する GUI タブが z2term 側で自動的に開く。
+                    val s = settingsFlow.value
+                    val useChroot = s.executionEngine == AppSettings.ENGINE_CHROOT && s.rootChrootUnlocked
+                    // 実際に起動したエンジンを確定して記録する (設定値ではなく実起動結果。
+                    // 設定画面の信頼できるエンジン表示用)。chroot 失敗時は z2root へ戻す。
+                    val engineUsed: String
+                    val pty = if (useChroot) {
+                        // 裏機能: root で実 chroot 起動。失敗時は z2root へフォールバック。
+                        val chrootPty = runCatching {
+                            launcher.launchChroot(
+                                distroId = spec.id,
+                                command = shell,
+                                rows = rows,
+                                cols = cols,
+                                fallbackShell = spec.defaultShell,
+                                display = display,
+                                sessionId = id,
+                            )
+                        }.getOrElse { e ->
+                            Log.w(TAG, "chroot launch failed, falling back to z2root", e)
+                            null
                         }
-                    }
-
-                    if (installError != null) {
-                        writeBanner(appContext.getString(R.string.banner_extraction_failed, spec.displayName, installError?.message ?: ""))
-                        writeBanner(appContext.getString(R.string.banner_extraction_fallback))
-                        fallbackToAndroidSh()
-                        return@launch
-                    }
-                }
-
-                _uiState.update { it.copy(state = TerminalState.STARTING) }
-                writeBanner(appContext.getString(R.string.banner_distro_starting, spec.displayName))
-
-                val (rows, cols) = currentSize()
-                // 空の command は rootfs の /etc/passwd に設定された root のログインシェルを使う。
-                // ユーザーが OS 内で chsh 等により変更した値を、アプリ側から上書きしない。
-                val shell = ""
-                // P3 (CUI⇄GUI 連動): このタブの display 番号を proot env に渡す。
-                // exportDisplay=true で `DISPLAY=:N` も付与され、端末内 `z2run <gui-app>` が同じ
-                // :N の Xvnc を起動 → 対応する GUI タブが z2term 側で自動的に開く。
-                val s = settingsFlow.value
-                val useChroot = s.executionEngine == AppSettings.ENGINE_CHROOT && s.rootChrootUnlocked
-                // 実際に起動したエンジンを確定して記録する (設定値ではなく実起動結果。
-                // 設定画面の信頼できるエンジン表示用)。chroot 失敗時は z2root へ戻す。
-                val engineUsed: String
-                val pty = if (useChroot) {
-                    // 裏機能: root で実 chroot 起動。失敗時は z2root へフォールバック。
-                    val chrootPty = runCatching {
-                        launcher.launchChroot(
-                            distroId = spec.id,
-                            command = shell,
-                            rows = rows,
-                            cols = cols,
-                            fallbackShell = spec.defaultShell,
-                            display = display,
-                            sessionId = id,
-                        )
-                    }.getOrElse { e ->
-                        Log.w(TAG, "chroot launch failed, falling back to z2root", e)
-                        null
-                    }
-                    if (chrootPty != null) {
-                        engineUsed = AppSettings.ENGINE_CHROOT
-                        chrootPty
+                        if (chrootPty != null) {
+                            engineUsed = AppSettings.ENGINE_CHROOT
+                            chrootPty
+                        } else {
+                            engineUsed = launcher.resolveLaunchEngine()
+                            launcher.launch(
+                                distroId = spec.id,
+                                command = shell,
+                                rows = rows,
+                                cols = cols,
+                                fallbackShell = spec.defaultShell,
+                                display = display,
+                                exportDisplay = true,
+                                sessionId = id,
+                            )
+                        }
                     } else {
                         engineUsed = launcher.resolveLaunchEngine()
                         launcher.launch(
@@ -720,41 +744,30 @@ class TerminalSession(
                             sessionId = id,
                         )
                     }
-                } else {
-                    engineUsed = launcher.resolveLaunchEngine()
-                    launcher.launch(
-                        distroId = spec.id,
-                        command = shell,
-                        rows = rows,
-                        cols = cols,
-                        fallbackShell = spec.defaultShell,
-                        display = display,
-                        exportDisplay = true,
-                        sessionId = id,
+                    _actualEngine.value = engineUsed
+                    val ch = LocalPtyChannel(pty)
+                    channel = ch
+                    _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
+                    // 名前を明示的に付けたタブ (labelPinned) は OS 名で上書きしない。
+                    if (!labelPinned) _label.value = spec.id
+                    _distroId.value = spec.id
+                    // Kitty graphics の file/temp/shm 経路用に、 セッションの rootfs root を確定。
+                    // opt-in 設定が ON ならこのタイミングで transfer source が注入される
+                    // (combine 内の applyKittyExternalTransferSetting も同じ値を見る)。
+                    activeRootfsRoot = java.io.File(appContext.filesDir, "distros/${spec.id}")
+                    applyKittyExternalTransferSetting(settingsFlow.value.kittyExternalFileEnabled)
+                    startReadLoop(ch)
+                    // ⚠ **鍵束の用意は初期化コマンドより先**に流す (0.8.316)。Arch は鍵束が無いまま
+                    // では pacman が何も入れられない ([ProotLauncher.needsPacmanKeyring]) ので、
+                    // 利用者の初期化コマンドがパッケージ導入だった場合、順番が逆だと必ず失敗する。
+                    scheduleStartupCommands(
+                        pacmanKeyringCommandOrNull(spec.id),
+                        settingsFlow.value.initCommand
                     )
-                }
-                _actualEngine.value = engineUsed
-                val ch = LocalPtyChannel(pty)
-                channel = ch
-                _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
-                // 名前を明示的に付けたタブ (labelPinned) は OS 名で上書きしない。
-                if (!labelPinned) _label.value = spec.id
-                _distroId.value = spec.id
-                // Kitty graphics の file/temp/shm 経路用に、 セッションの rootfs root を確定。
-                // opt-in 設定が ON ならこのタイミングで transfer source が注入される
-                // (combine 内の applyKittyExternalTransferSetting も同じ値を見る)。
-                activeRootfsRoot = java.io.File(appContext.filesDir, "distros/${spec.id}")
-                applyKittyExternalTransferSetting(settingsFlow.value.kittyExternalFileEnabled)
-                startReadLoop(ch)
-                // ⚠ **鍵束の用意は初期化コマンドより先**に流す (0.8.316)。Arch は鍵束が無いまま
-                // では pacman が何も入れられない ([ProotLauncher.needsPacmanKeyring]) ので、
-                // 利用者の初期化コマンドがパッケージ導入だった場合、順番が逆だと必ず失敗する。
-                scheduleStartupCommands(
-                    pacmanKeyringCommandOrNull(spec.id),
-                    settingsFlow.value.initCommand
-                )
 
+                }
             } catch (e: Throwable) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.e(TAG, "Failed to start terminal", e)
                 writeBanner(appContext.getString(R.string.banner_start_failed, e.message ?: ""))
                 writeBanner(appContext.getString(R.string.banner_extraction_fallback))
@@ -863,10 +876,13 @@ class TerminalSession(
     private fun fallbackToAndroidSh() {
         try {
             val (rows, cols) = currentSize()
-            val pty = launcher.launchAndroidSh(rows, cols)
+            val pty = launcher.launchAndroidSh(rows, cols, sessionId = id)
             val ch = LocalPtyChannel(pty)
             channel = ch
             _actualEngine.value = AppSettings.ENGINE_ANDROID_SH
+            _distroId.value = null
+            activeRootfsRoot = null
+            applyKittyExternalTransferSetting(settingsFlow.value.kittyExternalFileEnabled)
             _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "android-sh") }
             if (!labelPinned) _label.value = "sh"
             startReadLoop(ch)
@@ -1003,6 +1019,7 @@ class TerminalSession(
             } catch (e: Exception) {
                 Log.w(TAG, "Read loop ended: ${e.message}")
             } finally {
+                if (channel !== ch) return@launch
                 val code = ch.exitCode ?: -1
                 _uiState.update { it.copy(state = TerminalState.EXITED) }
                 // An old read job can finish after a restart; do not close the new tab's audio.
@@ -1038,8 +1055,10 @@ class TerminalSession(
     /** RUNNING になった後、シェルプロンプトが出る頃を見計らって init コマンドを送る */
     private fun scheduleInitCommand(command: String) {
         if (command.isBlank()) return
+        val target = channel
         scope.launch {
             delay(INIT_DELAY_MS)
+            if (channel !== target) return@launch
             writeBytes((command + "\n").toByteArray(Charsets.UTF_8))
         }
     }
@@ -1054,8 +1073,10 @@ class TerminalSession(
     private fun scheduleStartupCommands(vararg commands: String?) {
         val queued = commands.filterNot { it.isNullOrBlank() }.filterNotNull()
         if (queued.isEmpty()) return
+        val target = channel
         scope.launch {
             delay(INIT_DELAY_MS)
+            if (channel !== target) return@launch
             for (c in queued) writeBytes((c + "\n").toByteArray(Charsets.UTF_8))
         }
     }
@@ -1145,6 +1166,7 @@ class TerminalSession(
      * ダウンロード → 展開が走る。
      */
     fun switchDistro(id: String) {
+        if (distroRemovalPaused) return
         setDistro(id)
         val spec = DistroSpec.byId(id) ?: DistroSpec.ALPINE
         // 同じdisplayのXvncは別OSへ引き継げない。古いGUIを先に閉じ、OS混線とport競合を防ぐ。
@@ -1159,6 +1181,7 @@ class TerminalSession(
     }
 
     fun restart() {
+        if (distroRemovalPaused) return
         closeChannel()
         scope.launch(emulatorDispatcher) {
             emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
@@ -1181,39 +1204,51 @@ class TerminalSession(
      * 非同期なので startTerminal には spec を直接 override 渡しして反映待ちレースを避ける。
      */
     fun cleanInstallDistro(id: String) {
+        if (distroRemovalPaused) return
         setDistro(id)
         val spec = DistroSpec.byId(id) ?: DistroSpec.ALPINE
         SessionManager.closeGuiForDisplay(display)
         closeChannel()
         scope.launch {
-            val rootfs = java.io.File(appContext.filesDir, "distros/$id")
-            if (rootfs.exists()) rootfs.deleteRecursively()
-            downloader.deleteCachedArchive(id, detectAbiId())
-            withContext(emulatorDispatcher) {
-                emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
+            try {
+                DistroOperations.use(id).use {
+                    val rootfs = java.io.File(appContext.filesDir, "distros/$id")
+                    if (rootfs.exists()) rootfs.deleteRecursively()
+                    downloader.deleteCachedArchive(id, detectAbiId())
+                    withContext(emulatorDispatcher) {
+                        emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
+                    }
+                    _uiState.update { UiState() }
+                    _scrollOffset.value = 0
+                    startTerminal(spec)
+                }
+            } catch (_: DistroOperations.Busy) {
+                emitToast(appContext.getString(R.string.settings_delete_os_busy))
+                _uiState.update { it.copy(state = TerminalState.IDLE) }
+                fallbackToAndroidSh()
             }
-            _uiState.update { UiState() }
-            _scrollOffset.value = 0
-            startTerminal(spec)
         }
     }
 
-    /**
-     * 指定ディストロの rootfs (filesDir/distros/<id>) とダウンロード済みアーカイブを
-     * **完全削除**する (再インストールはしない)。不要な OS データを消してストレージを
-     * 空けるための手段。使用中の OS の削除は壊れた稼働状態を避けるため UI 側で禁止する。
-     *
-     * @param onComplete 削除完了後にメインスレッドで 1 度だけ呼ぶ (設定 UI の一覧再読込用)。
-     */
-    fun deleteDistroData(id: String, onComplete: () -> Unit = {}) {
-        scope.launch {
-            withContext(Dispatchers.IO) {
-                val rootfs = java.io.File(appContext.filesDir, "distros/$id")
-                if (rootfs.exists()) rootfs.deleteRecursively()
-                runCatching { downloader.deleteCachedArchive(id, detectAbiId()) }
-            }
-            onComplete()
-        }
+    /** Detach this tab from a removed OS without touching SSH or a different distro. */
+    internal suspend fun pauseForDistroDeletion(distro: String): Boolean {
+        if (pendingRestoreDistroId == distro) pendingRestoreDistroId = null
+        if (_distroId.value != distro || channel is SshChannel) return false
+        distroRemovalPaused = true
+        val reader = readJob
+        withContext(Dispatchers.IO) { closeChannel() }
+        reader?.cancelAndJoin()
+        _distroId.value = null
+        activeRootfsRoot = null
+        applyKittyExternalTransferSetting(false)
+        _uiState.update { it.copy(state = TerminalState.STARTING) }
+        return true
+    }
+
+    internal fun resumeAfterDistroDeletion(next: DistroSpec?) {
+        distroRemovalPaused = false
+        _uiState.update { it.copy(state = TerminalState.IDLE) }
+        if (next == null) fallbackToAndroidSh() else startTerminal(next)
     }
 
     fun emitToast(message: String) { _toastEvents.tryEmit(message) }

@@ -187,4 +187,10 @@
     <string name="edge_source_screen">Evitar suspensión de pantalla</string>
     <string name="edge_source_process">ON durante ejecución; OFF al terminar</string>
     <string name="edge_source_remember">Recordar cambios correctos</string>
+    <string name="edge_recreate_commands">Comandos de recreación</string>
+    <string name="edge_copy_commands">Copiar comandos</string>
+    <string name="edge_recreate_panel_help">Recrea los ajustes guardados y todos los elementos del panel seleccionado.</string>
+    <string name="edge_recreate_group_help">Recrea el panel principal seleccionado y todas sus pestañas en el orden guardado.</string>
+    <string name="edge_recreate_tab_help">Recrea la pestaña seleccionada. Crea su panel principal si falta; si existe, conserva las demás pestañas y añade esta al final. Una pestaña ya registrada conserva su posición.</string>
+    <string name="edge_recreate_files_help">Los ID coincidentes reciben ajustes nuevos o actualizados. Se conservan los elementos existentes y los ajustes no especificados. No se incluyen ediciones sin guardar, contenido de notas, scripts ni imágenes referenciados. Guarda esos archivos por separado.</string>
 </resources>

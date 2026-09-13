@@ -315,16 +315,13 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     }
     // 自動起動前に DL 確認が要る spec (初回など)。非 null の間ダイアログを出す。
     var pendingInitialDownload by remember(active.id) { mutableStateOf<DistroSpec?>(null) }
-    // OS が 1 つも入っていないとき出す案内 (0.8.314)。✕ で消した記憶はタブをまたいで残す
-    // ([NoOsNotice.dismissed]) ので、ここはこのタブで判定が出たかどうかだけを持つ。
+    // OS未導入時の案内。Android標準シェルが動き始めてもLinux導入への入口を残す。
     var noOsNotice by remember(active.id) { mutableStateOf(false) }
-    // ⚠ 端末が動き出したら引っ込める。設定から OS を入れると起動が始まるので、それを合図にする
-    // (これが無いと「入れてください」の案内が動いている端末の上に残る)。
     val terminalState by active.uiState.collectAsState()
-    LaunchedEffect(terminalState.state) {
-        if (terminalState.state != com.zerotoship.z2term.core.TerminalSession.TerminalState.IDLE) {
-            noOsNotice = false
-        }
+    LaunchedEffect(active.id, terminalState.state, terminalState.mode) {
+        val installed = active.hasAnyDistro()
+        if (installed || terminalState.mode == "ssh") noOsNotice = false
+        else if (terminalState.mode == "android-sh") noOsNotice = true
     }
     // OS が 1 つでも入っているか (0.8.339)。**null = まだ判定していない**。
     // 判定が出るまではどちらも出さない (一瞬出て消えるのを避ける)。
@@ -469,8 +466,10 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     active.startTerminal()
                 is com.zerotoship.z2term.core.TerminalSession.StartupPlan.ConfirmDownload ->
                     pendingInitialDownload = plan.spec
-                is com.zerotoship.z2term.core.TerminalSession.StartupPlan.NeedOsInstall ->
+                is com.zerotoship.z2term.core.TerminalSession.StartupPlan.NeedOsInstall -> {
                     noOsNotice = true
+                    active.startTerminal()
+                }
             }
         }
     }
@@ -660,9 +659,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
 
         // OS が 1 つも無いときの案内 (0.8.314)。ダウンロードの催促ダイアログの代わりで、
         // 画面を塞がない 1 枚。⚙設定 → Linux環境 で入れれば自然に出なくなる。
-        // ⚠ **消せない** (0.8.342)。ここが「⚙設定 › Linux環境」を教える唯一の口なので、
-        // 消せると黒い画面と `#` だけが残る (経緯は [NoOsNotice])。塞がないカードなので
-        // 出ていても端末は触れる。
+        // Androidシェルで使える機能と、Linuxを追加する入口を案内する。
         if (noOsNotice) {
             NoOsNoticeCard(onOpenSettings = { settingsOpen = true })
         }

@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Uses the existing distro execution path; stdout, stdin and selection values are separate from code. */
+/** Uses the common local execution path; stdout, stdin and selection values are separate from code. */
 class EdgeRunner(private val context: Context) {
     data class Result(val output: String, val error: String? = null)
     private class Job(val name: String) {
@@ -37,14 +37,7 @@ class EdgeRunner(private val context: Context) {
             val output = File(dir, "$token.out")
             val errors = File(dir, "$token.err")
             val status = File(dir, "$token.status")
-            val linux = "/root/.z2term/edge/.runtime/$token"
-            val quote = HeadlessRun::shSingleQuote
-            // Drain both streams through bounded collectors. Do not limit files the user's command writes.
-            val invoke = "sh -c ${quote(command)} z2-edge" + (value?.let { " ${quote(it)}" } ?: "")
-            val pipe = input?.let { "printf %s ${quote(it)} | " }.orEmpty()
-            val script = "{ { $pipe$invoke; printf '%s' \"\$?\" > ${quote("$linux.status")}; " +
-                "} 2>&1 1>&3 | { head -c 65537 > ${quote("$linux.err")}; cat > /dev/null; }; " +
-                "} 3>&1 | { head -c 65537 > ${quote("$linux.out")}; cat > /dev/null; }"
+            val script = EdgeCommandScript.create(token, command, input, value)
             fun read(file: File): String = if (file.isFile) file.inputStream().use { stream ->
                 val bytes = ByteArray(65536)
                 var total = 0
@@ -74,7 +67,7 @@ class EdgeRunner(private val context: Context) {
             val launched = runCatching {
                 HeadlessRun.launch(context, script, null, job.name, onExit = { complete() })
             }.getOrDefault(false)
-            if (!launched) complete("Cannot start command in the selected Linux environment")
+            if (!launched) complete("Cannot start command in the local environment")
             else if (job.cancelled.get() || job.stopping) HeadlessRun.stop(job.name)
             else {
                 val timer = Runnable {

@@ -43,60 +43,66 @@ class DistroDownloader(private val context: Context) {
          */
         readTimeoutMs: Int = 30_000
     ): Flow<Progress> = flow {
-        val outFile = File(cacheDir().apply { mkdirs() }, "${spec.id}-$abi.tgz")
-        try {
-            // ⚠ 通信量の上限 (0.8.388)。OS イメージは数百 MB あり、**上限に達したあとに
-            // 一番やってはいけない通信**なので、繋ぐ前に断る。
-            NetGuard.ensureAllowed(context, "")
-            val url = resolveDownloadUrl(spec, abi)
-                ?: throw IllegalStateException("No download URL for ${spec.id} / $abi")
-            if (outFile.exists()) outFile.delete()
+        val lease = try { DistroOperations.use(spec.id) } catch (e: DistroOperations.Busy) {
+            emit(Progress.Failed(e)); return@flow
+        }
+        lease.use {
+            val outFile = File(cacheDir().apply { mkdirs() }, "${spec.id}-$abi.tgz")
+            try {
+                // ⚠ 通信量の上限 (0.8.388)。OS イメージは数百 MB あり、**上限に達したあとに
+                // 一番やってはいけない通信**なので、繋ぐ前に断る。
+                NetGuard.ensureAllowed(context, "")
+                val url = resolveDownloadUrl(spec, abi)
+                    ?: throw IllegalStateException("No download URL for ${spec.id} / $abi")
+                if (outFile.exists()) outFile.delete()
 
-            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = 15_000
-                readTimeout = readTimeoutMs
-                instanceFollowRedirects = true
-                setRequestProperty("User-Agent", "z2term/${spec.id}")
-            }
+                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 15_000
+                    readTimeout = readTimeoutMs
+                    instanceFollowRedirects = true
+                    setRequestProperty("User-Agent", "z2term/${spec.id}")
+                }
 
-            val total = conn.contentLengthLong
-            emit(Progress.Started(total))
+                val total = conn.contentLengthLong
+                emit(Progress.Started(total))
 
-            conn.inputStream.use { input ->
-                FileOutputStream(outFile).use { output ->
-                    val buf = ByteArray(64 * 1024)
-                    var received = 0L
-                    while (true) {
-                        val read = input.read(buf)
-                        if (read < 0) break
-                        output.write(buf, 0, read)
-                        received += read
-                        if (received % (256 * 1024) < 64 * 1024) {
-                            emit(Progress.Downloading(received, total))
+                conn.inputStream.use { input ->
+                    FileOutputStream(outFile).use { output ->
+                        val buf = ByteArray(64 * 1024)
+                        var received = 0L
+                        while (true) {
+                            val read = input.read(buf)
+                            if (read < 0) break
+                            output.write(buf, 0, read)
+                            received += read
+                            if (received % (256 * 1024) < 64 * 1024) {
+                                emit(Progress.Downloading(received, total))
+                            }
                         }
+                        emit(Progress.Downloading(received, total))
                     }
-                    emit(Progress.Downloading(received, total))
                 }
-            }
 
-            if (expectedSha256 != null) {
-                emit(Progress.Verifying)
-                val actual = sha256(outFile)
-                if (!actual.equals(expectedSha256, ignoreCase = true)) {
-                    outFile.delete()
-                    throw SecurityException("SHA-256 mismatch: expected=$expectedSha256 actual=$actual")
+                if (expectedSha256 != null) {
+                    emit(Progress.Verifying)
+                    val actual = sha256(outFile)
+                    if (!actual.equals(expectedSha256, ignoreCase = true)) {
+                        outFile.delete()
+                        throw SecurityException("SHA-256 mismatch: expected=$expectedSha256 actual=$actual")
+                    }
                 }
-            }
 
-            emit(Progress.Completed(outFile))
-            Log.i(TAG, "Downloaded ${spec.id} / $abi -> ${outFile.absolutePath}")
-        } catch (e: Throwable) {
-            Log.e(TAG, "Download failed", e)
-            // 途中まで書いた壊れたファイルを消す。残すと次回 resolveLocalArchive が
-            // これを「取得済み」とみなし、展開失敗を繰り返す原因になる。
-            runCatching { if (outFile.exists()) outFile.delete() }
-            emit(Progress.Failed(e))
+                emit(Progress.Completed(outFile))
+                Log.i(TAG, "Downloaded ${spec.id} / $abi -> ${outFile.absolutePath}")
+            } catch (e: Throwable) {
+                Log.e(TAG, "Download failed", e)
+                // 途中まで書いた壊れたファイルを消す。残すと次回 resolveLocalArchive が
+                // これを「取得済み」とみなし、展開失敗を繰り返す原因になる。
+                runCatching { if (outFile.exists()) outFile.delete() }
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                emit(Progress.Failed(e))
+            }
         }
     }.flowOn(Dispatchers.IO)
 

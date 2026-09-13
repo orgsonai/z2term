@@ -53,8 +53,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 600
-        versionName = "0.8.592-alpha"
+        versionCode = 603
+        versionName = "0.8.595-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -241,12 +241,14 @@ val buildZ2rootNative = tasks.register<Exec>("buildZ2rootNative") {
     inputs.file(layout.projectDirectory.file("src/main/cpp/z2glycin/z2glycin.c"))
     inputs.file(layout.projectDirectory.file("src/main/cpp/z2usb/z2usb.c"))
     inputs.file(layout.projectDirectory.file("src/main/cpp/z2attach/z2attach.c"))
+    inputs.file(layout.projectDirectory.file("src/main/cpp/z2android/z2android.c"))
     inputs.file(script)
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2root.so"))
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2accept.so"))
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2glycin.so"))
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2usb.so"))
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2attach.so"))
+    outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2android.so"))
     // NDK は build-z2root.sh が自己解決する(ANDROID_NDK_HOME 等の env / local.properties の
     // sdk.dir+ndk.version / ANDROID_HOME 配下の ndk)。Exec は親 env を継承するため追加指定不要。
     commandLine("bash", script.absolutePath)

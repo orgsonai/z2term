@@ -198,10 +198,10 @@
     <string name="settings_kb_height_landscape">键盘高度（横屏）</string>
     <string name="settings_kb_height_desc">竖屏和横屏分别记住各自的高度，并随屏幕方向自动切换。</string>
     <string name="settings_section_delete_os">删除系统数据（释放存储空间）</string>
-    <string name="settings_delete_os_desc">删除不用的系统数据来腾出空间。删除后，装在那个系统里的软件包、设置和文件都会消失。</string>
+    <string name="settings_delete_os_desc">确认后也可以删除当前选择的 OS。删除 OS 专用数据和已下载的镜像以释放空间。共享主目录会保留。</string>
     <string name="settings_delete_os_empty">目前还没有可删除的系统数据。</string>
     <string name="settings_delete_os_button">删除</string>
-    <string name="settings_delete_os_in_use">使用中（无法删除）</string>
+    <string name="settings_delete_os_in_use">已选择</string>
     <!-- 一覧からの削除確認 (0.8.452)。UI のミスタップだけを止める。CLI からの削除は通さない。 -->
     <string name="confirm_delete_item_msg">“%1$s”将被删除，且无法恢复。</string>
     <string name="confirm_delete_ssh_profile_title">删除此连接？</string>
@@ -210,7 +210,7 @@
     <string name="confirm_delete_server_title">删除此服务器？</string>
     <string name="confirm_delete_when_rule_title">删除此规则？</string>
     <string name="confirm_delete_os_title">要删除 %1$s 的数据吗？</string>
-    <string name="confirm_delete_os_msg">装在 %1$s 里的软件包、设置和文件都会消失。此操作无法撤销。确定要删除吗？</string>
+    <string name="confirm_delete_os_msg">将停止使用 %1$s 的终端、GUI 和后台进程，并删除此 OS 的软件包、设置、文件、OS 专用主目录和已下载的镜像。共享主目录会保留。受影响的标签页将切换到剩余的 OS；如果没有 OS，则切换到 Android shell。此操作无法撤销。确定删除吗？</string>
     <string name="action_delete_os">删除</string>
     <string name="confirm_close_busy_title">要关闭这个标签页吗？</string>
     <string name="confirm_close_busy_msg">这个标签页里还有东西在运行。关闭会终止正在执行的程序。确定要关闭吗？</string>
@@ -248,7 +248,7 @@
     <string name="settings_trace_log_toggle">跟踪日志 (开发用)</string>
     <string name="settings_trace_log_toggle_desc">把 z2root 的全部系统调用记录到 z2root_trace.log。</string>
     <string name="settings_trace_log_warning">⚠ 仅供开发和故障排查使用。开启后日志会变得非常庞大，很快就会占满设备的可用空间。平时请保持关闭。</string>
-    <string name="settings_engine_android_sh">Android sh (回退)</string>
+    <string name="settings_engine_android_sh">Android sh</string>
     <string name="tab_popup_engine_label">引擎</string>
     <string name="tab_popup_engine_gui">GUI (Linux)</string>
     <string name="settings_engine_unlock_ok">已解锁引擎选择。可以在下面选择引擎。</string>
@@ -992,11 +992,11 @@
     <string name="guide_ask_daily_time">在几点播报（HH:MM）</string>
     <string name="guide_ask_battery_level">电量低于百分之几时通知</string>
     <string name="guide_ask_qr_text">想做成二维码的文字或 URL</string>
-    <string name="no_os_title">还没有安装 Linux 系统</string>
+    <string name="no_os_title">Android Shell已就绪</string>
     <string name="no_os_action">⚙设置 → Linux 环境，选一个想用的系统装上</string>
-    <string name="no_os_hint">从哪一个开始都可以。装好之前终端不会运行（装好后这条提示就不会再出现）</string>
+    <string name="no_os_hint">无需安装Linux即可使用z2-*、自动化和边缘面板。运行z2help查看可用命令。需要Linux工具时再安装系统。</string>
     <string name="no_os_settings_action">点这里 → 跳到“Linux 环境”，选一个想用的系统</string>
-    <string name="no_os_settings_hint">选好一个系统后就会开始下载。装完之后，这条提示就不会再出现</string>
+    <string name="no_os_settings_hint">Android操作和面板无需Linux。需要Linux工具时，可在此选择并下载系统。</string>
     <plurals name="paste_preview_lines">
         <item quantity="other">%1$d 行</item>
     </plurals>
@@ -1164,4 +1164,8 @@ SSH 连接目标 %3$d 个
     <string name="gui_apps_empty">没有找到可启动的 GUI 应用。在终端标签页安装 (例如 pacman -S gthumb) 后点击“刷新”，就会出现在这里。</string>
     <string name="gui_apps_window_hint">要切换已打开的窗口，请长按桌面空白处并选择「窗口」。</string>
     <string name="gui_apps_terminal_badge">终端</string>
+    <string name="settings_delete_os_progress">正在停止进程并删除 OS 数据…</string>
+    <string name="settings_delete_os_busy">此 OS 正在启动、安装或删除。请在操作完成后重试。</string>
+    <string name="settings_delete_os_mounted">此 OS 仍有活动的 root chroot 进程或挂载。为保护共享数据，已停止删除。请停止 chroot 并解除此 OS 的挂载后重试。</string>
+    <string name="settings_delete_os_failed">无法删除全部 OS 数据。可能仍有部分数据残留。请查看诊断日志。</string>
 </resources>

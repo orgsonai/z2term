@@ -202,4 +202,10 @@
     <string name="edge_source_screen">Prevent screen sleep</string>
     <string name="edge_source_process">ON while running; OFF on exit</string>
     <string name="edge_source_remember">Remember successful toggles</string>
+    <string name="edge_recreate_commands">Recreation commands</string>
+    <string name="edge_copy_commands">Copy commands</string>
+    <string name="edge_recreate_panel_help">Recreate the saved settings and all items of the selected panel.</string>
+    <string name="edge_recreate_group_help">Recreate the selected parent panel and all its tabs in their saved order.</string>
+    <string name="edge_recreate_tab_help">Recreate the selected tab. Create its parent if missing; otherwise keep other tabs and append this tab. An existing tab keeps its position.</string>
+    <string name="edge_recreate_files_help">Matching IDs receive added or updated settings. Existing items and unspecified settings are kept. Unsaved edits, note contents, referenced scripts and images are not included. Back up those files separately.</string>
 </resources>

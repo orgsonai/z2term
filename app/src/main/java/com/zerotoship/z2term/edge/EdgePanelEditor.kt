@@ -69,6 +69,7 @@ object EdgePanelEditor {
                 session.leave { attempt { move(1) } }
             }
         }
+        EdgePanelCommandsUi.add(context, body, store, panel.id)
         section = EdgeSettingsUi.section(context, body, context.getString(R.string.edge_create_panel))
         nameEntry(R.string.edge_new_panel_name, "", R.string.edge_add_panel) { name ->
             val id = "panel_" + UUID.randomUUID().toString().replace("-", "")

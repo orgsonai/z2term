@@ -1040,7 +1040,7 @@ class AppSettings(private val context: Context) {
         const val ENGINE_Z2ROOT = "z2root"
         /** 実行エンジン: root で実 chroot (裏機能・要解放) */
         const val ENGINE_CHROOT = "chroot"
-        /** 実行エンジン: z2root 起動失敗時の Android /system/bin/sh フォールバック (選択不可・表示専用)。 */
+        /** 実行エンジン: OS未導入時・z2root起動失敗時の Android /system/bin/sh (選択不可・表示専用)。 */
         const val ENGINE_ANDROID_SH = "android-sh"
         /** ダウンロード前確認は既定 ON (勝手に通信しない方針)。 */
         const val DEFAULT_CONFIRM_DOWNLOAD = true

@@ -22,17 +22,17 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.566-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.595-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
-The app bundles no Linux OS, so the first launch shows a single notice: "No Linux OS is installed yet" (0.8.314). Tap it to open Settings and **pick the OS you want** (Alpine / Ubuntu / Arch / Kali …; any of them is a fine place to start). ⚠ **The notice cannot be dismissed until an OS is installed** (0.8.342 — dismissing it left nothing on screen saying what to press to get Linux). **Settings pins the same notice at the top, and tapping it carries you to the "Linux environment" section.** Both go away once one OS is in.
+**Linux is optional (0.8.594).** The first launch opens the Android system shell. Run `z2help` to see available commands. Notifications, torch, automation and edge panels work without installing Linux. When you need Linux tools, use the notice to open Settings › Linux environment and choose an OS to download. Tapping the pinned Settings notice scrolls to that section.
 
 > ⭐ **Alpine opening neither a terminal nor a screen is fixed in 0.8.508** (it had been there since 0.8.425). The piece that bridges USB devices called into something Alpine's foundation (musl) does not provide, so **everything you ran inside Alpine stopped before it started**. Ubuntu / Arch / Kali were never affected.
 **Once one Linux OS is installed**, **three small cards** appear above the terminal (post a notification / turn on the flashlight / open the reminder guide) — the first time only. (Before 0.8.339 they also appeared before an OS was installed, where tapping them did nothing, so they now wait until the install is done.) **Tapping one runs that line as it stands** — anything half-typed is thrown away with `Ctrl-C` first, so nothing mixes in. The ✕ on the right drops a card you do not want. Once all three are gone they never come back. To see them again: Settings > Maintenance > "Show the intro again".
 That's all the setup you need.
 
-> ℹ️ **The APK is ~21MB.** It does not bundle the Linux OS itself, which keeps it small — and keeps every update that small too. In exchange it **needs a network connection on the first launch only** (it auto-downloads from the official site and verifies the SHA-256). ⚠ Up to 0.8.358 there was also a ~190MB build with the OS bundled (`full`); **0.8.359 dropped it and ships one build only** (it made you choose without offering anything beyond skipping that first download).
+> ℹ️ **The APK is ~21MB.** It does not bundle the Linux OS itself, which keeps it small — and keeps every update that small too. **Installing Linux requires a network connection** to download and verify the OS from its official site. Android integration commands need no OS download. ⚠ Up to 0.8.358 there was also a ~190MB build with the OS bundled (`full`); **0.8.359 dropped it and ships one build only** (it made you choose without offering anything beyond skipping that first download).
 
 ### Checking whether a newer version is out
 
@@ -718,7 +718,7 @@ Notification, SMS, event and unlock-failure detection and log formats remain in 
 | Background process protection | Battery exemption and phantom-process guidance are in Permissions and notifications → Permissions. Low-power mode is in Command list → Servers. |
 | Reset terminal | Returns the app to **the state it had when first opened**. Only one terminal tab is left (other terminal tabs and GUI tabs are closed), and that terminal goes back to its initial state: running programs are terminated, screen and scrollback cleared. Tapping it opens a confirmation. **Saved servers, settings, snippets and the OS itself (installed packages and files you made) are not removed** |
 | Clear cache | Sweeps the package/build caches that pile up inside the OS (pacman, apt, apk, `~/.cache`, …) plus the app's temp files. Tapping it opens a confirmation that **itemizes what and how much** will be deleted. Installed packages, settings and files you made are not removed |
-| Delete OS data | Removes an installed OS (Alpine / Ubuntu / Arch / Kali) entirely to free storage. Tapping it opens a confirmation |
+| Delete OS data | The selected OS can also be deleted after confirmation in Delete OS data. Its terminal, GUI and background processes stop before removing its rootfs, OS-specific home directories and downloaded images. Shared home and other OS data are kept. Affected tabs move to a remaining OS, or to the Android shell after the last OS is removed. Deletion is refused while startup or installation is in progress; active root chroot processes or mounts must be stopped and unmounted first. Failures appear in Settings and the diagnostic log. |
 | Notification detection | Grant the OS "notification access" and turn it on, and incoming notifications are appended to `~/.z2term/notifications.jsonl` (a generic hook). **The output format is fully customizable** (a template of `{time}` `{app}` `{title}` `{text}` … ; presets: readable / one-line / TSV / JSONL). Turn on **"Newest at the top"** to prepend new entries to the head of the file instead of appending at the end. That mode reads and rewrites the whole file per entry, so **once the log passes 10MB the settings screen shows a warning** (turn it off before it gets slow, or trim the file from the terminal). What you record / filter / serve is **up to you on the terminal side** (e.g. `tail -f`, or serve it with a resident server). Since the side new entries arrive on changes with the append direction, **the "command to read it" shown in settings follows that setting** (`tail -f` when newest is at the bottom, `watch -n 1 head -n 20 …` when newest is at the top). Turn **"Save notification log"** off to keep detecting without writing anything to the file (detection only). **0.8.585**: Read delivered conversation/history Bundles directly, avoiding the platform decoder's 1,024-unit truncation. Notification-level timestamp changes do not identify new messages. Copies across plain, conversation and inbox payloads deduplicate within 10 seconds, while actual message times, senders and extra occurrences preserve identical new messages. A later full body is appended once as a correction. Generic new-message notices are saved when that is the only supplied content. Unpublished text, sender/OS truncation and redaction cannot be recovered. Deduplication uses bounded process-local caches; without identities, identical new text and reposts cannot always be distinguished. Default off, fully local. Release build and lint pass; all 28 notification unit tests pass. The APK for two device tests compiles but has not run. The user confirmed improved deduplication on 2026-09-12; truncated bodies and generic notices during bursts remain unresolved |
 | SMS detection | Turn it on and **grant the SMS permission**, and incoming SMS are appended to `~/.z2term/sms.jsonl` (fields: `time` `from` `body`; format customizable). **Vs. notification detection**: Android 15+ **redacts OTP-bearing notifications** before handing them to ordinary apps, so SMS OTPs may not be readable via notifications (same for MacroDroid etc.). SMS detection reads the **SMS body directly**, bypassing the redaction, and works **even while locked**. For auto-copy, register `z2-macro install otp-sms.sh` as a resident server. Non-SMS OTPs (e.g. authenticator-app notifications) are out of scope. Default off, fully local |
 | System event detection | Turn it on and screen on/off, unlock, charge start/stop, battery low/okay, Wi-Fi connect/disconnect and **Bluetooth earbuds connect/disconnect** are appended to `~/.z2term/events.jsonl` (a generic automation trigger; sibling of notification detection). **The output format is customizable** (`{time}` `{event}` `{level}` `{ssid}`; presets: one-line / TSV / JSONL). Turn on **"Newest at the top"** to prepend new entries to the head of the file (in that mode, **once the log passes 10MB the settings screen shows a warning**). Build automations like "when battery drops below 20%…" or "when charging starts…" **terminal-side** (e.g. a script reading `tail -f ~/.z2term/events.jsonl`; **the "command to read it" shown in settings follows the append direction**). Default off, fully local, shows an ongoing notification while active (Wi-Fi SSID is blank without location permission). **The log has no size cap** (it keeps appending into one file; clean it up from the terminal, e.g. `: > ~/.z2term/events.jsonl`) |
@@ -909,6 +909,8 @@ Appearance groups size/position, icons/layout, title/controls and handles into c
 From 0.8.577 the settings screen and the panel take their colours from the app palette built out of your terminal theme (the accent is the brand green), so changing the theme moves the panel with it.
 From 0.8.577 the **+** in the normal menu goes straight to the app list instead of opening settings. So you can tell it from the gear beside it, + is accented and bold and the gear stays quiet. Adding a custom slot is still gear → Items.
 From 0.8.575 the editor's **look** is rebuilt; what it can do is the same. Items/Appearance/Manage sit at the top (the current page is underlined), with the panel and tab chips below them. Anything you can press is filled or outlined, and a button you cannot press dims. Collapsible headings carry `▾`/`▸`, and a group inside a group is shown by a left rule and an indent. Items is one row per item - icon, name, kind, Edit and the move arrows - and the long explanations moved below the list. ⚠ **The panel itself (the normal menu) looks exactly as before.**
+
+**Save panel settings as commands (0.8.595)**: The edge panel Manage page now displays recreation commands with a Copy commands button. It exports saved settings and items as `z2-edge` commands. Selecting a parent includes its tabs and their order; selecting a child preserves existing parent settings and other tabs. Note contents, referenced scripts and images need separate backups. Select the panel/tab on Manage, then use Copy commands to save the text. A missing parent is created with its saved appearance; a child is appended to an existing parent. An already registered tab keeps its position. Reusing an ID adds or updates the specified settings; existing items and unspecified settings remain. Unsaved edits, note history, ON/OFF state and transient display values are excluded. Displaying or copying commands does not run them or enable panels.
 
 Enable “Show + app button” under Appearance → Title, tabs and buttons to add apps directly from the normal menu. Cancelling app selection returns to that menu. Hold and drag a run item to reorder it; drop into the first/second half of a target to place it before/after (vertical halves in a column, horizontal halves in a row or grid). Targets are outlined and dragging at an edge scrolls. Dropping outside leaves order unchanged. Whitespace long-press still opens settings (0.8.567).
 
@@ -1124,6 +1126,30 @@ Note that this **removes one layer of the app's own defenses**, so weigh that ri
 ---
 
 ## 11. Z2Term's own commands (quick reference, `z2*`)
+
+### Use commands without Linux
+
+Run `z2help` for the supported scope. Helpers include `z2-notify`, `z2-battery`, `z2-torch`, `z2-state`, `z2-key`, `z2-action`, `z2-when`, `z2-edge` and `z2-tile`, within Android's available features and permissions.
+
+```sh
+z2-battery
+z2-notify "Ready"
+z2-when charge:start run 'z2-notify "Charging started"'
+```
+
+Notification permission and system event capture for charging triggers remain necessary. To create a panel, run the first command, grant overlay permission in Android, then continue:
+
+```sh
+z2-edge permission
+z2-edge handle quick button --at 85%,60%
+z2-edge set quick:light type=run 'run=z2-torch toggle' label=Light
+z2-edge on
+```
+
+Run shell macros with `sh "$HOME/.z2term/macros/name.sh"`, using the system shell and Android utilities. Linux packages, GUI, Linux servers, `z2-macro` sample installation, `z2-audio` and `z2-img` require Linux.
+
+Settings and rules stay in the shared home and carry over when Linux is installed. Use `$HOME` / `~/` for portable file paths. Installing an OS also switches background commands to the selected Linux environment, so commands depending on Android-only absolute paths or utilities may need adjustment.
+
 
 **Play terminal audio (0.8.588)**: Open a new terminal tab and run `z2-audio install` once. Prefix the original command with `z2-audio run`, for example `z2-audio run python3 /root/player.py /root/movie.mp4 --audio`. To use the original commands inside a shell, start `z2-audio run zsh`. Its dedicated audio connection ends with the command. No GUI setting is required. Player volume options and Android media volume remain available. `z2-audio -h` / `--help` explains usage. Requires a PulseAudio-compatible player in a local Linux terminal.
 

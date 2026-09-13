@@ -198,10 +198,10 @@
     <string name="settings_kb_height_landscape">Altura del teclado (horizontal)</string>
     <string name="settings_kb_height_desc">Las alturas de vertical y horizontal se recuerdan por separado y cambian solas con la orientación de la pantalla.</string>
     <string name="settings_section_delete_os">Eliminar datos de un SO (liberar espacio)</string>
-    <string name="settings_delete_os_desc">Elimina los datos de los SO que no uses para liberar espacio. Al eliminarlos se borran todos los paquetes, ajustes y archivos que haya dentro de ese SO.</string>
+    <string name="settings_delete_os_desc">También puedes eliminar el SO seleccionado tras confirmar. Se eliminan los datos exclusivos del SO y las imágenes descargadas para liberar espacio. Se conserva el directorio personal compartido.</string>
     <string name="settings_delete_os_empty">Todavía no hay datos de ningún SO que eliminar.</string>
     <string name="settings_delete_os_button">Eliminar</string>
-    <string name="settings_delete_os_in_use">En uso (no se puede eliminar)</string>
+    <string name="settings_delete_os_in_use">Seleccionado</string>
     <string name="confirm_delete_item_msg">“%1$s” se eliminará y no se podrá restaurar.</string>
     <string name="confirm_delete_ssh_profile_title">¿Eliminar esta conexión?</string>
     <string name="confirm_delete_remote_service_title">¿Eliminar este servicio?</string>
@@ -209,7 +209,7 @@
     <string name="confirm_delete_server_title">¿Eliminar este servidor?</string>
     <string name="confirm_delete_when_rule_title">¿Eliminar esta regla?</string>
     <string name="confirm_delete_os_title">¿Eliminar los datos de %1$s?</string>
-    <string name="confirm_delete_os_msg">Se borrarán todos los paquetes, ajustes y archivos que haya dentro de %1$s. Esto no se puede deshacer. ¿Eliminarlos de todos modos?</string>
+    <string name="confirm_delete_os_msg">Se detendrán los terminales, la GUI y los procesos en segundo plano que usan %1$s. Se eliminarán sus paquetes, ajustes, archivos, directorios personales exclusivos del SO e imágenes descargadas. Se conserva el directorio personal compartido. Las pestañas afectadas pasarán a otro SO instalado o al shell de Android si no queda ninguno. Esta acción es irreversible. ¿Eliminar este SO?</string>
     <string name="action_delete_os">Eliminar</string>
     <string name="confirm_close_busy_title">¿Cerrar esta pestaña?</string>
     <string name="confirm_close_busy_msg">Todavía hay un proceso en marcha en esta pestaña. Al cerrarla se terminará el programa en ejecución. ¿Cerrarla de todos modos?</string>
@@ -247,7 +247,7 @@
     <string name="settings_trace_log_toggle">Registro de traza (desarrollador)</string>
     <string name="settings_trace_log_toggle_desc">Anota en z2root_trace.log todas las llamadas al sistema de z2root.</string>
     <string name="settings_trace_log_warning">⚠ Solo para desarrollo y diagnóstico. Al activarlo, el registro crece enormemente y llena rápido el almacenamiento del dispositivo. Mantenlo desactivado en el uso normal.</string>
-    <string name="settings_engine_android_sh">sh de Android (alternativa)</string>
+    <string name="settings_engine_android_sh">Android sh</string>
     <string name="tab_popup_engine_label">Motor</string>
     <string name="tab_popup_engine_gui">Gráfico (Linux)</string>
     <string name="settings_engine_unlock_ok">Selector de motor desbloqueado. Elige abajo el motor.</string>
@@ -999,11 +999,11 @@
     <string name="guide_ask_daily_time">A qué hora leerlo (HH:MM)</string>
     <string name="guide_ask_battery_level">Avisarme por debajo de qué % de batería</string>
     <string name="guide_ask_qr_text">Texto o URL que convertir en un código QR</string>
-    <string name="no_os_title">Todavía no hay ningún SO Linux instalado</string>
+    <string name="no_os_title">El shell Android está listo</string>
     <string name="no_os_action">Ajustes -> Entorno Linux: elige el SO que quieras e instálalo</string>
-    <string name="no_os_hint">Cualquiera de ellos es un buen punto de partida. La terminal se queda quieta hasta que haya uno instalado (este aviso desaparece en cuanto lo esté)</string>
+    <string name="no_os_hint">Usa z2-*, automatización y paneles laterales sin Linux. Ejecuta z2help para ver los comandos. Instala Linux cuando necesites sus herramientas.</string>
     <string name="no_os_settings_action">Toca aquí para ir a \"Entorno Linux\" y elegir el SO que quieras</string>
-    <string name="no_os_settings_hint">Al elegir un SO empieza la descarga. Una vez instalado, este aviso desaparece</string>
+    <string name="no_os_settings_hint">Las acciones Android y los paneles no requieren Linux. Selecciona aquí un SO para descargar sus herramientas.</string>
     <plurals name="paste_preview_lines">
         <item quantity="one">%1$d línea</item>
         <item quantity="other">%1$d líneas</item>
@@ -1166,4 +1166,8 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="gui_apps_empty">No se encontró ninguna aplicación gráfica que abrir. Instala una desde una pestaña de terminal (por ejemplo, pacman -S gthumb) y luego toca Actualizar para verla aquí.</string>
     <string name="gui_apps_window_hint">Para cambiar entre las ventanas abiertas, mantén pulsada una parte vacía del escritorio y elige \"Ventanas\".</string>
     <string name="gui_apps_terminal_badge">terminal</string>
+    <string name="settings_delete_os_progress">Deteniendo procesos y eliminando datos del SO…</string>
+    <string name="settings_delete_os_busy">Este SO se está iniciando, instalando o eliminando. Vuelve a intentarlo cuando termine.</string>
+    <string name="settings_delete_os_mounted">Este SO aún tiene procesos o montajes de root chroot activos. Se detuvo la eliminación para proteger los datos compartidos. Detén chroot y desmonta el SO antes de volver a intentarlo.</string>
+    <string name="settings_delete_os_failed">No se pudieron eliminar todos los datos del SO. Es posible que queden algunos datos. Consulta el registro de diagnóstico.</string>
 </resources>

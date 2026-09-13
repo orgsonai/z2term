@@ -1,5 +1,7 @@
 package com.zerotoship.z2term.proot
 
+import com.zerotoship.z2term.distro.DistroOperations
+
 import android.content.Context
 import android.net.LocalSocket
 import android.net.LocalSocketAddress
@@ -370,7 +372,7 @@ class ProotLauncher(private val context: Context) {
          * 元から空。
          */
         sessionId: String = ""
-    ): PtyProcess {
+    ): PtyProcess = DistroOperations.use(distroId).use {
         val rootfs = File(distrosDir, distroId)
         if (!rootfs.exists()) {
             throw IllegalStateException("Rootfs not found: ${rootfs.absolutePath}")
@@ -608,14 +610,14 @@ class ProotLauncher(private val context: Context) {
         Log.i(TAG, "Launching z2root: distro=$distroId, command=$resolvedCommand (requested=$command)")
         Log.d(TAG, "Args: ${args.joinToString(" ")}")
 
-        return PtyProcess.create(
+        return DistroProcesses.register(distroId, PtyProcess.create(
             command = engineBinary.absolutePath,
             args = args.toTypedArray(),
             env = env,
             cwd = context.filesDir.absolutePath,
             rows = rows,
             cols = cols
-        )
+        ))
     }
 
     /**
@@ -634,7 +636,7 @@ class ProotLauncher(private val context: Context) {
         display: Int? = null,
         /** proot 経路と同じ (`launch` の `sessionId`)。自分自身への attach を断るための目印。 */
         sessionId: String = ""
-    ): PtyProcess {
+    ): PtyProcess = DistroOperations.use(distroId).use {
         val rootfs = File(distrosDir, distroId)
         if (!rootfs.exists()) throw IllegalStateException("Rootfs not found: ${rootfs.absolutePath}")
         val su = resolveSu() ?: throw IllegalStateException("su not found (device not rooted)")
@@ -690,7 +692,7 @@ class ProotLauncher(private val context: Context) {
         )
 
         Log.i(TAG, "Launching chroot: distro=$distroId, su=$su, shell=$resolvedShell")
-        return PtyProcess.create(
+        return DistroProcesses.register(distroId, PtyProcess.create(
             command = su,
             args = arrayOf("su", "-c", script),
             env = arrayOf(
@@ -701,7 +703,17 @@ class ProotLauncher(private val context: Context) {
             cwd = context.filesDir.absolutePath,
             rows = rows,
             cols = cols
-        )
+        ), chroot = true)
+    }
+
+    fun rootMountInfoForDeletion(): String {
+        val su = resolveSu() ?: throw IllegalStateException("Cannot inspect root mounts")
+        val info = runSuCapture(su, "cat /proc/self/mountinfo", 10_000L)
+            ?: throw IllegalStateException("Cannot inspect root mounts")
+        check(info.lineSequence().any { it.matches(Regex("[0-9]+ [0-9]+ .* - .*")) }) {
+            "Cannot inspect root mounts"
+        }
+        return info
     }
 
     /**
@@ -1615,60 +1627,23 @@ class ProotLauncher(private val context: Context) {
         }.onFailure { Log.w(TAG, "history rc 書込失敗: ${file.absolutePath}", it) }
     }
 
-    /**
-     * フォールバック: PRoot を使わずに Android の /system/bin/sh を起動。
-     *
-     * Android mksh は /system/etc/mkshrc を強制的に読み込み、複雑な多行 PS1
-     * (exit code 付き、cwd 全文、場合により改行入り) を設定する。
-     * これがキーストロークごとのライン再描画と相まって、入力が「縦に積まれた
-     * バラバラの行」に見える原因になる。
-     *
-     * 対策として、我々の制御下にある mkshrc.local を filesDir に書き出し、
-     * `ENV=<path>` で mksh に読ませる。mkshrc.local は /system/etc/mkshrc の
-     * 後で評価されるので、ここで設定する PS1 が最終値として採用される。
-     */
-    fun launchAndroidSh(rows: Int = 24, cols: Int = 80): PtyProcess {
-        Log.i(TAG, "Launching Android /system/bin/sh (fallback mode)")
-        val rcFile = ensureCleanShellRc()
+    /** OS未導入時・Linux起動失敗時の標準シェル。単発実行でも同じPATH/HOMEを使う。 */
+    fun launchAndroidSh(
+        rows: Int = 24,
+        cols: Int = 80,
+        extraArgs: List<String> = emptyList(),
+        sessionId: String = "",
+    ): PtyProcess {
+        Log.i(TAG, "Launching Android /system/bin/sh")
+        val prepared = AndroidShellEnvironment.prepare(context, sessionId)
         return PtyProcess.create(
             command = "/system/bin/sh",
-            args = arrayOf("sh"),
-            env = arrayOf(
-                "HOME=${context.filesDir.absolutePath}",
-                "TERM=xterm-256color",
-                "PATH=/system/bin:/system/xbin:/vendor/bin",
-                "TMPDIR=${context.cacheDir.absolutePath}",
-                // mksh が interactive 起動時に source する rc ファイル。
-                // ここで PS1 をクリーンな 1 行プロンプトに固定する。
-                "ENV=${rcFile.absolutePath}",
-                "PS1=$ ",
-                "PS2=> "
-            ),
-            cwd = context.filesDir.absolutePath,
+            args = (listOf("sh") + extraArgs).toTypedArray(),
+            env = prepared.env,
+            cwd = prepared.home.absolutePath,
             rows = rows,
-            cols = cols
+            cols = cols,
         )
-    }
-
-    /**
-     * mksh 用 rc を filesDir に毎回書き出す (バージョン更新時の確実反映を兼ねて)。
-     * 単一行 PS1 + シンプル PS2 + シェルが余計な color/format を吐かないよう
-     * stty も整える。
-     */
-    private fun ensureCleanShellRc(): java.io.File {
-        val rc = java.io.File(context.filesDir, ".z2term_mkshrc")
-        rc.writeText(
-            """
-            # z2term auto-generated mkshrc — keep prompt minimal so the terminal
-            # emulator can render typing on a single line without re-flow.
-            export PS1='$ '
-            export PS2='> '
-            # disable mksh emacs-style line redraw escapes that confuse simple
-            # emulators (best-effort; the actual flag varies between builds).
-            set +o multiline 2>/dev/null
-            """.trimIndent() + "\n"
-        )
-        return rc
     }
 
     /**

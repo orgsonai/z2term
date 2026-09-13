@@ -2,6 +2,7 @@ package com.zerotoship.z2term.service
 
 import android.content.Context
 import android.util.Log
+import com.zerotoship.z2term.distro.DistroOperations
 import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.ServerSupervisorScript
@@ -62,80 +63,87 @@ object ServerDaemonManager {
             return false
         }
         val distroId = settings.distroId
-        val rootfs = File(context.filesDir, "distros/$distroId")
-        if (!rootfs.exists()) {
-            Log.w(TAG, "Rootfs missing for $distroId; cannot start servers")
-            return false
-        }
+        val lease = try { DistroOperations.use(distroId) } catch (_: DistroOperations.Busy) { return false }
+        lease.use {
+            val rootfs = File(context.filesDir, "distros/$distroId")
+            if (!rootfs.exists()) {
+                Log.w(TAG, "Rootfs missing for $distroId; cannot start servers")
+                return false
+            }
 
-        // supervisor スクリプトを rootfs に配置 (実行権付き)。
-        // スクリプトはエントリを焼き込まない固定文字列で、サーバーの定義はジョブファイルで渡す。
-        val scriptFile = File(rootfs, ServerSupervisorScript.SCRIPT_PATH.trimStart('/'))
-        scriptFile.parentFile?.mkdirs()
-        scriptFile.writeText(ServerSupervisorScript.generate())
-        // world ビットは filesDir 配下 (0700・アプリ UID 所有) なので他 UID には実効性が無い。
-        // ゲスト側から確実に読める状態を保つため付けている (ProotLauncher と同じ判断)。
-        @Suppress("SetWorldReadable")
-        scriptFile.setExecutable(true, false)
-        @Suppress("SetWorldReadable")
-        scriptFile.setReadable(true, false)
-        // 前回の残骸を掃除 (supervisor 冒頭でも消すが、起動失敗時の取りこぼし対策)。
-        // ログと終了履歴は前回の分を残す (落ちた理由を後から見るためのものなので消さない)。
-        File(rootfs, ServerSupervisorScript.STATUS_REL).listFiles()
-            ?.filter { f -> STALE_SUFFIXES.any { f.name.endsWith(it) } }
-            ?.forEach { it.delete() }
-        // サーバーの定義をジョブファイルとして書き出す。以後の追加・変更・削除も同じ経路で
-        // 反映され、supervisor は動いたまま拾う (無停止リロード)。
-        writeJobs(rootfs, entries)
+            // supervisor スクリプトを rootfs に配置 (実行権付き)。
+            // スクリプトはエントリを焼き込まない固定文字列で、サーバーの定義はジョブファイルで渡す。
+            val scriptFile = File(rootfs, ServerSupervisorScript.SCRIPT_PATH.trimStart('/'))
+            scriptFile.parentFile?.mkdirs()
+            scriptFile.writeText(ServerSupervisorScript.generate())
+            // world ビットは filesDir 配下 (0700・アプリ UID 所有) なので他 UID には実効性が無い。
+            // ゲスト側から確実に読める状態を保つため付けている (ProotLauncher と同じ判断)。
+            @Suppress("SetWorldReadable")
+            scriptFile.setExecutable(true, false)
+            @Suppress("SetWorldReadable")
+            scriptFile.setReadable(true, false)
+            // 前回の残骸を掃除 (supervisor 冒頭でも消すが、起動失敗時の取りこぼし対策)。
+            // ログと終了履歴は前回の分を残す (落ちた理由を後から見るためのものなので消さない)。
+            File(rootfs, ServerSupervisorScript.STATUS_REL).listFiles()
+                ?.filter { f -> STALE_SUFFIXES.any { f.name.endsWith(it) } }
+                ?.forEach { it.delete() }
+            // サーバーの定義をジョブファイルとして書き出す。以後の追加・変更・削除も同じ経路で
+            // 反映され、supervisor は動いたまま拾う (無停止リロード)。
+            writeJobs(rootfs, entries)
 
-        val spec = DistroSpec.byId(distroId) ?: DistroSpec.ALPINE
-        val launcher = ProotLauncher(context)
-        val useChroot = settings.executionEngine == AppSettings.ENGINE_CHROOT && settings.rootChrootUnlocked
-        val process = runCatching {
-            if (useChroot) {
-                runCatching {
-                    launcher.launchChroot(
+            val spec = DistroSpec.byId(distroId) ?: DistroSpec.ALPINE
+            val launcher = ProotLauncher(context)
+            val useChroot = settings.executionEngine == AppSettings.ENGINE_CHROOT && settings.rootChrootUnlocked
+            val process = runCatching {
+                if (useChroot) {
+                    runCatching {
+                        launcher.launchChroot(
+                            distroId = distroId,
+                            command = ServerSupervisorScript.SCRIPT_PATH,
+                            rows = 24, cols = 80,
+                            fallbackShell = spec.defaultShell,
+                        )
+                    }.getOrNull() ?: launcher.launch(
                         distroId = distroId,
                         command = ServerSupervisorScript.SCRIPT_PATH,
                         rows = 24, cols = 80,
                         fallbackShell = spec.defaultShell,
                     )
-                }.getOrNull() ?: launcher.launch(
-                    distroId = distroId,
-                    command = ServerSupervisorScript.SCRIPT_PATH,
-                    rows = 24, cols = 80,
-                    fallbackShell = spec.defaultShell,
-                )
-            } else {
-                launcher.launch(
-                    distroId = distroId,
-                    command = ServerSupervisorScript.SCRIPT_PATH,
-                    rows = 24, cols = 80,
-                    fallbackShell = spec.defaultShell,
-                )
-            }
-        }.getOrElse { e ->
-            Log.e(TAG, "Failed to launch server supervisor", e)
-            return false
-        }
-
-        pty = process
-        activeDistroId = distroId
-        // PTY 出力を捨て続ける (誰も読まないと pty バッファが埋まりサーバーの stdout 書込みが詰まる)。
-        drainThread = Thread {
-            val buf = ByteArray(4096)
-            try {
-                while (true) {
-                    val n = process.reader.read(buf)
-                    if (n < 0) break
+                } else {
+                    launcher.launch(
+                        distroId = distroId,
+                        command = ServerSupervisorScript.SCRIPT_PATH,
+                        rows = 24, cols = 80,
+                        fallbackShell = spec.defaultShell,
+                    )
                 }
-            } catch (_: Exception) {
-                // プロセス終了時の close で例外＝正常終了扱い。
+            }.getOrElse { e ->
+                Log.e(TAG, "Failed to launch server supervisor", e)
+                return false
             }
-        }.apply { isDaemon = true; name = "server-supervisor-drain"; start() }
 
-        Log.i(TAG, "Server supervisor started (distro=$distroId, servers=${entries.size}, pid=${process.shellPid})")
-        return true
+            pty = process
+            activeDistroId = distroId
+            // PTY 出力を捨て続ける (誰も読まないと pty バッファが埋まりサーバーの stdout 書込みが詰まる)。
+            drainThread = Thread {
+                val buf = ByteArray(4096)
+                try {
+                    while (true) {
+                        val n = process.reader.read(buf)
+                        if (n < 0) break
+                    }
+                } catch (_: Exception) {
+                    // プロセス終了時の close で例外＝正常終了扱い。
+                }
+            }.apply { isDaemon = true; name = "server-supervisor-drain"; start() }
+
+            Log.i(TAG, "Server supervisor started (distro=$distroId, servers=${entries.size}, pid=${process.shellPid})")
+            return true
+        }
+    }
+
+    fun stopForDistro(distroId: String) = synchronized(this) {
+        if (activeDistroId == distroId) stopLocked()
     }
 
     /** 全サーバーを停止 (supervisor エンジンを kill)。 */

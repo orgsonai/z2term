@@ -247,3 +247,27 @@ fi
 chmod 0755 "${ATT_OUT}"
 echo "[ok] wrote ${ATT_OUT}"
 file "${ATT_OUT}" 2>/dev/null || true
+
+# Android標準シェルのz2-*入口。APKの実行物から/system/bin/shでスクリプトを読む。
+ANDROID_CMD_SRC="${PROJECT_ROOT}/app/src/main/cpp/z2android/z2android.c"
+ANDROID_CMD_OUT="${OUT_DIR}/libz2android.so"
+echo "[info] building z2android (aarch64, API ${API}) ..."
+if [[ "${FALLBACK}" == "1" ]]; then
+    "${SYS_CC}" --target=aarch64-linux-android${API} --sysroot="${SYSROOT}" \
+        -std=c11 -O2 -Wall -Wextra -c "${ANDROID_CMD_SRC}" -o "${ANDROID_CMD_OUT}.o"
+    "${SYS_LD}" -EL -static -no-pie --hash-style=gnu -z noexecstack -z max-page-size=4096 \
+        -o "${ANDROID_CMD_OUT}" \
+        "${LIBDIR}/${API}/crtbegin_static.o" \
+        "${ANDROID_CMD_OUT}.o" \
+        -L"${LIBDIR}/${API}" -L"${LIBDIR}" \
+        --start-group -lc -lm -ldl --end-group \
+        "${BUILTINS}" \
+        "${LIBDIR}/${API}/crtend_android.o"
+    rm -f "${ANDROID_CMD_OUT}.o"
+    [[ -n "${STRIP}" ]] && "${STRIP}" "${ANDROID_CMD_OUT}" || true
+else
+    "${CC}" -std=c11 -O2 -Wall -Wextra -static -o "${ANDROID_CMD_OUT}" "${ANDROID_CMD_SRC}"
+fi
+chmod 0755 "${ANDROID_CMD_OUT}"
+echo "[ok] wrote ${ANDROID_CMD_OUT}"
+file "${ANDROID_CMD_OUT}" 2>/dev/null || true

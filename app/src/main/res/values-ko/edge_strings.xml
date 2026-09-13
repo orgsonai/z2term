@@ -187,4 +187,10 @@
     <string name="edge_source_screen">화면 자동 꺼짐 방지</string>
     <string name="edge_source_process">실행 중 ON・종료 시 OFF</string>
     <string name="edge_source_remember">성공한 전환 상태 기억</string>
+    <string name="edge_recreate_commands">다시 만들기 명령</string>
+    <string name="edge_copy_commands">명령 복사</string>
+    <string name="edge_recreate_panel_help">선택한 패널의 저장된 설정과 모든 항목을 다시 만듭니다.</string>
+    <string name="edge_recreate_group_help">선택한 부모 패널과 모든 하위 탭을 저장된 순서로 다시 만듭니다.</string>
+    <string name="edge_recreate_tab_help">선택한 탭을 다시 만듭니다. 부모 패널이 없으면 만들고, 있으면 다른 탭을 유지하며 끝에 추가합니다. 이미 등록된 탭의 순서는 유지됩니다.</string>
+    <string name="edge_recreate_files_help">같은 ID에는 설정을 추가하거나 갱신합니다. 기존 항목과 지정되지 않은 설정은 유지됩니다. 저장하지 않은 편집, 메모 본문, 참조된 스크립트와 이미지는 포함되지 않습니다. 해당 파일은 별도로 백업하세요.</string>
 </resources>

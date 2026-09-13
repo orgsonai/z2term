@@ -198,10 +198,10 @@
     <string name="settings_kb_height_landscape">키보드 높이 (가로)</string>
     <string name="settings_kb_height_desc">세로와 가로의 높이를 따로 기억하며, 화면 방향에 따라 저절로 바뀝니다.</string>
     <string name="settings_section_delete_os">OS 데이터 삭제 (저장 공간 확보)</string>
-    <string name="settings_delete_os_desc">쓰지 않는 OS 이미지의 데이터를 지워 공간을 늘립니다. 지우면 그 OS 안의 패키지・설정・파일이 모두 사라집니다.</string>
+    <string name="settings_delete_os_desc">선택한 OS도 확인 후 삭제할 수 있습니다. OS 전용 데이터와 다운로드한 이미지를 삭제하여 공간을 확보합니다. 공유 홈은 유지됩니다.</string>
     <string name="settings_delete_os_empty">아직 지울 OS 데이터가 없습니다.</string>
     <string name="settings_delete_os_button">삭제</string>
-    <string name="settings_delete_os_in_use">사용 중 (지울 수 없음)</string>
+    <string name="settings_delete_os_in_use">선택됨</string>
     <string name="confirm_delete_item_msg">“%1$s”이(가) 삭제되며 되돌릴 수 없습니다.</string>
     <string name="confirm_delete_ssh_profile_title">이 연결을 삭제할까요?</string>
     <string name="confirm_delete_remote_service_title">이 서비스를 삭제할까요?</string>
@@ -209,7 +209,7 @@
     <string name="confirm_delete_server_title">이 서버를 삭제할까요?</string>
     <string name="confirm_delete_when_rule_title">이 규칙을 삭제할까요?</string>
     <string name="confirm_delete_os_title">%1$s 데이터를 삭제할까요?</string>
-    <string name="confirm_delete_os_msg">%1$s 안의 패키지・설정・파일이 모두 지워집니다. 되돌릴 수 없습니다. 그래도 삭제할까요?</string>
+    <string name="confirm_delete_os_msg">%1$s를 사용하는 터미널·GUI·백그라운드 프로세스를 종료하고 해당 OS의 패키지·설정·파일·OS 전용 홈 영역·다운로드한 이미지를 삭제합니다. 공유 홈은 유지됩니다. 해당 탭은 남아 있는 OS로 전환되며 OS가 없으면 Android 셸로 전환됩니다. 이 작업은 되돌릴 수 없습니다. 삭제하시겠습니까?</string>
     <string name="action_delete_os">삭제</string>
     <string name="confirm_close_busy_title">이 탭을 닫을까요?</string>
     <string name="confirm_close_busy_msg">이 탭에서 아직 프로세스가 돌고 있습니다. 닫으면 실행 중인 프로그램이 종료됩니다. 그래도 닫을까요?</string>
@@ -247,7 +247,7 @@
     <string name="settings_trace_log_toggle">트레이스 로그 (개발자용)</string>
     <string name="settings_trace_log_toggle_desc">z2root의 모든 syscall을 z2root_trace.log에 기록합니다.</string>
     <string name="settings_trace_log_warning">⚠ 개발・진단용입니다. 켜면 로그가 크게 불어나 기기의 저장 공간을 금방 채웁니다. 평소에는 꺼 두세요.</string>
-    <string name="settings_engine_android_sh">Android sh (대체 수단)</string>
+    <string name="settings_engine_android_sh">Android sh</string>
     <string name="tab_popup_engine_label">엔진</string>
     <string name="tab_popup_engine_gui">GUI (Linux)</string>
     <string name="settings_engine_unlock_ok">엔진 선택을 풀었습니다. 아래에서 엔진을 고르세요.</string>
@@ -991,11 +991,11 @@
     <string name="guide_ask_daily_time">몇 시에 읽어 줄지 (HH:MM)</string>
     <string name="guide_ask_battery_level">배터리 몇 % 밑에서 알릴지</string>
     <string name="guide_ask_qr_text">QR 코드로 만들 글이나 URL</string>
-    <string name="no_os_title">아직 Linux OS가 설치되어 있지 않습니다</string>
+    <string name="no_os_title">Android 셸을 사용할 수 있습니다</string>
     <string name="no_os_action">설정 -> Linux 환경: 원하는 OS를 골라 설치하세요</string>
-    <string name="no_os_hint">어느 것으로 시작해도 괜찮습니다. 하나를 설치할 때까지 터미널은 그대로 쉽니다(설치하면 이 안내는 사라집니다)</string>
+    <string name="no_os_hint">Linux 없이 z2-*, 자동화, 엣지 패널을 사용할 수 있습니다. z2help로 명령을 확인하세요. Linux 도구가 필요할 때 OS를 설치하세요.</string>
     <string name="no_os_settings_action">여기를 누르면 "Linux 환경"으로 가서 원하는 OS를 고를 수 있습니다</string>
-    <string name="no_os_settings_hint">OS를 고르면 내려받기가 시작됩니다. 설치가 끝나면 이 안내는 사라집니다</string>
+    <string name="no_os_settings_hint">Android 동작과 패널에는 Linux가 필요하지 않습니다. Linux 도구가 필요하면 여기에서 OS를 선택해 다운로드하세요.</string>
     <plurals name="paste_preview_lines">
         <item quantity="other">%1$d줄</item>
     </plurals>
@@ -1157,4 +1157,8 @@ SSH 연결: %3$d
     <string name="gui_apps_empty">실행할 GUI 애플리케이션을 찾지 못했습니다. 터미널 탭에서 설치한 뒤(예: pacman -S gthumb) 새로 고침을 누르면 여기에 나옵니다.</string>
     <string name="gui_apps_window_hint">열려 있는 창 사이를 오가려면 데스크톱의 빈 곳을 길게 누르고 "Windows"를 고르세요.</string>
     <string name="gui_apps_terminal_badge">터미널</string>
+    <string name="settings_delete_os_progress">프로세스를 종료하고 OS 데이터를 삭제하는 중…</string>
+    <string name="settings_delete_os_busy">이 OS는 시작·설치·삭제 작업 중입니다. 완료 후 다시 시도하세요.</string>
+    <string name="settings_delete_os_mounted">이 OS에 활성 root chroot 프로세스 또는 마운트가 남아 있습니다. 공유 데이터를 보호하기 위해 삭제를 중단했습니다. chroot를 종료하고 OS 마운트를 해제한 후 다시 시도하세요.</string>
+    <string name="settings_delete_os_failed">OS 데이터를 모두 삭제하지 못했습니다. 일부 데이터가 남아 있을 수 있습니다. 진단 로그를 확인하세요.</string>
 </resources>
