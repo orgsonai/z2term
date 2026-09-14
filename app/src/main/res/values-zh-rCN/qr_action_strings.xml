@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR の読み取り結果を開くボタン (0.8.602)。QrAction / QrActionLauncher -->
+    <string name="qr_action_open">打开</string>
+    <string name="qr_action_dial">打开拨号界面</string>
+    <string name="qr_action_email">写邮件</string>
+    <string name="qr_action_sms">写短信</string>
+    <string name="qr_action_wifi">连接 Wi-Fi</string>
+    <string name="qr_action_contact">添加到联系人</string>
+    <string name="qr_action_event">添加到日程</string>
+    <string name="qr_action_no_app">这台设备上没有能打开它的应用。</string>
+    <string name="qr_action_wifi_copied">已复制 Wi-Fi 密码。请在列表中选择网络并粘贴。</string>
+    <!-- ⚙設定の「QRツール」(0.8.602)。SettingsGroup.QR_TOOLS -->
+    <string name="settings_group_qr_tools">QR 工具</string>
+    <string name="settings_group_qr_tools_desc">从相机或图片读取，以及生成 QR 码</string>
+    <string name="settings_qr_tools_open">打开 QR 工具</string>
+    <string name="settings_qr_tools_hint">用 z2-qr 可以直接开始用相机读取。可以分配到快捷设置磁贴或边缘面板。</string>
+</resources>

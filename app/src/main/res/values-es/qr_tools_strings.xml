@@ -9,7 +9,6 @@
     <string name="qr_tools_intro">Lee con la cámara o elige una imagen. Revisa el contenido antes de actuar.</string>
     <string name="qr_tools_copy">Copiar</string>
     <string name="qr_tools_show">Mostrar QR</string>
-    <string name="qr_tools_open_url">Abrir URL en el navegador</string>
     <string name="qr_tools_save_ssh">Guardar conexión SSH</string>
     <string name="qr_tools_ssh_note">Solo incluye host, puerto y usuario. Configura la autenticación al editar; la clave del host se comprueba al conectar.</string>
     <string name="qr_tools_name">Nombre (opcional)</string>

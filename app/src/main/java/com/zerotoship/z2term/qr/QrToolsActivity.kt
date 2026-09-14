@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.google.zxing.BarcodeFormat
@@ -97,8 +96,11 @@ internal open class QrToolsActivity : QrActivityBase() {
         var choices by rememberSaveable { mutableStateOf(emptyList<String>()) }
         var qrText by rememberSaveable { mutableStateOf(if (!receivesExternalContent && intent.getBooleanExtra("show", false)) text else "") }
         val content = remember(text) { runCatching { QrContent.parse(text) }.getOrNull() }
+        val qrAction = remember(text) { QrAction.parse(text) }
+        var notice by remember { mutableStateOf<Int?>(null) }
+        var cameraRequested by rememberSaveable { mutableStateOf(false) }
         val read: (String) -> Unit = { value ->
-            camera = false; qrText = ""; choices = emptyList(); incomingFailed = false
+            camera = false; qrText = ""; choices = emptyList(); incomingFailed = false; notice = null
             error = value.length > QrContent.MAX_TEXT || value.isBlank()
             text = if (error) "" else value
             name = runCatching { QrContent.parse(text).name }.getOrDefault("")
@@ -136,6 +138,14 @@ internal open class QrToolsActivity : QrActivityBase() {
         }
         val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             camera = granted; error = !granted
+        }
+        // z2-qr はカメラで読み取る状態で始める (0.8.602)。回転では繰り返さない。
+        LaunchedEffect(Unit) {
+            if (!receivesExternalContent && !cameraRequested && intent.getBooleanExtra("camera", false)) {
+                cameraRequested = true
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) camera = true
+                else permission.launch(Manifest.permission.CAMERA)
+            }
         }
         val images = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null) scope.launch {
@@ -180,6 +190,19 @@ internal open class QrToolsActivity : QrActivityBase() {
             if (busy) ToolProgress()
             if (incomingFailed) ToolError(stringResource(R.string.qr_tools_incoming_failed))
             if (error) ToolError(stringResource(R.string.qr_tools_failed))
+            // 中身に合った「開く」を 1 つだけ出す。読み取っただけでは開かない (0.8.602・利用者の判断)。
+            // LINE のログイン URL などは、押すとそのアプリの確認画面が開く。
+            qrAction?.let { found ->
+                actionDetail(found).takeIf { it.isNotBlank() }?.let { ToolLabel(it) }
+                PillButton(label = stringResource(actionLabel(found)), accent = true, fill = true, enabled = !busy) {
+                    notice = when (QrActionLauncher.open(this@QrToolsActivity, found)) {
+                        QrActionLauncher.Outcome.OPENED -> null
+                        QrActionLauncher.Outcome.NO_APP -> R.string.qr_action_no_app
+                        QrActionLauncher.Outcome.WIFI_PASSWORD_COPIED -> R.string.qr_action_wifi_copied
+                    }
+                }
+                notice?.let { ToolNote(stringResource(it)) }
+            }
             Field(label = stringResource(R.string.qr_tools_content), value = text, multiline = true,
                 onChange = { if (!busy && it.length <= QrContent.MAX_TEXT) { text = it; qrText = "" } })
             if (text.isNotBlank()) {
@@ -187,12 +210,6 @@ internal open class QrToolsActivity : QrActivityBase() {
                     context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("QR", text))
                 }
                 PillButton(label = stringResource(R.string.qr_tools_show), fill = true, enabled = !busy) { qrText = text }
-            }
-            if (content?.kind == QrContent.Kind.URL) {
-                PillButton(label = stringResource(R.string.qr_tools_open_url), accent = true, fill = true, enabled = !busy) {
-                    runCatching { startActivity(Intent(Intent.ACTION_VIEW, content.raw.toUri()).addCategory(Intent.CATEGORY_BROWSABLE)) }
-                        .onFailure { error = true }
-                }
             }
             if (content?.kind == QrContent.Kind.SSH) {
                 ToolLabel(content.user + "@" + content.host + ":" + content.port)
@@ -204,7 +221,7 @@ internal open class QrToolsActivity : QrActivityBase() {
                     }
                 }
             }
-            if (content != null && content.kind in setOf(QrContent.Kind.TEXT, QrContent.Kind.COMMAND) &&
+            if (qrAction == null && content != null && content.kind in setOf(QrContent.Kind.TEXT, QrContent.Kind.COMMAND) &&
                 QrContent.singleLine(content.text)) {
                 if (content.kind == QrContent.Kind.COMMAND) SelectionContainer {
                     Text(content.text, color = ZtsGreen, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
@@ -237,7 +254,7 @@ internal open class QrToolsActivity : QrActivityBase() {
                 PillButton(label = stringResource(R.string.qr_tools_command_qr), fill = true, enabled = !busy) {
                     runCatching { qrText = QrContent.command(name, content.text) }.onFailure { error = true }
                 }
-            } else if (text.isNotEmpty() && !QrContent.singleLine(text)) {
+            } else if (qrAction == null && text.isNotEmpty() && !QrContent.singleLine(text)) {
                 ToolNote(stringResource(R.string.qr_tools_multiline))
             }
             if (qrText.isNotEmpty()) QrDisplay(qrText)
@@ -280,6 +297,11 @@ internal open class QrToolsActivity : QrActivityBase() {
             runCatching { open(context, QrContent.ssh(host, port, user), show = true) }
                 .onFailure { Toast.makeText(context, R.string.qr_tools_failed, Toast.LENGTH_LONG).show() }
         }
+        /** `z2-qr`: open with the camera already scanning. */
+        fun scan(context: Context) {
+            context.startActivity(Intent(context, QrToolsActivity::class.java).putExtra("camera", true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
         fun open(context: Context, text: String = "", show: Boolean = false) {
             context.startActivity(Intent(context, QrToolsActivity::class.java).putExtra("text", text).putExtra("show", show)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -299,4 +321,26 @@ internal open class QrToolsActivity : QrActivityBase() {
                 Modifier.widthIn(max = 360.dp).fillMaxWidth().aspectRatio(1f))
         } ?: ToolNote(stringResource(R.string.qr_tools_qr_limit))
     }
+}
+
+private fun actionLabel(action: QrAction): Int = when (action) {
+    is QrAction.Web, is QrAction.Link -> R.string.qr_action_open
+    is QrAction.Dial -> R.string.qr_action_dial
+    is QrAction.Email -> R.string.qr_action_email
+    is QrAction.Sms -> R.string.qr_action_sms
+    is QrAction.Wifi -> R.string.qr_action_wifi
+    is QrAction.Contact -> R.string.qr_action_contact
+    is QrAction.Event -> R.string.qr_action_event
+}
+
+/** 押す前に「何が開くか」を 1 行で見せる。 */
+private fun actionDetail(action: QrAction): String = when (action) {
+    is QrAction.Web -> action.host
+    is QrAction.Link -> action.uri.take(80)
+    is QrAction.Dial -> action.number
+    is QrAction.Email -> action.to
+    is QrAction.Sms -> action.number
+    is QrAction.Wifi -> action.ssid
+    is QrAction.Contact -> action.name.ifBlank { (action.phones + action.emails).firstOrNull().orEmpty() }
+    is QrAction.Event -> action.title
 }

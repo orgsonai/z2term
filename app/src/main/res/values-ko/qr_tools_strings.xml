@@ -9,7 +9,6 @@
     <string name="qr_tools_intro">카메라나 이미지로 읽습니다. 내용을 확인한 후 작업을 선택하세요.</string>
     <string name="qr_tools_copy">복사</string>
     <string name="qr_tools_show">QR 표시</string>
-    <string name="qr_tools_open_url">브라우저에서 URL 열기</string>
     <string name="qr_tools_save_ssh">SSH 연결 저장</string>
     <string name="qr_tools_ssh_note">호스트, 포트, 사용자 이름만 포함합니다. 연결 편집에서 인증을 설정하고 연결할 때 호스트 키를 확인합니다.</string>
     <string name="qr_tools_name">이름 (선택)</string>

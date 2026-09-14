@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR の読み取り結果を開くボタン (0.8.602)。QrAction / QrActionLauncher -->
+    <string name="qr_action_open">열기</string>
+    <string name="qr_action_dial">전화 화면 열기</string>
+    <string name="qr_action_email">메일 작성</string>
+    <string name="qr_action_sms">SMS 작성</string>
+    <string name="qr_action_wifi">Wi-Fi에 연결</string>
+    <string name="qr_action_contact">연락처에 추가</string>
+    <string name="qr_action_event">일정에 추가</string>
+    <string name="qr_action_no_app">이 기기에는 열 수 있는 앱이 없습니다.</string>
+    <string name="qr_action_wifi_copied">Wi-Fi 비밀번호를 복사했습니다. 목록에서 네트워크를 고르고 붙여 넣으세요.</string>
+    <!-- ⚙設定の「QRツール」(0.8.602)。SettingsGroup.QR_TOOLS -->
+    <string name="settings_group_qr_tools">QR 도구</string>
+    <string name="settings_group_qr_tools_desc">카메라나 이미지에서 읽기, QR 만들기</string>
+    <string name="settings_qr_tools_open">QR 도구 열기</string>
+    <string name="settings_qr_tools_hint">z2-qr로 카메라 읽기를 시작할 수 있습니다. 빠른 설정 타일이나 엣지 패널에 둘 수 있습니다.</string>
+</resources>

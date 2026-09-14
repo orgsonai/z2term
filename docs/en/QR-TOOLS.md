@@ -1,12 +1,12 @@
 # QR tools and self-hosted relay setup
 
-Applies to 0.8.601-alpha (versionCode 609).
+Applies to 0.8.602-alpha (versionCode 610).
 
 ## Read and display QR codes
 
-Open **Command sheet → QR in the Snippets or Connections tab header** to read camera frames or images. Choose a result when an image contains multiple QRs. Camera permission is requested on demand and is unnecessary for images. Images are processed locally; Linux and a separate barcode app are unnecessary.
+Open **Settings › QR tools › Open QR tools** to read camera frames or images. `z2-qr` in the terminal opens QR tools with the camera scanning; assign it to a quick-settings tile (`z2-tile set 1 z2-qr`) or an edge panel. Choose a result when an image contains multiple QRs. Camera permission is requested on demand and is unnecessary for images. Images are processed locally; Linux and a separate barcode app are unnecessary.
 
-QR sits next to “+ New” in the header. Imported connections and commands are saved to that list. The top of the command sheet is only the drag handle, which closes the sheet when tapped (0.8.601).
+The entry sat at the top of the command sheet in 0.8.597 and in the Snippets and Connections headers in 0.8.601; 0.8.602 moved it to Settings and `z2-qr`. The top of the command sheet is only the drag handle, which closes the sheet when tapped.
 
 **Receive from another app**: Share a photo or screenshot to **z2term — QR** to decode its image. Camera/QR apps can also share decoded URLs or text to this target. If the source app has no sharing action, copy and paste the result into the QR screen. This is separate from the existing z2term target for terminal input and file intake.
 
@@ -14,14 +14,23 @@ A request accepts up to 8 images or 4,096 text characters. Images take priority 
 
 Supported SSH and named-command QR links can also open the review screen through another camera app's Open action. HTTP/HTTPS URLs use the source app's Share action.
 
-Review content before choosing an action. Scanning alone never executes commands or connects.
+Review content before choosing an action. Scanning alone never executes commands or connects. Openable content opens in its app only when you press its Open button (0.8.602).
 
 | Content | Actions |
 |---|---|
-| HTTP / HTTPS URL | Open in browser, copy, show QR |
+| HTTP / HTTPS URL | Open (in an app that accepts it, such as a LINE login URL; otherwise a browser), copy, show QR |
+| App links (`//` schemes such as `line://`, or `geo:` and similar) | Open in an app that accepts the link, copy, show QR |
+| Phone number (`tel:`) | Open the dialer (does not call) |
+| Email (`mailto:`, MATMSG) | Compose email |
+| SMS (`sms:`, `smsto:`, SMSTO) | Compose SMS |
+| Wi-Fi (`WIFI:`) | Connect to Wi-Fi (Android 11+ for WPA/WPA2, WPA3 and open networks; Android 10, WEP and others open Wi-Fi settings and copy the password) |
+| Contact (vCard, MECARD) | Add to contacts (review in the add screen before saving) |
+| Event (iCalendar VEVENT) | Add to calendar (review in the add screen before saving) |
 | SSH endpoint | Save host, port and username as a new profile |
 | Short single-line command | Insert into terminal, save snippet, add to edge, generate named command QR |
 | Other text | Copy, show QR. Multiline/control-character content cannot be inserted |
+
+`javascript:`, `file:`, `content:`, `data:`, `intent:` and similar links never open. `word:value` text without `//` (for example `Order:123`) stays text. The screen reports when no app can open the content.
 
 Insertion does not send Enter. Review before executing. Edge imports create a new hidden panel; enable its handle in panel management. Existing settings are not overwritten. Referenced scripts, images, note contents and entire panels are not bundled.
 

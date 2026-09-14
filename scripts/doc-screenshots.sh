@@ -268,7 +268,7 @@ scene() {
       ;;
     qr-tools)
       front
-      say "📜 →「接続先」タブ見出しの「QR」。内容欄に https://example.com を入れて QR を表示した状態。"
+      say "⚙設定 →「QRツール」→「QRツールを開く」。内容欄に https://example.com を入れ、「開く」ボタンが出た状態。"
       shoot "$name"
       ;;
     relay-share)

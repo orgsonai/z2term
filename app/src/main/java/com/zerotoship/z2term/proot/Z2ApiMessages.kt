@@ -261,6 +261,43 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
     """.trimMargin()
     )
 
+    val qrHelp: String = t(
+        en = """
+        |# z2-qr … open QR tools with the camera already scanning.
+        |# After a scan, one button opens the content in its app (browser, LINE and other apps,
+        |# dialer, mail, SMS, Wi-Fi, contacts, calendar). Nothing opens by itself.
+        |# Put it on a quick-settings tile or an edge panel.
+    """.trimMargin(),
+        ja = """
+        |# z2-qr … QRツールをカメラで読み取る状態で開く。
+        |# 読み取ると、中身に合った「開く」ボタンが 1 つ出ます (ブラウザー・LINE などのアプリ・
+        |# 電話・メール・SMS・Wi-Fi・連絡先・予定)。読み取っただけでは開きません。
+        |# クイック設定のタイルやエッジパネルに置けます。
+    """.trimMargin(),
+        "zh-CN" to """
+        |# z2-qr … 打开 QR 工具并直接用相机扫描。
+        |# 扫描后会出现一个与内容对应的「打开」按钮 (浏览器、LINE 等应用、电话、邮件、短信、
+        |# Wi-Fi、联系人、日程)。只扫描不会自动打开。可以放到快捷设置磁贴或边缘面板上。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-qr … 開啟 QR 工具並直接用相機掃描。
+        |# 掃描後會出現一個與內容對應的「開啟」按鈕 (瀏覽器、LINE 等應用程式、電話、郵件、簡訊、
+        |# Wi-Fi、聯絡人、行事曆)。只掃描不會自動開啟。可以放到快速設定圖塊或邊緣面板上。
+    """.trimMargin(),
+        "es" to """
+        |# z2-qr … abre las herramientas QR con la cámara ya leyendo.
+        |# Tras leer, un botón abre el contenido en su app (navegador, LINE y otras apps, teléfono,
+        |# correo, SMS, Wi-Fi, contactos, calendario). Nada se abre solo.
+        |# Puedes ponerlo en un mosaico de ajustes rápidos o en un panel lateral.
+    """.trimMargin(),
+        "ko" to """
+        |# z2-qr … 카메라로 읽는 상태로 QR 도구를 엽니다.
+        |# 읽고 나면 내용에 맞는 「열기」 버튼이 하나 나옵니다 (브라우저, LINE 등의 앱, 전화, 메일,
+        |# SMS, Wi-Fi, 연락처, 일정). 읽기만 해서는 열리지 않습니다.
+        |# 빠른 설정 타일이나 엣지 패널에 둘 수 있습니다.
+    """.trimMargin()
+    )
+
     val shareHelp: String = t(
         en = """
         |# z2-share <text> … hand text to Android's share sheet (send it on to another app).

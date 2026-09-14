@@ -278,6 +278,7 @@ prerequisite → 3-A).
 | `z2-battery` | `z2-battery` | Battery state | `{"level":N,"charging":bool}` |
 | `z2-share` | `z2-share "text"` | Share sheet | — |
 | `z2-open` | `z2-open <URL\|path>` | Open in the default app | — |
+| `z2-qr` | `z2-qr` | Open QR tools with the camera scanning | — |
 | `z2-intent` | see below | Fire an arbitrary Intent | — |
 | `z2-state` | `z2-state [key]` | **Current device state** (see below) | JSON, or the raw value for a key |
 | `z2-screen` | `z2-screen keepon 1h` / `keepon off` / `status` | **Hold off the automatic screen timeout, with a deadline** (below) | state JSON |

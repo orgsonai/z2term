@@ -9,7 +9,6 @@
     <string name="qr_tools_intro">使用相機或圖片讀取。確認內容後再選擇操作。</string>
     <string name="qr_tools_copy">複製</string>
     <string name="qr_tools_show">顯示 QR</string>
-    <string name="qr_tools_open_url">在瀏覽器中開啟網址</string>
     <string name="qr_tools_save_ssh">儲存 SSH 連線</string>
     <string name="qr_tools_ssh_note">僅包含主機、連接埠和使用者名稱。在連線編輯器中設定驗證，連線時確認主機金鑰。</string>
     <string name="qr_tools_name">名稱（選填）</string>

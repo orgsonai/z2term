@@ -1355,6 +1355,41 @@ fun SettingsSheet(
                 }
             }
 
+            SettingsGroupSection(SettingsGroup.QR_TOOLS) {
+                // QR ツールの入口 (0.8.602)。行ごと押せると分かるよう、ライセンスの行と同じ「枠 + ›」にする。
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { com.zerotoship.z2term.qr.QrToolsActivity.open(context) }
+                        .background(ZtsBgCard)
+                        .border(width = 1.dp, color = ZtsBorder, shape = RoundedCornerShape(4.dp))
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_qr_tools_open),
+                        color = ZtsTextPrimary,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                    Box(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "›",
+                        color = ZtsTextSecondary,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.settings_qr_tools_hint),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
             SettingsGroupSection(SettingsGroup.MAINTENANCE) {
                 Spacer(modifier = Modifier.height(4.dp))
 

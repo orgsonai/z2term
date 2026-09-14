@@ -75,6 +75,20 @@ enum class SettingsGroup(
         false
     ),
 
+    /**
+     * QR ツール (0.8.602)。カメラ・画像の読み取りと QR の作成を開く入口。
+     *
+     * ⚠ アプリロックと同じく**見出しをそのまま機能の名前にする**。コマンド一覧の取っ手の横
+     * (0.8.597) や接続先・スニペットの見出し (0.8.601) に置いたが、どちらもその場所の機能に見えて
+     * 違和感があった (利用者の指摘)。どこからでも呼べる入口は `z2-qr` (タイル・エッジパネル)。
+     */
+    QR_TOOLS(
+        "qr_tools",
+        R.string.settings_group_qr_tools,
+        R.string.settings_group_qr_tools_desc,
+        false
+    ),
+
     /** 端末リセット / キャッシュ削除 / 設定の初期化 */
     MAINTENANCE(
         "maintenance",

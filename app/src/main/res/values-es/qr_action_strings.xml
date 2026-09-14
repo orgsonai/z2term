@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR の読み取り結果を開くボタン (0.8.602)。QrAction / QrActionLauncher -->
+    <string name="qr_action_open">Abrir</string>
+    <string name="qr_action_dial">Abrir el teclado del teléfono</string>
+    <string name="qr_action_email">Redactar correo</string>
+    <string name="qr_action_sms">Redactar SMS</string>
+    <string name="qr_action_wifi">Conectar a la Wi-Fi</string>
+    <string name="qr_action_contact">Añadir a contactos</string>
+    <string name="qr_action_event">Añadir al calendario</string>
+    <string name="qr_action_no_app">Ninguna app de este dispositivo puede abrirlo.</string>
+    <string name="qr_action_wifi_copied">Se copió la contraseña de la Wi-Fi. Elige la red en la lista y pégala.</string>
+    <!-- ⚙設定の「QRツール」(0.8.602)。SettingsGroup.QR_TOOLS -->
+    <string name="settings_group_qr_tools">Herramientas QR</string>
+    <string name="settings_group_qr_tools_desc">Leer desde la cámara o imágenes y crear códigos QR</string>
+    <string name="settings_qr_tools_open">Abrir herramientas QR</string>
+    <string name="settings_qr_tools_hint">z2-qr empieza a leer con la cámara. Puedes ponerlo en un mosaico de ajustes rápidos o en un panel lateral.</string>
+</resources>

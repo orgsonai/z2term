@@ -141,6 +141,11 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |exec /usr/local/bin/z2api 0 open "${d}1"
     """.trimMargin() + "\n"
 
+    val qr = "#!/bin/sh\n" + m.qrHelp + "\n" + helpCase + """
+        |[ ${d}# -eq 0 ] || { echo "usage: z2-qr" >&2; exit 1; }
+        |exec /usr/local/bin/z2api 0 qr
+    """.trimMargin() + "\n"
+
     val clip = "#!/bin/sh\n" + m.clipHelp + "\n" + helpCase + """
         |case "${d}1" in
         |  get) exec /usr/local/bin/z2api 1 clip-get ;;
@@ -948,6 +953,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-toast" to toast,
         "z2-share" to share,
         "z2-open" to open,
+        "z2-qr" to qr,
         "z2-img" to img,
         "z2-clip" to clip,
         "z2-battery" to battery,

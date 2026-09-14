@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR の読み取り結果を開くボタン (0.8.602)。QrAction / QrActionLauncher -->
+    <string name="qr_action_open">開く</string>
+    <string name="qr_action_dial">電話の画面を開く</string>
+    <string name="qr_action_email">メールを作成</string>
+    <string name="qr_action_sms">SMSを作成</string>
+    <string name="qr_action_wifi">Wi-Fiに接続</string>
+    <string name="qr_action_contact">連絡先に追加</string>
+    <string name="qr_action_event">予定に追加</string>
+    <string name="qr_action_no_app">この端末に開けるアプリがありません。</string>
+    <string name="qr_action_wifi_copied">Wi-Fiのパスワードをコピーしました。一覧からネットワークを選んで貼り付けてください。</string>
+    <!-- ⚙設定の「QRツール」(0.8.602)。SettingsGroup.QR_TOOLS -->
+    <string name="settings_group_qr_tools">QRツール</string>
+    <string name="settings_group_qr_tools_desc">カメラ・画像からの読み取りとQRの作成</string>
+    <string name="settings_qr_tools_open">QRツールを開く</string>
+    <string name="settings_qr_tools_hint">z2-qr でカメラから読み取りを始められます。クイック設定のタイルやエッジパネルに割り当てられます。</string>
+</resources>

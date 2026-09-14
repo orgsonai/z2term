@@ -295,6 +295,8 @@ object Z2ApiBridge {
             "toast" -> { val msg = args.joinToString(" "); mainHandler.post { Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }; null }
             "share" -> { doShareText(context, args.joinToString(" ")); null }
             "open" -> { doOpen(context, args.getOrNull(0).orEmpty()); null }
+            // z2-qr (0.8.602): カメラで読み取る状態の QR ツール。タイルやエッジパネルから呼ぶ入口。
+            "qr" -> { com.zerotoship.z2term.qr.QrToolsActivity.scan(context); null }
             "clip-set" -> { val text = args.joinToString(" "); runOnMain { setClipboard(context, text) }; null }
             "clip-get" -> runOnMainSync { getClipboard(context) }
             "battery" -> batteryJson(context)

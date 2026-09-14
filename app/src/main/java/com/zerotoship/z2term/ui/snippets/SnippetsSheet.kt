@@ -69,7 +69,6 @@ import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.snippets.Snippet
 import com.zerotoship.z2term.snippets.SnippetGroup
 import com.zerotoship.z2term.snippets.SnippetStore
-import com.zerotoship.z2term.ui.components.QrEntryButton
 import com.zerotoship.z2term.ui.components.REORDER_SETTLE_MS
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.settings.ServersBody
@@ -151,7 +150,7 @@ fun SnippetsSheet(
         contentColor = ZtsTextPrimary,
         scrimColor = Color.Black.copy(alpha = 0.55f),
         contentWindowInsets = { WindowInsets.systemBars },
-        // 取っ手だけ (タップで閉じる)。QR は SSH・コマンドの見出しへ移した ([QrEntryButton])。
+        // 取っ手だけ (タップで閉じる)。QR ツールは ⚙設定と z2-qr から開く (0.8.602)。
         dragHandle = { Z2TermDragHandle(onClose = requestClose) }
     ) {
         BackHandler {
@@ -656,7 +655,6 @@ private fun ListHeader(onNew: () -> Unit) {
             fontFamily = FontFamily.Monospace
         )
         Box(modifier = Modifier.weight(1f))
-        QrEntryButton(Modifier.padding(end = 8.dp))
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))

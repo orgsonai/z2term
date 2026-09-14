@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR の読み取り結果を開くボタン (0.8.602)。QrAction / QrActionLauncher -->
+    <string name="qr_action_open">開啟</string>
+    <string name="qr_action_dial">開啟撥號畫面</string>
+    <string name="qr_action_email">撰寫郵件</string>
+    <string name="qr_action_sms">撰寫簡訊</string>
+    <string name="qr_action_wifi">連線到 Wi-Fi</string>
+    <string name="qr_action_contact">新增到聯絡人</string>
+    <string name="qr_action_event">新增到行事曆</string>
+    <string name="qr_action_no_app">這台裝置上沒有能開啟它的應用程式。</string>
+    <string name="qr_action_wifi_copied">已複製 Wi-Fi 密碼。請在清單中選擇網路並貼上。</string>
+    <!-- ⚙設定の「QRツール」(0.8.602)。SettingsGroup.QR_TOOLS -->
+    <string name="settings_group_qr_tools">QR 工具</string>
+    <string name="settings_group_qr_tools_desc">從相機或圖片讀取，以及產生 QR 碼</string>
+    <string name="settings_qr_tools_open">開啟 QR 工具</string>
+    <string name="settings_qr_tools_hint">用 z2-qr 可以直接開始用相機讀取。可以指定到快速設定圖塊或邊緣面板。</string>
+</resources>

@@ -9,7 +9,6 @@
     <string name="qr_tools_intro">カメラまたは画像から読み取ります。内容を確認してから操作を選んでください。</string>
     <string name="qr_tools_copy">コピー</string>
     <string name="qr_tools_show">QRを表示</string>
-    <string name="qr_tools_open_url">ブラウザーでURLを開く</string>
     <string name="qr_tools_save_ssh">SSH接続先を保存</string>
     <string name="qr_tools_ssh_note">ホスト・ポート・ユーザー名だけを扱います。認証情報は接続先の編集で設定し、ホスト鍵は接続時に確認します。</string>
     <string name="qr_tools_name">登録名（任意）</string>

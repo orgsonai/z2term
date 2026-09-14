@@ -9,7 +9,6 @@
     <string name="qr_tools_intro">用相机或图片读取。确认内容后再选择操作。</string>
     <string name="qr_tools_copy">复制</string>
     <string name="qr_tools_show">显示二维码</string>
-    <string name="qr_tools_open_url">在浏览器中打开网址</string>
     <string name="qr_tools_save_ssh">保存 SSH 连接</string>
     <string name="qr_tools_ssh_note">仅包含主机、端口和用户名。在连接编辑器中配置认证，连接时确认主机密钥。</string>
     <string name="qr_tools_name">名称（可选）</string>

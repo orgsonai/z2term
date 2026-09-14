@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.601-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.602-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -767,6 +767,8 @@ Pick "End session only" for a clean slate, or "Stop everything and quit" to stop
 
 **QR entry and sharing screens (0.8.601)**: Open QR from the Snippets or Connections tab header, next to “+ New”. The top of the command sheet is only the drag handle, which closes it when tapped. QR tools and Share files through a relay now match the command sheet, and the relay entry at the bottom of the Servers tab is a row with a chevron. See 9.6 for the first edge panel and its guide.
 
+**Open what you scan (0.8.602)**: After a scan, one Open button matches the content. For a LINE login QR, it opens LINE's confirmation screen. Phone numbers open the dialer, mail and SMS open a compose screen, Wi-Fi opens the connection screen, and contacts and events open an add screen. Nothing opens by itself. Open QR tools from Settings › QR tools. `z2-qr` in the terminal opens them with the camera scanning, so you can put it on a quick-settings tile (`z2-tile set 1 z2-qr`) or an edge panel.
+
 ---
 
 ## 9.5. Home screen widget (use it without opening the app)
@@ -1180,6 +1182,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-toast "message"` | Toast (short message at the bottom of the screen) |
 | `z2-share "text"` | Hand text to Android's share sheet |
 | `z2-open <URL or path>` | Open a URL or file in the default app |
+| `z2-qr` | Scan a QR code with the camera and show one Open button for its content |
 | `z2-img [-w COLS] [-r ROWS] [--clear] <file>...` | **Draw a picture in the terminal** (0.8.495). PNG / JPEG / WebP / GIF / BMP. Pass `-` to read one image from stdin (`curl -s <url> \| z2-img -`). By default it **fits the terminal width**; `-w` (columns) and `-r` (rows) set it explicitly. `--clear` removes every picture drawn so far. Given several files, it prints each name on its own line before the picture. ⚠ **Pictures only appear in a z2term tab, or in a terminal that speaks the kitty graphics protocol.** Over `ssh` or inside a pager you just get gibberish. ⚠ By default it **only writes to a terminal** — down a pipe or into a file the bytes are indistinguishable from garbage — so pass `-f` if you really mean it. ⚠ The aspect ratio assumes a cell is twice as tall as it is wide; if it looks squashed, tune it with `Z2_IMG_ASPECT=0.45 z2-img photo.jpg` (smaller = taller). ⚠ **Large photos are subsampled while decoding** (4 megapixels max). Only a few hundred pixels ever reach the screen, so nothing looks different, but the original resolution is not kept in memory |
 | `z2-clip get` / `z2-clip set [text]` | Get / set the clipboard (set reads stdin if no argument). ⚠ **Writing only works while you are looking at z2term** (or while z2term is the input method you use) — since Android 10 a `set` from a macro running in the background is dropped silently. For macros triggered by calls, SMS or notifications, use the `z2-notify -c` copy button instead (0.8.335) |
 | `z2-battery` | Show battery level / charging state (JSON) |
