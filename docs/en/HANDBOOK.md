@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.602-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.603-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -675,6 +675,8 @@ Settings are split into **9 groups** (Display / "Keyboard, input / Language" / L
 
 > **How to use (Tips)** (0.8.399): double taps, long presses, flicks — the gestures that **show nothing on screen** are collected here. That toolbar buttons have a second function, how to close and reorder tabs, the ESC and ⌫ flicks, scrolling inside a GUI app, that `z2gui clean` reinstalls the GUI when the desktop stops coming up (0.8.519), that typing `z2term` lists the built-in commands, and that an AI can write your macros. These are things you would never run into by accident, so open it once.
 
+**Action automation look (0.8.603)**: Command list → Automation → Action automation now looks like the Automation rules tab: monospace headings and text, bordered rows, bordered buttons and hint boxes. Each row ends with ▶ to run, Duplicate, ✎ to edit and ✕ to delete. Confirmation, step editing and picker dialogs use the app's colours. The floating bar shown while picking coordinates is unchanged. The Action automation / Automation rules subtab labels are monospace too.
+
 **Notes and action macros (0.8.586)**: Double-tap an edge-panel note to begin editing; a single tap leaves the keyboard closed. Command list → Automation → Action automation directly contains the macro list, creation, editing, duplication, running, stopping and history. Switching tabs, closing or going back confirms unsaved changes. Coordinate picking returns to the editor inside the original tab. Build and device behavior not yet verified.
 
 **Command list tabs (0.8.583, 0.8.584)**: Top tabs return to equal-width rounded buttons, with a green border and tinted background when selected and 12sp monospace labels on one line. The Action automation / Automation rules subtabs retain the newer underline design. The fixed top position and restored tab selection remain available.
@@ -768,6 +770,8 @@ Pick "End session only" for a clean slate, or "Stop everything and quit" to stop
 **QR entry and sharing screens (0.8.601)**: Open QR from the Snippets or Connections tab header, next to “+ New”. The top of the command sheet is only the drag handle, which closes it when tapped. QR tools and Share files through a relay now match the command sheet, and the relay entry at the bottom of the Servers tab is a row with a chevron. See 9.6 for the first edge panel and its guide.
 
 **Open what you scan (0.8.602)**: After a scan, one Open button matches the content. For a LINE login QR, it opens LINE's confirmation screen. Phone numbers open the dialer, mail and SMS open a compose screen, Wi-Fi opens the connection screen, and contacts and events open an add screen. Nothing opens by itself. Open QR tools from Settings › QR tools. `z2-qr` in the terminal opens them with the camera scanning, so you can put it on a quick-settings tile (`z2-tile set 1 z2-qr`) or an edge panel.
+
+**QR history (0.8.603)**: Scanned content stays in a history below QR tools. Tap an entry to show it in the content field again; long-press to pin or delete it. Clear all keeps pinned entries. Up to 50 unpinned entries are kept, newest first. Content made with Show QR is not added. History stays on this device only and includes content such as Wi-Fi passwords.
 
 ---
 
@@ -873,7 +877,7 @@ when a `z2-when` rule fired **without opening the app**.
 
 ## 9.6. Floating edge panels
 
-**First panel and guide (0.8.601)**: Turning panels on with no panels creates an app list opened from a bar on the right edge, and opens it. It lists the z2term, browser, camera, phone, messages and settings apps found on this device. Add apps with the panel's “+”. Scrolling by swiping the bar up and down requires the “z2term Android actions” accessibility service. Settings › Maintenance › Show a guide › “edge-panel” lets you tap through the overlay permission, the accessibility service and turning the panel on. With the panel open, long-press outside the menu to open settings.
+**Sample panel and guide (0.8.601, 0.8.603)**: Turning panels on does not create a panel. Settings › Maintenance › Show a guide › “edge-panel” lets you tap through the overlay permission, the accessibility service, creating the sample panel and turning the panel on. The sample is an app list opened from a bar on the right edge, listing the z2term, browser, camera, phone, messages and settings apps found on this device. Its guide card shows the exact `z2-edge panel` and `z2-edge set` line it sends. Swipe the bar inward to open it. Add apps with the panel's “+”. Scrolling by swiping the bar up and down requires the “z2term Android actions” accessibility service. With the panel open, long-press outside the menu to open settings. 0.8.601–0.8.602 created the sample automatically when panels were turned on with none defined.
 
 **ON/OFF buttons (0.8.589)**: In the panel editor, edit an application, macro or run item and enable **Show ON/OFF**. ON uses a thicker coloured border and background; OFF uses a subtle border. No ON/OFF text or check marks are added to the menu, including icon-only layouts. The optional OFF command defaults to the same command. A state query should return `on/off`, `true/false` or `1/0`. Without a query, successful toggles are remembered; external changes and application exits are not detected. Failed or timed-out commands do not flip the state. State survives reopening and app restart, and command-definition changes invalidate it. Queries run on opening, after successful actions and at the configured refresh interval. Macros can also report state with `z2-edge state PANEL:ITEM on` / `off`.
 

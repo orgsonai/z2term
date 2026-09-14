@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR ツールの履歴 (0.8.603)。QrHistorySection -->
+    <string name="qr_history_title">历史记录</string>
+    <string name="qr_history_clear">全部清除</string>
+    <string name="qr_history_clear_title">清除历史记录</string>
+    <string name="qr_history_clear_message">清除除已置顶项目以外的所有历史记录。</string>
+    <string name="qr_history_pin">置顶</string>
+    <string name="qr_history_unpin">取消置顶</string>
+    <string name="qr_history_delete">删除</string>
+    <string name="qr_history_pinned">已置顶</string>
+    <string name="qr_history_menu">置顶或删除</string>
+    <string name="qr_history_note">点按可重新显示内容。长按可置顶或删除。历史记录只将扫描的内容保存在本设备上，包括 Wi-Fi 密码等内容。未置顶的项目最多保留 50 条。</string>
+</resources>

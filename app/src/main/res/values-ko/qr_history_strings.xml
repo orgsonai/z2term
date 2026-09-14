@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR ツールの履歴 (0.8.603)。QrHistorySection -->
+    <string name="qr_history_title">기록</string>
+    <string name="qr_history_clear">모두 지우기</string>
+    <string name="qr_history_clear_title">기록 지우기</string>
+    <string name="qr_history_clear_message">고정한 항목을 제외한 모든 기록을 지웁니다.</string>
+    <string name="qr_history_pin">고정</string>
+    <string name="qr_history_unpin">고정 해제</string>
+    <string name="qr_history_delete">삭제</string>
+    <string name="qr_history_pinned">고정됨</string>
+    <string name="qr_history_menu">고정 또는 삭제</string>
+    <string name="qr_history_note">탭하면 내용을 다시 표시합니다. 길게 누르면 고정하거나 삭제할 수 있습니다. 기록은 읽은 내용을 이 기기에만 저장하며 Wi-Fi 비밀번호 같은 내용도 포함합니다. 고정하지 않은 항목은 50개까지 보관합니다.</string>
+</resources>

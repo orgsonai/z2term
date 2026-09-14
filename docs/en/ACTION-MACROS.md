@@ -36,7 +36,7 @@ Open Command list → Automation → Action automation. The list and editor appe
 4. Switch to Text to edit the complete definition. Comments, blank lines and untouched shell commands are preserved. Repair unsupported lines in text mode. More than 256 source rows open in text mode.
 5. Save uses the same validation as the CLI. Changing the name saves a separate copy and leaves the original intact. Existing names and definitions changed or deleted through the CLI while editing are protected from accidental replacement. Reopen a conflicting definition or save under another name.
 
-Tap a saved name to edit it; the list also offers duplication, execution and deletion. It shows execution state, step progress, a Stop button and up to 32 recent start/branch/end records. Macros run from this screen should start by launching their target app as needed. Rotation retains the name, definition and current step draft.
+Each row ends with ▶ to run, Duplicate, ✎ to edit and ✕ to delete (0.8.603). It shows execution state, step progress, a Stop button and up to 32 recent start/branch/end records. Macros run from this screen should start by launching their target app as needed. Rotation retains the name, definition and current step draft.
 
 Closing, going back or switching tabs checks for unsaved edits. Swipe dismissal is blocked while editing; use Close to confirm discarding changes.
 

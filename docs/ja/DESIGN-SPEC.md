@@ -1,6 +1,10 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-15 / 対象バージョン: 0.8.602-alpha (versionCode 610)
+最終更新: 2026-09-15 / 対象バージョン: 0.8.603-alpha (versionCode 611)
+
+**0.8.603-alpha（versionCode 611）**: QRツールに読み取りの履歴を付けました。タップで内容を表示し直し、長押しでピン留め・削除できます。「すべて消す」はピン留めしたものを残します。エッジパネルをONにしても、パネルを自動では作らなくなりました。代わりに案内「edge-panel」に、今までと同じアプリの見本入りパネルを作る手順を1つ足しました。この端末で見つかったアプリで組み立てた、既存の `z2-edge panel` と `z2-edge set` の1行を実行します。操作自動化タブの見た目を、コマンド一覧の他のタブに揃えました。等幅の見出しと文字、▶・複製・✎・✕ を右端に並べた枠付きの行、枠付きのボタン、説明の枠、アプリの配色のダイアログです。
+
+`QrHistory`（純関数）と `QrHistoryStore`（DataStore `z2term_qr_history` のJSON配列1キー）で履歴を持つ。記録するのは `QrToolsActivity` の `read`（カメラ・画像・複数候補の選択・他アプリからの共有）だけで、履歴から表示し直す `show` と「QRを表示」は記録しない。同じ内容は先頭へ上げてピン留めを保ち、ピン留め以外は新しい順に50件まで残す。表示はピン留め→新しい順。行の長押しは `DropdownMenu` でピン留め・削除、「すべて消す」は `ConfirmDialog` のあとピン留め以外を消す。アプリロック中は画面ごと出さない。エッジパネルの見本と案内、操作自動化の `ActionUi` は4.14を参照。
 
 **0.8.602-alpha（versionCode 610）**: QRを読み取ると、中身に合った「開く」ボタンを1つ出すようにしました。URLはLINEなどのアプリかブラウザーで開き、電話番号は発信前の画面、メール・SMSは作成画面、Wi-Fiは接続画面、連絡先・予定は追加画面を開きます。読み取っただけでは開きません。z2termのコマンドとSSH接続先は従来どおり確認画面で扱います。QRツールの入口はスニペット・接続先の見出しから外し、⚙設定 →「QRツール」と、カメラで読み取る状態で開く `z2-qr` コマンドにしました。`z2-qr` はクイック設定のタイルやエッジパネルに割り当てられます。
 
@@ -2223,7 +2227,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 
 ### 4.14 エッジパネル (`edge/`、0.8.549)
 
-**初めてのパネル（0.8.601）**: `EdgeStore.ensureInitialPanel` はパネルが1枚も無いときだけ `main` を作り、既存の定義を置き換えない。形は `EdgeDefaultPanel.fields`（`handle=bar side=right offset=31.5 size=8 length=8 alpha=0.2 width=14% height=47% flow=vertical labels=off add=on settings=on`、`actions-up`/`actions-down` は `scroll-variable`、`gesture-speed=40000 gesture-range=400`）。項目は作成時だけ、自身・`ACTION_VIEW https`（BROWSABLE）・`STILL_IMAGE_CAMERA`・`ACTION_DIAL`・`SENDTO smsto:`・`ACTION_SETTINGS` の順に解決する。既定アプリが選ばれていればそれを使い、未選択なら候補のシステムアプリが1つだけのときに採用する。起動可能なものに限り、パッケージで重複を除く。`z2-intent -p PKG` に `--window freeform` を付けるのは freeform 対応端末（`FEATURE_FREEFORM_WINDOW_MANAGEMENT` または `enable_freeform_support=1`）だけ。項目の保存に失敗したら作った板を削除する。ONにした直後にその板を開く。案内 `edge-panel` は `z2-edge permission` → `z2-key permission` → `z2-edge on` → メニューの外の長押しで設定を開くことを伝える読むだけのカード、の順。
+**見本のパネル（0.8.601、0.8.603から案内のコマンド）**: ONにしてもパネルは作らない（利用者の判断。0.8.601〜0.8.602は、パネルが1枚も無いとONのときに `main` を作ってその場で開いていた。`EdgeStore.ensureInitialPanel` は削除）。見本は案内 `edge-panel` の手順が作る。`EdgeDefaultPanel.command` が案内を出すときに（`GuideStep.commandOf`）、既存の `z2-edge panel main …` と項目ごとの `z2-edge set main:app_N …` を `&&` でつないだ1行を組み立てる。新しいサブコマンドは作らない。ASCII英数字と `_@%+=:,./-` 以外を含む語はシングルクォートで囲む。組み立てに失敗した手順は案内に出さない。形は `EdgeDefaultPanel.fields`（`handle=bar side=right offset=31.5 size=8 length=8 alpha=0.2 width=14% height=47% flow=vertical labels=off add=on settings=on`、`actions-up`/`actions-down` は `scroll-variable`、`gesture-speed=40000 gesture-range=400`）、`label` は `edge_default_panel`。項目は案内を出すときに、自身・`ACTION_VIEW https`（BROWSABLE）・`STILL_IMAGE_CAMERA`・`ACTION_DIAL`・`SENDTO smsto:`・`ACTION_SETTINGS` の順に解決する。既定アプリが選ばれていればそれを使い、未選択なら候補のシステムアプリが1つだけのときに採用する。起動可能なものに限り、パッケージで重複を除く。`z2-intent -p PKG` に `--window freeform` を付けるのは freeform 対応端末（`FEATURE_FREEFORM_WINDOW_MANAGEMENT` または `enable_freeform_support=1`）だけ。`main` が既にあれば、指定したキーと `app_N` の項目を上書きし、それ以外は残す。案内 `edge-panel` は `z2-edge permission` → `z2-key permission` → 見本のパネルを作る1行 → `z2-edge on` → メニューの外の長押しで設定を開くことを伝える読むだけのカード、の順。バーは `open` 未指定なので内側へのスワイプで開く。
 
 **ON/OFFボタン（0.8.589）**: `type=run button-state=on` はアプリ・マクロの実行項目にON/OFF表示を追加する。ONはアクセント色の太い枠と背景色、OFFは薄い枠と透明な背景で示す。メニューに状態の文字やチェックは追加せず、アイコン・項目名の配置を使う。アイコンのみの配置でも同様。アクセシビリティには状態説明を提供する。`run` はON用、`off` はOFF用（省略時は同じコマンド）。`state` があれば開いた時・実行成功後・`every` の間隔で状態を取得し、`on/off`・`true/false`・`1/0` だけを受理する。`state` がない場合は終了コード0で成功した時だけ記録を反転し、失敗・タイムアウトは保持する。この記録は外部での変更やアプリの生存を表すものではない。`z2-edge state PANEL:ITEM on|off` でマクロ側から実態を通知でき、通知後に古い読み取り結果や実行結果を上書きしない。記録は項目ごとの `.button-state` に保存し、実行・OFF・状態取得コマンドの変更で無効化する。定義を変更・削除した後の旧実行結果も拒否する。通常の実行項目は既定でOFF表示を付けない。
 
@@ -2247,6 +2251,8 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - **一覧は1マクロ1行**: 名前は等幅（識別子なので）、行そのもののタップで編集、右端に実行・複製・削除。実行状態と停止は**枠付きの1ブロック**にまとめ、一覧の途中に置かない。⚠ ユーザー補助の許可は**前提**なので一覧の上に置く（下に置くと、動かない理由が一番遠くにある）。
 - **手順は番号を独立した桁に置き、行そのものは等幅で出す**。マクロは読み物ではなくリスティングで、`tap percent 50 40` のような行は桁が揃って初めて読める。入れ子（繰り返し・条件分岐）は左の罫線と字下げ（`EdgeSettingsUi.indent`）にして、2段より深くても追える。
 - **制限時間・画面は「名前の下に現在値」の行**にする。値をボタンの label へ埋めていたので、設定するたびにボタンの幅が変わっていた。
+
+**操作自動化をコマンド一覧の部品に揃える（`ActionUi`、0.8.603）**: 利用者の指摘で `EdgeSettingsUi` をやめ、`ActionUi` で `WhenRulesBody` と同じ寸法・色を View のまま出す（保存・下書き・ロック・座標取得からの復帰は変えない）。本文は左右16dp・上10dp・下24dp・間隔10dp。見出しは緑の等幅18sp（編集中は16sp）で、右に「新規作成」「閉じる」の `PillButton` 相当。一覧は1マクロ1枚の枠付きの行（bgCard・1dp枠・角丸8dp）で、名前は等幅13sp、右端に ▶・複製・✎・✕ の `IconCell` 相当を置く（行のタップで編集する形はやめ、✎ にした）。複製はどのフォントでも読める記号が無いので文字のまま。手順も枠付きの行で、番号の桁・等幅の行・⋮ を並べ、入れ子は左の罫線と字下げ。説明は `HintBox` 相当、入力は `Field` 相当、選択欄は同じ枠に ▾ を付ける。確認・手順編集・一覧からの選択は端末標準の `AlertDialog` をやめ、`ConfirmDialog` と同じ見た目の `ActionUi.modal` / `ActionUi.choices`（地 bgCard・等幅・右下の文字ボタン）にした。やめる・戻る・外側のタップは `cancel` を通り、手順編集の下書き破棄も同じ経路。⚠ `EdgeSettingsUi` は変えない（エッジパネルの編集画面が変わる）。座標取得の浮かぶ操作欄（`ActionCoordinatePicker`）は対象外。小タブ「操作自動化／自動化ルール」の文字も等幅にした。
 - ⚠ **プラットフォームのダイアログは枠だけ相手のもの、中身にはこちらの地を敷く。** テーマがライトでシステムがダークだと、暗い地の前提で選んだ文字色が明るいダイアログに乗り、**読めなくなる**（逆も同じ）。手順編集・アプリ選択・履歴・ヘッダ編集のすべてで敷く。
 - **座標取得の重ね表示**も同じ地と枠にし、左右に余白を取って「相手のアプリの上に浮いている」ことを見せる。なぞった線の色は決め打ちのオレンジからアクセントへ。
 

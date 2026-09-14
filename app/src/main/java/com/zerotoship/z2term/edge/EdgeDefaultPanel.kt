@@ -7,19 +7,42 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.Settings
+import com.zerotoship.z2term.R
 
 /**
- * The panel created the first time panels are turned on with no definitions (0.8.601).
+ * The sample app panel created by the edge-panel guide (0.8.601; a guide command from 0.8.603).
  *
  * It mirrors the app list panel used day to day: a thin bar on the right edge, one icon-only
  * column, add and settings buttons, and variable-speed scrolling on vertical swipes (accessibility).
- * Previously an empty "Main" panel appeared, which did not show what a panel is for.
  *
  * Only role apps present on every device are listed: z2term, browser, camera, phone, messages and
  * settings. Personally installed apps are not guessed. Roles without a resolvable app are skipped.
+ *
+ * ⚠ Turning panels on never creates it (0.8.603, the user's decision); 0.8.601-0.8.602 did so when no
+ * panel existed. Package names differ per device, so the guide builds its line when shown, from the
+ * existing `z2-edge panel` and `z2-edge set` commands. Do not add a subcommand for it (the user's decision).
  */
 internal object EdgeDefaultPanel {
     data class App(val packageName: String, val label: String)
+
+    const val PANEL_ID = "main"
+
+    /** The guide's line for this device. */
+    fun command(context: Context): String = command(context.getString(R.string.edge_default_panel),
+        items(resolve(context), AppLaunch.freeformSupported(context)))
+
+    /** `z2-edge panel main …`, then one `z2-edge set main:ID …` per item, joined with `&&`. */
+    fun command(label: String, items: Map<String, Map<String, String>>): String {
+        fun words(values: Map<String, String>) = values.map { (key, value) -> "$key=$value" }
+        val calls = listOf(listOf("z2-edge", "panel", PANEL_ID) + words(fields + ("label" to label))) +
+            items.map { (id, values) -> listOf("z2-edge", "set", "$PANEL_ID:$id") + words(values) }
+        return calls.joinToString(" && ") { call -> call.joinToString(" ", transform = ::shellWord) }
+    }
+
+    /** Plain words stay readable in the guide card; anything else is single-quoted for sh. */
+    fun shellWord(word: String): String =
+        if (word.isNotEmpty() && word.all { (it.isLetterOrDigit() && it.code < 128) || it in "_@%+=:,./-" }) word
+        else "'" + word.replace("'", "'\\''") + "'"
 
     val fields: Map<String, String> = linkedMapOf(
         "handle" to "bar", "side" to "right", "offset" to "31.5", "size" to "8", "length" to "8", "alpha" to "0.2",

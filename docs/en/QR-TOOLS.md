@@ -1,12 +1,14 @@
 # QR tools and self-hosted relay setup
 
-Applies to 0.8.602-alpha (versionCode 610).
+Applies to 0.8.603-alpha (versionCode 611).
 
 ## Read and display QR codes
 
 Open **Settings › QR tools › Open QR tools** to read camera frames or images. `z2-qr` in the terminal opens QR tools with the camera scanning; assign it to a quick-settings tile (`z2-tile set 1 z2-qr`) or an edge panel. Choose a result when an image contains multiple QRs. Camera permission is requested on demand and is unnecessary for images. Images are processed locally; Linux and a separate barcode app are unnecessary.
 
 The entry sat at the top of the command sheet in 0.8.597 and in the Snippets and Connections headers in 0.8.601; 0.8.602 moved it to Settings and `z2-qr`. The top of the command sheet is only the drag handle, which closes the sheet when tapped.
+
+**History (0.8.603)**: Scanned content stays in a history below QR tools. Tap an entry to show it in the content field again; long-press to pin or delete it. Clear all keeps pinned entries. Up to 50 unpinned entries are kept, newest first. Only content read from the camera, images or other apps' shares is recorded; Show QR content and entries shown again are not added. History stays on this device only and includes content such as Wi-Fi passwords. It is hidden while the app is locked.
 
 **Receive from another app**: Share a photo or screenshot to **z2term — QR** to decode its image. Camera/QR apps can also share decoded URLs or text to this target. If the source app has no sharing action, copy and paste the result into the QR screen. This is separate from the existing z2term target for terminal input and file intake.
 

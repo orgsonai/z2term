@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR ツールの履歴 (0.8.603)。QrHistorySection -->
+    <string name="qr_history_title">履歴</string>
+    <string name="qr_history_clear">すべて消す</string>
+    <string name="qr_history_clear_title">履歴を消す</string>
+    <string name="qr_history_clear_message">ピン留めしたもの以外の履歴をすべて消します。</string>
+    <string name="qr_history_pin">ピン留め</string>
+    <string name="qr_history_unpin">ピン留めを外す</string>
+    <string name="qr_history_delete">削除</string>
+    <string name="qr_history_pinned">ピン留め</string>
+    <string name="qr_history_menu">ピン留め・削除</string>
+    <string name="qr_history_note">タップで内容を表示し直します。長押しでピン留め・削除できます。履歴は読み取った内容をこの端末だけに保存し、Wi-Fiのパスワードなども含みます。ピン留めしていないものは50件まで残します。</string>
+</resources>

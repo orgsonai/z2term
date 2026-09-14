@@ -81,41 +81,61 @@ class EdgeStoreTest {
         rejects { EdgeStore.validatePanel(mapOf("gesture-up" to "echo one\necho two")) }
     }
 
-    @Test fun initialPanelDoesNotOverwriteExistingDefinitions() {
-        val dir = Files.createTempDirectory("edge-initial-test").toFile()
-        try {
-            val store = EdgeStore(dir)
-            assertTrue(store.ensureInitialPanel("Main"))
-            store.setPanel("main", mapOf("size" to "4", "label" to "Custom"))
-            store.setItem("main:action", mapOf("run" to "echo kept"))
-            assertFalse(store.ensureInitialPanel("Replacement"))
-            assertEquals("Custom", store.panel("main").fields["label"])
-            assertEquals("4", store.panel("main").fields["size"])
-            assertEquals("echo kept", store.item("main:action").command)
-        } finally { dir.deleteRecursively() }
-    }
-
-    @Test fun initialPanelListsAppsAndAddsFreeformOnlyWhenSupported() {
-        val dir = Files.createTempDirectory("edge-initial-apps-test").toFile()
+    @Test fun guideCommandBuildsTheSampleAppPanelWithExistingSubcommands() {
+        val dir = Files.createTempDirectory("edge-guide-panel-test").toFile()
         try {
             val apps = listOf(EdgeDefaultPanel.App("com.example.one", "One"),
                 EdgeDefaultPanel.App("com.example.one", "Duplicate"),
-                EdgeDefaultPanel.App("org.example.two", "Two\nLines"))
+                EdgeDefaultPanel.App("org.example.two", "Two's\nLines"))
+            val command = EdgeDefaultPanel.command("アプリ", EdgeDefaultPanel.items(apps, freeform = false))
             val store = EdgeStore(dir)
-            assertTrue(store.ensureInitialPanel("Apps") { EdgeDefaultPanel.items(apps, freeform = false) })
+            // Apply each call the way EdgeCommands does: `panel ID key=value…` and `set panel:item key=value…`.
+            command.split(" && ").forEach { call ->
+                val words = shellWords(call)
+                assertEquals(call, "z2-edge", words[0])
+                val fields = EdgeStore.parse(words.drop(3).joinToString("\n"))
+                when (words[1]) {
+                    "panel" -> store.setPanel(words[2], fields)
+                    "set" -> store.setItem(words[2], fields)
+                    else -> fail(call)
+                }
+            }
             val panel = store.panel("main")
-            assertEquals("Apps", panel.fields["label"])
+            assertEquals("アプリ", panel.fields["label"])
             assertEquals("right", panel.fields["side"])
+            assertEquals("14%", panel.fields["width"])
             assertEquals("scroll-variable", panel.fields["actions-up"])
-            assertEquals(listOf("One", "Two Lines"), panel.items.map { it.fields["label"] })
+            assertEquals(listOf("One", "Two's Lines"), panel.items.map { it.fields["label"] })
             assertEquals(listOf("com.example.one", "org.example.two"), panel.items.map { AppLaunchCommand.packageFrom(it.command) })
             assertEquals("full", AppLaunchCommand.modeFrom(panel.items.first().command))
             assertEquals("@app:org.example.two", panel.items.last().fields["icon"])
-            assertFalse(store.ensureInitialPanel("Again") { error("Existing panels must not look up apps") })
 
             val freeform = EdgeDefaultPanel.items(apps, freeform = true).values.first()
             assertEquals("freeform", AppLaunchCommand.modeFrom(freeform.getValue("run")))
         } finally { dir.deleteRecursively() }
+    }
+
+    /** The subset of sh quoting that [EdgeDefaultPanel.shellWord] produces: spaces, '…' and \'. */
+    private fun shellWords(line: String): List<String> {
+        val words = mutableListOf<String>()
+        val word = StringBuilder()
+        var quoted = false
+        var started = false
+        var i = 0
+        while (i < line.length) {
+            val c = line[i]
+            when {
+                quoted && c == '\'' -> quoted = false
+                quoted -> word.append(c)
+                c == '\'' -> { quoted = true; started = true }
+                c == '\\' && i + 1 < line.length -> { word.append(line[++i]); started = true }
+                c == ' ' -> if (started) { words += word.toString(); word.clear(); started = false }
+                else -> { word.append(c); started = true }
+            }
+            i++
+        }
+        if (started) words += word.toString()
+        return words
     }
 
     @Test fun itemDraftRejectsStaleEditsAndAllowsClearingOptionalFields() {

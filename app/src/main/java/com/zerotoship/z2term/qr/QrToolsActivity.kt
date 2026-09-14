@@ -82,6 +82,9 @@ internal open class QrToolsActivity : QrActivityBase() {
     @Composable private fun ToolsScreen() {
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
+        val scroll = rememberScrollState()
+        val history = remember { QrHistoryStore(applicationContext) }
+        val historyEntries by history.entries.collectAsState(initial = emptyList())
         val initialText = remember {
             if (receivesExternalContent) "" else intent.getStringExtra("text").orEmpty()
                 .takeIf { it.length <= QrContent.MAX_TEXT }.orEmpty()
@@ -99,11 +102,16 @@ internal open class QrToolsActivity : QrActivityBase() {
         val qrAction = remember(text) { QrAction.parse(text) }
         var notice by remember { mutableStateOf<Int?>(null) }
         var cameraRequested by rememberSaveable { mutableStateOf(false) }
-        val read: (String) -> Unit = { value ->
+        val show: (String) -> Unit = { value ->
             camera = false; qrText = ""; choices = emptyList(); incomingFailed = false; notice = null
             error = value.length > QrContent.MAX_TEXT || value.isBlank()
             text = if (error) "" else value
             name = runCatching { QrContent.parse(text).name }.getOrDefault("")
+        }
+        // 履歴に残すのは読み取った内容だけ (0.8.603・利用者の指定)。履歴から表示し直すときは show だけ。
+        val read: (String) -> Unit = { value ->
+            show(value)
+            if (!error) scope.launch { runCatching { history.add(value) } }
         }
         LaunchedEffect(Unit) {
             if (receivesExternalContent && !incomingHandled) {
@@ -168,7 +176,7 @@ internal open class QrToolsActivity : QrActivityBase() {
             }
         }
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars).imePadding()
-            .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
+            .verticalScroll(scroll).padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ToolScreenHeader(stringResource(R.string.qr_tools_title)) { finish() }
             ToolNote(stringResource(R.string.qr_tools_intro))
@@ -258,6 +266,17 @@ internal open class QrToolsActivity : QrActivityBase() {
                 ToolNote(stringResource(R.string.qr_tools_multiline))
             }
             if (qrText.isNotEmpty()) QrDisplay(qrText)
+            if (historyEntries.isNotEmpty()) {
+                QrHistorySection(
+                    entries = QrHistory.ordered(historyEntries),
+                    enabled = !busy,
+                    // 内容欄は上にあるので、表示し直したら先頭へ戻す。
+                    onOpen = { entry -> show(entry.text); scope.launch { scroll.animateScrollTo(0) } },
+                    onPin = { entry -> scope.launch { runCatching { history.setPinned(entry.text, !entry.pinned) } } },
+                    onDelete = { entry -> scope.launch { runCatching { history.remove(entry.text) } } },
+                    onClear = { scope.launch { runCatching { history.clearUnpinned() } } },
+                )
+            }
         }
     }
 

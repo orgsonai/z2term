@@ -4,6 +4,7 @@
     <string name="guide_desc_edge_panel">從螢幕邊緣的長條開啟應用程式清單</string>
     <string name="guide_step_edge_overlay">允許 z2term 顯示在其他應用程式上層</string>
     <string name="guide_step_edge_accessibility">在協助工具中開啟「z2term Android操作」（上下滑動長條捲動時需要）</string>
-    <string name="guide_step_edge_on">開啟面板（右側邊緣出現長條，並開啟應用程式清單）</string>
+    <string name="guide_step_edge_panel">建立範例面板（包含此裝置上找到的 z2term、瀏覽器、相機、電話、訊息和設定應用程式）</string>
+    <string name="guide_step_edge_on">開啟面板（右側邊緣出現長條，向內滑動即可開啟應用程式清單）</string>
     <string name="guide_step_edge_settings">面板開啟時，長按選單外側即可開啟設定畫面</string>
 </resources>

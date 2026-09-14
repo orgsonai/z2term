@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR ツールの履歴 (0.8.603)。QrHistorySection -->
+    <string name="qr_history_title">歷史紀錄</string>
+    <string name="qr_history_clear">全部清除</string>
+    <string name="qr_history_clear_title">清除歷史紀錄</string>
+    <string name="qr_history_clear_message">清除釘選項目以外的所有歷史紀錄。</string>
+    <string name="qr_history_pin">釘選</string>
+    <string name="qr_history_unpin">取消釘選</string>
+    <string name="qr_history_delete">刪除</string>
+    <string name="qr_history_pinned">已釘選</string>
+    <string name="qr_history_menu">釘選或刪除</string>
+    <string name="qr_history_note">輕觸可重新顯示內容。長按可釘選或刪除。歷史紀錄只會將掃描的內容儲存在此裝置上，包括 Wi-Fi 密碼等內容。未釘選的項目最多保留 50 筆。</string>
+</resources>

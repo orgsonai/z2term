@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR ツールの履歴 (0.8.603)。QrHistorySection -->
+    <string name="qr_history_title">Historial</string>
+    <string name="qr_history_clear">Borrar todo</string>
+    <string name="qr_history_clear_title">Borrar historial</string>
+    <string name="qr_history_clear_message">Se borra todo el historial excepto los elementos fijados.</string>
+    <string name="qr_history_pin">Fijar</string>
+    <string name="qr_history_unpin">Dejar de fijar</string>
+    <string name="qr_history_delete">Eliminar</string>
+    <string name="qr_history_pinned">Fijado</string>
+    <string name="qr_history_menu">Fijar o eliminar</string>
+    <string name="qr_history_note">Toca para volver a mostrarlo. Mantén pulsado para fijar o eliminar. El historial guarda lo que escaneas solo en este dispositivo, incluido contenido como contraseñas de Wi-Fi. Se conservan hasta 50 elementos no fijados.</string>
+</resources>

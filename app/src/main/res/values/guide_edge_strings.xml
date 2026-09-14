@@ -4,6 +4,7 @@
     <string name="guide_desc_edge_panel">Open an app list from a bar at the screen edge</string>
     <string name="guide_step_edge_overlay">Allow z2term to display over other apps</string>
     <string name="guide_step_edge_accessibility">Turn on the “z2term Android actions” accessibility service (used to scroll by swiping the bar up and down)</string>
-    <string name="guide_step_edge_on">Turn the panel on (a bar appears on the right edge and opens the app list)</string>
+    <string name="guide_step_edge_panel">Create a sample panel with the z2term, browser, camera, phone, messages and settings apps found on this device</string>
+    <string name="guide_step_edge_on">Turn the panel on (a bar appears on the right edge; swipe it inward to open the app list)</string>
     <string name="guide_step_edge_settings">With the panel open, long-press outside the menu to open its settings</string>
 </resources>

@@ -234,12 +234,10 @@ object EdgeRuntime {
     fun on(context: Context) = onMain {
         require(Settings.canDrawOverlays(context)) { context.getString(R.string.edge_overlay_help) }
         require(unlockedContext(context)) { "Unlock the screen before enabling the panel" }
-        val created = store(context).ensureInitialPanel(context.getString(R.string.edge_default_panel)) {
-            EdgeDefaultPanel.items(EdgeDefaultPanel.resolve(context), AppLaunch.freeformSupported(context))
-        }
+        // No panel is created here (0.8.603, the user's decision): the edge-panel guide creates the sample.
         initialize(context)
         store(context).enable(true)
-        try { reload(context); startService(); if (created) open("main") } catch (e: Exception) {
+        try { reload(context); startService() } catch (e: Exception) {
             store(context).enable(false); destroy(); throw e
         }
     }

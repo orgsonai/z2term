@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR ツールの履歴 (0.8.603)。QrHistorySection -->
+    <string name="qr_history_title">History</string>
+    <string name="qr_history_clear">Clear all</string>
+    <string name="qr_history_clear_title">Clear history</string>
+    <string name="qr_history_clear_message">Clears all history except pinned items.</string>
+    <string name="qr_history_pin">Pin</string>
+    <string name="qr_history_unpin">Unpin</string>
+    <string name="qr_history_delete">Delete</string>
+    <string name="qr_history_pinned">Pinned</string>
+    <string name="qr_history_menu">Pin or delete</string>
+    <string name="qr_history_note">Tap to show it again. Long-press to pin or delete. History keeps what you scan on this device only, including content such as Wi-Fi passwords. Up to 50 unpinned items are kept.</string>
+</resources>

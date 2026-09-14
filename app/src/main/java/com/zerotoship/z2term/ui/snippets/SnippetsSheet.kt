@@ -292,7 +292,7 @@ private fun AutomationTabChip(label: String, selected: Boolean, modifier: Modifi
     ) {
         Text(label, modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
             color = if (selected) ZtsGreen else ZtsTextPrimary, fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, fontFamily = FontFamily.Monospace)
         Box(Modifier.fillMaxWidth().height(2.dp).background(if (selected) ZtsGreen else ZtsBorder))
     }
 }

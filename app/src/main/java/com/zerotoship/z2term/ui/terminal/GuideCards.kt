@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.ui.terminal
 
+import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,11 +26,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.edge.EdgeDefaultPanel
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.theme.ZtsGreen
@@ -72,16 +75,28 @@ import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
  *   見本の値をそのまま実行させると、`https://example.com` のような**動くはずのない設定**が
  *   黙って入る (利用者の指摘・0.8.335)。
  * @param askDefault 入力欄の初期値。空なら空欄で出す (入れてもらうまで実行しない)。
+ * @param commandOf 端末ごとに中身が変わるコマンドを、案内を出すときに組み立てる (0.8.603)。
+ *   ⚠ 組み立てに使うのは**既存のコマンドだけ**。案内のために新しいコマンドを作らない (利用者の指定)。
  */
 data class GuideStep(
     @param:StringRes val labelRes: Int,
     val command: String? = null,
     @param:StringRes val askRes: Int? = null,
     val askDefault: String = "",
+    val commandOf: ((Context) -> String)? = null,
 ) {
     /** カードに見せる形。まだ入っていない値は初期値、初期値も無ければ `…` を埋めて見せる。 */
     val preview: String?
         get() = command?.let { if (askRes == null) it else it.format(askDefault.ifEmpty { "…" }) }
+
+    /**
+     * [commandOf] をこの端末で組み立てて [command] に入れた形。**組み立てられない手順は出さない** —
+     * 押しても何も送らない読むだけのカードに化けると、手順を済ませたと思わせてしまう。
+     */
+    fun resolved(context: Context): GuideStep? {
+        val build = commandOf ?: return this
+        return runCatching { copy(command = build(context), commandOf = null) }.getOrNull()
+    }
 }
 
 /**
@@ -108,14 +123,18 @@ enum class Guide(
     /**
      * 画面の端のバーからアプリ一覧を開く (0.8.601)。マクロではなく、機能を使えるようにするまでの案内。
      *
-     * パネルが 1 枚も無い状態で ON にすると、アプリ一覧の板ができてその場で開く
-     * ([com.zerotoship.z2term.edge.EdgeDefaultPanel])。許可 2 つ → ON の順に並べ、最後に
-     * 設定の開き方を読むだけのカードで置く (利用者の指定)。
+     * 許可 2 つ → 見本のアプリ一覧パネルを作る → ON の順に並べ、最後に設定の開き方を読むだけの
+     * カードで置く (利用者の指定)。
+     * ⚠ **ON にしただけではパネルを作らない** (0.8.603・利用者の判断)。0.8.601〜0.8.602 は、パネルが
+     * 1 枚も無いと ON のときに自動で作っていた。見本は空ではなくアプリ入りで作る (利用者の指定)。
+     * パッケージ名は端末ごとに違うので、行は案内を出すときに既存の `z2-edge panel` / `z2-edge set` で
+     * 組み立てる ([com.zerotoship.z2term.edge.EdgeDefaultPanel.command])。
      * ⚠ バーの上下スワイプのスクロールはユーザー補助が無いと動かないので、重ねて表示と並べて許可させる。
      */
     EDGE_PANEL("edge-panel", R.string.guide_desc_edge_panel, listOf(
         GuideStep(R.string.guide_step_edge_overlay, "z2-edge permission"),
         GuideStep(R.string.guide_step_edge_accessibility, "z2-key permission"),
+        GuideStep(R.string.guide_step_edge_panel, commandOf = { EdgeDefaultPanel.command(it) }),
         GuideStep(R.string.guide_step_edge_on, "z2-edge on"),
         GuideStep(R.string.guide_step_edge_settings),
     )),
@@ -296,8 +315,11 @@ fun GuideCards(
     onRun: (String) -> Unit,
     onFinish: () -> Unit,
 ) {
+    val context = LocalContext.current
     // 触った / ✕ したカードはその場で消す (どこまで進んだかが見た目で分かる)。
-    val remaining = remember(guide) { mutableStateListOf(*guide.steps.toTypedArray()) }
+    val remaining = remember(guide) {
+        mutableStateListOf(*guide.steps.mapNotNull { it.resolved(context) }.toTypedArray())
+    }
     // 値を聞いている最中の手順 ([GuideStep.askRes] 付き)。聞き終わるまで実行しない。
     var asking by remember(guide) { mutableStateOf<GuideStep?>(null) }
 
