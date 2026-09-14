@@ -53,12 +53,11 @@ happy with, Z2Term's reason to exist is the second, third and fourth rows of tha
 
 - Go to the latest: **<https://github.com/orgsonai/z2term/releases/latest>**
 
-Every release ships one APK: `z2term-<version>.apk` (~36MB).
+Every release ships one APK: `z2term-<version>.apk`. See the release page for its size.
 
 It bundles no OS and no third-party prebuilts, so **the first launch asks you to pick a distribution
 in Settings › Linux environment** (0.8.314; Alpine is fetched from the official CDN, verified by
-SHA-256, and updates never re-download it). That keeps every update at ~36MB, which matters because
-automatic updates (below) fetch the whole APK each time — there are no delta updates outside Google Play.
+SHA-256, and updates never re-download it). Automatic updates (below) fetch the whole APK each time.
 
 ⚠ **Up to 0.8.358 there was a second, ~190MB APK with Alpine bundled (the `full` flavor).
 0.8.359 dropped it** — it only saved that one first download, while making everyone choose between
@@ -81,15 +80,15 @@ Pick whichever fits:
 - **Manual** — download the newer APK from Releases and tap it (installs over the top; your data stays).
 - **Automatic** — add `https://github.com/orgsonai/z2term` to
   [Obtainium](https://github.com/ImranR98/Obtainium). It watches these Releases and updates the app
-  with one tap when a new version appears — no app store involved. Each such update is only ~36MB.
+  with one tap when a new version appears — no app store involved. The Linux OS is not downloaded again.
 
 ## Current version
 
-**0.8.596-alpha (versionCode 604)**: Command list → Servers → **Send a file by QR** opens file selection, sharing, QR display and stop controls. `z2-share --qr filename` starts the same flow. Linux, a shared Wi-Fi network and a VPS are unnecessary; both devices use the internet through Cloudflare. Links expire after 30 minutes. This experimental feature uses Cloudflare Quick Tunnels without an uptime guarantee. It creates a private copy of the chosen file on the sender, so sufficient free storage is required.
+**0.8.597-alpha (versionCode 605; build unverified)**: A phone-hosted HTTP(S) server serves a selected file or folder through a QR/link. Recipients browse the folder hierarchy and confirm each file before saving it in their browser. In the default Automatic mode, choosing a file or folder obtains a public device address and free port on the current Wi-Fi/mobile connection, starts the server and displays its URL/QR. Manual mode retains public-origin, port and HTTPS settings. Stop, expiry or a connection change also stops the share server. Inbound access must be allowed separately; external reachability remains unverified. No cloud upload or relay service is used. QR tools open from the top-left of the command sheet. They read camera frames and images, offer reviewed URL opening, and import/export SSH endpoints and short commands. The separate “z2term — QR” share target also accepts QR images and decoded text from other apps. Automation places Rules on the left and Action automation on the right; Rules remains selected by default. The fixed English Language label and startup race fix remain.
+
+See [QR tools and phone-hosted file sharing](docs/en/QR-TOOLS.md) for setup and public-access requirements.
 
 **Startup race fix (0.8.596)**: A theme initialization crash found after the device update is addressed by constructing the shared palette during Application startup and applying the asynchronously loaded theme on the main thread. This prevents composition from racing with the first creation of palette state.
-
-**Audio recording investigation (0.8.596)**: A report says Android screen recording captures ordinary videos but misses `z2-audio` playback. Startup diagnostics now log AudioTrack usage, content type, capture policy and format. On the device, playback uses USAGE_MEDIA / CONTENT_TYPE_MOVIE and the app permits playback capture. The cause of missing audio during screen recording remains unconfirmed; this change adds diagnostics only.
 
 **0.8.595-alpha (versionCode 603)**: The edge panel Manage page now displays recreation commands with a Copy commands button. It exports saved settings and items as `z2-edge` commands. Selecting a parent includes its tabs and their order; selecting a child preserves existing parent settings and other tabs. Note contents, referenced scripts and images need separate backups.
 
@@ -109,6 +108,7 @@ Also includes temporary notification diagnostics through `z2-noti trace`, record
 - **SSH / SFTP, FTP, WebDAV and SMB2/3** — add FTP, SMB, WebDAV, VNC and RDP services to an SSH destination; their buttons sit beside, rather than inside, SSH/SFTP. Each service uses a temporary SSH local forward by default, and leaving its local port blank selects a free port automatically. Direct mode connects to the SSH destination host rather than the service-specific host and is available only after a warning that SSH encryption will be lost. FTP passive data ports are forwarded automatically per transfer. SSH also provides public-key auth (**create an ed25519 key in the app, then copy/share the public key or add it to this device's sshd**; secrets encrypted by the Android Keystore), known_hosts confirmation, **any number of jump hosts (`-J`) per destination** — they apply to the shell, SFTP, every attached service and resident tunnels alike — manual forwarding in both directions (`-L` / `-R`) that can **keep running after the Connections tab is closed**, and a built-in `sshd` (dropbear) that binds to localhost only by default.
 - **English, Japanese, Simplified and Traditional Chinese, Spanish and Korean throughout** — the in-app UI *and* the `z2-*` command-line helpers follow the language setting, so the help text, usage lines and messages you get in the terminal are localized too. Both bodies of text are keyed by language code, so further languages drop in without touching the code that uses them; anything not translated yet falls back to English. ⚠ The keyboard is a separate matter: no Chinese input method is bundled, so type Chinese with your OS input method.
 - **Japanese IME** — Viterbi kana-kanji conversion, prediction, frequency/recency learning, and a custom on-screen keyboard. It can also be **offered as an OS input method**, so once enabled the same keyboard and conversion work in the app's own text fields and in other apps (switching is the OS keyboard switcher). **Your own words can be added from a file** (SKK format: `reading /candidate/`), so names and private abbreviations convert from the first keystroke.
+- **Modified terminal keys** — send Alt/Ctrl/Shift with arrows, Home/End, editing keys and F1–F12 from the built-in or physical keyboard. Custom key chords and the special-key bar share the same terminal encoding.
 - **Android bridge** — call host features from the shell: `z2-noti` (read the notifications on screen; read-only) / `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-img` (draw a picture straight in the terminal) / `z2-clip` / `z2-battery` / `z2-vibrate` / `z2-say` / `z2-torch` / `z2-media` / `z2-volume` / `z2-sensor` / `z2-intent` / `z2-state` / `z2-screen` (stop the screen turning off by itself, for a while) / `z2-usb` / `z2-tile` (put a macro on a quick-settings tile; 12 slots) / `z2-icon` (draw the status-bar and tile icons yourself) / `z2-alarm` / `z2-macro` / `z2-session` (drives the app's own tabs; `attach` stays connected to one and types in it) / `z2-server` (start/stop a registered resident server).
 - **It can ask you things** — `name=$(z2-ask "Branch name?")` takes the answer from a **notification reply field** (answerable from the shade without opening the app; no answer means a non-zero exit, so "give up" is expressible).
 - **Automation hub** — `z2-when <trigger> run <cmd>` auto-runs a script on Android events: charge start/stop, battery crossing a level, a time (daily / once / every N / cron), Wi‑Fi connect/disconnect, **a usable connection appearing/going away or the link in use switching (`net:online` / `net:mobile` — mobile data counts too)**, **the device booting (`boot`)**, **something being shared to it from another app (`share:ext=pdf` …)**, an incoming SMS (incl. OTP code extraction), a sensor (shake / light threshold / proximity), **an arriving notification (`notify:otp` extracts the code; independent of whether notifications are logged)**, **any device event by name (`event:headset_plugged` and ~20 more; `z2-when events` lists them)**, or **a new file appearing in a folder (`file:new=…`)**. Rules can be **narrowed with filters** (`if=ssid=Home` / `cooldown=1h` / `between=22:00-07:00` / `days=mon-fri` — they work the same for every trigger, and skipped runs stay in the log as `skip:`). Rules are plain text under `~/.z2term/when/` (git-syncable) and survive reboots without opening the app. The **Automation tab** (📜) lists them with on/off toggles, run logs and a **▶ run-now** that skips the trigger, plus a **kill switch that pauses every rule** and a list of recent fires (`z2-when pause` / `resume` / `fired` in the terminal).
@@ -126,7 +126,7 @@ Also includes temporary notification diagnostics through `z2-noti trace`, record
 - **First-run cards** — three small cards on the first launch (post a notification / flashlight / let a PC connect). Tapping one **puts the command on the input line — it never runs by itself**; they disappear once tapped and never return.
 - **Receive from Share** — pick z2term in another app's share sheet and the text (or, for files, a path under `~/z2term-inbox/`) is **inserted** on the terminal's input line — never executed.
 - **Tidy toolbar** — choose which buttons appear from settings (⚙ settings stays pinned to the right edge); long-press and drag to reorder, **either on the toolbar itself or in settings**.
-- **No prebuilts, one download** — a single ~36MB APK that bundles no third-party prebuilts; the distribution is downloaded at first launch and verified by SHA-256.
+- **No prebuilts, one download** — a single APK that bundles no third-party prebuilts; the distribution is downloaded at first launch and verified by SHA-256.
 
 ### Not yet supported / under consideration
 
@@ -144,7 +144,6 @@ Also includes temporary notification diagnostics through `z2-noti trace`, record
 | Gradle | 9.3.1 |
 | NDK | 27.0+ |
 | CMake | 3.22.1+ |
-| Go | 1.26+ (builds the QR tunnel from source) |
 | Other tools | Python 3, curl, tar, sha256sum |
 | Min SDK | 29 (Android 10) |
 | Target SDK | 35 (Android 15) |
@@ -159,13 +158,10 @@ Several artifacts are bundled into the APK but **kept out of git** (built/fetche
 bash scripts/build-bundle.sh
 ```
 
-It runs three generators and verifies the common payload:
+It runs two generators and verifies the common payload:
 
 1. `build-z2root.sh` → `libz2root.so` / `libz2accept.so` (needs an NDK)
 2. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` `-Regular.ttf`
-3. `build-qr-tunnel.sh` → `libz2tunnel.so` and `assets/licenses/QR-Tunnel.txt` (requires Go and an NDK)
-
-The connector is built for Android from pinned Cloudflare Tunnel 2026.9.1 source with SHA-256 verification. The first build needs internet access for source and Go dependencies. Gradle also generates the connector and notices automatically before packaging.
 
 A final manifest step prints `OK` / `MISS` per artifact. Linux rootfs archives are downloaded at runtime and are never APK build inputs.
 

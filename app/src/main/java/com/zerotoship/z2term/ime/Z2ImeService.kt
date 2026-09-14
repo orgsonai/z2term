@@ -1,5 +1,8 @@
 package com.zerotoship.z2term.ime
 
+import com.zerotoship.z2term.ui.terminal.input.AndroidKeyMapper
+import com.zerotoship.z2term.ui.terminal.input.KeyModifiers
+import com.zerotoship.z2term.ui.terminal.keyboard.NamedKey
 import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
 import android.inputmethodservice.InputMethodService.Insets
@@ -43,7 +46,6 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.zerotoship.z2term.emulator.TerminalEmulator
 import com.zerotoship.z2term.emulator.resolveTheme
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -316,7 +318,7 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                             }
                             TerminalKeyboard(
                                 onBytes = ::sendBytes,
-                                onCursorKey = ::sendCursorKey,
+                                onKey = ::sendNamedKey,
                                 composing = composing,
                                 style = style,
                                 faceEntries = faceEntries,
@@ -526,6 +528,13 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
     /** 内蔵キーボードのバイト列を入力欄の操作へ読み替えて流す。 */
     private fun sendBytes(bytes: ByteArray) {
         val ic = currentInputConnection ?: return
+        // 自分の端末へは制御コードを捨てず、そのままキー入力として渡す。
+        // 確定テキストや貼り付けの経路とは分け、Ctrl+J などの改行変換も避ける。
+        if (currentInputEditorInfo?.privateImeOptions == TerminalInputView.TERMINAL_IME_OPTION &&
+            bytes.any { (it.toInt() and 0xFF) < 0x20 || it == 0x7F.toByte() }) {
+            val data = android.os.Bundle().apply { putByteArray("bytes", bytes) }
+            if (ic.performPrivateCommand(TerminalInputView.TERMINAL_KEY_BYTES_ACTION, data)) return
+        }
         for (action in ImeKeyTranslator.translate(bytes)) {
             when (action) {
                 is ImeKeyAction.Insert -> ic.commitText(action.text, 1)
@@ -597,16 +606,26 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         }
     }
 
-    /** 矢印キー。入力欄ではキャレット移動になる。 */
-    private fun sendCursorKey(key: TerminalEmulator.CursorKey) {
-        sendDownUpKeyEvents(
-            when (key) {
-                TerminalEmulator.CursorKey.LEFT -> KeyEvent.KEYCODE_DPAD_LEFT
-                TerminalEmulator.CursorKey.RIGHT -> KeyEvent.KEYCODE_DPAD_RIGHT
-                TerminalEmulator.CursorKey.UP -> KeyEvent.KEYCODE_DPAD_UP
-                TerminalEmulator.CursorKey.DOWN -> KeyEvent.KEYCODE_DPAD_DOWN
-            }
-        )
+    /** 修飾付き機能キーも一つの KeyEvent として送る。VT 列を入力欄へ入れない。 */
+    private fun sendNamedKey(key: NamedKey, mods: KeyModifiers) {
+        val ic = currentInputConnection ?: return
+        val code = AndroidKeyMapper.keyCodeForNamed(key) ?: return
+        if (key == NamedKey.ENTER && mods.isEmpty &&
+            currentInputEditorInfo?.privateImeOptions != TerminalInputView.TERMINAL_IME_OPTION) {
+            sendNewline(ic)
+            return
+        }
+        val now = SystemClock.uptimeMillis()
+        val meta = (if (mods.ctrl) KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON else 0) or
+            (if (mods.alt) KeyEvent.META_ALT_ON or KeyEvent.META_ALT_LEFT_ON else 0) or
+            (if (mods.shift) KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON else 0)
+        for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
+            ic.sendKeyEvent(KeyEvent(
+                now, now, action, code, 0, meta,
+                KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+                KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE,
+            ))
+        }
     }
 
     private companion object {

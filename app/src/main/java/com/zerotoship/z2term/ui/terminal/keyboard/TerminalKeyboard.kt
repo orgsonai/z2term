@@ -35,8 +35,8 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import com.zerotoship.z2term.emulator.TerminalEmulator
 import com.zerotoship.z2term.ui.terminal.input.AndroidKeyMapper
+import com.zerotoship.z2term.ui.terminal.input.KeyModifiers
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
@@ -86,7 +86,7 @@ import kotlin.math.abs
 @Composable
 fun TerminalKeyboard(
     onBytes: (ByteArray) -> Unit,
-    onCursorKey: (TerminalEmulator.CursorKey) -> Unit,
+    onKey: (NamedKey, KeyModifiers) -> Unit,
     /** GUI タブだけが使う日本語入力方式キーの出口。null の端末/IME では完全な no-op。 */
     onNamedKey: ((NamedKey) -> Unit)? = null,
     composing: ComposingState,
@@ -142,7 +142,7 @@ fun TerminalKeyboard(
     if (face == KeyboardFace.KANA && customForFace == null) {
         JapaneseFlickKeyboard(
             onBytes = onBytes,
-            onCursorKey = onCursorKey,
+            onCursorKey = { onKey(AndroidKeyMapper.namedKeyForCursor(it), KeyModifiers()) },
             onSwitchFace = { switchFace(nextFace) },
             switchLabel = nextFace.switchLabel,
             composing = composing,
@@ -155,7 +155,7 @@ fun TerminalKeyboard(
     if (face == KeyboardFace.NUMBER && customForFace == null) {
         NumberKeyboard(
             onBytes = onBytes,
-            onCursorKey = onCursorKey,
+            onCursorKey = { onKey(AndroidKeyMapper.namedKeyForCursor(it), KeyModifiers()) },
             onSwitchFace = { switchFace(nextFace) },
             switchLabel = nextFace.switchLabel,
             composing = composing,
@@ -179,29 +179,57 @@ fun TerminalKeyboard(
         if (alt) alt = false
     }
 
-    fun emitChar(raw: Char) {
-        val shifted = shift != ShiftState.OFF
-        val effective = if (!sym && shifted && raw.isLetter()) raw.uppercaseChar() else raw
-        val base = effective.toString().toByteArray(Charsets.UTF_8)
-        val withCtrl = if (ctrl) {
-            AndroidKeyMapper.controlByteFor(effective)?.let { byteArrayOf(it) } ?: base
-        } else base
-        val final = if (alt) byteArrayOf(0x1B) + withCtrl else withCtrl
-        onBytes(final)
+    fun currentMods(extra: Set<ModKey> = emptySet()) = KeyModifiers(
+        ctrl = ctrl || ModKey.CTRL in extra,
+        alt = alt || ModKey.ALT in extra,
+        shift = shift != ShiftState.OFF || ModKey.SHIFT in extra,
+    )
+
+    fun emitText(text: String, mods: KeyModifiers, applyShift: Boolean) {
+        val out = StringBuilder()
+        var offset = 0
+        while (offset < text.length) {
+            val cp = text.codePointAt(offset)
+            val effective = if (applyShift && mods.shift) Character.toUpperCase(cp) else cp
+            if (mods.alt) out.append('\u001B')
+            val control = if (mods.ctrl && effective <= Char.MAX_VALUE.code)
+                AndroidKeyMapper.controlByteFor(effective.toChar()) else null
+            if (control != null) out.append(control.toInt().toChar()) else out.appendCodePoint(effective)
+            offset += Character.charCount(cp)
+        }
+        if (out.isNotEmpty()) onBytes(out.toString().toByteArray(Charsets.UTF_8))
         resetOneShotMods()
     }
 
-    fun emitFlick(raw: Char) {
-        val base = raw.toString().toByteArray(Charsets.UTF_8)
-        val final = if (alt) byteArrayOf(0x1B) + base else base
-        onBytes(final)
-        if (alt) alt = false
-    }
+    fun emitChar(raw: Char) = emitText(raw.toString(), currentMods(), applyShift = !sym)
+    // フリック先の大文字・記号はそのまま使い、Ctrl / Alt は失わない。
+    fun emitFlick(raw: Char) = emitText(raw.toString(), currentMods(), applyShift = false)
 
     fun emitSpecial(bytes: ByteArray) {
-        val final = if (alt) byteArrayOf(0x1B) + bytes else bytes
-        onBytes(final)
-        if (alt) alt = false
+        onBytes(if (alt) byteArrayOf(0x1B) + bytes else bytes)
+        resetOneShotMods()
+    }
+
+    fun emitKey(key: NamedKey, mods: KeyModifiers = currentMods()) {
+        if (key in setOf(NamedKey.ZENKAKU_HANKAKU, NamedKey.HENKAN, NamedKey.MUHENKAN,
+                NamedKey.KATAKANA_HIRAGANA, NamedKey.EISU)) {
+            onNamedKey?.let { send -> composing.commitRaw(); send(key) }
+            return
+        }
+        // 未確定文字の編集は修飾なしの操作だけで行う。ショートカットは確定後に送る。
+        val consumed = if (mods.isEmpty) when (key) {
+            NamedKey.ESC -> if (composing.isActive) { composing.reset(); true } else false
+            NamedKey.ENTER -> composing.commitRaw()
+            NamedKey.BACKSPACE -> composing.backspace()
+            NamedKey.LEFT -> if (composing.isActive) { composing.moveCursorLeft(); true } else false
+            NamedKey.RIGHT -> if (composing.isActive) { composing.moveCursorRight(); true } else false
+            else -> false
+        } else false
+        if (!consumed) {
+            composing.commitRaw()
+            onKey(key, mods)
+        }
+        resetOneShotMods()
     }
 
     // パッドの開閉。⚠ 同じキーをもう一度押したら閉じる (日本語面と同じ約束)。
@@ -211,15 +239,6 @@ fun TerminalKeyboard(
     // OS の入力メソッドとして使っているとき改行が performEditorAction (1 行欄では検索実行) へ
     // 読み替えられてしまう。
     fun insertText(text: String) { composing.commitExternalText(text) }
-
-    fun emitCursor(key: TerminalEmulator.CursorKey) {
-        // ALT/META 押下中は ESC プレフィックスを付ける (Meta+矢印)。矢印そのもののバイト列は
-        // DECCKM の状態で変わり端末側が組むため、ここでは ESC だけ先に送って続けて矢印を送る。
-        // 以前は修飾が捨てられ、ALT+矢印がただの矢印になっていた。
-        if (alt) onBytes(byteArrayOf(0x1B))
-        onCursorKey(key)
-        if (alt) alt = false
-    }
 
     fun handleConvert() {
         if (composing.isActive) {
@@ -239,6 +258,12 @@ fun TerminalKeyboard(
 
     fun emitFaceText(text: String, isFlick: Boolean) {
         if (text.isEmpty()) return
+        // カスタムかな／数字面に置いた Ctrl / Alt も文字入力へ落とさない。
+        if (ctrl || alt) {
+            composing.commitRaw()
+            emitText(text, currentMods(), applyShift = !isFlick && !sym)
+            return
+        }
         when (face) {
             KeyboardFace.ASCII -> {
                 val ch = text.first()
@@ -259,8 +284,7 @@ fun TerminalKeyboard(
     val isCompact = renderStyle.id == "compact"
     val smallFont = (renderStyle.keyFontSp - 3f).coerceAtLeast(10f)
 
-    // アクション列を実行する。⚠ **タップとフリックで経路が違う** — タップは ⇧/CTRL/ALT を
-    // 適用し (emitChar)、フリックは文字をそのまま送る (emitFlick)。いまの挙動をそのまま保つ。
+    // タップ・フリック・カスタム同時押しの修飾を共通の出口へ送る。
     fun runActions(actions: List<KeyAction>, gesture: KeyGesture) {
         val isFlick = gesture in KeyGesture.FLICKS
         for (action in actions) {
@@ -268,40 +292,20 @@ fun TerminalKeyboard(
                 is KeyAction.Text -> {
                     emitFaceText(action.text, isFlick)
                 }
-                is KeyAction.Named -> when (action.key) {
-                    NamedKey.ESC -> if (composing.isActive) composing.reset() else emitSpecial(byteArrayOf(0x1B))
-                    NamedKey.TAB -> emitSpecial(byteArrayOf(0x09))
-                    NamedKey.ENTER -> if (!composing.commitRaw()) emitSpecial(byteArrayOf(0x0D))
-                    NamedKey.BACKSPACE -> if (!composing.backspace()) emitSpecial(byteArrayOf(0x7F))
-                    NamedKey.UP -> { composing.commitRaw(); emitCursor(TerminalEmulator.CursorKey.UP) }
-                    NamedKey.DOWN -> { composing.commitRaw(); emitCursor(TerminalEmulator.CursorKey.DOWN) }
-                    NamedKey.LEFT -> if (composing.isActive) composing.moveCursorLeft() else emitCursor(TerminalEmulator.CursorKey.LEFT)
-                    NamedKey.RIGHT -> if (composing.isActive) composing.moveCursorRight() else emitCursor(TerminalEmulator.CursorKey.RIGHT)
-                    NamedKey.ZENKAKU_HANKAKU,
-                    NamedKey.HENKAN,
-                    NamedKey.MUHENKAN,
-                    NamedKey.KATAKANA_HIRAGANA,
-                    NamedKey.EISU -> onNamedKey?.let { send ->
-                        // リモート側の入力方式を切り替える前に、z2term 側の打ちかけだけは確定する。
-                        // onNamedKey=null の端末タブでは状態も送出も変えない（完全な no-op）。
-                        composing.commitRaw()
-                        send(action.key)
-                    }
-                    // ⚠ Delete / Home / F キー等は**まだどの配列にも置いていない**。
-                    //    エディタで置けるようになる段階で、ここに送出を足す。
-                    else -> Unit
-                }
+                is KeyAction.Named -> emitKey(action.key)
                 is KeyAction.Chord -> {
-                    // いまの配列で使うのは ⌫ の左右フリック (Ctrl+W / Ctrl+U) だけ。
-                    val ch = action.text?.firstOrNull()
-                    val b = if (ModKey.CTRL in action.mods && ch != null) {
-                        AndroidKeyMapper.controlByteFor(ch)
-                    } else null
-                    if (b != null) {
-                        if (composing.isActive && ModKey.CTRL in action.mods && ch in listOf('w', 'u')) {
-                            composing.reset()
-                        } else {
-                            emitSpecial(byteArrayOf(b))
+                    val mods = currentMods(action.mods)
+                    when {
+                        action.key != null -> emitKey(action.key, mods)
+                        !action.text.isNullOrEmpty() -> {
+                            if (composing.isActive && mods.ctrl && !mods.alt &&
+                                action.text in listOf("w", "u")) {
+                                composing.reset()
+                                resetOneShotMods()
+                            } else {
+                                composing.commitRaw()
+                                emitText(action.text, mods, applyShift = true)
+                            }
                         }
                     }
                 }

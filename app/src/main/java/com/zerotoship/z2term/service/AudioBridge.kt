@@ -96,11 +96,6 @@ class AudioBridge(private val port: Int, private val lowLatency: Boolean = false
                     connected = true
                 }
                 Log.i(TAG, "connected 127.0.0.1:$port trackState=${t.state} playState=${t.playState}")
-                // Compare playback-capture eligibility with a working player; never log PCM data.
-                val attributes = t.audioAttributes
-                Log.i(TAG, "playback attributes usage=${attributes.usage} content=${attributes.contentType} " +
-                    "capturePolicy=${attributes.allowedCapturePolicy} flags=${attributes.flags} " +
-                    "sampleRate=${t.sampleRate} channels=${t.channelCount} session=${t.audioSessionId}")
                 streamPcmFrames(input, if (lowLatency) 1920 else bufSize, { running }) { bytes, offset, size ->
                     t.write(bytes, offset, size)
                 }

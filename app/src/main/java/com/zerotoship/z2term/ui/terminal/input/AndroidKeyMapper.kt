@@ -2,6 +2,7 @@ package com.zerotoship.z2term.ui.terminal.input
 
 import android.view.KeyEvent
 import com.zerotoship.z2term.emulator.TerminalEmulator
+import com.zerotoship.z2term.ui.terminal.keyboard.NamedKey
 
 /**
  * Android KeyEvent → PTY 送出バイト列の変換テーブル。
@@ -34,38 +35,8 @@ object AndroidKeyMapper {
         val alt = event.isAltPressed
         val shift = event.isShiftPressed
 
-        when (event.keyCode) {
-            KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER ->
-                return byteArrayOf(0x0D)
-            KeyEvent.KEYCODE_TAB ->
-                return if (shift) CSI_BACKTAB else byteArrayOf(0x09)
-            KeyEvent.KEYCODE_ESCAPE ->
-                return byteArrayOf(0x1B)
-            KeyEvent.KEYCODE_DEL ->
-                return byteArrayOf(0x7F) // BS = DEL (modern shells)
-            KeyEvent.KEYCODE_FORWARD_DEL ->
-                return csi("3~")
-            KeyEvent.KEYCODE_DPAD_UP -> return cursorBytes(TerminalEmulator.CursorKey.UP)
-            KeyEvent.KEYCODE_DPAD_DOWN -> return cursorBytes(TerminalEmulator.CursorKey.DOWN)
-            KeyEvent.KEYCODE_DPAD_LEFT -> return cursorBytes(TerminalEmulator.CursorKey.LEFT)
-            KeyEvent.KEYCODE_DPAD_RIGHT -> return cursorBytes(TerminalEmulator.CursorKey.RIGHT)
-            KeyEvent.KEYCODE_MOVE_HOME -> return csi("1~")
-            KeyEvent.KEYCODE_MOVE_END -> return csi("4~")
-            KeyEvent.KEYCODE_PAGE_UP -> return csi("5~")
-            KeyEvent.KEYCODE_PAGE_DOWN -> return csi("6~")
-            KeyEvent.KEYCODE_INSERT -> return csi("2~")
-            KeyEvent.KEYCODE_F1 -> return ss3("P")
-            KeyEvent.KEYCODE_F2 -> return ss3("Q")
-            KeyEvent.KEYCODE_F3 -> return ss3("R")
-            KeyEvent.KEYCODE_F4 -> return ss3("S")
-            KeyEvent.KEYCODE_F5 -> return csi("15~")
-            KeyEvent.KEYCODE_F6 -> return csi("17~")
-            KeyEvent.KEYCODE_F7 -> return csi("18~")
-            KeyEvent.KEYCODE_F8 -> return csi("19~")
-            KeyEvent.KEYCODE_F9 -> return csi("20~")
-            KeyEvent.KEYCODE_F10 -> return csi("21~")
-            KeyEvent.KEYCODE_F11 -> return csi("23~")
-            KeyEvent.KEYCODE_F12 -> return csi("24~")
+        namedKeyForKeyCode(event.keyCode)?.let { key ->
+            return namedKeyBytes(key, KeyModifiers(ctrl, alt, shift), cursorBytes)
         }
 
         // Ctrl / Alt を外して unicode を取り直すことで「Ctrl+a」が a として取れる。
@@ -87,11 +58,11 @@ object AndroidKeyMapper {
         return if (alt) byteArrayOf(0x1B) + charBytes else charBytes
     }
 
-    /** Ctrl 修飾なしで「ASCII 文字 → 対応する control code」を引く */
+    /** Ctrl と組み合わせた ASCII 文字に対応する制御コード。 */
     fun controlByteFor(ch: Char): Byte? = when {
         ch in 'a'..'z' -> (ch.code - 'a'.code + 1).toByte()
         ch in 'A'..'Z' -> (ch.code - 'A'.code + 1).toByte()
-        ch == ' ' -> 0
+        ch == ' ' || ch == '@' -> 0
         ch == '[' -> 0x1B
         ch == '\\' -> 0x1C
         ch == ']' -> 0x1D
@@ -101,13 +72,105 @@ object AndroidKeyMapper {
         else -> null
     }
 
+    // 機能キーは物理キー・内蔵キー・IME・CLI がこの表を共有する。
+    private val namedKeyCodes = mapOf(
+        NamedKey.ESC to KeyEvent.KEYCODE_ESCAPE,
+        NamedKey.TAB to KeyEvent.KEYCODE_TAB,
+        NamedKey.ENTER to KeyEvent.KEYCODE_ENTER,
+        NamedKey.BACKSPACE to KeyEvent.KEYCODE_DEL,
+        NamedKey.DELETE to KeyEvent.KEYCODE_FORWARD_DEL,
+        NamedKey.UP to KeyEvent.KEYCODE_DPAD_UP,
+        NamedKey.DOWN to KeyEvent.KEYCODE_DPAD_DOWN,
+        NamedKey.LEFT to KeyEvent.KEYCODE_DPAD_LEFT,
+        NamedKey.RIGHT to KeyEvent.KEYCODE_DPAD_RIGHT,
+        NamedKey.HOME to KeyEvent.KEYCODE_MOVE_HOME,
+        NamedKey.END to KeyEvent.KEYCODE_MOVE_END,
+        NamedKey.PAGE_UP to KeyEvent.KEYCODE_PAGE_UP,
+        NamedKey.PAGE_DOWN to KeyEvent.KEYCODE_PAGE_DOWN,
+        NamedKey.INSERT to KeyEvent.KEYCODE_INSERT,
+        NamedKey.F1 to KeyEvent.KEYCODE_F1,
+        NamedKey.F2 to KeyEvent.KEYCODE_F2,
+        NamedKey.F3 to KeyEvent.KEYCODE_F3,
+        NamedKey.F4 to KeyEvent.KEYCODE_F4,
+        NamedKey.F5 to KeyEvent.KEYCODE_F5,
+        NamedKey.F6 to KeyEvent.KEYCODE_F6,
+        NamedKey.F7 to KeyEvent.KEYCODE_F7,
+        NamedKey.F8 to KeyEvent.KEYCODE_F8,
+        NamedKey.F9 to KeyEvent.KEYCODE_F9,
+        NamedKey.F10 to KeyEvent.KEYCODE_F10,
+        NamedKey.F11 to KeyEvent.KEYCODE_F11,
+        NamedKey.F12 to KeyEvent.KEYCODE_F12,
+    )
+
+    fun keyCodeForNamed(key: NamedKey): Int? = namedKeyCodes[key]
+
+    fun namedKeyForKeyCode(code: Int): NamedKey? =
+        if (code == KeyEvent.KEYCODE_NUMPAD_ENTER) NamedKey.ENTER
+        else namedKeyCodes.entries.firstOrNull { it.value == code }?.key
+
+    fun namedKeyForCursor(key: TerminalEmulator.CursorKey): NamedKey = when (key) {
+        TerminalEmulator.CursorKey.UP -> NamedKey.UP
+        TerminalEmulator.CursorKey.DOWN -> NamedKey.DOWN
+        TerminalEmulator.CursorKey.LEFT -> NamedKey.LEFT
+        TerminalEmulator.CursorKey.RIGHT -> NamedKey.RIGHT
+    }
+
+    /**
+     * xterm の修飾付き機能キー。修飾なしの矢印だけ DECCKM に従う。
+     * https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-PC-Style-Function-Keys
+     * Alt+Up = CSI 1;3 A、Ctrl+Left = CSI 1;5 D。必ず一つのバイト列で送る。
+     */
+    fun namedKeyBytes(
+        key: NamedKey,
+        mods: KeyModifiers = KeyModifiers(),
+        cursorBytes: (TerminalEmulator.CursorKey) -> ByteArray,
+    ): ByteArray? {
+        fun cursor(direction: TerminalEmulator.CursorKey, final: Char): ByteArray =
+            if (mods.isEmpty) cursorBytes(direction) else csi("1;" + mods.xtermParameter + final)
+        fun tilde(number: Int): ByteArray =
+            csi(number.toString() + (if (mods.isEmpty) "" else ";" + mods.xtermParameter) + "~")
+        fun letter(final: Char, plain: ByteArray): ByteArray =
+            if (mods.isEmpty) plain else csi("1;" + mods.xtermParameter + final)
+        fun meta(bytes: ByteArray): ByteArray =
+            if (mods.alt) byteArrayOf(0x1B) + bytes else bytes
+
+        return when (key) {
+            NamedKey.UP -> cursor(TerminalEmulator.CursorKey.UP, 'A')
+            NamedKey.DOWN -> cursor(TerminalEmulator.CursorKey.DOWN, 'B')
+            NamedKey.RIGHT -> cursor(TerminalEmulator.CursorKey.RIGHT, 'C')
+            NamedKey.LEFT -> cursor(TerminalEmulator.CursorKey.LEFT, 'D')
+            NamedKey.HOME -> letter('H', csi("1~"))
+            NamedKey.END -> letter('F', csi("4~"))
+            NamedKey.INSERT -> tilde(2)
+            NamedKey.DELETE -> tilde(3)
+            NamedKey.PAGE_UP -> tilde(5)
+            NamedKey.PAGE_DOWN -> tilde(6)
+            NamedKey.F1 -> letter('P', ss3("P"))
+            NamedKey.F2 -> letter('Q', ss3("Q"))
+            NamedKey.F3 -> letter('R', ss3("R"))
+            NamedKey.F4 -> letter('S', ss3("S"))
+            NamedKey.F5 -> tilde(15)
+            NamedKey.F6 -> tilde(17)
+            NamedKey.F7 -> tilde(18)
+            NamedKey.F8 -> tilde(19)
+            NamedKey.F9 -> tilde(20)
+            NamedKey.F10 -> tilde(21)
+            NamedKey.F11 -> tilde(23)
+            NamedKey.F12 -> tilde(24)
+            // 従来の端末プロトコルでは Ctrl+Tab / Shift+Enter 等は区別できない。
+            NamedKey.TAB -> meta(if (mods.shift) csi("Z") else byteArrayOf(0x09))
+            NamedKey.ENTER -> meta(byteArrayOf(0x0D))
+            NamedKey.ESC -> meta(byteArrayOf(0x1B))
+            NamedKey.BACKSPACE -> meta(byteArrayOf((if (mods.ctrl) 0x08 else 0x7F).toByte()))
+            else -> null // 日本語入力方式キーは GUI 専用。
+        }
+    }
+
     private fun csi(suffix: String): ByteArray =
-        ("[" + suffix).toByteArray(Charsets.US_ASCII)
+        ("\u001b[" + suffix).toByteArray(Charsets.US_ASCII)
 
     private fun ss3(suffix: String): ByteArray =
-        ("O" + suffix).toByteArray(Charsets.US_ASCII)
-
-    private val CSI_BACKTAB: ByteArray = byteArrayOf(0x1B, 0x5B, 0x5A) // ESC [ Z
+        ("\u001bO" + suffix).toByteArray(Charsets.US_ASCII)
 
     // --- キー名 → バイト列 (`z2-session key`・0.8.311) ---
 
@@ -134,7 +197,7 @@ object AndroidKeyMapper {
      * **片方でしか再現しない不具合**ができる。表は 1 か所に置いて両方から引く。
      *
      * 文法:
-     *  - 修飾は `C-` (Ctrl) と `M-` / `A-` (Meta = Alt)。`C-M-a` のように重ねられる。
+     *  - 修飾は `C-` (Ctrl)、`M-` / `A-` (Alt)、`S-` (Shift)。重ねて指定できる。
      *  - 特殊キーは `Up` `Down` `Left` `Right` `Home` `End` `PgUp` `PgDn` `Ins` `Del`
      *    `Tab` `S-Tab` `Enter` `Esc` `Space` `BS` `F1`〜`F12` (大文字小文字は問わない)。
      *  - どれでもない 1 文字はその文字そのもの。
@@ -144,8 +207,8 @@ object AndroidKeyMapper {
      * ([controlByteFor] が `a..z` と `A..Z` を同じ値に潰しているのがそれ)。⚠ 黙って `C-a` を
      * 送ると「送ったはずなのに効かない」の原因が追えなくなるので、**送らずに理由を返す**。
      * 区別する規格 (xterm の modifyOtherKeys / Kitty keyboard protocol) は未実装。
-     * ⚠ ただし **`S-Tab` は端末が区別できる**ので通す (`ESC [ Z`)。断る基準は「Shift が付くか」
-     * ではなく「**端末が区別できるか**」。
+     * 矢印・編集キー・F キーへの Shift / Ctrl / Alt は xterm の修飾パラメータで区別する。
+     * Shift+Tab は従来どおり backtab を送る。
      *
      * @param cursorBytes 矢印の VT バイト列ファクトリ (DECCKM 依存なので emulator に組ませる)
      */
@@ -170,43 +233,25 @@ object AndroidKeyMapper {
             rest = rest.substring(2)
         }
 
-        // 特殊キー。⚠ Shift+Tab だけは端末が区別できるので通す。
-        val special: ByteArray? = when (rest.lowercase()) {
-            "up" -> cursorBytes(TerminalEmulator.CursorKey.UP)
-            "down" -> cursorBytes(TerminalEmulator.CursorKey.DOWN)
-            "left" -> cursorBytes(TerminalEmulator.CursorKey.LEFT)
-            "right" -> cursorBytes(TerminalEmulator.CursorKey.RIGHT)
-            "home" -> csi("1~")
-            "end" -> csi("4~")
-            "pgup", "pageup" -> csi("5~")
-            "pgdn", "pagedown" -> csi("6~")
-            "ins", "insert" -> csi("2~")
-            "del", "delete" -> csi("3~")
-            "bs", "backspace" -> byteArrayOf(0x7F)
-            "enter", "return", "cr" -> byteArrayOf(0x0D)
-            "esc", "escape" -> byteArrayOf(0x1B)
-            "space" -> byteArrayOf(0x20)
-            "tab" -> if (shift) CSI_BACKTAB else byteArrayOf(0x09)
-            "backtab" -> CSI_BACKTAB
-            "f1" -> ss3("P")
-            "f2" -> ss3("Q")
-            "f3" -> ss3("R")
-            "f4" -> ss3("S")
-            "f5" -> csi("15~")
-            "f6" -> csi("17~")
-            "f7" -> csi("18~")
-            "f8" -> csi("19~")
-            "f9" -> csi("20~")
-            "f10" -> csi("21~")
-            "f11" -> csi("23~")
-            "f12" -> csi("24~")
-            else -> null
+        val normalized = rest.lowercase()
+        val named = when (normalized) {
+            "bs" -> NamedKey.BACKSPACE
+            "return", "cr" -> NamedKey.ENTER
+            "escape" -> NamedKey.ESC
+            "pageup" -> NamedKey.PAGE_UP
+            "pagedown" -> NamedKey.PAGE_DOWN
+            "ins" -> NamedKey.INSERT
+            "del" -> NamedKey.DELETE
+            "backtab" -> NamedKey.TAB
+            else -> NamedKey.byId(normalized)
         }
-        if (special != null) {
-            // ⚠ 特殊キーへの Ctrl はここでは表現しない (CSI の修飾パラメータが要り、
-            // 受け手の対応もまちまち)。Alt だけは ESC 前置で素直に通るので許す。
-            return KeyBytes.Ok(if (alt) byteArrayOf(0x1B) + special else special)
+        if (named != null) {
+            val mods = KeyModifiers(ctrl, alt, shift || normalized == "backtab")
+            val special = namedKeyBytes(named, mods, cursorBytes)
+                ?: return KeyBytes.Unknown(name)
+            return KeyBytes.Ok(special)
         }
+        if (normalized == "space") rest = " "
 
         // ここから先は 1 文字のキー。Shift は文字そのものに畳み込まれる。
         if (rest.length != 1) return KeyBytes.Unknown(name)

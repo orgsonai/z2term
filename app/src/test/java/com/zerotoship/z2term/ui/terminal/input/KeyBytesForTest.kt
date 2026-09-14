@@ -68,7 +68,7 @@ class KeyBytesForTest {
     }
 
     /**
-     * ⚠ **矢印は自前で組まず emulator に投げる**。DECCKM が ON だと `ESC O A` へ変わるので、
+     * ⚠ **修飾なしの矢印は emulator に投げる**。DECCKM が ON だと `ESC O A` へ変わるので、
      * ここで固定のバイト列を返すと application cursor keys のアプリで矢印が効かなくなる。
      */
     @Test
@@ -78,7 +78,7 @@ class KeyBytesForTest {
     }
 
     /**
-     * ⚠ **`S-Tab` だけは通す。** 断る基準は「Shift が付くか」ではなく
+     * ⚠ **`S-Tab` は通す。** 断る基準は「Shift が付くか」ではなく
      * 「**端末が区別できるか**」で、backtab は `ESC [ Z` として実在する。
      */
     @Test

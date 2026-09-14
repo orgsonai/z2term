@@ -29,7 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.core.TerminalSession
-import com.zerotoship.z2term.emulator.TerminalEmulator
+import com.zerotoship.z2term.ui.terminal.input.AndroidKeyMapper
+import com.zerotoship.z2term.ui.terminal.input.KeyModifiers
+import com.zerotoship.z2term.ui.terminal.keyboard.NamedKey
 import com.zerotoship.z2term.ui.terminal.keyboard.detectTapWithRepeat
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -56,7 +58,15 @@ fun SpecialKeyBar(
     onCtrlToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val emulator = session.emulator
+    fun sendKey(key: NamedKey) {
+        AndroidKeyMapper.namedKeyBytes(key, KeyModifiers(ctrl = ctrlSticky), session.emulator::cursorKeyBytes)
+            ?.let { session.writeBytes(it) }
+        if (ctrlSticky) onCtrlToggle()
+    }
+    fun sendControl(byte: Byte) {
+        session.writeBytes(byteArrayOf(byte))
+        if (ctrlSticky) onCtrlToggle()
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -66,18 +76,17 @@ fun SpecialKeyBar(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Key("ESC") { session.writeBytes(byteArrayOf(0x1B)) }
-        Key("TAB") { session.writeBytes(byteArrayOf(0x09)) }
+        Key("ESC") { sendKey(NamedKey.ESC) }
+        Key("TAB") { sendKey(NamedKey.TAB) }
         Key("CTRL", active = ctrlSticky, onClick = onCtrlToggle)
-        Key("←") { session.writeBytes(emulator.cursorKeyBytes(TerminalEmulator.CursorKey.LEFT)) }
-        Key("↓") { session.writeBytes(emulator.cursorKeyBytes(TerminalEmulator.CursorKey.DOWN)) }
-        Key("↑") { session.writeBytes(emulator.cursorKeyBytes(TerminalEmulator.CursorKey.UP)) }
-        Key("→") { session.writeBytes(emulator.cursorKeyBytes(TerminalEmulator.CursorKey.RIGHT)) }
-        // ⏎ は長押しで連打できる (内蔵キーボードの ⏎ と揃える・要望)。
-        Key("⏎", repeatable = true) { session.writeBytes(byteArrayOf(0x0D)) }
-        Key("^C") { session.writeBytes(byteArrayOf(0x03)) }
-        Key("^D") { session.writeBytes(byteArrayOf(0x04)) }
-        Key("^L") { session.writeBytes(byteArrayOf(0x0C)) }
+        Key("←") { sendKey(NamedKey.LEFT) }
+        Key("↓") { sendKey(NamedKey.DOWN) }
+        Key("↑") { sendKey(NamedKey.UP) }
+        Key("→") { sendKey(NamedKey.RIGHT) }
+        Key("⏎", repeatable = true) { sendKey(NamedKey.ENTER) }
+        Key("^C") { sendControl(0x03) }
+        Key("^D") { sendControl(0x04) }
+        Key("^L") { sendControl(0x0C) }
     }
 }
 

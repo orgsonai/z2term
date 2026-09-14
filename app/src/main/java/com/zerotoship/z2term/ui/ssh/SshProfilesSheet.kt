@@ -264,6 +264,7 @@ private fun ProfileRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -313,6 +314,9 @@ private fun ProfileRow(
             if (profile.hasSsh) {
                 SmallButton(label = stringResource(R.string.ssh_action_connect), accent = true, onClick = onConnect)
                 SmallButton(label = "SFTP", onClick = onSftp)
+                SmallButton(label = "QR", onClick = {
+                    com.zerotoship.z2term.qr.QrToolsActivity.showSsh(context, profile.host, profile.port, profile.user)
+                })
                 // ⚠ **サービスの緑 (accent) は付けない。** 緑は「そのカードの主アクション」= 接続
                 // だけの印で、種類による色分けではない。VNC だけ緑にすると選択中のように見える。
                 profile.services.forEach { service ->

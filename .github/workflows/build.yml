@@ -36,12 +36,6 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      - name: Set up Go for Android QR tunnel
-        uses: actions/setup-go@v7
-        with:
-          go-version: '1.26.x'
-          cache: false
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
@@ -118,12 +112,6 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-
-      - name: Set up Go for Android QR tunnel
-        uses: actions/setup-go@v7
-        with:
-          go-version: '1.26.x'
-          cache: false
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4

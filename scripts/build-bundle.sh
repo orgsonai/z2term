@@ -7,7 +7,6 @@
 #
 # 1. z2root 自前エンジンを NDK でクロスビルド (libz2root/libz2accept)
 # 2. プログラミングフォントを取得 (IBMPlex/JetBrainsMono/FiraCode)
-# 3. QR 共有の公開トンネルと依存ライセンス (Go + NDK)
 # 最後に全同梱物が揃ったかを点検し、欠落があれば非ゼロ終了する。
 #
 # 出力 (すべて gitignore):
@@ -37,17 +36,13 @@ need() {
     fi
 }
 # --------- z2root クロスビルド ---------
-echo "=== [1/3] z2root native build ==="
+echo "=== [1/2] z2root native build ==="
 bash "${SCRIPT_DIR}/build-z2root.sh"
 
 # --------- フォント取得 ---------
 echo ""
-echo "=== [2/3] Fonts fetch ==="
+echo "=== [2/2] Fonts fetch ==="
 bash "${SCRIPT_DIR}/fetch-fonts.sh"
-
-# --------- QR 共有トンネル ---------
-echo "=== [3/3] QR tunnel native build ==="
-bash "${SCRIPT_DIR}/build-qr-tunnel.sh"
 
 # --------- 完了点検: git 管理外の同梱物が全部揃ったか ---------
 echo ""
@@ -57,8 +52,6 @@ REQUIRED=(
     "app/src/main/jniLibs/arm64-v8a/libz2accept.so"
     "app/src/main/jniLibs/arm64-v8a/libz2usb.so"
     "app/src/main/jniLibs/arm64-v8a/libz2attach.so"
-    "app/src/main/jniLibs/arm64-v8a/libz2tunnel.so"
-    "app/src/main/assets/licenses/QR-Tunnel.txt"
     "app/src/main/assets/fonts/IBMPlexMono-Regular.ttf"
     "app/src/main/assets/fonts/JetBrainsMono-Regular.ttf"
     "app/src/main/assets/fonts/FiraCode-Regular.ttf"

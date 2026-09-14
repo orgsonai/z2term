@@ -53,8 +53,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 604
-        versionName = "0.8.596-alpha"
+        versionCode = 605
+        versionName = "0.8.597-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -257,24 +257,9 @@ val buildZ2rootNative = tasks.register<Exec>("buildZ2rootNative") {
 // jniLibs マージ前に必ず z2root を再ビルドさせる(stale .so 同梱を構造的に防ぐ)。
 // z2root/z2accept は src/main/jniLibs に出力する(ソースビルドのため F-Droid 適合)。
 // 実行エンジンはこの z2root だけで、proot prebuilt は 0.8.328 で削除済み。
-val buildQrTunnel = tasks.register<Exec>("buildQrTunnel") {
-    group = "build"
-    description = "Build the pinned Android public-tunnel connector and its license notices"
-    val script = rootProject.file("scripts/build-qr-tunnel.sh")
-    inputs.file(script)
-    inputs.file(rootProject.file("scripts/qr-tunnel-notices.py"))
-    outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2tunnel.so"))
-    outputs.file(layout.projectDirectory.file("src/main/assets/licenses/QR-Tunnel.txt"))
-    commandLine("bash", script.absolutePath)
-}
-tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
-    .configureEach { dependsOn(buildQrTunnel) }
-// Lint also reads source assets directly, including the generated dependency notices.
-tasks.matching { it.name.startsWith("lint") || it.name.contains("Lint") }
-    .configureEach { dependsOn(buildQrTunnel) }
 tasks.matching {
     it.name.startsWith("merge") && it.name.endsWith("JniLibFolders")
-}.configureEach { dependsOn(buildZ2rootNative, buildQrTunnel) }
+}.configureEach { dependsOn(buildZ2rootNative) }
 
 // ---------------------------------------------------------------------------
 // git 管理外の「同梱必須物」の欠落検出。
@@ -356,10 +341,13 @@ dependencies {
 
     // 共通ファイル画面から WebDAV / SMB へ直接接続する。
     implementation(libs.okhttp)
-    implementation(libs.zxing)
     // SMB2/3。jcifs-ng は現行 Bouncy Castle で削除済みの ASN.1 クラスを参照するため、
     // 同じ現行 Bouncy Castle を使う SMBJ に統一する。
     implementation(libs.smbj)
+
+    // Offline QR generation and camera/image decoding.
+    implementation(libs.zxing.core)
+    implementation(libs.zxing.embedded)
 
     // Debug
     debugImplementation(libs.androidx.ui.tooling)

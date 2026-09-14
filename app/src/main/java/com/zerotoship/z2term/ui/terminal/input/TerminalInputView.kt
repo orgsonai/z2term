@@ -56,6 +56,8 @@ class TerminalInputView(context: Context) : View(context) {
          * 受け手は [com.zerotoship.z2term.ime.Z2ImeService]。
          */
         const val TERMINAL_IME_OPTION = "com.zerotoship.z2term.terminal"
+        /** IME のキー入力専用。確定文字や貼り付けは従来の commitText を使う。 */
+        const val TERMINAL_KEY_BYTES_ACTION = "com.zerotoship.z2term.KEY_BYTES"
     }
 
     var session: TerminalSession? = null
@@ -447,6 +449,7 @@ class TerminalInputView(context: Context) : View(context) {
             sess.emulator.cursorKeyBytes(key)
         } ?: return super.onKeyDown(keyCode, event)
         sess.writeBytes(bytes)
+        if (ctrlSticky) onCtrlConsumed?.invoke()
         return true
     }
 
@@ -1019,6 +1022,19 @@ private class TerminalInputConnection(
         return true
     }
 
+    override fun performPrivateCommand(action: String?, data: android.os.Bundle?): Boolean {
+        if (action != TerminalInputView.TERMINAL_KEY_BYTES_ACTION) {
+            return super.performPrivateCommand(action, data)
+        }
+        val bytes = data?.getByteArray("bytes") ?: return false
+        val sess = session ?: return false
+        if (bytes.isNotEmpty()) {
+            sess.writeBytes(bytes)
+            if (targetView.ctrlSticky) targetView.onCtrlConsumed?.invoke()
+        }
+        return true
+    }
+
     override fun sendKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) {
             val sess = session
@@ -1028,6 +1044,7 @@ private class TerminalInputConnection(
                 }
                 if (bytes != null) {
                     sess.writeBytes(bytes)
+                    if (targetView.ctrlSticky) targetView.onCtrlConsumed?.invoke()
                     return true
                 }
             }

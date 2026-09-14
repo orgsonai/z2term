@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.rememberScrollState
@@ -45,6 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -124,6 +127,7 @@ fun SnippetsSheet(
     showSshTab: Boolean = true,
     serverSession: TerminalSession? = null
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     val actionMacros = rememberSaveable(saver = ActionMacrosState.saver) { ActionMacrosState() }
@@ -150,7 +154,22 @@ fun SnippetsSheet(
         contentColor = ZtsTextPrimary,
         scrimColor = Color.Black.copy(alpha = 0.55f),
         contentWindowInsets = { WindowInsets.systemBars },
-        dragHandle = { Z2TermDragHandle(onClose = requestClose) }
+        dragHandle = {
+            Box(Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Box(Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 88.dp)) {
+                    Z2TermDragHandle(onClose = requestClose)
+                }
+                androidx.compose.material3.TextButton(
+                    onClick = { com.zerotoship.z2term.qr.QrToolsActivity.open(context) },
+                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 8.dp)
+                        .semantics { contentDescription = context.getString(R.string.qr_tools_title) }
+                ) { Text("QR", color = ZtsTextPrimary, fontFamily = FontFamily.Monospace) }
+                androidx.compose.material3.TextButton(
+                    onClick = requestClose,
+                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 8.dp)
+                ) { Text(stringResource(R.string.qr_tools_close), color = ZtsTextPrimary) }
+            }
+        }
     ) {
         BackHandler {
             val editor = actionMacros.editor
@@ -167,7 +186,7 @@ fun SnippetsSheet(
             )
             if (tab == ToolsTab.WHEN) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AutomationTab.entries.forEach { option ->
+                    listOf(AutomationTab.RULES, AutomationTab.ACTIONS).forEach { option ->
                         AutomationTabChip(
                             label = stringResource(if (option == AutomationTab.ACTIONS) R.string.tools_automation_actions else R.string.tools_automation_rules),
                             selected = automationTab == option, modifier = Modifier.weight(1f),
@@ -869,6 +888,7 @@ private fun SnippetRow(
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -930,6 +950,11 @@ private fun SnippetRow(
                 fontSize = 18.sp,
                 fontFamily = FontFamily.Monospace
             )
+        }
+        if (com.zerotoship.z2term.qr.QrContent.singleLine(snippet.command)) {
+            IconCell(label = "QR", onClick = {
+                com.zerotoship.z2term.qr.QrToolsActivity.showCommand(context, snippet.label, snippet.command)
+            })
         }
         IconCell(label = "✎", onClick = onEdit)
         IconCell(label = "✕", danger = true, onClick = onDelete)

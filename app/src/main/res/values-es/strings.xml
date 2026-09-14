@@ -3,12 +3,12 @@
     <string name="app_name">Z2Term</string>
     <string name="action_clear">Borrar</string>
     <string name="settings_header">Ajustes de Z2Term</string>
-    <string name="settings_section_language">Idioma / 言語</string>
     <string name="settings_language_system">Sistema</string>
     <string name="settings_section_language_desc">Cambia el idioma de la aplicación. La opción predeterminada (Sistema) sigue el idioma del teléfono; si eliges uno, queda fijado sin importar el teléfono. Esto también alcanza a la terminal: la ayuda y los mensajes de los comandos z2-* siguen el mismo ajuste. Lo que aún no está traducido se muestra en inglés. El teclado japonés de deslizamiento solo aparece en 日本語.</string>
     <string name="settings_group_display">Pantalla</string>
     <string name="settings_group_display_desc">Colores, texto, barra de herramientas e historial de la terminal</string>
-    <string name="settings_group_keyboard">Teclado, entrada e idioma</string>
+    <!-- Keep "Language" in English so this group can be found after a language change. -->
+    <string name="settings_group_keyboard">Teclado, entrada / Language</string>
     <string name="settings_group_keyboard_desc">Tamaño del teclado, métodos de entrada, diccionarios e idioma de la aplicación</string>
     <string name="settings_group_linux">Entorno Linux</string>
     <string name="settings_group_linux_desc">SO, shell, almacenamiento y entorno gráfico</string>

@@ -3,6 +3,8 @@ package com.zerotoship.z2term.gui
 import android.view.KeyEvent
 import com.zerotoship.z2term.emulator.TerminalEmulator
 import com.zerotoship.z2term.ui.terminal.keyboard.NamedKey
+import com.zerotoship.z2term.ui.terminal.input.AndroidKeyMapper
+import com.zerotoship.z2term.ui.terminal.input.KeyModifiers
 
 /**
  * Android の入力 → **X11 keysym** 変換テーブル（GUI リモートデスクトップ用）。
@@ -134,6 +136,29 @@ object GuiKeyMapper {
         else -> 0
     }
 
+    /** GUI には VT 文字列ではなく、修飾キーと機能キーの押下・解放を送る。 */
+    fun sendNamedKey(client: RemoteDesktopClient, key: NamedKey, mods: KeyModifiers) {
+        val code = AndroidKeyMapper.keyCodeForNamed(key) ?: return
+        val keysym = keysymForKeyCode(code)
+        if (keysym == 0) return
+        val held = ArrayList<Int>(3)
+        try {
+            for ((enabled, modifier) in listOf(
+                mods.shift to XK_Shift_L, mods.ctrl to XK_Control_L, mods.alt to XK_Alt_L,
+            )) {
+                if (enabled) {
+                    client.sendKeyEvent(modifier, down = true)
+                    held.add(modifier)
+                }
+            }
+            client.tapKey(keysym)
+        } finally {
+            for (modifier in held.asReversed()) {
+                client.sendKeyEvent(modifier, down = false)
+            }
+        }
+    }
+
     /** 確定文字列を 1 コードポイントずつ keysym で送る（かな漢字変換の確定・OS IME 確定で使う）。 */
     fun sendText(client: RemoteDesktopClient, text: String) {
         var i = 0
@@ -183,7 +208,9 @@ object GuiKeyMapper {
                 b == 0x09 -> { client.tapKey(XK_Tab); return }
                 b == 0x0D || b == 0x0A -> { client.tapKey(XK_Return); return }
                 b == 0x08 || b == 0x7F -> { client.tapKey(XK_BackSpace); return }
+                b == 0x00 -> { sendCtrlCombo(client, ' '.code); return }
                 b in 0x01..0x1A -> { sendCtrlCombo(client, b + 0x60); return } // 0x01->'a'
+                b in 0x1C..0x1F -> { sendCtrlCombo(client, b + 0x40); return }
             }
         }
         sendText(client, String(bytes, Charsets.UTF_8))

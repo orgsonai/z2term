@@ -1,7 +1,6 @@
 package com.zerotoship.z2term.proot
 
 import com.zerotoship.z2term.distro.DistroOperations
-import com.zerotoship.z2term.distro.DistroSpec
 
 import android.content.Context
 import android.net.LocalSocket
@@ -79,13 +78,6 @@ class ProotLauncher(private val context: Context) {
         // 上書き合い「Not a valid dynamic program」で双方起動不可になる (項目4 の真因)。
         ".claude/downloads"
     )
-
-    /** Resolve a HOME file using the same distro isolation as the bind mounts, without creating it. */
-    internal fun homeFileForSharing(distroId: String, relativePath: String): File {
-        require(DistroSpec.byId(distroId) != null)
-        val isolated = isolatedHomeSubdirs.any { relativePath == it || relativePath.startsWith("$it/") }
-        return File(if (isolated) File(homeOverlayDir, distroId) else sharedHomeDir, relativePath)
-    }
 
     /**
      * 指定ディストリの HOME 隔離 bind を `(ホスト実体, "/root/<sub>")` で返す。

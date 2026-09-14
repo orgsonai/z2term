@@ -3,12 +3,12 @@
     <string name="app_name">Z2Term</string>
     <string name="action_clear">清除</string>
     <string name="settings_header">Z2Term 設定</string>
-    <string name="settings_section_language">語言 / Language</string>
     <string name="settings_language_system">跟隨系統</string>
     <string name="settings_section_language_desc">切換應用程式內的顯示語言。預設為“跟隨系統”，即跟隨手機的語言設定；選定某個語言後，無論手機怎麼設定都固定用它。終端機一側也會跟著變 — z2-* 指令的說明和提示訊息使用同一設定。尚未翻譯的部分會顯示英文。日文假名滑動鍵盤只在選擇日文時出現。</string>
     <string name="settings_group_display">顯示</string>
     <string name="settings_group_display_desc">配色、文字、頂部工具列、終端機保留行數</string>
-    <string name="settings_group_keyboard">鍵盤、輸入與語言</string>
+    <!-- Keep "Language" in English so this group can be found after a language change. -->
+    <string name="settings_group_keyboard">鍵盤、輸入 / Language</string>
     <string name="settings_group_keyboard_desc">鍵盤大小、輸入方式、詞典、顯示語言</string>
     <string name="settings_group_linux">Linux 環境</string>
     <string name="settings_group_linux_desc">系統、Shell、儲存、圖形介面</string>

@@ -294,7 +294,6 @@ object Z2ApiBridge {
             }
             "toast" -> { val msg = args.joinToString(" "); mainHandler.post { Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }; null }
             "share" -> { doShareText(context, args.joinToString(" ")); null }
-            "qr-share" -> com.zerotoship.z2term.share.QrShareCommands.command(context, args)
             "open" -> { doOpen(context, args.getOrNull(0).orEmpty()); null }
             "clip-set" -> { val text = args.joinToString(" "); runOnMain { setClipboard(context, text) }; null }
             "clip-get" -> runOnMainSync { getClipboard(context) }

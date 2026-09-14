@@ -1,22 +1,14 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-14 / Target version: 0.8.596-alpha (versionCode 604)
+Last updated: 2026-09-14 / Target version: 0.8.597-alpha (versionCode 605)
 
-**0.8.596-alpha (versionCode 604): experimental QR file sharing.** Command list → Servers → Send a file by QR opens selection, start, QR/link, status and stop controls. The CLI exposes `z2-share --qr [FILE]`, `--qr-status` and `--qr-stop`. It runs natively on Android without Linux, a shared Wi-Fi network or a VPS. Both devices use the internet through Cloudflare Quick Tunnels; sharing ends 30 minutes after readiness. The trial relay provides no uptime guarantee.
+**0.8.597-alpha (versionCode 605; build unverified)**: A phone-hosted HTTP(S) server serves a selected file or folder through a QR/link. Recipients browse the folder hierarchy and confirm each file before saving it in their browser. In the default Automatic mode, choosing a file or folder obtains a public device address and free port on the current Wi-Fi/mobile connection, starts the server and displays its URL/QR. Manual mode retains public-origin, port and HTTPS settings. Stop, expiry or a connection change also stops the share server. Inbound access must be allowed separately; external reachability remains unverified. No cloud upload or relay service is used. QR tools open from the top-left of the command sheet. They read camera frames and images, offer reviewed URL opening, and import/export SSH endpoints and short commands. The separate “z2term — QR” share target also accepts QR images and decoded text from other apps. Automation places Rules on the left and Action automation on the right; Rules remains selected by default. The fixed English Language label and startup race fix remain.
 
-- `share/QrShareManager` owns one active transfer and its service identity. `QrShareService` is an independent `dataSync` FGS with notification actions for reopening and stopping. Expiry uses monotonic time. `START_NOT_STICKY` prevents automatic publication after process restart or update. Stop everything and quit includes this service.
-- The selected file streams into `cacheDir/qr-share/<UUID>/payload` before publication. This immutable snapshot avoids loading the whole file into memory or exposing subsequent source changes. Free space is checked. Stop/failure closes connections and the tunnel and removes the snapshot; a later start removes orphaned snapshots left by process death.
-- The CLI preserves quoted/space-containing absolute paths and passes HOME and the OS ID. Only shared home, shared storage and that OS's isolated HOME files are accepted, using the existing `ProotLauncher` bind list. Unrelated private directories and non-regular files are rejected. The GUI copies from a SAF URI and can select other Linux locations through the file picker.
-- `QrFileServer` listens on an ephemeral loopback port and serves only fixed paths containing a random 256-bit token. Request paths never become filesystem paths. Filenames are HTML-escaped and downloads use UTF-8 `Content-Disposition`. GET/HEAD, single Range and repeated downloads are supported, with no-store and CSP headers. There is no download-count expiry, so previews and HEAD requests cannot consume a link.
-- `QrTunnelDns` queries Android’s configured DNS without cached answers to avoid retaining early NXDOMAIN responses for newly provisioned names. Device DNS settings stay unchanged. IPv6 targets are excluded when the current network has no outward-facing IPv6 address; IPv4 is preferred.
-- Bundled `libz2tunnel.so` makes an outbound HTTP/2 connection. A public HTTPS health probe must return the exact token before the QR appears. Connectivity loss hides the URL until a subsequent probe succeeds. Public URLs, tokens and raw provider logs are never persisted; diagnostics record failure categories and connector exit codes.
-- Cloudflare relays a public link: anyone who knows it can download during its lifetime. No password authentication or additional device-to-device encryption is added. The sender must remain running and connected. Only one file is shared at a time. ZXing Core 3.5.4 generates the QR.
+See [QR tools and phone-hosted file sharing](QR-TOOLS.md). DirectFileServer uses a 256-bit share token, per-file consent POST and HttpOnly cookie, byte ranges, and bounded connections/headers. DirectShareService owns a private snapshot of the selection (up to 1 GiB total) and a 5/15/60-minute lifetime; stop/expiry/network changes close the share server and active connections and delete the snapshot, leaving other servers running. Automatic uses HTTP with an unencrypted-transfer notice; Manual uses an imported PKCS#12 for TLS or explicit HTTP acknowledgment. DirectShareNetwork observes the Android default network and address validity. Automatic prefers an assigned public IPv4 address, then native global IPv6, excluding private, carrier-shared, link-local, special-purpose and invalid addresses. No address-lookup service is used. It binds once to the selected address on port 0 and builds the URL and consent origin from the actual assigned port. With no candidate, it reports the reason without starting a public listener. Folder selection uses OpenDocumentTree and builds a hierarchy manifest with private file copies. Limits are 10,000 entries including the root and 64 levels below it. Empty folders and duplicate basenames remain distinct; failed reads, incomplete listings, cycles and exceeded limits abort before publication and delete prepared copies. Browser routes resolve only share tokens and numeric manifest IDs, never client-supplied device paths or URIs. Parent navigation ends at the selected root, and consent cookies use per-file HMAC values and paths. Tree-prefix read grants and exact HTTPS certificate grants use separate service-start Intents; preparation waits for certificate permission when needed. No persistent grant is added. Camera permission is requested on demand, and images use SAF. QR imports never execute commands and create new profiles, snippets or hidden edge panels. Unit test sources are added; builds, test execution and on-device transfers have not been performed.
 
-**Verification (0.8.596)**: 1,142 of 1,144 unit tests passed; two existing RDP tests were skipped. Debug, signed release and instrumentation APK builds passed with zero lint errors. In addition to the PC HTTP integration test, two Android QR tests and four shell, distro-deletion and edge-panel regression tests passed. The bundled Android connector reached public HTTPS; the device and a separate PC verified the SHA-256 of a synthetic 1 MiB file, with Range, immutable snapshot and stopped-download checks on the device. Decoding the QR from the actual device screen produced the tested URL. DNS propagation required retries after publication. Release and debug version 604 were installed on the device with app data retained, and their versions were verified. An actual iPhone, manual SAF selection, network switching, large files and a full 30-minute expiry remain untested.
+External QR input enters through a separate exported QrReceiveActivity. QrIncoming validates it before the QrToolsActivity review screen handles it. Limits are 8 images and 32 results/32,768 total characters; images accept content URIs only. Existing SharedIntake and share automation are not invoked. Processing waits for app unlock; rotation restores handled state/results, while onNewIntent replaces the prior input. Six receiver tests are added; execution and build remain unverified.
 
 **Startup race fix (0.8.596)**: A theme initialization crash found after the device update is addressed by constructing the shared palette during Application startup and applying the asynchronously loaded theme on the main thread. This prevents composition from racing with the first creation of palette state. After reinstalling the corrected release and debug builds, three fresh process launches of each build completed without a crash (six launches total).
-
-**Audio recording investigation (0.8.596)**: A report says Android screen recording captures ordinary videos but misses `z2-audio` playback. Startup diagnostics now log AudioTrack usage, content type, capture policy and format. On the device, playback uses USAGE_MEDIA / CONTENT_TYPE_MOVIE and the app permits playback capture. The cause of missing audio during screen recording remains unconfirmed; this change adds diagnostics only.
 
 **0.8.595-alpha (versionCode 603)**: The edge panel Manage page now displays recreation commands with a Copy commands button. It exports saved settings and items as `z2-edge` commands. Selecting a parent includes its tabs and their order; selecting a child preserves existing parent settings and other tabs. Note contents, referenced scripts and images need separate backups.
 
@@ -564,16 +556,15 @@ means would then depend on the payload, which cannot be explained to anyone.
 - **The table lives in `AndroidKeyMapper`** (`keyBytesFor`). ⚠ If the built-in keyboard
   (`mapKeyEvent`) and the CLI emitted different bytes, bugs would reproduce through one path only.
   `KeyBytesForTest` pins that both go through the same table.
-- **Arrows are built by the emulator** (DECCKM-dependent). A hard-coded sequence would break arrows
-  in any application-cursor-keys program.
-- ⛔ **Shift-ed keys such as `C-S-a` are refused rather than sent** (the user's call). A terminal
+- **Unmodified arrows are built by the emulator** (DECCKM-dependent). Modified arrows use xterm CSI parameters in either mode.
+- ⛔ **Shift-modified character keys such as `C-S-a` are refused rather than sent** (the user's call). A terminal
   folds Shift into the character, so it would be **the very same byte as `C-a`** (`controlByteFor`
   collapsing `a..z` and `A..Z` is exactly that). ⚠ Sending `C-a` silently would make "I sent it and
   nothing happened" untraceable, so the error **also says what to write instead**. The protocols that
   can tell them apart (xterm's modifyOtherKeys, the Kitty keyboard protocol) are not implemented, and
   would need the receiving program to cooperate anyway.
   ⚠ **`S-Tab` is allowed**: the test is not "does it carry Shift" but "**can the terminal tell it
-  apart**", and backtab genuinely exists as `ESC [ Z`.
+  apart**". Backtab uses `ESC [ Z`; Shift with arrows, editing keys or F1–F12 uses the xterm modifier parameter.
 - **`--raw` takes escape notation** (`\xHH` `\e` `\n` `\r` `\t` `\0`). ⚠ Real bytes are not
   accepted as arguments because the request file is "one line = one argument", so a literal newline
   would break the separator (the same reason `z2-icon` folds a drawing into base64).
@@ -2641,7 +2632,7 @@ On failure: fall back to launchAndroidSh
   so green hints **dissolve into it and vanish exactly while you need them** (user report). The kana
   face avoids this by deriving its hint colour from the foreground (`fg.copy(alpha = 0.6f)`).
 - **Long-press repeat**: numbers / arrows / space / letter keys / **⏎** repeat while held (first 400ms→55ms). ⌫ is 500ms→60ms, with left/right flick = Ctrl+W / Ctrl+U. Modifier keys don't repeat. ⏎ carries the repeat in all three places — the Latin layout, the kana flick layout, and `SpecialKeyBar` shown with the system keyboard (0.8.193; wiring only one of them makes it "work on some keyboards only"). On the kana flick layout the first press commits the pending composition, and the rest send newlines.
-- **ALT / META**: both are the same modifier that prefixes the next key with ESC (Meta). ⚠ **META was removed in 0.8.281** and its seat became the entry point for the paste / emoji pad (`PadKey`, below); the Meta modifier now lives only on ALT in Row 5 (the two keys always did the same thing). It applies to `emitChar`/`emitSpecial` **and to `emitCursor`** — arrows used to drop the modifier, so ALT+arrow was just a plain arrow (fixed in 0.8.193). Since the arrow bytes depend on DECCKM and are built by the terminal, ESC is sent on its own first, followed by the arrow.
+- **Modified keys**: `KeyModifiers` carries Ctrl/Alt/Shift alongside each named key through `TerminalKeyboard.onKey`. Terminal input, physical keys and `z2-session key` share `AndroidKeyMapper.namedKeyBytes`. Modified arrows, Home/End, editing keys and F1–F12 use xterm modifier parameters (Shift=2, Alt=3, Ctrl=5, combinations=4/6/7/8) in one write; for example Alt+Up is `ESC[1;3A` and Ctrl+Left is `ESC[1;5D`. Only unmodified arrows follow DECCKM. Alt letters retain their ESC prefix, Shift+Tab is backtab and Ctrl+Backspace is BS. Ctrl/Alt and one-shot Shift clear after sending. Custom `KeyAction.Chord` supports both text and named keys and combines its modifiers with the on-screen state. GUI input sends modifier keysyms around the functional key; search fields never receive VT sequences as text. Extended keyboard protocols distinguishing Ctrl+Shift+letters, Ctrl+Tab and Shift+Enter remain unimplemented. Regression tests added; build unverified.
 - **Cycling through faces (`KeyboardFace`, 0.8.305)**: the left end of the bottom row (the seat "あ" used to occupy) is the **face-switch key**, and pressing it moves to the next face. ⚠ **Its label names the face you are going to, not the one you are on** (`あ` / `ABC` / `12`) — with two faces "the other one" needed no label, but with three there is nothing else to tell you where the key leads. The TopBar "あ" → switches the OS IME (a separate path).
   - The faces are **kana (`KANA`) / Latin (`ASCII`) / numbers (`NUMBER`)**. ⛔ **No new switch key is added** — that is the whole point: faces are a swap, not an addition, so **the number of keys on screen does not change** when a face is added.
   - The cycle is **the configured order ∩ the faces available here** (`KeyboardFace.available`). Kana is available only when the app language is Japanese, numbers only when the setting is on. ⚠ **ASCII always survives** — drop both and there would be no face left at all.
@@ -3300,13 +3291,13 @@ it would stop looking like the same keyboard and there would be two places to fi
 `scaledKeyboardStyle` were widened from private to internal for this (the height setting applies to
 both, so the keyboard does not change size when you switch).
 
-**Only the exit differs** ([`ImeKeyTranslator`]): terminal-bound bytes become `InputConnection` calls.
+**Input-method output**: named functional keys use Android `KeyEvent` objects carrying their modifiers. Unmodified Enter in ordinary text fields retains the existing newline/editor action. For ordinary fields, `onBytes` still uses [`ImeKeyTranslator`] and the table below. Control bytes destined for z2term itself use `performPrivateCommand(TERMINAL_KEY_BYTES_ACTION)` as one byte array, preserving Ctrl+C, Ctrl+J and Alt+letters without dropping controls or translating line feeds.
 
 | What the keyboard emits | What it means in a text field |
 |---|---|
 | Printable characters (UTF-8) | `commitText` (runs are merged into one call) |
 | `0x7F` / `0x08` (⌫) | **a `KEYCODE_DEL` key event**. ⚠ `deleteSurroundingText` does **not** delete a selection |
-| `0x17` / `0x15` (⌫ flicks) | delete word / delete to line start, measured against `getTextBeforeCursor` (same counting as `readline`'s `unix-word-rubout`). ⚠ **Against z2term's own terminal they are sent as Ctrl+W / Ctrl+U key events instead** (0.8.312; see below) |
+| `0x17` / `0x15` (⌫ flicks) | delete word / delete to line start, measured against `getTextBeforeCursor` (same counting as `readline`'s `unix-word-rubout`). For z2term terminals, the dedicated key-input path sends the control bytes; the older-version fallback sends Ctrl+W / Ctrl+U key events |
 | `0x0D` (⏎) | newline in a multi-line field; otherwise **the action the field asks for** (`performEditorAction`) |
 | `0x09` (TAB) | `KEYCODE_TAB` (next field) |
 | `0x1B` (ESC, and the ALT prefix) | **dropped**. ALT+key inserts just the character |
@@ -3332,15 +3323,7 @@ keeps (1) from turning into a commit; in (2) there is no composing region left, 
 kana when the field changes) — until this fix, **kana meant for the previous field landed committed in
 the next one**.
 
-⚠ **"Count, then delete" cannot work against the terminal** (0.8.312). `TerminalInputView` holds no
-editable, so `getTextBeforeCursor` is always empty and word / line delete measure 0 = **nothing
-happens**. The terminal therefore marks itself in `EditorInfo.privateImeOptions`
-(`TerminalInputView.TERMINAL_IME_OPTION`), and only when the IME sees that mark does it send
-**Ctrl+W / Ctrl+U as `KeyEvent`s** (`sendDownUpKeyEvents` cannot carry modifiers, so the events are
-built by hand with `KeyCharacterMap.VIRTUAL_KEYBOARD`). The terminal turns them back into `0x17` /
-`0x15` in `AndroidKeyMapper.mapKeyEvent` and writes them to the PTY, so **the shell decides how far to
-delete** — the same result as typing on the built-in keyboard. ⚠ Never send those key events to an
-unmarked field: some apps bind Ctrl+W and friends to something else.
+The terminal does not expose its current line as editable field text, so word/line deletion sends control bytes instead of counting characters. The dedicated byte-input path is used only when `EditorInfo.privateImeOptions` contains `TERMINAL_IME_OPTION`. Ordinary fields continue through `ImeKeyTranslator`. If the private-command call is not accepted, the existing fallback sends Ctrl+W/Ctrl+U as modified Android key events.
 
 **Implementation notes**:
 - ⚠ **`InputMethodService` is not a `LifecycleOwner`.** `ComposeView` looks up three owners
@@ -3536,8 +3519,6 @@ built-in keyboard**".
 ---
 
 ## 9. Build / bundled assets
-
-For QR sharing, `scripts/build-qr-tunnel.sh` verifies pinned Cloudflare Tunnel 2026.9.1 source with SHA-256 and builds an Android arm64 PIE using Go 1.26+ and the NDK. Generated files are `libz2tunnel.so` and `assets/licenses/QR-Tunnel.txt`, containing notices for the actual Go dependencies and runtime. Both are git-ignored; Gradle assets/JNI merging and lint depend on generation. `build-bundle.sh` also builds them. Initial source/dependency downloads require internet access. Build on a PC using half its logical CPUs.
 
 ```bash
 bash scripts/build-bundle.sh          # generate all bundled assets at once

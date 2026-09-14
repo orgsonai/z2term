@@ -119,10 +119,16 @@ object EdgeItemEditor {
             (if (optional) advanced else basic).addView(group)
         }
         basic.addView(noteLines, LinearLayout.LayoutParams(-1, -2))
+        val qr = EdgeSettingsUi.button(context, context.getString(R.string.qr_tools_command_qr)) {
+            com.zerotoship.z2term.qr.QrToolsActivity.showCommand(context,
+                entries["label"]?.text.toString(), entries["run"]?.text.toString())
+        }
+        basic.addView(qr)
         fun showFields() {
             val selected = types[type.selectedItemPosition]
             buttonState.visibility = if (selected == "run") View.VISIBLE else View.GONE
             val stateButton = selected == "run" && buttonState.isChecked
+            qr.visibility = if (selected == "run" && !stateButton && appCommand == null) View.VISIBLE else View.GONE
             buttonStateHelp.visibility = if (stateButton) View.VISIBLE else View.GONE
             sourceGroup.visibility = if (stateButton) View.VISIBLE else View.GONE
             noteLines.visibility = if (selected == "note") View.VISIBLE else View.GONE

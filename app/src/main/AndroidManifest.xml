@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
     <!-- 必須権限 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -23,7 +28,6 @@
 
     <!-- Foreground Service（M3 で本格利用、M1 では宣言のみ） -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <!-- Android 13+ で永続通知に必須 -->
@@ -108,9 +112,40 @@
         android:requestLegacyExternalStorage="true"
         tools:targetApi="35">
 
-        <activity android:name=".share.QrShareActivity" android:exported="false" />
-        <service android:name=".share.QrShareService" android:exported="false"
+        <!-- The scanner is embedded in our app-lock-aware activity. -->
+        <activity android:name="com.journeyapps.barcodescanner.CaptureActivity" tools:node="remove" />
+        <activity android:name=".qr.QrToolsActivity" android:exported="false" />
+        <activity android:name=".qr.QrReceiveActivity" android:exported="true"
+            android:label="${appLabel} — QR" android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/uri-list" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="z2term" android:host="command" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ssh" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".share.DirectShareActivity" android:exported="false" />
+        <service android:name=".share.DirectShareService" android:exported="false"
             android:foregroundServiceType="dataSync" />
+
         <!-- Keep drafts separate from MainActivity's singleTask stack when opening a target app. -->
         <activity android:name=".automation.ActionMacrosActivity" android:exported="false"
             android:launchMode="singleTask" android:excludeFromRecents="true"

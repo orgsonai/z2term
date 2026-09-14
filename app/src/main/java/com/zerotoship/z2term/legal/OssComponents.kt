@@ -53,19 +53,20 @@ object OssComponents {
 
         // ===== Android / Java 依存 (gradle) =====
         OssComponent(
-            name = "Cloudflare Tunnel 2026.9.1 / Go dependencies",
-            licenseId = "Apache-2.0 / BSD / MIT",
-            copyright = "Cloudflare, Inc. and respective contributors (see bundled notices)",
-            sourceUrl = "https://github.com/cloudflare/cloudflared/tree/2026.9.1",
-            purposeRes = R.string.qr_share_title,
-            licenseAsset = "QR-Tunnel",
+            name = "ZXing Core 3.5.3",
+            licenseId = "Apache-2.0",
+            copyright = "Copyright ZXing authors. Includes contributions from Barcode4J: " +
+                "Copyright 2002-2010 Jeremias Märki; Copyright 2005-2006 Dietmar Bürkle. " +
+                "Contributors: http://barcode4j.sourceforge.net/contributors.html",
+            sourceUrl = "https://github.com/zxing/zxing/tree/zxing-3.5.3",
+            purposeRes = R.string.qr_tools_oss,
         ),
         OssComponent(
-            name = "ZXing Core 3.5.4",
+            name = "ZXing Android Embedded 4.3.0",
             licenseId = "Apache-2.0",
-            copyright = "Copyright ZXing authors",
-            sourceUrl = "https://github.com/zxing/zxing/tree/zxing-3.5.4",
-            purposeRes = R.string.qr_share_title,
+            copyright = "Copyright Journey Mobile, Inc. and contributors; ZXing authors",
+            sourceUrl = "https://github.com/journeyapps/zxing-android-embedded/tree/v4.3.0",
+            purposeRes = R.string.qr_tools_oss,
         ),
         OssComponent(
             name = "AndroidX / Jetpack Compose",

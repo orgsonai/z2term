@@ -153,6 +153,8 @@ import com.zerotoship.z2term.ui.snippets.SnippetsSheet
 import com.zerotoship.z2term.ui.ssh.HostKeyVerificationDialog
 import com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar
 import com.zerotoship.z2term.ui.terminal.input.TerminalInputView
+import com.zerotoship.z2term.ui.terminal.input.AndroidKeyMapper
+import com.zerotoship.z2term.ui.terminal.input.KeyModifiers
 import com.zerotoship.z2term.ui.terminal.input.rememberPhysicalKeyboardConnected
 import com.zerotoship.z2term.ui.terminal.keyboard.ComposingState
 import com.zerotoship.z2term.settings.LocaleHelper
@@ -639,21 +641,30 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         val onKeyboardBytes: (ByteArray) -> Unit = { bytes ->
             if (searchTyping) routeSearchBytes(bytes) else active.writeBytes(bytes)
         }
-        val onKeyboardCursor: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> Unit = { key ->
-            // 検索入力中はカーソルキーを PTY へ送らず、検索語のキャレット移動に使う
-            // (シェル側を乱さず、途中の打ち間違いをその場で直せるようにする)。
+        val onKeyboardKey: (NamedKey, KeyModifiers) -> Unit = { key, mods ->
+            // 検索欄には機能キーの VT バイト列を文字として挿入しない。
             if (searchTyping) {
                 val len = searchQuery.length
                 when (key) {
-                    com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.LEFT ->
-                        searchCursor = (searchCursor - 1).coerceIn(0, len)
-                    com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.RIGHT ->
-                        searchCursor = (searchCursor + 1).coerceIn(0, len)
-                    com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.UP -> searchCursor = 0
-                    com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.DOWN -> searchCursor = len
+                    NamedKey.LEFT -> searchCursor = (searchCursor - 1).coerceIn(0, len)
+                    NamedKey.RIGHT -> searchCursor = (searchCursor + 1).coerceIn(0, len)
+                    NamedKey.UP, NamedKey.HOME -> searchCursor = 0
+                    NamedKey.DOWN, NamedKey.END -> searchCursor = len
+                    NamedKey.BACKSPACE -> searchBackspace()
+                    NamedKey.DELETE -> {
+                        val at = searchCursor.coerceIn(0, len)
+                        if (at < len) {
+                            val end = searchQuery.offsetByCodePoints(at, 1)
+                            searchQuery = searchQuery.removeRange(at, end)
+                        }
+                    }
+                    NamedKey.ENTER -> routeSearchBytes(byteArrayOf(0x0D))
+                    NamedKey.ESC -> searchOpen = false
+                    else -> Unit
                 }
             } else {
-                active.writeBytes(active.emulator.cursorKeyBytes(key))
+                AndroidKeyMapper.namedKeyBytes(key, mods, active.emulator::cursorKeyBytes)
+                    ?.let { active.writeBytes(it) }
             }
         }
 
@@ -698,7 +709,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         faceEntries = faceEntries,
                         widthDp = settings.landscapeKeyboardWidthDp,
                         onBytes = onKeyboardBytes,
-                        onCursorKey = onKeyboardCursor
+                        onKey = onKeyboardKey
                     )
                 }
             }
@@ -828,7 +839,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         faceEntries = faceEntries,
                         widthDp = settings.landscapeKeyboardWidthDp,
                         onBytes = onKeyboardBytes,
-                        onCursorKey = onKeyboardCursor
+                        onKey = onKeyboardKey
                     )
                 }
             }
@@ -889,7 +900,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                             key(active.id) {
                                 TerminalKeyboard(
                                     onBytes = onKeyboardBytes,
-                                    onCursorKey = onKeyboardCursor,
+                                    onKey = onKeyboardKey,
                                     composing = composing,
                                     style = kbStyle,
                                     faceEntries = faceEntries,
@@ -1072,8 +1083,8 @@ private fun runGuideCommand(
  * 設定 (`systemEventCaptureEnabled`) は触らないので、次にアプリを開けば検知は再開する。
  */
 internal fun stopEverythingAndQuit(context: Context) {
+    com.zerotoship.z2term.share.DirectShareManager.stop(context)
     com.zerotoship.z2term.automation.ActionRuntime.stop(reason = "App shutdown")
-    com.zerotoship.z2term.share.QrShareManager.stop(context)
     ServerDaemonService.stop(context)
     SystemEventService.stop(context)
     SessionManager.shutdown()
@@ -1430,7 +1441,7 @@ private fun GuiTabScreen(
                     faceEntries = faceEntries,
                     widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.desktopClient, it) },
-                    onCursorKey = { key -> gui.desktopClient.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                    onKey = { key, mods -> GuiKeyMapper.sendNamedKey(gui.desktopClient, key, mods) },
                     onNamedKey = { key -> gui.desktopClient.tapKey(GuiKeyMapper.keysymForNamed(key)) }
                 )
             }
@@ -1529,7 +1540,7 @@ private fun GuiTabScreen(
                     faceEntries = faceEntries,
                     widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.desktopClient, it) },
-                    onCursorKey = { key -> gui.desktopClient.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                    onKey = { key, mods -> GuiKeyMapper.sendNamedKey(gui.desktopClient, key, mods) },
                     onNamedKey = { key -> gui.desktopClient.tapKey(GuiKeyMapper.keysymForNamed(key)) }
                 )
             }
@@ -1698,7 +1709,7 @@ private fun GuiKeyboardPanel(
                     ) {
                         TerminalKeyboard(
                             onBytes = { GuiKeyMapper.sendBytes(client, it) },
-                            onCursorKey = { key -> client.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                            onKey = { key, mods -> GuiKeyMapper.sendNamedKey(client, key, mods) },
                             onNamedKey = { key -> client.tapKey(GuiKeyMapper.keysymForNamed(key)) },
                             composing = composing,
                             style = style,
@@ -1943,6 +1954,14 @@ private fun GuiSpecialKeyBar(
     onCtrlToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    fun sendKey(key: NamedKey) {
+        GuiKeyMapper.sendNamedKey(client, key, KeyModifiers(ctrl = ctrlSticky))
+        if (ctrlSticky) onCtrlToggle()
+    }
+    fun sendControl(ch: Char) {
+        GuiKeyMapper.sendCtrlCombo(client, ch.code)
+        if (ctrlSticky) onCtrlToggle()
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -1952,17 +1971,17 @@ private fun GuiSpecialKeyBar(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        GuiSpecialKey("ESC") { client.tapKey(GuiKeyMapper.XK_Escape) }
-        GuiSpecialKey("TAB") { client.tapKey(GuiKeyMapper.XK_Tab) }
+        GuiSpecialKey("ESC") { sendKey(NamedKey.ESC) }
+        GuiSpecialKey("TAB") { sendKey(NamedKey.TAB) }
         GuiSpecialKey("CTRL", active = ctrlSticky, onClick = onCtrlToggle)
-        GuiSpecialKey("←") { client.tapKey(GuiKeyMapper.XK_Left) }
-        GuiSpecialKey("↓") { client.tapKey(GuiKeyMapper.XK_Down) }
-        GuiSpecialKey("↑") { client.tapKey(GuiKeyMapper.XK_Up) }
-        GuiSpecialKey("→") { client.tapKey(GuiKeyMapper.XK_Right) }
-        GuiSpecialKey("⏎") { client.tapKey(GuiKeyMapper.XK_Return) }
-        GuiSpecialKey("^C") { GuiKeyMapper.sendCtrlCombo(client, 'c'.code) }
-        GuiSpecialKey("^D") { GuiKeyMapper.sendCtrlCombo(client, 'd'.code) }
-        GuiSpecialKey("^L") { GuiKeyMapper.sendCtrlCombo(client, 'l'.code) }
+        GuiSpecialKey("←") { sendKey(NamedKey.LEFT) }
+        GuiSpecialKey("↓") { sendKey(NamedKey.DOWN) }
+        GuiSpecialKey("↑") { sendKey(NamedKey.UP) }
+        GuiSpecialKey("→") { sendKey(NamedKey.RIGHT) }
+        GuiSpecialKey("⏎") { sendKey(NamedKey.ENTER) }
+        GuiSpecialKey("^C") { sendControl('c') }
+        GuiSpecialKey("^D") { sendControl('d') }
+        GuiSpecialKey("^L") { sendControl('l') }
     }
 }
 
@@ -3660,7 +3679,7 @@ private fun SideKeyboardColumn(
     faceEntries: List<KeyboardFaceEntry>,
     widthDp: Float,
     onBytes: (ByteArray) -> Unit,
-    onCursorKey: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> Unit,
+    onKey: (NamedKey, KeyModifiers) -> Unit,
     onNamedKey: ((NamedKey) -> Unit)? = null,
 ) {
     Column(
@@ -3676,7 +3695,7 @@ private fun SideKeyboardColumn(
         ) {
             TerminalKeyboard(
                 onBytes = onBytes,
-                onCursorKey = onCursorKey,
+                onKey = onKey,
                 onNamedKey = onNamedKey,
                 composing = composing,
                 style = style,

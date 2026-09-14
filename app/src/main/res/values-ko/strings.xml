@@ -3,12 +3,12 @@
     <string name="app_name">Z2Term</string>
     <string name="action_clear">지우기</string>
     <string name="settings_header">Z2Term 설정</string>
-    <string name="settings_section_language">언어 / Language</string>
     <string name="settings_language_system">시스템</string>
     <string name="settings_section_language_desc">앱 화면의 언어를 바꿉니다. 기본값(시스템)은 휴대전화의 언어 설정을 따르고, 하나를 고르면 휴대전화와 상관없이 그 언어로 고정됩니다. 터미널에도 함께 적용됩니다 — z2-* 명령의 도움말과 메시지도 같은 설정을 따릅니다. 아직 번역되지 않은 곳은 영어로 나옵니다. 일본어 플릭 키보드는 日本語일 때만 나옵니다.</string>
     <string name="settings_group_display">화면</string>
     <string name="settings_group_display_desc">색, 글자, 툴바, 터미널 기록</string>
-    <string name="settings_group_keyboard">키보드・입력・언어</string>
+    <!-- Keep "Language" in English so this group can be found after a language change. -->
+    <string name="settings_group_keyboard">키보드・입력 / Language</string>
     <string name="settings_group_keyboard_desc">키보드 크기, 입력 방식, 사전, 앱 언어</string>
     <string name="settings_group_linux">Linux 환경</string>
     <string name="settings_group_linux_desc">OS, 셸, 저장소, GUI</string>
