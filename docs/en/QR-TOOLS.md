@@ -1,6 +1,6 @@
-# QR tools and phone-hosted file sharing
+# QR tools and self-hosted relay setup
 
-0.8.597-alpha; build unverified. Camera use, HTTPS, receiving from another network and screen-off continuity are not device-verified.
+Applies to 0.8.600-alpha (versionCode 608).
 
 ## Read and display QR codes
 
@@ -33,56 +33,86 @@ Named commands use `z2term://command?name=...&text=...` with UTF-8 URL encoding.
 
 Generation accepts up to 2,000 UTF-8 bytes; the content field accepts 4,096 characters. Shorten content if generation fails.
 
-## Share a file
+## Sharing through your own relay
 
-When the sending phone is reachable from the Internet, recipients on another network need only a browser, without an app or account. No transfer cloud, relay service or Bluetooth is used.
+Open **Command list → bottom of Servers → Share files through a relay**. This optional feature requires your own server. There is no automatic third-party relay or direct device-address sharing.
 
-Open **Command list → Servers → Share a file from this device**.
+You need an SSH server reachable from the phone and a public HTTPS origin that proxies to an internal port on that server. SSH alone does not issue a browser URL. The following example terminates HTTPS on the same server.
 
-The default is **Automatic**.
+```text
+Recipient browser → HTTPS → Your reverse proxy
+                                ↓ 127.0.0.1:8080
+                           SSH remote forwarding
+                                ↓
+                      Android loopback share server
+```
 
-1. Optionally choose 5, 15 or 60 minutes (default: 15).
-2. Press **Choose a file and start sharing** for one file, or **Choose a folder and start sharing** for a folder, then select it.
-3. The app obtains an address on the current Wi-Fi/mobile connection and starts its share server on a free port. Once the sending snapshot is ready, it displays the URL and QR. Send the link or a QR image to the remote recipient.
+### Prepare the server
 
-Automatic uses **HTTP without encryption**, with a notice on screen. Switch to **Manual** for HTTPS or an existing router port-forwarding configuration.
+1. Point a public hostname such as `share.example` at your server, provision a certificate trusted by browsers and Android, and allow inbound HTTPS.
+2. Permit remote forwarding for the SSH account. Choose an unused internal port from 1024 to 65535; this example uses `127.0.0.1:8080`.
+3. Proxy HTTPS requests under `/share/` to that port.
 
-Manual setup:
+Example SSH server configuration, replacing `share-user` with the intended account. Adapt it to existing rules: applying this to a shared account also affects forwarding for its other uses. Validate configuration before reloading.
 
-1. Enter the **Public URL** recipients will open, such as `https://share.example:8443`, without a path.
-2. Choose an unused **Listening port** from 1024 to 65535. The router's public port may differ.
-3. Choose a 5-, 15- or 60-minute lifetime.
-4. For HTTPS, select a PKCS#12 (.p12/.pfx) containing the matching hostname certificate, private key and certificate chain, and enter its password. A browser-trusted certificate avoids recipient setup. Certificates are not obtained automatically.
-5. For HTTP, explicitly acknowledge that the file and URL are unencrypted.
-6. **Choose file** or **Choose a folder → Start sharing and show QR**. The QR and link appear after the sending snapshot is ready. Send a link or QR image to a remote recipient.
+```text
+Match User share-user
+    AllowTcpForwarding remote
+    GatewayPorts no
+    PermitListen 127.0.0.1:8080
+```
 
-Recipients open the QR/link. Folder shares show the hierarchy: open a folder, then select a file. Parent links return as far as the selected root. Review the filename and size and press **Receive and save** to download that file. Browsing directories alone sends no file contents. The receiving page supports Japanese and English.
+Also check `DisableForwarding` and forwarding restrictions in `authorized_keys`. Jump hosts need permission to forward to the next SSH endpoint. See the [OpenSSH configuration reference](https://man.openbsd.org/sshd_config#AllowTcpForwarding).
 
-The entire selected folder is prepared before the URL appears. Empty folders and files with the same basename in different folders remain distinct. Changes to originals after sharing starts do not change the copies being served. Recipients save individual files to their browser download location; the folder hierarchy is for navigation, not bulk saving.
+Example nginx HTTPS virtual host, with your actual certificate paths. If HTTPS already exists, add the `/share/` location to its configuration.
 
-Only the manually entered public URL and listening port are saved. Automatically obtained addresses and ports never overwrite manual settings. Select certificates per share; passwords are not persisted. Choose one file or one folder per share, up to 1 GiB total. Folders allow 10,000 entries including the root and 64 levels below it. A same-size snapshot and at least 16 MiB of additional free space are required. Unreadable entries, incomplete listings or exceeded limits abort preparation and remove partial copies. Folder selection is limited to locations allowed by the Android picker.
+```nginx
+server {
+    listen 443 ssl;
+    server_name share.example;
+    ssl_certificate /etc/ssl/share/fullchain.pem;
+    ssl_certificate_key /etc/ssl/share/private.key;
+    access_log off;
 
-Closing the screen keeps sharing active; return through the notification. Keep the phone online until saving finishes. Stop, expiry and the app's stop-everything action close the share server and active transfers and delete the snapshot. Stopping a share leaves other servers running. Switching between Wi-Fi and mobile data or disconnecting also stops the share, as does losing an automatically selected address. Select the file or folder again to create a new URL. Shares never restart after process death or reboot. A snapshot left by forced termination is removed at the next start and never republished.
+    location /share/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 90s;
+    }
+    location / { return 404; }
+}
+```
 
-## Public URL requirements
+Do not append a path to `proxy_pass`: preserve the incoming `/share/...` path. Avoid logging sharing URLs. Preserve Origin, Cookie, Set-Cookie and the app’s Referrer-Policy response. Validate the configuration before reloading. See the [nginx proxy_pass reference](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass). While sharing is stopped, there is no upstream listener for this route.
 
-Starting a share does not remove ingress restrictions. Automatic reads addresses assigned to the Android default network and does not switch from Wi-Fi to mobile data itself. It prefers a public IPv4 assigned to the device, then native global IPv6, excluding local, carrier-shared, special-purpose and unusable addresses. It neither calls an external IP-lookup service nor changes router settings through UPnP.
+### Configure the app and receive files
 
-The same requirements apply on Wi-Fi. If the phone only has a private IPv4 behind the router, a public URL cannot be generated automatically. Global IPv6 still needs router ingress permission. With no candidate, the app explains the reason and points to changing networks or manually configuring an already prepared route.
+1. Save the server in the SSH tab and connect once to verify its host key. Sharing rejects unknown or changed keys without automatic approval.
+2. Select that profile in “Share files through a relay”. Its credentials and jump hosts are reused; init commands, ordinary forwarding rules and resident tunnels are not applied.
+3. Enter the public HTTPS origin, such as `https://share.example`, without a path, and the server-side internal port, such as `8080`. Save settings. The public HTTPS port is independent of this internal port.
+4. Choose 5, 15 or 60 minutes, then a file or folder. A QR and link appear after snapshot preparation, SSH forwarding and the public health check succeed. The lifetime starts at that point.
+5. Recipients open the link in a browser, choose a file, and press “Receive and save”. Folder sharing lets them browse the hierarchy and save individual files.
 
-- **IPv4** needs a public address and, where applicable, TCP forwarding and firewall permission. Carrier NAT may prevent publication even after configuring a home router.
-- **IPv6** needs a global address on the phone and inbound permission. An IPv6-only URL also requires IPv6 at the receiving end.
-- **Hostnames** must resolve to the correct public address. The manual listener prefers dual IPv6/IPv4, falling back to IPv4 when necessary unless the URL explicitly specifies IPv6.
-- An existing HTML server cannot occupy the same port. Automatic lets the OS assign a free port. For Manual, route traffic to the specified listening port.
+No inbound connection to the phone or automatic router configuration is required. Your server terminates HTTPS and handles the file traffic. A successful probe from the phone does not prove reachability from every recipient network; also test your public URL from another connection.
 
-The unverified status means the phone is listening. Page visits do not distinguish local and external visitors. Test from another network. Transmitted bytes include retries and do not prove saving completed.
+Relay preferences store the profile ID, public origin and internal port. Credentials remain in the existing SSH settings. Saving settings does not connect; only starting a share does. Sharing never reconnects or republishes automatically after failure or app startup.
 
-Anyone holding the link can receive during its lifetime. A 256-bit random token, per-file consent cookies and cache suppression are used; arbitrary device paths are never exposed. Numeric route IDs resolve only inside the selection manifest. Parent links never escape the selected root, and consent for one file does not enable downloads of another. Stalled connections close after roughly 30–35 seconds. HTTPS uses TLS 1.2/1.3.
+### Selection limits and stopping
+
+Share one file or one folder at a time, up to 1 GiB total, 10,000 entries including the root and 64 levels below it. Free space must cover the selection plus 16 MiB. Read failures and exceeded limits abort before publication and delete partial copies. Empty folders and duplicate basenames in separate folders remain distinct. Later source changes do not alter the sending copy.
+
+Anyone with the link can receive during the sharing period. A 256-bit random token, per-file confirmation cookies and cache suppression protect the selection. Routes cannot expose arbitrary device paths or navigate above the selected root. Confirmation for one file cannot authorize another. Stalled connections close after about 30–35 seconds.
+
+Sharing continues after closing its screen; return through the notification. Keep the device online until reception finishes. Stop, expiry or network change/disconnection closes that share’s SSH relay, listener and active transfers and deletes its copy. Other servers remain unaffected. Connection setup is bounded to about two minutes. Failed health checks hide the QR and stop sharing if recovery fails. Copies left by process death are deleted on the next share start and never republished.
 
 ## Verification
 
-Unit test sources cover rejection before consent, downloads after consent, ranges, empty files, invalid paths/origins, expiry/stopping, URL normalization and invalid QR content. Additional regression sources cover address selection, IPv6 URL formatting, consent at the actual bound port, closing the listener and existing connections, and leaving a separate server running. Folder regression sources cover hierarchy/parent links, empty directories, duplicate basenames, individual downloads and consent isolation, invalid routes, source changes after copying, aggregate limits, and cleanup after read failures or cancellation. An Android test also covers separate tree and exact certificate permission handoff for folder shares over manual HTTPS. Builds and tests have not been run on the phone.
+Verification for 0.8.600 (2026-09-14): desktop debug, release and Android test APK builds passed, with 1,172 unit tests passing, two skipped and zero lint errors. A temporary loopback SSH server and HTTPS proxy on the PC received Android SSH remote forwarding through a USB test route. A real PC browser saved 1 MiB with an identical SHA-256. Range requests, pre-consent and invalid-Origin rejection, and disconnection after stopping passed. Unknown host keys and an occupied remote port were rejected. Test clients trusted only the fixture certificate; production TLS verification was unchanged. This does not establish reachability through a user’s public Internet deployment.
 
-Device checks should cover camera/images (Japanese content, multiple QRs, denied permission), app-lock return and no execution on scanning alone. Test HTTP/HTTPS from another network, compare saved and source hashes, verify stop/expiry, and check screen-off transfers, rotation and notification return. Automatic checks also cover starting through file or folder selection alone, stopping on Wi-Fi/mobile changes, the no-public-address message and preservation of manual settings. HTTPS tests need a certificate that passes ordinary browser trust and hostname verification.
+Saving SSH host keys no longer Base64-encodes JSch’s already encoded key a second time. If a previously saved key fails verification, reconnect from the SSH tab and verify its fingerprint against the server before confirming. Sharing never approves unknown or changed keys.
 
-External-sharing verification: Six Android test cases cover image streams, ClipData-only input, multiple images, decoded text, invalid URIs and oversized input. They have not been run. Device checks also include share-target labels, locked entry, rotation without repeated processing, and sharing again to an existing receiver.
+Unit tests cover configuration constraints, consent, ranges, hierarchy, snapshot limits and cleanup, expiry and stop. Android tests verify selection grants and relay-setting delivery. `Referrer-Policy: same-origin` is retained so real browser form POSTs send a valid Origin.
+
+To test your public deployment, install the debug and Android test APKs and prepare a browser with a matching WebDriver on the PC. Save and verify the SSH profile in the debug app and configure the HTTPS proxy. Pass `--serial`, `--profile` (saved SSH profile ID), `--origin` (HTTPS origin) and `--remote-port` to `scripts/test-share-relay.py`. Keep the phone on cellular and the PC on a separate connection. A destination is required. The test shares generated 1 MiB fixtures and verifies single files, folders, hashes, actual browser downloads and stopping. Reachability through a user’s public deployment remains unverified until this test runs against that deployment.

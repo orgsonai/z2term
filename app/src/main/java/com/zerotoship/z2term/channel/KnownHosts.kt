@@ -11,6 +11,7 @@ import com.jcraft.jsch.HostKey
 import com.jcraft.jsch.HostKeyRepository
 import com.jcraft.jsch.UserInfo
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -99,6 +100,9 @@ class DataStoreHostKeyRepository(
 
     /** host (lowercase) -> entries の一覧 */
     private val map = ConcurrentHashMap<String, MutableList<KnownHostsStore.Entry>>()
+    private val loaded = CompletableDeferred<Unit>()
+
+    suspend fun awaitLoaded() { loaded.await() }
 
     init {
         scope.launch {
@@ -107,6 +111,7 @@ class DataStoreHostKeyRepository(
                 list.forEach { e ->
                     map.getOrPut(e.host.lowercase()) { mutableListOf() }.add(e)
                 }
+                loaded.complete(Unit)
             }
         }
     }
@@ -124,7 +129,8 @@ class DataStoreHostKeyRepository(
     }
 
     override fun add(hostkey: HostKey, ui: UserInfo?) {
-        val keyB64 = Base64.encodeToString(hostkey.key.toByteArray(Charsets.ISO_8859_1), Base64.NO_WRAP)
+        // JSch already returns Base64 here; encoding it again breaks later strict checks.
+        val keyB64 = hostkey.key
         val entry = KnownHostsStore.Entry(
             host = hostkey.host.lowercase(),
             type = hostkey.type,

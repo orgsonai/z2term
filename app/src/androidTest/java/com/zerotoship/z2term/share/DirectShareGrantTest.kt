@@ -26,29 +26,37 @@ class DirectShareGrantTest {
         override fun stopService(name: Intent) = false
     }
 
-    @Test fun folderHttpsDoesNotBroadenTheCertificatesExactGrant() {
+    @Test fun folderGrantIncludesOnlyTheSelectionAndNonSecretRelaySettings() {
         val context = RecordingContext()
         val tree = Uri.parse("content://documents.example/tree/chosen")
-        val certificate = Uri.parse("content://documents.example/document/certificate")
         try {
-            DirectShareManager.start(context, tree, "chosen",
-                DirectShareConfig.parse("https://share.example:8443", 8443, 15),
-                certificate, "test", false, folder = true)
-            assertEquals(2, context.starts.size)
-            val selection = context.starts[0]
-            val certGrant = context.starts[1]
+            DirectShareManager.start(context, tree,
+                ShareRelayConfig.parse("saved-profile", "https://share.example", 8080, 15), folder = true)
+            assertEquals(1, context.starts.size)
+            val selection = context.starts.single()
             assertEquals(tree, selection.data)
             assertTrue(selection.flags and Intent.FLAG_GRANT_PREFIX_URI_PERMISSION != 0)
+            assertTrue(selection.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
             assertEquals(1, selection.clipData!!.itemCount)
             assertEquals(tree, selection.clipData!!.getItemAt(0).uri)
-            assertEquals(certificate, certGrant.data)
-            assertEquals(0, certGrant.flags and Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
-            assertTrue(certGrant.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
-            assertEquals(selection.getStringExtra("id"), certGrant.getStringExtra("id"))
             assertEquals(0, selection.flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-            assertEquals(0, certGrant.flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            assertEquals("saved-profile", selection.getStringExtra("profile"))
+            assertEquals("https://share.example", selection.getStringExtra("origin"))
+            assertEquals(8080, selection.getIntExtra("remotePort", 0))
+            assertEquals(setOf("id", "file", "profile", "origin", "remotePort", "minutes", "folder"),
+                selection.extras!!.keySet())
         } finally { DirectShareManager.stop(context) }
         assertFalse(DirectShareManager.state.value.active)
         assertFalse(DirectShareManager.state.value.stopping)
+    }
+
+    @Test fun singleFileGrantDoesNotIncludeSiblings() {
+        val context = RecordingContext()
+        val file = Uri.parse("content://documents.example/document/chosen")
+        try {
+            DirectShareManager.start(context, file,
+                ShareRelayConfig.parse("saved-profile", "https://share.example", 8080, 5))
+            assertEquals(0, context.starts.single().flags and Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
+        } finally { DirectShareManager.stop(context) }
     }
 }

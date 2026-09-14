@@ -84,9 +84,11 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.597-alpha (versionCode 605; build unverified)**: A phone-hosted HTTP(S) server serves a selected file or folder through a QR/link. Recipients browse the folder hierarchy and confirm each file before saving it in their browser. In the default Automatic mode, choosing a file or folder obtains a public device address and free port on the current Wi-Fi/mobile connection, starts the server and displays its URL/QR. Manual mode retains public-origin, port and HTTPS settings. Stop, expiry or a connection change also stops the share server. Inbound access must be allowed separately; external reachability remains unverified. No cloud upload or relay service is used. QR tools open from the top-left of the command sheet. They read camera frames and images, offer reviewed URL opening, and import/export SSH endpoints and short commands. The separate “z2term — QR” share target also accepts QR images and decoded text from other apps. Automation places Rules on the left and Action automation on the right; Rules remains selected by default. The fixed English Language label and startup race fix remain.
+**0.8.600-alpha (versionCode 608)**: QR tools remain available. File sharing now requires a self-hosted relay, with a small “Share files through a relay” entry at the bottom of the Servers tab. Choose a saved SSH profile and configure your own public HTTPS origin and server-side loopback port. Automatic third-party relays and direct device-address sharing have been removed. The QR appears after the public URL passes a health check. Stop, expiry or network change closes the share connections and removes the sending copy.
 
-See [QR tools and phone-hosted file sharing](docs/en/QR-TOOLS.md) for setup and public-access requirements.
+See [QR tools and self-hosted relay setup](docs/en/QR-TOOLS.md) for setup and public-access requirements.
+
+**0.8.597-alpha (versionCode 605)**: QR tools open from the top-left of the command sheet. They read camera frames and images, offer reviewed URL opening, import SSH endpoints and short commands, and display content as QR codes. The separate “z2term — QR” share target also accepts QR images and decoded text from other apps. Automation places Rules on the left and Action automation on the right; Rules remains selected by default. The direct device-address sharing added in this version was removed in 0.8.600.
 
 **Startup race fix (0.8.596)**: A theme initialization crash found after the device update is addressed by constructing the shared palette during Application startup and applying the asynchronously loaded theme on the main thread. This prevents composition from racing with the first creation of palette state.
 

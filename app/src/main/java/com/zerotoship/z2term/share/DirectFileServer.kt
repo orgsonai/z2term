@@ -20,14 +20,14 @@ import javax.net.ServerSocketFactory
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-/** One immutable selection; browser routes resolve only to its manifest IDs. No external service. */
+/** One immutable selection; browser routes resolve only to its manifest IDs. */
 internal class DirectFileServer(
     file: File,
     filename: String,
     origin: String?,
     port: Int,
     ipv6: Boolean,
-    ttlMillis: Long,
+    private val ttlMillis: Long,
     factory: ServerSocketFactory = ServerSocketFactory.getDefault(),
     private val onVisit: () -> Unit = {},
     private val onBytes: (Long) -> Unit = {},
@@ -41,7 +41,7 @@ internal class DirectFileServer(
     val size = content.size
     val fileCount = content.fileCount
     private val consent = secret()
-    private val deadline = nanoTime() + ttlMillis * 1_000_000L
+    @Volatile private var deadline = nanoTime() + ttlMillis * 1_000_000L
     private val running = AtomicBoolean(true)
     private val listener = run {
         require(ttlMillis in 60_000..3_600_000)
@@ -57,9 +57,20 @@ internal class DirectFileServer(
         }
     }
     internal val localPort get() = listener.localPort
-    // Auto mode binds port 0 once, then uses that actual port for both URLs and consent checks.
-    private val origin: String = origin ?: DirectShareAddress.httpOrigin(requireNotNull(bindAddress), localPort)
-    val url = this.origin + path
+    // The private listener uses its actual port until the HTTPS relay is ready.
+    @Volatile private var origin: String = origin ?: DirectShareAddress.httpOrigin(requireNotNull(bindAddress), localPort)
+    val url get() = this.origin + path
+    private var relayed = false
+
+    /** Publish only after the external health probe succeeds; consent uses the public HTTPS origin. */
+    @Synchronized fun publishViaRelay(value: String) {
+        check(running.get() && !relayed && listener.inetAddress.isLoopbackAddress)
+        val config = DirectShareConfig.parse(value, 8080, 15)
+        require(config.tls)
+        origin = config.origin
+        deadline = nanoTime() + ttlMillis * 1_000_000L
+        relayed = true
+    }
     private val sockets = ConcurrentHashMap<Socket, Long>()
     private val timer = Executors.newSingleThreadScheduledExecutor { task ->
         Thread(task, "direct-share-timeout").apply { isDaemon = true }
@@ -124,6 +135,12 @@ internal class DirectFileServer(
         val target = resolve(request[1])
         if (target == null) { respond(socket, 404, "Not Found", 0); return }
         when (target.action) {
+            Action.HEALTH -> {
+                if (method == "POST") { respond(socket, 405, "Method Not Allowed", 0); return }
+                val bytes = token.toByteArray(Charsets.US_ASCII)
+                respond(socket, 200, "OK", bytes.size.toLong(), mapOf("Content-Type" to "text/plain"))
+                if (method == "GET") write(socket, bytes)
+            }
             Action.PAGE -> {
                 if (method == "POST") { respond(socket, 405, "Method Not Allowed", 0); return }
                 val ja = headers["accept-language"].orEmpty().lowercase(Locale.ROOT).startsWith("ja")
@@ -179,13 +196,14 @@ internal class DirectFileServer(
         }
     }
 
-    private enum class Action { PAGE, ACCEPT, FILE }
+    private enum class Action { PAGE, ACCEPT, FILE, HEALTH }
     private data class Target(val item: DirectShareContent.Item, val action: Action, val base: String)
 
     private fun resolve(request: String): Target? {
         if (request == path) return Target(content.root, Action.PAGE, path)
         if (!request.startsWith(path)) return null
         val relative = request.removePrefix(path)
+        if (relative == "health") return Target(content.root, Action.HEALTH, path)
         if (!content.folder) return when (relative) {
             "accept" -> Target(content.root, Action.ACCEPT, path)
             "file" -> Target(content.root, Action.FILE, path)
@@ -272,7 +290,10 @@ internal class DirectFileServer(
         val header = buildString {
             append("HTTP/1.1 " + code + " " + reason + "\r\nContent-Length: " + length + "\r\nConnection: close\r\n")
             append("Cache-Control: no-store, private, max-age=0\r\nPragma: no-cache\r\n")
-            append("X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n")
+            // no-referrer makes browsers send Origin: null for HTML form POSTs, which our
+            // consent check correctly rejects. Keep the origin for same-origin forms while
+            // still withholding the shared URL from other origins.
+            append("X-Content-Type-Options: nosniff\r\nReferrer-Policy: same-origin\r\n")
             append("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'\r\n")
             extra.forEach { (key, value) -> append(key + ": " + value + "\r\n") }
             append("\r\n")

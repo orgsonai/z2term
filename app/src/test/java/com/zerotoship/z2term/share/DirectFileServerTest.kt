@@ -46,6 +46,43 @@ class DirectFileServerTest {
         return cookie.substringBefore(';')
     }
 
+    @Test fun relayHealthDoesNotCountAsAVisitOrDownloadAndRequiresTheToken() {
+        val visits = AtomicLong()
+        val bytes = AtomicLong()
+        DirectFileServer(file(), "report.txt", null, 0, false, 60_000,
+            onVisit = { visits.incrementAndGet() }, onBytes = { bytes.addAndGet(it) },
+            bindAddress = InetAddress.getByName("127.0.0.1")).use { server ->
+            val health = request(server, server.path + "health")
+            assertEquals(200, health.code)
+            assertEquals(server.token, health.body)
+            assertEquals(0L, visits.get())
+            assertEquals(0L, bytes.get())
+            assertEquals(404, request(server, "/health").code)
+            assertEquals(405, request(server, server.path + "health", "POST").code)
+        }
+    }
+
+    @Test fun relayConsentUsesPublicHttpsOriginAndExpiryStartsAfterConnecting() {
+        val clock = AtomicLong(0)
+        DirectFileServer(file(), "report.txt", null, 0, false, 60_000, nanoTime = clock::get,
+            bindAddress = InetAddress.getByName("127.0.0.1")).use { server ->
+            val localOrigin = server.url.substringBefore(server.path)
+            clock.set(50_000_000_000L)
+            server.publishViaRelay("https://share.example")
+            assertEquals("https://share.example" + server.path, server.url)
+            assertTrue(runCatching { server.publishViaRelay("https://share.example") }.isFailure)
+            assertEquals(403, request(server, server.path + "accept", "POST", mapOf("Origin" to localOrigin)).code)
+            val accepted = request(server, server.path + "accept", "POST", mapOf("Origin" to "https://share.example"))
+            assertEquals(303, accepted.code)
+            assertTrue(accepted.headers.getValue("set-cookie").contains("; Secure"))
+            clock.set(70_000_000_000L)
+            assertEquals(200, request(server, server.path + "file", headers = mapOf(
+                "Cookie" to accepted.headers.getValue("set-cookie").substringBefore(';'))).code)
+            clock.set(111_000_000_000L)
+            assertEquals(410, request(server, server.path).code)
+        }
+    }
+
     @Test fun confirmationPageEscapesNamesAndNeverContainsFileBytes() {
         server().use { server ->
             val page = request(server, server.path, headers = mapOf("Accept-Language" to "ja"))
@@ -54,6 +91,7 @@ class DirectFileServerTest {
             assertTrue(page.body.contains("受信して保存"))
             assertFalse(page.body.contains("abcdef"))
             assertEquals("nosniff", page.headers["x-content-type-options"])
+            assertEquals("same-origin", page.headers["referrer-policy"])
             assertTrue(page.headers.getValue("content-security-policy").contains("frame-ancestors 'none'"))
             assertEquals(403, request(server, server.path + "file").code)
             assertEquals(405, request(server, server.path + "accept").code)
@@ -85,6 +123,8 @@ class DirectFileServerTest {
             }
             assertEquals(403, request(server, server.path + "accept", "POST",
                 mapOf("Origin" to "https://attacker.example")).code)
+            assertEquals(403, request(server, server.path + "accept", "POST",
+                mapOf("Origin" to "null", "Sec-Fetch-Site" to "same-origin")).code)
             assertEquals(403, request(server, server.path + "accept", "POST",
                 mapOf("Sec-Fetch-Site" to "cross-site")).code)
             assertEquals(400, request(server, server.path + "accept", "POST",
@@ -121,7 +161,7 @@ class DirectFileServerTest {
         server().use { assertNotEquals(token, it.token) }
     }
 
-    @Test fun automaticOriginUsesTheBoundPortForQrAndBrowserConsent() {
+    @Test fun loopbackOriginUsesTheBoundPortForQrAndBrowserConsent() {
         val loopback = InetAddress.getByName("127.0.0.1")
         DirectFileServer(file(), "report.txt", null, 0, false, 60_000, bindAddress = loopback).use { server ->
             val actualOrigin = "http://127.0.0.1:" + server.localPort

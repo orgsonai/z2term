@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.597-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.600-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -712,7 +712,7 @@ Notification, SMS, event and unlock-failure detection and log formats remain in 
 | Language | **This label stays in English in every locale. The collapsed group heading also includes "Language", so the setting remains recognizable after changing languages.** **System** (default) / Japanese / English / Simplified Chinese / Traditional Chinese / Spanish / Korean (switches instantly; Simplified since 0.8.424, Traditional since 0.8.426, Spanish since 0.8.517, Korean since 0.8.520). ⚠ The default follows **the phone's own language setting** (0.8.363 — before that the app started in Japanese whatever the phone was set to). Picking one pins that language regardless of the phone. **The terminal follows too** — the help and messages of the `z2-*` commands use the same setting. ⚠ **Anything not translated yet appears in English** (0.8.422; before that it stayed in Japanese). The Japanese flick keyboard is offered only in Japanese (other languages get the ASCII and numeric faces). ⚠ **No Chinese/Japanese conversion engine and no Hangul composer are bundled for other languages** — switch to your OS input method for that |
 | Disable install timeout | Wait for OS / GUI downloads to finish completely |
 | Confirm before downloading | Show a confirmation dialog before fetching a distro / GUI |
-| SSH connection helper | Steps for connecting from a PC, with the IP shown |
+| SSH access from a PC | Steps for connecting from a PC, with the IP shown |
 | Shared storage access | Configure it under Permissions and notifications → Permissions → Shared storage. Android 11+ checks all-files access; Android 10 checks the runtime storage permissions. |
 | External storage (SD card) | When on, an inserted SD card is made visible from inside the OS (`/sdcard_ext`) |
 | Background process protection | Battery exemption and phantom-process guidance are in Permissions and notifications → Permissions. Low-power mode is in Command list → Servers. |
@@ -761,7 +761,9 @@ Pick "End session only" for a clean slate, or "Stop everything and quit" to stop
 
 **Startup race fix (0.8.596)**: A theme initialization crash found after the device update is addressed by constructing the shared palette during Application startup and applying the asynchronously loaded theme on the main thread. This prevents composition from racing with the first creation of palette state.
 
-**QR tools and phone-hosted file sharing (0.8.597-alpha; build unverified)**: The QR button at the top-left of the command sheet reads camera frames or images and lets you review a URL, save an SSH endpoint or import a short command. Share images or decoded text from another app to “z2term — QR” to open the same review screen. Automation places Rules on the left and Action automation on the right; Rules remains selected by default. Command list → Servers → Share a file from this device defaults to Automatic: choosing a file or folder starts an HTTP server using an assigned public address and free port on the current Wi-Fi/mobile connection, then shows its URL/QR. Manual retains public-origin, port and HTTPS settings. Stop, expiry or a connection change also stops the share server. Recipients browse folder hierarchies in a browser and confirm individual files before saving. Internet ingress to the sending device is required; starting a share does not verify public reachability. See [setup, usage and limits](QR-TOOLS.md). Existing text sharing and receiving files from other apps remain available.
+**QR tools (0.8.597)**: The QR button at the top-left of the command sheet reads camera frames or images and lets you review a URL, save an SSH endpoint or import a short command. Share images or decoded text from another app to “z2term — QR” to open the same review screen. Automation places Rules on the left and Action automation on the right; Rules remains selected by default.
+
+**0.8.600-alpha (versionCode 608)**: QR tools remain available. File sharing now requires a self-hosted relay, with a small “Share files through a relay” entry at the bottom of the Servers tab. Choose a saved SSH profile and configure your own public HTTPS origin and server-side loopback port. Automatic third-party relays and direct device-address sharing have been removed. The QR appears after the public URL passes a health check. Stop, expiry or network change closes the share connections and removes the sending copy. See [usage and server setup](QR-TOOLS.md).
 
 ---
 

@@ -46,7 +46,8 @@ object SshSessionFactory {
      * 1 段目で判定する (本来の接続先は踏み台の中＝相手側の回線で解決される)。
      * ⚠ 名前解決を伴うので、**IO スレッドから呼ぶ**という元々の約束がここでも要る。
      */
-    fun create(profile: SshProfile, context: Context): SshLink {
+    fun create(profile: SshProfile, context: Context, strictHostKeys: Boolean = false,
+               onOpening: (Session) -> Unit = {}): SshLink {
         val target = HostAddress.normalize(profile.host)
         val hops = profile.jumpHosts
             .filter { it.host.isNotBlank() }
@@ -57,14 +58,16 @@ object SshSessionFactory {
         try {
             var proxy: Proxy? = null
             hops.forEach { hop ->
-                val session = open(context, hop.user, hop.host, hop.port, hop.credentials())
+                val session = open(context, hop.user, hop.host, hop.port, hop.credentials(), strictHostKeys)
+                onOpening(session)
                 proxy?.let { session.setProxy(it) }
+                opened += session
                 session.connect(CONNECT_TIMEOUT_MS)
                 Log.i(TAG, "jump host reached: ${hop.describe()}")
-                opened += session
                 proxy = JumpProxy(session)
             }
-            val session = open(context, profile.user, target, profile.port, profile.credentials())
+            val session = open(context, profile.user, target, profile.port, profile.credentials(), strictHostKeys)
+            onOpening(session)
             proxy?.let { session.setProxy(it) }
             return SshLink(session, opened)
         } catch (e: Throwable) {
@@ -81,6 +84,7 @@ object SshSessionFactory {
         host: String,
         port: Int,
         credentials: SshCredentials,
+        strictHostKeys: Boolean,
     ): Session {
         val jsch = JSch()
         jsch.hostKeyRepository = KnownHostsHolder.repository(context)
@@ -101,7 +105,7 @@ object SshSessionFactory {
             session.setPassword(credentials.password)
         }
         session.setConfig(Properties().apply {
-            put("StrictHostKeyChecking", "ask")
+            put("StrictHostKeyChecking", if (strictHostKeys) "yes" else "ask")
             put(
                 "PreferredAuthentications",
                 if (credentials.authType == SshProfile.AuthType.PUBLIC_KEY)
