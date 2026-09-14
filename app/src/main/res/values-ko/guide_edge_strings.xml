@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内: エッジパネル (0.8.601)。Guide.EDGE_PANEL -->
+    <string name="guide_desc_edge_panel">화면 가장자리의 바에서 앱 목록 열기</string>
+    <string name="guide_step_edge_overlay">z2term이 다른 앱 위에 표시되도록 허용하기</string>
+    <string name="guide_step_edge_accessibility">접근성의 「z2term Android 동작」 켜기 (바를 위아래로 밀어 스크롤할 때 필요)</string>
+    <string name="guide_step_edge_on">패널 켜기 (오른쪽 가장자리에 바가 나타나고 앱 목록이 열립니다)</string>
+    <string name="guide_step_edge_settings">패널을 연 채로 메뉴 바깥을 길게 누르면 설정 화면이 열립니다</string>
+</resources>

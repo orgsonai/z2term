@@ -43,7 +43,7 @@
     <string name="edge_undo">撤销</string>
     <string name="edge_redo">重做</string>
     <string name="edge_split_unavailable">此Android版本无法从全屏启动分屏。请先将终端置于分屏模式。</string>
-    <string name="edge_default_panel">主面板</string>
+    <string name="edge_default_panel">应用</string>
     <string name="edge_panel_name">当前面板或标签页名称</string>
     <string name="edge_save">保存</string>
     <string name="edge_name_required">请输入名称</string>

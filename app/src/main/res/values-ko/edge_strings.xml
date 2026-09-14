@@ -43,7 +43,7 @@
     <string name="edge_undo">실행 취소</string>
     <string name="edge_redo">다시 실행</string>
     <string name="edge_split_unavailable">이 Android 버전은 전체 화면에서 분할 화면을 시작할 수 없습니다. 먼저 터미널을 분할 화면으로 전환하세요.</string>
-    <string name="edge_default_panel">기본</string>
+    <string name="edge_default_panel">앱</string>
     <string name="edge_panel_name">현재 패널 또는 탭 이름</string>
     <string name="edge_save">저장</string>
     <string name="edge_name_required">이름을 입력하세요</string>

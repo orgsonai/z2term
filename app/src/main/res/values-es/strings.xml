@@ -963,7 +963,7 @@
     <string name="settings_intro_again_desc">Las tres primeras tarjetas volverán a aparecer la próxima vez que abras la aplicación.</string>
     <string name="settings_intro_again_done">Se mostrará la próxima vez que abras la aplicación</string>
     <string name="settings_guides">Mostrar una guía</string>
-    <string name="settings_guides_desc">Las macros de ejemplo incluidas. Elige una para poner sus pasos en tarjetas sobre la terminal. Al tocar una tarjeta se ejecuta esa única línea (los pasos que necesitan un valor tuyo lo piden antes); ✕ descarta los que no necesites.</string>
+    <string name="settings_guides_desc">Guías de funciones y de las macros de ejemplo incluidas. Elige una para poner sus pasos en tarjetas sobre la terminal. Al tocar una tarjeta se ejecuta esa única línea (los pasos que necesitan un valor tuyo lo piden antes); ✕ descarta los que no necesites.</string>
     <string name="guide_hint">Toca para ejecutar (primero se envía Ctrl-C, para que no se mezcle una línea a medio escribir) / ✕ para saltarte un paso</string>
     <string name="guide_desc_watch_basic">reaccionar a la carga y a los auriculares justo cuando ocurre</string>
     <string name="guide_desc_battery_alert">avisarme cuando la batería baje del % que yo elija</string>

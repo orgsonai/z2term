@@ -47,11 +47,20 @@ class EdgeStore(val root: File) {
         return Panel(id, fields, items)
     }
 
-    /** Create only when empty; enabling must never replace an existing definition. */
-    @Synchronized fun ensureInitialPanel(label: String): Boolean {
+    /**
+     * Create only when empty; enabling must never replace an existing definition.
+     * [items] runs only when the panel is created, because it may look up installed apps.
+     */
+    @Synchronized fun ensureInitialPanel(label: String, items: () -> Map<String, Map<String, String>> = { emptyMap() }): Boolean {
         if (panels().isNotEmpty()) return false
-        setPanel("main", mapOf("label" to label, "handle" to "bar", "side" to "right",
-            "size" to "6", "length" to "6", "offset" to "30"))
+        val initial = items()
+        setPanel("main", EdgeDefaultPanel.fields + ("label" to label))
+        try {
+            initial.forEach { (id, values) -> setItem("main:$id", values) }
+        } catch (e: Exception) {
+            removePanel("main")
+            throw e
+        }
         return true
     }
 

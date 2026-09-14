@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.601-alpha (versionCode 609)**: The QR tools entry moved from the top of the command sheet to the Snippets and Connections tab headers, next to “+ New”. The top is again only the drag handle, which closes the sheet when tapped. QR tools and Share files through a relay now use the command sheet's monospace text, bordered buttons and fields. The relay entry at the bottom of the Servers tab is now a bordered row with a chevron. Turning edge panels on with no panels creates an app list opened from a bar on the right edge. It lists the z2term, browser, camera, phone, messages and settings apps found on the device. Settings › Maintenance › Show a guide adds “edge-panel”, covering the overlay and accessibility permissions, turning the panel on and long-pressing outside the menu to open settings.
+
 **0.8.600-alpha (versionCode 608)**: QR tools remain available. File sharing now requires a self-hosted relay, with a small “Share files through a relay” entry at the bottom of the Servers tab. Choose a saved SSH profile and configure your own public HTTPS origin and server-side loopback port. Automatic third-party relays and direct device-address sharing have been removed. The QR appears after the public URL passes a health check. Stop, expiry or network change closes the share connections and removes the sending copy.
 
 See [QR tools and self-hosted relay setup](docs/en/QR-TOOLS.md) for setup and public-access requirements.

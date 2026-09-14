@@ -43,7 +43,7 @@
     <string name="edge_undo">復原</string>
     <string name="edge_redo">重做</string>
     <string name="edge_split_unavailable">此Android版本無法從全螢幕啟動分割畫面。請先將終端機置於分割畫面。</string>
-    <string name="edge_default_panel">主面板</string>
+    <string name="edge_default_panel">應用程式</string>
     <string name="edge_panel_name">目前面板或分頁名稱</string>
     <string name="edge_save">儲存</string>
     <string name="edge_name_required">請輸入名稱</string>

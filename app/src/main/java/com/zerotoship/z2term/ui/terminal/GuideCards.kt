@@ -85,9 +85,9 @@ data class GuideStep(
 }
 
 /**
- * 同梱サンプルマクロ 1 本ぶんの案内。
+ * 同梱サンプルマクロ 1 本、または機能 1 つぶんの案内。
  *
- * [id] は設定画面から呼ぶときの識別子 (= サンプルのファイル名から `.sh` を除いたもの)。
+ * [id] は設定画面から呼ぶときの識別子 (= サンプルのファイル名から `.sh` を除いたもの。機能の案内は機能の名前)。
  * **改名しないこと**。
  *
  * ⚠ **名前 ([id]) と説明 ([descRes]) は必ず並べて出す** (0.8.335・利用者の指摘)。説明文だけを
@@ -105,6 +105,21 @@ enum class Guide(
     @param:StringRes val descRes: Int,
     val steps: List<GuideStep>
 ) {
+    /**
+     * 画面の端のバーからアプリ一覧を開く (0.8.601)。マクロではなく、機能を使えるようにするまでの案内。
+     *
+     * パネルが 1 枚も無い状態で ON にすると、アプリ一覧の板ができてその場で開く
+     * ([com.zerotoship.z2term.edge.EdgeDefaultPanel])。許可 2 つ → ON の順に並べ、最後に
+     * 設定の開き方を読むだけのカードで置く (利用者の指定)。
+     * ⚠ バーの上下スワイプのスクロールはユーザー補助が無いと動かないので、重ねて表示と並べて許可させる。
+     */
+    EDGE_PANEL("edge-panel", R.string.guide_desc_edge_panel, listOf(
+        GuideStep(R.string.guide_step_edge_overlay, "z2-edge permission"),
+        GuideStep(R.string.guide_step_edge_accessibility, "z2-key permission"),
+        GuideStep(R.string.guide_step_edge_on, "z2-edge on"),
+        GuideStep(R.string.guide_step_edge_settings),
+    )),
+
     /**
      * 充電やイヤホンの抜き差しに反応する。`z2-when` で待ち受ける形の見本。
      *

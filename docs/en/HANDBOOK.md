@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.600-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.601-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -765,6 +765,8 @@ Pick "End session only" for a clean slate, or "Stop everything and quit" to stop
 
 **0.8.600-alpha (versionCode 608)**: QR tools remain available. File sharing now requires a self-hosted relay, with a small “Share files through a relay” entry at the bottom of the Servers tab. Choose a saved SSH profile and configure your own public HTTPS origin and server-side loopback port. Automatic third-party relays and direct device-address sharing have been removed. The QR appears after the public URL passes a health check. Stop, expiry or network change closes the share connections and removes the sending copy. See [usage and server setup](QR-TOOLS.md).
 
+**QR entry and sharing screens (0.8.601)**: Open QR from the Snippets or Connections tab header, next to “+ New”. The top of the command sheet is only the drag handle, which closes it when tapped. QR tools and Share files through a relay now match the command sheet, and the relay entry at the bottom of the Servers tab is a row with a chevron. See 9.6 for the first edge panel and its guide.
+
 ---
 
 ## 9.5. Home screen widget (use it without opening the app)
@@ -868,6 +870,8 @@ when a `z2-when` rule fired **without opening the app**.
 ---
 
 ## 9.6. Floating edge panels
+
+**First panel and guide (0.8.601)**: Turning panels on with no panels creates an app list opened from a bar on the right edge, and opens it. It lists the z2term, browser, camera, phone, messages and settings apps found on this device. Add apps with the panel's “+”. Scrolling by swiping the bar up and down requires the “z2term Android actions” accessibility service. Settings › Maintenance › Show a guide › “edge-panel” lets you tap through the overlay permission, the accessibility service and turning the panel on. With the panel open, long-press outside the menu to open settings.
 
 **ON/OFF buttons (0.8.589)**: In the panel editor, edit an application, macro or run item and enable **Show ON/OFF**. ON uses a thicker coloured border and background; OFF uses a subtle border. No ON/OFF text or check marks are added to the menu, including icon-only layouts. The optional OFF command defaults to the same command. A state query should return `on/off`, `true/false` or `1/0`. Without a query, successful toggles are remembered; external changes and application exits are not detected. Failed or timed-out commands do not flip the state. State survives reopening and app restart, and command-definition changes invalidate it. Queries run on opening, after successful actions and at the configured refresh interval. Macros can also report state with `z2-edge state PANEL:ITEM on` / `off`.
 

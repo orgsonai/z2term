@@ -19,12 +19,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -41,6 +43,8 @@ import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.edge.EdgeRuntime
 import com.zerotoship.z2term.snippets.Snippet
 import com.zerotoship.z2term.snippets.SnippetStore
+import com.zerotoship.z2term.ui.settings.Field
+import com.zerotoship.z2term.ui.settings.PillButton
 import com.zerotoship.z2term.ui.theme.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -154,68 +158,68 @@ internal open class QrToolsActivity : QrActivityBase() {
             }
         }
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars).imePadding()
-            .verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(stringResource(R.string.qr_tools_title), color = ZtsGreen, style = MaterialTheme.typography.titleLarge)
-                TextButton(onClick = { finish() }) { Text(stringResource(R.string.qr_tools_close)) }
-            }
-            Text(stringResource(R.string.qr_tools_intro), color = ZtsTextSecondary)
-            OutlinedButton(shape = RectangleShape, enabled = !busy, onClick = {
+            .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ToolScreenHeader(stringResource(R.string.qr_tools_title)) { finish() }
+            ToolNote(stringResource(R.string.qr_tools_intro))
+            PillButton(label = stringResource(R.string.qr_tools_camera), accent = true, fill = true, enabled = !busy) {
                 error = false; incomingFailed = false
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) camera = true
                 else permission.launch(Manifest.permission.CAMERA)
-            }) { Text(stringResource(R.string.qr_tools_camera)) }
-            OutlinedButton(shape = RectangleShape, enabled = !busy, onClick = { images.launch(arrayOf("image/*")) }) {
-                Text(stringResource(R.string.qr_tools_image))
+            }
+            PillButton(label = stringResource(R.string.qr_tools_image), fill = true, enabled = !busy) {
+                images.launch(arrayOf("image/*"))
             }
             if (camera) {
                 CameraPreview(read) { error = true; camera = false }
-                TextButton(onClick = { camera = false }) { Text(stringResource(R.string.qr_tools_cancel)) }
+                PillButton(label = stringResource(R.string.qr_tools_cancel), fill = true) { camera = false }
             }
             choices.forEach { value ->
-                OutlinedButton(shape = RectangleShape, enabled = !busy, onClick = { read(value) }) { Text(value.take(160)) }
+                PillButton(label = value.take(160), fill = true, enabled = !busy) { read(value) }
             }
-            if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (incomingFailed) Text(stringResource(R.string.qr_tools_incoming_failed), color = MaterialTheme.colorScheme.error)
-            if (error) Text(stringResource(R.string.qr_tools_failed), color = MaterialTheme.colorScheme.error)
-            OutlinedTextField(value = text, enabled = !busy, onValueChange = { if (it.length <= QrContent.MAX_TEXT) { text = it; qrText = "" } },
-                label = { Text(stringResource(R.string.qr_tools_content)) }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+            if (busy) ToolProgress()
+            if (incomingFailed) ToolError(stringResource(R.string.qr_tools_incoming_failed))
+            if (error) ToolError(stringResource(R.string.qr_tools_failed))
+            Field(label = stringResource(R.string.qr_tools_content), value = text, multiline = true,
+                onChange = { if (!busy && it.length <= QrContent.MAX_TEXT) { text = it; qrText = "" } })
             if (text.isNotBlank()) {
-                OutlinedButton(shape = RectangleShape, enabled = !busy, onClick = {
+                PillButton(label = stringResource(R.string.qr_tools_copy), fill = true, enabled = !busy) {
                     context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("QR", text))
-                }) { Text(stringResource(R.string.qr_tools_copy)) }
-                OutlinedButton(shape = RectangleShape, enabled = !busy, onClick = { qrText = text }) { Text(stringResource(R.string.qr_tools_show)) }
+                }
+                PillButton(label = stringResource(R.string.qr_tools_show), fill = true, enabled = !busy) { qrText = text }
             }
             if (content?.kind == QrContent.Kind.URL) {
-                Button(shape = RectangleShape, enabled = !busy, onClick = {
+                PillButton(label = stringResource(R.string.qr_tools_open_url), accent = true, fill = true, enabled = !busy) {
                     runCatching { startActivity(Intent(Intent.ACTION_VIEW, content.raw.toUri()).addCategory(Intent.CATEGORY_BROWSABLE)) }
                         .onFailure { error = true }
-                }) { Text(stringResource(R.string.qr_tools_open_url)) }
+                }
             }
             if (content?.kind == QrContent.Kind.SSH) {
-                Text(content.user + "@" + content.host + ":" + content.port, color = ZtsTextPrimary)
-                Text(stringResource(R.string.qr_tools_ssh_note), color = ZtsTextSecondary)
-                Button(shape = RectangleShape, enabled = !busy, onClick = {
+                ToolLabel(content.user + "@" + content.host + ":" + content.port)
+                ToolNote(stringResource(R.string.qr_tools_ssh_note))
+                PillButton(label = stringResource(R.string.qr_tools_save_ssh), accent = true, fill = true, enabled = !busy) {
                     action {
                         SshProfileStore(applicationContext).upsert(SshProfile(UUID.randomUUID().toString(),
                             content.host, host = content.host, port = content.port, user = content.user))
                     }
-                }) { Text(stringResource(R.string.qr_tools_save_ssh)) }
+                }
             }
             if (content != null && content.kind in setOf(QrContent.Kind.TEXT, QrContent.Kind.COMMAND) &&
                 QrContent.singleLine(content.text)) {
-                if (content.kind == QrContent.Kind.COMMAND) SelectionContainer { Text(content.text, color = ZtsTextPrimary) }
-                OutlinedTextField(value = name, onValueChange = { if (it.length <= 80) name = it },
-                    label = { Text(stringResource(R.string.qr_tools_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Text(stringResource(R.string.qr_tools_command_note), color = ZtsTextSecondary)
-                Button(shape = RectangleShape, enabled = !busy, onClick = {
+                if (content.kind == QrContent.Kind.COMMAND) SelectionContainer {
+                    Text(content.text, color = ZtsGreen, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                }
+                Field(label = stringResource(R.string.qr_tools_name), value = name,
+                    onChange = { if (it.length <= 80) name = it })
+                ToolNote(stringResource(R.string.qr_tools_command_note))
+                PillButton(label = stringResource(R.string.qr_tools_insert), accent = true, fill = true, enabled = !busy) {
                     error = !SessionManager.insertText(content.text)
                     if (!error) finish()
-                }) { Text(stringResource(R.string.qr_tools_insert)) }
-                OutlinedButton(shape = RectangleShape, enabled = !busy, onClick = {
+                }
+                PillButton(label = stringResource(R.string.qr_tools_save_command), fill = true, enabled = !busy) {
                     action { SnippetStore(applicationContext).upsert(Snippet(UUID.randomUUID().toString(), name, content.text)) }
-                }) { Text(stringResource(R.string.qr_tools_save_command)) }
-                OutlinedButton(shape = RectangleShape, enabled = !busy, onClick = {
+                }
+                PillButton(label = stringResource(R.string.qr_tools_save_edge), fill = true, enabled = !busy) {
                     action {
                         withContext(Dispatchers.IO) {
                             val store = EdgeRuntime.store(applicationContext)
@@ -229,12 +233,12 @@ internal open class QrToolsActivity : QrActivityBase() {
                         }
                         EdgeRuntime.reload(applicationContext)
                     }
-                }) { Text(stringResource(R.string.qr_tools_save_edge)) }
-                OutlinedButton(shape = RectangleShape, enabled = !busy, onClick = {
+                }
+                PillButton(label = stringResource(R.string.qr_tools_command_qr), fill = true, enabled = !busy) {
                     runCatching { qrText = QrContent.command(name, content.text) }.onFailure { error = true }
-                }) { Text(stringResource(R.string.qr_tools_command_qr)) }
+                }
             } else if (text.isNotEmpty() && !QrContent.singleLine(text)) {
-                Text(stringResource(R.string.qr_tools_multiline), color = ZtsTextSecondary)
+                ToolNote(stringResource(R.string.qr_tools_multiline))
             }
             if (qrText.isNotEmpty()) QrDisplay(qrText)
         }
@@ -283,13 +287,16 @@ internal open class QrToolsActivity : QrActivityBase() {
     }
 }
 
+/** QR 画像。画面幅の中央に置く (白い余白は画像側に含まれる)。 */
 @Composable internal fun QrDisplay(text: String) {
     val bitmap by produceState<android.graphics.Bitmap?>(null, text) {
         value = null
         value = withContext(Dispatchers.Default) { runCatching { QrImages.encode(text) }.getOrNull() }
     }
-    bitmap?.let {
-        Image(it.asImageBitmap(), stringResource(R.string.qr_tools_show),
-            Modifier.widthIn(max = 360.dp).fillMaxWidth().aspectRatio(1f))
-    } ?: Text(stringResource(R.string.qr_tools_qr_limit))
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        bitmap?.let {
+            Image(it.asImageBitmap(), stringResource(R.string.qr_tools_show),
+                Modifier.widthIn(max = 360.dp).fillMaxWidth().aspectRatio(1f))
+        } ?: ToolNote(stringResource(R.string.qr_tools_qr_limit))
+    }
 }

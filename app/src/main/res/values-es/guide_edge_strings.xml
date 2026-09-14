@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内: エッジパネル (0.8.601)。Guide.EDGE_PANEL -->
+    <string name="guide_desc_edge_panel">Abrir una lista de apps desde una barra en el borde de la pantalla</string>
+    <string name="guide_step_edge_overlay">Permitir que z2term se muestre sobre otras apps</string>
+    <string name="guide_step_edge_accessibility">Activar el servicio de accesibilidad «Acciones Android de z2term» (sirve para desplazarse deslizando la barra arriba y abajo)</string>
+    <string name="guide_step_edge_on">Activar el panel (aparece una barra en el borde derecho y se abre la lista de apps)</string>
+    <string name="guide_step_edge_settings">Con el panel abierto, mantén pulsado fuera del menú para abrir sus ajustes</string>
+</resources>

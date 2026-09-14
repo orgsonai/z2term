@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内: エッジパネル (0.8.601)。Guide.EDGE_PANEL -->
+    <string name="guide_desc_edge_panel">画面の端のバーからアプリ一覧を開く</string>
+    <string name="guide_step_edge_overlay">「他のアプリの上に重ねて表示」で z2term を許可する</string>
+    <string name="guide_step_edge_accessibility">ユーザー補助の「z2term Android 操作」を ON にする（バーの上下スワイプでスクロールします）</string>
+    <string name="guide_step_edge_on">パネルを ON にする（右端にバーが出て、アプリ一覧が開きます）</string>
+    <string name="guide_step_edge_settings">パネルを開いたまま、メニューの外を長押しすると設定画面が開きます</string>
+</resources>

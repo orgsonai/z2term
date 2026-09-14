@@ -64,6 +64,11 @@ object AppLaunch {
         return (flags and removed.inv()) or Intent.FLAG_ACTIVITY_NEW_TASK
     }
 
+    /** Freeform launches fail where the device does not enable it; commands created for others check first. */
+    fun freeformSupported(context: Context): Boolean =
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
+            runCatching { Settings.Global.getInt(context.contentResolver, "enable_freeform_support", 0) == 1 }.getOrDefault(false)
+
     fun launch(context: Context, target: Intent, mode: String, freeform: FreeformOptions = FreeformOptions()) {
         freeform.validate(mode)
         require(mode in modes) { "window: full|freeform|split|ask" }
@@ -90,9 +95,7 @@ object AppLaunch {
         val options = ActivityOptions.makeBasic()
         when (mode) {
             "freeform" -> {
-                val supported = context.packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
-                    runCatching { Settings.Global.getInt(context.contentResolver, "enable_freeform_support", 0) == 1 }.getOrDefault(false)
-                check(supported) { context.getString(R.string.edge_freeform_unavailable) }
+                check(freeformSupported(context)) { context.getString(R.string.edge_freeform_unavailable) }
                 if (freeform.requestsBounds) {
                     val wm = context.getSystemService(WindowManager::class.java)
                     @Suppress("DEPRECATION")

@@ -956,7 +956,7 @@
     <string name="settings_intro_again_desc">下次打开应用时，会再显示最开始的 3 张卡片。</string>
     <string name="settings_intro_again_done">下次打开应用时会显示</string>
     <string name="settings_guides">显示向导</string>
-    <string name="settings_guides_desc">这些是随应用附带的示例宏。点一下，使用这个宏之前的步骤就会以卡片的形式出现在终端上方。点击卡片会执行那一行（需要填你自己的值的行会先询问），不需要的行可以用 ✕ 去掉。</string>
+    <string name="settings_guides_desc">这些是功能和随应用附带的示例宏的指引。点一下，开始使用之前的步骤就会以卡片的形式出现在终端上方。点击卡片会执行那一行（需要填你自己的值的行会先询问），不需要的行可以用 ✕ 去掉。</string>
     <string name="guide_hint">点击执行（会先用 Ctrl-C 丢掉打了一半的内容再发送）／ 不需要的行用 ✕</string>
     <string name="guide_desc_watch_basic">在充电、插拔耳机的当下就做出反应</string>
     <string name="guide_desc_battery_alert">电量低于我指定的 % 时通知我</string>

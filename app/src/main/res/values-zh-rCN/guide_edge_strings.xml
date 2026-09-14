@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内: エッジパネル (0.8.601)。Guide.EDGE_PANEL -->
+    <string name="guide_desc_edge_panel">从屏幕边缘的边条打开应用列表</string>
+    <string name="guide_step_edge_overlay">允许 z2term 显示在其他应用的上层</string>
+    <string name="guide_step_edge_accessibility">在无障碍中开启「z2term Android操作」（上下滑动边条滚动时需要）</string>
+    <string name="guide_step_edge_on">开启面板（右边缘出现边条，并打开应用列表）</string>
+    <string name="guide_step_edge_settings">面板打开时，长按菜单外侧即可打开设置界面</string>
+</resources>

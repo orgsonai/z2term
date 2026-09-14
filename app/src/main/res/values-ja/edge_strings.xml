@@ -43,7 +43,7 @@
     <string name="edge_undo">戻す</string>
     <string name="edge_redo">やり直す</string>
     <string name="edge_split_unavailable">このAndroidでは全画面から分割を開始できません。先に端末画面を分割表示にしてください。</string>
-    <string name="edge_default_panel">メイン</string>
+    <string name="edge_default_panel">アプリ</string>
     <string name="edge_panel_name">表示中の板・タブの名前</string>
     <string name="edge_save">保存</string>
     <string name="edge_name_required">名前を入力してください</string>

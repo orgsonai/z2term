@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
@@ -46,6 +47,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -68,6 +70,7 @@ import com.zerotoship.z2term.ui.theme.ZtsError
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
+import com.zerotoship.z2term.ui.theme.ZtsTextTertiary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -281,10 +284,29 @@ fun ServersBody(session: TerminalSession) {
             }
         )
         NetLimitSection(settings = settings, session = session)
-        androidx.compose.material3.TextButton(
-            onClick = { com.zerotoship.z2term.share.DirectShareActivity.open(context) },
-            modifier = Modifier.align(Alignment.Start)
-        ) { Text(stringResource(R.string.direct_share_title), color = ZtsTextSecondary, fontSize = 12.sp) }
+        // 中継してファイル共有 (0.8.600)。自前のサーバーを用意した人だけが使う機能なので末尾に置く。
+        // ⚠ 文字だけのボタンにしない (0.8.601・利用者の指摘)。押せる項目に見えなかったので、
+        // 設定のライセンス行と同じ「枠 + ›」の行にする。文字は薄い色のまま、上の設定より目立たせない。
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(ZtsBgSecondary)
+                .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                .clickable { com.zerotoship.z2term.share.DirectShareActivity.open(context) }
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.direct_share_title),
+                color = ZtsTextSecondary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.weight(1f)
+            )
+            Text(text = "›", color = ZtsTextSecondary, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+        }
     }
 
     pendingDelete?.let { target ->
@@ -581,18 +603,20 @@ internal fun PillButton(
     accent: Boolean = false,
     danger: Boolean = false,
     fill: Boolean = false,
+    /** false なら押せない。枠を無彩色に、文字を薄くする (0.8.601)。 */
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
-    val border = when { danger -> ZtsError; accent -> ZtsGreen; else -> ZtsBorder }
-    val fg = when { danger -> ZtsError; accent -> ZtsGreen; else -> ZtsTextPrimary }
-    val bg = if (accent) ZtsGreen.copy(alpha = 0.18f) else ZtsBgSecondary
+    val border = when { !enabled -> ZtsBorder; danger -> ZtsError; accent -> ZtsGreen; else -> ZtsBorder }
+    val fg = when { !enabled -> ZtsTextTertiary; danger -> ZtsError; accent -> ZtsGreen; else -> ZtsTextPrimary }
+    val bg = if (accent && enabled) ZtsGreen.copy(alpha = 0.18f) else ZtsBgSecondary
     Box(
         modifier = Modifier
             .then(if (fill) Modifier.fillMaxWidth() else Modifier)
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -607,7 +631,8 @@ internal fun Field(
     onChange: (String) -> Unit,
     placeholder: String = "",
     secret: Boolean = false,
-    multiline: Boolean = false
+    multiline: Boolean = false,
+    keyboardType: KeyboardType = KeyboardType.Text
 ) {
     var secretVisible by remember(label) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
@@ -636,6 +661,7 @@ internal fun Field(
                     value = value,
                     onValueChange = onChange,
                     singleLine = !multiline,
+                    keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                     visualTransformation = if (secret && !secretVisible) {
                         PasswordVisualTransformation()
                     } else {

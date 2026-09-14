@@ -95,6 +95,29 @@ class EdgeStoreTest {
         } finally { dir.deleteRecursively() }
     }
 
+    @Test fun initialPanelListsAppsAndAddsFreeformOnlyWhenSupported() {
+        val dir = Files.createTempDirectory("edge-initial-apps-test").toFile()
+        try {
+            val apps = listOf(EdgeDefaultPanel.App("com.example.one", "One"),
+                EdgeDefaultPanel.App("com.example.one", "Duplicate"),
+                EdgeDefaultPanel.App("org.example.two", "Two\nLines"))
+            val store = EdgeStore(dir)
+            assertTrue(store.ensureInitialPanel("Apps") { EdgeDefaultPanel.items(apps, freeform = false) })
+            val panel = store.panel("main")
+            assertEquals("Apps", panel.fields["label"])
+            assertEquals("right", panel.fields["side"])
+            assertEquals("scroll-variable", panel.fields["actions-up"])
+            assertEquals(listOf("One", "Two Lines"), panel.items.map { it.fields["label"] })
+            assertEquals(listOf("com.example.one", "org.example.two"), panel.items.map { AppLaunchCommand.packageFrom(it.command) })
+            assertEquals("full", AppLaunchCommand.modeFrom(panel.items.first().command))
+            assertEquals("@app:org.example.two", panel.items.last().fields["icon"])
+            assertFalse(store.ensureInitialPanel("Again") { error("Existing panels must not look up apps") })
+
+            val freeform = EdgeDefaultPanel.items(apps, freeform = true).values.first()
+            assertEquals("freeform", AppLaunchCommand.modeFrom(freeform.getValue("run")))
+        } finally { dir.deleteRecursively() }
+    }
+
     @Test fun itemDraftRejectsStaleEditsAndAllowsClearingOptionalFields() {
         val dir = Files.createTempDirectory("edge-draft-test").toFile()
         try {

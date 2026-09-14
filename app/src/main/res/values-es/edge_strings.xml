@@ -43,7 +43,7 @@
     <string name="edge_undo">Deshacer</string>
     <string name="edge_redo">Rehacer</string>
     <string name="edge_split_unavailable">Esta versión de Android no puede iniciar la pantalla dividida desde pantalla completa. Pon primero el terminal en pantalla dividida.</string>
-    <string name="edge_default_panel">Principal</string>
+    <string name="edge_default_panel">Apps</string>
     <string name="edge_panel_name">Nombre del panel o pestaña actual</string>
     <string name="edge_save">Guardar</string>
     <string name="edge_name_required">Introduce un nombre</string>

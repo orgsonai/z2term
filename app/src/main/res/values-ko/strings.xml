@@ -955,7 +955,7 @@
     <string name="settings_intro_again_desc">다음에 앱을 열 때 처음 세 장의 카드가 다시 나옵니다.</string>
     <string name="settings_intro_again_done">다음에 앱을 열 때 나옵니다</string>
     <string name="settings_guides">안내 보기</string>
-    <string name="settings_guides_desc">함께 실은 예제 매크로입니다. 하나를 고르면 그 절차가 터미널 위에 카드로 놓입니다. 카드를 누르면 그 한 줄이 실행되고(자기 값이 필요한 절차는 먼저 묻습니다), ✕로 필요 없는 것을 지웁니다.</string>
+    <string name="settings_guides_desc">기능과 함께 실은 예제 매크로의 안내입니다. 하나를 고르면 사용하기까지의 절차가 터미널 위에 카드로 놓입니다. 카드를 누르면 그 한 줄이 실행되고(자기 값이 필요한 절차는 먼저 묻습니다), ✕로 필요 없는 것을 지웁니다.</string>
     <string name="guide_hint">누르면 실행 (먼저 Ctrl-C를 보내 쓰다 만 줄이 섞이지 않게 합니다) / ✕로 절차 건너뛰기</string>
     <string name="guide_desc_watch_basic">충전과 헤드셋에 그 자리에서 반응하기</string>
     <string name="guide_desc_battery_alert">배터리가 정한 % 밑으로 내려가면 알려 주기</string>

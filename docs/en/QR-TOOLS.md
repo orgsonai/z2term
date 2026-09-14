@@ -1,12 +1,12 @@
 # QR tools and self-hosted relay setup
 
-Applies to 0.8.600-alpha (versionCode 608).
+Applies to 0.8.601-alpha (versionCode 609).
 
 ## Read and display QR codes
 
-Open **Command sheet → QR at the top-left** to read camera frames or images. Choose a result when an image contains multiple QRs. Camera permission is requested on demand and is unnecessary for images. Images are processed locally; Linux and a separate barcode app are unnecessary.
+Open **Command sheet → QR in the Snippets or Connections tab header** to read camera frames or images. Choose a result when an image contains multiple QRs. Camera permission is requested on demand and is unnecessary for images. Images are processed locally; Linux and a separate barcode app are unnecessary.
 
-The fixed header places QR on the left, the drag handle in the center, and Close on the right. The QR entry remains available while scrolling and from every tab.
+QR sits next to “+ New” in the header. Imported connections and commands are saved to that list. The top of the command sheet is only the drag handle, which closes the sheet when tapped (0.8.601).
 
 **Receive from another app**: Share a photo or screenshot to **z2term — QR** to decode its image. Camera/QR apps can also share decoded URLs or text to this target. If the source app has no sharing action, copy and paste the result into the QR screen. This is separate from the existing z2term target for terminal input and file intake.
 

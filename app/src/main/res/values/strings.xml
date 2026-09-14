@@ -1044,7 +1044,7 @@
 
     <!-- Guides (step cards). Opened from Settings -> Maintenance -> Show a guide. -->
     <string name="settings_guides">Show a guide</string>
-    <string name="settings_guides_desc">The bundled sample macros. Pick one to put the steps for it on cards above the terminal. Tapping a card runs that one line (steps that need a value of your own ask first); ✕ drops the ones you do not need.</string>
+    <string name="settings_guides_desc">Guides for features and the bundled sample macros. Pick one to put its steps on cards above the terminal. Tapping a card runs that one line (steps that need a value of your own ask first); ✕ drops the ones you do not need.</string>
     <string name="guide_hint">Tap to run (Ctrl-C first, so a half-typed line cannot mix in) / ✕ to skip a step</string>
     <string name="guide_desc_watch_basic">react to charging and headsets, right as it happens</string>
     <string name="guide_desc_battery_alert">warn me when the battery drops below a % I pick</string>

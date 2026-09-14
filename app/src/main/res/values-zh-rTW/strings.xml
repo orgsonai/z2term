@@ -956,7 +956,7 @@
     <string name="settings_intro_again_desc">下次開啟應用程式時，會再顯示最開始的 3 張卡片。</string>
     <string name="settings_intro_again_done">下次開啟應用程式時會顯示</string>
     <string name="settings_guides">顯示導引</string>
-    <string name="settings_guides_desc">這些是隨應用程式附帶的示例巨集。點一下，使用這個巨集之前的步驟就會以卡片的形式出現在終端機上方。點選卡片會執行那一行（需要填你自己的值的行會先詢問），不需要的行可以用 ✕ 去掉。</string>
+    <string name="settings_guides_desc">這些是功能和隨應用程式附帶的示例巨集的指引。點一下，開始使用之前的步驟就會以卡片的形式出現在終端機上方。點選卡片會執行那一行（需要填你自己的值的行會先詢問），不需要的行可以用 ✕ 去掉。</string>
     <string name="guide_hint">點選執行（會先用 Ctrl-C 丟掉打了一半的內容再發送）／ 不需要的行用 ✕</string>
     <string name="guide_desc_watch_basic">在充電、插拔耳機的當下就做出反應</string>
     <string name="guide_desc_battery_alert">電量低於我指定的 % 時通知我</string>

@@ -67,6 +67,7 @@ import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.components.ConfirmDialog
+import com.zerotoship.z2term.ui.components.QrEntryButton
 import com.zerotoship.z2term.ui.theme.ZtsError
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
@@ -214,6 +215,7 @@ private fun ListHeader(onNew: () -> Unit) {
             fontFamily = FontFamily.Monospace
         )
         Box(modifier = Modifier.weight(1f))
+        QrEntryButton(Modifier.padding(end = 8.dp))
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
