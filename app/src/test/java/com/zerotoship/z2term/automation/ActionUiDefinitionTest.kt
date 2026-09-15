@@ -16,7 +16,7 @@ class ActionUiDefinitionTest {
             assertThrows(source, IllegalArgumentException::class.java) { ActionSelector.parse(source) }
         }
     }
-    @Test fun uiStepsRequireV2AndTargetButDoNotRequireGeometry() {
+    @Test fun uiStepsRequireV2ButDoNotRequireGeometry() {
         val source = "version=2\nlaunch org.example.app\nwait-ui 5000 text=Ready now\nclick id=org.example.app:id/next\nlong-click desc=More options\n"
         val parsed = ActionDefinition.parse(source)
         assertNull(parsed.screen)
@@ -26,10 +26,16 @@ class ActionUiDefinitionTest {
         assertEquals(5000L, ui.first().timeoutMs)
         assertTrue(ui.all { it.target == "org.example.app" })
         assertEquals(parsed, ActionDefinition.parse(parsed.text))
-        for (invalid in listOf(source.replace("version=2", "version=1"), "version=2\nclick text=Next",
+        for (invalid in listOf(source.replace("version=2", "version=1"),
             source.replace("5000", "0"), source.replace("5000", "30001"), source.replace("5000", "bad"))) {
             assertThrows(IllegalArgumentException::class.java) { ActionDefinition.parse(invalid) }
         }
+    }
+    @Test fun uiStepsDefaultToTheForegroundScreen() {
+        val parsed = ActionDefinition.parse("version=2\nwait-ui 5000 text=Ready\nclick text=Next\nlong-click desc=More")
+        assertNull(parsed.screen)
+        assertTrue(parsed.steps.filterIsInstance<ActionDefinition.Step.Ui>().all { it.target == ActionDefinition.CURRENT_TARGET })
+        assertEquals(parsed, ActionDefinition.parse(parsed.text))
     }
     @Test fun uiTargetsFollowLexicalBranchesAndScreenCanBeRemovedInTheEditor() {
         val parsed = ActionDefinition.parse("version=2\ntarget org.example.outer\nif charging\nlaunch org.example.inner\nclick text=One\nelse\nclick text=Two\nend\nclick text=Three")

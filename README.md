@@ -84,6 +84,10 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.605-alpha (versionCode 613) — build not verified**: Action automation can record a whole sequence of taps, swipes and two-finger touches until stopped. Choose a recording surface or live recording through root. Only leading/trailing idle time is trimmed; pauses and timed paths are retained. Manual acceleration/deceleration, double tap, pinch in/out and two-finger swipe are also available. Place saved macros in Quick Settings tiles or edge panels. Device behavior is not verified.
+
+**0.8.605-alpha (versionCode 613) — build not verified**: Action automation can save taps, scrolling and UI-element steps without selecting an app. GUI Run moves z2term to the background and operates the foreground screen. Explicit app targets remain available; `target current` returns to foreground-screen operation. [Usage](docs/en/ACTION-MACROS.md).
+
 **0.8.604-alpha (versionCode 612)**: Moved each connection’s QR button to the end of its action row. Buttons appear in this order: SSH, SFTP, added services, then QR.
 
 **0.8.603-alpha (versionCode 611)**: QR tools keep a history of what you scan. Tap an entry to show it again, or long-press it to pin or delete it; Clear all keeps pinned entries. Turning edge panels on no longer creates a panel by itself. Instead, the edge-panel guide gains one step that creates the same sample app panel: one line of the existing `z2-edge panel` and `z2-edge set` commands, built from the apps found on the device. The Action automation tab now matches the other command sheet tabs: monospace headings and text, bordered rows with ▶, Duplicate, ✎ and ✕ actions, bordered buttons, hint boxes and dialogs in the app's colours.

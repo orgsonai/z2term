@@ -135,26 +135,46 @@ internal class ActionMacrosEditor(
             if (ActionCoordinatePicker.isActive(request)) ActionCoordinatePicker.cancel()
             pickRequest = null
             val result = ActionCoordinatePicker.consume(request)
-            if (result?.selector != null) {
+            if (result?.recorded != null) {
+                try {
+                    var updated = ActionBlockDocument(raw).insert(insertionGroup().start, result.recorded)
+                    updated = ActionEditorDocument(updated).withHeader("version", "2")
+                    updated = ActionEditorDocument(updated).withHeader("screen", result.screen.toString())
+                    val timeout = ActionEditorDocument(updated).header("timeout")?.toLongOrNull() ?: 30L
+                    val needed = ((result.durationMs ?: 0) / 1000 + 10).coerceAtMost(300)
+                    if (needed > timeout) updated = ActionEditorDocument(updated).withHeader("timeout", needed.toString())
+                    raw = updated; stepDraft = null; pickedScreen = null; render()
+                } catch (e: Exception) { stepDraft = null; failure(e) }
+            } else if (result?.selector != null) {
                 val words = stepDraft.orEmpty().trim().split(Regex("\\s+"), limit = 3)
                 val prefix = if (words.firstOrNull() == "wait-ui" && words.size >= 2) "wait-ui " + words[1]
                     else words.firstOrNull() ?: "click"
                 stepDraft = prefix + " " + result.selector
             } else if (result?.points != null) {
                 val words = stepDraft.orEmpty().trim().split(Regex("\\s+")).toMutableList()
-                if (words.size >= 4) {
+                if (words.size >= 2 && (words[0] in listOf("touch", "swipe-path", "swipe-two-path", "pinch-in", "pinch-out", "swipe-two")) && result.paths != null) {
+                    val verb = if (result.paths.size == 2) "swipe-two-path" else "swipe-path"
+                    stepDraft = verb + " " + words[1] + " " + result.paths.joinToString(" | ") {
+                        ActionGesture.encode(ActionGesture.convert(it, "px", words[1], result.screen))
+                    }
+                    pickedScreen = result.screen.toString()
+                } else if (words.size >= 4) {
                     val p = result.points
                     fun coordinate(value: Float, extent: Int): String {
                         val converted = if (words[1] == "percent") value * 100 / (extent - 1).coerceAtLeast(1) else value
                         return java.math.BigDecimal(converted.toString()).setScale(3, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
                     }
                     words[2] = coordinate(p[0], result.screen.width); words[3] = coordinate(p[1], result.screen.height)
-                    if (words[0] == "swipe" && words.size == 7) {
+                    if (words[0] == "swipe" && words.size in 7..8) {
                         words[4] = coordinate(p[2], result.screen.width); words[5] = coordinate(p[3], result.screen.height)
+                        result.durationMs?.let { words[6] = it.toString() }
                     }
                     stepDraft = words.joinToString(" "); pickedScreen = result.screen.toString()
                 }
-            } else message(result?.error ?: getString(R.string.action_pick_cancelled))
+            } else {
+                if (stepDraft == "@record") stepDraft = null
+                message(result?.error ?: getString(R.string.action_pick_cancelled))
+            }
         }
         if (editing && stepDraft != null && stepDialog?.isShowing != true) showStep()
     }
@@ -282,6 +302,9 @@ internal class ActionMacrosEditor(
             icon("✎", R.string.action_edit_title) {
                 io({ store.readText(savedName) }) { if (!editing) openEditor(savedName, it) }
             }
+            icon(getString(R.string.action_place), R.string.action_place, size = 12f) {
+                ActionMacroPlacement.show(this, savedName, ::showManaged)
+            }
             icon("✕", R.string.action_edit_delete, danger = true) { deleteSaved(savedName) }
             add(row)
         }
@@ -385,6 +408,10 @@ internal class ActionMacrosEditor(
     private fun showStep() {
         if (AppLock.state.value != AppLock.State.UNLOCKED) return
         val source = stepDraft ?: return
+        if (source == "@record") {
+            chooseRecording()
+            return
+        }
         if (!ActionStepEditor.supports(source)) {
             stepDraft = null; textMode = true; render(); return
         }
@@ -398,9 +425,9 @@ internal class ActionMacrosEditor(
                 val source = if (stepLine < 0 && verb in listOf("repeat", "if")) sourceLine + "\n  wait 800\nend" else sourceLine
                 var updated = if (stepLine < 0) ActionBlockDocument(raw).insert(insertionGroup().start, source)
                     else ActionEditorDocument(raw).replace(stepLine, source)
-                if (verb in listOf("call", "repeat", "if", "click", "long-click", "wait-ui"))
+                if (verb in listOf("call", "repeat", "if", "click", "long-click", "wait-ui", "touch", "swipe-path", "swipe-two-path"))
                     updated = ActionEditorDocument(updated).withHeader("version", "2")
-                if (verb in listOf("tap", "long-press", "swipe", "scroll") && ActionEditorDocument(updated).header("screen") == null)
+                if (verb in listOf("tap", "long-press", "swipe", "scroll", "double-tap", "pinch-in", "pinch-out", "swipe-two", "touch", "swipe-path", "swipe-two-path") && ActionEditorDocument(updated).header("screen") == null)
                     updated = ActionEditorDocument(updated).withHeader("screen", geometry.toString())
                 pickedScreen?.let { screen -> updated = ActionEditorDocument(updated).withHeader("screen", screen) }
                 raw = updated; stepDraft = null; pickedScreen = null; render()
@@ -408,11 +435,12 @@ internal class ActionMacrosEditor(
             cancel = { stepDraft = null; pickedScreen = null },
             pickElement = { line ->
                 val target = ActionEditorDocument(raw).targetBefore(if (stepLine < 0) insertionGroup().end else stepLine)
-                    ?: error(getString(R.string.action_pick_target))
+                    ?: ActionDefinition.CURRENT_TARGET
                 val request = UUID.randomUUID().toString()
                 AndroidActions.pickUiElements(request, target)
                 ActionCoordinatePicker.returnTo(request, activity)
                 stepDraft = line; pickRequest = request
+                if (target == ActionDefinition.CURRENT_TARGET) moveBehindForPick(request)
             },
             pick = { line ->
                 val document = ActionEditorDocument(raw)
@@ -422,19 +450,45 @@ internal class ActionMacrosEditor(
                 val request = UUID.randomUUID().toString()
                 ActionEditorDocument.singleLine(line)
                 // Validate the form values without requiring an execution target in the draft.
-                ActionDefinition.parse("version=1\nscreen=$screen\ntarget org.example.target\n$line")
-                AndroidActions.pickCoordinates(request, line.trim().split(Regex("\\s+")).first() == "swipe")
+                val verb = line.trim().split(Regex("\\s+")).first()
+                if (verb !in listOf("swipe-path", "swipe-two-path"))
+                    ActionDefinition.parse("version=2\nscreen=$screen\ntarget org.example.target\n$line")
+                AndroidActions.pickCoordinates(request, verb !in listOf("tap", "long-press", "double-tap"),
+                    fingers = if (verb in listOf("pinch-in", "pinch-out", "swipe-two", "swipe-two-path")) 2 else 1,
+                    freehand = verb in listOf("swipe-path", "swipe-two-path"))
                 ActionCoordinatePicker.returnTo(request, activity)
                 stepDraft = line; pickRequest = request
-                try {
-                    // The embedded editor belongs to the tools task; the standalone host has its own.
-                    if (!embedded) com.zerotoship.z2term.MainActivity.moveToBackground()
-                    check(activity.moveTaskToBack(true)) { getString(R.string.action_pick_background_failed) }
-                } catch (e: Exception) {
-                    ActionCoordinatePicker.cancel(); ActionCoordinatePicker.consume(request); pickRequest = null
-                    throw e
-                }
+                moveBehindForPick(request)
             })
+    }
+    private fun chooseRecording() {
+        stepDialog = ActionUi.choices(this, getString(R.string.action_record_title),
+            listOf(getString(R.string.action_record_overlay), getString(R.string.action_record_live))) { mode ->
+            try {
+                val screen = ActionRuntime.screen(this)
+                val saved = ActionEditorDocument(raw).header("screen")
+                check(saved == null || saved == "current" || saved == screen.toString()) { getString(R.string.action_pick_screen) }
+                val request = UUID.randomUUID().toString()
+                AndroidActions.recordTouches(request, live = mode == 1)
+                ActionCoordinatePicker.returnTo(request, activity)
+                pickRequest = request
+                moveBehindForPick(request)
+            } catch (e: Exception) { stepDraft = null; failure(e) }
+        }.apply {
+            setOnCancelListener { stepDraft = null }
+            show()
+        }
+    }
+
+    private fun moveBehindForPick(request: String) {
+        try {
+            // The embedded editor belongs to the tools task; the standalone host has its own.
+            if (!embedded) com.zerotoship.z2term.MainActivity.moveToBackground()
+            check(activity.moveTaskToBack(true)) { getString(R.string.action_pick_background_failed) }
+        } catch (e: Exception) {
+            ActionCoordinatePicker.cancel(); ActionCoordinatePicker.consume(request); pickRequest = null
+            throw e
+        }
     }
     private fun save() {
         if (busy) return
@@ -486,7 +540,13 @@ internal class ActionMacrosEditor(
     private fun runSaved(savedName: String) {
         if (busy) return
         busy = true
-        try { ActionRuntime.start(this, savedName); updateStatus() }
+        try {
+            ActionRuntime.start(this, savedName, background = {
+                if (!embedded) com.zerotoship.z2term.MainActivity.moveToBackground()
+                check(activity.moveTaskToBack(true)) { getString(R.string.action_run_background_failed) }
+            })
+            updateStatus()
+        }
         catch (e: Exception) { failure(e) }
         finally { busy = false }
     }

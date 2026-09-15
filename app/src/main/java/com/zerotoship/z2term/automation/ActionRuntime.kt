@@ -27,6 +27,7 @@ internal object ActionRuntime {
         val listeners: MutableList<(JSONObject) -> Unit> = mutableListOf(), var step: Int = 0,
         val history: MutableList<String> = mutableListOf(), var historyLoaded: Boolean = false,
         var cancelHistoryFlush: (() -> Unit)? = null,
+        val awaitBackground: Boolean = false, val allowOwnForeground: Boolean = false, var cancelStart: (() -> Unit)? = null,
         var target: String? = null, var service: ActionService? = null, var watchdog: Runnable? = null) {
         val definition get() = program.root
     }
@@ -48,7 +49,7 @@ internal object ActionRuntime {
         main.postDelayed(task, ms)
         return { main.removeCallbacks(task) }
     }
-    fun start(context: Context, name: String): String {
+    fun start(context: Context, name: String, background: (() -> Unit)? = null, waitForForeground: Boolean = false): String {
         val program = store(context).snapshot(name)
         return EdgeRuntime.onMain {
             check(!ActionCoordinatePicker.active) { context.getString(com.zerotoship.z2term.R.string.action_pick_busy) }
@@ -63,7 +64,8 @@ internal object ActionRuntime {
                 }
             }
             val app = context.applicationContext
-            val run = Run(UUID.randomUUID().toString(), name, program, app, geometry, ActionExecution(::schedule), EdgeRunner(app))
+            val run = Run(UUID.randomUUID().toString(), name, program, app, geometry, ActionExecution(::schedule), EdgeRunner(app),
+                awaitBackground = waitForForeground || (program.usesCurrentTarget && background != null), allowOwnForeground = waitForForeground)
             checkDevice(run)
             current = run
             try {
@@ -79,6 +81,7 @@ internal object ActionRuntime {
                 run.watchdog = watchdog
                 main.post(watchdog)
                 ContextCompat.startForegroundService(app, Intent(app, ActionService::class.java).putExtra("run_id", run.id))
+                if (run.awaitBackground) background?.invoke()
                 schedule(5000) { if (current === run && run.service == null) finish(run, ActionExecution.Result("failed", 0, "Service did not start")) }
             } catch (e: Exception) {
                 finish(run, ActionExecution.Result("failed", 0, e.message ?: "Cannot start macro"))
@@ -92,6 +95,24 @@ internal object ActionRuntime {
         if (run.service != null) return true
         run.service = service
         service.showRun(run.name)
+        if (run.awaitBackground) {
+            run.cancelStart = ActionForegroundWait(::schedule).start(if (run.allowOwnForeground) "" else run.context.packageName, {
+                checkDevice(run)
+                AndroidActions.focusedPackage()
+            }, run.context.getString(com.zerotoship.z2term.R.string.action_run_background_timeout)) { error ->
+                run.cancelStart = null
+                if (current === run) {
+                    if (error != null) finish(run, ActionExecution.Result("failed", 0, error))
+                    else try { begin(run) } catch (e: Exception) {
+                        finish(run, ActionExecution.Result("failed", 0, e.message ?: "Cannot start macro"))
+                    }
+                }
+            }
+        } else begin(run)
+        return true
+    }
+    private fun begin(run: Run) {
+        if (current !== run) return
         run.engine.start(run.definition, { step, done -> execute(run, step, done) }, { index, step ->
             run.step = index
             log(run, "step", when (step) {
@@ -116,8 +137,6 @@ internal object ActionRuntime {
             },
             name = run.name,
             branch = { _, matched -> log(run, "branch", matched.toString()) })
-
-        return true
     }
     private fun checkDevice(run: Run) {
         check(run.context.getSystemService(PowerManager::class.java).isInteractive &&
@@ -129,26 +148,30 @@ internal object ActionRuntime {
     private fun execute(run: Run, step: ActionDefinition.Step, completed: (String?) -> Unit): (() -> Unit)? {
         checkDevice(run)
         fun done(error: String?) { run.target = null; completed(error) }
+        fun target(requested: String): String = if (requested == ActionDefinition.CURRENT_TARGET)
+            AndroidActions.focusedPackage() ?: error(run.context.getString(com.zerotoship.z2term.R.string.action_run_no_foreground))
+            else requested
         when (step) {
             is ActionDefinition.Step.Repeat, is ActionDefinition.Step.Branch, is ActionDefinition.Step.Call ->
                 error("Control flow must be handled by the execution engine")
             is ActionDefinition.Step.Ui -> {
+                val resolved = step.copy(target = target(step.target))
                 if (step.operation == "wait-ui") return ActionUiWait(::schedule).start(step.timeoutMs,
                     { callback ->
                         // Launch returns before its window is focused. Wait for that first arrival too.
-                        if (run.target == null && !AndroidActions.targetMatches(step.target)) {
+                        if (run.target == null && !AndroidActions.targetMatches(resolved.target)) {
                             val noWork: () -> Unit = {}
                             callback(false, null)
                             noWork
                         } else {
-                            run.target = step.target
+                            run.target = resolved.target
                             checkDevice(run)
-                            AndroidActions.queryUi(step, callback)
+                            AndroidActions.queryUi(resolved, callback)
                         }
                     }, ::done)
-                run.target = step.target
+                run.target = resolved.target
                 checkDevice(run)
-                return AndroidActions.queryUi(step) { found, error -> done(error ?: if (found) null else "UI element not found") }
+                return AndroidActions.queryUi(resolved) { found, error -> done(error ?: if (found) null else "UI element not found") }
             }
             is ActionDefinition.Step.Wait -> return schedule(step.ms) { done(null) }
             is ActionDefinition.Step.Launch -> {
@@ -161,11 +184,12 @@ internal object ActionRuntime {
                 return { run.runner.cancelAll() }
             }
             is ActionDefinition.Step.Stroke -> {
-                run.target = step.target
-                return AndroidActions.stroke(step, run.screen, ::done)
+                val resolved = step.copy(target = target(step.target))
+                run.target = resolved.target
+                return AndroidActions.stroke(resolved, run.screen, ::done)
             }
             is ActionDefinition.Step.Scroll -> {
-                run.target = step.target
+                run.target = target(step.target)
                 checkDevice(run)
                 var ending = false
                 var cancelTimer: (() -> Unit)? = null
@@ -204,6 +228,7 @@ internal object ActionRuntime {
     private fun finish(run: Run, result: ActionExecution.Result) {
         if (current !== run) return
         current = null
+        run.cancelStart?.invoke(); run.cancelStart = null
         run.watchdog?.let(main::removeCallbacks)
         run.runner.cancelAll()
         AndroidActions.stopAutoScroll()
@@ -225,7 +250,7 @@ internal object ActionRuntime {
     }
     fun status(id: String? = null): JSONObject = EdgeRuntime.onMain {
         val run = current
-        if (run != null && (id == null || run.id == id)) json(run, if (run.service == null) "queued" else "running")
+        if (run != null && (id == null || run.id == id)) json(run, if (run.engine.running) "running" else "queued")
         else if (id != null) results[id] ?: error("No retained run: $id")
         else results.values.lastOrNull() ?: JSONObject().put("state", "idle")
     }

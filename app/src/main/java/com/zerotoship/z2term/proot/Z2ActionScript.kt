@@ -5,8 +5,8 @@ fun z2ActionScript(lang: String): String {
     val d = '$'
     val t = CliText(lang)
     val description = t(
-        en = "Named Android action macros. Enable z2term Android actions with z2-key permission.\nSave validates and replaces the definition; screen=current records the display.\nrun waits for completion; start returns a run ID. Interrupting run stops that run.\nOne run at a time, 64 source instructions, 1–300 seconds. Notification and stop cancel remaining steps.\nCoordinates require a target app and matching screen size/orientation. Stroke limit: 3 seconds.\nUse start from a panel gesture; use run in a shell macro or z2-when command.\nStored in /root/.z2term/actions/NAME.actions (shared home). z2-macro actions is an alias.",
-        ja = "名前付きAndroid操作マクロ。z2-key permission でAndroid操作を有効にしてください。\n保存時に検査して定義を置換。screen=current は現在の画面寸法を記録します。\nrun は完了待ち、start は実行IDを返します。run の中断はその実行を停止します。\n同時1本、定義ごとに最大64命令、1〜300秒。通知と stop で残りの手順を停止できます。\n座標操作には対象アプリと画面寸法・向きの一致が必要です。1操作は最大3秒。\n取っ手からは start、シェルマクロや z2-when からは run を使えます。\n保存先: /root/.z2term/actions/NAME.actions（共有ホーム）。z2-macro actions も同じ入口です。",
+        en = "Named Android action macros. Enable z2term Android actions with z2-key permission.\nSave validates and replaces the definition; screen=current records the display.\nrun waits for completion; start returns a run ID. Interrupting run stops that run.\nOne run at a time, 64 source instructions, 1–300 seconds. Notification and stop cancel remaining steps.\nCoordinates use the foreground app by default and require matching screen size/orientation. Manual gestures: up to 3 seconds; recorded touches: up to 30 seconds.\nUse start from a panel gesture; use run in a shell macro or z2-when command.\nStored in /root/.z2term/actions/NAME.actions (shared home). z2-macro actions is an alias.",
+        ja = "名前付きAndroid操作マクロ。z2-key permission でAndroid操作を有効にしてください。\n保存時に検査して定義を置換。screen=current は現在の画面寸法を記録します。\nrun は完了待ち、start は実行IDを返します。run の中断はその実行を停止します。\n同時1本、定義ごとに最大64命令、1〜300秒。通知と stop で残りの手順を停止できます。\n座標操作の既定対象は前面アプリで、画面寸法・向きの一致が必要です。手動操作は最大3秒、記録したタッチは最大30秒。\n取っ手からは start、シェルマクロや z2-when からは run を使えます。\n保存先: /root/.z2term/actions/NAME.actions（共有ホーム）。z2-macro actions も同じ入口です。",
         "zh-CN" to "命名的Android操作宏。用 z2-key permission 启用Android操作。\n保存时验证并替换定义；screen=current 记录当前屏幕尺寸。\nrun 等待完成，start 返回运行ID。中断 run 会停止该次运行。\n同时运行一个，定义最多64条指令、1–300秒。可从通知或 stop 停止后续步骤。\n坐标操作要求目标应用和匹配的屏幕尺寸、方向。单次操作最多3秒。\n手势入口使用 start，Shell宏或 z2-when 使用 run。\n保存到 /root/.z2term/actions/NAME.actions（共享主目录）。也可用 z2-macro actions。",
         "zh-TW" to "具名的Android操作巨集。用 z2-key permission 啟用Android操作。\n儲存時驗證並取代定義；screen=current 記錄目前螢幕尺寸。\nrun 等待完成，start 傳回執行ID。中斷 run 會停止該次執行。\n同時執行一個，定義最多64條指令、1–300秒。可從通知或 stop 停止後續步驟。\n座標操作需要目標應用程式及相符的螢幕尺寸、方向。單次操作最多3秒。\n手勢入口使用 start，Shell巨集或 z2-when 使用 run。\n儲存於 /root/.z2term/actions/NAME.actions（共用家目錄）。也可用 z2-macro actions。",
         "es" to "Macros de acciones Android con nombre. Actívalas con z2-key permission.\nAl guardar se valida y sustituye la definición; screen=current registra la pantalla.\nrun espera al final; start devuelve un ID. Interrumpir run detiene esa ejecución.\nUna ejecución a la vez, 64 instrucciones por definición, 1–300 segundos. La notificación y stop detienen los pasos restantes.\nLas coordenadas requieren la aplicación destino y el mismo tamaño y orientación. Máximo 3 segundos por gesto.\nUsa start desde gestos del panel y run desde macros de shell o z2-when.\nSe guarda en /root/.z2term/actions/NAME.actions (carpeta personal compartida). Alias: z2-macro actions.",
@@ -36,7 +36,11 @@ fun z2ActionScript(lang: String): String {
         |# version=1|2 / timeout=30 / screen=current
         |# target PACKAGE / launch PACKAGE / wait MILLISECONDS / key back|home|recents|shade|quicksettings|screenshot|split
         |# tap px|percent X Y / long-press px|percent X Y MILLISECONDS
-        |# swipe px|percent X1 Y1 X2 Y2 MILLISECONDS / command SHELL_TEXT
+        |# swipe px|percent X1 Y1 X2 Y2 MILLISECONDS [linear|accelerate|decelerate]
+        |# double-tap UNIT X Y GAP_MS / pinch-in|pinch-out UNIT CX CY START_SPAN END_SPAN MS [EASING]
+        |# swipe-two UNIT X1 Y1 X2 Y2 OFFSET_X OFFSET_Y MS [EASING]
+        |# touch UNIT X,Y,MS ... [| X,Y,MS ...] (version=2; recorded contacts and timing)
+        |# command SHELL_TEXT
         |# scroll SIGNED_DP_PER_SECOND MILLISECONDS X_PERCENT Y_PERCENT
         |# click SELECTOR / long-click SELECTOR / wait-ui MILLISECONDS SELECTOR (version=2)
         |# repeat N|forever ... end / if CONDITION ... [else ...] end / call NAME (version=2)

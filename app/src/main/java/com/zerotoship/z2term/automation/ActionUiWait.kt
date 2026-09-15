@@ -3,7 +3,7 @@ package com.zerotoship.z2term.automation
 /** Bounded asynchronous lookup. A cancelled or late lookup never starts a successor. */
 internal class ActionUiWait(private val schedule: (Long, () -> Unit) -> (() -> Unit)) {
     fun start(timeoutMs: Long, probe: ((Boolean, String?) -> Unit) -> (() -> Unit),
-        done: (String?) -> Unit): () -> Unit {
+        done: (String?) -> Unit, timeoutError: String = "UI element wait timed out"): () -> Unit {
         require(timeoutMs in 1..30000)
         var active = true
         var generation = 0
@@ -35,7 +35,7 @@ internal class ActionUiWait(private val schedule: (Long, () -> Unit) -> (() -> U
                 else if (!delivered) cancel()
             } catch (e: Exception) { finish(e.message ?: "UI lookup failed") }
         }
-        cancelTimeout = schedule(timeoutMs) { finish("UI element wait timed out") }
+        cancelTimeout = schedule(timeoutMs) { finish(timeoutError) }
         cancelNext = schedule(0) { query() }
         return { finish(null, notify = false) }
     }

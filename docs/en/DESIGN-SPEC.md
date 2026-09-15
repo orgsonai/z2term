@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-15 / Target version: 0.8.604-alpha (versionCode 612)
+**0.8.605-alpha (versionCode 613) — build not verified**: Action automation can record a whole sequence of taps, swipes and two-finger touches until stopped. Choose a recording surface or live recording through root. Only leading/trailing idle time is trimmed; pauses and timed paths are retained. Manual acceleration/deceleration, double tap, pinch in/out and two-finger swipe are also available. Place saved macros in Quick Settings tiles or edge panels. Device behavior is not verified. [Details](ACTION-MACROS.md).
+
+Last updated: 2026-09-15 / Target version: 0.8.605-alpha (versionCode 613)
 
 **0.8.604-alpha (versionCode 612)**: Moved each connection’s QR button to the end of its action row. Buttons appear in this order: SSH, SFTP, added services, then QR.
 
@@ -2273,9 +2275,13 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
 
 **Named Android action macros (0.8.571)**: Save text definitions through the CLI and run coordinate taps, holds, swipes, waits, app launches, shell commands and timed scrolling through one runtime. Execution provides one active run, completion tracking, cancellation, deadlines and history. Panels, tiles, existing macros and z2-when call the same definitions. See [Android action macros](ACTION-MACROS.md) for syntax, limits and examples. Build and device behavior not yet verified.
 
+**Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
+
+The parser represents implicit foreground targets and `target current` with `ActionDefinition.CURRENT_TARGET` in both format versions. `ActionProgram.usesCurrentTarget` checks every referenced macro and branch. GUI startup waits for three foreground-package observations at 250 ms intervals, excluding the app itself and unknown focus, with a five-second limit. Cancellation, screen off and disconnection cancel pending startup. Only steps with concrete package targets reach Android actions. CLI, panel and tile starts do not move tasks to the background.
+
 **Action macro GUI (0.8.572)**: Command list → Automation → Action automation opens the list, creation, step editing, ordering, duplication, execution, stopping and history. Pick tap/hold points or swipe endpoints on the screen and return them as pixels or percentages. Since 0.8.579, picking requires no app launch or target directive. Selection consumes touch input and ends on cancellation, screen changes, screen off, disconnection or after two minutes. GUI text editing shares definitions with the CLI, with unsaved-change confirmation and stale-save detection. The screen respects app lock. Build and device behavior not yet verified.
 
-**Coordinate-only picking and settings restoration (0.8.579)**: Pick coordinates moves the existing settings and editor tasks to the background and immediately starts coordinate selection. No launch or target step is required. Navigate allows normal interaction before resuming selection on the desired screen. Picking checks no target window and returns only numbers to the draft; saving and execution retain their target requirements and window checks. Settings visibility and scroll position return after backgrounding or unlocking, and the locked editor no longer overwrites its retained scroll position. Build and device behavior not yet verified.
+**Coordinate-only picking and settings restoration (0.8.579)**: Pick coordinates moves the existing settings and editor tasks to the background and immediately starts coordinate selection. No launch or target step is required. Navigate allows normal interaction before resuming selection on the desired screen. Picking checks no target window and returns only numbers to the draft; saving allows unspecified targets and execution retains window checks. Settings visibility and scroll position return after backgrounding or unlocking, and the locked editor no longer overwrites its retained scroll position. Build and device behavior not yet verified.
 
 A rememberSaveableStateHolder outside the lock branch retains the terminal subtree. Both terminal and GUI settingsOpen flags use rememberSaveable; the settings rememberScrollState is restored too. Locked contents remain uncomposed and are restored only after unlocking.
 

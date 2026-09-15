@@ -10,9 +10,10 @@ class ActionStoreTest {
         try {
             val store = ActionStore(dir)
             val screen = ActionDefinition.Screen(100, 200, 0)
-            val saved = store.save("sample", "version=1\nscreen=current\ntarget org.example.app\ntap px 2 3", screen)
+            val saved = store.save("sample", "version=1\nscreen=current\ntap px 2 3", screen)
             try { store.save("sample", "version=1\nunknown", screen); fail("Invalid save accepted") }
             catch (_: IllegalArgumentException) { }
+            assertEquals(ActionDefinition.CURRENT_TARGET, (saved.steps.single() as ActionDefinition.Step.Stroke).target)
             assertEquals(saved, store.read("sample"))
             assertEquals(listOf("sample"), ActionStore(dir).names())
             assertFalse(dir.listFiles().orEmpty().any { it.name.endsWith(".tmp") })

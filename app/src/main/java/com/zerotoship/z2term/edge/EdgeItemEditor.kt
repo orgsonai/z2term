@@ -113,9 +113,9 @@ object EdgeItemEditor {
             group.addView(entry)
             if (key in setOf("note-background", "note-color")) EdgeColorField.add(context, group, entry, label)
             if (key == "icon") EdgeItemPickers.icons(context, group, entry)
-            if ((key == "run" && appCommand == null) || key == "off") EdgeItemPickers.macros(context, group, entry)
+            if (key == "run" || key == "off") EdgeItemPickers.macros(context, group, entry)
             group.addView(EdgeSettingsUi.spacer(context, 12))
-            val optional = key in listOf("every", "timeout", "out", "file") || (appCommand != null && key == "run")
+            val optional = key in listOf("every", "timeout", "out", "file")
             (if (optional) advanced else basic).addView(group)
         }
         basic.addView(noteLines, LinearLayout.LayoutParams(-1, -2))

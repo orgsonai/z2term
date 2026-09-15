@@ -17,6 +17,15 @@ class ActionProgramTest {
         saved.remove("child")
         assertThrows(NoSuchElementException::class.java) { ActionProgram.load("root", saved::getValue) }
     }
+    @Test fun foregroundUseIncludesCalledMacrosAndBothBranches() {
+        val saved = mutableMapOf("root" to definition("target org.example.outer\ncall child"),
+            "child" to definition("if charging\nwait 0\nelse\nclick text=Next\nend"))
+        assertTrue(ActionProgram.load("root", saved::getValue).usesCurrentTarget)
+        saved["child"] = definition("target org.example.child\nclick text=Next")
+        assertFalse(ActionProgram.load("root", saved::getValue).usesCurrentTarget)
+        saved["child"] = definition("target current\nwait 0")
+        assertFalse(ActionProgram.load("root", saved::getValue).usesCurrentTarget)
+    }
     @Test fun sharedCallGraphsAreReadOnceAndCheckedOnEveryDepth() {
         val saved = (0..7).associate { index ->
             "m$index" to definition(if (index == 7) "wait 0" else ("call m" + (index + 1) + "\n").repeat(32))

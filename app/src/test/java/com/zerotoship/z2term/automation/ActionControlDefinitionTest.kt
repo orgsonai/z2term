@@ -12,7 +12,12 @@ class ActionControlDefinitionTest {
         assertEquals(listOf("org.example.inner", "org.example.yes", "org.example.outer", "org.example.outer"), strokes.map { it.target })
         assertEquals(definition, ActionDefinition.parse(definition.text))
         assertThrows(IllegalArgumentException::class.java) { parse("if charging\nwait 1\nelse\ntap px 100 0\nend") }
-        assertThrows(IllegalArgumentException::class.java) { parse("if charging\nlaunch org.example.inner\nelse\ntap px 1 2\nend") }
+        val defaultBranch = parse("if charging\nlaunch org.example.inner\nelse\ntap px 1 2\nend\ntap px 3 4")
+        assertEquals(listOf("current", "current"),
+            ActionDefinition.allSteps(defaultBranch.steps).filterIsInstance<ActionDefinition.Step.Stroke>().map { it.target })
+        val scoped = parse("target org.example.outer\nrepeat 2\n target current\n tap px 1 2\nend\ntap px 3 4")
+        assertEquals(listOf("current", "org.example.outer"),
+            ActionDefinition.allSteps(scoped.steps).filterIsInstance<ActionDefinition.Step.Stroke>().map { it.target })
     }
     @Test fun requiresV2BalancedNonemptyBoundedBlocksAndSafeNames() {
         assertThrows(IllegalArgumentException::class.java) { ActionDefinition.parse("version=1\ncall helper") }

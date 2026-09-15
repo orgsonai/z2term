@@ -26,7 +26,14 @@ internal object ActionStepEditor {
         Kind("key", R.string.action_edit_key, listOf(R.string.action_edit_key), listOf("back")),
         Kind("tap", R.string.action_edit_tap, listOf(R.string.action_edit_unit, R.string.action_edit_x, R.string.action_edit_y), listOf("percent", "50", "50")),
         Kind("long-press", R.string.action_edit_hold, listOf(R.string.action_edit_unit, R.string.action_edit_x, R.string.action_edit_y, R.string.action_edit_ms), listOf("percent", "50", "50", "700")),
-        Kind("swipe", R.string.action_edit_swipe, listOf(R.string.action_edit_unit, R.string.action_edit_x, R.string.action_edit_y, R.string.action_edit_x2, R.string.action_edit_y2, R.string.action_edit_ms), listOf("percent", "50", "75", "50", "25", "450")),
+        Kind("swipe", R.string.action_edit_swipe, listOf(R.string.action_edit_unit, R.string.action_edit_x, R.string.action_edit_y, R.string.action_edit_x2, R.string.action_edit_y2, R.string.action_edit_ms, R.string.action_edit_easing), listOf("percent", "50", "75", "50", "25", "450", "linear")),
+        Kind("double-tap", R.string.action_edit_double_tap, listOf(R.string.action_edit_unit, R.string.action_edit_x, R.string.action_edit_y, R.string.action_edit_tap_gap), listOf("percent", "50", "50", "100")),
+        Kind("pinch-in", R.string.action_edit_pinch_in, listOf(R.string.action_edit_unit, R.string.action_edit_center_x, R.string.action_edit_center_y, R.string.action_edit_span_start, R.string.action_edit_span_end, R.string.action_edit_ms, R.string.action_edit_easing), listOf("percent", "50", "50", "60", "20", "450", "linear")),
+        Kind("pinch-out", R.string.action_edit_pinch_out, listOf(R.string.action_edit_unit, R.string.action_edit_center_x, R.string.action_edit_center_y, R.string.action_edit_span_start, R.string.action_edit_span_end, R.string.action_edit_ms, R.string.action_edit_easing), listOf("percent", "50", "50", "20", "60", "450", "linear")),
+        Kind("swipe-two", R.string.action_edit_swipe_two, listOf(R.string.action_edit_unit, R.string.action_edit_x, R.string.action_edit_y, R.string.action_edit_x2, R.string.action_edit_y2, R.string.action_edit_offset_x, R.string.action_edit_offset_y, R.string.action_edit_ms, R.string.action_edit_easing), listOf("percent", "35", "75", "35", "25", "30", "0", "450", "linear")),
+        Kind("touch", R.string.action_record_step_title, listOf(R.string.action_edit_unit, R.string.action_edit_path_data), listOf("percent", "")),
+        Kind("swipe-path", R.string.action_edit_path, listOf(R.string.action_edit_unit, R.string.action_edit_path_data), listOf("percent", "")),
+        Kind("swipe-two-path", R.string.action_edit_two_path, listOf(R.string.action_edit_unit, R.string.action_edit_path_data), listOf("percent", "")),
         Kind("scroll", R.string.action_edit_scroll, listOf(R.string.action_edit_speed, R.string.action_edit_ms, R.string.action_edit_window_x, R.string.action_edit_window_y), listOf("-600", "2000", "50", "50")),
         Kind("command", R.string.action_edit_command, listOf(R.string.action_edit_command), listOf("")),
     )
@@ -34,7 +41,8 @@ internal object ActionStepEditor {
     fun supports(line: String): Boolean {
         val words = line.trim().split(Regex("\\s+"))
         val kind = kinds.firstOrNull { it.verb == words.first() } ?: return false
-        return kind.verb in listOf("command", "if", "repeat", "click", "long-click", "wait-ui") || words.size == kind.fields.size + 1
+        return kind.verb in listOf("command", "if", "repeat", "click", "long-click", "wait-ui", "touch", "swipe-path", "swipe-two-path") ||
+            words.size == kind.fields.size + 1 || (kind.fields.lastOrNull() == R.string.action_edit_easing && words.size == kind.fields.size)
     }
 
     fun show(context: Context, initial: String, screen: ActionDefinition.Screen,
@@ -47,12 +55,13 @@ internal object ActionStepEditor {
         val trimmed = initial.trim()
         val initialVerb = trimmed.split(Regex("\\s+")).first()
         val available = if (initialVerb in listOf("repeat", "if")) kinds.filter { it.verb == initialVerb }
-            else kinds.filterNot { it.verb in listOf("repeat", "if") }
+            else kinds.filterNot { it.verb in listOf("repeat", "if", "touch", "swipe-path", "swipe-two-path") && it.verb != initialVerb }
         var kind = available.firstOrNull { it.verb == trimmed.split(Regex("\\s+")).first() }
             ?: kinds.first { it.verb == "wait" }
         var values = if (kind.verb in listOf("command", "if", "click", "long-click")) listOf(trimmed.removePrefix(kind.verb).trimStart())
-            else if (kind.verb == "wait-ui") trimmed.split(Regex("\\s+"), limit = 3).drop(1)
+            else if (kind.verb in listOf("wait-ui", "touch", "swipe-path", "swipe-two-path")) trimmed.split(Regex("\\s+"), limit = 3).drop(1)
             else trimmed.split(Regex("\\s+")).drop(1)
+        if (kind.fields.lastOrNull() == R.string.action_edit_easing && values.size == kind.fields.size - 1) values = values + "linear"
         if (values.size != kind.fields.size) values = kind.defaults
         var current = initial
         var rendering = false
@@ -76,20 +85,44 @@ internal object ActionStepEditor {
             fields.removeAllViews()
             kind.fields.forEachIndexed { index, label ->
                 val choices = when (label) {
+                    R.string.action_edit_easing -> ActionGesture.EASINGS
                     R.string.action_edit_unit -> listOf("px", "percent")
                     R.string.action_edit_key -> listOf("back", "home", "recents", "shade", "quicksettings", "screenshot", "split")
                     else -> emptyList()
                 }
-                if (choices.isNotEmpty()) {
+                if (label == R.string.action_edit_path_data) {
+                    val points = runCatching { ActionGesture.parse(values[0], values[1].substringBefore('|')) }.getOrNull()
+                    ActionUi.add(fields, ActionUi.note(context, if (points == null) context.getString(R.string.action_path_missing)
+                        else context.getString(R.string.action_gesture_summary, points.last().ms,
+                            ActionGesture.speed(ActionGesture.convert(points, values[0], "px", screen)).toInt())))
+                    ActionUi.add(fields, ActionUi.note(context, context.getString(R.string.action_path_hint)), gap = 6)
+                } else if (choices.isNotEmpty()) {
                     // Keep an invalid existing value visible until the user deliberately fixes it.
                     val options = if (values[index] in choices) choices else choices + values[index]
-                    val spinner = ActionUi.spinner(context, options, options.indexOf(values[index])).apply {
+                    val labels = if (label == R.string.action_edit_easing) options.map {
+                        when (it) {
+                            "linear" -> context.getString(R.string.action_easing_linear)
+                            "accelerate" -> context.getString(R.string.action_easing_accelerate)
+                            "decelerate" -> context.getString(R.string.action_easing_decelerate)
+                            else -> it
+                        }
+                    } else options
+                    val spinner = ActionUi.spinner(context, labels, options.indexOf(values[index])).apply {
                         contentDescription = context.getString(label)
                         onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
                             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                                 if (revision != renderedRevision || values[index] == options[position]) return
+                                if (label == R.string.action_edit_unit && kind.verb in listOf("touch", "swipe-path", "swipe-two-path")) {
+                                    val converted = runCatching {
+                                        values[1].split('|').joinToString(" | ") {
+                                            ActionGesture.encode(ActionGesture.convert(ActionGesture.parse(values[0], it, startsAtZero = false), values[0], options[position], screen))
+                                        }
+                                    }.getOrNull()
+                                    if (converted != null) values = values.toMutableList().apply { this[1] = converted }
+                                }
                                 values = values.toMutableList().apply { this[index] = options[position] }; publish()
+                                if (label == R.string.action_edit_unit && kind.verb in listOf("touch", "swipe-path", "swipe-two-path")) render()
                             }
                         }
                     }
@@ -132,6 +165,12 @@ internal object ActionStepEditor {
                         })
                     }
                     if (label == R.string.action_edit_package) {
+                        if (kind.verb == "target") {
+                            hint(R.string.action_edit_current_hint)
+                            below(ActionUi.pill(context, context.getString(R.string.action_edit_current)) {
+                                input.setText(ActionDefinition.CURRENT_TARGET)
+                            })
+                        }
                         below(ActionUi.pill(context, context.getString(R.string.edge_pick_app)) {
                             val entries = apps()
                             val search = ActionUi.field(context).apply { hint = context.getString(R.string.edge_search_apps) }
@@ -161,12 +200,16 @@ internal object ActionStepEditor {
                     }
                 }
             }
-            if (kind.verb in listOf("tap", "long-press", "swipe")) {
+            if (kind.verb in listOf("tap", "long-press", "swipe", "double-tap", "pinch-in", "pinch-out", "swipe-two", "swipe-path", "swipe-two-path")) {
                 ActionUi.add(fields, ActionUi.pill(context, context.getString(R.string.action_edit_pick)) {
                     try { pick(current); dialog.dismiss() }
                     catch (e: Exception) { error.text = e.message }
                 })
             }
+            if (R.string.action_edit_easing in kind.fields)
+                ActionUi.add(fields, ActionUi.note(context, context.getString(R.string.action_easing_hint)), gap = 6)
+            if (kind.verb in listOf("pinch-in", "pinch-out", "swipe-two"))
+                ActionUi.add(fields, ActionUi.note(context, context.getString(R.string.action_two_pick_hint)), gap = 6)
             rendering = false
         }
         render()

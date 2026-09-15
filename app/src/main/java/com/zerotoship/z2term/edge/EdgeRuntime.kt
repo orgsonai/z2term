@@ -1449,6 +1449,20 @@ object EdgeRuntime {
         if (!unlocked()) return false
         val target = "$panel:${item.id}"
         if (command.isBlank()) { renderers["$target:status"]?.invoke(app!!.getString(R.string.edge_no_command)); return false }
+        if (!refresh && item.type == "run" && !item.isStateButton && item.fields["out"].orEmpty() in setOf("", "none") && input == null && value == null) {
+            val macro = com.zerotoship.z2term.automation.ActionMacroReference.name(command)
+            if (macro != null) {
+                close()
+                return try {
+                    com.zerotoship.z2term.automation.ActionRuntime.start(app!!, macro, waitForForeground = true)
+                    after?.invoke()
+                    true
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(app!!, e.message, android.widget.Toast.LENGTH_LONG).show()
+                    false
+                }
+            }
+        }
         if (!refresh) runner?.cancelRead(target)
         if (!refresh && item.type == "run" && !item.isStateButton && item.fields["out"].orEmpty() in setOf("", "none")) close()
         val gen = generation

@@ -18,6 +18,11 @@ class TileCollapseActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         finish()
+        if (savedInstanceState == null) intent.getStringExtra("action_macro")?.let { name ->
+            runCatching {
+                com.zerotoship.z2term.automation.ActionRuntime.start(applicationContext, name, waitForForeground = true)
+            }.onFailure { android.widget.Toast.makeText(this, it.message, android.widget.Toast.LENGTH_LONG).show() }
+        }
         // 出入りのアニメーションも消す (一瞬の暗転が「何か開いた」と見えてしまうため)。
         @Suppress("DEPRECATION")
         overridePendingTransition(0, 0)

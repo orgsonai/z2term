@@ -26,22 +26,23 @@ import com.zerotoship.z2term.edge.EdgeRuntime
 
 /** A short-lived selection overlay. Coordinates and UI selectors return to the editor without executing actions. */
 internal object ActionCoordinatePicker {
-    data class Result(val request: String, val screen: ActionDefinition.Screen, val points: List<Float>?, val error: String?, val selector: ActionSelector? = null)
+    data class Result(val request: String, val screen: ActionDefinition.Screen, val points: List<Float>?, val error: String?, val selector: ActionSelector? = null,
+        val durationMs: Long? = null, val paths: List<List<ActionGesture.Point>>? = null, val recorded: String? = null)
     private var session: Session? = null
     private var result: Result? = null
     val active get() = session != null
     fun isActive(request: String) = session?.request == request
     fun consume(request: String): Result? = result?.takeIf { it.request == request }?.also { result = null }
 
-    fun start(service: AndroidActions, request: String, swipe: Boolean, target: String? = null) {
+    fun start(service: AndroidActions, request: String, swipe: Boolean, target: String? = null, fingers: Int = 1, freehand: Boolean = false, recording: Boolean = false, live: Boolean = false) {
         check(!active && !ActionRuntime.running && !AndroidActions.gesturesInFlight()) { service.getString(R.string.action_pick_busy) }
         // Only UI-element selection has an app target. Coordinate selection measures the screen.
-        val launch = target?.let {
+        val launch = target?.takeUnless { it == ActionDefinition.CURRENT_TARGET }?.let {
             ActionDefinition.packageName(it)
             service.packageManager.getLaunchIntentForPackage(it)
                 ?: error(service.getString(R.string.action_pick_launch_failed, it))
         }
-        val next = Session(service, request, target, swipe, ActionRuntime.screen(service))
+        val next = Session(service, request, target, swipe, ActionRuntime.screen(service), fingers, freehand, recording, live)
         EdgeRuntime.suspendForActions(true)
         result = null; session = next
         try {
@@ -63,18 +64,30 @@ internal object ActionCoordinatePicker {
     }
 
     private class Session(val service: AndroidActions, val request: String, val target: String?,
-        val swipe: Boolean, val screen: ActionDefinition.Screen) {
+        val swipe: Boolean, val screen: ActionDefinition.Screen, val fingers: Int, val freehand: Boolean, val recording: Boolean, val live: Boolean) {
         var returnIntent = Intent(service, ActionMacrosActivity::class.java)
         private val elements = target != null
         private val main = Handler(Looper.getMainLooper())
         private val wm = service.getSystemService(WindowManager::class.java)
         private var window: View? = null
-        private var capturing = !elements
+        private var capturing = !elements && !live
         private var loading = false
         private var choices = emptyList<ActionSelector>()
+        private var readTarget: String? = null
         private var lookup: Job? = null
         private var bottom = false
         private var points: List<Float>? = null
+        private var durationMs: Long? = null
+        private var paths: List<List<ActionGesture.Point>>? = null
+        private val sequence = ActionRecording()
+        private var rootReader: ActionRootRecorder? = null
+        private var recordReady = !live
+        private var updateRecording: (() -> Unit)? = null
+        private var controlsView: View? = null
+        private val excludedIds = mutableSetOf<Int>()
+        private var seenIds = emptySet<Int>()
+        private var ready = false
+        private fun clearSelection() { points = null; durationMs = null; paths = null; ready = false }
         private val deadline = SystemClock.elapsedRealtime() + 120_000
         private val monitor = object : Runnable {
             override fun run() {
@@ -90,15 +103,40 @@ internal object ActionCoordinatePicker {
         private fun unlocked() = service.getSystemService(PowerManager::class.java).isInteractive &&
             !service.getSystemService(KeyguardManager::class.java).isKeyguardLocked
 
-        fun show() { render(); main.post(monitor) }
+        fun show() {
+            render(); main.post(monitor)
+            if (recording && live) {
+                rootReader = ActionRootRecorder(screen).also { reader ->
+                    reader.start(ready = { recordReady = true; updateRecording?.invoke() }, frame = { frame ->
+                        try {
+                            val ids = frame.contacts.map { it.id }.toSet()
+                            excludedIds.retainAll(ids)
+                            val controls = controlsView
+                            val origin = IntArray(2)
+                            controls?.getLocationOnScreen(origin)
+                            frame.contacts.filter { it.id !in seenIds }.forEach { contact ->
+                                if (controls != null && contact.x >= origin[0] && contact.x < origin[0] + controls.width &&
+                                    contact.y >= origin[1] && contact.y < origin[1] + controls.height) excludedIds += contact.id
+                            }
+                            seenIds = ids
+                            sequence.frame(frame.ms, frame.contacts.filter { it.id !in excludedIds }, frame.released)
+                            updateRecording?.invoke()
+                        } catch (e: Exception) { finish(null, e.message) }
+                    }, failed = { finish(null, service.getString(R.string.action_record_root_error, it)) })
+                }
+            }
+        }
 
         private fun readElements() {
-            loading = true; render()
+            loading = true; choices = emptyList(); readTarget = null; render()
             lookup = CoroutineScope(Dispatchers.Main.immediate).launch {
                 try {
-                    val found = AndroidActions.inspectUi(requireNotNull(target)).flatMap { it.selectors() }.distinct()
+                    val packageName = if (target == ActionDefinition.CURRENT_TARGET)
+                        AndroidActions.focusedPackage() ?: error(service.getString(R.string.action_run_no_foreground))
+                        else requireNotNull(target)
+                    val found = AndroidActions.inspectUi(packageName).flatMap { it.selectors() }.distinct()
                     if (session !== this@Session) return@launch
-                    choices = found
+                    readTarget = packageName; choices = found
                     if (found.isEmpty()) Toast.makeText(service, R.string.action_ui_empty, Toast.LENGTH_LONG).show()
                 } catch (e: CancellationException) { throw e } catch (e: Exception) { Toast.makeText(service, e.message, Toast.LENGTH_LONG).show() } finally {
                     if (session === this@Session) {
@@ -119,10 +157,21 @@ internal object ActionCoordinatePicker {
                     EdgeSettingsUi.dp(service, 12), EdgeSettingsUi.dp(service, 10))
             }
             controls.addView(EdgeSettingsUi.body(service, service.getString(
-                if (elements) R.string.action_ui_prepare else if (!capturing) R.string.action_pick_prepare else if (swipe) R.string.action_pick_swipe else R.string.action_pick_point)).apply {
+                if (recording) { if (live) R.string.action_record_live_hint else R.string.action_record_overlay_hint } else if (elements) R.string.action_ui_prepare else if (!capturing) R.string.action_pick_prepare else if (fingers == 2) R.string.action_pick_two else if (freehand) R.string.action_pick_freehand else if (swipe) R.string.action_pick_swipe else R.string.action_pick_point)).apply {
                 textSize = 13f
                 setLineSpacing(EdgeSettingsUi.dp(service, 3).toFloat(), 1f)
             }, LinearLayout.LayoutParams(-1, -2))
+            val summary = EdgeSettingsUi.body(service, "").apply { textSize = 12f }
+            controls.addView(summary)
+            fun updateSummary() {
+                summary.text = if (recording) {
+                    if (!recordReady) service.getString(R.string.action_record_connecting)
+                    else service.getString(R.string.action_record_summary, sequence.count, sequence.durationMs)
+                } else if (ready && swipe) service.getString(R.string.action_gesture_summary,
+                    durationMs ?: 0L, paths?.firstOrNull()?.let { ActionGesture.speed(it).toInt() } ?: 0) else ""
+                summary.visibility = if (summary.text.isEmpty()) View.GONE else View.VISIBLE
+            }
+            updateSummary()
             val row = EdgeSettingsUi.row(service)
             controls.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
                 topMargin = EdgeSettingsUi.dp(service, 10)
@@ -135,14 +184,17 @@ internal object ActionCoordinatePicker {
                         if (row.childCount > 0) leftMargin = EdgeSettingsUi.dp(service, 8)
                     })
                 }
-            val accept = button(if (elements) R.string.action_ui_read else if (capturing) R.string.action_edit_apply else R.string.action_edit_pick,
-                EdgeSettingsUi.Kind.PRIMARY, !loading && (!capturing || points != null)) {
+            val accept = button(if (recording) R.string.action_record_stop else if (elements) R.string.action_ui_read else if (capturing) R.string.action_edit_apply else R.string.action_edit_pick,
+                EdgeSettingsUi.Kind.PRIMARY, !loading && (if (recording) recordReady && sequence.count > 0 && !sequence.touching else !capturing || ready)) {
                 try {
-                    if (elements) {
-                        check(AndroidActions.targetMatches(requireNotNull(target))) { service.getString(R.string.action_pick_foreground, target) }
+                    if (recording) {
+                        check(ActionRuntime.screen(service) == screen && unlocked()) { service.getString(R.string.action_pick_cancelled) }
+                        val text = sequence.source("percent", screen)
+                        finish(null, null, recorded = text)
+                    } else if (elements) {
                         readElements()
                     }
-                    else if (!capturing) { capturing = true; points = null; render() }
+                    else if (!capturing) { capturing = true; clearSelection(); render() }
                     else {
                         val selected = points ?: return@button
                         check(ActionRuntime.screen(service) == screen && unlocked()) { service.getString(R.string.action_pick_cancelled) }
@@ -153,8 +205,13 @@ internal object ActionCoordinatePicker {
                     if (window == null) finish(null, e.message)
                 }
             }
-            if (capturing) button(R.string.action_pick_navigate) {
-                capturing = false; points = null
+            updateRecording = {
+                updateSummary()
+                accept.isEnabled = recordReady && sequence.count > 0 && !sequence.touching
+            }
+            controlsView = controls
+            if (capturing && !recording) button(R.string.action_pick_navigate) {
+                capturing = false; clearSelection()
                 try { render() } catch (e: Exception) { finish(null, e.message) }
             }
             button(R.string.action_pick_move) {
@@ -172,8 +229,8 @@ internal object ActionCoordinatePicker {
                     adapter = ArrayAdapter(service, android.R.layout.simple_list_item_1, choices.map { it.toString() })
                     setOnItemClickListener { _, _, index, _ ->
                         try {
-                            check(AndroidActions.targetMatches(requireNotNull(target))) {
-                                service.getString(R.string.action_pick_foreground, target)
+                            check(AndroidActions.targetMatches(requireNotNull(readTarget))) {
+                                service.getString(R.string.action_pick_foreground, readTarget)
                             }
                             check(unlocked() && ActionRuntime.screen(service) == screen) { service.getString(R.string.action_pick_cancelled) }
                             finish(null, null, selector = choices[index])
@@ -186,31 +243,111 @@ internal object ActionCoordinatePicker {
                     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                         color = EdgeSettingsUi.accent(service); strokeWidth = 4f
                     }
+                    private var ignoreRecordTouch = false
                     private var tracking = false
-                    private var startX = 0f
-                    private var startY = 0f
+                    private var startedAt = 0L
+                    private var ids = emptyList<Int>()
+                    private var recordings = emptyList<ActionGesture.Recording>()
                     override fun onDraw(canvas: Canvas) {
-                        val p = points ?: return
                         val origin = IntArray(2).also { getLocationOnScreen(it) }
-                        canvas.drawLine(p[0] - origin[0], p[1] - origin[1], p[2] - origin[0], p[3] - origin[1], paint)
-                        canvas.drawCircle(p[0] - origin[0], p[1] - origin[1], 10f, paint)
-                        canvas.drawCircle(p[2] - origin[0], p[3] - origin[1], 10f, paint)
+                        val traces = paths ?: return
+                        traces.forEach { trace ->
+                            val shown = if (recording || freehand || fingers == 2) trace else listOf(trace.first(), trace.last())
+                            shown.zipWithNext().forEach { (a, b) ->
+                                canvas.drawLine(a.x - origin[0], a.y - origin[1], b.x - origin[0], b.y - origin[1], paint)
+                            }
+                            canvas.drawCircle(shown.first().x - origin[0], shown.first().y - origin[1], 10f, paint)
+                            canvas.drawCircle(shown.last().x - origin[0], shown.last().y - origin[1], 10f, paint)
+                        }
                     }
                     override fun performClick(): Boolean { super.performClick(); return true }
                     override fun onTouchEvent(event: MotionEvent): Boolean {
-                        if (event.pointerCount != 1 || event.actionMasked == MotionEvent.ACTION_CANCEL) {
-                            tracking = false; points = null; accept.isEnabled = false; invalidate(); return true
-                        }
-                        val x = event.rawX.coerceIn(0f, (screen.width - 1).toFloat())
-                        val y = event.rawY.coerceIn(0f, (screen.height - 1).toFloat())
-                        when (event.actionMasked) {
-                            MotionEvent.ACTION_DOWN -> {
-                                tracking = true; startX = x; startY = y; points = null; accept.isEnabled = false
+                        if (recording) {
+                            if (event.actionMasked == MotionEvent.ACTION_DOWN) ignoreRecordTouch = false
+                            if (event.actionMasked == MotionEvent.ACTION_CANCEL || event.pointerCount > 2) {
+                                sequence.cancelTouch(); ignoreRecordTouch = true; paths = sequence.preview(); invalidate()
+                                updateRecording?.invoke(); return true
                             }
-                            MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> if (tracking) {
-                                points = if (swipe) listOf(startX, startY, x, y) else listOf(x, y, x, y)
-                                if (event.actionMasked == MotionEvent.ACTION_UP) {
-                                    tracking = false; accept.isEnabled = true; performClick()
+                            if (ignoreRecordTouch) return true
+                            try {
+                                val origin = IntArray(2).also { getLocationOnScreen(it) }
+                                fun contacts(history: Int? = null) = (0 until event.pointerCount).map { index ->
+                                    ActionRecording.Contact(event.getPointerId(index),
+                                        ((if (history == null) event.getX(index) else event.getHistoricalX(index, history)) + origin[0])
+                                            .coerceIn(0f, (screen.width - 1).toFloat()),
+                                        ((if (history == null) event.getY(index) else event.getHistoricalY(index, history)) + origin[1])
+                                            .coerceIn(0f, (screen.height - 1).toFloat()))
+                                }
+                                if (event.actionMasked == MotionEvent.ACTION_MOVE)
+                                    for (i in 0 until event.historySize) sequence.frame(event.getHistoricalEventTime(i), contacts(i))
+                                val current = contacts()
+                                sequence.frame(event.eventTime, current)
+                                if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_POINTER_UP)
+                                    sequence.frame(event.eventTime, current.filter { it.id != event.getPointerId(event.actionIndex) })
+                                paths = sequence.preview(); updateRecording?.invoke(); invalidate()
+                            } catch (e: Exception) {
+                                sequence.cancelTouch(); ignoreRecordTouch = true; paths = sequence.preview(); invalidate()
+                                Toast.makeText(service, e.message, Toast.LENGTH_LONG).show()
+                                updateRecording?.invoke()
+                            }
+                            return true
+                        }
+                        fun reset() {
+                            tracking = false; ids = emptyList(); recordings = emptyList()
+                            clearSelection(); accept.isEnabled = false; updateSummary(); invalidate()
+                        }
+                        if (event.actionMasked == MotionEvent.ACTION_CANCEL || event.pointerCount > fingers) {
+                            reset(); return true
+                        }
+                        val origin = IntArray(2).also { getLocationOnScreen(it) }
+                        fun x(index: Int, history: Int? = null) =
+                            ((if (history == null) event.getX(index) else event.getHistoricalX(index, history)) + origin[0])
+                                .coerceIn(0f, (screen.width - 1).toFloat())
+                        fun y(index: Int, history: Int? = null) =
+                            ((if (history == null) event.getY(index) else event.getHistoricalY(index, history)) + origin[1])
+                                .coerceIn(0f, (screen.height - 1).toFloat())
+                        fun begin() {
+                            tracking = true; startedAt = event.eventTime
+                            ids = (0 until fingers).map { event.getPointerId(it) }
+                            recordings = (0 until fingers).map { index ->
+                                ActionGesture.Recording().apply { add(x(index), y(index), 0) }
+                            }
+                            paths = recordings.map { it.points.toList() }
+                        }
+                        when (event.actionMasked) {
+                            MotionEvent.ACTION_DOWN -> { reset(); if (fingers == 1) begin() }
+                            MotionEvent.ACTION_POINTER_DOWN -> if (fingers == 2 && event.pointerCount == 2) {
+                                reset(); begin()
+                            }
+                            MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> if (tracking) {
+                                val up = event.actionMasked != MotionEvent.ACTION_MOVE
+                                val elapsed = (event.eventTime - startedAt).coerceAtLeast(1)
+                                val maximum = if (freehand || fingers == 2) ActionGesture.MAX_MS else 3000L
+                                if (swipe && elapsed > maximum) {
+                                    reset()
+                                    Toast.makeText(service, service.getString(R.string.action_pick_too_long, maximum / 1000), Toast.LENGTH_LONG).show()
+                                    return true
+                                }
+                                val indices = ids.map { event.findPointerIndex(it) }
+                                if (indices.any { it < 0 }) { reset(); return true }
+                                // Historical samples keep fast curves and late flick acceleration.
+                                if (swipe) for (history in 0 until event.historySize) {
+                                    val time = event.getHistoricalEventTime(history) - startedAt
+                                    if (time >= 0) indices.forEachIndexed { finger, index ->
+                                        recordings[finger].add(x(index, history), y(index, history), time)
+                                    }
+                                }
+                                indices.forEachIndexed { finger, index ->
+                                    recordings[finger].add(x(index), y(index), if (swipe) elapsed else elapsed.coerceAtMost(ActionGesture.MAX_MS), up)
+                                }
+                                paths = recordings.map { it.points.toList() }
+                                val first = paths!!.first()
+                                val a = if (swipe) first.first() else first.last()
+                                val b = first.last()
+                                points = listOf(a.x, a.y, b.x, b.y)
+                                if (up) {
+                                    tracking = false; ready = true; durationMs = elapsed
+                                    accept.isEnabled = true; updateSummary(); performClick()
                                 }
                             }
                         }
@@ -242,13 +379,15 @@ internal object ActionCoordinatePicker {
             window = content
         }
 
-        fun finish(points: List<Float>?, error: String?, returnToEditor: Boolean = true, selector: ActionSelector? = null) {
+        fun finish(points: List<Float>?, error: String?, returnToEditor: Boolean = true, selector: ActionSelector? = null, recorded: String? = null) {
             if (session !== this) return
             session = null
             main.removeCallbacks(monitor)
             lookup?.cancel(); lookup = null
+            rootReader?.stop(); rootReader = null; updateRecording = null; controlsView = null
             window?.let { runCatching { wm.removeViewImmediate(it) } }; window = null
-            result = Result(request, screen, points, error, selector)
+            result = Result(request, screen, points, error, selector,
+                if (recorded != null) sequence.durationMs else durationMs.takeIf { points != null }, paths?.takeIf { points != null }, recorded)
             runCatching { EdgeRuntime.suspendForActions(false) }
             if (returnToEditor && unlocked()) runCatching {
                 service.startActivity(Intent(returnIntent)

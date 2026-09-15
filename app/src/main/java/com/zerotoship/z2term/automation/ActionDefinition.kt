@@ -16,7 +16,29 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         data class Key(val name: String) : Step
         data class Command(val text: String) : Step
         data class Stroke(val target: String, val unit: String, val x1: Float, val y1: Float,
-            val x2: Float, val y2: Float, val ms: Long) : Step {
+            val x2: Float, val y2: Float, val ms: Long, val path: List<ActionGesture.Point> = emptyList(),
+            val easing: String = "linear", val secondPath: List<ActionGesture.Point> = emptyList(),
+            val taps: Int = 1, val gapMs: Long = 100) : Step {
+            val durationMs get() = ms * taps + gapMs * (taps - 1)
+            fun tracks(screen: Screen): List<List<ActionGesture.Point>> {
+                val tracks = listOf(timedPoints(screen)) + if (secondPath.isEmpty()) emptyList()
+                    else listOf(ActionGesture.convert(secondPath, unit, "px", screen))
+                require(tracks.flatten().all { it.x.isFinite() && it.y.isFinite() &&
+                    it.x >= 0 && it.y >= 0 && it.x < screen.width && it.y < screen.height }) {
+                    "Coordinates are outside the saved screen"
+                }
+                require(tracks.maxOf { it.first().ms } < tracks.minOf { it.last().ms }) {
+                    "Separate non-overlapping touches into separate steps"
+                }
+                return tracks
+            }
+            fun timedPoints(screen: Screen): List<ActionGesture.Point> {
+                val source = path.ifEmpty { ActionGesture.line(x1, y1, x2, y2, ms, easing) }
+                val pixels = ActionGesture.convert(source, unit, "px", screen)
+                require(pixels.all { it.x.isFinite() && it.y.isFinite() && it.x >= 0 && it.y >= 0 &&
+                    it.x < screen.width && it.y < screen.height }) { "Coordinates are outside the saved screen" }
+                return pixels
+            }
             fun points(screen: Screen): List<Float> {
                 val points = if (unit == "percent") listOf(x1 * (screen.width - 1) / 100,
                     y1 * (screen.height - 1) / 100, x2 * (screen.width - 1) / 100, y2 * (screen.height - 1) / 100)
@@ -29,6 +51,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         data class Scroll(val target: String, val speed: Float, val ms: Long, val x: Float, val y: Float) : Step
     }
     companion object {
+        const val CURRENT_TARGET = "current"
         const val MAX_BYTES = 65536
         const val MAX_STEPS = 64
         const val MAX_NESTING = 8
@@ -79,7 +102,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 fun millis(i: Int, low: Long, high: Long): Long = words[i].toLongOrNull()?.also {
                     require(it in low..high) { "Duration must be $low..$high ms" }
                 } ?: throw IllegalArgumentException("Invalid duration")
-                fun destination() = target ?: throw IllegalArgumentException("Set target PACKAGE or launch PACKAGE before coordinates/scroll/UI elements")
+                fun destination() = target ?: CURRENT_TARGET
                 if (words[0] in setOf("repeat", "if", "else", "end", "call")) {
                     require(headers["version"] == "2") { "Control flow requires version=2" }
                     when (words[0]) {
@@ -129,7 +152,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                         val selector = line.split(Regex("\\s+"), limit = if (wait) 3 else 2).last()
                         steps += Step.Ui(destination(), words[0], ActionSelector.parse(selector), ms)
                     }
-                    "target" -> { count(2); target = packageName(words[1]) }
+                    "target" -> { count(2); target = if (words[1] == CURRENT_TARGET) CURRENT_TARGET else packageName(words[1]) }
                     "launch" -> { count(2); target = packageName(words[1]); steps += Step.Launch(words[1]) }
                     "wait" -> { count(2); steps += Step.Wait(millis(1, 0, 30000)) }
                     "key" -> {
@@ -144,14 +167,65 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                     }
                     "tap", "long-press", "swipe" -> {
                         val swipe = words[0] == "swipe"
-                        count(if (swipe) 7 else if (words[0] == "tap") 4 else 5)
+                        if (swipe) require(words.size in 7..8) { "Wrong arguments: swipe" }
+                        else count(if (words[0] == "tap") 4 else 5)
+                        val easing = if (swipe && words.size == 8) words[7] else "linear"
+                        require(easing in setOf("linear", "accelerate", "decelerate")) { "Swipe speed must be linear, accelerate or decelerate" }
                         require(words[1] in setOf("px", "percent")) { "Coordinate unit must be px or percent" }
                         val maximum = if (words[1] == "percent") 100f else 32767f
                         val x1 = number(2, 0f, maximum); val y1 = number(3, 0f, maximum)
                         steps += Step.Stroke(destination(), words[1], x1, y1,
                             if (swipe) number(4, 0f, maximum) else x1,
                             if (swipe) number(5, 0f, maximum) else y1,
-                            if (swipe) millis(6, 1, 3000) else if (words[0] == "tap") 80 else millis(4, 500, 3000))
+                            if (swipe) millis(6, 1, 3000) else if (words[0] == "tap") 80 else millis(4, 500, 3000),
+                            easing = easing)
+                    }
+                    "double-tap" -> {
+                        count(5)
+                        require(words[1] in setOf("px", "percent")) { "Coordinate unit must be px or percent" }
+                        val max = if (words[1] == "percent") 100f else 32767f
+                        val x = number(2, 0f, max); val y = number(3, 0f, max)
+                        steps += Step.Stroke(destination(), words[1], x, y, x, y, 80,
+                            taps = 2, gapMs = millis(4, 40, 300))
+                    }
+                    "pinch-in", "pinch-out", "swipe-two" -> {
+                        val two = words[0] == "swipe-two"
+                        val required = if (two) 9 else 7
+                        require(words.size in required..required + 1) { "Wrong arguments: ${words[0]}" }
+                        require(words[1] in setOf("px", "percent")) { "Coordinate unit must be px or percent" }
+                        val max = if (words[1] == "percent") 100f else 32767f
+                        val easing = words.getOrNull(required) ?: "linear"
+                        require(easing in ActionGesture.EASINGS) { "Swipe speed must be linear, accelerate or decelerate" }
+                        val ms = millis(required - 1, 1, 3000)
+                        val x = number(2, 0f, max); val y = number(3, 0f, max)
+                        val first: List<ActionGesture.Point>
+                        val second: List<ActionGesture.Point>
+                        if (two) {
+                            val x2 = number(4, 0f, max); val y2 = number(5, 0f, max)
+                            val dx = number(6, -max, max); val dy = number(7, -max, max)
+                            require(dx != 0f || dy != 0f) { "Two fingers require different positions" }
+                            first = ActionGesture.line(x, y, x2, y2, ms, easing)
+                            second = first.map { it.copy(x = it.x + dx, y = it.y + dy) }
+                        } else {
+                            val start = number(4, 0.001f, max); val end = number(5, 0.001f, max)
+                            require(if (words[0] == "pinch-in") start > end else start < end) { "Check the pinch start/end spacing" }
+                            first = ActionGesture.line(x - start / 2, y, x - end / 2, y, ms, easing)
+                            second = ActionGesture.line(x + start / 2, y, x + end / 2, y, ms, easing)
+                        }
+                        require((first + second).all { it.x in 0f..max && it.y in 0f..max }) { "Finger coordinates are outside the coordinate range" }
+                        steps += Step.Stroke(destination(), words[1], first.first().x, first.first().y,
+                            first.last().x, first.last().y, ms, first, easing, second)
+                    }
+                    "swipe-path", "swipe-two-path", "touch" -> {
+                        require(headers["version"] == "2") { "Freehand swipes require version=2" }
+                        require(words.size >= 4) { "Freehand swipe requires a unit and timed points" }
+                        val tracks = words.drop(2).joinToString(" ").split('|')
+                        require(if (words[0] == "touch") tracks.size in 1..2 else tracks.size == if (words[0] == "swipe-two-path") 2 else 1) { "Wrong number of freehand fingers" }
+                        val path = ActionGesture.parse(words[1], tracks[0])
+                        val second = tracks.getOrNull(1)?.let { ActionGesture.parse(words[1], it, startsAtZero = words[0] != "touch") }.orEmpty()
+                        require(words[0] == "touch" || second.isEmpty() || second.map { it.ms } == path.map { it.ms }) { "Two fingers require matching sample times" }
+                        steps += Step.Stroke(destination(), words[1], path.first().x, path.first().y,
+                            path.last().x, path.last().y, maxOf(path.last().ms, second.lastOrNull()?.ms ?: 0), path, secondPath = second)
                     }
                     "scroll" -> {
                         count(5)
@@ -177,7 +251,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             }
             val flat = allSteps(steps)
             if (flat.any { it is Step.Stroke || it is Step.Scroll }) require(screen != null) { "Coordinates/scroll require screen=current or saved geometry" }
-            flat.filterIsInstance<Step.Stroke>().forEach { it.points(screen!!) }
+            flat.filterIsInstance<Step.Stroke>().forEach { it.tracks(screen!!) }
             return ActionDefinition(lines.joinToString("\n").trimEnd() + "\n", timeout * 1000, screen, steps.toList())
         }
     }

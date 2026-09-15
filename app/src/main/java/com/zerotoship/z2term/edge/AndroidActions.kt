@@ -222,9 +222,15 @@ class AndroidActions : AccessibilityService() {
             com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, swipe = false, target = target)
         }
 
-        internal fun pickCoordinates(request: String, swipe: Boolean) {
+        internal fun pickCoordinates(request: String, swipe: Boolean, fingers: Int = 1, freehand: Boolean = false) {
             val service = active ?: error("Enable z2term Android actions in Accessibility settings")
-            com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, swipe)
+            com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, swipe, fingers = fingers, freehand = freehand)
+        }
+
+        internal fun recordTouches(request: String, live: Boolean) {
+            val service = active ?: error("Enable z2term Android actions in Accessibility settings")
+            com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, swipe = true,
+                recording = true, live = live)
         }
 
         internal fun gesturesInFlight(): Boolean = active?.let { it.coordinateStroke.inFlight || it.autoScroll.inFlight } == true
@@ -235,11 +241,16 @@ class AndroidActions : AccessibilityService() {
             check(!service.autoScroll.running && !service.autoScroll.inFlight) { "Wait for scrolling to finish" }
             val target = service.focusedTarget() ?: error("No focused application window")
             check(service.windowPackages[target.id] == step.target) { "Target app is not focused; switch to ${step.target}" }
-            val p = step.points(screen)
-            check(target.bounds.contains(p[0].toInt(), p[1].toInt()) && target.bounds.contains(p[2].toInt(), p[3].toInt())) {
+            val points = step.tracks(screen).flatten()
+            check(points.all { target.bounds.contains(it.x.toInt(), it.y.toInt()) }) {
                 "Coordinates must be inside the visible target window, above the keyboard"
             }
-            return service.coordinateStroke.dispatch(step, screen, done)
+            return service.coordinateStroke.dispatch(step, screen, stillTarget = {
+                val current = service.focusedTarget()
+                current != null && current.id == target.id && current.bounds == target.bounds &&
+                    service.windowPackages[current.id] == step.target &&
+                    com.zerotoship.z2term.automation.ActionRuntime.screen(service) == screen
+            }, done = done)
         }
 
         fun enabled(context: Context): Boolean = context.getSystemService(AccessibilityManager::class.java)

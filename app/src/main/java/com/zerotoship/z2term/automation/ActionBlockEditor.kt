@@ -13,6 +13,17 @@ internal object ActionBlockEditor {
         edit: (Int, String) -> Unit, add: (Int, String) -> Unit, change: (String) -> Unit,
         show: (Dialog) -> Unit, failure: (Exception) -> Unit) {
         val source = document.text.replace("\r\n", "\n").lines()
+        fun label(line: Int): String {
+            val value = source[line].trim()
+            if (value == "repeat 1" && source.getOrNull(line + 1)?.trim() == "# Recorded touch sequence")
+                return context.getString(R.string.action_record_group)
+            val words = value.split(Regex("\\s+"), limit = 3)
+            if (words.firstOrNull() in listOf("touch", "swipe-path", "swipe-two-path") && words.size == 3) {
+                val tracks = runCatching { words[2].split('|').map { ActionGesture.parse(words[1], it, startsAtZero = false) } }.getOrNull()
+                if (tracks != null) return context.getString(R.string.action_record_step, tracks.size, tracks.maxOf { it.last().ms })
+            }
+            return value
+        }
         fun dp(value: Int) = ActionUi.dp(context, value)
         fun mutate(block: () -> String) { try { change(block()) } catch (e: Exception) { failure(e) } }
         fun groupName(group: ActionBlockDocument.Group): String = if (group.branch == "root")
@@ -37,7 +48,7 @@ internal object ActionBlockEditor {
                 mutate { if (item.otherwise == null) document.addElse(item.line) else document.removeElse(item.line) }
             }
             entries += R.string.action_edit_remove to { mutate { document.remove(item.line) } }
-            show(ActionUi.choices(context, item.path + ". " + source[item.line].trim(),
+            show(ActionUi.choices(context, item.path + ". " + label(item.line),
                 entries.map { context.getString(it.first) }, danger = setOf(entries.lastIndex)) { selected -> entries[selected].second() })
         }
         // A macro is a listing: number in its own column, the line itself in a fixed pitch, and the
@@ -45,7 +56,7 @@ internal object ActionBlockEditor {
         // nesting is a left rule, so depth survives past two levels.
         fun renderGroup(group: ActionBlockDocument.Group, container: LinearLayout) {
             group.items.forEachIndexed { index, item ->
-                val line = source[item.line].trim()
+                val line = label(item.line)
                 val row = ActionUi.card(context, vertical = false).apply {
                     setPadding(dp(10), dp(2), dp(2), dp(2))
                     foreground = ActionUi.pressable(context, 8)
@@ -73,8 +84,8 @@ internal object ActionBlockEditor {
                 }
             }
             ActionUi.add(container, ActionUi.pill(context, context.getString(R.string.action_edit_add)) {
-                val labels = intArrayOf(R.string.action_edit_add, R.string.action_edit_add_repeat, R.string.action_edit_add_branch)
-                val drafts = listOf("wait 800", "repeat 3", "if charging")
+                val labels = intArrayOf(R.string.action_edit_add, R.string.action_edit_add_repeat, R.string.action_edit_add_branch, R.string.action_record_title)
+                val drafts = listOf("wait 800", "repeat 3", "if charging", "@record")
                 show(ActionUi.choices(context, groupName(group), labels.map { context.getString(it) }) { position ->
                     add(group.start, drafts[position])
                 })

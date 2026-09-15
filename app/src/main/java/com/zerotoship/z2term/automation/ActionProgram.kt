@@ -6,6 +6,16 @@ internal data class ActionProgram(val name: String, val definitions: Map<String,
     val hasControlFlow = ActionDefinition.allSteps(root.steps).any {
         it is ActionDefinition.Step.Repeat || it is ActionDefinition.Step.Branch || it is ActionDefinition.Step.Call
     }
+    val usesCurrentTarget get() = definitions.values.any { definition ->
+        ActionDefinition.allSteps(definition.steps).any { step ->
+            when (step) {
+                is ActionDefinition.Step.Stroke -> step.target == ActionDefinition.CURRENT_TARGET
+                is ActionDefinition.Step.Scroll -> step.target == ActionDefinition.CURRENT_TARGET
+                is ActionDefinition.Step.Ui -> step.target == ActionDefinition.CURRENT_TARGET
+                else -> false
+            }
+        }
+    }
     companion object {
         const val MAX_CALL_DEPTH = 8
         const val MAX_FRAME_DEPTH = 16

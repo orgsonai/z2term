@@ -27,10 +27,25 @@ class ActionDefinitionTest {
             "long-press px 1 2 3001", "swipe percent 0 0 50 50 0", "scroll 0 1000 50 50",
             "scroll -600 30001 50 50", "wait 30001")) rejects { parse(line) }
     }
-    @Test fun geometryAndTargetAreRequiredOnlyForCoordinateActions() {
+    @Test fun geometryIsRequiredForCoordinateActions() {
         rejects { ActionDefinition.parse("version=1\ntap px 1 2") }
         rejects { ActionDefinition.parse("version=1\ntarget org.example.app\ntap px 1 2") }
         assertNull(ActionDefinition.parse("version=1\nwait 20\nkey back").screen)
+    }
+    @Test fun unspecifiedAndCurrentTargetsRoundTripWithoutInventingAnApp() {
+        for (version in listOf(1, 2)) {
+            val source = "version=$version\nscreen=current\ntap px 1 2\nscroll -600 1000 50 50"
+            val parsed = ActionDefinition.parse(source, screen)
+            assertEquals(ActionDefinition.CURRENT_TARGET, (parsed.steps[0] as ActionDefinition.Step.Stroke).target)
+            assertEquals(ActionDefinition.CURRENT_TARGET, (parsed.steps[1] as ActionDefinition.Step.Scroll).target)
+            assertEquals(parsed, ActionDefinition.parse(parsed.text))
+            assertFalse(parsed.text.contains("target "))
+        }
+        val parsed = parse("tap px 1 2\ntarget current\ntap px 3 4\nlaunch org.example.other\ntap px 5 6")
+        assertEquals(listOf("org.example.app", "current", "org.example.other"),
+            parsed.steps.filterIsInstance<ActionDefinition.Step.Stroke>().map { it.target })
+        rejects { parse("launch current") }
+        rejects { parse("target currnet\ntap px 1 2") }
     }
     @Test fun rejectsDuplicateHeadersUnknownStepsAndUnboundedFiles() {
         for (text in listOf("version=3\nwait 0", "version=1\nversion=1\nwait 0", "version=1\ntimeout=301\nwait 0",

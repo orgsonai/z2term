@@ -88,8 +88,9 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
         }
         // ロック中なら OS が解除を求め、解除できたときだけ block が走る。
         unlockAndRun {
-            collapsePanel()
-            toggle(assigned)
+            val macro = if (!assigned.isPair) com.zerotoship.z2term.automation.ActionMacroReference.name(assigned.command) else null
+            collapsePanel(macro)
+            if (macro == null) toggle(assigned)
         }
     }
 
@@ -105,8 +106,8 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
      * 起こす [TileCollapseActivity] は画面を持たず、開いた瞬間に自分を閉じる踏み台。
      * Android 14 からは `PendingIntent` を渡す形だけが残っているので版で分ける。
      */
-    private fun collapsePanel() {
-        val intent = Intent(this, TileCollapseActivity::class.java)
+    private fun collapsePanel(macro: String? = null) {
+        val intent = Intent(this, TileCollapseActivity::class.java).putExtra("action_macro", macro)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
         runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {

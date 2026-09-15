@@ -31,26 +31,77 @@ Definitions live in the shared home at `/root/.z2term/actions/NAME.actions`. Use
 Open Command list → Automation → Action automation. The list and editor appear directly inside the tab (0.8.586). Panels need not be enabled.
 
 1. Choose New and enter a name using letters, digits, underscores or hyphens.
-2. Choose Add step, select Launch app and pick the target application. Add a wait to allow its screen to become ready.
+2. To operate the foreground screen, add the desired actions directly. To use a specific app, add Launch app, choose the application and add a wait for its screen to become ready.
 3. Add taps, holds, swipes, timed scrolling or other steps. Tap a row to edit its numbers or command; use the ⋮ menu to reorder. Target directives appear as rows too: moving one changes which app subsequent actions address. Target directives do not count toward execution progress.
 4. Switch to Text to edit the complete definition. Comments, blank lines and untouched shell commands are preserved. Repair unsupported lines in text mode. More than 256 source rows open in text mode.
 5. Save uses the same validation as the CLI. Changing the name saves a separate copy and leaves the original intact. Existing names and definitions changed or deleted through the CLI while editing are protected from accidental replacement. Reopen a conflicting definition or save under another name.
 
-Each row ends with ▶ to run, Duplicate, ✎ to edit and ✕ to delete (0.8.603). It shows execution state, step progress, a Stop button and up to 32 recent start/branch/end records. Macros run from this screen should start by launching their target app as needed. Rotation retains the name, definition and current step draft.
+Each row ends with ▶ to run, Duplicate, ✎ to edit and ✕ to delete (0.8.603). It shows execution state, step progress, a Stop button and up to 32 recent start/branch/end records. GUI runs that use the foreground screen move z2term to the background and wait for the other app before starting. Rotation retains the name, definition and current step draft.
 
 Closing, going back or switching tabs checks for unsaved edits. Swipe dismissal is blocked while editing; use Close to confirm discarding changes.
+
+### Record freehand actions (0.8.605)
+
+Choose **Add step → Record freehand actions**, then select one of two modes:
+
+- **Record only** captures touches on a transparent recording surface without sending them to the app underneath.
+- **Record while operating apps (root)** reads touch input through `su` and Android `getevent`, without grabbing the device. Root permission is required. Live recording requires one direct Type-B touchscreen; multiple touchscreens and denied device access stop setup. Coordinates use device axis ranges and screen rotation, so devices with custom calibration need device testing.
+
+Tap, double-tap, hold, swipe, pinch or use two fingers without choosing an action type. Lift your fingers and choose **Stop and apply**. Only idle time before the first touch and after the final release is removed. Pauses between actions, holds, paths, speed changes and contact down/up times are saved. Live mode also excludes touches on the recording controls.
+
+Recording stores touch coordinates and time. It does not capture physical keys or the meaning of entered text. Playback still requires touches to stay inside the target window and outside the keyboard; add Android key steps manually for system actions.
+
+The result appears as one **Recorded actions (play once)** group. Its text uses `repeat 1`, `target current`, timed `touch` steps and intervening `wait` steps. Add any desired leading/trailing delays outside the group. The editor updates saved screen geometry and raises the macro timeout if needed for the recording. The macro still requires **Save**.
+
+Record within two minutes, with each touch episode lasting at most 30 seconds and using at most two fingers. Lift both fingers before adding another contact to a two-finger gesture. Recording allows up to 32 episodes, subject to the existing 64-step and 64 KiB definition limits. Cancel, screen-off, lock, geometry changes or accessibility disconnection end capture.
+
+Playback uses the recorded timestamps and releases without adding an endpoint pause. Android input sampling, scheduling and the target app's momentum can affect the observed result. When a second finger joins later, Android requires the first contact's initial path up to that join to use constant speed along the path. Both contacts' down/up times and subsequent speed changes are retained. Stopping suppresses later movement and releases after already queued segments. Usually about 120 ms is queued; the initial phase before a later second-finger join is an exception.
+
+**Build and device behavior are not verified.**
+
+### Manual gestures and placement (0.8.605)
+
+Step types now include **Double tap**, **Pinch in**, **Pinch out** and **Two-finger swipe**. Two-finger swipe means simultaneous fingers. Pinches use a center and initial/final horizontal spacing; two-finger swipes use the first finger's endpoints and the second finger's X/Y offset. Coordinate selection captures both paths and timing and changes the step to recorded paths.
+
+Straight swipes, pinches and two-finger swipes offer **Constant speed**, **Accelerate and flick** and **Decelerate**. Accelerate and flick speeds up to the endpoint and releases immediately. Ordinary straight-swipe coordinate selection also fills in the measured duration (1–3000 ms).
+
+Choose **Place** beside a saved macro to select a Quick Settings slot or an existing edge panel. Replacing an assigned tile requires confirmation; panel placement creates a new run item. Add the tile through Quick Settings editing if it is not visible. An existing panel app-launch item's Run field also offers action macros.
+
+Placement stores `z2-action start NAME`. An exact standalone reference in a tile or a normal panel run item with no output closes the shade/panel and waits for the foreground app to remain stable for about 500 ms. These entry points can also operate z2term itself. If no foreground screen is confirmed within five seconds, playback ends without sending actions. Compound shell commands and items with output/state keep their shell behavior.
+
+**Build and device behavior are not verified.**
+
+### Run on the foreground screen without choosing an app
+
+Taps, holds, swipes, scrolling and UI-element steps can be saved without an app target. For example:
+
+```text
+version=1
+screen=current
+swipe percent 50 75 50 25 450
+```
+
+GUI Run moves z2term to the background when the macro or a called macro contains foreground-screen actions. It waits for another app to remain focused for about 500 ms before starting. If no stable foreground app is identified within five seconds, no actions are sent. Stop also cancels this startup wait.
+
+The foreground app is resolved at the start of each action and held throughout that gesture, scroll or element wait. Changing apps during an action stops execution. Add Wait steps where screen transitions need time. Geometry, target-window, keyboard, screen-off and lock checks still apply.
+
+Use `target PACKAGE` or `launch PACKAGE` for an explicit app. Add `target current` to return to foreground-screen actions. The Set target app form also has a Foreground screen at execution button.
+
+CLI, panel and tile runs also accept unspecified targets. These entry points do not automatically move z2term to the background; for CLI runs, add an initial wait and switch to the desired screen.
+
+Build and device behavior not yet verified.
 
 ### Pick screen coordinates only (0.8.579)
 
 Choose Pick coordinates while editing a tap, hold or swipe. z2term moves the tools task containing the editor to the background and immediately enters coordinate selection. No launch or target step is required, and no other app is launched automatically. Enable z2term Android actions in Accessibility settings first.
 
-- Tap a point or draw from the start to the end of a swipe. Selection touches do not operate the underlying screen. A swipe captures straight-line endpoints only; edit its duration separately.
+- Tap a point or draw from the start to the end of a swipe. Selection touches do not operate the underlying screen. A straight swipe captures its endpoints and measured duration (1–3000 ms). Use freehand recording to retain a whole sequence and its changing speed.
 - Use Navigate to operate the screen normally and reach another screen. Press Pick coordinates in the floating controls to resume selection.
 - Draw again to adjust, then choose Apply to return to the numeric fields. Controls can move between the top and bottom; Cancel returns to editing inside the original Action automation tab. Selection does not check the app package or restrict points to a target window.
 - Coordinates return in the selected unit (px / percent), together with the screen dimensions and rotation. If existing screen metadata differs, review other coordinates before explicitly changing the screen setting.
 - Selection cancels on screen off, lock, geometry/rotation changes, accessibility disconnection or after two minutes. Selection and macro execution are mutually exclusive; edge panels are temporarily hidden.
 
-Only the selected values return to the step draft; picking adds no launch, wait or target directives. It does not record operations, capture images or read UI elements. Saving and executing a macro still requires an operation target. Execution checks that the app is focused and that points are inside its window, above the keyboard. Numeric input through the CLI uses the same definition format.
+Only the selected values return to the step draft; picking adds no launch, wait or target directives. This picker captures one gesture; use freehand recording for a whole sequence. It does not capture images or read UI elements. Macros can be saved without a target; each such step resolves the foreground app when it starts. Execution checks that the app is focused and that points are inside its window, above the keyboard. Numeric input through the CLI uses the same definition format.
 
 Settings visibility and scroll position return after backgrounding or unlocking the app. The action editor also retains its draft, current step and scroll position. Settings and editor contents remain hidden while locked. Build and device behavior not yet verified.
 
@@ -86,7 +137,7 @@ end
 
 Saving checks syntax and condition expressions. A helper may be created later: existence and cycle checks occur at start. Every referenced definition and its screen geometry is validated, including unused branches, before dispatching any action. Definitions are frozen for that run; subsequent edits or deletions affect future runs.
 
-A block inherits the outer `target` / `launch` target; `else` and `end` restore that outer target. Called macros specify their own targets. Restoring the definition's target does not switch the foreground app. Add an explicit `launch` and `wait` after returning if needed.
+A block inherits the outer `target` / `launch` target; `else` and `end` restore that outer target. Called macros do not inherit the caller target; unspecified targets use the foreground app at each step. Restoring the definition's target does not switch the foreground app. Add an explicit `launch` and `wait` after returning if needed.
 
 ### Condition expressions
 
@@ -133,7 +184,7 @@ long-click desc=More options
 
 Choose one of `text=Continue`, `desc=More options` or `id=org.example.app:id/next`. Text and descriptions match exactly after trimming outer whitespace, with case preserved. Values contain 1–256 characters. Interior spaces, equals signs and quotes are literal; there is no shell expansion, regex or substring matching.
 
-Elements use the preceding target or launch directive and existing block/call target rules. New element-only macros need no screen metadata. The GUI adds geometry for coordinate steps; clear the screen field to remove it. Retained metadata must match, and screen off, lock or rotation during a run still cancels execution.
+Elements use the preceding target or launch directive and existing block/call target rules. With no target or with target current, each step resolves the foreground app at its start and holds that target through any wait. New element-only macros need no screen metadata. The GUI adds geometry for coordinate steps; clear the screen field to remove it. Retained metadata must match, and screen off, lock or rotation during a run still cancels execution.
 
 wait-ui includes waiting for the target app to become focused. Switching away after initially observing it cancels the run. Missing elements or stale transition information cause another lookup after 250ms. The earliest step, parent or child deadline wins. A disabled but visible button satisfies a visibility wait; action availability is checked when clicking.
 
@@ -141,7 +192,7 @@ Ambiguity, a wrong target or exceeded search bounds prevents actions. A label wi
 
 ### Choose over the target app
 
-Choose on target app opens the app. Navigate to the desired screen, press Read elements and select text, description or an ID to return to the draft. Selection does not activate the element. Refresh, move the controls or cancel as needed. As with coordinates, two minutes elapsed, geometry changes, screen off, lock or disconnection ends selection; selection and execution are mutually exclusive.
+Choose on target app opens an explicitly selected app. With no target or with target current, it moves z2term to the background so you can select from the foreground screen. Navigate to the desired screen, press Read elements and select text, description or an ID to return to the draft. Selection does not activate the element. Refresh, move the controls or cancel as needed. As with coordinates, two minutes elapsed, geometry changes, screen off, lock or disconnection ends selection; selection and execution are mutually exclusive.
 
 Only explicit element instructions, selection and inspection read the focused target window. Editable/password subtrees and foreign-package embedded content are excluded. Inspection lists are not saved in execution history; chosen selectors are saved as macro text. The Accessibility description explains this scope.
 
@@ -168,7 +219,7 @@ API references: [AccessibilityNodeInfo](https://developer.android.com/reference/
 
 Only one macro runs at a time; new requests do not replace it. The process retains results for the latest 32 runs. History persists at `/root/.z2term/actions/.history.jsonl`; after process exit, consult `history`. Runs are never automatically resumed or retried.
 
-Interrupting `run` with Ctrl+C requests cancellation of its own run ID. Interrupting a standalone `wait` does not cancel the run. The execution notification also offers Stop macro. A touch already dispatched to Android may continue for up to three seconds after a stop request; no subsequent steps are sent.
+Interrupting `run` with Ctrl+C requests cancellation of its own run ID. Interrupting a standalone `wait` does not cancel the run. The execution notification also offers Stop macro. An ordinary touch already dispatched to Android may continue for up to three seconds after a stop request. Timed paths release after queued segments; the initial phase before a later second-finger join can be longer, as described above. No subsequent steps are sent.
 
 ## Definition syntax
 
@@ -180,19 +231,27 @@ Headers precede the body. Use one step per line. Blank lines and lines starting 
 | `timeout=30` | Whole-run timeout, 1–300 seconds; default 30 |
 | `screen=current` | Save display geometry; required for coordinates/scroll |
 | `screen=1080x2400@0` | Explicit display geometry |
-| `target PACKAGE` | Set the target for subsequent coordinates/scroll without launching it |
+| `target PACKAGE` | Set the target app for subsequent coordinates, scrolling and UI elements without launching it |
+| `target current` | Use the foreground app at the start of each subsequent step; the default when no target is specified |
 | `launch PACKAGE` | Request app launch and update the target |
 | `wait MS` | Wait 0–30000 milliseconds |
 | `key NAME` | back/home/recents/shade/quicksettings/screenshot/split |
 | `tap UNIT X Y` | An 80ms tap |
 | `long-press UNIT X Y MS` | Hold for 500–3000ms |
-| `swipe UNIT X1 Y1 X2 Y2 MS` | Straight swipe lasting 1–3000ms |
+| `swipe UNIT X1 Y1 X2 Y2 MS [EASING]` | Straight swipe lasting 1–3000 ms, constant speed by default |
+| `double-tap UNIT X Y GAP` | Two 80 ms taps; release-to-next-touch gap is 40–300 ms |
+| `pinch-in` / `pinch-out UNIT CX CY START END MS [EASING]` | Center and initial/final horizontal finger spacing |
+| `swipe-two UNIT X1 Y1 X2 Y2 DX DY MS [EASING]` | Simultaneous swipe; second finger is offset by DX/DY |
+| `touch UNIT X,Y,MS ...` | Recorded touch; optional second track separated by `\|`, with its own down/up times; version 2 |
+| `swipe-path` / `swipe-two-path UNIT X,Y,MS ...` | Recorded paths; two tracks require matching timestamps; version 2 |
 | `scroll SPEED MS X Y` | Timed auto-scroll: signed 50–40000dp/s for 1–30000ms, X/Y at 10–90% of the target window |
 | `command SHELL_TEXT` | Run through the existing Linux execution path and wait for exit |
 
 Coordinate UNIT is explicitly `px` or `percent`, measured from the full display's top left. Percent coordinates range from 0 to 100. Only the `scroll` position uses target-window percentages. Negative scroll speed moves content forward; positive moves backward. Actual motion depends on the app.
 
-Tap/swipe endpoints must be inside the visible target application window, excluding the keyboard. A mismatched display size/rotation, wrong focused app, screen off/lock, or Accessibility disconnect stops execution. If the target cannot yet be identified after enabling Accessibility, switch to that app before running.
+EASING is `linear`, `accelerate` or `decelerate`. Manual pinch and two-finger swipe durations are 1–3000 ms. Recorded paths use 2–2048 points per finger, with increasing elapsed times up to 30000 ms. The first finger starts at zero; `touch` allows the second to start later while overlapping the first.
+
+All points of both touch paths must be inside the visible target application window, excluding the keyboard. A mismatched display size/rotation, wrong focused app, screen off/lock, or Accessibility disconnect stops execution. If the target cannot yet be identified after enabling Accessibility, switch to that app before running.
 
 Each step waits for completion: shell exit code or Android's gesture callback. Rejection, cancellation or a missing callback prevents successors. Timed scrolling also waits for its final dispatched stroke to end. `launch` completes when the request is accepted, so insert an explicit `wait` for screen preparation.
 
@@ -205,6 +264,6 @@ Limits: 64 source instructions and 64KiB per macro, 64 saved definitions, and na
 - Panel items and handle commands can call `z2-action start demo`. Named action macros also appear in the item editor's macro picker.
 - A tile can use `z2-tile set 1 'z2-action start demo' --off 'z2-action stop' -l Actions`. This tile toggle remembers its own state and does not automatically track macro completion; consult `status` or the execution notification.
 
-Operation capture, recording and image recognition remain separate investigations. See the [roadmap](AUTOMATION-ROADMAP.md).
+Touch-sequence capture is implemented in 0.8.605. Video recording and image recognition remain separate investigations. See the [roadmap](AUTOMATION-ROADMAP.md).
 
 Android gesture completion and capability handling follow the [official AccessibilityService specification](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService#dispatchGesture(android.accessibilityservice.GestureDescription,%20android.accessibilityservice.AccessibilityService.GestureResultCallback,%20android.os.Handler)).

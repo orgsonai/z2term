@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.604-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.605-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -896,9 +896,13 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action-macro GUI appearance (0.8.578)**: the list is one row per macro - tap the name to edit, with run, duplicate and delete at its right. Whatever is running, and the Stop button, sit together in one bordered block, and above it is "Android action permission" (nothing runs without it). Steps line their numbers up in a left column and print the line itself in a fixed pitch, with repeat and branch bodies shown by a left rule and an indent. The colours are the same ones the edge-panel editor uses, built from your terminal theme.
 
+**Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
+
+**0.8.605-alpha (versionCode 613) — build not verified**: Action automation can record a whole sequence of taps, swipes and two-finger touches until stopped. Choose a recording surface or live recording through root. Only leading/trailing idle time is trimmed; pauses and timed paths are retained. Manual acceleration/deceleration, double tap, pinch in/out and two-finger swipe are also available. Place saved macros in Quick Settings tiles or edge panels. Device behavior is not verified. [Details](ACTION-MACROS.md).
+
 **Action macro GUI (0.8.572)**: Command list → Automation → Action automation opens the list, creation, step editing, ordering, duplication, execution, stopping and history. Pick tap/hold points or swipe endpoints on the screen and return them as pixels or percentages. Since 0.8.579, picking requires no app launch or target directive. Selection consumes touch input and ends on cancellation, screen changes, screen off, disconnection or after two minutes. GUI text editing shares definitions with the CLI, with unsaved-change confirmation and stale-save detection. The screen respects app lock. Build and device behavior not yet verified.
 
-**Coordinate-only picking and settings restoration (0.8.579)**: Pick coordinates moves the existing settings and editor tasks to the background and immediately starts coordinate selection. No launch or target step is required. Navigate allows normal interaction before resuming selection on the desired screen. Picking checks no target window and returns only numbers to the draft; saving and execution retain their target requirements and window checks. Settings visibility and scroll position return after backgrounding or unlocking, and the locked editor no longer overwrites its retained scroll position. Build and device behavior not yet verified.
+**Coordinate-only picking and settings restoration (0.8.579)**: Pick coordinates moves the existing settings and editor tasks to the background and immediately starts coordinate selection. No launch or target step is required. Navigate allows normal interaction before resuming selection on the desired screen. Picking checks no target window and returns only numbers to the draft; saving allows unspecified targets and execution retains window checks. Settings visibility and scroll position return after backgrounding or unlocking, and the locked editor no longer overwrites its retained scroll position. Build and device behavior not yet verified.
 
 **Action macro repetition, branching and reuse (0.8.573)**: version=2 adds counted/infinite loops, conditions based on device state or the focused package, and calls to saved macros. The complete call graph is validated and frozen before execution; cycles are rejected. Root and child deadlines, cancellation and a 10000-instruction run limit remain shared. The GUI offers loop/branch templates and a saved-macro picker; hierarchical block forms are added in 0.8.574. Progress includes location, iteration and branch outcomes. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
