@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.606-alpha (versionCode 614)**: Added Korean, Spanish, Simplified Chinese and Traditional Chinese strings for foreground-screen automation, recording, gestures and placement, fixing missing-translation lint errors. Updated the public pages to the current version.
+
 **0.8.605-alpha (versionCode 613) — build not verified**: Action automation can record a whole sequence of taps, swipes and two-finger touches until stopped. Choose a recording surface or live recording through root. Only leading/trailing idle time is trimmed; pauses and timed paths are retained. Manual acceleration/deceleration, double tap, pinch in/out and two-finger swipe are also available. Place saved macros in Quick Settings tiles or edge panels. Device behavior is not verified.
 
 **0.8.605-alpha (versionCode 613) — build not verified**: Action automation can save taps, scrolling and UI-element steps without selecting an app. GUI Run moves z2term to the background and operates the foreground screen. Explicit app targets remain available; `target current` returns to foreground-screen operation. [Usage](docs/en/ACTION-MACROS.md).
