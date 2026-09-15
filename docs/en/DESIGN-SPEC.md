@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-15 / Target version: 0.8.603-alpha (versionCode 611)
+Last updated: 2026-09-15 / Target version: 0.8.604-alpha (versionCode 612)
+
+**0.8.604-alpha (versionCode 612)**: Moved each connection’s QR button to the end of its action row. Buttons appear in this order: SSH, SFTP, added services, then QR.
 
 **0.8.603-alpha (versionCode 611)**: QR tools keep a history of what you scan. Tap an entry to show it again, or long-press it to pin or delete it; Clear all keeps pinned entries. Turning edge panels on no longer creates a panel by itself. Instead, the edge-panel guide gains one step that creates the same sample app panel: one line of the existing `z2-edge panel` and `z2-edge set` commands, built from the apps found on the device. The Action automation tab now matches the other command sheet tabs: monospace headings and text, bordered rows with ▶, Duplicate, ✎ and ✕ actions, bordered buttons, hint boxes and dialogs in the app's colours.
 

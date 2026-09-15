@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.604-alpha (versionCode 612)**: Moved each connection’s QR button to the end of its action row. Buttons appear in this order: SSH, SFTP, added services, then QR.
+
 **0.8.603-alpha (versionCode 611)**: QR tools keep a history of what you scan. Tap an entry to show it again, or long-press it to pin or delete it; Clear all keeps pinned entries. Turning edge panels on no longer creates a panel by itself. Instead, the edge-panel guide gains one step that creates the same sample app panel: one line of the existing `z2-edge panel` and `z2-edge set` commands, built from the apps found on the device. The Action automation tab now matches the other command sheet tabs: monospace headings and text, bordered rows with ▶, Duplicate, ✎ and ✕ actions, bordered buttons, hint boxes and dialogs in the app's colours.
 
 **0.8.602-alpha (versionCode 610)**: After a scan, QR tools show one Open button matching the content. URLs open in their app, such as LINE, or in a browser; phone numbers open the dialer; mail and SMS open a compose screen; Wi-Fi opens the connection screen; contacts and events open an add screen. Nothing opens by itself. z2term commands and SSH endpoints keep their review screen. The QR entry moved from the Snippets and Connections headers to Settings › QR tools and the new `z2-qr` command, which starts with the camera scanning. `z2-qr` can be assigned to a quick-settings tile or an edge panel.

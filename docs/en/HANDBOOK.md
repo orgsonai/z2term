@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.603-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.604-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -319,6 +319,9 @@ tunnel cannot show the confirmation screen, so a single unapproved hop stops it 
 (the reason appears in the list).
 
 In an SSH destination’s editor you can add **FTP, SMB, WebDAV, VNC and RDP** services. After saving, each gets its own button outside SSH/SFTP and opens either the shared file browser or a screen tab (VNC / RDP). The default is a local port forward through that SSH destination. Set the service port and, optionally, a local port; leaving the local side blank chooses a free port automatically. FTP passive data ports are forwarded automatically for each transfer. Clearing “SSH port forwarding” connects directly to the SSH destination’s host, not the service-specific host, and first warns that SSH encryption will be lost. WebDAV supports HTTP/HTTPS; SMB supports SMB2/3 with SMB1 disabled. Plain `http://` WebDAV works too (0.8.452; before that the app blocked every cleartext HTTP request, so choosing HTTP always ended in “failed to list”).
+
+**Connection QR button (0.8.604)**: QR is at the end of the action row, after SSH, SFTP and any added services.
+
 ⚠ **Delete on a destination, and the ✕ on a service or a port forward, now ask first** (0.8.452). Each sits right next to Edit, and a mistap used to take the host, user and password with it. Deleting from the terminal (`z2-ssh` and friends) is not intercepted — a typed command is explicit already.
 
 In the SFTP / FTP / SMB / WebDAV file screen, both Android Back and the top-left arrow move up one folder. At the root, they ask before closing the connection and returning to the terminal. Tapping an image opens a **full-screen preview** that supports pinch zoom and drag pan (0.8.479); text previews remain selectable and scrollable.

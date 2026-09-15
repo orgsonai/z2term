@@ -1,6 +1,6 @@
 # QR tools and self-hosted relay setup
 
-Applies to 0.8.603-alpha (versionCode 611).
+Applies to 0.8.604-alpha (versionCode 612).
 
 ## Read and display QR codes
 
@@ -36,7 +36,7 @@ Review content before choosing an action. Scanning alone never executes commands
 
 Insertion does not send Enter. Review before executing. Edge imports create a new hidden panel; enable its handle in panel management. Existing settings are not overwritten. Referenced scripts, images, note contents and entire panels are not bundled.
 
-Saved SSH profiles and single-line snippets have **QR** buttons. Ordinary edge run-button editors also offer **Create command QR**. State buttons, toggles and app-launch configurations are excluded.
+Saved SSH profiles and single-line snippets have **QR** buttons. Connection buttons appear in this order: SSH, SFTP, added services, then QR at the end. Ordinary edge run-button editors also offer **Create command QR**. State buttons, toggles and app-launch configurations are excluded.
 
 SSH uses `ssh://demo@host.example:2222`, with an optional username and brackets for IPv6. Passwords, private keys, initialization commands, jump hosts and forwarding settings are excluded. Edit authentication/routing after importing and verify the host key when connecting.
 
