@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">簡易終端</string>
+    <string name="edge_add_terminal">＋終端</string>
+    <string name="edge_terminal_command">輸入單行命令</string>
+    <string name="edge_terminal_result">執行結果</string>
+    <string name="edge_terminal_stop">停止</string>
+    <string name="edge_terminal_copy">複製</string>
+    <string name="edge_terminal_clear">清空</string>
+    <string name="edge_terminal_ready">新工作階段</string>
+    <string name="edge_terminal_starting">準備中…</string>
+    <string name="edge_terminal_running">執行中…</string>
+    <string name="edge_terminal_exit">結束碼：%1$d</string>
+    <string name="edge_terminal_ended">已結束 · 下次執行將建立新工作階段</string>
+    <string name="edge_terminal_truncated">顯示最近64K字元</string>
+    <string name="edge_terminal_help">關閉即結束工作階段。要保留工作，請使用 nohup 或分離的 tmux/screen。互動程式請使用一般終端分頁。</string>
+</resources>

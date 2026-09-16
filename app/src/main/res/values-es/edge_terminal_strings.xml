@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">Miniterminal</string>
+    <string name="edge_add_terminal">+ Terminal</string>
+    <string name="edge_terminal_command">Comando de una línea</string>
+    <string name="edge_terminal_result">Salida del comando</string>
+    <string name="edge_terminal_stop">Detener</string>
+    <string name="edge_terminal_copy">Copiar</string>
+    <string name="edge_terminal_clear">Borrar</string>
+    <string name="edge_terminal_ready">Sesión nueva</string>
+    <string name="edge_terminal_starting">Iniciando…</string>
+    <string name="edge_terminal_running">Ejecutando…</string>
+    <string name="edge_terminal_exit">Código: %1$d</string>
+    <string name="edge_terminal_ended">Finalizada · la siguiente ejecución inicia otra sesión</string>
+    <string name="edge_terminal_truncated">Se muestran los últimos 64K caracteres</string>
+    <string name="edge_terminal_help">Cerrar termina la sesión. Para conservar procesos, usa nohup o tmux/screen desacoplado. Usa una pestaña de terminal para programas interactivos.</string>
+</resources>

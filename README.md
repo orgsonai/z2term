@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.610-alpha (versionCode 618)**: Edge panels now offer a mini terminal with one-line commands and live output cleared before each run. Directory and environment changes last only for the current opening; closing also stops ordinary jobs. Explicit `nohup` jobs and detached `tmux` / `screen` sessions can continue. Outside taps and Back keep the panel open; use its Close button. No external dependencies were added. [Usage](docs/en/MINI-TERMINAL.md).
+
 **0.8.609-alpha (versionCode 617)**: The reminder macro accepts a weekday for a single upcoming reminder, including Japanese input such as `土曜日の夜九時` (Saturday at 21:00). Japanese morning/night expressions, kanji numerals and full-width digits are supported. A later time on the same weekday means today; a time already reached means next week. [Syntax and updating an installed macro](docs/en/MACRO-GUIDE.md).
 
 **0.8.608-alpha (versionCode 616)**: `z2-share --file` sends file contents through Android's share sheet. Incoming text and attachments are saved as one receipt, with an optional choice of registered snippets. Snippets can request text, numbers, choices and files, preview the command, then insert it for execution with Enter. [Sharing and command input guide](docs/en/SHARE-WORKFLOW.md).

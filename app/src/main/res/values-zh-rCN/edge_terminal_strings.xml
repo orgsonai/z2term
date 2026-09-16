@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">简易终端</string>
+    <string name="edge_add_terminal">＋终端</string>
+    <string name="edge_terminal_command">输入单行命令</string>
+    <string name="edge_terminal_result">执行结果</string>
+    <string name="edge_terminal_stop">停止</string>
+    <string name="edge_terminal_copy">复制</string>
+    <string name="edge_terminal_clear">清空</string>
+    <string name="edge_terminal_ready">新会话</string>
+    <string name="edge_terminal_starting">准备中…</string>
+    <string name="edge_terminal_running">运行中…</string>
+    <string name="edge_terminal_exit">退出码：%1$d</string>
+    <string name="edge_terminal_ended">已结束 · 下次运行将新建会话</string>
+    <string name="edge_terminal_truncated">显示最近64K字符</string>
+    <string name="edge_terminal_help">关闭即结束会话。要保留任务，请使用 nohup 或分离的 tmux/screen。交互程序请使用普通终端标签页。</string>
+</resources>

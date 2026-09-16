@@ -139,7 +139,7 @@ object EdgeItemEditor {
                     "on-select" -> selected == "list"
                     "every" -> selected in listOf("text", "toggle", "list") || stateButton
                     "file", "note-background", "note-color" -> selected == "note"
-                    "run", "timeout", "out" -> selected != "note"
+                    "run", "timeout", "out" -> selected !in setOf("note", "terminal")
                     else -> true
                 }
                 group.visibility = if (visible) View.VISIBLE else View.GONE

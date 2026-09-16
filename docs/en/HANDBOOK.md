@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.609-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.610-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -898,6 +898,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
+**0.8.610-alpha (versionCode 618)**: Edge panels now offer a mini terminal with one-line commands and live output cleared before each run. Directory and environment changes last only for the current opening; closing also stops ordinary jobs. Explicit `nohup` jobs and detached `tmux` / `screen` sessions can continue. Outside taps and Back keep the panel open; use its Close button. No external dependencies were added. [Usage](MINI-TERMINAL.md).
+
 **0.8.609-alpha (versionCode 617)**: The reminder macro accepts a weekday for a single upcoming reminder, including Japanese input such as `土曜日の夜九時` (Saturday at 21:00). Japanese morning/night expressions, kanji numerals and full-width digits are supported. A later time on the same weekday means today; a time already reached means next week. [Syntax and updating an installed macro](MACRO-GUIDE.md).
 
 **0.8.608-alpha (versionCode 616)**: `z2-share --file` sends file contents through Android's share sheet. Incoming text and attachments are saved as one receipt, with an optional choice of registered snippets. Snippets can request text, numbers, choices and files, preview the command, then insert it for execution with Enter. [Sharing and command input guide](SHARE-WORKFLOW.md).
@@ -969,6 +971,7 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Add/delete panels | `panel ID label=Name handle=bar side=right` / `delete ID` |
 | Add/edit/delete/reorder items | `set ID:item key=value ...` / `remove ID:item` / `set ID:item order=N` |
 | App launch mode / add note | Item `run=z2-intent -p PACKAGE --window MODE` / `type=note` |
+| Mini terminal | Item `type=terminal`. A fresh session for each opening; see [lifetime and controls](MINI-TERMINAL.md). |
 | Note background / text colour | Item `note-background` / `note-color` = `#RRGGBB` (omitted/empty means automatic; writable with `z2-edge set ID:memo`) |
 
 Optional add/settings controls are icons at the end. Tab/note addition and item editing live in settings. Run items can also be reordered directly in the menu.

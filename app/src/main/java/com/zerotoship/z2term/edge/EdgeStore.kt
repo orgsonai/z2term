@@ -228,7 +228,7 @@ class EdgeStore(val root: File) {
             val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color")
             require(values.keys.all { it in allowed }) { "Unknown item field: ${values.keys - allowed}" }
             val type = values["type"] ?: "run"
-            require(type in setOf("run", "text", "toggle", "list", "input", "note")) { "Unsupported type: $type" }
+            require(type in setOf("run", "text", "toggle", "list", "input", "note", "terminal")) { "Unsupported type: $type" }
             values["button-state"]?.let { require(it in setOf("on", "off")) { "button-state: on|off" } }
             values["button-source"]?.let { require(it in EdgeButtonSource.choices) { "button-source: auto|torch|screen|process|remember" } }
             listOf("note-background", "note-color").forEach { key ->

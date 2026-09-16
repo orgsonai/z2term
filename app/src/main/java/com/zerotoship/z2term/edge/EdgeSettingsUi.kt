@@ -34,7 +34,7 @@ internal object EdgeSettingsUi {
     /** One gutter for the whole editor; every heading, field and row starts on this line. */
     const val GUTTER = 16
 
-    val itemTypes = listOf("run", "text", "toggle", "list", "input", "note")
+    val itemTypes = listOf("run", "text", "toggle", "list", "input", "note", "terminal")
 
     fun typeLabel(type: String): Int = when (type) {
         "text" -> R.string.edge_type_text
@@ -42,6 +42,7 @@ internal object EdgeSettingsUi {
         "list" -> R.string.edge_type_list
         "input" -> R.string.edge_type_input
         "note" -> R.string.edge_note
+        "terminal" -> R.string.edge_terminal
         else -> R.string.edge_type_run
     }
 

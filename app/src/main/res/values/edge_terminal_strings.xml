@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">Mini terminal</string>
+    <string name="edge_add_terminal">+ Terminal</string>
+    <string name="edge_terminal_command">One-line command</string>
+    <string name="edge_terminal_result">Command output</string>
+    <string name="edge_terminal_stop">Stop</string>
+    <string name="edge_terminal_copy">Copy</string>
+    <string name="edge_terminal_clear">Clear</string>
+    <string name="edge_terminal_ready">New session</string>
+    <string name="edge_terminal_starting">Starting…</string>
+    <string name="edge_terminal_running">Running…</string>
+    <string name="edge_terminal_exit">Exit: %1$d</string>
+    <string name="edge_terminal_ended">Ended · next run starts a new session</string>
+    <string name="edge_terminal_truncated">Showing the last 64 KiB characters</string>
+    <string name="edge_terminal_help">Close ends this session. Use nohup or detached tmux/screen to keep jobs running. Interactive programs belong in a terminal tab.</string>
+</resources>

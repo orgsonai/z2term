@@ -1,6 +1,6 @@
 # QRツールと自前の中継
 
-対象: 0.8.609-alpha（versionCode 617）
+対象: 0.8.610-alpha（versionCode 618）
 
 ## QRの読み取りと表示
 

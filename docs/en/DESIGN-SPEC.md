@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-17 / Target version: 0.8.609-alpha (versionCode 617)
+Last updated: 2026-09-17 / Target version: 0.8.610-alpha (versionCode 618)
+
+**0.8.610-alpha (versionCode 618)**: Edge panels now offer a mini terminal with one-line commands and live output cleared before each run. Directory and environment changes last only for the current opening; closing also stops ordinary jobs. Explicit `nohup` jobs and detached `tmux` / `screen` sessions can continue. Outside taps and Back keep the panel open; use its Close button. No external dependencies were added. [Usage](MINI-TERMINAL.md).
 
 **0.8.609-alpha (versionCode 617)**: The reminder macro accepts a weekday for a single upcoming reminder, including Japanese input such as `土曜日の夜九時` (Saturday at 21:00). Japanese morning/night expressions, kanji numerals and full-width digits are supported. A later time on the same weekday means today; a time already reached means next week. [Syntax and updating an installed macro](MACRO-GUIDE.md).
 
@@ -2363,6 +2365,7 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Add/delete panels | `panel ID label=Name handle=bar side=right` / `delete ID` |
 | Add/edit/delete/reorder items | `set ID:item key=value ...` / `remove ID:item` / `set ID:item order=N` |
 | App launch mode / add note | Item `run=z2-intent -p PACKAGE --window MODE` / `type=note` |
+| Mini terminal | Item `type=terminal`. A fresh session for each opening; see [lifetime and controls](MINI-TERMINAL.md). |
 
 Optional add/settings controls are icons at the end. Tab/note addition and item editing live in settings. Run items can also be reordered directly in the menu.
 Vertical, horizontal and grid layouts are available; horizontal rows scroll sideways. Automatic grid columns follow icon size; an explicit flow applies to all item types.

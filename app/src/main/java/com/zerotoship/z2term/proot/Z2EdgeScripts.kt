@@ -16,6 +16,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# バー幅: --size 2〜48dp、ボタン: 32〜96dp。バーは300ms長押し後に移動。
         |# z2-edge handle ID off                  取っ手を隠す
         |# z2-edge set ID:memo type=note file=~/memo.txt
+        |# z2-edge set ID:term type=terminal label=Terminal
         |# メモの色: note-background=#FFF4BD note-color=#000000（空値で自動へ戻す）
         |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
@@ -39,7 +40,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge push ID:項目 '文字列'           表示を外から更新（- なら標準入力）
         |# z2-edge state ID:項目 on|off           toggle / ON・OFFボタンの表示を更新
         |# z2-edge badge ID '87%'                 取っ手へ文字を表示（空文字で消去）
-        |# 型: run / text / toggle / list / input / note。run が既定。
+        |# 型: run / text / toggle / list / input / note / terminal。run が既定。
         |# toggle: run=切替コマンド state=状態を読むコマンド（on/off・1/0・true/false）。
         |# run: button-state=on でON/OFFをボタンの枠と背景色で表示。off=OFF用コマンド（省略時はrunと同じ）。
         |# button-source=auto|torch|screen|process|remember（既定auto）。torch/screenは実態に連動。
@@ -70,6 +71,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# Bar: --size 2..48 dp; button: 32..96 dp. Hold 300ms to move a handle; bar hit area is at least 24dp.
         |# z2-edge handle ID off
         |# z2-edge set ID:memo type=note file=~/memo.txt
+        |# z2-edge set ID:term type=terminal label=Terminal
         |# Note colours: note-background=#FFF4BD note-color=#000000 (empty resets to automatic).
         |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
@@ -92,7 +94,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge push ID:item 'text'             Use - to read stdin
         |# z2-edge state ID:item on|off
         |# z2-edge badge ID '87%'                  Empty string clears the badge
-        |# Types: run (default), text, toggle, list, input, note.
+        |# Types: run (default), text, toggle, list, input, note, terminal.
         |# toggle: run changes state; state reads on/off, 1/0, or true/false.
         |# run: button-state=on shows ON/OFF using the button border and background. off=OFF command (default: run).
         |# button-source=auto|torch|screen|process|remember (default auto). torch/screen follow actual state.

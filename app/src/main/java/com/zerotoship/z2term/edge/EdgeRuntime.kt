@@ -71,6 +71,7 @@ object EdgeRuntime {
     private var openId: String? = null
     private var openRootId: String? = null
     private val notes = mutableMapOf<String, EdgeNote>()
+    private val terminals = mutableListOf<EdgeTerminalUi>()
     private var editingItems = false
     private var editorPage = 0
     private var cancelAppearance: (() -> Unit)? = null
@@ -725,7 +726,10 @@ object EdgeRuntime {
     fun open(id: String, toggle: Boolean = false, tabId: String? = null, settings: Boolean = false,
         page: Int = editorPage): Unit = onMain {
         check(!actionsSuspended) { "An action macro is running; stop it before opening the panel" }
-        if (toggle && openRootId == id) { close(); return@onMain }
+        if (toggle && openRootId == id) {
+            if (terminals.isEmpty()) close()
+            return@onMain
+        }
         require(app != null && store(app!!).enabled()) { "Enable the panel first: z2-edge on" }
         require(unlocked()) { "Unlock the screen before opening the panel" }
         stopHandleScroll()
@@ -733,6 +737,7 @@ object EdgeRuntime {
         val root = panels.firstOrNull { id in it.tabs } ?: requested
         val active = tabId ?: if (root.id != id) id else selectedTabs[root.id]
         val panel = panels.firstOrNull { it.id == active && (it.id == root.id || it.id in root.tabs) } ?: root
+        val terminalMode = !settings && panel.items.any { it.type == "terminal" }
         val existingWindow = panelView
         clearPanel(keepWindow = existingWindow != null)
         val session = EdgeEditorSession(ui())
@@ -751,7 +756,7 @@ object EdgeRuntime {
             val body = object : LinearLayout(ui()) {
                 override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
                     val limit = minOf(panelHeight, View.MeasureSpec.getSize(heightMeasureSpec))
-                    super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(limit, if (settings || root.fields["fit"] == "fixed") View.MeasureSpec.EXACTLY else View.MeasureSpec.AT_MOST))
+                    super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(limit, if (settings || terminalMode || root.fields["fit"] == "fixed") View.MeasureSpec.EXACTLY else View.MeasureSpec.AT_MOST))
                 }
             }.apply {
                 orientation = LinearLayout.VERTICAL; isClickable = true
@@ -789,7 +794,7 @@ object EdgeRuntime {
                 val header = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL }
                 if (root.fields["title"] == "on") header.addView(text(root.fields["label"] ?: root.id)
                     .apply { setTypeface(null, Typeface.BOLD) }, LinearLayout.LayoutParams(0, -2, 1f))
-                if (root.fields["close"] == "on") header.addView(EdgeEditorUi.button(ui(),
+                if (terminalMode || root.fields["close"] == "on") header.addView(EdgeEditorUi.button(ui(),
                     app!!.getString(R.string.edge_close)) { session.leave { close() } })
                 if (header.childCount > 0) body.addView(header)
             }
@@ -900,6 +905,13 @@ object EdgeRuntime {
                     reload(app!!)
                 }.onFailure { fail(it) } }
             })
+            if (settings) tools.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_add_terminal)) {
+                session.leave { runCatching {
+                    val terminalId = "terminal_" + java.util.UUID.randomUUID().toString().replace("-", "")
+                    store(app!!).setItem("${panel.id}:$terminalId", mapOf("type" to "terminal", "label" to app!!.getString(R.string.edge_terminal)))
+                    reload(app!!)
+                }.onFailure { fail(it) } }
+            })
             val rows = LinearLayout(ui()).apply {
                 orientation = LinearLayout.VERTICAL
                 if (settings) setPadding(0, 0, 0, dp(24))
@@ -1000,7 +1012,7 @@ object EdgeRuntime {
                 }
             }
             val overlay = (existingWindow ?: EdgePanelWindow(ui())).apply {
-                back = { session.leave { if (settings) open(root.id, tabId = panel.id) else close() } }
+                back = { if (!terminalMode) session.leave { if (settings) open(root.id, tabId = panel.id) else close() } }
                 swipeArea = if (settings || root.tabs.isEmpty()) null else body
                 horizontalTabSwipe = flow != "horizontal"
                 changeTab = { forward ->
@@ -1010,7 +1022,7 @@ object EdgeRuntime {
                         runCatching { open(root.id, tabId = ids[index]) }.onFailure { fail(it) }
                     }
                 }
-                setOnClickListener { session.leave { close() } }
+                setOnClickListener { if (!terminalMode) session.leave { close() } }
                 setOnLongClickListener(if (settings) null else View.OnLongClickListener {
                     runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }
                     true
@@ -1018,8 +1030,8 @@ object EdgeRuntime {
                 contentAlignment?.let { removeOnLayoutChangeListener(it) }
                 removeAllViews()
             }
-            overlay.addView(body, FrameLayout.LayoutParams(if (settings) -1 else panelWidth, -2).apply {
-                val position = if (settings) 0f to 0f else EdgePanelPosition.fractions(root.fields)
+            overlay.addView(body, FrameLayout.LayoutParams(if (settings || terminalMode) -1 else panelWidth, if (terminalMode) -1 else -2).apply {
+                val position = if (settings || terminalMode) 0f to 0f else EdgePanelPosition.fractions(root.fields)
                 gravity = Gravity.TOP or Gravity.LEFT
                 // Use measured content size, including changes when the keyboard appears.
                 val align = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
@@ -1030,8 +1042,12 @@ object EdgeRuntime {
                 overlay.contentAlignment = align
                 overlay.addOnLayoutChangeListener(align)
             })
-            val p = params(-1, -1, focus = true).apply {
-                flags = flags and (WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            val p = params(if (terminalMode) panelWidth else -1, if (terminalMode) panelHeight else -1, focus = true).apply {
+                if (terminalMode) {
+                    val position = EdgePanelPosition.fractions(root.fields)
+                    x = ((width - panelWidth).coerceAtLeast(0) * position.first).toInt()
+                    y = ((height - panelHeight).coerceAtLeast(0) * position.second).toInt()
+                } else flags = flags and (WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH).inv()
                 softInputMode = if (android.os.Build.VERSION.SDK_INT >= 30)
                     WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING else WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
@@ -1040,7 +1056,17 @@ object EdgeRuntime {
             }
             // Register before adding so every failure path can remove the touch-blocking window.
             panelView = overlay
-            if (existingWindow == null) wm().addView(overlay, p)
+            overlay.onImeHeight = if (terminalMode) { bottom ->
+                val available = (height - bottom).coerceAtLeast(dp(96))
+                val newHeight = panelHeight.coerceAtMost(available)
+                val newY = ((available - newHeight).coerceAtLeast(0) * EdgePanelPosition.fractions(root.fields).second).toInt()
+                if (p.height != newHeight || p.y != newY) {
+                    p.height = newHeight; p.y = newY
+                    if (panelView === overlay && overlay.isAttachedToWindow) wm().updateViewLayout(overlay, p)
+                }
+            } else null
+            overlay.setPadding(0, 0, 0, 0)
+            if (existingWindow == null) wm().addView(overlay, p) else wm().updateViewLayout(overlay, p)
             overlay.requestFocus()
             overlay.requestApplyInsets()
             if (!settings && panel.items.any { it.type == "note" }) {
@@ -1091,6 +1117,7 @@ object EdgeRuntime {
         runCatching { cancel?.invoke() }.onFailure { fail(it) }
         saveNotes()
         notes.entries.removeAll { !it.value.needsSave }
+        terminals.forEach { it.dispose() }; terminals.clear()
         generation++
         scheduled.forEach { main.removeCallbacks(it) }; scheduled.clear()
         retries.values.forEach { main.removeCallbacks(it) }; retries.clear()
@@ -1327,6 +1354,11 @@ object EdgeRuntime {
                 renderers[target] = render
                 render(values[target].orEmpty())
             }
+            "terminal" -> {
+                val terminal = EdgeTerminalUi(ui(), label)
+                terminals.add(terminal)
+                row.addView(terminal, LinearLayout.LayoutParams(-1, -2))
+            }
             "note" -> {
                 runCatching {
                     val noteStore = store(app!!)
@@ -1413,7 +1445,7 @@ object EdgeRuntime {
         }
         // An empty heading only wastes height; run items keep it as their tap target.
         if (title.childCount == 0 && item.type != "run") row.removeView(title)
-        if (item.type !in setOf("toggle", "list", "note")) {
+        if (item.type !in setOf("toggle", "list", "note", "terminal")) {
             row.addView(result)
             if (result.text.isEmpty()) result.visibility = View.GONE
             renderers[target] = { result.text = it; result.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE }
@@ -1559,7 +1591,7 @@ object EdgeRuntime {
 
     fun push(context: Context, target: String, text: String, state: Boolean = false) = onMain {
         val item = store(context).item(target)
-        require(item.type != "note") { "Edit the note file directly; push is for live values" }
+        require(item.type !in setOf("note", "terminal")) { "push is for live values, not notes or terminal sessions" }
         require(store(context).enabled() && app != null) { "Enable the panel first: z2-edge on" }
         require(text.toByteArray().size <= 65536) { "Value exceeds 64 KiB" }
         if (state) require((item.type == "toggle" || item.isStateButton) && text in setOf("on", "off")) { "state requires a toggle or state button and on|off" }

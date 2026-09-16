@@ -1,0 +1,4 @@
+<resources>
+    <item name="edge_terminal_input" type="id"/>
+    <item name="edge_terminal_output" type="id"/>
+</resources>
