@@ -1,6 +1,6 @@
 # Edge macro forms and translation
 
-Target: 0.8.614-alpha (versionCode 622)
+Target: 0.8.615-alpha (versionCode 623)
 
 In panel settings → Items, choose **＋ Macro form** to add an argument box, an action and a result box. Edit the action to select a saved macro or enter a script invocation. A new generic form has no command until you configure it.
 

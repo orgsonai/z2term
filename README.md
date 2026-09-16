@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.615-alpha (versionCode 623) — build unverified**: Retains the 0.8.614 integration and corrects the unit-test syntax used by CI. Validation and distribution run on GitHub CI.
+
 **0.8.614-alpha (versionCode 622) — build unverified**: The Linux engine now handles fd, cwd, namespace and memory-map magic links without interpreting their descriptions as filenames. This targets pipes, anonymous files, unlinked open files and working directories, and indirect executable references. Translation forms and mini terminals also receive outside long presses to open settings. Outside taps and Back keep these panels open; the panel captures outside touches. When the translation CLI is missing, the wrapper prints manual installation commands for the current distribution. Also fixes the translation macro icon mapping and Japanese weekday/clock parsing in byte-oriented shells and locales. Verification on the updated device is pending.
 
 **0.8.613-alpha (versionCode 621)**: Horizontal flicks over terminal and translation results switch tabs while vertical drags still scroll output. Up/Down in the mini terminal recall the regular shell history. The action-row ≡ button opens existing snippets for selection, registration, editing and deletion, using the same data as the main app. Selection inserts a command; Run executes it.

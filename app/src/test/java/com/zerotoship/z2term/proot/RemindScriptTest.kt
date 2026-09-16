@@ -161,7 +161,7 @@ class RemindScriptTest {
         assertOnce("2026-12-31T22:00:00", "2027-01-01T07:00:00", "金曜日の朝七時")
     }
 
-    $Test fun weekdayNamesWorkWithByteOrientedShellPatterns() {
+    @Test fun weekdayNamesWorkWithByteOrientedShellPatterns() {
         assumeTrue(sh != null)
         val dates = listOf("日" to "20", "月" to "21", "火" to "22", "水" to "16", "木" to "17", "金" to "18", "土" to "19")
         for ((day, date) in dates)

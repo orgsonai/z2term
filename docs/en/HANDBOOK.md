@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.614-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.615-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -897,6 +897,8 @@ when a `z2-when` rule fired **without opening the app**.
 **Action-macro GUI appearance (0.8.578)**: the list is one row per macro - tap the name to edit, with run, duplicate and delete at its right. Whatever is running, and the Stop button, sit together in one bordered block, and above it is "Android action permission" (nothing runs without it). Steps line their numbers up in a left column and print the line itself in a fixed pitch, with repeat and branch bodies shown by a left rule and an indent. The colours are the same ones the edge-panel editor uses, built from your terminal theme.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
+
+**0.8.615-alpha (versionCode 623) — build unverified**: Retains the 0.8.614 integration and corrects the unit-test syntax used by CI. Validation and distribution run on GitHub CI.
 
 **0.8.614-alpha (versionCode 622) — build unverified**: The Linux engine now handles fd, cwd, namespace and memory-map magic links without interpreting their descriptions as filenames. This targets pipes, anonymous files, unlinked open files and working directories, and indirect executable references. Translation forms and mini terminals also receive outside long presses to open settings. Outside taps and Back keep these panels open; the panel captures outside touches. When the translation CLI is missing, the wrapper prints manual installation commands for the current distribution. Also fixes the translation macro icon mapping and Japanese weekday/clock parsing in byte-oriented shells and locales. Verification on the updated device is pending.
 
