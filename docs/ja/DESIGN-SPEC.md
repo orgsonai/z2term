@@ -1,6 +1,8 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-17 / 対象バージョン: 0.8.611-alpha (versionCode 619)
+最終更新: 2026-09-17 / 対象バージョン: 0.8.612-alpha (versionCode 620)
+
+**0.8.612-alpha（versionCode 620）・ビルド未検証**: Linux実行エンジンで、fd・cwd・名前空間・メモリマップの特殊リンクを通常のファイル名として解決しない共通処理を追加しました。パイプ、匿名ファイル、削除後も開いているファイルと作業ディレクトリ、別名経由の実行ファイル参照を修正対象としています。翻訳フォーム・簡易ターミナルもパネル外側の長押しで設定を開ける構成に戻しました。外側の短いタップと戻るでは閉じず、外側のタッチはパネルが受け取ります。更新後の実機確認は未実施です。
 
 **0.8.611-alpha（versionCode 619）**: エッジパネルに引数欄・引数付きマクロ・結果欄を追加しました。自由入力／選択／固定値を引数順に関連付け、結果の消去・コピー・停止ができます。翻訳フォームも同じ仕組みで追加できます。翻訳CLIの導入はユーザー自身で行い、APKへの追加SDK・モデル同梱や自動ダウンロードはありません。 [使い方](EDGE-MACRO-FORMS.md)。
 
@@ -1501,6 +1503,8 @@ ptrace 越しに数千 syscall になるうえ、常駐中は WakeLock/WifiLock 
 **ビルド成果物の stale 対策 (0.8.48)**: z2root/z2accept の `.so` はビルド成果物 (git 管理外) で `git pull` や CMake では再生成されないため、`z2root.c` を直しても古い `.so` が APK に同梱され続ける事故が起きる。Gradle タスク `buildZ2rootNative` が jniLibs マージ前に `scripts/build-z2root.sh` を自動実行するので、`./gradlew assemble*` だけで常に現ソースから再生成される (手動手順ゼロ)。`build-z2root.sh` は NDK パスを自己解決する (環境変数 / `local.properties` の `sdk.dir`+`ndk.version` / `$ANDROID_HOME`)。`merge*JniLibFolders` すべてが `buildZ2rootNative` に依存し、`src/main/jniLibs` へ出す。実行時に取得するのは rootfs であって z2root ではないので、`z2root.c` の修正は常に APK 側に載る。
 
 ##### パス変換
+
+**特殊リンクの共通処理（0.8.612・ビルド未検証）**: `/proc/<pid>` と `/proc/<pid>/task/<tid>` の `fd/<n>`・`cwd`・`ns/<種類>`・`map_files/<範囲>` は、カーネル内のオブジェクトを参照する magic link として扱う。末尾の参照はそのままカーネルへ渡し、`pipe:[…]`・`socket:[…]`・`anon_inode:…`・` (deleted)` をファイル名に変換しない。通常のディレクトリ参照の先はゲストのパス解決を維持する。`root` は従来のゲストルートへの変換を維持し、`exe` は別名 symlink や自身の `task/<tid>` 経由でも記録済みゲスト実行ファイルを参照する。削除済み cwd からの相対参照もカーネルの参照を保持する。回帰確認は `python scripts/z2root-proc-links-test.py`（ビルド・外部通信なし）。更新前のエンジンで同種の失敗を再現済み。修正版での確認は未実施。
 
 proot 相当に強化済み。
 

@@ -1,6 +1,6 @@
 # Edge macro forms and translation
 
-Target: 0.8.611-alpha (versionCode 619)
+Target: 0.8.612-alpha (versionCode 620)
 
 In panel settings → Items, choose **＋ Macro form** to add an argument box, an action and a result box. Edit the action to select a saved macro or enter a script invocation. A new generic form has no command until you configure it.
 
@@ -28,6 +28,8 @@ Limits: 16 arguments, 16,384 characters per text input, 64 KiB total UTF-8 argum
 Panels containing forms stay open on outside taps and Back. Use **Close**. Closing, switching tabs, reloading or turning off the screen stops form commands and discards inputs and results. Reopening restores configured defaults. Stale completions cannot overwrite a new opening. Existing `type=run` actions retain their previous lifetime.
 
 With edge panels enabled, neither the main app screen nor a normal terminal tab needs to be open. Commands use the configured local environment.
+
+The panel receives outside touches. A short tap keeps it open; a long press opens settings. Entering settings stops running form commands and discards input and results.
 
 ## Translation form
 

@@ -54,8 +54,8 @@ class EdgeTerminalWindowTest {
             instrumentation.runOnMainSync {
                 original = window()
                 val layout = original.layoutParams as WindowManager.LayoutParams
-                assertTrue(layout.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL != 0)
-                assertTrue(layout.width > 0)
+                assertEquals(0, layout.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+                assertEquals(WindowManager.LayoutParams.MATCH_PARENT, layout.width)
                 assertNotNull("Close is mandatory", text(original, app.getString(R.string.edge_close)))
                 original.findViewById<EditText>(R.id.edge_terminal_input).apply {
                     setText("cd /; printf KEEP_RESULT"); onEditorAction(EditorInfo.IME_ACTION_GO)
@@ -77,12 +77,16 @@ class EdgeTerminalWindowTest {
                 val origin = IntArray(2); original.getLocationOnScreen(origin)
                 val bottom = ViewCompat.getRootWindowInsets(original)!!.getInsets(WindowInsetsCompat.Type.ime()).bottom
                 File(app.cacheDir, "edge-terminal-ime.txt").writeText("top=${origin[1]} height=${original.height} imeInset=$bottom screen=${app.resources.displayMetrics.heightPixels}\n")
+                val body = original.getChildAt(0)
+                assertEquals(bottom, original.paddingBottom)
+                assertTrue("The body must remain above the IME",
+                    body.y + body.height <= original.height - original.paddingBottom + 1f)
                 assertTrue(original.hideKeyboard())
                 assertSame(original, window())
                 assertEquals("KEEP_RESULT", original.findViewById<TextView>(R.id.edge_terminal_output).text.toString())
             }
             until { EdgeRuntime.onMain { ViewCompat.getRootWindowInsets(original)?.isVisible(WindowInsetsCompat.Type.ime()) == false } }
-            // Hit a real point outside the bounded overlay, so Android sends ACTION_OUTSIDE.
+            // Hit a real point outside the panel body, inside the full-screen gesture window.
             val metrics = app.resources.displayMetrics
             val now = SystemClock.uptimeMillis()
             for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {

@@ -29,6 +29,7 @@
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -477,12 +478,59 @@ static const char *host_to_guest(const struct config *cfg, const char *host,
     return buf;
 }
 
+// self/thread-self の数値化後の /proc/<pid>[/task/<tid>]/... を分類する。
+// fd/cwd/ns/map_files の magic link は readlink の文字列で置き換えられない。
+// root/exe はゲストのルート・実行ファイルへの変換が必要なため別扱い。
+static const char *proc_task_link_tail(const char *path, pid_t *task) {
+    if (strncmp(path, "/proc/", 6) != 0) return NULL;
+    const char *p = path + 6;
+    size_t n = strspn(p, "0123456789");
+    if (!n) return NULL;
+    unsigned long id = strtoul(p, NULL, 10);
+    if (!id || id > INT_MAX) return NULL;
+    p += n;
+    if (strncmp(p, "/task/", 6) == 0) {
+        p += 6;
+        n = strspn(p, "0123456789");
+        if (!n) return NULL;
+        id = strtoul(p, NULL, 10);
+        if (!id || id > INT_MAX) return NULL;
+        p += n;
+    }
+    if (*p != '/') return NULL;
+    if (task) *task = (pid_t)id;
+    return p + 1;
+}
+
+static int is_proc_object_link(const char *path) {
+    const char *tail = proc_task_link_tail(path, NULL);
+    if (!tail) return 0;
+    if (strcmp(tail, "cwd") == 0) return 1;
+    if (strncmp(tail, "fd/", 3) == 0) {
+        tail += 3;
+        size_t n = strspn(tail, "0123456789");
+        return n > 0 && tail[n] == '\0';
+    }
+    if (strncmp(tail, "ns/", 3) == 0)
+        return tail[3] != '\0' && strchr(tail + 3, '/') == NULL;
+    if (strncmp(tail, "map_files/", 10) == 0) {
+        tail += 10;
+        size_t n = strspn(tail, "0123456789abcdefABCDEF");
+        if (!n || tail[n] != '-') return 0;
+        tail += n + 1;
+        n = strspn(tail, "0123456789abcdefABCDEF");
+        return n > 0 && tail[n] == '\0';
+    }
+    return 0;
+}
+
 // ゲスト絶対パス in を、proot 相当に「正規化(. / .. を畳む)＋パス内 symlink を
-// rootfs 内で逐次解決」して、ゲスト絶対パス out(symlink を含まない)を返す。
+// rootfs 内で逐次解決」して、ゲスト絶対パス out を返す。
 // deref_final=1 なら最終コンポーネントの symlink も辿る(open/stat 等)。0 なら
 // 最終要素はそのまま残す(lstat/unlinkat/readlinkat/新規作成名など)。
-// これを通すと openat 等に渡るホストパスが symlink を一切含まなくなり、絶対
-// symlink がホスト "/" を指して ENOENT になる問題(Alpine の /bin 等)を防ぐ。
+// 絶対 symlink がホスト "/" を指して ENOENT になる問題(Alpine の /bin 等)を防ぐ。
+// proc のオブジェクト参照は保持し、カーネルに magic link を辿らせる。
+// ディレクトリ参照の先に続くゲストパスは従来どおり変換する。
 static void canonicalize_guest(const struct config *cfg, pid_t pid, const char *in,
                                int deref_final, char *out, size_t cap) {
     char result[PATH_MAX_Z];   // 構築中のゲスト絶対パス(末尾 "/" 無し。"" は "/")
@@ -501,6 +549,7 @@ static void canonicalize_guest(const struct config *cfg, pid_t pid, const char *
         while (pending[pi] != '/' && pending[pi] != '\0' && ci < sizeof(comp) - 1)
             comp[ci++] = pending[pi++];
         comp[ci] = '\0';
+        int slash_after = pending[pi] == '/';
         while (pending[pi] == '/') pi++;
         int is_last = (pending[pi] == '\0');
 
@@ -531,6 +580,31 @@ static void canonicalize_guest(const struct config *cfg, pid_t pid, const char *
             continue;
         }
 
+        // exe は実ホストのローダではなく記録済みゲスト実行ファイルを指す。
+        // 先頭が /proc/... ではない別名 symlink や task/<tid>/exe も同じ規則。
+        pid_t proc_tid = 0;
+        const char *proc_tail = proc_task_link_tail(cand, &proc_tid);
+        if ((!is_last || deref_final) && proc_tid == pid &&
+            proc_tail && strcmp(proc_tail, "exe") == 0) {
+            struct pid_state *st = state_lookup(pid);
+            if (st && st->exe_guest[0]) {
+                char rest[PATH_MAX_Z];
+                snprintf(rest, sizeof(rest), "%s", pending + pi);
+                if (rest[0]) snprintf(pending, sizeof(pending), "%s/%s", st->exe_guest, rest);
+                else snprintf(pending, sizeof(pending), "%s", st->exe_guest);
+                result[0] = '\0';
+                pi = 0;
+                while (pending[pi] == '/') pi++;
+                continue;
+            }
+        }
+
+        int object_link = is_proc_object_link(cand);
+        if (is_last && object_link) {
+            snprintf(out, cap, "%s%s", cand, slash_after ? "/" : "");
+            return;
+        }
+
         if (!is_last || deref_final) {
             char host[PATH_MAX_Z];
             if (translate_abs(cfg, cand, host, sizeof(host))) {
@@ -538,6 +612,14 @@ static void canonicalize_guest(const struct config *cfg, pid_t pid, const char *
                 ssize_t ln = readlink(host, link, sizeof(link) - 1);
                 if (ln >= 0) {
                     link[ln] = '\0';
+                    // pipe/socket/anon_inode/namespace の説明や削除済みパスは
+                    // パスとして再解釈しない。残りの成分もカーネルへ渡し、
+                    // 非ディレクトリへの /child 等は ENOTDIR のまま返させる。
+                    if (object_link && (link[0] != '/' ||
+                        (ln >= 10 && strcmp(link + ln - 10, " (deleted)") == 0))) {
+                        snprintf(out, cap, "%s/%s", cand, pending + pi);
+                        return;
+                    }
                     // proot/旧 z2root の --link2symlink が残したレガシー .l2s チェーンは
                     // リンク先に「ホスト実パス」(例 .../shared_home/android-sdk/… )を格納する。
                     // これをそのままゲストとして walk すると translate_abs が rootfs を二重
@@ -624,9 +706,14 @@ static int host_path_for(const struct config *cfg, pid_t pid, const char *in_pat
         ssize_t n = readlink(proc, host_cwd, sizeof(host_cwd) - 1);
         if (n < 0) return -1;
         host_cwd[n] = '\0';
-        char guest_cwd[PATH_MAX_Z];
-        host_to_guest(cfg, host_cwd, guest_cwd, sizeof(guest_cwd));
-        snprintf(guest_abs, sizeof(guest_abs), "%s/%s", guest_cwd, in_path);
+        if (n >= 10 && strcmp(host_cwd + n - 10, " (deleted)") == 0) {
+            // 削除後も cwd の参照は生きている。「.」等を存在しない名前へ変換しない。
+            snprintf(guest_abs, sizeof(guest_abs), "%s/%s", proc, in_path);
+        } else {
+            char guest_cwd[PATH_MAX_Z];
+            host_to_guest(cfg, host_cwd, guest_cwd, sizeof(guest_cwd));
+            snprintf(guest_abs, sizeof(guest_abs), "%s/%s", guest_cwd, in_path);
+        }
     }
 
     char resolved[PATH_MAX_Z];

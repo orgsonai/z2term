@@ -18,7 +18,6 @@ import androidx.core.view.WindowInsetsCompat
 /** Keeps the overlay attached across page changes and handles back before dismissing it. */
 internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
     var back: () -> Unit = {}
-    var onImeHeight: ((Int) -> Unit)? = null
     var contentAlignment: android.view.View.OnLayoutChangeListener? = null
     var swipeArea: View? = null
     var horizontalTabSwipe = true
@@ -105,7 +104,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
         if (Build.VERSION.SDK_INT >= 30) setOnApplyWindowInsetsListener { _, insets ->
             // System bars are excluded by WindowManager; IME insets are relative to that frame.
             val bottom = insets.getInsets(WindowInsets.Type.ime()).bottom
-            onImeHeight?.invoke(bottom) ?: setPadding(0, 0, 0, bottom)
+            setPadding(0, 0, 0, bottom)
             insets
         }
     }

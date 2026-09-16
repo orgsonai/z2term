@@ -74,8 +74,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Build Debug APK
-        run: bash scripts/gw.sh assembleDebug --stacktrace
+      - name: Build Debug and instrumentation test APKs
+        run: bash scripts/gw.sh assembleDebug assembleDebugAndroidTest --stacktrace
 
       - name: Unit tests
         run: bash scripts/gw.sh testDebugUnitTest --stacktrace

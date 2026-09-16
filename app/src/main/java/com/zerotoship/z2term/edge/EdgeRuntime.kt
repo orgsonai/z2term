@@ -1048,8 +1048,8 @@ object EdgeRuntime {
                 contentAlignment?.let { removeOnLayoutChangeListener(it) }
                 removeAllViews()
             }
-            overlay.addView(body, FrameLayout.LayoutParams(if (settings || terminalMode) -1 else panelWidth, if (terminalMode) -1 else -2).apply {
-                val position = if (settings || terminalMode) 0f to 0f else EdgePanelPosition.fractions(root.fields)
+            overlay.addView(body, FrameLayout.LayoutParams(if (settings) -1 else panelWidth, if (terminalMode) -1 else -2).apply {
+                val position = if (settings) 0f to 0f else EdgePanelPosition.fractions(root.fields)
                 gravity = Gravity.TOP or Gravity.LEFT
                 // Use measured content size, including changes when the keyboard appears.
                 val align = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
@@ -1060,12 +1060,10 @@ object EdgeRuntime {
                 overlay.contentAlignment = align
                 overlay.addOnLayoutChangeListener(align)
             })
-            val p = params(if (terminalMode) panelWidth else -1, if (terminalMode) panelHeight else -1, focus = true).apply {
-                if (terminalMode) {
-                    val position = EdgePanelPosition.fractions(root.fields)
-                    x = ((width - panelWidth).coerceAtLeast(0) * position.first).toInt()
-                    y = ((height - panelHeight).coerceAtLeast(0) * position.second).toInt()
-                } else flags = flags and (WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            // Keep receiving the full outside gesture, including long presses, for every
+            // panel type. ACTION_OUTSIDE alone cannot distinguish a tap from a long press.
+            val p = params(-1, -1, focus = true).apply {
+                flags = flags and (WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH).inv()
                 softInputMode = if (android.os.Build.VERSION.SDK_INT >= 30)
                     WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING else WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
@@ -1074,15 +1072,7 @@ object EdgeRuntime {
             }
             // Register before adding so every failure path can remove the touch-blocking window.
             panelView = overlay
-            overlay.onImeHeight = if (terminalMode) { bottom ->
-                val available = (height - bottom).coerceAtLeast(dp(96))
-                val newHeight = panelHeight.coerceAtMost(available)
-                val newY = ((available - newHeight).coerceAtLeast(0) * EdgePanelPosition.fractions(root.fields).second).toInt()
-                if (p.height != newHeight || p.y != newY) {
-                    p.height = newHeight; p.y = newY
-                    if (panelView === overlay && overlay.isAttachedToWindow) wm().updateViewLayout(overlay, p)
-                }
-            } else null
+            // Bottom padding from IME insets keeps the body above the keyboard.
             overlay.setPadding(0, 0, 0, 0)
             if (existingWindow == null) wm().addView(overlay, p) else wm().updateViewLayout(overlay, p)
             overlay.requestFocus()

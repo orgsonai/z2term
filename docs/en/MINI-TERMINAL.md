@@ -1,6 +1,6 @@
 # Mini terminal in an edge panel
 
-Target: 0.8.611-alpha (versionCode 619)
+Target: 0.8.612-alpha (versionCode 620)
 
 Open panel settings → **Items → + Terminal**, or select **Mini terminal** when adding an item. To add it to an existing panel through the CLI:
 
@@ -14,7 +14,7 @@ Enter a one-line command and press Run or the keyboard action key. An accepted r
 
 - Commands in the same opening share a shell, including `cd`, variables and functions.
 - Reopening starts a fresh shell in its home directory. Input, output, directory and temporary variables are not restored. Files written by commands remain normally.
-- Outside taps, focus loss, hiding the keyboard and Back keep the panel open. Use the mandatory **Close** button. Outside touches can reach the app behind the panel.
+- Outside taps, focus loss, hiding the keyboard and Back keep the panel open. Use the mandatory **Close** button. The panel receives outside touches; a long press opens settings and ends the current session.
 - Changing tabs, panels or settings; screen off; panel reload or recreation after rotation; and stopping the service also end the current session.
 - Commands use the selected local Linux environment, or Android sh if Linux is not installed. Existing terminal and SSH tabs are independent. As with other panel commands, Linux runs through the execution engine.
 
