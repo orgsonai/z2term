@@ -1171,6 +1171,12 @@ The single script `z2-macro install remind` brings in is **a reminder that fires
 The point is that one-shot and repeating reminders live in different places; the same split applies
 to plenty of other jobs.
 
+**Weekdays and Japanese clock expressions (0.8.609)**: `sat 21:00`, `土曜日の夜九時` and `土曜21:00` schedule the next Saturday at 21:00 once. All seven Japanese weekdays (full, abbreviated or one-character) and `sun`–`sat` are accepted. A later time today stays today; an equal or past time moves seven calendar days forward. Without a time, the current hour and minute are used. The weekday calculation preserves local wall time across DST changes. Use `weekly sat 21:00` for recurrence.
+
+`朝七時` means 07:00, `夜九時半` means 21:30, and `明日の夜九時十五分` means tomorrow at 21:15. Digits, kanji numerals and full-width digits are supported. Morning (`朝`) accepts 0–11; night (`夜`) maps 1–11 to 13–23 and also accepts 24-hour notation such as `夜21時`. `午前十二時` is 00:00 and `午後十二時` is 12:00. The ambiguous `夜十二時` is rejected: specify the date and `00:00` for midnight. These are supported date/time patterns, not a general natural-language parser. Existing daily/weekly/monthly/yearly schedules accept the same clock forms.
+
+After updating the APK, reopen a local terminal tab and inspect `z2-macro diff remind`. If you have no custom edits to preserve, run `z2-macro install -f remind`. Back up and merge customized copies instead. Existing reminders remain saved, and setup does not need to run again.
+
 ```sh
 sh ~/.z2term/macros/remind.sh setup    # once, up front (registers the hooks and the tiles)
 

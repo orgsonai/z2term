@@ -1,6 +1,6 @@
 # File sharing, combined receipts and command input
 
-Applies to 0.8.608-alpha (versionCode 616).
+Applies to 0.8.609-alpha (versionCode 617).
 
 ## Send files to another app
 

@@ -40,7 +40,9 @@ class RemindScriptTest {
      * [run] と同じだが、偽物に渡された引数も返す (3 つ目)。
      * ⚠ 繰り返しの予定は `z2-when` へ渡す **cron 式が正しいか**が要で、そこは出力に出ない。
      */
-    private fun runTraced(lang: String, fakes: Boolean, vararg args: String): Triple<Int, String, String> {
+    private fun runTraced(lang: String, fakes: Boolean, vararg args: String,
+                          at: String? = null, zone: String = "Asia/Tokyo",
+                          answers: List<String>? = null): Triple<Int, String, String> {
         val f = File.createTempFile("remind", ".sh").apply { writeText(script(lang)) }
         val home = File.createTempFile("remind-home", "").apply { delete(); mkdirs() }
         val bin = File(home, "bin").apply { mkdirs() }
@@ -59,8 +61,24 @@ class RemindScriptTest {
                     setExecutable(true)
                 }
             }
+            if (at != null) {
+                val epoch = java.time.LocalDateTime.parse(at).atZone(java.time.ZoneId.of(zone)).toEpochSecond()
+                val realDate = listOf("/usr/bin/date", "/bin/date").first { File(it).canExecute() }
+                File(bin, "date").apply {
+                    writeText("#!/bin/sh\nif [ \$# -eq 1 ]; then exec $realDate -d @$epoch \"\$1\"; fi\nexec $realDate \"\$@\"\n")
+                    setExecutable(true)
+                }
+            }
+            if (answers != null) {
+                answers.forEachIndexed { index, answer -> File(home, "answer-$index").writeText(answer) }
+                File(bin, "z2-ask").apply {
+                    writeText("#!/bin/sh\ni=\$(cat \"\$HOME/answer-index\" 2>/dev/null || echo 0)\ncat \"\$HOME/answer-\$i\" || exit 1\necho \"\$((i+1))\" > \"\$HOME/answer-index\"\n")
+                    setExecutable(true)
+                }
+            }
             val pb = ProcessBuilder(listOf(sh!!, f.absolutePath) + args).redirectErrorStream(true)
             pb.environment()["HOME"] = home.absolutePath
+            if (at != null) pb.environment()["TZ"] = zone
             // ⚠ **PATH は毎回組み直す。継承してはいけない。**
             // このテストの前提は「z2-* がどこにも無い環境」だが、z2term のディストロの中で
             // 回すと **/usr/local/bin に本物の z2-* が居る** (開発環境がそれ自身)。継承すると
@@ -105,10 +123,102 @@ class RemindScriptTest {
         block(out, before, after)
     }
 
+    private fun assertOnce(at: String, target: String, vararg whenWords: String, zone: String = "Asia/Tokyo") {
+        val (code, output, trace) = runTraced("ja", true, *whenWords, "本文", at = at, zone = zone)
+        assertEquals("${whenWords.toList()}: $output", 0, code)
+        val tz = java.time.ZoneId.of(zone)
+        val from = java.time.LocalDateTime.parse(at).atZone(tz)
+        val until = java.time.LocalDateTime.parse(target).atZone(tz)
+        val seconds = java.time.Duration.between(from, until).seconds
+        assertTrue("Wrong alarm: $trace", trace.contains("z2-alarm in ${seconds}s r"))
+        assertTrue("Unexpected recurring rule: $trace", !trace.contains("time:cron="))
+        val label = until.format(java.time.format.DateTimeFormatter.ofPattern(if (from.year == until.year) "MM/dd HH:mm" else "yyyy/MM/dd HH:mm"))
+        assertTrue("Wrong label: $output", output.contains("$label\t本文"))
+    }
+
+    @Test fun `土曜日の夜九時は次の土曜21時に一度だけ予約する`() {
+        assumeTrue(sh != null)
+        assertOnce("2026-09-16T12:00:00", "2026-09-19T21:00:00", "土曜日の夜九時")
+        assertOnce("2026-09-16T12:00:00", "2026-09-19T21:00:00", "土曜日", "夜9時")
+        assertOnce("2026-09-16T12:00:00", "2026-09-19T21:00:00", "土曜21:00")
+    }
+
+    @Test fun `同じ曜日なら未来の時刻は今日で同時刻以降は翌週`() {
+        assumeTrue(sh != null)
+        assertOnce("2026-09-19T20:59:59", "2026-09-19T21:00:00", "土曜日の夜九時")
+        assertOnce("2026-09-19T21:00:00", "2026-09-26T21:00:00", "土曜日の夜九時")
+        assertOnce("2026-09-19T21:00:01", "2026-09-26T21:00:00", "土曜日の夜九時")
+    }
+
+    @Test fun `七曜日と省略時刻と年越しを次の一回へ解決する`() {
+        assumeTrue(sh != null)
+        val dates = listOf("日" to "20", "月" to "21", "火" to "22", "水" to "16", "木" to "17", "金" to "18", "土" to "19")
+        for ((day, date) in dates)
+            assertOnce("2026-09-16T12:00:00", "2026-09-${date}T21:00:00", "${day}曜日の夜九時")
+        assertOnce("2026-09-16T12:00:00", "2026-09-19T12:00:00", "土曜日")
+        assertOnce("2026-09-19T12:00:00", "2026-09-26T12:00:00", "土曜日")
+        assertOnce("2026-12-31T22:00:00", "2027-01-01T07:00:00", "金曜日の朝七時")
+    }
+
+    @Test fun `曜日の現地時刻は夏時間の切替でもずれない`() {
+        assumeTrue(sh != null)
+        assertOnce("2026-03-07T12:00:00", "2026-03-08T21:00:00", "日曜日の夜九時", zone = "America/New_York")
+        assertOnce("2026-10-31T12:00:00", "2026-11-01T07:00:00", "日曜日の朝七時", zone = "America/New_York")
+    }
+
+    @Test fun `朝夜と漢数字と全角数字を時刻にする`() {
+        assumeTrue(sh != null)
+        val times = mapOf("朝七時" to "07:00", "夜九時" to "21:00", "夜の九時半" to "21:30",
+            "午後九時十五分" to "21:15", "午前十二時" to "00:00", "午後十二時" to "12:00",
+            "二十三時五十九分" to "23:59", "夜２１時０５分" to "21:05", "朝０７：３０" to "07:30")
+        for ((word, clock) in times) {
+            val (code, output, trace) = runTraced("ja", true, word, "本文")
+            assertEquals("$word: $output", 0, code)
+            assertTrue("$word: $trace", trace.contains("z2-alarm at $clock r"))
+            assertTrue(output.contains("$clock\t本文"))
+        }
+        assertOnce("2026-09-16T12:00:00", "2026-09-17T07:00:00", "明日", "朝七時")
+        assertOnce("2026-09-16T12:00:00", "2026-09-17T21:30:00", "明日の夜九時半")
+    }
+
+    @Test fun `繰り返しでも朝夜を使えて本文は変更しない`() {
+        assumeTrue(sh != null)
+        for ((words, spec) in listOf(
+            listOf("毎日", "朝七時") to "time:daily=07:00",
+            listOf("毎", "夜九時") to "time:daily=21:00",
+            listOf("毎週", "土曜日", "夜九時") to "time:cron=0 21 * * 6",
+            listOf("毎月", "15", "夜九時") to "time:cron=0 21 15 * *",
+            listOf("毎年", "09/19", "朝七時") to "time:cron=0 7 19 9 *"
+        )) {
+            val body = "夜勤の準備 \$(exit 9)"
+            val (code, output, trace) = runTraced("ja", true, *words.toTypedArray(), body)
+            assertEquals(output, 0, code)
+            assertTrue(trace, trace.contains(spec))
+            assertTrue(output, output.contains(body))
+        }
+    }
+
+    @Test fun `不正または曖昧な時刻を勝手に予約しない`() {
+        assumeTrue(sh != null)
+        for (word in listOf("土曜日の夜九時六十分", "土曜日の二十四時", "朝二十一時", "夜十二時", "土曜日のそのうち", "土曜日の夜九時ごろ", "夜百時")) {
+            val (code, output, trace) = runTraced("ja", true, word, "本文", at = "2026-09-16T12:00:00")
+            assertNotEquals("$word: $output", 0, code)
+            assertTrue("Incorrect alarm: $trace", !trace.contains("z2-alarm"))
+        }
+    }
+
+    @Test fun `通知返信から曜日と夜の時刻を予約できる`() {
+        assumeTrue(sh != null)
+        val (code, output, trace) = runTraced("ja", true, "ask", at = "2026-09-16T12:00:00", answers = listOf("予定の本文", "土曜日の夜九時"))
+        assertEquals(output, 0, code)
+        assertTrue(trace, trace.contains("z2-alarm in 291600s r"))
+        assertTrue(trace, trace.contains("remind-ok") && trace.contains("09/19 21:00") && trace.contains("予定の本文"))
+    }
+
     @Test
-    fun `両言語とも POSIX sh として構文が通る`() {
+    fun `全言語とも POSIX sh として構文が通る`() {
         assumeTrue("sh が無い環境なのでスキップ", sh != null)
-        for (lang in listOf("ja", "en")) {
+        for (lang in listOf("ja", "en", "zh-CN", "zh-TW", "es", "ko")) {
             val f = File.createTempFile("remind", ".sh").apply { writeText(script(lang)) }
             try {
                 val p = ProcessBuilder(sh!!, "-n", f.absolutePath).redirectErrorStream(true).start()

@@ -1766,6 +1766,9 @@ private fun remindBody(d: String, t: CliText): String {
 # <when> - one-shot:
 #   30m / 90s / 2h                   from now
 #   18:30                            the next 18:30 (tomorrow if it passed)
+#   sat 21:00                       next matching weekday, once (later today also counts)
+#   Japanese: 土曜日の夜九時 = sat 21:00; 朝七時 = 07:00; 夜九時半 = 21:30
+#   Japanese: 夜12時 is ambiguous; use 00:00 with an explicit day for midnight.
 #   tomorrow 18:30 / 3d 07:00        by day (3d = 3 days from now)
 #   07/30 19:00                      month/day (next year if it passed)
 #   2030 07/30 19:00                 with a year
@@ -1806,6 +1809,9 @@ private fun remindBody(d: String, t: CliText): String {
 # <いつ> の書き方 — 1 回だけ:
 #   30m / 90s / 2h                   いまから
 #   18:30                            次の 18:30 (過ぎていれば明日)
+#   土曜日の夜九時 / 土曜 21:00    次の該当曜日に1回 (今日でも時刻が先なら今日)
+#   朝七時 / 夜九時半                07:00 / 21:30 (数字・漢数字・全角数字に対応)
+#   午前十二時 / 午後十二時          00:00 / 12:00。夜12時は日付と00:00で指定
 #   明日 18:30 / 明後日 / 3日後 07:00  日付で (3d / 明日の18:30 も同じ)
 #   07/30 19:00                      月日 (過ぎていれば来年)
 #   2026 07/30 19:00                 年つき
@@ -1846,6 +1852,9 @@ private fun remindBody(d: String, t: CliText): String {
 # <什么时候> — 一次性:
 #   30m / 90s / 2h                   从现在算起
 #   18:30                            下一个 18:30 (过了就是明天)
+#   sat 21:00                       下一个对应星期几，仅一次（今天尚未到时也算）
+#   日语：土曜日の夜九時 = sat 21:00；朝七時 = 07:00；夜九時半 = 21:30
+#   日语的夜12時含义不明确；午夜请明确日期并用00:00。
 #   tomorrow 18:30 / 3d 07:00        按天 (3d = 3 天后)
 #   07/30 19:00                      月/日 (过了就是明年)
 #   2030 07/30 19:00                 带年份
@@ -1886,6 +1895,9 @@ private fun remindBody(d: String, t: CliText): String {
 # <什麼時候> — 一次性:
 #   30m / 90s / 2h                   從現在算起
 #   18:30                            下一個 18:30 (過了就是明天)
+#   sat 21:00                       下一個對應星期幾，僅一次（今天尚未到時也算）
+#   日語：土曜日の夜九時 = sat 21:00；朝七時 = 07:00；夜九時半 = 21:30
+#   日語的夜12時含義不明確；午夜請明確日期並用00:00。
 #   tomorrow 18:30 / 3d 07:00        按天 (3d = 3 天後)
 #   07/30 19:00                      月/日 (過了就是明年)
 #   2030 07/30 19:00                 帶年份
@@ -1926,6 +1938,9 @@ private fun remindBody(d: String, t: CliText): String {
 # <cuándo> - una sola vez:
 #   30m / 90s / 2h                   a partir de ahora
 #   18:30                            las próximas 18:30 (mañana si ya pasaron)
+#   sat 21:00                       próximo día indicado, una vez (hoy si aún no pasó)
+#   Japonés: 土曜日の夜九時 = sat 21:00; 朝七時 = 07:00; 夜九時半 = 21:30
+#   夜12時 es ambiguo; para medianoche, indica el día y 00:00.
 #   tomorrow 18:30 / 3d 07:00        por días (3d = dentro de 3 días)
 #   07/30 19:00                      mes/día (el año que viene si ya pasó)
 #   2030 07/30 19:00                 con año
@@ -1966,6 +1981,9 @@ private fun remindBody(d: String, t: CliText): String {
 # <언제> - 한 번만:
 #   30m / 90s / 2h                   지금부터
 #   18:30                            다음 18:30 (이미 지났으면 내일)
+#   sat 21:00                       다음 해당 요일에 한 번 (오늘 시간이 남았으면 오늘)
+#   일본어: 土曜日の夜九時 = sat 21:00; 朝七時 = 07:00; 夜九時半 = 21:30
+#   夜12時는 모호합니다. 자정은 날짜와 00:00으로 지정하세요.
 #   tomorrow 18:30 / 3d 07:00        날짜 단위 (3d = 3일 뒤)
 #   07/30 19:00                      월/일 (이미 지났으면 내년)
 #   2030 07/30 19:00                 해까지 적기
@@ -2224,7 +2242,7 @@ after_label() {
     )
     val mBadWhen = t(
         en = "cannot read the time (try: 30m / 18:30 / tomorrow 18:30 / 3d 09:00 / daily 07:00):",
-        ja = "いつ？ が分かりません (例: 30m / 18:30 / 明日 18:30 / 3日後 09:00 / 毎日 07:00):",
+        ja = "いつ？ が分かりません (例: 30m / 18:30 / 土曜日の夜九時 / 明日 18:30 / 3日後 09:00 / 毎日 07:00):",
         "zh-CN" to "看不懂时间 (例: 30m / 18:30 / tomorrow 18:30 / 3d 09:00 / daily 07:00):",
         "zh-TW" to "看不懂時間 (例: 30m / 18:30 / tomorrow 18:30 / 3d 09:00 / daily 07:00):",
         "es" to "no se entiende la hora (prueba: 30m / 18:30 / tomorrow 18:30 / 3d 09:00 / daily 07:00):",
@@ -2391,7 +2409,7 @@ after_label() {
     "ko" to "언제?")
     val mAsk2H = t(
         en = "30m / 18:30 / tomorrow 18:30 / 3d / daily 07:00",
-        ja = "30m / 18:30 / 明日 18:30 / 3日後 / 毎日 07:00",
+        ja = "30m / 土曜日の夜九時 / 朝七時 / 明日 18:30 / 毎日 07:00",
         "zh-CN" to "30m / 18:30 / tomorrow 18:30 / 3d / daily 07:00",
         "zh-TW" to "30m / 18:30 / tomorrow 18:30 / 3d / daily 07:00",
         "es" to "30m / 18:30 / tomorrow 18:30 / 3d / daily 07:00",
@@ -2569,7 +2587,7 @@ die() { echo "${d}1" >&2; exit 1; }
 $cParse
 parse_when() {
   KIND=; PLAN=; SPEC=; USED=0; WHY=; hhmm=; dowf=; downame=; days=
-  dom=; mon=; ymd=; yy=; mm2=; dd2=
+  dom=; mon=; ymd=; yy=; mm2=; dd2=; nextdow=
   w1=${d}1; w2=${d}2; w3=${d}3
 
 $cEvery
@@ -2578,6 +2596,16 @@ $cEvery
   esac
 
   case ${d}w1 in
+    [日月火水木金土]曜日*|[日月火水木金土]曜*|日|月|火|水|木|金|土|sun|mon|tue|wed|thu|fri|sat)
+                      KIND=once; USED=1
+                      case ${d}w1 in
+                        *曜日*) downame=${d}{w1%%曜日*}; hhmm=${d}{w1#*曜日} ;;
+                        *曜*) downame=${d}{w1%%曜*}; hhmm=${d}{w1#*曜} ;;
+                        *) downame=${d}w1 ;;
+                      esac
+                      nextdow=${d}(dow_of "${d}downame") || { WHY="$mBadDow ${d}w1"; return 1; }
+                      hhmm=${d}{hhmm#の}
+                      if [ -z "${d}hhmm" ] && is_hhmm "${d}w2"; then hhmm=${d}w2; USED=2; fi ;;
 $cDays
     明日|あした|翌日|tomorrow)
                       KIND=once; days=1; USED=1
@@ -2634,8 +2662,23 @@ $cDigits
                       mm2=${d}{w1%%/*}; dd2=${d}{w1#*/}
                       if is_hhmm "${d}w2"; then hhmm=${d}w2; USED=2; fi ;;
     [0-9]*:[0-9]*)    KIND=once; USED=1; hhmm=${d}w1 ;;
-    *) WHY="$mBadWhen ${d}w1"; return 1 ;;
+    *) if is_hhmm "${d}w1"; then KIND=once; USED=1; hhmm=${d}w1
+       else WHY="$mBadWhen ${d}w1"; return 1; fi ;;
   esac
+
+  if [ -n "${d}nextdow" ]; then
+    [ -z "${d}hhmm" ] || check_hhmm "${d}hhmm" || return 1
+    now=${d}(date +%s)
+    [ -n "${d}hhmm" ] || hhmm=${d}(date -d "@${d}now" +%H:%M)
+    today=${d}(date -d "@${d}now" +%w)
+    days=${d}(( (nextdow - today + 7) % 7 ))
+    tgt=${d}(weekday_epoch "${d}now" "${d}days" "${d}hhmm") || { WHY="$mBadTime ${d}hhmm"; return 1; }
+    if [ "${d}tgt" -le "${d}now" ]; then
+      tgt=${d}(weekday_epoch "${d}now" "${d}((days+7))" "${d}hhmm") || { WHY="$mBadTime ${d}hhmm"; return 1; }
+    fi
+    sec=${d}((tgt-now)); PLAN=${d}(fmt_at "${d}tgt"); SPEC="in ${d}{sec}s"
+    return 0
+  fi
 
 $cYmd
   if [ -n "${d}ymd" ]; then
@@ -2727,6 +2770,7 @@ fmt_at() {
 
 $cExpand
 expand_every() {
+  if is_hhmm "${d}1"; then echo "$eDaily"; return; fi
   case ${d}1 in
     [0-9]:[0-9][0-9]|[0-9][0-9]:[0-9][0-9]) echo "$eDaily" ;;
     [0-9]*/[0-9]*)                          echo "$eYearly" ;;
@@ -2735,24 +2779,68 @@ expand_every() {
   esac
 }
 
-# 次の語が HH:MM か。時刻を省いた「明日 電話する」と「明日 18:30 電話する」を見分ける。
-is_hhmm() {
-  case ${d}1 in
-    [0-9]:[0-9][0-9]|[0-9][0-9]:[0-9][0-9]) return 0 ;;
-    *) return 1 ;;
-  esac
+# Convert supported clock words only; never interpret reminder text as shell source.
+clock_hhmm() {
+  printf '%s\n' "${d}1" | awk -v shape="${d}2" '
+    function number(s, parts, count) {
+      if (s ~ /^[0-9][0-9]?${d}/) return s + 0
+      if (s !~ /^[1-9]?十[1-9]?${d}/) return -1
+      count = split(s, parts, "十")
+      return (parts[1] == "" ? 1 : parts[1] + 0) * 10 + (parts[2] + 0)
+    }
+    {
+      if (NR != 1) exit 1
+      s = ${d}0; period = ""; gsub(/：/, ":", s)
+      if (sub(/^午前の?/, "", s)) period = "am"
+      else if (sub(/^午後の?/, "", s)) period = "pm"
+      else if (sub(/^朝の?/, "", s)) period = "morning"
+      else if (sub(/^夜の?/, "", s)) period = "night"
+      gsub(/０|〇|零/, "0", s); gsub(/１|一/, "1", s); gsub(/２|二/, "2", s)
+      gsub(/３|三/, "3", s); gsub(/４|四/, "4", s); gsub(/５|五/, "5", s)
+      gsub(/６|六/, "6", s); gsub(/７|七/, "7", s); gsub(/８|八/, "8", s); gsub(/９|九/, "9", s)
+      if (s ~ /^[0-9][0-9]?:[0-9][0-9]${d}/) {
+        split(s, parts, ":"); hour = parts[1] + 0; minute = parts[2] + 0
+      } else {
+        if (split(s, parts, "時") != 2) exit 1
+        hour = number(parts[1]); tail = parts[2]
+        if (tail == "") minute = 0
+        else if (tail == "半") minute = 30
+        else if (sub(/分${d}/, "", tail)) minute = number(tail)
+        else exit 1
+        if (hour < 0 || minute < 0) exit 1
+      }
+      if (shape == "shape") exit 0
+      if (period == "morning" && hour > 11) exit 1
+      # Night 12 is ambiguous about the date; ask for an explicit 00:00 instead.
+      if (period == "night" && hour == 12) exit 1
+      if ((period == "am" || period == "pm") && hour > 12) exit 1
+      if (period == "am" && hour == 12) hour = 0
+      if (period == "pm" && hour < 12) hour += 12
+      if (period == "night" && hour >= 1 && hour <= 11) hour += 12
+      printf "%02d:%02d\n", hour, minute
+    }'
 }
 
-# 時刻の検査。⚠ **書式だけでなく範囲も見る** — "18:70" は書式に通ってしまい、
-# そのまま予約すると鳴らない予定が「登録できた」顔で一覧に並ぶ。
+# Clock-shaped arguments are consumed even when their numeric range is invalid.
+is_hhmm() { clock_hhmm "${d}1" shape >/dev/null; }
+
 check_hhmm() {
   [ -n "${d}1" ] || { WHY="$mNoTime"; return 1; }
-  echo "${d}1" | grep -Eq '^[0-9]{1,2}:[0-9]{2}${d}' || { WHY="$mBadTime ${d}1"; return 1; }
-  hh=${d}{1%%:*}; mm=${d}{1##*:}
+  hhmm=${d}(clock_hhmm "${d}1") || { WHY="$mBadTime ${d}1"; return 1; }
+  hh=${d}{hhmm%%:*}; mm=${d}{hhmm##*:}
   hh=${d}{hh#0}; [ -n "${d}hh" ] || hh=0
   mm=${d}{mm#0}; [ -n "${d}mm" ] || mm=0
   { [ "${d}hh" -le 23 ] && [ "${d}mm" -le 59 ]; } || { WHY="$mBadRange ${d}1"; return 1; }
   return 0
+}
+
+# Resolve the target calendar day in local time, including timezone offset changes.
+weekday_epoch() {
+  stamp=${d}1; delta=${d}2; clock=${d}3
+  cy=${d}(date -d "@${d}stamp" +%Y); cm0=${d}(date -d "@${d}stamp" +%m); cd=${d}(date -d "@${d}stamp" +%d)
+  civil=${d}(days_from_civil "${d}cy" "${d}(strip0 "${d}cm0")" "${d}(strip0 "${d}cd")")
+  calendar=${d}(date -u -d "@${d}(((civil + delta)*86400))" +%Y-%m-%d) || return 1
+  date -d "${d}calendar ${d}clock:00" +%s
 }
 
 $cCron
