@@ -27,7 +27,7 @@ class EdgeRunner(private val context: Context) {
     fun isRunning(key: String): Boolean = jobs.containsKey(key)
 
     fun run(key: String, command: String, timeout: Long, input: String? = null, value: String? = null,
-            done: (Result) -> Unit): Boolean {
+            arguments: List<String>? = null, done: (Result) -> Unit): Boolean {
         if (command.isBlank() || jobs.size >= 4) return false
         val token = UUID.randomUUID().toString()
         val job = Job("edge-$token")
@@ -37,7 +37,7 @@ class EdgeRunner(private val context: Context) {
             val output = File(dir, "$token.out")
             val errors = File(dir, "$token.err")
             val status = File(dir, "$token.status")
-            val script = EdgeCommandScript.create(token, command, input, value)
+            val script = EdgeCommandScript.create(token, command, input, value, arguments)
             fun read(file: File): String = if (file.isFile) file.inputStream().use { stream ->
                 val bytes = ByteArray(65536)
                 var total = 0

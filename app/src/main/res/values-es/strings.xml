@@ -1170,4 +1170,34 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="settings_delete_os_busy">Este SO se está iniciando, instalando o eliminando. Vuelve a intentarlo cuando termine.</string>
     <string name="settings_delete_os_mounted">Este SO aún tiene procesos o montajes de root chroot activos. Se detuvo la eliminación para proteger los datos compartidos. Detén chroot y desmonta el SO antes de volver a intentarlo.</string>
     <string name="settings_delete_os_failed">No se pudieron eliminar todos los datos del SO. Es posible que queden algunos datos. Consulta el registro de diagnóstico.</string>
+
+    <!-- Generic macro forms in the edge panel -->
+    <string name="edge_type_macro">Macro con argumentos</string>
+    <string name="edge_type_argument">Campo de argumento</string>
+    <string name="edge_type_result">Campo de resultado</string>
+    <string name="edge_add_macro_form">＋ Formulario de macro</string>
+    <string name="edge_macro_args">ID de argumentos en orden, separados por comas</string>
+    <string name="edge_macro_result">ID del resultado (vacío: mostrar aquí)</string>
+    <string name="edge_argument_kind">Modo de entrada</string>
+    <string name="edge_argument_default">Valor inicial o fijo</string>
+    <string name="edge_argument_choices">Opciones separadas por |</string>
+    <string name="edge_argument_required">Entrada obligatoria</string>
+    <string name="edge_form_rows">Filas visibles (1–20)</string>
+    <string name="edge_argument_text">Texto libre</string>
+    <string name="edge_argument_choice">Selección</string>
+    <string name="edge_argument_fixed">Valor fijo</string>
+    <string name="edge_argument_optional">Opcional</string>
+    <string name="edge_argument_mandatory">Obligatorio</string>
+    <string name="edge_pick_argument">Añadir campo de argumento</string>
+    <string name="edge_pick_result">Elegir campo de resultado</string>
+    <string name="edge_choose_value">Elegir un valor</string>
+    <string name="edge_macro_done">Completado</string>
+    <string name="edge_macro_stopped">Detenido</string>
+    <string name="edge_macro_help">Ordena los campos de argumentos y resultados. Elige los argumentos en orden y el destino del resultado en la macro. La entrada se pasa literalmente. Al cerrar se restablece el formulario y se detienen sus comandos.</string>
+    <string name="edge_add_translation">＋ Formulario de traducción</string>
+    <string name="edge_translation_text">Texto para traducir</string>
+    <string name="edge_translation_run">Traducir</string>
+    <string name="edge_translation_target">Idioma de destino</string>
+    <string name="edge_translation_source">Idioma de origen (auto: detectar)</string>
+    <string name="edge_translation_setup">Instala trans por separado en Linux local. El texto se envía al servicio de traducción externo. Se conserva translate.sh existente.</string>
 </resources>

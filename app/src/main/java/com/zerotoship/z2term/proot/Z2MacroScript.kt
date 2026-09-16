@@ -643,6 +643,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         "otp-sms.sh" to otpSms,
         "unknown-call.sh" to unknownCall,
         "remind.sh" to remind,
+        "translate.sh" to z2TranslationMacro(lang),
         "rss.sh" to rss,
         "rss-open.sh" to rssOpen,
         "qr.sh" to qr,

@@ -1246,4 +1246,34 @@ SSH 接続先 %3$d 件
     <string name="settings_delete_os_busy">この OS は起動・インストール・削除の処理中です。完了してから再度お試しください。</string>
     <string name="settings_delete_os_mounted">この OS には root chroot の使用中プロセスまたはマウントが残っています。共有データを保護するため削除を中止しました。chroot を終了し、マウントを解除してから再度お試しください。</string>
     <string name="settings_delete_os_failed">OS データをすべて削除できませんでした。一部が残っている可能性があります。詳細は診断ログを確認してください。</string>
+
+    <!-- Generic macro forms in the edge panel -->
+    <string name="edge_type_macro">引数付きマクロ</string>
+    <string name="edge_type_argument">引数欄</string>
+    <string name="edge_type_result">結果欄</string>
+    <string name="edge_add_macro_form">＋ マクロフォーム</string>
+    <string name="edge_macro_args">引数欄のID（引数順・カンマ区切り）</string>
+    <string name="edge_macro_result">結果欄のID（空欄：ここに表示）</string>
+    <string name="edge_argument_kind">入力方式</string>
+    <string name="edge_argument_default">初期値・固定値</string>
+    <string name="edge_argument_choices">選択肢（| 区切り）</string>
+    <string name="edge_argument_required">入力必須</string>
+    <string name="edge_form_rows">表示行数（1〜20）</string>
+    <string name="edge_argument_text">自由入力</string>
+    <string name="edge_argument_choice">選択式</string>
+    <string name="edge_argument_fixed">固定値</string>
+    <string name="edge_argument_optional">任意</string>
+    <string name="edge_argument_mandatory">必須</string>
+    <string name="edge_pick_argument">引数欄を追加</string>
+    <string name="edge_pick_result">結果欄を選択</string>
+    <string name="edge_choose_value">値を選択</string>
+    <string name="edge_macro_done">完了</string>
+    <string name="edge_macro_stopped">停止しました</string>
+    <string name="edge_macro_help">引数欄・結果欄は項目の並べ替えで配置できます。マクロ側で引数欄を引数順に追加し、結果欄を指定してください。入力はそのまま引数として渡されます。閉じると入力・結果をリセットし、実行中のコマンドを停止します。</string>
+    <string name="edge_add_translation">＋ 翻訳フォーム</string>
+    <string name="edge_translation_text">翻訳する文章</string>
+    <string name="edge_translation_run">翻訳</string>
+    <string name="edge_translation_target">翻訳先の言語</string>
+    <string name="edge_translation_source">元の言語（auto：自動判定）</string>
+    <string name="edge_translation_setup">ローカルLinux環境に trans コマンドを別途導入してください。翻訳文は外部の翻訳サービスへ送信されます。既存の translate.sh は上書きしません。</string>
 </resources>

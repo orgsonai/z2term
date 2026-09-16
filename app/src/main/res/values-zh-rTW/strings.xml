@@ -1168,4 +1168,34 @@ SSH 連線目標 %3$d 個
     <string name="settings_delete_os_busy">此 OS 正在啟動、安裝或刪除。請在操作完成後重試。</string>
     <string name="settings_delete_os_mounted">此 OS 仍有作用中的 root chroot 程序或掛載。為保護共用資料，已停止刪除。請停止 chroot 並解除此 OS 的掛載後重試。</string>
     <string name="settings_delete_os_failed">無法刪除全部 OS 資料。可能仍有部分資料殘留。請查看診斷記錄。</string>
+
+    <!-- Generic macro forms in the edge panel -->
+    <string name="edge_type_macro">含引數的巨集</string>
+    <string name="edge_type_argument">引數欄</string>
+    <string name="edge_type_result">結果欄</string>
+    <string name="edge_add_macro_form">＋ 巨集表單</string>
+    <string name="edge_macro_args">引數欄 ID（依序，以逗號分隔）</string>
+    <string name="edge_macro_result">結果欄 ID（留空：在此顯示）</string>
+    <string name="edge_argument_kind">輸入方式</string>
+    <string name="edge_argument_default">初始值或固定值</string>
+    <string name="edge_argument_choices">選項（以 | 分隔）</string>
+    <string name="edge_argument_required">必填</string>
+    <string name="edge_form_rows">顯示行數（1–20）</string>
+    <string name="edge_argument_text">自由輸入</string>
+    <string name="edge_argument_choice">選擇</string>
+    <string name="edge_argument_fixed">固定值</string>
+    <string name="edge_argument_optional">選填</string>
+    <string name="edge_argument_mandatory">必填</string>
+    <string name="edge_pick_argument">新增引數欄</string>
+    <string name="edge_pick_result">選擇結果欄</string>
+    <string name="edge_choose_value">選擇值</string>
+    <string name="edge_macro_done">已完成</string>
+    <string name="edge_macro_stopped">已停止</string>
+    <string name="edge_macro_help">可透過排序配置引數欄及結果欄。在巨集中依引數順序選擇引數欄，並指定結果欄。輸入原樣傳入。關閉時重設表單並停止命令。</string>
+    <string name="edge_add_translation">＋ 翻譯表單</string>
+    <string name="edge_translation_text">待翻譯文字</string>
+    <string name="edge_translation_run">翻譯</string>
+    <string name="edge_translation_target">目標語言</string>
+    <string name="edge_translation_source">原文語言（auto：自動偵測）</string>
+    <string name="edge_translation_setup">請在本機 Linux 環境另行安裝 trans 命令。文字會傳送至外部翻譯服務。保留現有 translate.sh。</string>
 </resources>

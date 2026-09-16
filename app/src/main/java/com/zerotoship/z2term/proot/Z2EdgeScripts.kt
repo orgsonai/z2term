@@ -40,7 +40,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge push ID:項目 '文字列'           表示を外から更新（- なら標準入力）
         |# z2-edge state ID:項目 on|off           toggle / ON・OFFボタンの表示を更新
         |# z2-edge badge ID '87%'                 取っ手へ文字を表示（空文字で消去）
-        |# 型: run / text / toggle / list / input / note / terminal。run が既定。
+        |# 型: run / text / toggle / list / input / note / terminal / macro / argument / result。run が既定。
         |# toggle: run=切替コマンド state=状態を読むコマンド（on/off・1/0・true/false）。
         |# run: button-state=on でON/OFFをボタンの枠と背景色で表示。off=OFF用コマンド（省略時はrunと同じ）。
         |# button-source=auto|torch|screen|process|remember（既定auto）。torch/screenは実態に連動。
@@ -49,6 +49,10 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# ON/OFFボタンは開き直し・再起動でも状態を保持。コマンド定義を変えると記録を無効化。
         |# list: run=一覧を読むコマンド。各行は 表示<TAB>値。on-select の ${d}1 に値を渡す。
         |# input: 入力した文字を run の標準入力へ渡す。閉じると未送信の入力は消えます。
+        |# macro: run=スクリプト args=引数欄IDのカンマ区切り result=結果欄ID（省略時はボタン下）。
+        |# argument: argument-kind=text|choice|fixed、default=初期値、choices=値|値、required=on|off。
+        |# argument/result: rows=1〜20。引数は番号順の文字列として渡し、閉じると入力・結果をリセット。
+        |# macro/terminalは閉じるボタンで終了（外側タップでは閉じない）。実行中のフォームコマンドも停止。
         |# out=none|panel|toast|notify、order=整数、timeout=1〜300秒（既定30）。
         |# text/toggle/list は開いた時に更新。every=5〜86400秒（既定0）は開いている間だけ。
         |# run/state を省略すれば push/state でのみ更新。イベント更新は z2-when から push。
@@ -94,7 +98,11 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge push ID:item 'text'             Use - to read stdin
         |# z2-edge state ID:item on|off
         |# z2-edge badge ID '87%'                  Empty string clears the badge
-        |# Types: run (default), text, toggle, list, input, note, terminal.
+        |# macro: run=script args=comma-separated-argument-IDs result=result-ID (empty: below button).
+        |# argument: argument-kind=text|choice|fixed, default=value, choices=value|value, required=on|off.
+        |# argument/result: rows=1..20. Values are literal arguments, ordered by args, reset on close.
+        |# macro/terminal panels need Close (outside taps keep them open); closing also stops form commands.
+        |# Types: run (default), text, toggle, list, input, note, terminal, macro, argument, result.
         |# toggle: run changes state; state reads on/off, 1/0, or true/false.
         |# run: button-state=on shows ON/OFF using the button border and background. off=OFF command (default: run).
         |# button-source=auto|torch|screen|process|remember (default auto). torch/screen follow actual state.

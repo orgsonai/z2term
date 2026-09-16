@@ -72,6 +72,8 @@ object EdgeRuntime {
     private var openRootId: String? = null
     private val notes = mutableMapOf<String, EdgeNote>()
     private val terminals = mutableListOf<EdgeTerminalUi>()
+    @android.annotation.SuppressLint("StaticFieldLeak") // Window-scoped; disposed and cleared by clearPanel.
+    private var macroForm: EdgeMacroUi? = null
     private var editingItems = false
     private var editorPage = 0
     private var cancelAppearance: (() -> Unit)? = null
@@ -727,7 +729,7 @@ object EdgeRuntime {
         page: Int = editorPage): Unit = onMain {
         check(!actionsSuspended) { "An action macro is running; stop it before opening the panel" }
         if (toggle && openRootId == id) {
-            if (terminals.isEmpty()) close()
+            if (terminals.isEmpty() && macroForm == null) close()
             return@onMain
         }
         require(app != null && store(app!!).enabled()) { "Enable the panel first: z2-edge on" }
@@ -737,7 +739,7 @@ object EdgeRuntime {
         val root = panels.firstOrNull { id in it.tabs } ?: requested
         val active = tabId ?: if (root.id != id) id else selectedTabs[root.id]
         val panel = panels.firstOrNull { it.id == active && (it.id == root.id || it.id in root.tabs) } ?: root
-        val terminalMode = !settings && panel.items.any { it.type == "terminal" }
+        val terminalMode = !settings && panel.items.any { it.type in setOf("terminal", "macro", "argument", "result") }
         val existingWindow = panelView
         clearPanel(keepWindow = existingWindow != null)
         val session = EdgeEditorSession(ui())
@@ -747,6 +749,8 @@ object EdgeRuntime {
         selectedTabs[root.id] = panel.id
         openRootId = root.id
         openId = panel.id
+        if (!settings && panel.items.any { it.type in setOf("macro", "argument", "result") })
+            macroForm = EdgeMacroUi(ui(), panel, runner!!)
         try {
             val (width, height) = screenSize()
             val density = windowContext!!.resources.displayMetrics.density
@@ -909,6 +913,20 @@ object EdgeRuntime {
                 session.leave { runCatching {
                     val terminalId = "terminal_" + java.util.UUID.randomUUID().toString().replace("-", "")
                     store(app!!).setItem("${panel.id}:$terminalId", mapOf("type" to "terminal", "label" to app!!.getString(R.string.edge_terminal)))
+                    reload(app!!)
+                }.onFailure { fail(it) } }
+            })
+            if (settings) tools.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_add_macro_form)) {
+                session.leave { runCatching {
+                    store(app!!).addMacroForm(panel.id, listOf(R.string.edge_type_argument, R.string.edge_type_macro,
+                        R.string.edge_type_result).map { app!!.getString(it) })
+                    reload(app!!)
+                }.onFailure { fail(it) } }
+            })
+            if (settings) tools.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_add_translation)) {
+                session.leave { runCatching {
+                    EdgeTranslationTemplate.add(ui(), store(app!!), panel.id)
+                    Toast.makeText(ui(), R.string.edge_translation_setup, Toast.LENGTH_LONG).show()
                     reload(app!!)
                 }.onFailure { fail(it) } }
             })
@@ -1118,6 +1136,7 @@ object EdgeRuntime {
         saveNotes()
         notes.entries.removeAll { !it.value.needsSave }
         terminals.forEach { it.dispose() }; terminals.clear()
+        macroForm?.dispose(); macroForm = null
         generation++
         scheduled.forEach { main.removeCallbacks(it) }; scheduled.clear()
         retries.values.forEach { main.removeCallbacks(it) }; retries.clear()
@@ -1283,6 +1302,9 @@ object EdgeRuntime {
         val status = text("", 12f).apply { visibility = View.GONE }
         renderers["$target:status"] = { status.text = it; status.visibility = if (it.isBlank()) View.GONE else View.VISIBLE }
         when (item.type) {
+            "argument" -> macroForm?.addArgument(row, item)
+            "result" -> macroForm?.addResult(row, item)
+            "macro" -> macroForm?.addAction(row, item)
             "run" -> {
                 if (item.isStateButton) {
                     val render: (String) -> Unit = { value ->
@@ -1445,7 +1467,7 @@ object EdgeRuntime {
         }
         // An empty heading only wastes height; run items keep it as their tap target.
         if (title.childCount == 0 && item.type != "run") row.removeView(title)
-        if (item.type !in setOf("toggle", "list", "note", "terminal")) {
+        if (item.type !in setOf("toggle", "list", "note", "terminal", "macro", "argument", "result")) {
             row.addView(result)
             if (result.text.isEmpty()) result.visibility = View.GONE
             renderers[target] = { result.text = it; result.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE }

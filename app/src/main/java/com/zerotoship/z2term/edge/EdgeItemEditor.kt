@@ -101,7 +101,11 @@ object EdgeItemEditor {
             "run" to R.string.edge_item_run, "off" to R.string.edge_item_off, "state" to R.string.edge_item_state,
             "on-select" to R.string.edge_item_select, "every" to R.string.edge_item_every,
             "timeout" to R.string.edge_item_timeout, "out" to R.string.edge_item_out, "file" to R.string.edge_item_file,
-            "note-background" to R.string.edge_note_background, "note-color" to R.string.edge_note_color)
+            "note-background" to R.string.edge_note_background, "note-color" to R.string.edge_note_color,
+            "args" to R.string.edge_macro_args, "result" to R.string.edge_macro_result,
+            "argument-kind" to R.string.edge_argument_kind, "default" to R.string.edge_argument_default,
+            "choices" to R.string.edge_argument_choices, "required" to R.string.edge_argument_required,
+            "rows" to R.string.edge_form_rows)
         fields.forEach { (key, label) ->
             val group = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
             group.addView(EdgeSettingsUi.caption(context, context.getString(label)))
@@ -113,6 +117,13 @@ object EdgeItemEditor {
             group.addView(entry)
             if (key in setOf("note-background", "note-color")) EdgeColorField.add(context, group, entry, label)
             if (key == "icon") EdgeItemPickers.icons(context, group, entry)
+            if (key == "args" || key == "result") EdgeItemPickers.bindings(context, group, entry,
+                store.panel(panelId).items, key == "args")
+            if (key == "argument-kind") EdgeItemPickers.options(context, group, entry,
+                listOf("text", "choice", "fixed"), listOf(R.string.edge_argument_text, R.string.edge_argument_choice,
+                    R.string.edge_argument_fixed))
+            if (key == "required") EdgeItemPickers.options(context, group, entry, listOf("off", "on"),
+                listOf(R.string.edge_argument_optional, R.string.edge_argument_mandatory))
             if (key == "run" || key == "off") EdgeItemPickers.macros(context, group, entry)
             group.addView(EdgeSettingsUi.spacer(context, 12))
             val optional = key in listOf("every", "timeout", "out", "file")
@@ -124,8 +135,12 @@ object EdgeItemEditor {
                 entries["label"]?.text.toString(), entries["run"]?.text.toString())
         }
         basic.addView(qr)
+        val formHelp = EdgeSettingsUi.body(context, context.getString(R.string.edge_macro_help))
+        basic.addView(formHelp)
+        if (item != null) basic.addView(EdgeSettingsUi.caption(context, "ID: ${item.id}"))
         fun showFields() {
             val selected = types[type.selectedItemPosition]
+            formHelp.visibility = if (selected in setOf("macro", "argument", "result")) View.VISIBLE else View.GONE
             buttonState.visibility = if (selected == "run") View.VISIBLE else View.GONE
             val stateButton = selected == "run" && buttonState.isChecked
             qr.visibility = if (selected == "run" && !stateButton && appCommand == null) View.VISIBLE else View.GONE
@@ -139,7 +154,11 @@ object EdgeItemEditor {
                     "on-select" -> selected == "list"
                     "every" -> selected in listOf("text", "toggle", "list") || stateButton
                     "file", "note-background", "note-color" -> selected == "note"
-                    "run", "timeout", "out" -> selected !in setOf("note", "terminal")
+                    "args", "result" -> selected == "macro"
+                    "argument-kind", "default", "choices", "required" -> selected == "argument"
+                    "rows" -> selected in setOf("argument", "result", "macro")
+                    "out" -> selected !in setOf("note", "terminal", "argument", "result", "macro")
+                    "run", "timeout" -> selected !in setOf("note", "terminal", "argument", "result")
                     else -> true
                 }
                 group.visibility = if (visible) View.VISIBLE else View.GONE

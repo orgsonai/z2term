@@ -88,6 +88,45 @@ class EdgeStore(val root: File) {
         File(directory(panelId), "$itemId.button-state").delete()
     }
 
+    /** Create a useful first form without replacing any user-defined item. */
+    @Synchronized fun addMacroForm(panelId: String, labels: List<String>) = addForm(panelId, listOf(
+        "arg" to mapOf("type" to "argument", "label" to labels[0], "rows" to "3", "required" to "on"),
+        "run" to mapOf("type" to "macro", "label" to labels[1], "args" to "arg", "result" to "out"),
+        "out" to mapOf("type" to "result", "label" to labels[2], "rows" to "6")
+    ))
+
+    @Synchronized fun addTranslationForm(panelId: String, labels: List<String>) = addForm(panelId, listOf(
+        "arg" to mapOf("type" to "argument", "label" to labels[0], "rows" to "3", "required" to "on"),
+        "target" to mapOf("type" to "argument", "label" to labels[3], "default" to "ja",
+            "argument-kind" to "choice", "choices" to "ja|en|zh-CN|zh-TW|ko|es|fr|de"),
+        "source" to mapOf("type" to "argument", "label" to labels[4], "default" to "auto",
+            "argument-kind" to "choice", "choices" to "auto|ja|en|zh-CN|zh-TW|ko|es|fr|de"),
+        "run" to mapOf("type" to "macro", "label" to labels[1], "args" to "arg,target,source", "result" to "out",
+            "run" to "sh \"\$HOME/.z2term/macros/translate.sh\" --", "timeout" to "60"),
+        "out" to mapOf("type" to "result", "label" to labels[2], "rows" to "6")
+    ))
+
+    private fun addForm(panelId: String, definitions: List<Pair<String, Map<String, String>>>) {
+        val panel = panel(panelId)
+        require(panel.items.size + definitions.size <= 64) { "At most 64 items" }
+        val prefix = "form_" + java.util.UUID.randomUUID().toString().replace("-", "")
+        val order = (panel.items.maxOfOrNull { it.order } ?: -1).coerceAtMost(Int.MAX_VALUE - definitions.size) + 1
+        val created = mutableListOf<String>()
+        try {
+            definitions.forEachIndexed { index, (suffix, fields) ->
+                val target = "$panelId:${prefix}_$suffix"
+                val values = fields.toMutableMap()
+                values["args"]?.let { values["args"] = EdgeMacroForm.arguments(it).joinToString(",") { id -> "${prefix}_$id" } }
+                values["result"]?.let { values["result"] = "${prefix}_$it" }
+                saveItemDraft(target, values + ("order" to (order + index).toString()), null)
+                created.add(target)
+            }
+        } catch (error: Exception) {
+            created.forEach { runCatching { removeItem(it) } }
+            throw error
+        }
+    }
+
     /** Remember successful actions, tied to the command definition so edits never reuse stale state. */
     @Synchronized fun buttonState(panelId: String, item: Item): Boolean? {
         val data = read(File(directory(panelId), "${item.id}.button-state"))
@@ -225,10 +264,10 @@ class EdgeStore(val root: File) {
         }
 
         fun validateItem(values: Map<String, String>) {
-            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color")
+            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color", "args", "result", "argument-kind", "default", "choices", "required", "rows")
             require(values.keys.all { it in allowed }) { "Unknown item field: ${values.keys - allowed}" }
             val type = values["type"] ?: "run"
-            require(type in setOf("run", "text", "toggle", "list", "input", "note", "terminal")) { "Unsupported type: $type" }
+            require(type in setOf("run", "text", "toggle", "list", "input", "note", "terminal", "macro", "argument", "result")) { "Unsupported type: $type" }
             values["button-state"]?.let { require(it in setOf("on", "off")) { "button-state: on|off" } }
             values["button-source"]?.let { require(it in EdgeButtonSource.choices) { "button-source: auto|torch|screen|process|remember" } }
             listOf("note-background", "note-color").forEach { key ->
@@ -242,6 +281,7 @@ class EdgeStore(val root: File) {
             values["every"]?.let { require(it.toLongOrNull()?.let { n -> n == 0L || n in 5..86400 } == true) { "every: 0 or 5–86400 seconds" } }
             values["timeout"]?.let { require(it.toLongOrNull()?.let { n -> n in 1L..300L } == true) { "timeout: 1–300 seconds" } }
             values["order"]?.let { require(it.toIntOrNull() != null) { "order must be an integer" } }
+            EdgeMacroForm.validate(values)
             encode(values)
         }
 

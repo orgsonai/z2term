@@ -1161,4 +1161,34 @@ SSH 연결: %3$d
     <string name="settings_delete_os_busy">이 OS는 시작·설치·삭제 작업 중입니다. 완료 후 다시 시도하세요.</string>
     <string name="settings_delete_os_mounted">이 OS에 활성 root chroot 프로세스 또는 마운트가 남아 있습니다. 공유 데이터를 보호하기 위해 삭제를 중단했습니다. chroot를 종료하고 OS 마운트를 해제한 후 다시 시도하세요.</string>
     <string name="settings_delete_os_failed">OS 데이터를 모두 삭제하지 못했습니다. 일부 데이터가 남아 있을 수 있습니다. 진단 로그를 확인하세요.</string>
+
+    <!-- Generic macro forms in the edge panel -->
+    <string name="edge_type_macro">인수 매크로</string>
+    <string name="edge_type_argument">인수 입력란</string>
+    <string name="edge_type_result">결과 표시란</string>
+    <string name="edge_add_macro_form">＋ 매크로 양식</string>
+    <string name="edge_macro_args">인수 입력란 ID (순서대로 쉼표 구분)</string>
+    <string name="edge_macro_result">결과 표시란 ID (비움: 여기에 표시)</string>
+    <string name="edge_argument_kind">입력 방식</string>
+    <string name="edge_argument_default">초기값 또는 고정값</string>
+    <string name="edge_argument_choices">선택지 (| 구분)</string>
+    <string name="edge_argument_required">필수 입력</string>
+    <string name="edge_form_rows">표시 줄 수 (1–20)</string>
+    <string name="edge_argument_text">자유 입력</string>
+    <string name="edge_argument_choice">선택</string>
+    <string name="edge_argument_fixed">고정값</string>
+    <string name="edge_argument_optional">선택 사항</string>
+    <string name="edge_argument_mandatory">필수</string>
+    <string name="edge_pick_argument">인수 입력란 추가</string>
+    <string name="edge_pick_result">결과 표시란 선택</string>
+    <string name="edge_choose_value">값 선택</string>
+    <string name="edge_macro_done">완료</string>
+    <string name="edge_macro_stopped">중지됨</string>
+    <string name="edge_macro_help">항목 순서로 인수와 결과 입력란을 배치합니다. 매크로에서 인수 순서와 결과 표시란을 선택하세요. 입력은 그대로 인수로 전달됩니다. 닫으면 양식이 초기화되고 명령이 중지됩니다.</string>
+    <string name="edge_add_translation">＋ 번역 양식</string>
+    <string name="edge_translation_text">번역할 텍스트</string>
+    <string name="edge_translation_run">번역</string>
+    <string name="edge_translation_target">대상 언어</string>
+    <string name="edge_translation_source">원본 언어 (auto: 자동 감지)</string>
+    <string name="edge_translation_setup">로컬 Linux 환경에 trans 명령을 별도로 설치하세요. 텍스트는 외부 번역 서비스로 전송됩니다. 기존 translate.sh는 유지됩니다.</string>
 </resources>

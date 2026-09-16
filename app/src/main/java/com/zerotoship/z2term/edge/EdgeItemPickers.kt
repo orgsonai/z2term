@@ -26,6 +26,23 @@ internal object EdgeItemPickers {
         picker(context, group, entry, R.string.edge_pick_macro, commands.keys.toList()) { commands.getValue(it) }
     }
 
+    fun bindings(context: Context, group: LinearLayout, entry: EditText,
+        items: List<EdgeStore.Item>, arguments: Boolean) {
+        val candidates = items.filter { it.type == if (arguments) "argument" else "result" }
+        val labels = candidates.map { "${it.fields["label"] ?: it.id} (${it.id})" }
+        picker(context, group, entry, if (arguments) R.string.edge_pick_argument else R.string.edge_pick_result,
+            labels) { label ->
+            val id = candidates[labels.indexOf(label)].id
+            if (arguments && entry.text.isNotBlank()) "${entry.text},$id" else id
+        }
+    }
+
+    fun options(context: Context, group: LinearLayout, entry: EditText, values: List<String>, labels: List<Int>) {
+        picker(context, group, entry, R.string.edge_choose_value, labels.map { context.getString(it) }) {
+            values[labels.indexOfFirst { label -> context.getString(label) == it }]
+        }
+    }
+
     fun icons(context: Context, group: LinearLayout, entry: EditText) {
         val names = IconStore.allSampleNames(context).map { it.first }
         picker(context, group, entry, R.string.edge_pick_icon, names, icons = true) { "@z2:$it" }

@@ -1,6 +1,6 @@
 # Mini terminal in an edge panel
 
-Target: 0.8.610-alpha (versionCode 618)
+Target: 0.8.611-alpha (versionCode 619)
 
 Open panel settings → **Items → + Terminal**, or select **Mini terminal** when adding an item. To add it to an existing panel through the CLI:
 

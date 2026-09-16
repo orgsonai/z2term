@@ -1445,3 +1445,7 @@ The trick is to explicitly say **stay within this guide** so the AI won't reach 
 Use `z2-edge toggle` for visibility and handle `--open swipe|tap|both` with `--run` as an action entry point.
 `z2-app pick` returns a selected package or fails on cancel/120-second timeout. See the [handbook](HANDBOOK.md#96-floating-edge-panels).
 Coordinate and UI-element actions remain [proposals](AUTOMATION-ROADMAP.md), not implemented commands.
+
+## Translation macro and edge panels
+
+`z2-macro install translate` installs a sample taking text, target language and source language. Users install the translation CLI separately. Panel settings also offer **＋ Translation form**. See [generic forms and translation](EDGE-MACRO-FORMS.md).

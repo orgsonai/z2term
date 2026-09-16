@@ -1264,4 +1264,34 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="settings_delete_os_busy">This OS is starting, installing or being deleted. Try again after the operation finishes.</string>
     <string name="settings_delete_os_mounted">This OS still has active root chroot processes or mounts. Deletion was stopped to protect shared data. Stop chroot and unmount the OS, then try again.</string>
     <string name="settings_delete_os_failed">Could not delete all OS data. Some data may remain. Check the diagnostic log for details.</string>
+
+    <!-- Generic macro forms in the edge panel -->
+    <string name="edge_type_macro">Macro with arguments</string>
+    <string name="edge_type_argument">Argument box</string>
+    <string name="edge_type_result">Result box</string>
+    <string name="edge_add_macro_form">＋ Macro form</string>
+    <string name="edge_macro_args">Argument box IDs, in order (comma separated)</string>
+    <string name="edge_macro_result">Result box ID (empty: show here)</string>
+    <string name="edge_argument_kind">Input mode</string>
+    <string name="edge_argument_default">Initial or fixed value</string>
+    <string name="edge_argument_choices">Choices, separated by |</string>
+    <string name="edge_argument_required">Required input</string>
+    <string name="edge_form_rows">Visible rows (1–20)</string>
+    <string name="edge_argument_text">Free text</string>
+    <string name="edge_argument_choice">Choose a value</string>
+    <string name="edge_argument_fixed">Fixed value</string>
+    <string name="edge_argument_optional">Optional</string>
+    <string name="edge_argument_mandatory">Required</string>
+    <string name="edge_pick_argument">Add an argument box</string>
+    <string name="edge_pick_result">Choose a result box</string>
+    <string name="edge_choose_value">Choose a value</string>
+    <string name="edge_macro_done">Completed</string>
+    <string name="edge_macro_stopped">Stopped</string>
+    <string name="edge_macro_help">Place argument and result boxes anywhere in the item order. In the macro, choose argument boxes in argument order and a result box. Input is passed as literal arguments. Closing resets the form and stops its commands.</string>
+    <string name="edge_add_translation">＋ Translation form</string>
+    <string name="edge_translation_text">Text to translate</string>
+    <string name="edge_translation_run">Translate</string>
+    <string name="edge_translation_target">Target language</string>
+    <string name="edge_translation_source">Source language (auto: detect)</string>
+    <string name="edge_translation_setup">The trans command must be installed separately in the local Linux environment. Text is sent to its external translation service. Existing translate.sh is kept.</string>
 </resources>
