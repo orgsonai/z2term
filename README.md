@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.612-alpha (versionCode 620)**: Edge-panel tabs and Close keep the same position across pages, without switching window geometry. Mini-terminal input sits at the bottom; blank labels omit headings. Terminal and translation results scroll inside their result boxes, and the persistent help text is removed. Items can be deleted directly from the list, preserving its scroll position.
+
 **0.8.611-alpha (versionCode 619)**: Edge panels support independent argument boxes, macro actions and result boxes. Bind text, choices or fixed values in argument order; clear, copy or stop results. A translation template uses the same form mechanism. Users install the translation CLI themselves; no SDK, model or automatic download is added to the APK. [Usage](docs/en/EDGE-MACRO-FORMS.md).
 
 **0.8.610-alpha (versionCode 618)**: Edge panels now offer a mini terminal with one-line commands and live output cleared before each run. Directory and environment changes last only for the current opening; closing also stops ordinary jobs. Explicit `nohup` jobs and detached `tmux` / `screen` sessions can continue. Outside taps and Back keep the panel open; use its Close button. No external dependencies were added. [Usage](docs/en/MINI-TERMINAL.md).

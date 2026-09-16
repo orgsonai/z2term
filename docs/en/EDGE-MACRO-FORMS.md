@@ -1,10 +1,12 @@
 # Edge macro forms and translation
 
-Target: 0.8.611-alpha (versionCode 619)
+Target: 0.8.612-alpha (versionCode 620)
 
 In panel settings → Items, choose **＋ Macro form** to add an argument box, an action and a result box. Edit the action to select a saved macro or enter a script invocation. A new generic form has no command until you configure it.
 
 Each component is an independent item. Reorder items to place them and set visible rows (1–20) for inputs and results. Vertical, horizontal and grid layouts work; arbitrary XY placement is not provided.
+
+Empty display names omit their heading and heading space. Drag inside result boxes to read all retained output, including translations. Each new result starts at the top. With tabs, **× (Close)** stays at the right of the tab row on every page. Without tabs or a panel title, Close shares an action row.
 
 ## Bind arguments and results
 

@@ -12,14 +12,14 @@ import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import com.zerotoship.z2term.R
 
 /** The view owns no persisted command, output, directory or shell state. */
 @android.annotation.SuppressLint("ViewConstructor") // Created only in code, with the saved item label.
-internal class EdgeTerminalUi(context: Context, label: String) : LinearLayout(context) {
+internal class EdgeTerminalUi(context: Context, label: String, fillSpace: Boolean = false,
+    close: (() -> Unit)? = null) : LinearLayout(context) {
     private val handler = Handler(Looper.getMainLooper())
     private var session: EdgeTerminalSession? = null
     private var disposed = false
@@ -27,6 +27,7 @@ internal class EdgeTerminalUi(context: Context, label: String) : LinearLayout(co
         id = R.id.edge_terminal_input
         hint = context.getString(R.string.edge_terminal_command)
         contentDescription = hint
+        tooltipText = context.getString(R.string.edge_terminal_help)
         setSingleLine(true)
         inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         imeOptions = EditorInfo.IME_ACTION_GO or EditorInfo.IME_FLAG_NO_EXTRACT_UI
@@ -39,6 +40,11 @@ internal class EdgeTerminalUi(context: Context, label: String) : LinearLayout(co
         setTextIsSelectable(true)
         setPadding(dp(8), dp(8), dp(8), dp(8))
         contentDescription = context.getString(R.string.edge_terminal_result)
+    }
+    private val scroll = EdgeResultScrollView(context).apply {
+        tag = "edge-terminal-scroll"
+        background = EdgeSettingsUi.frame(context)
+        addView(output, LayoutParams(-1, -2))
     }
     private val status = EdgeSettingsUi.caption(context, context.getString(R.string.edge_terminal_ready))
     private val run = EdgeSettingsUi.button(context, context.getString(R.string.edge_run)) { execute() }
@@ -54,10 +60,10 @@ internal class EdgeTerminalUi(context: Context, label: String) : LinearLayout(co
 
     init {
         orientation = VERTICAL
-        contentDescription = label
-        addView(entry, LayoutParams(-1, -2))
+        contentDescription = label.ifBlank { context.getString(R.string.edge_terminal) }
+        addView(scroll, if (fillSpace) LayoutParams(-1, 0, 1f) else LayoutParams(-1, dp(220)))
+        addView(status, LayoutParams(-1, -2))
         val actions = LinearLayout(context)
-        actions.addView(run, LayoutParams(0, -2, 1f))
         actions.addView(stop, LayoutParams(0, -2, 1f))
         actions.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_terminal_copy)) {
             if (output.text.isNotEmpty()) context.getSystemService(ClipboardManager::class.java)
@@ -66,19 +72,18 @@ internal class EdgeTerminalUi(context: Context, label: String) : LinearLayout(co
         actions.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_terminal_clear)) {
             session?.clear(); render()
         }, LayoutParams(0, -2, 1f))
-        for (i in 0 until actions.childCount) (actions.getChildAt(i) as TextView).apply {
+        close?.let { actions.addView(EdgePanelControls.close(context, it)) }
+        for (i in 0 until actions.childCount - (if (close != null) 1 else 0)) (actions.getChildAt(i) as TextView).apply {
             setSingleLine(true)
             setPadding(dp(4), dp(6), dp(4), dp(6))
             setAutoSizeTextTypeUniformWithConfiguration(10, 14, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
         }
         addView(actions)
-        addView(status, LayoutParams(-1, -2))
-        addView(ScrollView(context).apply {
-            isFillViewport = true
-            background = EdgeSettingsUi.frame(context)
-            addView(output, LayoutParams(-1, -2))
-        }, LayoutParams(-1, dp(220)))
-        addView(EdgeSettingsUi.caption(context, context.getString(R.string.edge_terminal_help)))
+        addView(LinearLayout(context).apply {
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            addView(entry, LayoutParams(0, -2, 1f))
+            addView(run, LayoutParams(-2, -2))
+        }, LayoutParams(-1, -2))
         entry.setOnEditorActionListener { _, action, event ->
             if (action == EditorInfo.IME_ACTION_GO || event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_UP) {
                 execute(); true
@@ -102,8 +107,13 @@ internal class EdgeTerminalUi(context: Context, label: String) : LinearLayout(co
     private fun render() {
         val state = session?.state()
         val text = state?.output.orEmpty()
-        if (output.text.toString() != text) output.text = text
+        if (output.text.toString() != text) {
+            val atEnd = !scroll.canScrollVertically(1)
+            output.text = text
+            if (atEnd) scroll.post { if (!disposed) scroll.scrollTo(0, (output.bottom - scroll.height + scroll.paddingBottom).coerceAtLeast(0)) }
+        }
         val phase = state?.phase ?: EdgeTerminalSession.Phase.NEW
+        status.visibility = if (phase == EdgeTerminalSession.Phase.NEW) GONE else VISIBLE
         run.isEnabled = phase in setOf(EdgeTerminalSession.Phase.NEW, EdgeTerminalSession.Phase.IDLE,
             EdgeTerminalSession.Phase.ENDED, EdgeTerminalSession.Phase.FAILED)
         stop.isEnabled = phase in setOf(EdgeTerminalSession.Phase.STARTING, EdgeTerminalSession.Phase.RUNNING, EdgeTerminalSession.Phase.IDLE)

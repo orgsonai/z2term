@@ -30,7 +30,7 @@ class EdgeMacroWindowTest {
             it.isAccessible = true; it.get(EdgeRuntime) as EdgePanelWindow
         }
         fun find(view: View, label: String): View? {
-            if (view is TextView && view.text.toString() == label) return view
+            if (view.contentDescription == label || view is TextView && view.text.toString() == label) return view
             if (view is ViewGroup) for (i in 0 until view.childCount) find(view.getChildAt(i), label)?.let { return it }
             return null
         }

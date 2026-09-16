@@ -18,7 +18,7 @@ import androidx.core.view.WindowInsetsCompat
 /** Keeps the overlay attached across page changes and handles back before dismissing it. */
 internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
     var back: () -> Unit = {}
-    var onImeHeight: ((Int) -> Unit)? = null
+    var outside: () -> Unit = {}
     var contentAlignment: android.view.View.OnLayoutChangeListener? = null
     var swipeArea: View? = null
     var horizontalTabSwipe = true
@@ -64,6 +64,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) { outside(); return true }
         if (!swiping) return super.onTouchEvent(event)
         if (event.actionMasked == MotionEvent.ACTION_POINTER_DOWN) swipeCandidate = false
         if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
@@ -88,7 +89,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
 
     private fun editingAt(view: View, event: MotionEvent): Boolean {
         if (!contains(view, event)) return false
-        if (view is android.widget.EditText || view is android.widget.SeekBar || view is android.widget.Spinner)
+        if (view is EdgeResultScrollView || view is android.widget.EditText || view is android.widget.SeekBar || view is android.widget.Spinner)
             return true
         if (view is ViewGroup) for (i in view.childCount - 1 downTo 0) {
             if (editingAt(view.getChildAt(i), event)) return true
@@ -105,7 +106,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
         if (Build.VERSION.SDK_INT >= 30) setOnApplyWindowInsetsListener { _, insets ->
             // System bars are excluded by WindowManager; IME insets are relative to that frame.
             val bottom = insets.getInsets(WindowInsets.Type.ime()).bottom
-            onImeHeight?.invoke(bottom) ?: setPadding(0, 0, 0, bottom)
+            setPadding(0, 0, 0, bottom)
             insets
         }
     }
