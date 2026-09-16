@@ -18,6 +18,7 @@ import androidx.core.view.WindowInsetsCompat
 /** Keeps the overlay attached across page changes and handles back before dismissing it. */
 internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
     var back: () -> Unit = {}
+    var outside: () -> Unit = {}
     var contentAlignment: android.view.View.OnLayoutChangeListener? = null
     var swipeArea: View? = null
     var horizontalTabSwipe = true
@@ -26,12 +27,14 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
     private var swipeStartY = 0f
     private var swipeCandidate = false
     private var swiping = false
-    private val swipeDistance = maxOf(ViewConfiguration.get(context).scaledTouchSlop.toFloat(),
-        32 * resources.displayMetrics.density)
+    private var swipeOnResult = false
+    private var swipeHorizontal = true
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+    private val swipeDistance = maxOf(touchSlop, 32 * resources.displayMetrics.density)
 
     override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
         // Nested scroll views claim the stream at their smaller touch slop. Keep observing
-        // until the direction is known, otherwise vertical tab swipes never reach this parent.
+        // until the direction is known. Results retain vertical scrolling but allow horizontal tabs.
         if (disallowIntercept && swipeCandidate) return
         super.requestDisallowInterceptTouchEvent(disallowIntercept)
     }
@@ -42,16 +45,20 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
                 swipeStartX = event.rawX
                 swipeStartY = event.rawY
                 swiping = false
+                swipeOnResult = swipeArea?.let { resultAt(it, event) } == true
+                swipeHorizontal = swipeOnResult || horizontalTabSwipe
                 swipeCandidate = swipeArea?.let { contains(it, event) && !editingAt(it, event) } == true
             }
             MotionEvent.ACTION_POINTER_DOWN -> swipeCandidate = false
             MotionEvent.ACTION_MOVE -> if (swipeCandidate) {
                 val dx = event.rawX - swipeStartX
                 val dy = event.rawY - swipeStartY
-                val along = kotlin.math.abs(if (horizontalTabSwipe) dx else dy)
-                val across = kotlin.math.abs(if (horizontalTabSwipe) dy else dx)
+                val along = kotlin.math.abs(if (swipeHorizontal) dx else dy)
+                val across = kotlin.math.abs(if (swipeHorizontal) dy else dx)
+                // Once the result starts a vertical scroll, do not steal a later sideways move.
+                val crossDistance = if (swipeOnResult) touchSlop else swipeDistance
                 if (event.eventTime - event.downTime >= ViewConfiguration.getLongPressTimeout() ||
-                    across > swipeDistance && across >= along) swipeCandidate = false
+                    across > crossDistance && across >= along) swipeCandidate = false
                 else if (along > swipeDistance && along > across * 1.5f) {
                     swiping = true
                     return true // Android cancels the child's tap before delivering the remaining gesture here.
@@ -63,10 +70,11 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) { outside(); return true }
         if (!swiping) return super.onTouchEvent(event)
         if (event.actionMasked == MotionEvent.ACTION_POINTER_DOWN) swipeCandidate = false
         if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
-            val delta = if (horizontalTabSwipe) event.rawX - swipeStartX else event.rawY - swipeStartY
+            val delta = if (swipeHorizontal) event.rawX - swipeStartX else event.rawY - swipeStartY
             val navigate = event.actionMasked == MotionEvent.ACTION_UP && swipeCandidate &&
                 kotlin.math.abs(delta) > swipeDistance
             swiping = false
@@ -91,6 +99,15 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
             return true
         if (view is ViewGroup) for (i in view.childCount - 1 downTo 0) {
             if (editingAt(view.getChildAt(i), event)) return true
+        }
+        return false
+    }
+
+    private fun resultAt(view: View, event: MotionEvent): Boolean {
+        if (!contains(view, event)) return false
+        if (view is EdgeResultScrollView) return true
+        if (view is ViewGroup) for (i in view.childCount - 1 downTo 0) {
+            if (resultAt(view.getChildAt(i), event)) return true
         }
         return false
     }

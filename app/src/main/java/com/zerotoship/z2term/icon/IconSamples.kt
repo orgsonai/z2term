@@ -1074,6 +1074,7 @@ object IconSamples {
      */
     private val KEYWORDS: List<Pair<List<String>, String>> = listOf(
         listOf("remind", "alarm", "timer", "schedule", "cron") to "clock",
+        listOf("translate") to "sync",
         listOf("battery", "charge", "charging") to "battery",
         listOf("torch", "flashlight") to "bolt",
         listOf("unknown", "warn", "error", "failed", "alert") to "warning",

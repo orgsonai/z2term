@@ -14,4 +14,5 @@
     <string name="edge_terminal_ended">終了済み・次の実行は新規セッション</string>
     <string name="edge_terminal_truncated">直近の64K文字を表示</string>
     <string name="edge_terminal_help">閉じるとセッションを終了します。処理を残す場合は nohup や tmux / screen のデタッチを使ってください。対話操作は通常の端末タブで行えます。</string>
+    <string name="edge_terminal_one_line_required">簡易ターミナルは16,384文字までの1行コマンドに対応します。複数行のスニペットは通常のターミナルで使ってください。</string>
 </resources>

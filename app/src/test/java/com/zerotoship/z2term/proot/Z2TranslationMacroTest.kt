@@ -31,6 +31,8 @@ class Z2TranslationMacroTest {
         val (code, output) = run(root, script, "hello")
         assertEquals(127, code)
         assertTrue(output.contains("ユーザー自身で導入"))
+        assertTrue(output.contains("translate-shell"))
+        assertTrue(output.contains("同じローカルLinux環境"))
         assertEquals(listOf("translate.sh"), root.listFiles()!!.map { it.name })
     }
     @Test fun textIsOneLiteralArgumentAndAutomaticSourceDoesNotInheritEnvironment() = fixture { root, script ->

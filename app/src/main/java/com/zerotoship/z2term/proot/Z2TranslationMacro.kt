@@ -19,6 +19,7 @@ fun z2TranslationMacro(lang: String): String {
         "zh-TW" to "翻譯文字會傳送至 CLI 使用的外部服務，受其條款與網路狀態影響。",
         "es" to "El texto se envía al servicio externo de la CLI. Se aplican sus condiciones y disponibilidad de red.",
         "ko" to "텍스트는 CLI의 외부 서비스로 전송됩니다. 해당 이용 조건과 네트워크 상태가 적용됩니다.")
+    val setup = z2TranslationSetup(lang)
     return """
         |#!/bin/sh
         |# translate.sh — $description
@@ -27,6 +28,7 @@ fun z2TranslationMacro(lang: String): String {
         |# $network
         |# $missing
         |# Source: auto or a language code. Target: a language code (ja, en, zh-CN, ...).
+        |$setup
         |if [ "${d}#" -eq 0 ] || { [ "${d}#" -eq 1 ] && [ "${d}1" = --help ]; }; then
         |    while IFS= read -r line; do case "${d}line" in '#!'*) ;; '# '*) printf '%s\n' "${d}{line#\# }" ;; *) break ;; esac; done < "${d}0"
         |    exit 0
@@ -42,7 +44,7 @@ fun z2TranslationMacro(lang: String): String {
         |    case "${d}code" in ''|[!A-Za-z]*|*[!A-Za-z0-9-]*) printf '%s\n' 'Invalid language code' >&2; exit 2 ;; esac
         |done
         |[ "${d}target" != auto ] || { printf '%s\n' 'Choose a target language (for example: ja or en)' >&2; exit 2; }
-        |command -v trans >/dev/null 2>&1 || { printf '%s\n' '$missing' >&2; exit 127; }
+        |command -v trans >/dev/null 2>&1 || { printf '%s\n' '$missing' >&2; translation_setup >&2; exit 127; }
         |# Keep text out of option parsing, shell evaluation, startup scripts, pagers and audio.
         |unset SOURCE_LANG TARGET_LANG
         |set -- -no-init -brief -no-ansi -no-bidi -no-play -no-browser -no-pager -t "${d}target"

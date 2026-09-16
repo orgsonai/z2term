@@ -42,7 +42,7 @@ class RemindScriptTest {
      */
     private fun runTraced(lang: String, fakes: Boolean, vararg args: String,
                           at: String? = null, zone: String = "Asia/Tokyo",
-                          answers: List<String>? = null): Triple<Int, String, String> {
+                          answers: List<String>? = null, locale: String? = null): Triple<Int, String, String> {
         val f = File.createTempFile("remind", ".sh").apply { writeText(script(lang)) }
         val home = File.createTempFile("remind-home", "").apply { delete(); mkdirs() }
         val bin = File(home, "bin").apply { mkdirs() }
@@ -79,6 +79,7 @@ class RemindScriptTest {
             val pb = ProcessBuilder(listOf(sh!!, f.absolutePath) + args).redirectErrorStream(true)
             pb.environment()["HOME"] = home.absolutePath
             if (at != null) pb.environment()["TZ"] = zone
+            if (locale != null) pb.environment()["LC_ALL"] = locale
             // ⚠ **PATH は毎回組み直す。継承してはいけない。**
             // このテストの前提は「z2-* がどこにも無い環境」だが、z2term のディストロの中で
             // 回すと **/usr/local/bin に本物の z2-* が居る** (開発環境がそれ自身)。継承すると
@@ -123,8 +124,8 @@ class RemindScriptTest {
         block(out, before, after)
     }
 
-    private fun assertOnce(at: String, target: String, vararg whenWords: String, zone: String = "Asia/Tokyo") {
-        val (code, output, trace) = runTraced("ja", true, *whenWords, "本文", at = at, zone = zone)
+    private fun assertOnce(at: String, target: String, vararg whenWords: String, zone: String = "Asia/Tokyo", locale: String? = null) {
+        val (code, output, trace) = runTraced("ja", true, *whenWords, "本文", at = at, zone = zone, locale = locale)
         assertEquals("${whenWords.toList()}: $output", 0, code)
         val tz = java.time.ZoneId.of(zone)
         val from = java.time.LocalDateTime.parse(at).atZone(tz)
@@ -158,6 +159,13 @@ class RemindScriptTest {
         assertOnce("2026-09-16T12:00:00", "2026-09-19T12:00:00", "土曜日")
         assertOnce("2026-09-19T12:00:00", "2026-09-26T12:00:00", "土曜日")
         assertOnce("2026-12-31T22:00:00", "2027-01-01T07:00:00", "金曜日の朝七時")
+    }
+
+    $Test fun weekdayNamesWorkWithByteOrientedShellPatterns() {
+        assumeTrue(sh != null)
+        val dates = listOf("日" to "20", "月" to "21", "火" to "22", "水" to "16", "木" to "17", "金" to "18", "土" to "19")
+        for ((day, date) in dates)
+            assertOnce("2026-09-16T12:00:00", "2026-09-${date}T21:00:00", "${day}曜日の夜九時", locale = "C")
     }
 
     @Test fun `曜日の現地時刻は夏時間の切替でもずれない`() {

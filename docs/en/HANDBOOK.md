@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.612-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.614-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -898,7 +898,13 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
-**0.8.612-alpha (versionCode 620) — build unverified**: The Linux engine now handles fd, cwd, namespace and memory-map magic links without interpreting their descriptions as filenames. This targets pipes, anonymous files, unlinked open files and working directories, and indirect executable references. Translation forms and mini terminals also receive outside long presses to open settings. Outside taps and Back keep these panels open; the panel captures outside touches. Verification on the updated device is pending.
+**0.8.614-alpha (versionCode 622) — build unverified**: The Linux engine now handles fd, cwd, namespace and memory-map magic links without interpreting their descriptions as filenames. This targets pipes, anonymous files, unlinked open files and working directories, and indirect executable references. Translation forms and mini terminals also receive outside long presses to open settings. Outside taps and Back keep these panels open; the panel captures outside touches. When the translation CLI is missing, the wrapper prints manual installation commands for the current distribution. Also fixes the translation macro icon mapping and Japanese weekday/clock parsing in byte-oriented shells and locales. Verification on the updated device is pending.
+
+**0.8.613-alpha (versionCode 621)**: Horizontal flicks over terminal and translation results switch tabs while vertical drags still scroll output. Up/Down in the mini terminal recall the regular shell history. The action-row ≡ button opens existing snippets for selection, registration, editing and deletion, using the same data as the main app. Selection inserts a command; Run executes it.
+
+**0.8.612-alpha (versionCode 620)**: Edge-panel tabs and Close keep the same position across pages, without switching window geometry. Mini-terminal input sits at the bottom; blank labels omit headings. Terminal and translation results scroll inside their result boxes, and the persistent help text is removed. Items can be deleted directly from the list, preserving its scroll position.
+
+Use Delete on each item row and confirm there; opening the item editor is unnecessary. Deletion preserves the list scroll position and keeps note files. Panels with tabs share their configured height so content length cannot shift the tab row.
 
 **0.8.611-alpha (versionCode 619)**: Edge panels support independent argument boxes, macro actions and result boxes. Bind text, choices or fixed values in argument order; clear, copy or stop results. A translation template uses the same form mechanism. Users install the translation CLI themselves; no SDK, model or automatic download is added to the APK. [Usage](EDGE-MACRO-FORMS.md).
 

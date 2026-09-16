@@ -739,8 +739,19 @@ object EdgeRuntime {
         val root = panels.firstOrNull { id in it.tabs } ?: requested
         val active = tabId ?: if (root.id != id) id else selectedTabs[root.id]
         val panel = panels.firstOrNull { it.id == active && (it.id == root.id || it.id in root.tabs) } ?: root
-        val terminalMode = !settings && panel.items.any { it.type in setOf("terminal", "macro", "argument", "result") }
+        val terminalMode = !settings && panel.items.any { it.type in EdgePanelLayout.interactiveTypes }
+        val stablePanelSize = !settings && EdgePanelLayout.bounded(root, panels)
+        val showTabBar = settings || root.fields["tabbar"] == "on" ||
+            (root.fields["tabbar"] == "auto" && root.tabs.isNotEmpty())
+        val hasNavigation = showTabBar || root.tabs.isNotEmpty()
+        val wantsClose = !settings && (stablePanelSize || root.fields["close"] == "on")
+        val panelTitle = root.fields["label"].orEmpty().takeIf { root.fields["title"] == "on" }.orEmpty()
+        val inlineClose = wantsClose && !hasNavigation && panelTitle.isBlank() &&
+            panel.items.any { it.type in setOf("terminal", "macro", "result") }
+        val closeAction: () -> Unit = { editorSession?.leave { close() } ?: close() }
         val existingWindow = panelView
+        val previousTabScroll = if (openRootId == root.id && editingItems == settings)
+            existingWindow?.findViewWithTag<android.widget.HorizontalScrollView>("edge-tabs")?.scrollX ?: 0 else 0
         clearPanel(keepWindow = existingWindow != null)
         val session = EdgeEditorSession(ui())
         editorSession = session
@@ -750,7 +761,8 @@ object EdgeRuntime {
         openRootId = root.id
         openId = panel.id
         if (!settings && panel.items.any { it.type in setOf("macro", "argument", "result") })
-            macroForm = EdgeMacroUi(ui(), panel, runner!!)
+            macroForm = EdgeMacroUi(ui(), panel, runner!!,
+                closeAction.takeIf { inlineClose && panel.items.none { item -> item.type == "terminal" } })
         try {
             val (width, height) = screenSize()
             val density = windowContext!!.resources.displayMetrics.density
@@ -760,7 +772,7 @@ object EdgeRuntime {
             val body = object : LinearLayout(ui()) {
                 override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
                     val limit = minOf(panelHeight, View.MeasureSpec.getSize(heightMeasureSpec))
-                    super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(limit, if (settings || terminalMode || root.fields["fit"] == "fixed") View.MeasureSpec.EXACTLY else View.MeasureSpec.AT_MOST))
+                    super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(limit, if (settings || stablePanelSize || root.tabs.isNotEmpty() || root.fields["fit"] == "fixed") View.MeasureSpec.EXACTLY else View.MeasureSpec.AT_MOST))
                 }
             }.apply {
                 orientation = LinearLayout.VERTICAL; isClickable = true
@@ -794,13 +806,11 @@ object EdgeRuntime {
                         FrameLayout.LayoutParams(-1, dp(1).coerceAtLeast(1), Gravity.BOTTOM))
                     addView(navigation, FrameLayout.LayoutParams(-1, -2))
                 }, LinearLayout.LayoutParams(-1, -2))
-            } else {
+            } else if (panelTitle.isNotBlank()) {
                 val header = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL }
-                if (root.fields["title"] == "on") header.addView(text(root.fields["label"] ?: root.id)
-                    .apply { setTypeface(null, Typeface.BOLD) }, LinearLayout.LayoutParams(0, -2, 1f))
-                if (terminalMode || root.fields["close"] == "on") header.addView(EdgeEditorUi.button(ui(),
-                    app!!.getString(R.string.edge_close)) { session.leave { close() } })
-                if (header.childCount > 0) body.addView(header)
+                header.addView(text(panelTitle).apply { setTypeface(null, Typeface.BOLD) }, LinearLayout.LayoutParams(0, -2, 1f))
+                if (wantsClose && !hasNavigation) header.addView(EdgePanelControls.close(ui(), closeAction))
+                body.addView(header)
             }
             val tabs = LinearLayout(ui()).apply {
                 gravity = Gravity.CENTER_VERTICAL
@@ -814,7 +824,11 @@ object EdgeRuntime {
                 }
                 tabs.addView(
                     if (settings) EdgeSettingsUi.chip(ui(), name, childId == panel.id, select)
-                    else EdgeEditorUi.button(ui(), name, childId == panel.id, select),
+                    else EdgeEditorUi.button(ui(), name, childId == panel.id, select).apply {
+                        // Selection changes colour, not text metrics or neighbouring tab positions.
+                        setTypeface(null, Typeface.NORMAL)
+                        setSingleLine(true)
+                    },
                     LinearLayout.LayoutParams(-2, -2).apply { if (settings) rightMargin = dp(8) })
             }
             val tabEntry = LinearLayout(ui()).apply {
@@ -838,16 +852,22 @@ object EdgeRuntime {
             }.apply {
                 textSize = 13f; minHeight = dp(36); minimumHeight = dp(36); setPadding(dp(12), 0, dp(12), 0)
             })
-            val showTabBar = settings || root.fields["tabbar"] == "on" ||
-                (root.fields["tabbar"] == "auto" && root.tabs.isNotEmpty())
+            val navigation = LinearLayout(ui()).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                tag = "edge-navigation"
+            }
             if (showTabBar) {
-                body.addView(android.widget.HorizontalScrollView(ui()).apply {
+                navigation.addView(android.widget.HorizontalScrollView(ui()).apply {
+                    tag = "edge-tabs"
                     isHorizontalScrollBarEnabled = false; addView(tabs)
-                })
-                if (settings) body.addView(EdgeSettingsUi.hairline(ui()))
+                    var restored = false
+                    addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                        if (!restored) { restored = true; scrollTo(previousTabScroll, 0) }
+                    }
+                }, LinearLayout.LayoutParams(0, -2, 1f))
             } else if (root.tabs.isNotEmpty()) {
                 val choices = (listOf(root.id) + root.tabs).map { id -> panels.first { it.id == id } }
-                body.addView(android.widget.Spinner(ui()).apply {
+                navigation.addView(android.widget.Spinner(ui()).apply {
                     contentDescription = app!!.getString(R.string.edge_select_tab)
                     adapter = android.widget.ArrayAdapter(ui(), android.R.layout.simple_spinner_dropdown_item,
                         choices.map { it.fields["label"] ?: it.id })
@@ -860,7 +880,12 @@ object EdgeRuntime {
                             if (selected != panel.id) runCatching { open(root.id, tabId = selected) }.onFailure { fail(it) }
                         }
                     }
-                }, LinearLayout.LayoutParams(-1, -2))
+                }, LinearLayout.LayoutParams(0, -2, 1f))
+            }
+            if (hasNavigation) {
+                if (wantsClose) navigation.addView(EdgePanelControls.close(ui(), closeAction))
+                body.addView(navigation)
+                if (settings) body.addView(EdgeSettingsUi.hairline(ui()))
             }
             if (settings) {
                 session.track(tabName) { tabName.text.isNotEmpty() }
@@ -930,16 +955,26 @@ object EdgeRuntime {
                     reload(app!!)
                 }.onFailure { fail(it) } }
             })
+            if (!settings && wantsClose && !hasNavigation && panelTitle.isBlank() && !inlineClose)
+                tools.addView(EdgePanelControls.close(ui(), closeAction))
+            if (!settings && hasNavigation && tools.childCount > 0)
+                navigation.addView(tools, (navigation.childCount - if (wantsClose) 1 else 0).coerceAtLeast(0))
+            val terminalOnly = !settings && panel.items.size == 1 && panel.items[0].type == "terminal"
+            val closeTerminal = panel.items.firstOrNull { it.type == "terminal" }?.id
+            fun terminalClose(item: EdgeStore.Item): (() -> Unit)? =
+                closeAction.takeIf { inlineClose && item.id == closeTerminal }
             val rows = LinearLayout(ui()).apply {
                 orientation = LinearLayout.VERTICAL
                 if (settings) setPadding(0, 0, 0, dp(24))
             }
-            val scroll = ScrollView(ui()).apply { isFillViewport = false; addView(rows) }
+            val scroll = ScrollView(ui()).apply { isFillViewport = false; tag = "edge-items-scroll" }
+            if (!terminalOnly) scroll.addView(rows)
             if (!settings) scroll.setOnLongClickListener {
                 runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }
                 true
             }
-            body.addView(scroll, LinearLayout.LayoutParams(-1, if (settings) 0 else -2, 1f))
+            body.addView(if (terminalOnly) rows else scroll,
+                LinearLayout.LayoutParams(-1, if (settings || terminalOnly) 0 else -2, 1f))
             if (!settings) rows.setOnLongClickListener {
                 runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }; true
             }
@@ -992,6 +1027,10 @@ object EdgeRuntime {
                     if (panel.items.isEmpty()) footnote(R.string.edge_empty)
                     footnote(R.string.edge_items_help)
                 }
+            } else if (terminalOnly) {
+                if (tools.parent == null && tools.childCount > 0) rows.addView(tools)
+                addItem(rows, panel.id, panel.items[0], fillSpace = true,
+                    inlineClose = terminalClose(panel.items[0]))
             } else if (flow == "grid") {
                 val columns = (root.fields["columns"]?.toIntOrNull()
                     ?: (panelWidth / dp(iconSize + 24).coerceAtLeast(1))).coerceIn(1, 16)
@@ -1003,21 +1042,22 @@ object EdgeRuntime {
                     group.forEach { item ->
                         val cell = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
                         line.addView(cell, LinearLayout.LayoutParams(0, -2, 1f))
-                        addItem(cell, panel.id, item, iconOnly, iconSize, horizontalOrder = true)
+                        addItem(cell, panel.id, item, iconOnly, iconSize, horizontalOrder = true, inlineClose = terminalClose(item))
                     }
                     repeat(columns - group.size) { line.addView(View(ui()), LinearLayout.LayoutParams(0, 1, 1f)) }
                 }
-                if (legacyGrid) panel.items.filter { it.type != "run" }.forEach { addItem(rows, panel.id, it, labels == "off", iconSize) }
+                if (legacyGrid) panel.items.filter { it.type != "run" }.forEach { addItem(rows, panel.id, it, labels == "off", iconSize, inlineClose = terminalClose(it)) }
             } else if (flow == "horizontal") {
                 val line = LinearLayout(ui())
                 rows.addView(android.widget.HorizontalScrollView(ui()).apply { addView(line) })
                 panel.items.forEach { item ->
                     val cell = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
                     line.addView(cell, LinearLayout.LayoutParams(if (item.type == "run" && iconOnly) dp(iconSize + 24) else dp(240), -2))
-                    addItem(cell, panel.id, item, iconOnly, iconSize, horizontalOrder = true)
+                    addItem(cell, panel.id, item, iconOnly, iconSize, horizontalOrder = true, inlineClose = terminalClose(item))
                 }
-            } else panel.items.forEach { addItem(rows, panel.id, it, iconOnly, iconSize) }
-            if (!settings && tools.childCount > 0) rows.addView(tools)
+            } else panel.items.forEach { addItem(rows, panel.id, it, iconOnly, iconSize,
+                inlineClose = terminalClose(it)) }
+            if (!settings && tools.parent == null && tools.childCount > 0) rows.addView(tools)
             rows.setOnDragListener { _, event ->
                 val drag = event.localState as? ItemDrag
                 if (drag?.panel != panel.id) false else {
@@ -1030,6 +1070,7 @@ object EdgeRuntime {
                 }
             }
             val overlay = (existingWindow ?: EdgePanelWindow(ui())).apply {
+                outside = { if (!terminalMode) session.leave { close() } }
                 back = { if (!terminalMode) session.leave { if (settings) open(root.id, tabId = panel.id) else close() } }
                 swipeArea = if (settings || root.tabs.isEmpty()) null else body
                 horizontalTabSwipe = flow != "horizontal"
@@ -1048,7 +1089,7 @@ object EdgeRuntime {
                 contentAlignment?.let { removeOnLayoutChangeListener(it) }
                 removeAllViews()
             }
-            overlay.addView(body, FrameLayout.LayoutParams(if (settings) -1 else panelWidth, if (terminalMode) -1 else -2).apply {
+            overlay.addView(body, FrameLayout.LayoutParams(if (settings) -1 else panelWidth, if (stablePanelSize) -1 else -2).apply {
                 val position = if (settings) 0f to 0f else EdgePanelPosition.fractions(root.fields)
                 gravity = Gravity.TOP or Gravity.LEFT
                 // Use measured content size, including changes when the keyboard appears.
@@ -1060,8 +1101,8 @@ object EdgeRuntime {
                 overlay.contentAlignment = align
                 overlay.addOnLayoutChangeListener(align)
             })
-            // Keep receiving the full outside gesture, including long presses, for every
-            // panel type. ACTION_OUTSIDE alone cannot distinguish a tap from a long press.
+            // Every panel receives complete outside gestures, including long presses.
+            // Keep the configured body size consistent across all tabs inside this window.
             val p = params(-1, -1, focus = true).apply {
                 flags = flags and (WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH).inv()
@@ -1072,8 +1113,9 @@ object EdgeRuntime {
             }
             // Register before adding so every failure path can remove the touch-blocking window.
             panelView = overlay
-            // Bottom padding from IME insets keeps the body above the keyboard.
-            overlay.setPadding(0, 0, 0, 0)
+            // Keep the window frame and navigation anchored. IME overlap consumes content
+            // space at the bottom, without moving or repeatedly resizing the window itself.
+            if (existingWindow == null) overlay.setPadding(0, 0, 0, 0)
             if (existingWindow == null) wm().addView(overlay, p) else wm().updateViewLayout(overlay, p)
             overlay.requestFocus()
             overlay.requestApplyInsets()
@@ -1150,7 +1192,8 @@ object EdgeRuntime {
             background = EdgeSettingsUi.ripple(ui(), null)
         }
         addIcon(heading, item.fields["icon"] ?: pkg?.let { "@app:$it" } ?: "≡", 32)
-        val name = item.fields["label"] ?: item.id
+        val name = item.fields["label"]?.takeIf { it.isNotBlank() }
+            ?: app!!.getString(EdgeSettingsUi.typeLabel(item.type))
         // Name over kind: two items called the same still read apart.
         heading.addView(LinearLayout(ui()).apply {
             orientation = LinearLayout.VERTICAL
@@ -1180,6 +1223,14 @@ object EdgeRuntime {
     private fun addItemEditControls(row: LinearLayout, heading: LinearLayout, panelId: String, item: EdgeStore.Item) {
         val items = panels.first { it.id == panelId }.items
         val index = items.indexOfFirst { it.id == item.id }
+        fun removeItem() {
+            val scrollY = panelView?.findViewWithTag<ScrollView>("edge-items-scroll")?.scrollY ?: 0
+            store(app!!).removeItem("$panelId:${item.id}")
+            reload(app!!)
+            panelView?.findViewWithTag<ScrollView>("edge-items-scroll")?.let { scroll ->
+                scroll.post { scroll.scrollTo(0, scrollY) }
+            }
+        }
         val details = LinearLayout(ui()).apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE
             setBackgroundColor(EdgeSettingsUi.surface(ui()))
@@ -1190,10 +1241,34 @@ object EdgeRuntime {
             details.addView(EdgeItemEditor.create(ui(), panelId, item, store(app!!),
                 beforeSave = { saveNotes() }, saved = { reload(app!!) }, expanded = true,
                 cancelled = { details.removeAllViews(); details.visibility = View.GONE },
-                onDelete = { store(app!!).removeItem("$panelId:${item.id}"); reload(app!!) }, session = editorSession!!))
+                onDelete = ::removeItem, session = editorSession!!))
             details.visibility = View.VISIBLE
         }
         heading.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_edit), action = ::edit))
+        val confirmDelete = LinearLayout(ui()).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            tag = "edge-delete-confirm:${item.id}"
+            setPadding(dp(EdgeSettingsUi.GUTTER), dp(8), dp(EdgeSettingsUi.GUTTER), dp(8))
+        }
+        val itemName = item.fields["label"]?.takeIf { it.isNotBlank() }
+            ?: app!!.getString(EdgeSettingsUi.typeLabel(item.type))
+        confirmDelete.addView(EdgeSettingsUi.body(ui(), app!!.getString(R.string.edge_delete_item_warning, itemName)))
+        val choices = EdgeSettingsUi.row(ui())
+        choices.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_delete), EdgeSettingsUi.Kind.DANGER) {
+            editorSession?.leave { runCatching(::removeItem).onFailure { fail(it) } }
+        }.apply { tag = "edge-delete-accept:${item.id}" }, LinearLayout.LayoutParams(0, -2, 1f))
+        choices.addView(EdgeSettingsUi.button(ui(), app!!.getString(android.R.string.cancel)) {
+            confirmDelete.visibility = View.GONE
+        }.apply { tag = "edge-delete-cancel:${item.id}" }, LinearLayout.LayoutParams(0, -2, 1f))
+        confirmDelete.addView(choices)
+        heading.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_delete), EdgeSettingsUi.Kind.DANGER) {
+            confirmDelete.visibility = if (confirmDelete.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }.apply {
+            tag = "edge-delete:${item.id}"
+            contentDescription = "${app!!.getString(R.string.edge_delete)}: $itemName"
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+        })
         listOf(-1 to R.string.edge_move_up, 1 to R.string.edge_move_down).forEach { (delta, label) ->
             heading.addView(EdgeSettingsUi.iconButton(ui(), if (delta < 0) "↑" else "↓") {
                 editorSession?.leave { runCatching {
@@ -1211,6 +1286,7 @@ object EdgeRuntime {
                 alpha = if (isEnabled) 1f else 0.3f
             }, LinearLayout.LayoutParams(dp(40), dp(40)))
         }
+        row.addView(confirmDelete)
         row.addView(details)
         heading.setOnClickListener { edit() }
         heading.setOnLongClickListener { it.startDragAndDrop(null, View.DragShadowBuilder(it), ItemDrag(panelId, item.id), 0) }
@@ -1258,23 +1334,24 @@ object EdgeRuntime {
         }
     }
 
-    private fun addItem(rows: LinearLayout, panelId: String, item: EdgeStore.Item, iconOnly: Boolean = false, iconSize: Int = 40, horizontalOrder: Boolean = false) {
+    private fun addItem(rows: LinearLayout, panelId: String, item: EdgeStore.Item, iconOnly: Boolean = false, iconSize: Int = 40, horizontalOrder: Boolean = false,
+        fillSpace: Boolean = false, inlineClose: (() -> Unit)? = null) {
         val target = "$panelId:${item.id}"
         val row = LinearLayout(ui()).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(8), dp(4), dp(8), dp(8))
         }
         val title = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL }
         val pkg = packageFrom(item.command)
-        val label = if (item.type == "note") item.fields["label"].orEmpty() else item.fields["label"] ?: pkg?.let { runCatching {
+        val label = EdgePanelLayout.label(item, pkg?.let { runCatching {
             val pm = app!!.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(it, 0)).toString()
-        }.getOrNull() } ?: item.id
-        val showNoteTitle = item.type != "note" || label.isNotBlank()
-        if (showNoteTitle) addIcon(title, item.fields["icon"] ?: pkg?.let { "@app:$it" } ?: if (iconOnly) label.take(1) else null, iconSize)
+        }.getOrNull() })
+        val showTitle = label.isNotBlank()
+        if (showTitle || item.type == "run") addIcon(title, item.fields["icon"] ?: pkg?.let { "@app:$it" } ?: if (iconOnly) label.take(1) else null, iconSize)
         title.minimumHeight = dp(48)
         title.contentDescription = label
         title.tooltipText = label
         if (iconOnly) title.gravity = Gravity.CENTER
-        else if (showNoteTitle) title.addView(text(label, 15f), LinearLayout.LayoutParams(0, -2, 1f))
+        else if (showTitle) title.addView(text(label, 15f), LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(title)
         enableMenuDrop(row, panelId, item.id, horizontalOrder)
         if (Regex("^z2-key\\s+(back|recents|shade|quicksettings|screenshot|split)\\s*$")
@@ -1367,9 +1444,9 @@ object EdgeRuntime {
                 render(values[target].orEmpty())
             }
             "terminal" -> {
-                val terminal = EdgeTerminalUi(ui(), label)
+                val terminal = EdgeTerminalUi(ui(), label, fillSpace, inlineClose)
                 terminals.add(terminal)
-                row.addView(terminal, LinearLayout.LayoutParams(-1, -2))
+                row.addView(terminal, if (fillSpace) LinearLayout.LayoutParams(-1, 0, 1f) else LinearLayout.LayoutParams(-1, -2))
             }
             "note" -> {
                 runCatching {
@@ -1463,8 +1540,8 @@ object EdgeRuntime {
             renderers[target] = { result.text = it; result.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE }
         }
         row.addView(status)
-        rows.addView(row)
-        if (!iconOnly) rows.addView(EdgeEditorUi.divider(ui()).apply {
+        rows.addView(row, if (fillSpace) LinearLayout.LayoutParams(-1, 0, 1f) else LinearLayout.LayoutParams(-1, -2))
+        if (!iconOnly && !fillSpace) rows.addView(EdgeEditorUi.divider(ui()).apply {
             layoutParams = LinearLayout.LayoutParams(-1, dp(1).coerceAtLeast(1)).apply {
                 marginStart = dp(12); marginEnd = dp(12)
             }

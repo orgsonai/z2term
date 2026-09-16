@@ -2597,7 +2597,8 @@ $cEvery
   esac
 
   case ${d}w1 in
-    [日月火水木金土]曜日*|[日月火水木金土]曜*|日|月|火|水|木|金|土|sun|mon|tue|wed|thu|fri|sat)
+    # Spell out multibyte prefixes: byte-oriented sh/locale patterns cannot match [日月…].
+    日曜*|月曜*|火曜*|水曜*|木曜*|金曜*|土曜*|日|月|火|水|木|金|土|sun|mon|tue|wed|thu|fri|sat)
                       KIND=once; USED=1
                       case ${d}w1 in
                         *曜日*) downame=${d}{w1%%曜日*}; hhmm=${d}{w1#*曜日} ;;
@@ -2792,10 +2793,10 @@ clock_hhmm() {
     {
       if (NR != 1) exit 1
       s = ${d}0; period = ""; gsub(/：/, ":", s)
-      if (sub(/^午前の?/, "", s)) period = "am"
-      else if (sub(/^午後の?/, "", s)) period = "pm"
-      else if (sub(/^朝の?/, "", s)) period = "morning"
-      else if (sub(/^夜の?/, "", s)) period = "night"
+      if (sub(/^午前(の)?/, "", s)) period = "am"
+      else if (sub(/^午後(の)?/, "", s)) period = "pm"
+      else if (sub(/^朝(の)?/, "", s)) period = "morning"
+      else if (sub(/^夜(の)?/, "", s)) period = "night"
       gsub(/０|〇|零/, "0", s); gsub(/１|一/, "1", s); gsub(/２|二/, "2", s)
       gsub(/３|三/, "3", s); gsub(/４|四/, "4", s); gsub(/５|五/, "5", s)
       gsub(/６|六/, "6", s); gsub(/７|七/, "7", s); gsub(/８|八/, "8", s); gsub(/９|九/, "9", s)

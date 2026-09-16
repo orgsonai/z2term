@@ -14,4 +14,5 @@
     <string name="edge_terminal_ended">Ended · next run starts a new session</string>
     <string name="edge_terminal_truncated">Showing the last 64 KiB characters</string>
     <string name="edge_terminal_help">Close ends this session. Use nohup or detached tmux/screen to keep jobs running. Interactive programs belong in a terminal tab.</string>
+    <string name="edge_terminal_one_line_required">The mini terminal accepts one-line commands up to 16,384 characters. Use a regular terminal for multi-line snippets.</string>
 </resources>

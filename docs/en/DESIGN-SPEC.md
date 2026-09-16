@@ -1,8 +1,12 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-17 / Target version: 0.8.612-alpha (versionCode 620)
+Last updated: 2026-09-17 / Target version: 0.8.614-alpha (versionCode 622)
 
-**0.8.612-alpha (versionCode 620) — build unverified**: The Linux engine now handles fd, cwd, namespace and memory-map magic links without interpreting their descriptions as filenames. This targets pipes, anonymous files, unlinked open files and working directories, and indirect executable references. Translation forms and mini terminals also receive outside long presses to open settings. Outside taps and Back keep these panels open; the panel captures outside touches. Verification on the updated device is pending.
+**0.8.614-alpha (versionCode 622) — build unverified**: The Linux engine now handles fd, cwd, namespace and memory-map magic links without interpreting their descriptions as filenames. This targets pipes, anonymous files, unlinked open files and working directories, and indirect executable references. Translation forms and mini terminals also receive outside long presses to open settings. Outside taps and Back keep these panels open; the panel captures outside touches. When the translation CLI is missing, the wrapper prints manual installation commands for the current distribution. Also fixes the translation macro icon mapping and Japanese weekday/clock parsing in byte-oriented shells and locales. Verification on the updated device is pending.
+
+**0.8.613-alpha (versionCode 621)**: Horizontal flicks over terminal and translation results switch tabs while vertical drags still scroll output. Up/Down in the mini terminal recall the regular shell history. The action-row ≡ button opens existing snippets for selection, registration, editing and deletion, using the same data as the main app. Selection inserts a command; Run executes it.
+
+**0.8.612-alpha (versionCode 620)**: Edge-panel tabs and Close keep the same position across pages, without switching window geometry. Mini-terminal input sits at the bottom; blank labels omit headings. Terminal and translation results scroll inside their result boxes, and the persistent help text is removed. Items can be deleted directly from the list, preserving its scroll position.
 
 **0.8.611-alpha (versionCode 619)**: Edge panels support independent argument boxes, macro actions and result boxes. Bind text, choices or fixed values in argument order; clear, copy or stop results. A translation template uses the same form mechanism. Users install the translation CLI themselves; no SDK, model or automatic download is added to the APK. [Usage](EDGE-MACRO-FORMS.md).
 
@@ -1532,7 +1536,7 @@ If `libz2root.so` is not bundled (`scripts/build-z2root.sh` was not run), startu
 
 ##### Path translation
 
-**Shared magic-link handling (0.8.612; build unverified)**: `fd/<n>`, `cwd`, `ns/<kind>` and `map_files/<range>` under `/proc/<pid>` or `/proc/<pid>/task/<tid>` refer to kernel objects. Final references are left for the kernel; `pipe:[…]`, `socket:[…]`, `anon_inode:…` and ` (deleted)` are not interpreted as filenames. Paths following ordinary directory references still use guest path resolution. `root` retains the existing guest-root mapping; indirect symlinks and the current task's `task/<tid>` references to `exe` use the recorded guest executable. Relative paths from an unlinked cwd also retain the kernel reference. Run `python scripts/z2root-proc-links-test.py` inside the guest without compilation or network access. The old engine reproduces these failures; verification with the updated engine is pending.
+**Shared magic-link handling (0.8.614; build unverified)**: `fd/<n>`, `cwd`, `ns/<kind>` and `map_files/<range>` under `/proc/<pid>` or `/proc/<pid>/task/<tid>` refer to kernel objects. Final references are left for the kernel; `pipe:[…]`, `socket:[…]`, `anon_inode:…` and ` (deleted)` are not interpreted as filenames. Paths following ordinary directory references still use guest path resolution. `root` retains the existing guest-root mapping; indirect symlinks and the current task's `task/<tid>` references to `exe` use the recorded guest executable. Relative paths from an unlinked cwd also retain the kernel reference. Run `python scripts/z2root-proc-links-test.py` inside the guest without compilation or network access. The old engine reproduces these failures; verification with the updated engine is pending.
 
 Hardened to proot parity.
 

@@ -80,6 +80,17 @@ jobs:
       - name: Unit tests
         run: bash scripts/gw.sh testDebugUnitTest --stacktrace
 
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: z2term-unit-test-reports
+          path: |
+            app/build/reports/tests/testDebugUnitTest/
+            app/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         if: success()

@@ -205,7 +205,8 @@ object EdgeItemEditor {
                     // Preserve hidden values; only visible fields are edited.
                     if (groups.getValue(key).visibility == View.VISIBLE) {
                         val value = if (key in setOf("note-background", "note-color")) entry.text.toString().trim() else entry.text.toString()
-                        if (value.isEmpty()) values.remove(key) else values[key] = value
+                        if (key == "label") values[key] = value.trim()
+                        else if (value.isEmpty()) values.remove(key) else values[key] = value
                     }
                 }
                 if (appCommand != null && AppLaunchCommand.packageFrom(values["run"].orEmpty()) != null) {
@@ -213,8 +214,6 @@ object EdgeItemEditor {
                     values["run"] = if (launchMode == "freeform")
                         AppLaunchCommand.withFreeformScale(modeCommand, scaleFreeform) else modeCommand
                 }
-                if (item == null && values["type"] != "note" && values["label"].isNullOrBlank())
-                    values["label"] = context.getString(R.string.edge_custom_slot)
                 EdgeStore.validateItem(values)
                 session.leave(except = outer) {
                     runCatching {

@@ -42,7 +42,7 @@ class EdgeTerminalWindowTest {
             assertTrue(block())
         }
         fun text(view: View, value: String): View? {
-            if (view is TextView && view.text.toString() == value) return view
+            if (view.contentDescription == value || view is TextView && view.text.toString() == value) return view
             if (view is ViewGroup) for (i in 0 until view.childCount) text(view.getChildAt(i), value)?.let { return it }
             return null
         }
