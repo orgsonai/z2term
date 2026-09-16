@@ -4,7 +4,7 @@ import android.content.Context
 import android.view.MotionEvent
 import android.widget.ScrollView
 
-/** A result owns its drag, including at the ends; neither the outer list nor tabs take it. */
+/** Keep result scrolling inside this view; EdgePanelWindow still observes horizontal tab flicks. */
 @android.annotation.SuppressLint("ViewConstructor")
 internal class EdgeResultScrollView(context: Context) : ScrollView(context) {
     init {

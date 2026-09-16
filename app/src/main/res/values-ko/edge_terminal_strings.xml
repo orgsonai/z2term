@@ -14,4 +14,5 @@
     <string name="edge_terminal_ended">종료됨 · 다음 실행은 새 세션</string>
     <string name="edge_terminal_truncated">최근 64K 문자 표시</string>
     <string name="edge_terminal_help">닫으면 세션을 종료합니다. 작업을 유지하려면 nohup 또는 tmux/screen 분리를 사용하세요. 대화형 프로그램은 일반 터미널 탭에서 사용하세요.</string>
+    <string name="edge_terminal_one_line_required">간이 터미널은 최대 16,384자의 한 줄 명령을 지원합니다. 여러 줄 스니펫은 일반 터미널에서 사용하세요.</string>
 </resources>

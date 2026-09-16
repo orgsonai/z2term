@@ -14,4 +14,5 @@
     <string name="edge_terminal_ended">Finalizada · la siguiente ejecución inicia otra sesión</string>
     <string name="edge_terminal_truncated">Se muestran los últimos 64K caracteres</string>
     <string name="edge_terminal_help">Cerrar termina la sesión. Para conservar procesos, usa nohup o tmux/screen desacoplado. Usa una pestaña de terminal para programas interactivos.</string>
+    <string name="edge_terminal_one_line_required">La miniterminal admite comandos de una línea de hasta 16.384 caracteres. Usa una terminal normal para fragmentos de varias líneas.</string>
 </resources>

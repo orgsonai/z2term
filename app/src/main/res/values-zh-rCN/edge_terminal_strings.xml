@@ -14,4 +14,5 @@
     <string name="edge_terminal_ended">已结束 · 下次运行将新建会话</string>
     <string name="edge_terminal_truncated">显示最近64K字符</string>
     <string name="edge_terminal_help">关闭即结束会话。要保留任务，请使用 nohup 或分离的 tmux/screen。交互程序请使用普通终端标签页。</string>
+    <string name="edge_terminal_one_line_required">简易终端支持最多16,384个字符的单行命令。多行代码片段请在普通终端中使用。</string>
 </resources>

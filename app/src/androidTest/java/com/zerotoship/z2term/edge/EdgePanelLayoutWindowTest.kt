@@ -90,40 +90,99 @@ class EdgePanelLayoutWindowTest {
         }
     }
 
-    @Test fun aResultDragScrollsInsideTheResultRatherThanThePageOrTabs() {
-        instrumentation.runOnMainSync {
-            val window = EdgePanelWindow(app)
-            val outer = ScrollView(app)
-            val rows = LinearLayout(app).apply { orientation = LinearLayout.VERTICAL }
-            val result = EdgeResultScrollView(app)
-            result.addView(TextView(app).apply {
+    private class ResultGestureFixture(app: android.content.Context, horizontalTabs: Boolean) {
+        val window = EdgePanelWindow(app)
+        val outer = ScrollView(app)
+        val rows = LinearLayout(app).apply { orientation = LinearLayout.VERTICAL }
+        val result = EdgeResultScrollView(app)
+        val tabs = mutableListOf<Boolean>()
+        var cancellations = 0
+        private var start = 0L
+        private val density = app.resources.displayMetrics.density
+        private fun dp(value: Int) = (value * density).toInt()
+
+        init {
+            result.addView(object : TextView(app) {
+                override fun onTouchEvent(event: MotionEvent): Boolean {
+                    if (event.actionMasked == MotionEvent.ACTION_CANCEL) cancellations++
+                    return super.onTouchEvent(event)
+                }
+            }.apply {
                 text = (1..200).joinToString("\n") { "Result line $it" }
                 setTextIsSelectable(true)
             })
-            rows.addView(result, LinearLayout.LayoutParams(400, 200))
-            rows.addView(View(app), LinearLayout.LayoutParams(400, 1200))
+            rows.addView(result, LinearLayout.LayoutParams(dp(400), dp(200)))
+            rows.addView(View(app), LinearLayout.LayoutParams(dp(400), dp(1200)))
             outer.addView(rows); window.addView(outer)
             window.swipeArea = rows
-            window.horizontalTabSwipe = false // Vertical drags would otherwise select another tab.
-            var tabChanges = 0
-            window.changeTab = { tabChanges++ }
-            window.measure(View.MeasureSpec.makeMeasureSpec(400, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(500, View.MeasureSpec.EXACTLY))
-            window.layout(0, 0, 400, 500)
-            val start = SystemClock.uptimeMillis()
-            fun touch(action: Int, y: Float, elapsed: Long) {
-                val event = MotionEvent.obtain(start, start + elapsed, action, 100f, y, 0)
-                window.dispatchTouchEvent(event); event.recycle()
+            window.horizontalTabSwipe = horizontalTabs
+            window.changeTab = { tabs.add(it) }
+            window.measure(View.MeasureSpec.makeMeasureSpec(dp(400), View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(dp(500), View.MeasureSpec.EXACTLY))
+            window.layout(0, 0, dp(400), dp(500))
+        }
+
+        fun touch(action: Int, x: Float, y: Float, elapsed: Long) {
+            if (action == MotionEvent.ACTION_DOWN) start = SystemClock.uptimeMillis()
+            val event = MotionEvent.obtain(start, start + elapsed, action, x * density, y * density, 0)
+            window.dispatchTouchEvent(event); event.recycle()
+        }
+    }
+
+    @Test fun verticalResultDragScrollsInsideTheResultInEitherPanelLayout() {
+        instrumentation.runOnMainSync {
+            for (horizontalTabs in listOf(true, false)) {
+                val f = ResultGestureFixture(app, horizontalTabs)
+                f.touch(MotionEvent.ACTION_DOWN, 100f, 180f, 0)
+                f.touch(MotionEvent.ACTION_MOVE, 100f, 120f, 30)
+                f.touch(MotionEvent.ACTION_MOVE, 100f, 30f, 60)
+                f.touch(MotionEvent.ACTION_UP, 100f, 30f, 90)
+                assertTrue("The result must scroll", f.result.scrollY > 0)
+                assertEquals(0, f.outer.scrollY)
+                assertTrue(f.tabs.isEmpty())
+                f.result.scrollTo(0, Int.MAX_VALUE)
+                assertFalse("The final result line is reachable", f.result.canScrollVertically(1))
             }
-            touch(MotionEvent.ACTION_DOWN, 180f, 0)
-            touch(MotionEvent.ACTION_MOVE, 120f, 30)
-            touch(MotionEvent.ACTION_MOVE, 30f, 60)
-            touch(MotionEvent.ACTION_UP, 30f, 90)
-            assertTrue("The result must scroll", result.scrollY > 0)
-            assertEquals(0, outer.scrollY)
-            assertEquals(0, tabChanges)
-            result.scrollTo(0, Int.MAX_VALUE)
-            assertFalse("The final result line is reachable", result.canScrollVertically(1))
+        }
+    }
+
+    @Test fun horizontalResultFlicksSelectBothNeighbouringTabsWithoutScrolling() {
+        instrumentation.runOnMainSync {
+            for (horizontalTabs in listOf(true, false)) {
+                val f = ResultGestureFixture(app, horizontalTabs)
+                for ((from, to) in listOf(300f to 100f, 100f to 300f)) {
+                    f.touch(MotionEvent.ACTION_DOWN, from, 100f, 0)
+                    f.touch(MotionEvent.ACTION_MOVE, (from + to) / 2, 100f, 30)
+                    f.touch(MotionEvent.ACTION_MOVE, to, 100f, 60)
+                    f.touch(MotionEvent.ACTION_UP, to, 100f, 90)
+                }
+                assertEquals(listOf(true, false), f.tabs)
+                assertEquals("Each tab gesture cancels the result's touch", 2, f.cancellations)
+                assertEquals(0, f.outer.scrollY)
+                assertEquals(0, f.result.scrollY)
+            }
+        }
+    }
+
+    @Test fun verticalStartLongPressAndCancelledFlickDoNotChangeTabs() {
+        instrumentation.runOnMainSync {
+            val f = ResultGestureFixture(app, true)
+            val slop = android.view.ViewConfiguration.get(app).scaledTouchSlop /
+                app.resources.displayMetrics.density + 1f
+            f.touch(MotionEvent.ACTION_DOWN, 300f, 100f, 0)
+            f.touch(MotionEvent.ACTION_MOVE, 300f, 100f - slop, 20)
+            f.touch(MotionEvent.ACTION_MOVE, 100f, 100f - slop, 40)
+            f.touch(MotionEvent.ACTION_UP, 100f, 100f - slop, 60)
+            assertTrue("A vertical scroll cannot turn into tab navigation", f.tabs.isEmpty())
+            val held = android.view.ViewConfiguration.getLongPressTimeout().toLong() + 1
+            f.touch(MotionEvent.ACTION_DOWN, 300f, 100f, 0)
+            f.touch(MotionEvent.ACTION_MOVE, 100f, 100f, held)
+            f.touch(MotionEvent.ACTION_UP, 100f, 100f, held + 20)
+            assertTrue("Keep long presses for text selection", f.tabs.isEmpty())
+            f.touch(MotionEvent.ACTION_DOWN, 300f, 100f, 0)
+            f.touch(MotionEvent.ACTION_MOVE, 100f, 100f, 30)
+            f.touch(MotionEvent.ACTION_CANCEL, 100f, 100f, 60)
+            assertTrue(f.tabs.isEmpty())
         }
     }
 
