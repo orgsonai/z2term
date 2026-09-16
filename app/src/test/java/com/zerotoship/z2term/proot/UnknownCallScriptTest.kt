@@ -7,15 +7,9 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 着信サンプル (`unknown-call.sh`) の**発信者の見分け方**を実際の `sh` で確かめる。
- *
- * ⚠ ここが要 — このマクロの答えは「電話帳に無い相手か」の 1 点で、判定を誤ると
- * **電話帳にいる相手にまで通知が出る**。通知に出るのが名前か番号かで
- * 決めているので、名前側 (かな・漢字・英字) と番号側 (区切り記号入り・国番号付き) の
- * 両方を固定する。
- *
- * ⚠ 判定は `case` の `[!...]` で書けない (パターン中の `)` が `case` の区切りに読まれて
- * 構文エラーになる)。`sh -n` を通すテストで、その書き方に戻る退行も止める。
+ * 電話番号コピー通知の生成スクリプトを実際の sh で検証する。
+ * 電話帳の登録有無は判定しない。題名・本文のどちらに番号があっても拾い、
+ * 名前しか無ければ通知しない。番号の書式と POSIX sh の構文も確認する。
  */
 class UnknownCallScriptTest {
 
@@ -51,8 +45,8 @@ class UnknownCallScriptTest {
             pb.environment()["Z2_WHEN_NOTI_TEXT"] = text
             pb.environment()["Z2_WHEN_NOTI_CATEGORY"] = category
             val p = pb.start()
-            p.inputStream.bufferedReader().readText()
-            p.waitFor()
+            val output = p.inputStream.bufferedReader().readText()
+            assertEquals("unknown-call.sh failed: $output", 0, p.waitFor())
             return if (trace.exists()) trace.readText() else ""
         } finally {
             f.delete()
@@ -61,9 +55,9 @@ class UnknownCallScriptTest {
     }
 
     @Test
-    fun `両言語とも POSIX sh として構文が通る`() {
+    fun `全言語とも POSIX sh として構文が通る`() {
         assumeTrue("sh が無い環境なのでスキップ", sh != null)
-        for (lang in listOf("ja", "en")) {
+        for (lang in listOf("ja", "en", "zh-CN", "zh-TW", "es", "ko")) {
             val f = File.createTempFile("unknown-call", ".sh").apply { writeText(script(lang)) }
             try {
                 val p = ProcessBuilder(sh!!, "-n", f.absolutePath).redirectErrorStream(true).start()
@@ -76,7 +70,7 @@ class UnknownCallScriptTest {
     }
 
     @Test
-    fun `電話帳に無い番号は通知のコピーボタンで渡す`() {
+    fun `電話番号は通知のコピーボタンで渡す`() {
         assumeTrue("sh が無い環境なのでスキップ", sh != null)
         for (num in listOf("09012345678", "090-1234-5678", "+81 90-1234-5678", "(03) 1234-5678")) {
             val trace = run(title = num)
@@ -105,7 +99,7 @@ class UnknownCallScriptTest {
     }
 
     @Test
-    fun `電話帳にある相手は名前が出るので何もしない`() {
+    fun `名前しか通知されない場合はコピー通知を出さない`() {
         assumeTrue("sh が無い環境なのでスキップ", sh != null)
         for (name in listOf("山田太郎", "John Smith", "ヤマダ", "会社 (03-1234-5678)")) {
             val trace = run(title = name)
@@ -133,5 +127,32 @@ class UnknownCallScriptTest {
         val incomingNoti = incoming.lines().first { it.startsWith("z2-notify") }
         val missedNoti = missed.lines().first { it.startsWith("z2-notify") }
         assertTrue("着信と不在着信で文言が同じ: $incomingNoti", incomingNoti != missedNoti)
+    }
+    @Test
+    fun `登録名と番号が両方ある通知も番号をコピーできる`() {
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        for (lang in listOf("ja", "en", "zh-CN", "zh-TW", "es", "ko")) {
+            for (category in listOf("call", "missed_call")) {
+                for ((title, text) in listOf("山田太郎" to "090-1234-5678", "090-1234-5678" to "John Smith")) {
+                    val trace = run(lang, title, text, category)
+                    assertTrue("$lang / $category / $title / $text: $trace", trace.contains("-c 090-1234-5678"))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `通知の題名は未登録と断定せず電話番号のコピーを案内する`() {
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        for ((lang, label) in mapOf(
+            "ja" to "電話番号のコピー通知", "en" to "Copy phone number",
+            "zh-CN" to "复制电话号码", "zh-TW" to "複製電話號碼",
+            "es" to "Copiar número de teléfono", "ko" to "전화번호 복사"
+        )) {
+            for (category in listOf("call", "missed_call")) {
+                val trace = run(lang, title = "山田太郎", text = "090-1234-5678", category = category)
+                assertTrue("$lang / $category: $trace", trace.contains(": $label"))
+            }
+        }
     }
 }

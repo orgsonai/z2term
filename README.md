@@ -84,6 +84,10 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.608-alpha (versionCode 616)**: `z2-share --file` sends file contents through Android's share sheet. Incoming text and attachments are saved as one receipt, with an optional choice of registered snippets. Snippets can request text, numbers, choices and files, preview the command, then insert it for execution with Enter. [Sharing and command input guide](docs/en/SHARE-WORKFLOW.md).
+
+**0.8.607-alpha (versionCode 615)**: The call macro now describes its actual purpose: a notification to copy a phone number. It includes saved and unsaved callers whenever the title or body contains a bare number. The existing name `unknown-call` and automation rules remain compatible. Installed copies are not updated automatically: after updating the app, inspect `z2-macro diff unknown-call` and, if you have no custom edits to preserve, replace the copy with `z2-macro install -f unknown-call`.
+
 **0.8.606-alpha (versionCode 614)**: Added Korean, Spanish, Simplified Chinese and Traditional Chinese strings for foreground-screen automation, recording, gestures and placement, fixing missing-translation lint errors. Updated the public pages to the current version.
 
 **0.8.605-alpha (versionCode 613) — build not verified**: Action automation can record a whole sequence of taps, swipes and two-finger touches until stopped. Choose a recording surface or live recording through root. Only leading/trailing idle time is trimmed; pauses and timed paths are retained. Manual acceleration/deceleration, double tap, pinch in/out and two-finger swipe are also available. Place saved macros in Quick Settings tiles or edge panels. Device behavior is not verified.

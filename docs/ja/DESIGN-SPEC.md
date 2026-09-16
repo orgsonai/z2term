@@ -1,6 +1,10 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-15 / 対象バージョン: 0.8.606-alpha (versionCode 614)
+最終更新: 2026-09-16 / 対象バージョン: 0.8.608-alpha (versionCode 616)
+
+**0.8.608-alpha（versionCode 616）**: `z2-share --file` でファイル本体をAndroidの共有先へ送れます。受取は本文と添付を1件にまとめて保存し、登録したスニペットを処理として選べます。スニペットには文字・数値・選択肢・ファイルの入力補助を追加しました。内容を確認して入力行へ挿入し、Enterで実行します。 [共有とコマンド入力の使い方](SHARE-WORKFLOW.md)。
+
+**0.8.607-alpha（versionCode 615）**: 着信マクロの案内と通知を「電話番号のコピー通知」に変更しました。電話帳の登録有無は区別せず、通知の題名・本文に番号そのものがあればコピーできます。既存のマクロ名 `unknown-call` とルールは維持します。導入済みのコピーは自動更新されないため、アプリ更新後に `z2-macro diff unknown-call` で変更点を確認し、独自の編集がなければ `z2-macro install -f unknown-call` で入れ直してください。
 
 **0.8.606-alpha（versionCode 614）**: 操作自動化の前面画面操作・記録・ジェスチャー・配置の文言を韓国語、スペイン語、中国語（簡体字・繁体字）へ追加し、翻訳不足によるlintエラーを修正しました。公開ページの版数も揃えました。
 
@@ -628,12 +632,12 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 - `time:cron='分 時 日 月 曜日'`（0.8.207・stage 2）… 5 フィールドの cron 式。`*` / `*/n` / `a` / `a-b` / `a-b/n` / `a,b,c` に対応。曜日は 0-7（0,7 が日曜）。**日と曜日がどちらも `*` でない場合はどちらか一致で発火**（標準 cron の仕様）。次回発火の算出は Android 非依存の `CronSchedule.nextAfter`（`CronScheduleTest` で具体例検証）。`daily`/`every` と同じ AlarmManager 経路に載り、発火のたびに次回を貼り直す。空白を含むのでシェルではクォート必須。
 - `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>`（0.8.208・stage 2）… Wi‑Fi の接続 / 切断 / 指定 SSID への接続。判定は Android 非依存の `WhenTriggerMatch.wifi`（`WhenTriggerMatchTest` で具体例検証。SSID は大小文字無視、位置情報権限が無く SSID が空なら `ssid=` は取りこぼす）。**電池の 10% 刻みと同じく検知（`SystemEventService`）が ON のときだけ働く**（受け口は同サービスが登録する `NetworkCallback`＝生きたプロセスが要る。0.8.248 まではブロードキャストだったが、接続 / 切断が入れ替わるため差し替えた → 前掲）。発火時は SSID を `Z2_WHEN_SSID` で渡す（外部文字列なので単一引用符へ安全にエスケープ）。
 - `net:online` / `net:offline` / `net:wifi` / `net:mobile` / `net:ethernet`（0.8.264）… **回線が通じた / 途切れた**、または**使う回線が切り替わった**とき。`wifi:*` との違いは**モバイル回線も見る**こと — `wifi:disconnect` は「Wi‑Fi が切れた」までしか言えず、そのあとモバイルで通信できているのか本当に圏外なのかを区別できないので、「通信できるようになったら送る」「圏外になったら止める」は今まで書けなかった。判定は Android 非依存の `WhenTriggerMatch.net`（`WhenTriggerMatchTest` で具体例検証）。受け口は `wifi:*` と同じ `NetworkCallback`＝**検知が ON のときだけ働く**。⚠ **前の状態と比べて判定する**のがこのトリガーの肝で、Wi‑Fi からモバイルへ替わっても「通信できる」ことは変わらないため `net:online` は発火させない（「今の状態を満たすか」で書くと移動のたびに走る）。⚠ **繋がったことではなく通ったこと**を見る（`NET_CAPABILITY_VALIDATED`）— 認証画面の先へ出られない Wi‑Fi を「オンライン」と呼ぶと `net:online` が「送れるようになった」の合図として使えない。その代わり検証が終わるまでの数秒は `none` のままなので、**Wi‑Fi のアイコンが立つより少し遅れる**。VPN は既定回線として見えるものを素直に `vpn` と答える（下の実回線に読み替えない）。発火時は `Z2_WHEN_NET`（今の回線）と `Z2_WHEN_NET_PREV`（直前の回線）を渡す。`events.jsonl` にも `net_online` / `net_offline` / `net_<種別>` として残る。
-- `share:any` / `share:text` / `share:file` / `share:contains=<部分>` / `share:ext=<拡張子>`（0.8.266）… **他アプリの共有シートから z2term へ送られたとき**。受け口は 0.8.197 の `SharedIntake`（テキストはそのまま、ファイルは `~/z2term-inbox/` へ取り込んでからパスにする）で、**そこに分岐を 1 本足しただけ**。共有はアプリの起動経路なので**検知には依存しない**。判定は Android 非依存の `WhenTriggerMatch.share`（`WhenTriggerMatchTest` で具体例検証）。⚠ **端末への挿入は今までどおり行う**（ルールは足し算）。共有は「入れるだけ・実行しない」と約束してある入口なので、ルールを 1 本書いたら挿入が黙って止まる、では既にある使い方を壊す。入力行に残るのは実行されていないただの文字列なので害が無い。⚠ **`contains=` はファイル共有には当たらない** — ファイルのときの本文は取り込み先のパスなので、当たると「ファイル名にたまたま含まれていた」で発火し、書いた人の意図（共有された文章の中身で絞る）とズレる。ファイル側は `ext=` で絞る。⚠ **共有すると z2term が前面に出る** — 共有シートの宛先は Activity なので、これは Android の作りであって選択ではない（「裏で静かに走る」にはできない）。発火時は `Z2_WHEN_SHARE`（端末に入るのと同じ文字列）と `Z2_WHEN_SHARE_KIND`（`text` / `file`）を渡す。
+- `share:any` / `share:text` / `share:file` / `share:contains=<部分>` / `share:ext=<拡張子>`（0.8.266、0.8.608で拡張）… 他アプリから共有を受けたとき。検知のON/OFFとは独立し、共有先Activityが前面へ出る。ルールは取込後に1度判定し、手動の処理選択・端末挿入とは独立する。`mixed` はtext/file双方、containsは本文のみ、extは添付名を判定する。`Z2_WHEN_SHARE`（元の挿入文字列）、`Z2_WHEN_SHARE_KIND`（text/file/mixed）、`Z2_WHEN_SHARE_TEXT`（本文）、`Z2_WHEN_SHARE_MANIFEST`（ホームからの相対パス）を渡す。[§5.1.2](#512-共有の受け取り-b10.8.197) と [操作ガイド](SHARE-WORKFLOW.md) を参照。
 - `boot`（0.8.264）… **端末の起動が終わったとき**。`:` を持たない唯一のトリガー（引数を取らないものに空の引数を書かせないため、`WhenRule.kind` は `:` が無ければ全体を種別として読む）。受け口は既存の `BootReceiver` で、`BOOT_COMPLETED` は**暗黙ブロードキャスト制限の例外**なので manifest 宣言のまま確実に届く＝**時刻・SMS と並んで検知 OFF でも動く**数少ないトリガー。⚠ `LOCKED_BOOT_COMPLETED`（ロック解除前）では**動かさない** — 資格情報で暗号化された領域がまだ開いておらず、ルールファイルもエンジンも読めないので黙って失敗するだけになる。⚠ 実行は `goAsync()` で包む。ブロードキャストは `onReceive` を抜けた瞬間にプロセスごと止められうるため、常駐サービスを持たない一度きりの実行にとってはこれが唯一の生命線。
 - `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp`（0.8.209・stage 2）… 着信 SMS。判定と OTP 抽出は Android 非依存の `WhenTriggerMatch.sms` / `.extractOtp`（`WhenTriggerMatchTest` で具体例検証。`from`/`contains` は部分一致・大小文字無視。OTP は**前後が数字でない 4〜8 桁**の先頭で、9 桁以上の電話番号/注文番号は拾わない）。既存の `SmsLogReceiver`（`RECEIVE_SMS` 許可で OS が着信ごとに起動＝アプリ未起動でも動く）に相乗りし、**生ログ設定 `smsCaptureEnabled` とは独立に評価する**（許可さえあれば動く）。SMS 本文は Android 15 の機微通知伏せ字（`RECEIVE_SENSITIVE_NOTIFICATIONS`）を通らない直読み経路なので伏せ字化されない（既存 `SmsLogReceiver` の解説参照）。発火時は `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY`、`otp` のときは `Z2_WHEN_OTP` を渡す（いずれも外部入力なので単一引用符へ安全にエスケープ・`eval` させない安全境界）。
 - `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near` / `sensor:proximity=far`（0.8.210・stage 2）… 端末を振った / 照度が N lux を跨いだ / 近接が near・far へ変化。**継続センサー監視は電池を食う**ので §10-1 の指針どおり **opt-in・検知（`SystemEventService`）が ON のときだけ**働き、しかも**該当ルールがあるセンサーだけ登録する**（`WhenManager.sensorKindsNeeded` → `SystemEventService.refreshSensors`。ルール増減や検知 ON で貼り直し、要求集合が空なら 1 つも登録しない＝電池ゼロ）。加速度は shake 検出に十分な `SENSOR_DELAY_UI`、照度/近接は on-change の `NORMAL`。shake 判定は `ShakeDetector`（合成加速度が **4.0g 超＋3 秒 debounce**・`ShakeDetectorTest`。当初の 2.7g／1 秒では**ポケットに入れて歩いているだけで連続発火**した＝2026-07-24 の実機検証で 3.5 時間に 255 回・発火間隔が debounce に張り付く形で判明したため 0.8.214 で引き上げ。下げるときは歩行で誤発火しないか実機確認が要る）、照度/近接は `WhenTriggerMatch.lightSatisfied`/`.proximitySatisfied` を**条件成立の立ち上がり（false→true）**で発火（rule 単位のプロセス内メモリ・初回は基準のみ。しきい値付近のばたつきは未吸収＝将来ヒステリシス可）。発火時は `Z2_WHEN_SENSOR`（`shake`/`light`/`proximity:near|far`）、light は `Z2_WHEN_LUX` も渡す。
 - `notify:any` / `notify:otp` / `notify:pkg=<部分>` / `notify:title=<部分>` / `notify:contains=<部分>`（0.8.236）… **通知が届いたとき**。判定は `sms:*` と同じ考え方に揃えてある（覚えることを増やさない）。`pkg=` は**パッケージ名でもアプリ表示名でも**当たる（パッケージ名は覚えていないことが多い）。`Z2_WHEN_NOTI_PKG` / `_APP` / `_TITLE` / `_TEXT` / `_CATEGORY` を渡し、`notify:otp` では抽出コードを `Z2_WHEN_OTP`（`sms:otp` と同名）に入れる。**ログ保存（`notificationLogEnabled`）とは独立**に働く — 「記録はしないがトリガーには使いたい」が普通の使い方で、記録を必須にすると通知本文がずっとファイルに残る。同じ通知の再掲（進捗更新など）は**トリガーの前に**重複判定で落とす。通知アクセスの許可が前提。
-- `notify:category=<種別>`（0.8.293）… 通知の**種別**（`Notification.category`）で拾う。`call` = 着信中 / `missed_call` = 不在着信 / `msg` `email` `alarm` `event` `progress` など、Android が決めた語彙。⚠ **ここだけ完全一致**（大小は無視）にしてある — 部分一致にすると `call` が `missed_call` の部分文字列なので「着信のとき」と書いたルールが不在着信でも動き、**両者を書き分けられなくなる**。`pkg=` で同じことをやろうとすると電話アプリのパッケージ名（端末ごとに違う）を知っている必要があるが、種別なら端末を選ばない。⚠ **これは権限を増やさないための道具**でもある: 着信番号を直に得るには `READ_CALL_LOG`（Android 9+）、電話帳の照合には `READ_CONTACTS` が要り、前者は既定の電話アプリ以外まず配布できない。電話アプリは電話帳にいる相手なら名前を、いなければ番号そのものを通知に出すので、**表示が番号の形か**を見れば「電話帳に無い相手か」は通知アクセスだけで判定できる（サンプル `unknown-call`）。
+- `notify:category=<種別>`（0.8.293）… 通知の**種別**（`Notification.category`）で拾う。`call` = 着信中 / `missed_call` = 不在着信 / `msg` `email` `alarm` `event` `progress` など、Android が決めた語彙。⚠ **ここだけ完全一致**（大小は無視）にしてある — 部分一致にすると `call` が `missed_call` の部分文字列なので「着信のとき」と書いたルールが不在着信でも動き、**両者を書き分けられなくなる**。`pkg=` で同じことをやろうとすると電話アプリのパッケージ名（端末ごとに違う）を知っている必要があるが、種別なら端末を選ばない。サンプル `unknown-call` は、この種別で着信・不在着信を拾い、題名→本文の順に番号そのものを探してコピーボタン付き通知にします。**電話帳の登録有無は判定しません**。名前と番号が別の欄に出る登録済みの相手も対象です。名前しか出ない場合は番号を取得できません。既存の通知アクセスだけを使い、連絡先・通話履歴の権限は追加しません。
 - `file:new=<フォルダ>[,ext=<拡張子>]`（0.8.235）… そのフォルダに**新しいファイルが降ってきた**とき。見るのは `CLOSE_WRITE`（書き込み完了）と `MOVED_TO`（別名で書いてから rename する書き方）だけで、**`CREATE` は見ない** — コピー途中の空ファイルを掴んでしまうため。センサーと同じく**該当ルールがあるフォルダだけ**を監視し（`WhenManager.fileDirsNeeded` → `SystemEventService.refreshFileWatchers`）、1 件も無ければ 1 つも張らない。隠しファイル（`.pending-xxx` のような書きかけ）は常に除外する。同じパスは 5 秒間は二重に拾わない（`CLOSE_WRITE` と `MOVED_TO` が両方来ることがある）。`Z2_WHEN_FILE`（フルパス）と `Z2_WHEN_DIR` を渡す。⚠ `FileObserver` はプロセスが生きている間だけなので、**検知 ON が前提**（時刻や SMS のような常時性は無い）。
 - `event:<名前>` / `event:<接頭辞>*` / `event:*`（0.8.226）… **`events.jsonl` に書かれる端末イベントを名前で拾う**。判定は `WhenTriggerMatch.event`（完全一致・末尾 `*` の前方一致・`*` で全件。大小文字と前後空白は無視＝手書きの打ち間違いで黙って動かないのを避ける）。
 
@@ -1106,7 +1110,7 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 
 **背景**: マクロは書き方より**最初の 1 本を白紙から書くこと**が壁だった。
 
-**実装**: 動くサンプル 10 本（イベント入門 / 電池アラート / 時刻トリガー / 通知内 OTP 自動コピー / SMS の OTP 自動コピー / 電話帳に無い番号からの着信 / 通知リマインド / フィード購読 / 集めた記事を開く / QR にして渡す）を rootfs の `/usr/local/share/z2term/macros/` に配置し、`z2-macro install <名前|all>` で `~/.z2term/macros/` へ展開する。
+**実装**: 動くサンプル 10 本（イベント入門 / 電池アラート / 時刻トリガー / 通知内 OTP 自動コピー / SMS の OTP 自動コピー / 着信通知の電話番号コピー / 通知リマインド / フィード購読 / 集めた記事を開く / QR にして渡す）を rootfs の `/usr/local/share/z2term/macros/` に配置し、`z2-macro install <名前|all>` で `~/.z2term/macros/` へ展開する。
 
 **端末で育った `rss.sh` の拡張を同梱版へ取り込む（0.8.334）**: 0.8.332 で `z2-macro list` に
 状態を出したところ、実機の `rss.sh` が「差分あり」で、**端末側の方が機能が多い**ことが分かった
@@ -2556,32 +2560,13 @@ processBytes の「後」なのは、**alt screen に入ったかどうかがそ
 
 ### 5.1.2 共有の受け取り (B1・0.8.197)
 
-他アプリの共有シートから z2term へテキスト / ファイルを渡す入口。**入れるだけで実行しない**
-(改行を付けないので入力行に置かれるだけ。走らせるかどうかは必ずユーザーが決める)。
+`ACTION_SEND` / `ACTION_SEND_MULTIPLE` を `MainActivity.handleShareIntent` で受け、`SharedIntakeModel` のIO処理で `SharedIntake.intakeFrom` を呼ぶ。本文・件名・添付は `shared_home/z2term-inbox/UUID/` に1組で保存し、`manifest.json` に目録を作る。EXTRA_STREAMとClipDataの同じURIは重複取込しない。添付はcontent URIのみ、最大32件・各512MiB。途中で失敗したら受取フォルダー全体を取り消す。パス区切り・制御文字を除き、UTF-8で220バイト以内に名前を収め、同名は番号を足す。
 
-```
-他アプリ「共有」→ ACTION_SEND / ACTION_SEND_MULTIPLE
-   → MainActivity.handleShareIntent (onCreate / onNewIntent)
-   → SharedIntake.textFrom (IO)      … テキストはそのまま / ファイルは ~/z2term-inbox/ へコピー
-   → SessionManager.insertText       … 入れ先を決めて pasteText (bracketed paste)
-```
+`Snippet.shareAction=true` の登録があれば本文・添付名・処理の選択画面をロック解除後に表示する。選択したスニペットは任意の引数フォームを経て、元の本文と目録への絶対パスを環境変数で渡すコマンドになる。処理が無ければ従来の挿入へ進む。本文ありなら本文、ファイルだけなら `"$HOME"/'z2term-inbox/UUID/name'` を空白区切りで挿入する。
 
-- **`SessionManager.insertText(text, sessionId?)` が「外から端末へ文字を入れる」共通の入口**。
-  A1 (`z2-session send`) もここに乗せる想定で、B1 の側から先に切り出してある。
-  入れ先は「id 指定 → アクティブタブ → (GUI タブなら) 最初の端末タブ」の順で決め、
-  アクティブでなければ**そのタブへ切り替える** (見えない所に文字が入った状態を作らない)。
-  クリップボードは書き換えない (共有しただけでコピー履歴が積み替わらないように)。
-- **ファイルは実体を取り込む**。共有 URI は他アプリが握る一時的な参照でシェルからは触れないため、
-  `shared_home/z2term-inbox/` にコピーして初めて `less` や `python` に渡せる。
-  ファイル名は共有元が名乗る `DISPLAY_NAME` を使い、**パス区切りと、ダブルクォート内でも意味を持つ
-  文字 (`"` `\` `$` `` ` `` `!`) と制御文字を落とす** (`../` で置き場の外に書かせない +
-  貼ったパスがシェルで解釈されない)。同名は `-2` `-3` … を足して上書きしない。上限 512MiB。
-- **貼るパスの形**: 素直な名前なら `~/z2term-inbox/foo.txt` のまま。スペース等を含むときは
-  **`"$HOME/..."` 形式**にする — `"~/..."` とクォートすると `~` が展開されず「そんなファイルは無い」
-  になるため。複数ファイルは空白区切りで並ぶので、そのままコマンドの引数として使える。
-- **`MainActivity` は `launchMode="singleTask"`**。タブは 1 画面で持つものなので、共有のたびに
-  Activity が積み上がって「戻る」で古い画面が出る状態を作らない。同じ Intent での二重挿入は
-  Intent 自身に付ける印 (`EXTRA_SHARE_HANDLED`) で防ぐ (画面回転で `onCreate` が走り直しても入らない)。
+共通の挿入先は `SessionManager.insertText`。クリップボードを変更せず、Enterを追加しない。端末で確認して実行する。既存の共有自動化ルールは取込完了後に1度呼ぶ。本文と添付の両方がある `mixed` はtext/file双方の条件に合い、containsは本文、extは添付名に対して判定する。
+
+ActivityはsingleTask。Intentの処理済み印とViewModelで回転時の二重取込を防ぐ。取込と処理選択は回転を越えて保持し、プロセス終了時は未選択の画面状態を復元しない。保存済み受取は残る。送信側のコピー・FileProviderの権限範囲・目録形式・スニペット引数の書式は[共有と入力補助](SHARE-WORKFLOW.md)を参照。送信は最大32件・合計512MiBで、24時間を超えたキャッシュは次の送信準備時に削除する。
 
 ### 5.2 起動シーケンス
 

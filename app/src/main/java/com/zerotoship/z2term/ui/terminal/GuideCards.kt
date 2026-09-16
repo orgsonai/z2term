@@ -204,7 +204,7 @@ enum class Guide(
         GuideStep(R.string.guide_step_when, "z2-when sms:otp run ~/.z2term/macros/otp-sms.sh"),
     )),
 
-    /** 電話帳に無い番号の着信を控える。 */
+    /** 着信通知に含まれる電話番号をコピー通知で渡す。 */
     UNKNOWN_CALL("unknown-call", R.string.guide_desc_unknown_call, listOf(
         GuideStep(R.string.guide_step_notify_on),
         GuideStep(R.string.guide_step_install, "z2-macro install unknown-call"),

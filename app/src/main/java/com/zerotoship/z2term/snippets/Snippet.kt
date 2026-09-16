@@ -30,13 +30,17 @@ data class Snippet(
      * ⚠ **名前ではなく id で持つ**。名前で持つと、グループ名を直すたびに中身を全部書き換える
      * ことになり、書き換えの途中で落ちると**どこにも出てこないスニペット**が残る。
      */
-    val groupId: String = ""
+    val groupId: String = "",
+    val inputForm: Boolean = false,
+    val shareAction: Boolean = false
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
         put("label", label)
         put("command", command)
         put("groupId", groupId)
+        put("inputForm", inputForm)
+        put("shareAction", shareAction)
     }
 
     companion object {
@@ -45,7 +49,9 @@ data class Snippet(
             label = o.optString("label"),
             command = o.optString("command"),
             // 0.8.387 より前に書き出したものには無い = 未分類 (「すべて」には出る)。
-            groupId = o.optString("groupId")
+            groupId = o.optString("groupId"),
+            inputForm = o.optBoolean("inputForm", false),
+            shareAction = o.optBoolean("shareAction", false)
         )
     }
 }

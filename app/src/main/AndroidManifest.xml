@@ -598,6 +598,15 @@
             </intent-filter>
         </receiver>
 
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.sharedfiles"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/shared_file_paths" />
+        </provider>
+
         <!-- SAF DocumentsProvider: rootfs / HOME を他のファイラーから開けるようにする。
              permission=MANAGE_DOCUMENTS でシステム (DocumentsUI) からのみアクセス可能。 -->
         <provider

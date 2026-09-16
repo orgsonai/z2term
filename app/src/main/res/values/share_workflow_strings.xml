@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">Command inputs</string>
+    <string name="snippet_inputs_file">Choose file</string>
+    <string name="snippet_inputs_invalid">Check the input definition and values. Place each placeholder outside quotes as a separate argument.</string>
+    <string name="snippet_inputs_preview">Command preview</string>
+    <string name="snippet_inputs_hint">The command is inserted into the terminal. Review it, then press Enter. Chosen files are copied into the local shell home.</string>
+    <string name="snippet_inputs_enable">Ask for inputs before inserting</string>
+    <string name="snippet_inputs_definition">In the command: {{text}}, {{width:number=1080}}, {{format:choice=png|jpg}}, {{image:file}}. Names become field labels. Put placeholders outside quotes.</string>
+    <string name="snippet_share_action">Offer after receiving a share</string>
+    <string name="snippet_share_action_hint">The command can read $Z2_SHARE_TEXT and $Z2_SHARE_MANIFEST (receipt JSON). File inputs can use received attachments.</string>
+    <string name="share_intake_title">Received content</string>
+    <string name="share_intake_hint">The text and attachments are saved together. Choose a saved command or insert the original content. Commands run after you press Enter.</string>
+    <string name="share_intake_insert">Insert into terminal</string>
+    <string name="share_intake_close">Keep saved and close</string>
+</resources>

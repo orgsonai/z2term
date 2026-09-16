@@ -963,7 +963,7 @@
     <string name="guide_desc_daily_report">每天早上定時播報電量和連線狀況</string>
     <string name="guide_desc_otp_clip">從通知裡複製一次性驗證碼</string>
     <string name="guide_desc_otp_sms">從簡訊裡複製一次性驗證碼</string>
-    <string name="guide_desc_unknown_call">記下通訊錄裡沒有的號碼來電</string>
+    <string name="guide_desc_unknown_call">來電號碼複製通知</string>
     <string name="guide_desc_remind">用通知來提醒我</string>
     <string name="guide_desc_rss">訂閱源有新內容就通知，並逐條閱讀</string>
     <string name="guide_desc_qr">做成二維條碼交給另一台裝置</string>

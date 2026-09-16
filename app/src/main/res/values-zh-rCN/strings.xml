@@ -963,7 +963,7 @@
     <string name="guide_desc_daily_report">每天早上定时播报电量和连接状况</string>
     <string name="guide_desc_otp_clip">从通知里复制一次性验证码</string>
     <string name="guide_desc_otp_sms">从短信里复制一次性验证码</string>
-    <string name="guide_desc_unknown_call">记下通讯录里没有的号码来电</string>
+    <string name="guide_desc_unknown_call">来电号码复制通知</string>
     <string name="guide_desc_remind">用通知来提醒我</string>
     <string name="guide_desc_rss">订阅源有新内容就通知，并逐条阅读</string>
     <string name="guide_desc_qr">做成二维码交给另一台设备</string>

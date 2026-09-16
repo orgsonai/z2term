@@ -970,7 +970,7 @@
     <string name="guide_desc_daily_report">leerme la batería y la conexión cada mañana</string>
     <string name="guide_desc_otp_clip">copiar los códigos de un solo uso de las notificaciones</string>
     <string name="guide_desc_otp_sms">copiar los códigos de un solo uso de los SMS</string>
-    <string name="guide_desc_unknown_call">anotar las llamadas de números que no tengo</string>
+    <string name="guide_desc_unknown_call">notificación para copiar números de teléfono</string>
     <string name="guide_desc_remind">recordármelo con una notificación</string>
     <string name="guide_desc_rss">avisarme de las novedades de un feed y leerlas</string>
     <string name="guide_desc_qr">pasar algo en forma de código QR</string>

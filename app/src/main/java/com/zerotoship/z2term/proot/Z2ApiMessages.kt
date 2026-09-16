@@ -301,31 +301,43 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
     val shareHelp: String = t(
         en = """
         |# z2-share <text> … hand text to Android's share sheet (send it on to another app).
+        |# --file FILE [FILE ...]: send file contents (up to 32 files, 512 MiB total).
+        |# Paths are read in the current local shell. -- forces text mode. Copies older than 24 hours are cleaned up on the next share.
         |# All arguments are joined into one body. Which app it goes to is chosen on screen,
         |# so this needs someone to be there — it is not for a macro running unattended.
     """.trimMargin(),
         ja = """
         |# z2-share <テキスト> … Android の共有メニューに渡す (他アプリへ送る)。
+        |# --file ファイル [ファイル ...]: ファイル本体を送る（32件・合計512MiBまで）。
+        |# 今のローカルシェルで読めるパスを指定します。-- で文字列モード。24時間経過した共有用コピーは次回共有時に削除。
         |# 引数はつなげて 1 つの本文にします。送り先は画面で選ぶので、人がいるときのものです
         |# (裏で走らせるマクロ向きではありません)。
     """.trimMargin(),
         "zh-CN" to """
         |# z2-share <文本> … 交给 Android 的分享菜单 (转交给其他应用)。
+        |# --file 文件 [文件 ...]: 发送文件内容（最多32个，合计512MiB）。
+        |# 路径须在当前本地shell中可读。-- 强制文本模式。超过24小时的共享副本在下次共享时删除。
         |# 所有参数会拼成一段正文。发给哪个应用要在屏幕上选，所以这是给有人在的时候用的
         |# (不适合在后台自己跑的宏)。
     """.trimMargin(),
         "zh-TW" to """
         |# z2-share <文字> … 交給 Android 的分享選單 (轉交給其他應用程式)。
+        |# --file 檔案 [檔案 ...]: 傳送檔案內容（最多32個，合計512MiB）。
+        |# 路徑須在目前本機shell中可讀。-- 強制文字模式。超過24小時的分享副本在下次分享時刪除。
         |# 所有參數會拼成一段正文。發給哪個應用程式要在螢幕上選，所以這是給有人在的時候用的
         |# (不適合在背景自己跑的巨集)。
     """.trimMargin(),
         "es" to """
         |# z2-share <texto> … pasa el texto al menú de compartir de Android (lo envía a otra app).
+        |# --file ARCHIVO [ARCHIVO ...]: envía archivos (hasta 32, 512 MiB en total).
+        |# Las rutas se leen en el shell local actual. -- fuerza texto. Las copias de más de 24 horas se borran al volver a compartir.
         |# Todos los argumentos se unen en un solo cuerpo. La aplicación de destino se elige en la
         |# pantalla, así que hace falta alguien delante: no es para una macro que corre sola.
     """.trimMargin(),
         "ko" to """
         |# z2-share <텍스트> … 텍스트를 Android 공유 메뉴로 넘깁니다 (다른 앱으로 보냅니다).
+        |# --file 파일 [파일 ...]: 파일 내용을 보냅니다 (최대 32개, 합계 512MiB).
+        |# 현재 로컬 셸에서 읽을 수 있는 경로를 지정하세요. --는 텍스트 모드입니다. 24시간이 지난 사본은 다음 공유 시 삭제합니다.
         |# 인수는 모두 이어 붙여 하나의 본문이 됩니다. 보낼 앱은 화면에서 고르므로 누군가 앞에
         |# 있어야 합니다: 혼자 도는 매크로에는 맞지 않습니다.
     """.trimMargin()

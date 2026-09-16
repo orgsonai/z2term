@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">명령 입력</string>
+    <string name="snippet_inputs_file">파일 선택</string>
+    <string name="snippet_inputs_invalid">입력 정의와 값을 확인하세요. 자리표시자는 따옴표 밖에 별도 인수로 작성하세요.</string>
+    <string name="snippet_inputs_preview">명령 미리 보기</string>
+    <string name="snippet_inputs_hint">명령을 터미널에 삽입합니다. 확인 후 Enter로 실행하세요. 선택한 파일은 기기의 로컬 환경으로 복사됩니다.</string>
+    <string name="snippet_inputs_enable">삽입 전에 값 입력</string>
+    <string name="snippet_inputs_definition">명령에 {{텍스트}}, {{너비:number=1080}}, {{형식:choice=png|jpg}}, {{이미지:file}}를 씁니다. 이름이 입력란 제목이 됩니다. 따옴표로 감싸지 마세요.</string>
+    <string name="snippet_share_action">공유를 받았을 때 선택 항목으로 표시</string>
+    <string name="snippet_share_action_hint">명령에서 $Z2_SHARE_TEXT(본문)와 $Z2_SHARE_MANIFEST(수신 목록 JSON)를 읽을 수 있습니다. 파일 입력에 받은 첨부를 사용할 수 있습니다.</string>
+    <string name="share_intake_title">공유 내용 수신</string>
+    <string name="share_intake_hint">본문과 첨부를 함께 저장했습니다. 저장된 명령을 선택하거나 원본을 삽입하세요. Enter를 누른 뒤 실행합니다.</string>
+    <string name="share_intake_insert">터미널에 삽입</string>
+    <string name="share_intake_close">저장한 채 닫기</string>
+</resources>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">コマンドの入力</string>
+    <string name="snippet_inputs_file">ファイルを選ぶ</string>
+    <string name="snippet_inputs_invalid">入力欄の書式と値を確認してください。入力箇所は引用符の外に、独立した引数として書きます。</string>
+    <string name="snippet_inputs_preview">コマンドの確認</string>
+    <string name="snippet_inputs_hint">端末に挿入し、確認してEnterで実行します。選んだファイルは端末内のローカル環境へコピーします。</string>
+    <string name="snippet_inputs_enable">挿入前に入力欄を出す</string>
+    <string name="snippet_inputs_definition">コマンド内に {{文章}}、{{幅:number=1080}}、{{形式:choice=png|jpg}}、{{画像:file}} と書きます。名前が入力欄の見出しになります。引用符で囲まないでください。</string>
+    <string name="snippet_share_action">共有を受け取ったときの選択肢に出す</string>
+    <string name="snippet_share_action_hint">コマンド内で $Z2_SHARE_TEXT（本文）と $Z2_SHARE_MANIFEST（受取目録JSON）を読めます。ファイル入力欄には受け取った添付を指定できます。</string>
+    <string name="share_intake_title">共有を受け取りました</string>
+    <string name="share_intake_hint">本文と添付を一組で保存しました。保存したコマンドを選ぶか、元の内容を端末へ入れます。実行はEnterを押してからです。</string>
+    <string name="share_intake_insert">端末へ挿入</string>
+    <string name="share_intake_close">保存したまま閉じる</string>
+</resources>

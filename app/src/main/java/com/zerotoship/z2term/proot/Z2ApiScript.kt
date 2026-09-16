@@ -132,6 +132,28 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     """.trimMargin() + "\n"
 
     val share = "#!/bin/sh\n" + m.shareHelp + "\n" + helpCaseLong + """
+        |if [ "${d}1" = "--file" ]; then
+        |  shift
+        |  [ ${d}# -ge 1 ] && [ ${d}# -le 32 ] || { echo "usage: z2-share --file FILE [FILE ...] (max 32)" >&2; exit 1; }
+        |  DIR=/storage/app/z2api
+        |  mkdir -p "${d}DIR" || exit 1
+        |  stage=${d}(mktemp -d "${d}DIR/share-XXXXXXXXXX") || exit 1
+        |  trap 'rm -rf "${d}stage"' 0
+        |  trap 'exit 1' 1 2 15
+        |  n=0; total=0
+        |  for file do
+        |    [ -f "${d}file" ] && [ -r "${d}file" ] || { echo "z2-share: unreadable file: ${d}file" >&2; exit 1; }
+        |    remaining=${d}((536870912 - total + 1))
+        |    head -c "${d}remaining" < "${d}file" > "${d}stage/${d}n" || exit 1
+        |    bytes=${d}(wc -c < "${d}stage/${d}n")
+        |    total=${d}((total + bytes))
+        |    [ "${d}total" -le 536870912 ] || { echo "z2-share: files exceed 512 MiB" >&2; exit 1; }
+        |    n=${d}((n + 1))
+        |  done
+        |  Z2API_WAIT=3000 /usr/local/bin/z2api 1 share-files "${d}{stage##*/}" "${d}@"
+        |  exit ${d}?
+        |fi
+        |[ "${d}1" != "--" ] || shift
         |[ ${d}# -ge 1 ] || { echo "usage: z2-share <text>" >&2; exit 1; }
         |exec /usr/local/bin/z2api 0 share "${d}*"
     """.trimMargin() + "\n"

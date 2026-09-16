@@ -7,8 +7,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,6 +20,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -29,18 +28,17 @@ import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.security.AppLock
 import com.zerotoship.z2term.service.TerminalService
-import com.zerotoship.z2term.service.WhenManager
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
-import com.zerotoship.z2term.share.SharedIntake
+import com.zerotoship.z2term.share.SharedIntakeDialog
+import com.zerotoship.z2term.share.SharedIntakeModel
 import com.zerotoship.z2term.ui.lock.LockScreen
 import com.zerotoship.z2term.ui.terminal.TerminalScreen
 import com.zerotoship.z2term.ui.theme.Z2TermTheme
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 
 /**
@@ -54,6 +52,8 @@ import java.lang.ref.WeakReference
  *   Activity が積み上がって「戻る」で古い画面が出る、という状態を作らない。
  */
 class MainActivity : ComponentActivity() {
+
+    private val sharedIntake by lazy { ViewModelProvider(this)[SharedIntakeModel::class.java] }
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -131,6 +131,12 @@ class MainActivity : ComponentActivity() {
                         // セッションは動き続けるが、画面としては存在させない。
                         AppLock.State.UNLOCKED -> unlockedState.SaveableStateProvider("terminal") {
                             TerminalScreen()
+                            sharedIntake.pending.firstOrNull()?.let { choice ->
+                                SharedIntakeDialog(choice, onInsert = {
+                                    sharedIntake.insert(it)
+                                    sharedIntake.dismiss(choice)
+                                }, onDismiss = { sharedIntake.dismiss(choice) })
+                            }
                         }
                     }
                 }
@@ -163,29 +169,7 @@ class MainActivity : ComponentActivity() {
         if (i.action != Intent.ACTION_SEND && i.action != Intent.ACTION_SEND_MULTIPLE) return
         if (i.getBooleanExtra(EXTRA_SHARE_HANDLED, false)) return
         i.putExtra(EXTRA_SHARE_HANDLED, true)
-        lifecycleScope.launch {
-            val intake = withContext(Dispatchers.IO) {
-                runCatching { SharedIntake.intakeFrom(applicationContext, i) }.getOrNull()
-            }
-            val text = intake?.text
-            if (text.isNullOrEmpty()) {
-                Toast.makeText(this@MainActivity, R.string.toast_share_failed, Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            // z2-when の `share:*` トリガー (0.8.266)。挿入は今までどおり行う (ルールは足し算)。
-            // ルール読み込みとエンジン起動を含むので画面のスレッドから外す。
-            withContext(Dispatchers.IO) {
-                runCatching {
-                    WhenManager.onShare(applicationContext, intake.kind, text, intake.fileNames)
-                }.onFailure { Log.w("MainActivity", "share rule failed: ${it.message}") }
-            }
-            val ok = SessionManager.insertText(text)
-            Toast.makeText(
-                this@MainActivity,
-                if (ok) R.string.toast_share_inserted else R.string.toast_share_failed,
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+        sharedIntake.accept(i)
     }
 
     override fun onStart() {

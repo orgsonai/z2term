@@ -7,20 +7,12 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import java.io.File
+import java.util.UUID
+import org.json.JSONArray
+import org.json.JSONObject
 
-/**
- * 他アプリの共有シート (`ACTION_SEND` / `ACTION_SEND_MULTIPLE`) から受け取ったものを、
- * **端末に入れる 1 本の文字列**に変換する (B1)。
- *
- * 方針は「**入れるだけ・実行しない**」。改行を付けないので、受け取った内容は入力行に置かれ、
- * 実行するかどうかは必ずユーザーが決める (共有されたものが勝手に走る事故を作らない)。
- *
- * - **テキスト**を共有された → その文字列をそのまま入れる。
- * - **ファイル**を共有された → [INBOX_DIR] にコピーし、**端末から見たパス**を入れる。
- *   共有 URI は他アプリが握っている一時的な参照で端末 (シェル) からは触れないため、
- *   ホーム配下に実体を置いて初めて `less` や `python` に渡せる状態になる。
- *
- * 変換は I/O を含むのでワーカースレッドから呼ぶこと。
+/** Saves a complete share receipt (body, subject and attachments) on a worker thread.
+ * The proposed terminal insertion never includes Enter; saved content is not executed here.
  */
 object SharedIntake {
 
@@ -36,18 +28,13 @@ object SharedIntake {
 
     /** 共有が**ファイル**だったことを表す [Intake.kind] の値。 */
     const val KIND_FILE = "file"
+    const val KIND_MIXED = "mixed"
 
-    /**
-     * 受け取ったものを 1 つにまとめた結果 (0.8.266)。
-     *
-     * [text] は**端末に入れる文字列**そのもの (従来からの唯一の出力)。[kind] と [fileNames] は
-     * `z2-when` の `share:` トリガーが「テキストか / ファイルか」「拡張子は何か」で絞るために要る。
-     * 挿入する文字列からファイル名を読み戻すのは、クォートの有無で形が変わるぶん壊れやすいので、
-     * **取り込んだ時点の事実をそのまま持ち回る**。
-     *
-     * @param fileNames 取り込んだファイル名 (拡張子付き・ディレクトリを含まない)。テキスト共有では空。
-     */
-    data class Intake(val kind: String, val text: String, val fileNames: List<String>)
+    /** [text] is the proposed insertion; [files] and [manifest] are relative to shell HOME. */
+    data class Intake(
+        val kind: String, val text: String, val fileNames: List<String>,
+        val body: String = "", val files: List<String> = emptyList(), val manifest: String = ""
+    )
 
     /**
      * [intent] が共有なら、受け取った内容を返す。共有でない / 中身が無いときは null。
@@ -59,28 +46,47 @@ object SharedIntake {
         val action = intent.action
         if (action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) return null
 
-        // テキスト共有が最優先。ファイルマネージャ以外の多くはこちらで来る。
-        intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.takeIf { it.isNotEmpty() }
-            ?.let { return Intake(KIND_TEXT, it, emptyList()) }
+        val body = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+            ?: (0 until (intent.clipData?.itemCount ?: 0)).mapNotNull {
+                intent.clipData?.getItemAt(it)?.text?.toString()
+            }.joinToString("\n")
+        val streams = if (action == Intent.ACTION_SEND) listOfNotNull(getStream(intent)) else getStreams(intent)
+        val uris = (streams + (0 until (intent.clipData?.itemCount ?: 0)).mapNotNull {
+            intent.clipData?.getItemAt(it)?.uri?.takeIf { uri -> uri.scheme == "content" }
+        }).distinct()
+        if (body.isEmpty() && uris.isEmpty()) return null
+        return save(context, body, uris, intent.getStringExtra(Intent.EXTRA_SUBJECT).orEmpty())
+    }
 
-        val uris: List<Uri> = when (action) {
-            Intent.ACTION_SEND -> listOfNotNull(getStream(intent))
-            else -> getStreams(intent)
-        }
-        if (uris.isEmpty()) return null
+    /** A document chosen for a snippet is imported, without firing share rules. */
+    fun importDocument(context: Context, uri: Uri): String = save(context, "", listOf(uri), "").files.single()
 
-        val dir = File(File(context.filesDir, "shared_home"), INBOX_DIR)
-        if (!dir.exists() && !dir.mkdirs()) {
-            Log.w(TAG, "cannot create $dir")
-            return null
+    private fun save(context: Context, body: String, uris: List<Uri>, subject: String): Intake {
+        require(uris.size <= 32) { "At most 32 files may be received together" }
+        require(uris.all { it.scheme == "content" }) { "Only shared content URIs are accepted" }
+        val id = UUID.randomUUID().toString()
+        val relative = "$INBOX_DIR/$id"
+        val dir = File(File(context.filesDir, "shared_home"), relative)
+        check(dir.mkdirs()) { "Cannot create inbox directory" }
+        try {
+            // Copy the entire selection or fail; a missing attachment must not look like success.
+            File(dir, "manifest.json").writeText("")
+            val names = uris.map { requireNotNull(copyIn(context, it, dir)) { "Cannot import attachment" } }
+            val files = names.map { "$relative/$it" }
+            val manifest = "$relative/manifest.json"
+            val json = JSONObject().put("version", 1).put("id", id)
+                .put("receivedAt", System.currentTimeMillis()).put("text", body).put("subject", subject)
+                .put("files", JSONArray(files.mapIndexed { index, path ->
+                    JSONObject().put("name", names[index]).put("path", path)
+                        .put("size", File(dir, names[index]).length())
+                }))
+            File(dir, "manifest.json").writeText(json.toString(2) + "\n")
+            val kind = SharedPayload.kind(body, files)
+            return Intake(kind, SharedPayload.insertion(body, files), names, body, files, manifest)
+        } catch (e: Exception) {
+            dir.deleteRecursively()
+            throw e
         }
-        val names = uris.mapNotNull { copyIn(context, it, dir) }
-        if (names.isEmpty()) return null
-        return Intake(
-            kind = KIND_FILE,
-            text = names.joinToString(" ") { homePath("$INBOX_DIR/$it") },
-            fileNames = names,
-        )
     }
 
     @Suppress("DEPRECATION")  // getParcelableExtra(String, Class) は API 33+。minSdk 29 のため旧 API を使う。
@@ -132,7 +138,7 @@ object SharedIntake {
         }.getOrNull()
         val raw = fromProvider ?: uri.lastPathSegment ?: "shared"
         val safe = raw.substringAfterLast('/').replace(UNSAFE, "_").trim('.', ' ')
-        return safe.ifBlank { "shared" }.take(96)
+        return SharedPayload.limitFileName(safe.ifBlank { "shared" })
     }
 
     /** 同名があれば `-2` `-3` … を足して、受け取ったものを取りこぼさない (上書きしない)。 */
@@ -149,23 +155,6 @@ object SharedIntake {
         return File(dir, "$stem-${System.currentTimeMillis()}$ext")
     }
 
-    /**
-     * ホームからの相対パス [rel] を、シェルにそのまま貼れる 1 引数にする。
-     *
-     * 素直な名前なら `~/z2term-inbox/foo.txt` のまま (読みやすい)。スペースや記号を含むときは
-     * **`"$HOME/..."` 形式**にする — `"~/..."` とクォートすると `~` が展開されず
-     * 「そんなファイルは無い」になってしまうため。
-     * ダブルクォート内で意味を持つ文字 (`"` `\` `$` `` ` `` `!`) は [UNSAFE] 側で既に落としてある。
-     */
-    private fun homePath(rel: String): String =
-        if (rel.none { it.isWhitespace() || it in "'*?[]()&;|<>#~" }) "~/$rel"
-        else "\"\$HOME/$rel\""
-
-    /**
-     * ファイル名から落とす文字。パス区切り (`../` で置き場の外へ書かせない) に加えて、
-     * **ダブルクォートで囲んでも意味を持ってしまう文字** (`"` `\` `$` 逆クォート `!`) と
-     * 制御文字も落とす。これで [homePath] のクォートだけで安全に渡せる。
-     * スペースやハイフンは普通の名前に出るので残す。
-     */
+    /** Remove separators, control characters and incompatible filename characters. */
     private val UNSAFE = Regex("[/\\\\:*?\"<>|\\$`!\\x00-\\x1F\\x7F]")
 }

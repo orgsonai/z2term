@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -68,6 +69,7 @@ import com.zerotoship.z2term.channel.RemoteService
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.snippets.Snippet
 import com.zerotoship.z2term.snippets.SnippetGroup
+import com.zerotoship.z2term.snippets.SnippetTemplate
 import com.zerotoship.z2term.snippets.SnippetStore
 import com.zerotoship.z2term.ui.components.REORDER_SETTLE_MS
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
@@ -318,6 +320,12 @@ private fun SnippetsBody(
     }
     val snippets by snippetsFlow.collectAsState()
     var editing by remember { mutableStateOf<Snippet?>(null) }
+    var inputId by rememberSaveable { mutableStateOf<String?>(null) }
+    snippets.firstOrNull { it.id == inputId }?.let { snippet ->
+        SnippetInputDialog(snippet, onInsert = {
+            inputId = null; onRun(it); onDismiss()
+        }, onCancel = { inputId = null })
+    }
     // グループ (0.8.387)。"" = 「すべて」= 絞らない。
     val groupsFlow = remember(store) {
         store.groups.stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -400,8 +408,8 @@ private fun SnippetsBody(
                             dragging = dragging,
                             dragOffsetY = if (dragging) dragDy else 0f,
                             onRun = {
-                                onRun(s.command)
-                                onDismiss()
+                                if (s.inputForm) inputId = s.id
+                                else { onRun(s.command); onDismiss() }
                             },
                             onEdit = { editing = s },
                             onDelete = { scope.launch { store.delete(s.id) } },
@@ -980,6 +988,9 @@ private fun EditForm(
     var label by remember(initial.id) { mutableStateOf(initial.label) }
     var command by remember(initial.id) { mutableStateOf(initial.command) }
     var groupId by remember(initial.id) { mutableStateOf(initial.groupId) }
+    var inputForm by remember(initial.id) { mutableStateOf(initial.inputForm) }
+    var shareAction by remember(initial.id) { mutableStateOf(initial.shareAction) }
+    val validTemplate = !inputForm || runCatching { SnippetTemplate.fields(command) }.isSuccess
 
     Text(
         text = if (initial.label.isEmpty() && initial.command.isEmpty())
@@ -1005,6 +1016,19 @@ private fun EditForm(
         placeholder = "ls -la --color=auto",
         multiline = true
     )
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(inputForm, { inputForm = it })
+        Text(stringResource(R.string.snippet_inputs_enable), color = ZtsTextPrimary, fontSize = 13.sp)
+    }
+    if (inputForm) {
+        Text(stringResource(R.string.snippet_inputs_definition), color = ZtsTextSecondary, fontSize = 12.sp)
+        if (!validTemplate) Text(stringResource(R.string.snippet_inputs_invalid), color = ZtsError, fontSize = 12.sp)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(shareAction, { shareAction = it })
+        Text(stringResource(R.string.snippet_share_action), color = ZtsTextPrimary, fontSize = 13.sp)
+    }
+    if (shareAction) Text(stringResource(R.string.snippet_share_action_hint), color = ZtsTextSecondary, fontSize = 12.sp)
     // どのグループに置くか。⚠ **グループを 1 つも作っていない人には出さない** — 選べる先が
     // 「未分類」しかない欄は、置き場所を選べるように見えて何も決められない。
     if (groups.isNotEmpty()) {
@@ -1041,8 +1065,8 @@ private fun EditForm(
             label = stringResource(R.string.action_save),
             accent = true,
             onClick = {
-                if (command.isNotBlank()) {
-                    onSave(initial.copy(label = label.trim(), command = command, groupId = groupId))
+                if (command.isNotBlank() && validTemplate) {
+                    onSave(initial.copy(label = label.trim(), command = command, groupId = groupId, inputForm = inputForm, shareAction = shareAction))
                 }
             }
         )

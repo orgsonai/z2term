@@ -1051,7 +1051,7 @@
     <string name="guide_desc_daily_report">read out battery and connection every morning</string>
     <string name="guide_desc_otp_clip">copy one-time codes from notifications</string>
     <string name="guide_desc_otp_sms">copy one-time codes from SMS</string>
-    <string name="guide_desc_unknown_call">note calls from numbers I do not have</string>
+    <string name="guide_desc_unknown_call">copy phone numbers from call notifications</string>
     <string name="guide_desc_remind">remind me with a notification</string>
     <string name="guide_desc_rss">get notified about new feed items and read them</string>
     <string name="guide_desc_qr">hand something over as a QR code</string>

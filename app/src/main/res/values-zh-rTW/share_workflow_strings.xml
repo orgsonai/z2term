@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">命令輸入</string>
+    <string name="snippet_inputs_file">選擇檔案</string>
+    <string name="snippet_inputs_invalid">請檢查輸入定義和值。預留位置應作為獨立參數放在引號外。</string>
+    <string name="snippet_inputs_preview">命令預覽</string>
+    <string name="snippet_inputs_hint">命令將插入終端機。確認後按Enter執行。所選檔案會複製到裝置的本機環境。</string>
+    <string name="snippet_inputs_enable">插入前填寫參數</string>
+    <string name="snippet_inputs_definition">在命令中寫入 {{文字}}、{{寬度:number=1080}}、{{格式:choice=png|jpg}}、{{圖片:file}}。名稱將成為輸入標籤。請勿加引號。</string>
+    <string name="snippet_share_action">接收分享後顯示為選項</string>
+    <string name="snippet_share_action_hint">命令可讀取 $Z2_SHARE_TEXT（內文）和 $Z2_SHARE_MANIFEST（接收清單JSON）。檔案輸入可選擇收到的附件。</string>
+    <string name="share_intake_title">已收到分享</string>
+    <string name="share_intake_hint">內文和附件已一起儲存。選擇已儲存的命令或插入原始內容。按Enter後才執行。</string>
+    <string name="share_intake_insert">插入終端機</string>
+    <string name="share_intake_close">保留並關閉</string>
+</resources>

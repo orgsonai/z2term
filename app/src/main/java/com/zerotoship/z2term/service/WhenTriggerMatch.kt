@@ -51,10 +51,10 @@ object WhenTriggerMatch {
         val s = spec.trim()
         return when {
             s == "any" -> true
-            s == "text" || s == "file" -> kind == s
+            s == "text" || s == "file" -> kind == s || kind == "mixed"
             s.startsWith("contains=") -> {
                 val want = s.substring("contains=".length).trim()
-                want.isNotEmpty() && kind == "text" && text.contains(want, ignoreCase = true)
+                want.isNotEmpty() && kind in setOf("text", "mixed") && text.contains(want, ignoreCase = true)
             }
             s.startsWith("ext=") -> {
                 val want = s.substring("ext=".length).trim().removePrefix(".")

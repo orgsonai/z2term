@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.606-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.608-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -212,7 +212,7 @@ Under Settings › **Keyboard style**:
 | Check the app version | Type **`z2version`** in the terminal to print the running app's version, execution engine, the **running OS (distro) and kernel**, etc. (`z2version --short` for just the version) |
 | Past commands | The **↑ key** (history persists even after restarting the app) |
 | Record the terminal | Tap **⚪** in the toolbar once to start (the button lights up), tap again to stop. The file lands in `~/z2term-log/`, so `less ~/z2term-log/<name>` reads it directly. **Double-tap** to change the destination, file name, date format, and so on |
-| Send text or a file from another app | In that app choose **Share** → pick **Z2Term**. Text arrives as-is; a file is taken into `~/z2term-inbox/` and **its path** is placed on the input line. It is **only inserted, never run**, so finish the command yourself and press ⏎ |
+| Send text or a file from another app | In that app choose **Share** → pick **Z2Term**. Text and attachments are saved together under `~/z2term-inbox/receipt-ID/`. Registered actions appear as choices; otherwise the body is inserted when present, or file paths for a file-only share. [Details](SHARE-WORKFLOW.md). It is **only inserted, never run**, so finish the command yourself and press ⏎ |
 
 > When you launch the app it **always opens a single terminal tab** (previously open tabs are not auto-restored).
 
@@ -240,7 +240,7 @@ Settings > Maintenance > **"Show a guide"** puts the steps for using a bundled s
 - The order they appear in is the order to follow. **Tapping a card runs that one line** (anything half-typed is thrown away with `Ctrl-C` first, so nothing mixes in).
 - **The ✕ on the right drops a step you do not need** without sending it. When every card is gone the guide closes.
 - Cards without a command (turn a setting on, install a prerequisite package) are just to read; tapping one removes it.
-- Each row is two lines: **the macro's name and what it does**. Available: `watch-basic` (react to charging and headsets) / `battery-alert` (warn me when the battery drops below a % I pick) / `daily-report` (read out battery and connection every morning) / `otp-clip` (copy one-time codes from notifications) / `otp-sms` (copy one-time codes from SMS) / `unknown-call` (note calls from numbers I do not have) / `remind` (remind me with a notification) / `rss` (get notified about new feed items and read them) / `qr` (hand something over as a QR code).
+- Each row is two lines: **the macro's name and what it does**. Available: `watch-basic` (react to charging and headsets) / `battery-alert` (warn me when the battery drops below a % I pick) / `daily-report` (read out battery and connection every morning) / `otp-clip` (copy one-time codes from notifications) / `otp-sms` (copy one-time codes from SMS) / `unknown-call` (copy phone numbers from call notifications) / `remind` (remind me with a notification) / `rss` (get notified about new feed items and read them) / `qr` (hand something over as a QR code).
 - **A step that needs a value of yours asks first** (feed URL, polling interval, time of day, battery threshold, the text for a QR). It will not send an empty answer — this keeps the example values from being registered as they are.
 - ⚠ **`watch-basic` registers two triggers** (`event:power_*` for charging, `event:headset_*` for headsets). The app does the waiting, so it runs the moment you plug or unplug — no resident server needed. The last step is `Z2_WHEN_EVENT=power_connected sh …`, which **pretends charging just started** so you can check it.
 - Chosen from a GUI tab, the guide opens **after switching to a terminal tab** (it needs somewhere to type).
@@ -898,6 +898,10 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
+**0.8.608-alpha (versionCode 616)**: `z2-share --file` sends file contents through Android's share sheet. Incoming text and attachments are saved as one receipt, with an optional choice of registered snippets. Snippets can request text, numbers, choices and files, preview the command, then insert it for execution with Enter. [Sharing and command input guide](SHARE-WORKFLOW.md).
+
+**0.8.607-alpha (versionCode 615)**: The call macro now describes its actual purpose: a notification to copy a phone number. It includes saved and unsaved callers whenever the title or body contains a bare number. The existing name `unknown-call` and automation rules remain compatible. Installed copies are not updated automatically: after updating the app, inspect `z2-macro diff unknown-call` and, if you have no custom edits to preserve, replace the copy with `z2-macro install -f unknown-call`.
+
 **0.8.606-alpha (versionCode 614)**: Added Korean, Spanish, Simplified Chinese and Traditional Chinese strings for foreground-screen automation, recording, gestures and placement, fixing missing-translation lint errors. Updated the public pages to the current version.
 
 **0.8.605-alpha (versionCode 613) — build not verified**: Action automation can record a whole sequence of taps, swipes and two-finger touches until stopped. Choose a recording surface or live recording through root. Only leading/trailing idle time is trimmed; pauses and timed paths are retained. Manual acceleration/deceleration, double tap, pinch in/out and two-finger swipe are also available. Place saved macros in Quick Settings tiles or edge panels. Device behavior is not verified. [Details](ACTION-MACROS.md).
@@ -1194,6 +1198,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-ask [-t sec] [-H hint] [-d default] "question"` | **Ask a question and get the answer** (0.8.267). It arrives as a notification with a **reply field**, so it can be answered from the shade without opening the app. The answer goes to stdout: `name=$(z2-ask "Branch name?")`. Dismissing it, or the timeout (5 min by default), **fails without printing anything**, so `|| exit` expresses "give up if there is no answer". If you only need a choice from a list, `z2-notify -b` fits better |
 | `z2-toast "message"` | Toast (short message at the bottom of the screen) |
 | `z2-share "text"` | Hand text to Android's share sheet |
+| `z2-share --file /sdcard/Download/report.pdf` | Share file contents with another app; multiple files supported. [Sharing and input forms](SHARE-WORKFLOW.md) |
 | `z2-open <URL or path>` | Open a URL or file in the default app |
 | `z2-qr` | Scan a QR code with the camera and show one Open button for its content |
 | `z2-img [-w COLS] [-r ROWS] [--clear] <file>...` | **Draw a picture in the terminal** (0.8.495). PNG / JPEG / WebP / GIF / BMP. Pass `-` to read one image from stdin (`curl -s <url> \| z2-img -`). By default it **fits the terminal width**; `-w` (columns) and `-r` (rows) set it explicitly. `--clear` removes every picture drawn so far. Given several files, it prints each name on its own line before the picture. ⚠ **Pictures only appear in a z2term tab, or in a terminal that speaks the kitty graphics protocol.** Over `ssh` or inside a pager you just get gibberish. ⚠ By default it **only writes to a terminal** — down a pipe or into a file the bytes are indistinguishable from garbage — so pass `-f` if you really mean it. ⚠ The aspect ratio assumes a cell is twice as tall as it is wide; if it looks squashed, tune it with `Z2_IMG_ASPECT=0.45 z2-img photo.jpg` (smaller = taller). ⚠ **Large photos are subsampled while decoding** (4 megapixels max). Only a few hundred pixels ever reach the screen, so nothing looks different, but the original resolution is not kept in memory |

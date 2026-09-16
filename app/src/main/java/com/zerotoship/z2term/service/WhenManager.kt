@@ -296,15 +296,17 @@ object WhenManager {
      * 既にある使い方を壊す。ルールは**足し算**で、入力行に残るのは実行されていないただの文字列。
      *
      * 環境変数は `Z2_WHEN_SHARE`（端末に入るのと同じ文字列＝テキストそのもの、またはファイルの
-     * パス）と `Z2_WHEN_SHARE_KIND`（`text` / `file`）。外部入力なので env で渡す（`eval` させない）。
+     * パス）と `Z2_WHEN_SHARE_KIND`（`text` / `file` / `mixed`）。外部入力なので env で渡す（`eval` させない）。
      */
-    fun onShare(context: Context, kind: String, text: String, fileNames: List<String>) {
+    fun onShare(context: Context, kind: String, text: String, fileNames: List<String>,
+                manifest: String = "", body: String = "") {
         val app = context.applicationContext
         loadRules(app).filter { it.enabled && it.kind == "share" }.forEach { rule ->
             if (WhenTriggerMatch.share(rule.spec, kind, text, fileNames)) {
                 runRule(
                     app, rule, level = -1,
-                    extraEnv = mapOf("Z2_WHEN_SHARE" to text, "Z2_WHEN_SHARE_KIND" to kind)
+                    extraEnv = mapOf("Z2_WHEN_SHARE" to text, "Z2_WHEN_SHARE_KIND" to kind,
+                        "Z2_WHEN_SHARE_MANIFEST" to manifest, "Z2_WHEN_SHARE_TEXT" to body)
                 )
             }
         }

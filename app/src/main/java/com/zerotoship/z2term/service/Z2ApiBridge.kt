@@ -129,6 +129,10 @@ object Z2ApiBridge {
     private val updateWorker = Executors.newSingleThreadExecutor { r ->
         Thread(r, "z2api-update").apply { isDaemon = true }
     }
+    // File copies must not hold up notifications or an independent update download.
+    private val shareWorker = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "z2api-share").apply { isDaemon = true }
+    }
     private val notifyId = AtomicInteger(7000)
 
     // TTS (z2-say) は初期化が非同期。準備できるまで発話を溜め、ready になったら流す。
@@ -216,8 +220,19 @@ object Z2ApiBridge {
                 askCmd(context, id, args, needResp)
                 return
             }
-            // `update` も**ここで抜ける**。答えを返すまで数十秒かかる (通信 + ダウンロード) ので、
-            // 他の動詞と同じ列に並べると全体が詰まる。応答は専用スレッドから書く。
+            if (cmd == "share-files") {
+                require(needResp) { "File sharing requires a response" }
+                shareWorker.execute {
+                    try {
+                        com.zerotoship.z2term.share.OutgoingShare.send(context, args)
+                        writeResponse(id, ok = true, data = "")
+                    } catch (e: Exception) {
+                        writeResponse(id, ok = false, data = e.message ?: "File sharing failed")
+                    }
+                }
+                return
+            }
+            // Keep downloads off the notification and session command queue.
             if (cmd == "update") {
                 updateWorker.execute {
                     try {

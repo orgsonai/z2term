@@ -1244,9 +1244,9 @@ reminder** — a note silently becoming an appointment is worse than no reminder
 - Firing can be **a few minutes late** (the booking is battery-friendly and Doze-aware). Not for
   anything that needs to be on time to the second.
 
-### 5-10. Worked example: capture calls from numbers not in your contacts
+### 5-10. Worked example: a phone-number copy notification
 
-When someone who is not in your contacts calls, put their number in a notification with a
+When a call notification contains a phone number, offer that number in a notification with a
 **"Copy" button, one press away from the clipboard**. Whether you want to call back, look the number
 up, or block it, you no longer have to copy it down by hand.
 (`z2-macro install unknown-call` gives you exactly what is below.)
@@ -1263,26 +1263,39 @@ E ClipboardService: Denying clipboard access to com.zerotoship.z2term,
 The "Copy" button added by `z2-notify -c <text>` **brings z2term to the front for that instant**, so
 it never hits that limit (0.8.335).
 
-**How "not in contacts" is decided.** A phone app shows the **name** for someone in your contacts and
-the **bare number** for someone who is not. So if **the notification shows a number**, that caller is
-not in your contacts.
+**Contacts are not checked.** The macro looks for a bare number in the title and then the body.
+Saved callers are included when one field contains their name and the other their number.
+If neither field contains a bare number, no copy notification is shown. It does not extract numbers
+from text mixed with a name. Only existing notification access is used.
 
-⚠ This shape exists to keep **z2term free of phone-related permissions**. Checking the contacts
-database directly needs `READ_CONTACTS` plus `READ_CALL_LOG` (required since Android 9 just to learn
-the incoming number), and the latter is essentially undistributable unless you are the default phone
-app. Reading what the notification shows gives the same answer, so **no permission is added** — the
-notification access you already granted is enough.
+Since 0.8.607, the guide and notification describe this as a phone-number copy notification.
+The filename `unknown-call.sh` is retained for existing rules.
+**Updating the app does not replace installed macros.** After updating, inspect
+`z2-macro diff unknown-call`; if you have no custom edits, use `z2-macro install -f unknown-call`.
+For edited macros, apply only the changes you need.
 
 ```sh
-# ~/.z2term/macros/unknown-call.sh
+#!/bin/sh
+# unknown-call.sh — show a copy notification for phone numbers in call notifications.
+# Its "Copy" button puts the number on the clipboard (why it waits for a press: see below).
 # Setup: Settings -> "Notification detection" ON + grant OS notification access
 # z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh
+#
+# To catch missed calls too, register a second rule (same script, different category):
+#   z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh
+
+# ■ Copy phone numbers from call notifications
+#   Check the title, then the text, for a bare phone number and offer a Copy button.
+#   Saved and unsaved callers are both included; contacts are not queried.
+#   A name alone is not enough to recover a number. Only notification access is used.
+#   The filename unknown-call.sh is kept so existing rules continue to work.
 
 # Is it a bare number? Strip every character a phone number may use (digits + - ( ) space);
 # if **nothing is left** and 7-15 digits remain, treat it as a number.
-#   -> Letters mixed in = a name = someone in your contacts, so do nothing.
-#   -> "Unknown"/"Private number" also fall out here.
+#   -> A field containing a name or other letters is not a bare number; check the other field.
+#   -> "Unknown"/"Private number" also fall out here (loosen the test below if you want those).
 # ⚠ Do not write this as case [!...]: the ) inside the pattern is read as the case separator.
+
 is_number() {
   [ -z "$(printf '%s' "$1" | tr -d '0-9+() -')" ] || return 1
   digits=$(printf '%s' "$1" | tr -cd '0-9')
@@ -1295,10 +1308,10 @@ for s in "$Z2_WHEN_NOTI_TITLE" "$Z2_WHEN_NOTI_TEXT"; do
   if is_number "$s"; then num="$s"; break; fi
 done
 
-# A name was shown = in contacts. Do nothing.
+# No bare number in either field: there is nothing to copy.
 [ -n "$num" ] || exit 0
 
-# The category tells which one fired.
+# The category tells which one fired (same value as the notify:category= you registered).
 case "$Z2_WHEN_NOTI_CATEGORY" in
   missed_call) what="Missed call" ;;
   *)           what="Incoming call" ;;
@@ -1306,8 +1319,9 @@ esac
 
 # Hand the number over through the notification's "Copy" button (-c). Calling z2-clip set here
 # would not land: Android 10+ only lets the app in front write to the clipboard, and during a
-# call that is the phone app.
-z2-notify -h -c "$num" "${what}: number not in contacts" "$num"
+# call that is the phone app. Pressing the button brings z2term to the front for that instant.
+
+z2-notify -h -c "$num" "${what}: Copy phone number" "$num"
 ```
 
 That is the whole registration:

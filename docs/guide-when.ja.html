@@ -160,7 +160,7 @@ z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
 <span class="c"># 2. 届いたワンタイムコードを自動でコピー（SMS 検知が要ります）</span>
 z2-when sms:otp run 'z2-clip set "$Z2_WHEN_OTP"; z2-toast "コードをコピーしました"'
 
-<span class="c"># 3. 電話帳に無い番号からの着信を控えておく（通知アクセスが要ります）</span>
+<span class="c"># 3. 着信通知の電話番号をコピー通知で渡す（通知アクセスが要ります）</span>
 z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh
 
 <span class="c"># 4. 共有したものを裏で仕分ける</span>

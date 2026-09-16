@@ -962,7 +962,7 @@
     <string name="guide_desc_daily_report">아침마다 배터리와 연결 상태를 읽어 주기</string>
     <string name="guide_desc_otp_clip">알림에서 일회용 코드 복사하기</string>
     <string name="guide_desc_otp_sms">SMS에서 일회용 코드 복사하기</string>
-    <string name="guide_desc_unknown_call">저장되지 않은 번호에서 온 전화 기록하기</string>
+    <string name="guide_desc_unknown_call">전화번호 복사 알림</string>
     <string name="guide_desc_remind">알림으로 일깨워 주기</string>
     <string name="guide_desc_rss">새 글을 알림으로 받고 읽기</string>
     <string name="guide_desc_qr">QR 코드로 건네주기</string>

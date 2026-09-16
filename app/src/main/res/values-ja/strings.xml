@@ -1034,7 +1034,7 @@
     <string name="guide_desc_daily_report">毎朝きまった時刻に電池と接続を読み上げる</string>
     <string name="guide_desc_otp_clip">通知の認証コードをコピーする</string>
     <string name="guide_desc_otp_sms">SMS の認証コードをコピーする</string>
-    <string name="guide_desc_unknown_call">電話帳に無い番号の着信を控える</string>
+    <string name="guide_desc_unknown_call">電話番号のコピー通知</string>
     <string name="guide_desc_remind">通知でリマインドする</string>
     <string name="guide_desc_rss">フィードの新着を通知して、1 本ずつ読む</string>
     <string name="guide_desc_qr">QR にして別の端末へ渡す</string>

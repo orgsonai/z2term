@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">命令输入</string>
+    <string name="snippet_inputs_file">选择文件</string>
+    <string name="snippet_inputs_invalid">请检查输入定义和值。占位符应作为独立参数放在引号外。</string>
+    <string name="snippet_inputs_preview">命令预览</string>
+    <string name="snippet_inputs_hint">命令将插入终端。确认后按Enter执行。所选文件会复制到设备的本地环境。</string>
+    <string name="snippet_inputs_enable">插入前填写参数</string>
+    <string name="snippet_inputs_definition">在命令中写入 {{文本}}、{{宽度:number=1080}}、{{格式:choice=png|jpg}}、{{图片:file}}。名称将成为输入标签。请勿加引号。</string>
+    <string name="snippet_share_action">接收分享后显示为选项</string>
+    <string name="snippet_share_action_hint">命令可读取 $Z2_SHARE_TEXT（正文）和 $Z2_SHARE_MANIFEST（接收清单JSON）。文件输入可选择收到的附件。</string>
+    <string name="share_intake_title">已收到分享</string>
+    <string name="share_intake_hint">正文和附件已一起保存。选择已保存的命令或插入原始内容。按Enter后才执行。</string>
+    <string name="share_intake_insert">插入终端</string>
+    <string name="share_intake_close">保留并关闭</string>
+</resources>

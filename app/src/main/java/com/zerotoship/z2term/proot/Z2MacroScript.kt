@@ -436,12 +436,12 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         append(otpWhenBody(d, t))
     }
 
-    // --- 6. 実用: 電話帳に無い番号からの着信を控える (通知の種別で拾う = 権限を増やさない) ---
+    // --- 6. 実用: 着信通知の電話番号をコピーボタンで渡す (通知の種別で拾う = 権限を増やさない) ---
     val unknownCall = buildString {
         appendLine("#!/bin/sh")
         t.lines(
             en = listOf(
-            "# unknown-call.sh — when a number that is not in your contacts calls, show it in a notification.",
+            "# unknown-call.sh — show a copy notification for phone numbers in call notifications.",
                 "# Its \"Copy\" button puts the number on the clipboard (why it waits for a press: see below).",
                 "# Setup: Settings -> \"Notification detection\" ON + grant OS notification access",
                 "# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
@@ -450,7 +450,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "#   z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
             ),
             ja = listOf(
-            "# unknown-call.sh — 電話帳に無い番号から電話が来たら、その番号を通知に出す。",
+            "# unknown-call.sh — 着信通知に含まれる電話番号をコピー通知に出す。",
                 "# 通知の「コピー」ボタンで番号がクリップボードへ入る (押すまで待つ理由は下に)。",
                 "# 準備: ⚙設定 →「通知検知」ON ＋ OS の「通知アクセス」許可",
                 "# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
@@ -459,7 +459,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "#   z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
             ),
             "zh-CN" to listOf(
-                "# unknown-call.sh — 通讯录里没有的号码打来电话时，把号码显示在通知里。",
+                "# unknown-call.sh — 将来电通知中的电话号码显示为复制通知。",
                 "# 通知上的“复制”按钮会把号码放进剪贴板 (为什么要等人按，见下面)。",
                 "# 准备: ⚙设置 → 打开“通知检测” ＋ 授予系统的“通知使用权”",
                 "# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
@@ -468,7 +468,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "#   z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
             ),
             "zh-TW" to listOf(
-                "# unknown-call.sh — 通訊錄裡沒有的號碼打來電話時，把號碼顯示在通知裡。",
+                "# unknown-call.sh — 將來電通知中的電話號碼顯示為複製通知。",
                 "# 通知上的“複製”按鈕會把號碼放進剪貼簿 (為什麼要等人按，見下面)。",
                 "# 準備: ⚙設定 → 開啟“通知偵測” ＋ 授予系統的“通知使用權”",
                 "# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
@@ -477,7 +477,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "#   z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
             ),
             "es" to listOf(
-                "# unknown-call.sh — cuando llama un número que no está en tus contactos, lo muestra en una notificación.",
+                "# unknown-call.sh — muestra una notificación para copiar números de las notificaciones de llamadas.",
                 "# Su botón «Copiar» pone el número en el portapapeles (por qué espera a que lo pulses: más abajo).",
                 "# Preparación: Ajustes -> «Detección de notificaciones» activada + acceso a las notificaciones del sistema",
                 "# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
@@ -486,7 +486,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "#   z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
             ),
             "ko" to listOf(
-                "# unknown-call.sh — 연락처에 없는 번호가 걸어 오면 알림으로 보여 줍니다.",
+                "# unknown-call.sh — 전화 알림에 포함된 전화번호를 복사 알림으로 보여 줍니다.",
                 "# 알림의 \"복사\" 버튼을 누르면 번호가 클립보드에 들어갑니다 (누를 때까지 기다리는 이유는 아래에).",
                 "# 준비: 설정 -> \"알림 감지\"를 켜기 + OS의 알림 접근 허용",
                 "# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
@@ -1289,101 +1289,95 @@ z2-toast "$cleared"
 }
 
 /**
- * 「電話帳に無い番号からの着信を控える」サンプルの本体。
- *
- * **アプリ側に電話まわりの権限を持たせないための見本**でもある。発信者が電話帳にいるかを
- * 直に調べるには連絡先 (`READ_CONTACTS`) と通話履歴 (`READ_CALL_LOG`。Android 9+ は
- * 着信番号を得るのに必須) が要り、後者は既定の電話アプリ以外ほぼ配布できない。
- *
- * 代わりに**電話アプリが出す通知の表示**を見る。電話アプリは電話帳にある相手なら名前を、
- * 無ければ番号そのものを出すので、「表示が番号の形か」を見れば同じ答えが出る。必要なのは
- * 既にある通知アクセスだけで、権限は 1 つも増えない。
+ * 着信通知に含まれる電話番号をコピーボタンで渡すサンプル。
+ * 電話帳は照合しない。登録済みでも番号が表示されていれば対象になる。
+ * 既存ルールとの互換性のため、ファイル名 unknown-call.sh は維持する。
  */
 private fun unknownCallBody(d: String, t: CliText): String {
     val cHow = t(
         en = """
-# ■ How "not in contacts" is decided
-#   A phone app shows the **name** for someone in your contacts and the **bare number** for
-#   someone who is not. So if the notification shows a number, that caller is not in contacts.
-#   ⚠ This shape exists to keep z2term free of contacts (READ_CONTACTS) and call-log
-#      (READ_CALL_LOG) permissions: notification access alone gives the same answer.
+# ■ Copy phone numbers from call notifications
+#   Check the title, then the text, for a bare phone number and offer a Copy button.
+#   Saved and unsaved callers are both included; contacts are not queried.
+#   A name alone is not enough to recover a number. Only notification access is used.
+#   The filename unknown-call.sh is kept so existing rules continue to work.
 """,
         ja = """
-# ■ 「電話帳に無い」をどう見分けているか
-#   電話アプリは、電話帳にある相手なら**名前**を、無い相手なら**番号そのもの**を通知に出す。
-#   だから通知の表示が番号の形なら、その相手は電話帳に載っていない。
-#   ⚠ この形にしているのは、z2term に連絡先 (READ_CONTACTS) も通話履歴 (READ_CALL_LOG) も
-#      持たせないため。通知アクセスだけで同じ答えが出るので、権限は 1 つも増えない。
+# ■ 着信通知の電話番号をコピーする
+#   題名、本文の順に番号そのものを探し、通知の「コピー」ボタンで渡す。
+#   電話帳への登録有無は区別しない。登録済みの相手でも番号が表示されていれば対象。
+#   名前しか通知されない場合は番号を取得できない。使う権限は通知アクセスだけ。
+#   既存のルールをそのまま使えるよう、ファイル名 unknown-call.sh は維持している。
 """,
         "zh-CN" to """
-# ■ 「不在通讯录里」是怎么判断的
-#   电话应用对通讯录里的人显示**名字**，对不在通讯录里的人显示**号码本身**。
-#   所以只要通知上显示的是号码，那位来电者就不在通讯录里。
-#   ⚠ 之所以做成这个样子，是为了让 z2term 既不要通讯录 (READ_CONTACTS) 也不要通话记录
-#      (READ_CALL_LOG) 权限: 只靠通知使用权就能得到同样的答案。
+# ■ 复制来电通知中的电话号码
+#   依次检查标题和正文中的纯电话号码，通过通知的“复制”按钮提供。
+#   不查询通讯录，已保存和未保存的联系人都适用。
+#   只有名字时无法取得号码。仅使用通知访问权限。
+#   为兼容现有规则，保留文件名 unknown-call.sh。
 """,
         "zh-TW" to """
-# ■ 「不在通訊錄裡」是怎麼判斷的
-#   電話應用程式對通訊錄裡的人顯示**名字**，對不在通訊錄裡的人顯示**號碼本身**。
-#   所以只要通知上顯示的是號碼，那位來電者就不在通訊錄裡。
-#   ⚠ 之所以做成這個樣子，是為了讓 z2term 既不要通訊錄 (READ_CONTACTS) 也不要通話記錄
-#      (READ_CALL_LOG) 權限: 只靠通知使用權就能得到同樣的答案。
+# ■ 複製來電通知中的電話號碼
+#   依序檢查標題和內文中的純電話號碼，透過通知的「複製」按鈕提供。
+#   不查詢通訊錄，已儲存和未儲存的聯絡人都適用。
+#   只有名字時無法取得號碼。僅使用通知存取權限。
+#   為相容現有規則，保留檔名 unknown-call.sh。
 """,
         "es" to """
-# ■ Cómo se decide que «no está en contactos»
-#   Una aplicación de teléfono muestra el **nombre** de quien está en tus contactos y el **número
-#   pelado** de quien no. Así que, si la notificación muestra un número, esa persona no está en contactos.
-#   ⚠ Esta forma existe para que z2term no necesite el permiso de contactos (READ_CONTACTS) ni el
-#      del registro de llamadas (READ_CALL_LOG): el acceso a las notificaciones da la misma respuesta.
+# ■ Copiar números de las notificaciones de llamadas
+#   Busca un número primero en el título y luego en el texto y ofrece el botón «Copiar».
+#   Incluye números guardados y no guardados; no consulta los contactos.
+#   Un nombre solo no permite obtener el número. Solo usa el acceso a notificaciones.
+#   Se conserva el nombre unknown-call.sh para mantener las reglas existentes.
 """,
         "ko" to """
-# ■ 「연락처에 없다」를 어떻게 가려내나
-#   전화 앱은 연락처에 있는 사람은 **이름**으로, 없는 사람은 **번호 그대로** 보여 줍니다.
-#   그래서 알림에 번호가 떠 있으면 그 사람은 연락처에 없는 것입니다.
-#   ⚠ 이 방식을 쓰는 것은 z2term이 연락처 권한(READ_CONTACTS)도 통화 기록 권한(READ_CALL_LOG)도
-#      필요 없게 하기 위해서입니다: 알림 접근만으로 같은 답이 나옵니다.
+# ■ 전화 알림의 전화번호 복사
+#   제목과 본문 순서로 전화번호를 찾아 알림의 "복사" 버튼으로 제공합니다.
+#   연락처를 조회하지 않으며 저장 여부와 관계없이 번호가 표시되면 대상입니다.
+#   이름만 있으면 번호를 얻을 수 없습니다. 알림 접근 권한만 사용합니다.
+#   기존 규칙을 유지하기 위해 파일 이름 unknown-call.sh를 그대로 둡니다.
 """
     )
     val cIsNum = t(
         en = """
 # Is it a bare number? Strip every character a phone number may use (digits + - ( ) space);
 # if **nothing is left** and 7-15 digits remain, treat it as a number.
-#   -> Letters mixed in = a name = someone in your contacts, so do nothing.
+#   -> A field containing a name or other letters is not a bare number; check the other field.
 #   -> "Unknown"/"Private number" also fall out here (loosen the test below if you want those).
 # ⚠ Do not write this as case [!...]: the ) inside the pattern is read as the case separator.
 """,
         ja = """
 # 「番号そのもの」か? 電話番号で使う文字 (数字 + - ( ) 空白) を全部消して**何も残らず**、
 # かつ数字が 7〜15 桁あれば番号とみなす。
-#   → かな・漢字・英字が混ざる = 名前 = 電話帳にある相手なので、何もしない。
+#   → 名前などの文字が混ざる欄は番号そのものではないので、もう一方の欄を見る。
 #   → 「非通知」「不明な発信者」も数字が足りずここで外れる (拾いたいなら下の判定を緩める)。
 # ⚠ case の [!...] で書かないこと — パターン中の ) が case の区切りに読まれて構文エラーになる。
 """,
         "zh-CN" to """
 # 是不是「号码本身」? 把电话号码会用到的字符 (数字 + - ( ) 空格) 全部去掉，如果**什么都不剩**，
 # 并且数字有 7〜15 位，就当成号码。
-#   -> 混着字母 = 名字 = 通讯录里的人，什么都不做。
+#   -> 包含名字或其他文字的栏不是纯号码，继续检查另一栏。
 #   -> 「未知」「隐藏号码」也会因为数字不够而在这里被排除 (想收就把下面的判断放宽)。
 # ⚠ 不要写成 case [!...]: 模式里的 ) 会被当成 case 的分隔符。
 """,
         "zh-TW" to """
 # 是不是「號碼本身」? 把電話號碼會用到的字元 (數字 + - ( ) 空格) 全部去掉，如果**什麼都不剩**，
 # 並且數字有 7〜15 位，就當成號碼。
-#   -> 混著字母 = 名字 = 通訊錄裡的人，什麼都不做。
+#   -> 包含名字或其他文字的欄不是純號碼，繼續檢查另一欄。
 #   -> 「未知」「隱藏號碼」也會因為數字不夠而在這裡被排除 (想收就把下面的判斷放寬)。
 # ⚠ 不要寫成 case [!...]: 模式裡的 ) 會被當成 case 的分隔符。
 """,
         "es" to """
 # ¿Es un número pelado? Quita todos los caracteres que puede llevar un número de teléfono
 # (dígitos + - ( ) espacio); si **no queda nada** y quedan entre 7 y 15 dígitos, trátalo como número.
-#   -> Con letras por medio = un nombre = alguien de tus contactos, así que no hacer nada.
+#   -> Un campo con nombres u otras letras no es un número; comprueba el otro campo.
 #   -> «Desconocido» / «Número privado» también se caen aquí (afloja la prueba de abajo si los quieres).
 # ⚠ No lo escribas como case [!...]: el ) del patrón se lee como el separador del case.
 """,
         "ko" to """
 # 번호 그대로인가? 전화번호에 들어갈 수 있는 문자를 모두 지웁니다
 # (숫자 + - ( ) 공백). **아무것도 남지 않고** 숫자가 7~15자리면 번호로 봅니다.
-#   -> 글자가 섞여 있다 = 이름이다 = 연락처에 있는 사람이므로 아무것도 하지 않습니다.
+#   -> 이름이나 다른 글자가 섞인 칸은 번호가 아니므로 다른 칸을 확인합니다.
 #   -> 「알 수 없음」 / 「발신번호 표시제한」도 여기로 떨어집니다 (원하면 아래 검사를 느슨하게 하세요).
 # ⚠ case [!...]로 쓰지 마세요: 패턴의 )를 case의 구분자로 읽습니다.
 """
@@ -1397,12 +1391,12 @@ private fun unknownCallBody(d: String, t: CliText): String {
         "ko" to "# 거는 사람은 보통 제목에 들어오지만, 어떤 전화 앱은 본문에 넣습니다. 둘 다 봅니다."
     )
     val cSkip = t(
-        en = "# A name was shown = in contacts. Do nothing.",
-        ja = "# 名前が出ていた = 電話帳にある相手。何もしない。",
-        "zh-CN" to "# 显示的是名字 = 通讯录里的人。什么都不做。",
-        "zh-TW" to "# 顯示的是名字 = 通訊錄裡的人。什麼都不做。",
-        "es" to "# Se mostró un nombre = está en contactos. No hacer nada.",
-        "ko" to "# 이름이 나왔다 = 연락처에 있다. 아무것도 하지 않습니다."
+        en = "# No bare number in either field: there is nothing to copy.",
+        ja = "# どちらの欄にも番号そのものが無ければ、コピー通知を出さない。",
+        "zh-CN" to "# 两栏中都没有纯号码时，不显示复制通知。",
+        "zh-TW" to "# 兩欄中都沒有純號碼時，不顯示複製通知。",
+        "es" to "# Si ninguno de los campos contiene un número, no hay nada que copiar.",
+        "ko" to "# 어느 칸에도 번호가 없으면 복사 알림을 띄우지 않습니다."
     )
     val cWhat = t(
         en = "# The category tells which one fired (same value as the notify:category= you registered).",
@@ -1448,8 +1442,8 @@ private fun unknownCallBody(d: String, t: CliText): String {
     "ko" to "부재중 전화")
     val incoming = t(en = "Incoming call", ja = "着信", "zh-CN" to "来电", "zh-TW" to "來電", "es" to "Llamada entrante",
     "ko" to "걸려 온 전화")
-    val title = t(en = "number not in contacts", ja = "電話帳に無い番号", "zh-CN" to "不在通讯录里的号码", "zh-TW" to "不在通訊錄裡的號碼", "es" to "número que no está en contactos",
-    "ko" to "연락처에 없는 번호")
+    val title = t(en = "Copy phone number", ja = "電話番号のコピー通知", "zh-CN" to "复制电话号码", "zh-TW" to "複製電話號碼", "es" to "Copiar número de teléfono",
+    "ko" to "전화번호 복사")
     return """$cHow$cIsNum
 is_number() {
   [ -z "${d}(printf '%s' "${d}1" | tr -d '0-9+() -')" ] || return 1

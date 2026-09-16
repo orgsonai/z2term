@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">Entradas del comando</string>
+    <string name="snippet_inputs_file">Elegir archivo</string>
+    <string name="snippet_inputs_invalid">Revisa la definición y los valores. Cada marcador debe ser un argumento separado y estar fuera de las comillas.</string>
+    <string name="snippet_inputs_preview">Vista previa del comando</string>
+    <string name="snippet_inputs_hint">El comando se inserta en el terminal. Revísalo y pulsa Enter. Los archivos elegidos se copian al entorno local del dispositivo.</string>
+    <string name="snippet_inputs_enable">Pedir valores antes de insertar</string>
+    <string name="snippet_inputs_definition">Escribe {{texto}}, {{ancho:number=1080}}, {{formato:choice=png|jpg}}, {{imagen:file}} en el comando. Los nombres serán las etiquetas. No pongas los marcadores entre comillas.</string>
+    <string name="snippet_share_action">Ofrecer al recibir contenido compartido</string>
+    <string name="snippet_share_action_hint">El comando puede leer $Z2_SHARE_TEXT (texto) y $Z2_SHARE_MANIFEST (inventario JSON). Las entradas de archivo pueden usar los adjuntos recibidos.</string>
+    <string name="share_intake_title">Contenido recibido</string>
+    <string name="share_intake_hint">El texto y los adjuntos se guardaron juntos. Elige un comando guardado o inserta el contenido original. Se ejecuta al pulsar Enter.</string>
+    <string name="share_intake_insert">Insertar en el terminal</string>
+    <string name="share_intake_close">Conservar y cerrar</string>
+</resources>
