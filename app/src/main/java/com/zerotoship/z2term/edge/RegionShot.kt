@@ -155,8 +155,12 @@ internal object RegionShot {
         /**
          * 囲みの外接矩形で切り出す。透過なら囲みの形だけを残す。
          *
-         * ⭐ **`clipPath` ではなくアルファのマスクを重ねる。** クリップは縁が階段状になり、
-         * 円や斜めの囲みで目に見えて汚くなる。
+         * ⭐ **先に形を塗って `SRC_IN` で元画像を落とす。** `clipPath` は縁が階段状になり、
+         * 円や斜めの囲みで目に見えて汚い。
+         *
+         * ⛔ **`ALPHA_8` の Bitmap をマスクにして `DST_IN` で重ねてはいけない** (0.8.622 の誤り)。
+         * 端末によっては黙って無視され、**どの形で囲んでも外接矩形がそのまま出てくる**。
+         * 塗り → `SRC_IN` なら経路に `ALPHA_8` が出てこないので、この失敗自体が成立しない。
          */
         private fun crop(): Bitmap? {
             val src = shot ?: return null
@@ -167,15 +171,15 @@ internal object RegionShot {
             if (area.width() < 8 || area.height() < 8) return null
             val out = Bitmap.createBitmap(area.width(), area.height(), Bitmap.Config.ARGB_8888)
             val canvas = Canvas(out)
-            canvas.drawBitmap(src, -area.left.toFloat(), -area.top.toFloat(), null)
+            val dx = -area.left.toFloat()
+            val dy = -area.top.toFloat()
             if (transparent) {
-                val mask = Bitmap.createBitmap(area.width(), area.height(), Bitmap.Config.ALPHA_8)
-                Canvas(mask).drawPath(
-                    Path(path).apply { offset(-area.left.toFloat(), -area.top.toFloat()) },
-                    Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE })
-                canvas.drawBitmap(mask, 0f, 0f,
-                    Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) })
-                mask.recycle()
+                canvas.drawPath(Path(path).apply { offset(dx, dy) },
+                    Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK })
+                canvas.drawBitmap(src, dx, dy,
+                    Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN) })
+            } else {
+                canvas.drawBitmap(src, dx, dy, null)
             }
             return out
         }
