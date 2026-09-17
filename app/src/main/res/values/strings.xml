@@ -1288,10 +1288,4 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="edge_macro_done">Completed</string>
     <string name="edge_macro_stopped">Stopped</string>
     <string name="edge_macro_help">Place argument and result boxes anywhere in the item order. In the macro, choose argument boxes in argument order and a result box. Input is passed as literal arguments. Closing resets the form and stops its commands.</string>
-    <string name="edge_add_translation">＋ Translation form</string>
-    <string name="edge_translation_text">Text to translate</string>
-    <string name="edge_translation_run">Translate</string>
-    <string name="edge_translation_target">Target language</string>
-    <string name="edge_translation_source">Source language (auto: detect)</string>
-    <string name="edge_translation_setup">The trans command must be installed separately in the local Linux environment. Text is sent to its external translation service. Existing translate.sh is kept.</string>
 </resources>

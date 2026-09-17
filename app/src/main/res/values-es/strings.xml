@@ -1194,10 +1194,4 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="edge_macro_done">Completado</string>
     <string name="edge_macro_stopped">Detenido</string>
     <string name="edge_macro_help">Ordena los campos de argumentos y resultados. Elige los argumentos en orden y el destino del resultado en la macro. La entrada se pasa literalmente. Al cerrar se restablece el formulario y se detienen sus comandos.</string>
-    <string name="edge_add_translation">＋ Formulario de traducción</string>
-    <string name="edge_translation_text">Texto para traducir</string>
-    <string name="edge_translation_run">Traducir</string>
-    <string name="edge_translation_target">Idioma de destino</string>
-    <string name="edge_translation_source">Idioma de origen (auto: detectar)</string>
-    <string name="edge_translation_setup">Instala trans por separado en Linux local. El texto se envía al servicio de traducción externo. Se conserva translate.sh existente.</string>
 </resources>

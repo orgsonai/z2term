@@ -1426,6 +1426,30 @@ AI が「無い機能」を使わないよう、**必ず本ガイドの範囲内
 詳しくは [ハンドブック](HANDBOOK.md#96-画面に浮かべるエッジパネル)。
 座標操作やUI要素操作の追加は [拡張案](AUTOMATION-ROADMAP.md) であり、まだ実装していません。
 
-## 翻訳マクロとエッジパネル
+## 翻訳マクロのサンプル
 
-`z2-macro install translate` で文章・翻訳先・元言語を受け取るサンプルを導入できます。翻訳CLIはユーザー自身で別途導入してください。パネル設定の「＋ 翻訳フォーム」も使えます。[汎用フォームと翻訳の詳細](EDGE-MACRO-FORMS.md)。
+翻訳サンプルの導入ではアプリ独自の `~/.z2term/macros/translate.sh` だけを作成します。既存ファイルは上書きしません。**翻訳CLI・SDK・モデルは同梱せず、自動インストールもしません。** `trans` インターフェースの翻訳CLIは、ユーザー自身で使用するローカルLinux環境へ導入してください。未導入の場合は実行時に導入方法の案内が出ます。接続先の利用条件が適用され、翻訳文は外部へ送信されます。通信・接続先の変更により利用できない場合があります。
+
+未導入時は実行先の `/etc/os-release`（なければ `/usr/lib/os-release`）からディストリを判別し、同じローカルLinux環境のターミナルで実行する導入コマンドを表示します。`ID_LIKE` による派生環境の判定にも対応し、判別できない場合は一覧を表示します。コマンドは案内するだけで、自動実行しません。
+
+| 実行先 | 表示する導入コマンド |
+|---|---|
+| Arch Linux / Arch Linux ARM | `pacman -S --needed translate-shell` |
+| Alpine Linux | `apk update && apk add translate-shell` |
+| Ubuntu / Kali / Debian | `apt-get update && apt-get install translate-shell` |
+
+Alpineでパッケージが見つからない場合は、`/etc/apk/repositories` で同じAlpine版の `community` を有効にします。Ubuntuでは `universe` を有効にします。これらの補足も該当環境の案内に表示します。導入先の選択は [翻訳CLIのディストリ別導入手順](https://github.com/soimort/translate-shell/wiki/Distros) に基づきます。
+
+APK更新後にローカルタブを開き、通常のマクロサンプルとして導入します。
+
+```sh
+z2-macro install translate
+sh ~/.z2term/macros/translate.sh "Hello" ja auto
+sh ~/.z2term/macros/translate.sh "こんにちは" en ja
+```
+
+既存のサンプルはAPK更新だけでは置き換わりません。`z2-macro diff translate` で差分を確認し、同梱版へ更新する場合は `z2-macro install -f translate` を実行してください。自分で編集した内容も置き換わります。
+
+引数は **文章・翻訳先・元言語** の順です。先頭が `--help` 等の文章には `translate.sh -- "文章" ja auto` とします。文章をファイルやWebページとして扱わないため、`file://`・`http://`・`https://` で始まる入力は受け付けません。外部CLIの終了状態をそのまま返します。
+
+パネルでは他のスクリプトと同じく「＋ マクロフォーム」で引数欄・実行・結果欄を追加し、実行コマンドに翻訳マクロを指定します。引数欄は文章・翻訳先・元言語の順に関連付けます。翻訳先と元言語は、必要に応じて選択式や固定値の引数欄に設定できます。[引数付きマクロの設定](EDGE-MACRO-FORMS.md)。

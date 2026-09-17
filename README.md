@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.616-alpha (versionCode 624) — build unverified**: Removes the translation-specific add button, item generator and wrapper installer. Use the shared argument, macro and result items with any script. Existing items remain editable and runnable; the translation script is available as an ordinary macro sample.
+
 **0.8.615-alpha (versionCode 623) — build unverified**: Retains the 0.8.614 integration and corrects the unit-test syntax used by CI. Validation and distribution run on GitHub CI.
 
 **0.8.614-alpha (versionCode 622) — build unverified**: The Linux engine now handles fd, cwd, namespace and memory-map magic links without interpreting their descriptions as filenames. This targets pipes, anonymous files, unlinked open files and working directories, and indirect executable references. Translation forms and mini terminals also receive outside long presses to open settings. Outside taps and Back keep these panels open; the panel captures outside touches. When the translation CLI is missing, the wrapper prints manual installation commands for the current distribution. Also fixes the translation macro icon mapping and Japanese weekday/clock parsing in byte-oriented shells and locales. Verification on the updated device is pending.

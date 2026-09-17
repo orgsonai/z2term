@@ -1192,10 +1192,4 @@ SSH 连接目标 %3$d 个
     <string name="edge_macro_done">已完成</string>
     <string name="edge_macro_stopped">已停止</string>
     <string name="edge_macro_help">可通过排序放置参数框和结果框。在宏中按参数顺序选择参数框，并指定结果框。输入按原样作为参数传递。关闭时重置表单并停止命令。</string>
-    <string name="edge_add_translation">＋ 翻译表单</string>
-    <string name="edge_translation_text">待翻译文本</string>
-    <string name="edge_translation_run">翻译</string>
-    <string name="edge_translation_target">目标语言</string>
-    <string name="edge_translation_source">原文语言（auto：自动检测）</string>
-    <string name="edge_translation_setup">请在本地 Linux 环境另行安装 trans 命令。文本会发送至外部翻译服务。保留现有 translate.sh。</string>
 </resources>

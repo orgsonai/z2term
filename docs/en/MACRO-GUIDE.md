@@ -1446,6 +1446,30 @@ Use `z2-edge toggle` for visibility and handle `--open swipe|tap|both` with `--r
 `z2-app pick` returns a selected package or fails on cancel/120-second timeout. See the [handbook](HANDBOOK.md#96-floating-edge-panels).
 Coordinate and UI-element actions remain [proposals](AUTOMATION-ROADMAP.md), not implemented commands.
 
-## Translation macro and edge panels
+## Translation macro sample
 
-`z2-macro install translate` installs a sample taking text, target language and source language. Users install the translation CLI separately. Panel settings also offer **＋ Translation form**. See [generic forms and translation](EDGE-MACRO-FORMS.md).
+Installing the translation sample creates only `~/.z2term/macros/translate.sh`, preserving any existing file. **No translation CLI, SDK or model is bundled or installed automatically.** Users install a translation CLI with the `trans` interface in the local Linux environment themselves. If missing, execution prints setup instructions. Translation text is sent to an external service under that service’s terms. Connectivity or service changes may prevent translation.
+
+When missing, the wrapper reads `/etc/os-release` (or `/usr/lib/os-release`) in the execution environment and prints the matching install command. Run it yourself in a terminal in that same local Linux environment. Derived distributions can be detected through `ID_LIKE`; unrecognized environments get the command list. The wrapper never executes these commands.
+
+| Environment | Suggested command |
+|---|---|
+| Arch Linux / Arch Linux ARM | `pacman -S --needed translate-shell` |
+| Alpine Linux | `apk update && apk add translate-shell` |
+| Ubuntu / Kali / Debian | `apt-get update && apt-get install translate-shell` |
+
+If Alpine cannot find the package, enable `community` for the same Alpine release in `/etc/apk/repositories`. On Ubuntu, enable `universe`. The relevant hint is also included in the output. Commands follow the [translator CLI installation guide](https://github.com/soimort/translate-shell/wiki/Distros).
+
+After updating the APK, open a local tab and install it as an ordinary macro sample:
+
+```sh
+z2-macro install translate
+sh ~/.z2term/macros/translate.sh "Hello" ja auto
+sh ~/.z2term/macros/translate.sh "こんにちは" en ja
+```
+
+Updating the APK preserves an existing sample. Run `z2-macro diff translate` to review the changes, then `z2-macro install -f translate` if you want to replace it with the bundled version. This also replaces any edits you made.
+
+Arguments are **text, target language, source language**. Use `translate.sh -- "text" ja auto` for text such as `--help`. Inputs beginning with `file://`, `http://` or `https://` are refused so the external command cannot treat the text as a file or web page. Its exit status is preserved.
+
+In a panel, use **＋ Macro form** as for any other script, then select the translation macro as the action command. Bind argument boxes in text, target language and source language order. Target and source can use choice boxes or fixed values. See [macro argument setup](EDGE-MACRO-FORMS.md).

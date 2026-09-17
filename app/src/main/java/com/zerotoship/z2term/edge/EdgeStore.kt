@@ -95,17 +95,6 @@ class EdgeStore(val root: File) {
         "out" to mapOf("type" to "result", "label" to labels[2], "rows" to "6")
     ))
 
-    @Synchronized fun addTranslationForm(panelId: String, labels: List<String>) = addForm(panelId, listOf(
-        "arg" to mapOf("type" to "argument", "label" to labels[0], "rows" to "3", "required" to "on"),
-        "target" to mapOf("type" to "argument", "label" to labels[3], "default" to "ja",
-            "argument-kind" to "choice", "choices" to "ja|en|zh-CN|zh-TW|ko|es|fr|de"),
-        "source" to mapOf("type" to "argument", "label" to labels[4], "default" to "auto",
-            "argument-kind" to "choice", "choices" to "auto|ja|en|zh-CN|zh-TW|ko|es|fr|de"),
-        "run" to mapOf("type" to "macro", "label" to labels[1], "args" to "arg,target,source", "result" to "out",
-            "run" to "sh \"\$HOME/.z2term/macros/translate.sh\" --", "timeout" to "60"),
-        "out" to mapOf("type" to "result", "label" to labels[2], "rows" to "6")
-    ))
-
     private fun addForm(panelId: String, definitions: List<Pair<String, Map<String, String>>>) {
         val panel = panel(panelId)
         require(panel.items.size + definitions.size <= 64) { "At most 64 items" }

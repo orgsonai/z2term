@@ -1192,10 +1192,4 @@ SSH 連線目標 %3$d 個
     <string name="edge_macro_done">已完成</string>
     <string name="edge_macro_stopped">已停止</string>
     <string name="edge_macro_help">可透過排序配置引數欄及結果欄。在巨集中依引數順序選擇引數欄，並指定結果欄。輸入原樣傳入。關閉時重設表單並停止命令。</string>
-    <string name="edge_add_translation">＋ 翻譯表單</string>
-    <string name="edge_translation_text">待翻譯文字</string>
-    <string name="edge_translation_run">翻譯</string>
-    <string name="edge_translation_target">目標語言</string>
-    <string name="edge_translation_source">原文語言（auto：自動偵測）</string>
-    <string name="edge_translation_setup">請在本機 Linux 環境另行安裝 trans 命令。文字會傳送至外部翻譯服務。保留現有 translate.sh。</string>
 </resources>

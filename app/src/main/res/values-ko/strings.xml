@@ -1185,10 +1185,4 @@ SSH 연결: %3$d
     <string name="edge_macro_done">완료</string>
     <string name="edge_macro_stopped">중지됨</string>
     <string name="edge_macro_help">항목 순서로 인수와 결과 입력란을 배치합니다. 매크로에서 인수 순서와 결과 표시란을 선택하세요. 입력은 그대로 인수로 전달됩니다. 닫으면 양식이 초기화되고 명령이 중지됩니다.</string>
-    <string name="edge_add_translation">＋ 번역 양식</string>
-    <string name="edge_translation_text">번역할 텍스트</string>
-    <string name="edge_translation_run">번역</string>
-    <string name="edge_translation_target">대상 언어</string>
-    <string name="edge_translation_source">원본 언어 (auto: 자동 감지)</string>
-    <string name="edge_translation_setup">로컬 Linux 환경에 trans 명령을 별도로 설치하세요. 텍스트는 외부 번역 서비스로 전송됩니다. 기존 translate.sh는 유지됩니다.</string>
 </resources>

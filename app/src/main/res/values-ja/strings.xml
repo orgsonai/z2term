@@ -1270,10 +1270,4 @@ SSH 接続先 %3$d 件
     <string name="edge_macro_done">完了</string>
     <string name="edge_macro_stopped">停止しました</string>
     <string name="edge_macro_help">引数欄・結果欄は項目の並べ替えで配置できます。マクロ側で引数欄を引数順に追加し、結果欄を指定してください。入力はそのまま引数として渡されます。閉じると入力・結果をリセットし、実行中のコマンドを停止します。</string>
-    <string name="edge_add_translation">＋ 翻訳フォーム</string>
-    <string name="edge_translation_text">翻訳する文章</string>
-    <string name="edge_translation_run">翻訳</string>
-    <string name="edge_translation_target">翻訳先の言語</string>
-    <string name="edge_translation_source">元の言語（auto：自動判定）</string>
-    <string name="edge_translation_setup">ローカルLinux環境に trans コマンドを別途導入してください。翻訳文は外部の翻訳サービスへ送信されます。既存の translate.sh は上書きしません。</string>
 </resources>

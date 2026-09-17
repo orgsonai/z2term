@@ -1,12 +1,12 @@
-# Edge macro forms and translation
+# Edge macros with arguments
 
-Target: 0.8.615-alpha (versionCode 623)
+Target: 0.8.616-alpha (versionCode 624)
 
 In panel settings → Items, choose **＋ Macro form** to add an argument box, an action and a result box. Edit the action to select a saved macro or enter a script invocation. A new generic form has no command until you configure it.
 
 Each component is an independent item. Reorder items to place them and set visible rows (1–20) for inputs and results. Vertical, horizontal and grid layouts work; arbitrary XY placement is not provided.
 
-Empty display names omit their heading and heading space. Drag vertically inside result boxes to read all retained output, including translations; flick horizontally to switch tabs. Each new result starts at the top. With tabs, **× (Close)** stays at the right of the tab row on every page. Without tabs or a panel title, Close shares an action row.
+Empty display names omit their heading and heading space. Drag vertically inside result boxes to read all retained output; flick horizontally to switch tabs. Each new result starts at the top. With tabs, **× (Close)** stays at the right of the tab row on every page. Without tabs or a panel title, Close shares an action row.
 
 ## Bind arguments and results
 
@@ -33,32 +33,4 @@ With edge panels enabled, neither the main app screen nor a normal terminal tab 
 
 The panel receives outside touches. A short tap keeps it open; a long press opens settings. Entering settings stops running form commands and discards input and results.
 
-## Translation form
-
-Choose **＋ Translation form** to add text, target language, source language, an action and a result box. Source `auto` requests detection; the default target is `ja`. Edit the choices or change an input to free text for other languages.
-
-This creates only the app-owned sample `~/.z2term/macros/translate.sh`, preserving any existing file. **No translation CLI, SDK or model is bundled or installed automatically.** Users install a translation CLI with the `trans` interface in the local Linux environment themselves. If missing, the result box explains the required setup. Translation text is sent to an external service under that service’s terms. Connectivity or service changes may prevent translation.
-
-When missing, the wrapper reads `/etc/os-release` (or `/usr/lib/os-release`) in the execution environment and prints the matching install command. Run it yourself in a terminal in that same local Linux environment. Derived distributions can be detected through `ID_LIKE`; unrecognized environments get the command list. The wrapper never executes these commands.
-
-| Environment | Suggested command |
-|---|---|
-| Arch Linux / Arch Linux ARM | `pacman -S --needed translate-shell` |
-| Alpine Linux | `apk update && apk add translate-shell` |
-| Ubuntu / Kali / Debian | `apt-get update && apt-get install translate-shell` |
-
-If Alpine cannot find the package, enable `community` for the same Alpine release in `/etc/apk/repositories`. On Ubuntu, enable `universe`. The relevant hint is also included in the output. Commands follow the [translator CLI installation guide](https://github.com/soimort/translate-shell/wiki/Distros).
-
-For terminal use, open a local tab after updating the APK, then install the sample:
-
-```sh
-z2-macro install translate
-sh ~/.z2term/macros/translate.sh "Hello" ja auto
-sh ~/.z2term/macros/translate.sh "こんにちは" en ja
-```
-
-Updating the APK preserves an existing sample. Run `z2-macro diff translate` to review the changes, then `z2-macro install -f translate` if you want to replace it with the bundled version. This also replaces any edits you made.
-
-Arguments are **text, target language, source language**. Use `translate.sh -- "text" ja auto` for text such as `--help`. Inputs beginning with `file://`, `http://` or `https://` are refused so the external command cannot treat the text as a file or web page. Its exit status is preserved.
-
-Translation uses the same generic form and ordinary shell macro mechanism as any other task. Existing `type=input` items continue to send standard input; they are separate from these multiple-argument forms.
+Existing `type=input` items send standard input. Argument boxes pass values as command arguments.

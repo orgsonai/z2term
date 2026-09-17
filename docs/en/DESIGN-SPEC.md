@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-17 / Target version: 0.8.615-alpha (versionCode 623)
+Last updated: 2026-09-17 / Target version: 0.8.616-alpha (versionCode 624)
+
+**0.8.616-alpha (versionCode 624) — build unverified**: Removes the translation-specific add button, item generator and wrapper installer. Use the shared argument, macro and result items with any script. Existing items remain editable and runnable; the translation script is available as an ordinary macro sample.
 
 **0.8.615-alpha (versionCode 623) — build unverified**: Retains the 0.8.614 integration and corrects the unit-test syntax used by CI. Validation and distribution run on GitHub CI.
 

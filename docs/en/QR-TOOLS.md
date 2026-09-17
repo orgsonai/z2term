@@ -1,6 +1,6 @@
 # QR tools and self-hosted relay setup
 
-Applies to 0.8.615-alpha (versionCode 623).
+Applies to 0.8.616-alpha (versionCode 624).
 
 ## Read and display QR codes
 

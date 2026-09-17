@@ -948,13 +948,6 @@ object EdgeRuntime {
                     reload(app!!)
                 }.onFailure { fail(it) } }
             })
-            if (settings) tools.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_add_translation)) {
-                session.leave { runCatching {
-                    EdgeTranslationTemplate.add(ui(), store(app!!), panel.id)
-                    Toast.makeText(ui(), R.string.edge_translation_setup, Toast.LENGTH_LONG).show()
-                    reload(app!!)
-                }.onFailure { fail(it) } }
-            })
             if (!settings && wantsClose && !hasNavigation && panelTitle.isBlank() && !inlineClose)
                 tools.addView(EdgePanelControls.close(ui(), closeAction))
             if (!settings && hasNavigation && tools.childCount > 0)
