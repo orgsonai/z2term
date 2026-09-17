@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="edge_terminal">簡易終端</string>
-    <string name="edge_add_terminal">＋終端</string>
     <string name="edge_terminal_command">輸入單行命令</string>
     <string name="edge_terminal_result">執行結果</string>
     <string name="edge_terminal_stop">停止</string>

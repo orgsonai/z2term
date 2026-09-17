@@ -33,15 +33,28 @@ object EdgeItemEditor {
         val appCommand = item?.command?.takeIf { AppLaunchCommand.packageFrom(it) != null }
         var launchMode = AppLaunchCommand.modeFrom(appCommand.orEmpty())
         var scaleFreeform = AppLaunchCommand.scalesFreeform(appCommand.orEmpty())
-        val types = EdgeSettingsUi.itemTypes
-        val type = EdgeSettingsUi.dress(context, Spinner(context)).apply {
+        val initial = EdgeItemComponent.from(item)
+        var selection = initial
+        val components = EdgeItemComponent.actions.keys.toList()
+        val component = EdgeSettingsUi.dress(context, Spinner(context)).apply {
             adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
-                types.map { context.getString(EdgeSettingsUi.typeLabel(it)) })
-            contentDescription = context.getString(R.string.edge_item_type)
-            setSelection(types.indexOf(item?.type ?: "run"))
+                components.map { context.getString(EdgeComponentLabels.component(it)) })
+            contentDescription = context.getString(R.string.edge_component)
+            setSelection(components.indexOf(initial.component))
         }
+        val action = EdgeSettingsUi.dress(context, Spinner(context)).apply {
+            contentDescription = context.getString(R.string.edge_component_action)
+        }
+        fun showActions() {
+            val choices = EdgeItemComponent.actions.getValue(selection.component)
+            action.adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
+                choices.map { context.getString(EdgeComponentLabels.action(it)) })
+            action.setSelection(choices.indexOf(selection.action))
+        }
+        showActions()
         if (appCommand == null) {
-            EdgeSettingsUi.labeled(context, draft, context.getString(R.string.edge_item_type), type)
+            EdgeSettingsUi.labeled(context, draft, context.getString(R.string.edge_component), component)
+            EdgeSettingsUi.labeled(context, draft, context.getString(R.string.edge_component_action), action)
         }
         if (appCommand != null) {
             EdgeSettingsUi.labeled(context, draft, context.getString(R.string.edge_window_mode),
@@ -73,12 +86,6 @@ object EdgeItemEditor {
         val groups = linkedMapOf<String, LinearLayout>()
         val basic = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         draft.addView(basic)
-        val buttonState = EdgeSettingsUi.switchOf(context, item?.isStateButton == true).apply {
-            text = context.getString(R.string.edge_button_state)
-            setTextColor(EdgeSettingsUi.foreground(context))
-            minHeight = EdgeEditorUi.dp(context, 48)
-        }
-        basic.addView(buttonState)
         val buttonStateHelp = EdgeSettingsUi.body(context, context.getString(R.string.edge_button_state_desc))
         basic.addView(buttonStateHelp)
         val sourceGroup = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -105,7 +112,11 @@ object EdgeItemEditor {
             "args" to R.string.edge_macro_args, "result" to R.string.edge_macro_result,
             "argument-kind" to R.string.edge_argument_kind, "default" to R.string.edge_argument_default,
             "choices" to R.string.edge_argument_choices, "required" to R.string.edge_argument_required,
-            "rows" to R.string.edge_form_rows)
+            "rows" to R.string.edge_form_rows, "stdin" to R.string.edge_item_stdin,
+            "width" to R.string.edge_item_width, "height" to R.string.edge_item_height,
+            "align" to R.string.edge_item_align, "at" to R.string.edge_item_at)
+        val layout = EdgeSettingsUi.section(context, draft, context.getString(R.string.edge_item_layout), sub = true)
+        layout.addView(EdgeSettingsUi.body(context, context.getString(R.string.edge_item_layout_help)))
         fields.forEach { (key, label) ->
             val group = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
             group.addView(EdgeSettingsUi.caption(context, context.getString(label)))
@@ -117,17 +128,19 @@ object EdgeItemEditor {
             group.addView(entry)
             if (key in setOf("note-background", "note-color")) EdgeColorField.add(context, group, entry, label)
             if (key == "icon") EdgeItemPickers.icons(context, group, entry)
-            if (key == "args" || key == "result") EdgeItemPickers.bindings(context, group, entry,
-                store.panel(panelId).items, key == "args")
-            if (key == "argument-kind") EdgeItemPickers.options(context, group, entry,
-                listOf("text", "choice", "fixed"), listOf(R.string.edge_argument_text, R.string.edge_argument_choice,
-                    R.string.edge_argument_fixed))
+            if (key in setOf("args", "stdin", "result")) EdgeItemPickers.bindings(context, group, entry,
+                store.panel(panelId).items, key != "result", multiple = key == "args")
+            if (key == "align") EdgeItemPickers.options(context, group, entry,
+                listOf("start", "center", "end"), listOf(R.string.edge_align_start, R.string.edge_align_center, R.string.edge_align_end))
+            if (key == "out") EdgeItemPickers.options(context, group, entry,
+                listOf("none", "panel", "toast", "notify"), listOf(R.string.edge_out_none, R.string.edge_out_panel,
+                    R.string.edge_out_toast, R.string.edge_out_notify))
             if (key == "required") EdgeItemPickers.options(context, group, entry, listOf("off", "on"),
                 listOf(R.string.edge_argument_optional, R.string.edge_argument_mandatory))
             if (key == "run" || key == "off") EdgeItemPickers.macros(context, group, entry)
             group.addView(EdgeSettingsUi.spacer(context, 12))
             val optional = key in listOf("every", "timeout", "out", "file")
-            (if (optional) advanced else basic).addView(group)
+            (if (key in setOf("width", "height", "align", "at")) layout else if (optional) advanced else basic).addView(group)
         }
         basic.addView(noteLines, LinearLayout.LayoutParams(-1, -2))
         val qr = EdgeSettingsUi.button(context, context.getString(R.string.qr_tools_command_qr)) {
@@ -139,10 +152,9 @@ object EdgeItemEditor {
         basic.addView(formHelp)
         if (item != null) basic.addView(EdgeSettingsUi.caption(context, "ID: ${item.id}"))
         fun showFields() {
-            val selected = types[type.selectedItemPosition]
-            formHelp.visibility = if (selected in setOf("macro", "argument", "result")) View.VISIBLE else View.GONE
-            buttonState.visibility = if (selected == "run") View.VISIBLE else View.GONE
-            val stateButton = selected == "run" && buttonState.isChecked
+            val selected = EdgeItemComponent.type(selection, item)
+            formHelp.visibility = if (selected in setOf("run", "macro", "argument", "result")) View.VISIBLE else View.GONE
+            val stateButton = selection.action == "state_button"
             qr.visibility = if (selected == "run" && !stateButton && appCommand == null) View.VISIBLE else View.GONE
             buttonStateHelp.visibility = if (stateButton) View.VISIBLE else View.GONE
             sourceGroup.visibility = if (stateButton) View.VISIBLE else View.GONE
@@ -154,25 +166,41 @@ object EdgeItemEditor {
                     "on-select" -> selected == "list"
                     "every" -> selected in listOf("text", "toggle", "list") || stateButton
                     "file", "note-background", "note-color" -> selected == "note"
-                    "args", "result" -> selected == "macro"
-                    "argument-kind", "default", "choices", "required" -> selected == "argument"
-                    "rows" -> selected in setOf("argument", "result", "macro")
-                    "out" -> selected !in setOf("note", "terminal", "argument", "result", "macro")
+                    "args", "stdin", "result" -> selected == "macro" || (selected == "run" && !stateButton && appCommand == null)
+                    "argument-kind" -> false
+                    "default" -> selected == "argument"
+                    "choices" -> selection.component == "choice"
+                    "required" -> selected == "argument" && selection.component != "display"
+                    "rows" -> selected in setOf("argument", "result", "macro", "run")
+                    "out" -> selected !in setOf("note", "terminal", "argument", "result")
                     "run", "timeout" -> selected !in setOf("note", "terminal", "argument", "result")
                     else -> true
                 }
                 group.visibility = if (visible) View.VISIBLE else View.GONE
             }
         }
-        type.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+        component.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) = showFields()
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val next = components[position]
+                if (next != selection.component) {
+                    selection = EdgeItemComponent.Selection(next, EdgeItemComponent.actions.getValue(next).first())
+                    showActions()
+                }
+                showFields()
+            }
         }
-        buttonState.setOnCheckedChangeListener { _, _ -> showFields() }
+        action.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val choices = EdgeItemComponent.actions.getValue(selection.component)
+                if (position in choices.indices) selection = selection.copy(action = choices[position])
+                showFields()
+            }
+        }
         showFields()
         session.track(outer) {
-            types[type.selectedItemPosition] != (item?.type ?: "run") ||
-                buttonState.isChecked != (item?.isStateButton == true) ||
+            selection != initial ||
                 EdgeButtonSource.choices[source.selectedItemPosition] != (item?.fields?.get("button-source") ?: "auto") ||
                 launchMode != AppLaunchCommand.modeFrom(appCommand.orEmpty()) ||
                 scaleFreeform != AppLaunchCommand.scalesFreeform(appCommand.orEmpty()) ||
@@ -184,8 +212,7 @@ object EdgeItemEditor {
         commit.addView(EdgeSettingsUi.button(context, context.getString(android.R.string.cancel)) {
             session.discard(outer) {
                 entries.forEach { (key, entry) -> entry.setText(item?.fields?.get(key).orEmpty()) }
-                type.setSelection(types.indexOf(item?.type ?: "run"))
-                buttonState.isChecked = item?.isStateButton == true
+                selection = initial; component.setSelection(components.indexOf(initial.component)); showActions()
                 source.setSelection(EdgeButtonSource.choices.indexOf(item?.fields?.get("button-source") ?: "auto").coerceAtLeast(0))
                 noteLines.isChecked = item?.fields?.get("note-lines") == "on"
                 if (cancelled != null) cancelled() else draft.visibility = View.GONE
@@ -194,9 +221,9 @@ object EdgeItemEditor {
         commit.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_save), EdgeSettingsUi.Kind.PRIMARY) {
             runCatching {
                 val values = item?.fields.orEmpty().toMutableMap()
-                values["type"] = types[type.selectedItemPosition]
-                if (values["type"] == "run") values["button-state"] = if (buttonState.isChecked) "on" else "off"
-                if (values["type"] == "run" && buttonState.isChecked) {
+                EdgeItemComponent.apply(selection, item, values)
+                if (values["type"] == "run") values["button-state"] = if (selection.action == "state_button") "on" else "off"
+                if (values["type"] == "run" && (selection.action == "state_button")) {
                     val selected = EdgeButtonSource.choices[source.selectedItemPosition]
                     if (selected == "auto") values.remove("button-source") else values["button-source"] = selected
                 }

@@ -1251,9 +1251,8 @@ SSH 接続先 %3$d 件
     <string name="edge_type_macro">引数付きマクロ</string>
     <string name="edge_type_argument">引数欄</string>
     <string name="edge_type_result">結果欄</string>
-    <string name="edge_add_macro_form">＋ マクロフォーム</string>
-    <string name="edge_macro_args">引数欄のID（引数順・カンマ区切り）</string>
-    <string name="edge_macro_result">結果欄のID（空欄：ここに表示）</string>
+    <string name="edge_macro_args">引数の参照元（項目IDを引数順にカンマ区切り）</string>
+    <string name="edge_macro_result">結果の表示先（項目ID、空欄：出力設定に従う）</string>
     <string name="edge_argument_kind">入力方式</string>
     <string name="edge_argument_default">初期値・固定値</string>
     <string name="edge_argument_choices">選択肢（| 区切り）</string>
@@ -1269,5 +1268,38 @@ SSH 接続先 %3$d 件
     <string name="edge_choose_value">値を選択</string>
     <string name="edge_macro_done">完了</string>
     <string name="edge_macro_stopped">停止しました</string>
-    <string name="edge_macro_help">引数欄・結果欄は項目の並べ替えで配置できます。マクロ側で引数欄を引数順に追加し、結果欄を指定してください。入力はそのまま引数として渡されます。閉じると入力・結果をリセットし、実行中のコマンドを停止します。</string>
+    <string name="edge_macro_help">項目の値を引数や標準入力に渡し、結果を受け取る表示欄を選べます。値はそのまま渡されます。閉じると一時的な入力・結果を消去し、接続したコマンドを停止します。ファイルの内容は保存します。</string>
+    <string name="edge_component" formatted="false">部品</string>
+    <string name="edge_component_action" formatted="false">動作</string>
+    <string name="edge_component_button" formatted="false">ボタン</string>
+    <string name="edge_component_display" formatted="false">文字表示</string>
+    <string name="edge_component_entry" formatted="false">入力欄</string>
+    <string name="edge_component_choice" formatted="false">選択欄</string>
+    <string name="edge_component_switch" formatted="false">スイッチ</string>
+    <string name="edge_component_list" formatted="false">リスト</string>
+    <string name="edge_action_execute" formatted="false">コマンドを実行</string>
+    <string name="edge_action_receive" formatted="false">実行結果を受け取る</string>
+    <string name="edge_action_fixed" formatted="false">固定の値を表示</string>
+    <string name="edge_action_read" formatted="false">コマンドの出力を表示</string>
+    <string name="edge_action_value" formatted="false">他の項目に値を渡す</string>
+    <string name="edge_action_file" formatted="false">ファイルを読み書き</string>
+    <string name="edge_action_send" formatted="false">入力をコマンドへ送る</string>
+    <string name="edge_action_shell" formatted="false">シェルに接続</string>
+    <string name="edge_action_state" formatted="false">状態を取得して切り替える</string>
+    <string name="edge_action_select" formatted="false">選択した値でコマンドを実行</string>
+    <string name="edge_item_stdin" formatted="false">標準入力の参照元（項目ID）</string>
+    <string name="edge_item_width" formatted="false">幅（dp または %、空欄で自動）</string>
+    <string name="edge_item_height" formatted="false">高さ（dp または %、空欄で内容に合わせる）</string>
+    <string name="edge_item_align" formatted="false">行内の寄せ方</string>
+    <string name="edge_item_at" formatted="false">自由配置の座標（X%,Y%、空欄で自動）</string>
+    <string name="edge_item_layout" formatted="false">項目の大きさ・配置</string>
+    <string name="edge_align_start" formatted="false">先頭</string>
+    <string name="edge_align_center" formatted="false">中央</string>
+    <string name="edge_align_end" formatted="false">末尾</string>
+    <string name="edge_out_none" formatted="false">表示しない</string>
+    <string name="edge_out_panel" formatted="false">この項目の下</string>
+    <string name="edge_out_toast" formatted="false">短いメッセージ</string>
+    <string name="edge_out_notify" formatted="false">通知</string>
+    <string name="edge_flow_free" formatted="false">自由配置（項目ごとの座標）</string>
+    <string name="edge_item_layout_help" formatted="false">幅の % は行・列、高さの % はパネルが基準です。パネルの並べ方を「自由配置」にすると座標を使えます。0% が左端・上端、100% が右端・下端です。座標を空欄にした項目は順番に並びます。</string>
 </resources>

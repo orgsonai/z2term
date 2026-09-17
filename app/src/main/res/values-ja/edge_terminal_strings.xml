@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="edge_terminal">簡易ターミナル</string>
-    <string name="edge_add_terminal">＋ターミナル</string>
     <string name="edge_terminal_command">コマンドを1行で入力</string>
     <string name="edge_terminal_result">実行結果</string>
     <string name="edge_terminal_stop">停止</string>

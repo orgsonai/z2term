@@ -27,13 +27,13 @@ internal object EdgeItemPickers {
     }
 
     fun bindings(context: Context, group: LinearLayout, entry: EditText,
-        items: List<EdgeStore.Item>, arguments: Boolean) {
-        val candidates = items.filter { it.type == if (arguments) "argument" else "result" }
+        items: List<EdgeStore.Item>, arguments: Boolean, multiple: Boolean = arguments) {
+        val candidates = items.filter { if (arguments) EdgeItemComponent.source(it) else it.type == "result" }
         val labels = candidates.map { "${it.fields["label"] ?: it.id} (${it.id})" }
         picker(context, group, entry, if (arguments) R.string.edge_pick_argument else R.string.edge_pick_result,
             labels) { label ->
             val id = candidates[labels.indexOf(label)].id
-            if (arguments && entry.text.isNotBlank()) "${entry.text},$id" else id
+            if (multiple && entry.text.isNotBlank()) "${entry.text},$id" else id
         }
     }
 

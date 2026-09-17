@@ -38,7 +38,6 @@
     <string name="edge_done">Listo</string>
     <string name="edge_delete">Eliminar</string>
     <string name="edge_note">Nota</string>
-    <string name="edge_add_note">+ Nota</string>
     <string name="edge_note_empty">Toca dos veces para escribir una nota</string>
     <string name="edge_undo">Deshacer</string>
     <string name="edge_redo">Rehacer</string>

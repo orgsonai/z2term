@@ -38,7 +38,6 @@
     <string name="edge_done">완료</string>
     <string name="edge_delete">삭제</string>
     <string name="edge_note">메모</string>
-    <string name="edge_add_note">+ 메모</string>
     <string name="edge_note_empty">두 번 눌러서 메모 작성</string>
     <string name="edge_undo">실행 취소</string>
     <string name="edge_redo">다시 실행</string>

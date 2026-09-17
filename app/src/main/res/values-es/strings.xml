@@ -1175,9 +1175,8 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="edge_type_macro">Macro con argumentos</string>
     <string name="edge_type_argument">Campo de argumento</string>
     <string name="edge_type_result">Campo de resultado</string>
-    <string name="edge_add_macro_form">＋ Formulario de macro</string>
-    <string name="edge_macro_args">ID de argumentos en orden, separados por comas</string>
-    <string name="edge_macro_result">ID del resultado (vacío: mostrar aquí)</string>
+    <string name="edge_macro_args">Orígenes de los argumentos en orden (ID separados por comas)</string>
+    <string name="edge_macro_result">Destino del resultado (ID; vacío: usar ajuste de salida)</string>
     <string name="edge_argument_kind">Modo de entrada</string>
     <string name="edge_argument_default">Valor inicial o fijo</string>
     <string name="edge_argument_choices">Opciones separadas por |</string>
@@ -1193,5 +1192,38 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="edge_choose_value">Elegir un valor</string>
     <string name="edge_macro_done">Completado</string>
     <string name="edge_macro_stopped">Detenido</string>
-    <string name="edge_macro_help">Ordena los campos de argumentos y resultados. Elige los argumentos en orden y el destino del resultado en la macro. La entrada se pasa literalmente. Al cerrar se restablece el formulario y se detienen sus comandos.</string>
+    <string name="edge_macro_help">Conecta los elementos eligiendo los argumentos o la entrada estándar y el destino de salida. Los valores se pasan literalmente. Al cerrar se borran los valores temporales y se cancelan los comandos conectados; los archivos se guardan.</string>
+    <string name="edge_component" formatted="false">Componente</string>
+    <string name="edge_component_action" formatted="false">Comportamiento</string>
+    <string name="edge_component_button" formatted="false">Botón</string>
+    <string name="edge_component_display" formatted="false">Texto</string>
+    <string name="edge_component_entry" formatted="false">Entrada de texto</string>
+    <string name="edge_component_choice" formatted="false">Selector</string>
+    <string name="edge_component_switch" formatted="false">Interruptor</string>
+    <string name="edge_component_list" formatted="false">Lista</string>
+    <string name="edge_action_execute" formatted="false">Ejecutar un comando</string>
+    <string name="edge_action_receive" formatted="false">Recibir la salida de un comando</string>
+    <string name="edge_action_fixed" formatted="false">Mostrar un valor fijo</string>
+    <string name="edge_action_read" formatted="false">Mostrar la salida de un comando</string>
+    <string name="edge_action_value" formatted="false">Proporcionar un valor a otros elementos</string>
+    <string name="edge_action_file" formatted="false">Leer y guardar un archivo</string>
+    <string name="edge_action_send" formatted="false">Enviar la entrada a un comando</string>
+    <string name="edge_action_shell" formatted="false">Conectar a un shell</string>
+    <string name="edge_action_state" formatted="false">Consultar y cambiar un estado</string>
+    <string name="edge_action_select" formatted="false">Ejecutar un comando con el valor seleccionado</string>
+    <string name="edge_item_stdin" formatted="false">Origen de la entrada estándar (ID del elemento)</string>
+    <string name="edge_item_width" formatted="false">Ancho (dp o %, vacío: automático)</string>
+    <string name="edge_item_height" formatted="false">Altura (dp o %, vacío: contenido)</string>
+    <string name="edge_item_align" formatted="false">Alineación en la fila</string>
+    <string name="edge_item_at" formatted="false">Posición libre (X%,Y%, vacío: automático)</string>
+    <string name="edge_item_layout" formatted="false">Tamaño y posición del elemento</string>
+    <string name="edge_item_layout_help" formatted="false">El ancho depende de la fila o columna; la altura, del panel. Elige la disposición libre para usar X%,Y%. 0% es el borde superior o izquierdo; 100%, el inferior o derecho. Sin coordenadas, los elementos mantienen su orden.</string>
+    <string name="edge_align_start" formatted="false">Inicio</string>
+    <string name="edge_align_center" formatted="false">Centro</string>
+    <string name="edge_align_end" formatted="false">Final</string>
+    <string name="edge_out_none" formatted="false">Sin salida</string>
+    <string name="edge_out_panel" formatted="false">Debajo de este elemento</string>
+    <string name="edge_out_toast" formatted="false">Mensaje breve</string>
+    <string name="edge_out_notify" formatted="false">Notificación</string>
+    <string name="edge_flow_free" formatted="false">Libre (coordenadas por elemento)</string>
 </resources>

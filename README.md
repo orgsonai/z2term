@@ -84,7 +84,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.616-alpha (versionCode 624) — build unverified**: Removes the translation-specific add button, item generator and wrapper installer. Use the shared argument, macro and result items with any script. Existing items remain editable and runnable; the translation script is available as an ordinary macro sample.
+**0.8.617-alpha (versionCode 625) — build unverified**: Creation uses Add app and Add item. Select components and behaviors independently, bind arguments, standard input and output displays, and configure per-item dimensions, alignment and free placement. Existing items, files and scripts are retained. See [components and behaviors](docs/en/EDGE-MACRO-FORMS.md).
 
 **0.8.615-alpha (versionCode 623) — build unverified**: Retains the 0.8.614 integration and corrects the unit-test syntax used by CI. Validation and distribution run on GitHub CI.
 

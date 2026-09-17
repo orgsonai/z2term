@@ -18,7 +18,7 @@ class EdgeMacroFormTest {
 
     @Test fun missingOrRetypedBindingsAndRequiredInputsFailBeforeLaunch() {
         for (list in listOf(items.filter { it != result }, items.filter { it != input },
-            items.map { if (it == input) it.copy(fields = mapOf("type" to "note")) else it })) {
+            items.map { if (it == input) it.copy(fields = mapOf("type" to "run")) else it })) {
             assertThrows(IllegalArgumentException::class.java) { EdgeMacroForm.resolve(action, list) { "x" } }
         }
         assertThrows(IllegalArgumentException::class.java) { EdgeMacroForm.resolve(action, items) { " " } }
@@ -39,19 +39,16 @@ class EdgeMacroFormTest {
         }
     }
 
-    @Test fun formCreationPreservesExistingItemsAndCreatesLinkedBoxes() {
-        val root = Files.createTempDirectory("edge-form").toFile()
-        try {
-            val store = EdgeStore(root)
-            store.setPanel("panel", emptyMap())
-            store.setItem("panel:old", mapOf("type" to "note", "label" to "keep"))
-            val old = store.panel("panel").items.single()
-            store.addMacroForm("panel", listOf("Input", "Run", "Result"))
-            val all = store.panel("panel").items
-            assertEquals(old, all.first())
-            assertEquals(listOf("note", "argument", "macro", "result"), all.map { it.type })
-            assertEquals(listOf("literal"), EdgeMacroForm.resolve(all[2], all) { "literal" })
-        } finally { root.deleteRecursively() }
+    @Test fun stdinAndArgumentsCanReadFilesAndPreviousResultsWithoutChangingTheirContents() {
+        val note = EdgeStore.Item("note", mapOf("type" to "note"))
+        val run = EdgeStore.Item("button", mapOf("type" to "run", "args" to "output", "stdin" to "note", "result" to "output"))
+        val values = mapOf("note" to " leading\n'quoted'\n", "output" to "previous output")
+        val all = listOf(run, result, note)
+        assertEquals(listOf("previous output"), EdgeMacroForm.resolve(run, all) { values[it] })
+        assertEquals(values["note"], EdgeMacroForm.stdin(run, all) { values[it] })
+        assertThrows(IllegalArgumentException::class.java) { EdgeMacroForm.stdin(run, all) { null } }
+        assertThrows(IllegalArgumentException::class.java) { EdgeMacroForm.stdin(run, all) { "日".repeat(22000) } }
+        assertThrows(IllegalArgumentException::class.java) { EdgeStore.validateItem(mapOf("stdin" to "other:note")) }
     }
 
     @Test fun literalArgvCannotExecuteShellAndPreservesQuotesNewlinesAndOptionPrefixes() {

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="edge_terminal">간이 터미널</string>
-    <string name="edge_add_terminal">+ 터미널</string>
     <string name="edge_terminal_command">한 줄 명령 입력</string>
     <string name="edge_terminal_result">실행 결과</string>
     <string name="edge_terminal_stop">중지</string>

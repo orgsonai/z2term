@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.616-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.617-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -898,7 +898,7 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
-**0.8.616-alpha (versionCode 624) — build unverified**: Removes the translation-specific add button, item generator and wrapper installer. Use the shared argument, macro and result items with any script. Existing items remain editable and runnable; the translation script is available as an ordinary macro sample.
+**0.8.617-alpha (versionCode 625) — build unverified**: Creation uses Add app and Add item. Select components and behaviors independently, bind arguments, standard input and output displays, and configure per-item dimensions, alignment and free placement. Existing items, files and scripts are retained. See [components and behaviors](EDGE-MACRO-FORMS.md).
 
 **0.8.615-alpha (versionCode 623) — build unverified**: Retains the 0.8.614 integration and corrects the unit-test syntax used by CI. Validation and distribution run on GitHub CI.
 
@@ -977,7 +977,7 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Height sizing | `fit=content\|fixed` (default content; an empty panel keeps a 48dp touch area within its height limit) |
 | Placement | `place=handle\|left\|right\|top\|bottom\|center` (default handle) |
 | Custom position | `at=X%,Y%` (0–100, overrides place; empty clears it; percentage of space remaining after panel size) |
-| Arrangement | `flow=vertical\|horizontal\|grid` (omitted/empty follows tab layout) |
+| Arrangement | `flow=vertical\|horizontal\|grid\|free` (omitted/empty follows tab layout) |
 | Grid columns and icon size | `columns=auto` or 1–16; `icon-size=16..192` dp (default 40) |
 | Handle shape, position, activation | `handle` / `side` / `offset` / `x` / `y` / `size` / `length` / `alpha` / `open` (also via `z2-edge handle`) |
 | Bar colour | `bar-color=auto\|white\|black` (default auto; also `z2-edge handle ID bar --bar-color white`) |
@@ -990,7 +990,7 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Note background / text colour | Item `note-background` / `note-color` = `#RRGGBB` (omitted/empty means automatic; writable with `z2-edge set ID:memo`) |
 
 Optional add/settings controls are icons at the end. Tab/note addition and item editing live in settings. Run items can also be reordered directly in the menu.
-Vertical, horizontal and grid layouts are available; horizontal rows scroll sideways. Automatic grid columns follow icon size; an explicit flow applies to all item types.
+Vertical, horizontal, grid and free layouts are available; horizontal rows scroll sideways. Automatic grid columns follow icon size; an explicit flow applies to all item types.
 `layout=grid|list` remains the per-tab default. With flow omitted, grid arranges run items only and leaves other types in rows below.
 
 An icon-only vertical bar can be configured with these commands or the corresponding settings:
@@ -1052,7 +1052,7 @@ Deleting a child detaches its reference; deleting a parent preserves child panel
 
 In settings, hold an item name and drag before/after another item to save every item’s `order`. Dropping outside leaves the order unchanged. Settings also expose item deletion and app launch-mode selection.
 
-“+ Note” in settings adds a note to the active tab. `type=note` shows its contents; double-tap to edit with Undo and Redo (0.8.586). A single tap does not start editing, and dragging still scrolls.
+Choose Add item → Text input → Read and save a file to create a persistent editor. It retains the existing `type=note` format and supports Undo and Redo.
 A blank note label (including whitespace only) hides the internal ID, icon and heading row so the body starts at the top (0.8.582).
 The note item settings include Ruled lines (off by default, `note-lines=on|off`), including wrapped lines.
 While editing, icon buttons for Undo, Redo, smaller text and larger text appear below the body. Text size is 10–32sp (default 16sp, `note-size`), saved per note item and applied to both reading and editing.

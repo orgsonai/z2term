@@ -6,7 +6,7 @@ internal object EdgePanelLayout {
 
     fun bounded(root: EdgeStore.Panel, panels: List<EdgeStore.Panel>): Boolean {
         val ids = root.tabs.toSet() + root.id
-        return panels.any { it.id in ids && it.items.any { item -> item.type in interactiveTypes } }
+        return root.fields["flow"] == "free" || panels.any { it.id in ids && it.items.any { item -> item.type in interactiveTypes || EdgeItemComponent.linked(item) } }
     }
 
     fun label(item: EdgeStore.Item, applicationName: String? = null): String =

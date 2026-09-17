@@ -34,21 +34,6 @@ internal object EdgeSettingsUi {
     /** One gutter for the whole editor; every heading, field and row starts on this line. */
     const val GUTTER = 16
 
-    val itemTypes = listOf("run", "text", "toggle", "list", "input", "note", "terminal", "macro", "argument", "result")
-
-    fun typeLabel(type: String): Int = when (type) {
-        "text" -> R.string.edge_type_text
-        "toggle" -> R.string.edge_type_toggle
-        "list" -> R.string.edge_type_list
-        "input" -> R.string.edge_type_input
-        "note" -> R.string.edge_note
-        "macro" -> R.string.edge_type_macro
-        "argument" -> R.string.edge_type_argument
-        "result" -> R.string.edge_type_result
-        "terminal" -> R.string.edge_terminal
-        else -> R.string.edge_type_run
-    }
-
     fun dp(context: Context, value: Int): Int = EdgeEditorUi.dp(context, value)
 
     // The editor does not invent colours: it reads the app palette, which is derived from the

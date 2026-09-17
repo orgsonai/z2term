@@ -14,6 +14,7 @@ internal object EdgeMacroForm {
 
     fun validate(fields: Map<String, String>) {
         fields["args"]?.let(::arguments)
+        fields["stdin"]?.let { require(it.isEmpty() || EdgeStore.validId(it)) { "stdin: an item ID in this panel" } }
         fields["result"]?.let { require(it.isEmpty() || EdgeStore.validId(it)) { "result: an item ID in this panel" } }
         fields["argument-kind"]?.let { require(it in setOf("text", "choice", "fixed")) { "argument-kind: text|choice|fixed" } }
         fields["required"]?.let { require(it in setOf("on", "off")) { "required: on|off" } }
@@ -27,15 +28,22 @@ internal object EdgeMacroForm {
     fun resolve(item: EdgeStore.Item, items: List<EdgeStore.Item>, value: (String) -> String?): List<String> {
         val output = item.fields["result"].orEmpty()
         require(output.isEmpty() || items.any { it.id == output && it.type == "result" }) { "Missing result box: $output" }
-        return arguments(item.fields["args"].orEmpty()).map { id ->
-            val argument = items.firstOrNull { it.id == id && it.type == "argument" }
-                ?: throw IllegalArgumentException("Missing argument box: $id")
-            val text = value(id) ?: throw IllegalArgumentException("Argument is not visible: $id")
-            require('\u0000' !in text) { "Argument contains NUL: $id" }
-            require(argument.fields["required"] != "on" || text.isNotBlank()) {
-                "${argument.fields["label"] ?: id}: input required"
-            }
-            text
-        }.also { values -> require(values.sumOf { it.toByteArray(Charsets.UTF_8).size } <= 65536) { "Arguments exceed 64 KiB" } }
+        return arguments(item.fields["args"].orEmpty()).map { id -> read(id, items, value) }
+            .also { values -> require(values.sumOf { it.toByteArray(Charsets.UTF_8).size } <= 65536) { "Arguments exceed 64 KiB" } }
+    }
+
+    fun stdin(item: EdgeStore.Item, items: List<EdgeStore.Item>, value: (String) -> String?): String? =
+        item.fields["stdin"]?.takeIf { it.isNotEmpty() }?.let { read(it, items, value) }
+
+    private fun read(id: String, items: List<EdgeStore.Item>, value: (String) -> String?): String {
+        val source = items.firstOrNull { it.id == id && EdgeItemComponent.source(it) }
+            ?: throw IllegalArgumentException("Missing input source: $id")
+        val text = value(id) ?: throw IllegalArgumentException("Input is not visible: $id")
+        require('\u0000' !in text) { "Input contains NUL: $id" }
+        require(source.fields["required"] != "on" || text.isNotBlank()) {
+            "${source.fields["label"] ?: id}: input required"
+        }
+        require(text.toByteArray(Charsets.UTF_8).size <= 65536) { "Input exceeds 64 KiB: $id" }
+        return text
     }
 }

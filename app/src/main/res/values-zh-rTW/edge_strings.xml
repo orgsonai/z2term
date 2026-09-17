@@ -38,7 +38,6 @@
     <string name="edge_done">完成</string>
     <string name="edge_delete">刪除</string>
     <string name="edge_note">筆記</string>
-    <string name="edge_add_note">+ 筆記</string>
     <string name="edge_note_empty">輕觸兩下以寫筆記</string>
     <string name="edge_undo">復原</string>
     <string name="edge_redo">重做</string>

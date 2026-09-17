@@ -1472,4 +1472,4 @@ Updating the APK preserves an existing sample. Run `z2-macro diff translate` to 
 
 Arguments are **text, target language, source language**. Use `translate.sh -- "text" ja auto` for text such as `--help`. Inputs beginning with `file://`, `http://` or `https://` are refused so the external command cannot treat the text as a file or web page. Its exit status is preserved.
 
-In a panel, use **＋ Macro form** as for any other script, then select the translation macro as the action command. Bind argument boxes in text, target language and source language order. Target and source can use choice boxes or fixed values. See [macro argument setup](EDGE-MACRO-FORMS.md).
+Use Add item to create inputs, a button and an output display. Set the button command to the translation macro and bind text, target and source language in that order. Languages can use choices or fixed values. See [components and behaviors](EDGE-MACRO-FORMS.md).

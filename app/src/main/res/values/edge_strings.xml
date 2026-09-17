@@ -38,7 +38,6 @@
     <string name="edge_done">Done</string>
     <string name="edge_delete">Delete</string>
     <string name="edge_note">Note</string>
-    <string name="edge_add_note">+ Note</string>
     <string name="edge_note_empty">Double-tap to write a note</string>
     <string name="edge_undo">Undo</string>
     <string name="edge_redo">Redo</string>

@@ -16,7 +16,8 @@ import java.util.UUID
 
 /** One opening owns the input snapshots and result leases; closing cancels its commands. */
 internal class EdgeMacroUi(private val context: Context, private val panel: EdgeStore.Panel,
-    private val runner: EdgeRunner, private var inlineClose: (() -> Unit)? = null) {
+    private val runner: EdgeRunner, private var inlineClose: (() -> Unit)? = null,
+    private val publish: (EdgeStore.Item, String) -> Unit = { _, _ -> }) {
     private class ResultBox(val text: TextView, val status: TextView, val scroll: EdgeResultScrollView) {
         var job: String? = null
         var revision = 0
@@ -28,6 +29,8 @@ internal class EdgeMacroUi(private val context: Context, private val panel: Edge
     private val inputs = mutableMapOf<String, () -> String>()
     private val outputs = mutableMapOf<String, ResultBox>()
     private var disposed = false
+
+    fun registerInput(id: String, value: () -> String) { inputs[id] = value }
 
     fun addArgument(parent: LinearLayout, item: EdgeStore.Item) {
         val default = item.fields["default"].orEmpty()
@@ -81,6 +84,7 @@ internal class EdgeMacroUi(private val context: Context, private val panel: Edge
         }
         val box = ResultBox(output, state, scroll)
         outputs[id] = box
+        inputs[id] = { output.text.toString() }
         val tools = LinearLayout(context)
         tools.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_terminal_stop)) {
             stop(box)
@@ -106,7 +110,19 @@ internal class EdgeMacroUi(private val context: Context, private val panel: Edge
             }
         })
         addClose(tools); parent.addView(tools)
-        if (item.fields["result"].isNullOrEmpty()) addResult(parent, item, "action:${item.id}")
+        prepareAction(parent, item)
+    }
+
+    fun prepareAction(parent: LinearLayout, item: EdgeStore.Item) {
+        if (!item.fields["result"].isNullOrEmpty()) return
+        val id = "action:${item.id}"
+        if (item.fields["out"] == "panel" || (item.type == "macro" && item.fields["out"].isNullOrEmpty())) {
+            addResult(parent, item, id)
+        } else {
+            val status = EdgeSettingsUi.caption(context, "").apply { visibility = android.view.View.GONE }
+            parent.addView(status)
+            outputs[id] = ResultBox(TextView(context), status, EdgeResultScrollView(context))
+        }
     }
 
     private fun addClose(row: LinearLayout) {
@@ -120,10 +136,11 @@ internal class EdgeMacroUi(private val context: Context, private val panel: Edge
         inlineClose?.let { row.addView(EdgePanelControls.close(context, it)); inlineClose = null }
     }
 
-    private fun execute(item: EdgeStore.Item) {
+    fun execute(item: EdgeStore.Item) {
         if (disposed) return
         require(item.command.isNotBlank()) { context.getString(R.string.edge_no_command) }
         val args = EdgeMacroForm.resolve(item, panel.items) { inputs[it]?.invoke() }
+        val stdin = EdgeMacroForm.stdin(item, panel.items) { inputs[it]?.invoke() }
         val box = outputs[item.fields["result"].orEmpty().ifEmpty { "action:${item.id}" }]
             ?: throw IllegalArgumentException("Result box is not visible")
         if (box.job != null) {
@@ -132,10 +149,11 @@ internal class EdgeMacroUi(private val context: Context, private val panel: Edge
         val job = "form:${UUID.randomUUID()}"
         val revision = box.revision + 1
         val command = EdgeMacroCommand.resolve(item.command, WidgetStore.availableMacros(context))
-        val accepted = runner.run(job, command, item.timeout, arguments = args) { result ->
+        val accepted = runner.run(job, command, item.timeout, input = stdin, arguments = args.takeIf { it.isNotEmpty() }) { result ->
             if (disposed || box.revision != revision || box.job != job) return@run
             box.job = null
             box.output(result.output)
+            if (result.error == null && item.fields["result"].isNullOrEmpty()) publish(item, result.output)
             box.status.text = result.error ?: context.getString(R.string.edge_macro_done)
         }
         if (accepted) {

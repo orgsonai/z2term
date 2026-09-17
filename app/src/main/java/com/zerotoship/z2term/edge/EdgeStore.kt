@@ -88,34 +88,6 @@ class EdgeStore(val root: File) {
         File(directory(panelId), "$itemId.button-state").delete()
     }
 
-    /** Create a useful first form without replacing any user-defined item. */
-    @Synchronized fun addMacroForm(panelId: String, labels: List<String>) = addForm(panelId, listOf(
-        "arg" to mapOf("type" to "argument", "label" to labels[0], "rows" to "3", "required" to "on"),
-        "run" to mapOf("type" to "macro", "label" to labels[1], "args" to "arg", "result" to "out"),
-        "out" to mapOf("type" to "result", "label" to labels[2], "rows" to "6")
-    ))
-
-    private fun addForm(panelId: String, definitions: List<Pair<String, Map<String, String>>>) {
-        val panel = panel(panelId)
-        require(panel.items.size + definitions.size <= 64) { "At most 64 items" }
-        val prefix = "form_" + java.util.UUID.randomUUID().toString().replace("-", "")
-        val order = (panel.items.maxOfOrNull { it.order } ?: -1).coerceAtMost(Int.MAX_VALUE - definitions.size) + 1
-        val created = mutableListOf<String>()
-        try {
-            definitions.forEachIndexed { index, (suffix, fields) ->
-                val target = "$panelId:${prefix}_$suffix"
-                val values = fields.toMutableMap()
-                values["args"]?.let { values["args"] = EdgeMacroForm.arguments(it).joinToString(",") { id -> "${prefix}_$id" } }
-                values["result"]?.let { values["result"] = "${prefix}_$it" }
-                saveItemDraft(target, values + ("order" to (order + index).toString()), null)
-                created.add(target)
-            }
-        } catch (error: Exception) {
-            created.forEach { runCatching { removeItem(it) } }
-            throw error
-        }
-    }
-
     /** Remember successful actions, tied to the command definition so edits never reuse stale state. */
     @Synchronized fun buttonState(panelId: String, item: Item): Boolean? {
         val data = read(File(directory(panelId), "${item.id}.button-state"))
@@ -253,7 +225,7 @@ class EdgeStore(val root: File) {
         }
 
         fun validateItem(values: Map<String, String>) {
-            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color", "args", "result", "argument-kind", "default", "choices", "required", "rows")
+            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color", "args", "result", "argument-kind", "default", "choices", "required", "rows", "stdin", "width", "height", "align", "at")
             require(values.keys.all { it in allowed }) { "Unknown item field: ${values.keys - allowed}" }
             val type = values["type"] ?: "run"
             require(type in setOf("run", "text", "toggle", "list", "input", "note", "terminal", "macro", "argument", "result")) { "Unsupported type: $type" }
@@ -270,6 +242,7 @@ class EdgeStore(val root: File) {
             values["every"]?.let { require(it.toLongOrNull()?.let { n -> n == 0L || n in 5..86400 } == true) { "every: 0 or 5–86400 seconds" } }
             values["timeout"]?.let { require(it.toLongOrNull()?.let { n -> n in 1L..300L } == true) { "timeout: 1–300 seconds" } }
             values["order"]?.let { require(it.toIntOrNull() != null) { "order must be an integer" } }
+            EdgeItemLayout.validate(values)
             EdgeMacroForm.validate(values)
             encode(values)
         }
@@ -306,7 +279,7 @@ class EdgeStore(val root: File) {
             require(values["tabbar"].orEmpty() in setOf("", "on", "off", "auto")) { "tabbar: on|off|auto" }
             require(values["fit"].orEmpty() in setOf("", "content", "fixed")) { "fit: content|fixed" }
             require(values["place"].orEmpty() in setOf("", "handle", "left", "right", "top", "bottom", "center")) { "place: handle|left|right|top|bottom|center" }
-            require(values["flow"].orEmpty() in setOf("", "vertical", "horizontal", "grid")) { "flow: vertical|horizontal|grid" }
+            require(values["flow"].orEmpty() in setOf("", "vertical", "horizontal", "grid", "free")) { "flow: vertical|horizontal|grid|free" }
             values["columns"]?.let { require(it == "auto" || it.toIntOrNull()?.let { n -> n in 1..16 } == true) { "columns: auto|1–16" } }
             values["icon-size"]?.let { require(it.toIntOrNull()?.let { n -> n in 16..192 } == true) { "icon-size: 16–192 dp" } }
             values["at"]?.takeIf { it.isNotBlank() }?.let { point ->

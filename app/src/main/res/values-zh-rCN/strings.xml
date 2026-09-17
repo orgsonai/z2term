@@ -1173,9 +1173,8 @@ SSH 连接目标 %3$d 个
     <string name="edge_type_macro">带参数的宏</string>
     <string name="edge_type_argument">参数框</string>
     <string name="edge_type_result">结果框</string>
-    <string name="edge_add_macro_form">＋ 宏表单</string>
-    <string name="edge_macro_args">参数框 ID（按顺序，以逗号分隔）</string>
-    <string name="edge_macro_result">结果框 ID（留空：在此显示）</string>
+    <string name="edge_macro_args">按参数顺序排列的输入来源（项目 ID，逗号分隔）</string>
+    <string name="edge_macro_result">结果目标（项目 ID，留空：使用输出设置）</string>
     <string name="edge_argument_kind">输入方式</string>
     <string name="edge_argument_default">初始值或固定值</string>
     <string name="edge_argument_choices">选项（以 | 分隔）</string>
@@ -1191,5 +1190,38 @@ SSH 连接目标 %3$d 个
     <string name="edge_choose_value">选择值</string>
     <string name="edge_macro_done">已完成</string>
     <string name="edge_macro_stopped">已停止</string>
-    <string name="edge_macro_help">可通过排序放置参数框和结果框。在宏中按参数顺序选择参数框，并指定结果框。输入按原样作为参数传递。关闭时重置表单并停止命令。</string>
+    <string name="edge_macro_help">选择参数或标准输入的来源以及输出显示目标来连接项目。值按原样传递。关闭时清除临时值并停止已连接的命令；文件内容会保存。</string>
+    <string name="edge_component" formatted="false">组件</string>
+    <string name="edge_component_action" formatted="false">行为</string>
+    <string name="edge_component_button" formatted="false">按钮</string>
+    <string name="edge_component_display" formatted="false">文字显示</string>
+    <string name="edge_component_entry" formatted="false">文本输入</string>
+    <string name="edge_component_choice" formatted="false">选择框</string>
+    <string name="edge_component_switch" formatted="false">开关</string>
+    <string name="edge_component_list" formatted="false">列表</string>
+    <string name="edge_action_execute" formatted="false">运行命令</string>
+    <string name="edge_action_receive" formatted="false">接收命令输出</string>
+    <string name="edge_action_fixed" formatted="false">显示固定值</string>
+    <string name="edge_action_read" formatted="false">显示命令输出</string>
+    <string name="edge_action_value" formatted="false">向其他项目提供值</string>
+    <string name="edge_action_file" formatted="false">读取和保存文件</string>
+    <string name="edge_action_send" formatted="false">将输入发送到命令</string>
+    <string name="edge_action_shell" formatted="false">连接到 shell</string>
+    <string name="edge_action_state" formatted="false">读取和更改状态</string>
+    <string name="edge_action_select" formatted="false">使用所选值运行命令</string>
+    <string name="edge_item_stdin" formatted="false">标准输入来源（项目 ID）</string>
+    <string name="edge_item_width" formatted="false">宽度（dp 或 %，留空：自动）</string>
+    <string name="edge_item_height" formatted="false">高度（dp 或 %，留空：适应内容）</string>
+    <string name="edge_item_align" formatted="false">行内对齐</string>
+    <string name="edge_item_at" formatted="false">自由位置（X%,Y%，留空：自动）</string>
+    <string name="edge_item_layout" formatted="false">项目大小和位置</string>
+    <string name="edge_item_layout_help" formatted="false">宽度以行或列为基准，高度以面板为基准。选择自由布局后可使用 X%,Y% 坐标。0% 为左侧或顶部，100% 为右侧或底部。未指定坐标的项目按顺序排列。</string>
+    <string name="edge_align_start" formatted="false">起始</string>
+    <string name="edge_align_center" formatted="false">居中</string>
+    <string name="edge_align_end" formatted="false">末尾</string>
+    <string name="edge_out_none" formatted="false">不显示输出</string>
+    <string name="edge_out_panel" formatted="false">此项目下方</string>
+    <string name="edge_out_toast" formatted="false">短消息</string>
+    <string name="edge_out_notify" formatted="false">通知</string>
+    <string name="edge_flow_free" formatted="false">自由（各项目坐标）</string>
 </resources>

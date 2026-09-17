@@ -72,6 +72,7 @@ object EdgeRuntime {
     private var openRootId: String? = null
     private val notes = mutableMapOf<String, EdgeNote>()
     private val terminals = mutableListOf<EdgeTerminalUi>()
+    private var itemAreaHeight = 1
     @android.annotation.SuppressLint("StaticFieldLeak") // Window-scoped; disposed and cleared by clearPanel.
     private var macroForm: EdgeMacroUi? = null
     private var editingItems = false
@@ -739,7 +740,7 @@ object EdgeRuntime {
         val root = panels.firstOrNull { id in it.tabs } ?: requested
         val active = tabId ?: if (root.id != id) id else selectedTabs[root.id]
         val panel = panels.firstOrNull { it.id == active && (it.id == root.id || it.id in root.tabs) } ?: root
-        val terminalMode = !settings && panel.items.any { it.type in EdgePanelLayout.interactiveTypes }
+        val terminalMode = !settings && panel.items.any { it.type in EdgePanelLayout.interactiveTypes || EdgeItemComponent.linked(it) }
         val stablePanelSize = !settings && EdgePanelLayout.bounded(root, panels)
         val showTabBar = settings || root.fields["tabbar"] == "on" ||
             (root.fields["tabbar"] == "auto" && root.tabs.isNotEmpty())
@@ -760,15 +761,22 @@ object EdgeRuntime {
         selectedTabs[root.id] = panel.id
         openRootId = root.id
         openId = panel.id
-        if (!settings && panel.items.any { it.type in setOf("macro", "argument", "result") })
+        if (!settings && panel.items.any { EdgeItemComponent.linked(it) || it.type in setOf("argument", "result") })
             macroForm = EdgeMacroUi(ui(), panel, runner!!,
-                closeAction.takeIf { inlineClose && panel.items.none { item -> item.type == "terminal" } })
+                closeAction.takeIf { inlineClose && panel.items.none { item -> item.type == "terminal" } }) { item, output ->
+                when (item.fields["out"]) {
+                    "toast" -> Toast.makeText(app, output.take(1000), Toast.LENGTH_LONG).show()
+                    "notify" -> runner?.run("notify:${panel.id}:${item.id}",
+                        "z2-notify ${HeadlessRun.shSingleQuote(output.take(8000))}", 10) { }
+                }
+            }
         try {
             val (width, height) = screenSize()
             val density = windowContext!!.resources.displayMetrics.density
             val panelWidth = if (settings) width else EdgeStore.dimensionPixels(root.fields["width"] ?: "360", width, density)
                 .coerceAtLeast(if (root.fields["add"] == "on" || root.fields["settings"] == "on") minOf(width, dp(48)) else 1)
             val panelHeight = if (settings) height else EdgeStore.dimensionPixels(root.fields["height"] ?: "72%", height, density)
+            itemAreaHeight = panelHeight
             val body = object : LinearLayout(ui()) {
                 override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
                     val limit = minOf(panelHeight, View.MeasureSpec.getSize(heightMeasureSpec))
@@ -927,32 +935,12 @@ object EdgeRuntime {
                 minWidth = 0; minimumWidth = 0; setPadding(0, 0, 0, 0); layoutParams = LinearLayout.LayoutParams(dp(32), dp(48))
                 setOnClickListener { open(root.id, tabId = panel.id, settings = true) }
             })
-            if (settings) tools.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_add_note)) {
-                session.leave { runCatching {
-                    val noteId = "note_" + java.util.UUID.randomUUID().toString().replace("-", "")
-                    store(app!!).setItem("${panel.id}:$noteId", mapOf("type" to "note", "label" to app!!.getString(R.string.edge_note)))
-                    reload(app!!)
-                }.onFailure { fail(it) } }
-            })
-            if (settings) tools.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_add_terminal)) {
-                session.leave { runCatching {
-                    val terminalId = "terminal_" + java.util.UUID.randomUUID().toString().replace("-", "")
-                    store(app!!).setItem("${panel.id}:$terminalId", mapOf("type" to "terminal", "label" to app!!.getString(R.string.edge_terminal)))
-                    reload(app!!)
-                }.onFailure { fail(it) } }
-            })
-            if (settings) tools.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_add_macro_form)) {
-                session.leave { runCatching {
-                    store(app!!).addMacroForm(panel.id, listOf(R.string.edge_type_argument, R.string.edge_type_macro,
-                        R.string.edge_type_result).map { app!!.getString(it) })
-                    reload(app!!)
-                }.onFailure { fail(it) } }
-            })
             if (!settings && wantsClose && !hasNavigation && panelTitle.isBlank() && !inlineClose)
                 tools.addView(EdgePanelControls.close(ui(), closeAction))
             if (!settings && hasNavigation && tools.childCount > 0)
                 navigation.addView(tools, (navigation.childCount - if (wantsClose) 1 else 0).coerceAtLeast(0))
-            val terminalOnly = !settings && panel.items.size == 1 && panel.items[0].type == "terminal"
+            val terminalOnly = !settings && panel.items.size == 1 && panel.items[0].type == "terminal" &&
+                root.fields["flow"] != "free" && listOf("width", "height", "at").all { panel.items[0].fields[it].isNullOrBlank() }
             val closeTerminal = panel.items.firstOrNull { it.type == "terminal" }?.id
             fun terminalClose(item: EdgeStore.Item): (() -> Unit)? =
                 closeAction.takeIf { inlineClose && item.id == closeTerminal }
@@ -1024,6 +1012,13 @@ object EdgeRuntime {
                 if (tools.parent == null && tools.childCount > 0) rows.addView(tools)
                 addItem(rows, panel.id, panel.items[0], fillSpace = true,
                     inlineClose = terminalClose(panel.items[0]))
+            } else if (flow == "free") {
+                val canvas = EdgeItemCanvas(ui(), panelHeight)
+                rows.addView(canvas, LinearLayout.LayoutParams(-1, -2))
+                panel.items.forEach { item ->
+                    addItem(canvas.cell(item), panel.id, item, iconOnly, iconSize,
+                        inlineClose = terminalClose(item), sizedCell = true)
+                }
             } else if (flow == "grid") {
                 val columns = (root.fields["columns"]?.toIntOrNull()
                     ?: (panelWidth / dp(iconSize + 24).coerceAtLeast(1))).coerceIn(1, 16)
@@ -1045,8 +1040,11 @@ object EdgeRuntime {
                 rows.addView(android.widget.HorizontalScrollView(ui()).apply { addView(line) })
                 panel.items.forEach { item ->
                     val cell = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
-                    line.addView(cell, LinearLayout.LayoutParams(if (item.type == "run" && iconOnly) dp(iconSize + 24) else dp(240), -2))
-                    addItem(cell, panel.id, item, iconOnly, iconSize, horizontalOrder = true, inlineClose = terminalClose(item))
+                    val cellWidth = item.fields["width"]?.takeIf { it.isNotBlank() }
+                        ?.let { EdgeStore.dimensionPixels(it, panelWidth, density) }
+                        ?: if (item.type == "run" && iconOnly) dp(iconSize + 24) else dp(240)
+                    line.addView(cell, LinearLayout.LayoutParams(cellWidth, -2))
+                    addItem(cell, panel.id, item, iconOnly, iconSize, horizontalOrder = true, inlineClose = terminalClose(item), sizedCell = true)
                 }
             } else panel.items.forEach { addItem(rows, panel.id, it, iconOnly, iconSize,
                 inlineClose = terminalClose(it)) }
@@ -1186,7 +1184,7 @@ object EdgeRuntime {
         }
         addIcon(heading, item.fields["icon"] ?: pkg?.let { "@app:$it" } ?: "≡", 32)
         val name = item.fields["label"]?.takeIf { it.isNotBlank() }
-            ?: app!!.getString(EdgeSettingsUi.typeLabel(item.type))
+            ?: app!!.getString(EdgeComponentLabels.component(EdgeItemComponent.from(item).component))
         // Name over kind: two items called the same still read apart.
         heading.addView(LinearLayout(ui()).apply {
             orientation = LinearLayout.VERTICAL
@@ -1195,7 +1193,9 @@ object EdgeRuntime {
                 setTypeface(null, Typeface.BOLD); maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
             })
-            addView(EdgeSettingsUi.caption(ui(), app!!.getString(EdgeSettingsUi.typeLabel(item.type)))
+            val kind = EdgeItemComponent.from(item)
+            addView(EdgeSettingsUi.caption(ui(), app!!.getString(EdgeComponentLabels.component(kind.component)) +
+                " · " + app!!.getString(EdgeComponentLabels.action(kind.action)))
                 .apply { setPadding(0, dp(2), 0, 0) })
         }, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(heading)
@@ -1245,7 +1245,7 @@ object EdgeRuntime {
             setPadding(dp(EdgeSettingsUi.GUTTER), dp(8), dp(EdgeSettingsUi.GUTTER), dp(8))
         }
         val itemName = item.fields["label"]?.takeIf { it.isNotBlank() }
-            ?: app!!.getString(EdgeSettingsUi.typeLabel(item.type))
+            ?: app!!.getString(EdgeComponentLabels.component(EdgeItemComponent.from(item).component))
         confirmDelete.addView(EdgeSettingsUi.body(ui(), app!!.getString(R.string.edge_delete_item_warning, itemName)))
         val choices = EdgeSettingsUi.row(ui())
         choices.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_delete), EdgeSettingsUi.Kind.DANGER) {
@@ -1328,7 +1328,7 @@ object EdgeRuntime {
     }
 
     private fun addItem(rows: LinearLayout, panelId: String, item: EdgeStore.Item, iconOnly: Boolean = false, iconSize: Int = 40, horizontalOrder: Boolean = false,
-        fillSpace: Boolean = false, inlineClose: (() -> Unit)? = null) {
+        fillSpace: Boolean = false, inlineClose: (() -> Unit)? = null, sizedCell: Boolean = false) {
         val target = "$panelId:${item.id}"
         val row = LinearLayout(ui()).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(8), dp(4), dp(8), dp(8))
@@ -1366,6 +1366,7 @@ object EdgeRuntime {
             "result" -> macroForm?.addResult(row, item)
             "macro" -> macroForm?.addAction(row, item)
             "run" -> {
+                if (EdgeItemComponent.linked(item)) macroForm?.prepareAction(row, item)
                 if (item.isStateButton) {
                     val render: (String) -> Unit = { value ->
                         val on = EdgeStore.parseButtonState(value)
@@ -1387,6 +1388,10 @@ object EdgeRuntime {
                     renderButton(panelId, item)
                 }
                 title.setOnClickListener {
+                    if (EdgeItemComponent.linked(item)) {
+                        runCatching { macroForm?.execute(item) }.onFailure { fail(it) }
+                        return@setOnClickListener
+                    }
                     val source = buttonSource(panelId, item)
                     val on = item.isStateButton && buttonState(panelId, item) == true
                     if (on && source == "process") {
@@ -1510,6 +1515,7 @@ object EdgeRuntime {
                     }
                     updateHistory(); updateSize()
                     row.addView(preview); row.addView(editor); row.addView(history)
+                    macroForm?.registerInput(item.id) { note.text }
                 }.onFailure { row.addView(text(it.message ?: "Cannot open note")) }
             }
             "input" -> {
@@ -1519,12 +1525,14 @@ object EdgeRuntime {
                     inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
                 }
                 row.addView(entry)
+                macroForm?.registerInput(item.id) { entry.text.toString() }
                 title.addView(Button(ui()).apply {
                     text = app!!.getString(R.string.edge_send)
                     setOnClickListener { execute(panelId, item, item.command, input = entry.text.toString()) }
                 })
             }
         }
+        if (item.type == "text") macroForm?.registerInput(item.id) { values[target].orEmpty() }
         // An empty heading only wastes height; run items keep it as their tap target.
         if (title.childCount == 0 && item.type != "run") row.removeView(title)
         if (item.type !in setOf("toggle", "list", "note", "terminal", "macro", "argument", "result")) {
@@ -1533,7 +1541,10 @@ object EdgeRuntime {
             renderers[target] = { result.text = it; result.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE }
         }
         row.addView(status)
-        rows.addView(row, if (fillSpace) LinearLayout.LayoutParams(-1, 0, 1f) else LinearLayout.LayoutParams(-1, -2))
+        val content = if (!fillSpace && listOf("width", "height").any { !item.fields[it].isNullOrBlank() })
+            EdgeItemFrame(ui(), if (sizedCell) item.copy(fields = item.fields - "width") else item, itemAreaHeight, row)
+            else row
+        rows.addView(content, if (fillSpace) LinearLayout.LayoutParams(-1, 0, 1f) else LinearLayout.LayoutParams(-1, -2).apply { gravity = EdgeItemFrame.gravity(item) })
         if (!iconOnly && !fillSpace) rows.addView(EdgeEditorUi.divider(ui()).apply {
             layoutParams = LinearLayout.LayoutParams(-1, dp(1).coerceAtLeast(1)).apply {
                 marginStart = dp(12); marginEnd = dp(12)

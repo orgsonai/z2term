@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="edge_terminal">Miniterminal</string>
-    <string name="edge_add_terminal">+ Terminal</string>
     <string name="edge_terminal_command">Comando de una línea</string>
     <string name="edge_terminal_result">Salida del comando</string>
     <string name="edge_terminal_stop">Detener</string>

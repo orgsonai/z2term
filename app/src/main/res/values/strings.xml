@@ -1269,9 +1269,8 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="edge_type_macro">Macro with arguments</string>
     <string name="edge_type_argument">Argument box</string>
     <string name="edge_type_result">Result box</string>
-    <string name="edge_add_macro_form">＋ Macro form</string>
-    <string name="edge_macro_args">Argument box IDs, in order (comma separated)</string>
-    <string name="edge_macro_result">Result box ID (empty: show here)</string>
+    <string name="edge_macro_args">Input sources in argument order (item IDs, comma separated)</string>
+    <string name="edge_macro_result">Output destination (item ID; empty: use output setting)</string>
     <string name="edge_argument_kind">Input mode</string>
     <string name="edge_argument_default">Initial or fixed value</string>
     <string name="edge_argument_choices">Choices, separated by |</string>
@@ -1287,5 +1286,38 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="edge_choose_value">Choose a value</string>
     <string name="edge_macro_done">Completed</string>
     <string name="edge_macro_stopped">Stopped</string>
-    <string name="edge_macro_help">Place argument and result boxes anywhere in the item order. In the macro, choose argument boxes in argument order and a result box. Input is passed as literal arguments. Closing resets the form and stops its commands.</string>
+    <string name="edge_macro_help">Connect items by choosing input sources, their argument order or standard input, and an output display. Values are passed literally. Closing clears temporary values and cancels connected commands; files are saved.</string>
+    <string name="edge_component" formatted="false">Component</string>
+    <string name="edge_component_action" formatted="false">Behavior</string>
+    <string name="edge_component_button" formatted="false">Button</string>
+    <string name="edge_component_display" formatted="false">Text display</string>
+    <string name="edge_component_entry" formatted="false">Text input</string>
+    <string name="edge_component_choice" formatted="false">Choice</string>
+    <string name="edge_component_switch" formatted="false">Switch</string>
+    <string name="edge_component_list" formatted="false">List</string>
+    <string name="edge_action_execute" formatted="false">Run a command</string>
+    <string name="edge_action_receive" formatted="false">Receive command output</string>
+    <string name="edge_action_fixed" formatted="false">Display a fixed value</string>
+    <string name="edge_action_read" formatted="false">Display output of a command</string>
+    <string name="edge_action_value" formatted="false">Provide a value to other items</string>
+    <string name="edge_action_file" formatted="false">Read and save a file</string>
+    <string name="edge_action_send" formatted="false">Send input to a command</string>
+    <string name="edge_action_shell" formatted="false">Connect to a shell</string>
+    <string name="edge_action_state" formatted="false">Read and change a state</string>
+    <string name="edge_action_select" formatted="false">Run a command with the selected value</string>
+    <string name="edge_item_stdin" formatted="false">Standard input source (item ID)</string>
+    <string name="edge_item_width" formatted="false">Width (dp or %, empty: automatic)</string>
+    <string name="edge_item_height" formatted="false">Height (dp or %, empty: content)</string>
+    <string name="edge_item_align" formatted="false">Alignment within a row</string>
+    <string name="edge_item_at" formatted="false">Free position (X%,Y%, empty: automatic)</string>
+    <string name="edge_item_layout" formatted="false">Item size and position</string>
+    <string name="edge_item_layout_help" formatted="false">Width is relative to the row or column; height is relative to the panel. Choose Free in panel arrangement to use X%,Y% coordinates. 0% is the top/left edge and 100% is the bottom/right edge. Empty coordinates keep items in order.</string>
+    <string name="edge_align_start" formatted="false">Start</string>
+    <string name="edge_align_center" formatted="false">Center</string>
+    <string name="edge_align_end" formatted="false">End</string>
+    <string name="edge_out_none" formatted="false">No output</string>
+    <string name="edge_out_panel" formatted="false">Below this item</string>
+    <string name="edge_out_toast" formatted="false">Toast</string>
+    <string name="edge_out_notify" formatted="false">Notification</string>
+    <string name="edge_flow_free" formatted="false">Free (per-item coordinates)</string>
 </resources>

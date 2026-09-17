@@ -1,8 +1,8 @@
 # Mini terminal in an edge panel
 
-Target: 0.8.616-alpha (versionCode 624)
+Target: 0.8.617-alpha (versionCode 625)
 
-Open panel settings → **Items → + Terminal**, or select **Mini terminal** when adding an item. To add it to an existing panel through the CLI:
+In panel settings, choose Add item → Text input → Connect to a shell. To add it to an existing panel through the CLI:
 
 ```sh
 z2-edge set PANEL_ID:terminal type=terminal label=Terminal

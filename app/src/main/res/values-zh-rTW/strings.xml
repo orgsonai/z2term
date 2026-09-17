@@ -1173,9 +1173,8 @@ SSH 連線目標 %3$d 個
     <string name="edge_type_macro">含引數的巨集</string>
     <string name="edge_type_argument">引數欄</string>
     <string name="edge_type_result">結果欄</string>
-    <string name="edge_add_macro_form">＋ 巨集表單</string>
-    <string name="edge_macro_args">引數欄 ID（依序，以逗號分隔）</string>
-    <string name="edge_macro_result">結果欄 ID（留空：在此顯示）</string>
+    <string name="edge_macro_args">依引數順序排列的輸入來源（項目 ID，逗號分隔）</string>
+    <string name="edge_macro_result">結果目標（項目 ID，留空：使用輸出設定）</string>
     <string name="edge_argument_kind">輸入方式</string>
     <string name="edge_argument_default">初始值或固定值</string>
     <string name="edge_argument_choices">選項（以 | 分隔）</string>
@@ -1191,5 +1190,38 @@ SSH 連線目標 %3$d 個
     <string name="edge_choose_value">選擇值</string>
     <string name="edge_macro_done">已完成</string>
     <string name="edge_macro_stopped">已停止</string>
-    <string name="edge_macro_help">可透過排序配置引數欄及結果欄。在巨集中依引數順序選擇引數欄，並指定結果欄。輸入原樣傳入。關閉時重設表單並停止命令。</string>
+    <string name="edge_macro_help">選擇引數或標準輸入的來源及輸出顯示目標來連接項目。值會原樣傳入。關閉時清除暫存值並停止已連接的命令；檔案內容會儲存。</string>
+    <string name="edge_component" formatted="false">元件</string>
+    <string name="edge_component_action" formatted="false">行為</string>
+    <string name="edge_component_button" formatted="false">按鈕</string>
+    <string name="edge_component_display" formatted="false">文字顯示</string>
+    <string name="edge_component_entry" formatted="false">文字輸入</string>
+    <string name="edge_component_choice" formatted="false">選擇欄</string>
+    <string name="edge_component_switch" formatted="false">開關</string>
+    <string name="edge_component_list" formatted="false">清單</string>
+    <string name="edge_action_execute" formatted="false">執行命令</string>
+    <string name="edge_action_receive" formatted="false">接收命令輸出</string>
+    <string name="edge_action_fixed" formatted="false">顯示固定值</string>
+    <string name="edge_action_read" formatted="false">顯示命令輸出</string>
+    <string name="edge_action_value" formatted="false">向其他項目提供值</string>
+    <string name="edge_action_file" formatted="false">讀取和儲存檔案</string>
+    <string name="edge_action_send" formatted="false">將輸入傳送至命令</string>
+    <string name="edge_action_shell" formatted="false">連接到 shell</string>
+    <string name="edge_action_state" formatted="false">讀取和變更狀態</string>
+    <string name="edge_action_select" formatted="false">使用所選值執行命令</string>
+    <string name="edge_item_stdin" formatted="false">標準輸入來源（項目 ID）</string>
+    <string name="edge_item_width" formatted="false">寬度（dp 或 %，留空：自動）</string>
+    <string name="edge_item_height" formatted="false">高度（dp 或 %，留空：配合內容）</string>
+    <string name="edge_item_align" formatted="false">行內對齊</string>
+    <string name="edge_item_at" formatted="false">自由位置（X%,Y%，留空：自動）</string>
+    <string name="edge_item_layout" formatted="false">項目大小和位置</string>
+    <string name="edge_item_layout_help" formatted="false">寬度以行或欄為基準，高度以面板為基準。選擇自由配置後可使用 X%,Y% 座標。0% 為左側或頂端，100% 為右側或底端。未指定座標的項目依順序排列。</string>
+    <string name="edge_align_start" formatted="false">起始</string>
+    <string name="edge_align_center" formatted="false">置中</string>
+    <string name="edge_align_end" formatted="false">末尾</string>
+    <string name="edge_out_none" formatted="false">不顯示輸出</string>
+    <string name="edge_out_panel" formatted="false">此項目下方</string>
+    <string name="edge_out_toast" formatted="false">短訊息</string>
+    <string name="edge_out_notify" formatted="false">通知</string>
+    <string name="edge_flow_free" formatted="false">自由（各項目座標）</string>
 </resources>

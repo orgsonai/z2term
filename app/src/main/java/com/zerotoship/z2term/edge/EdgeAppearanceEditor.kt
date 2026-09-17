@@ -173,8 +173,8 @@ object EdgeAppearanceEditor {
         entry("at", R.string.edge_at)
         content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_items))
         choice("labels", R.string.edge_show_labels, listOf("", "on", "off"), listOf(R.string.edge_option_auto, R.string.edge_option_on, R.string.edge_option_off))
-        choice("flow", R.string.edge_flow, listOf("", "vertical", "horizontal", "grid"),
-            listOf(R.string.edge_option_auto, R.string.edge_flow_vertical, R.string.edge_flow_horizontal, R.string.edge_flow_grid))
+        choice("flow", R.string.edge_flow, listOf("", "vertical", "horizontal", "grid", "free"),
+            listOf(R.string.edge_option_auto, R.string.edge_flow_vertical, R.string.edge_flow_horizontal, R.string.edge_flow_grid, R.string.edge_flow_free))
         entry("columns", R.string.edge_columns)
         control("icon-size", R.string.edge_icon_size, 16, 192) { it.toString() }
         content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_handle))
