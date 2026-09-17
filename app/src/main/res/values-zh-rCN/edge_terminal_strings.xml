@@ -10,8 +10,9 @@
     <string name="edge_terminal_starting">准备中…</string>
     <string name="edge_terminal_running">运行中…</string>
     <string name="edge_terminal_exit">退出码：%1$d</string>
-    <string name="edge_terminal_ended">已结束 · 下次运行将新建会话</string>
+    <string name="edge_terminal_ended">已结束 · 刷新后启动新会话</string>
     <string name="edge_terminal_truncated">显示最近64K字符</string>
-    <string name="edge_terminal_help">关闭即结束会话。要保留任务，请使用 nohup 或分离的 tmux/screen。交互程序请使用普通终端标签页。</string>
+    <string name="edge_terminal_help">关闭面板或切换标签页时，Shell、输出和输入草稿会保留。请手动刷新以重置。交互式命令请使用普通终端标签页。</string>
     <string name="edge_terminal_one_line_required">简易终端支持最多16,384个字符的单行命令。多行代码片段请在普通终端中使用。</string>
+    <string name="edge_terminal_refresh">刷新会话</string>
 </resources>

@@ -86,18 +86,21 @@ internal class EdgeMacroUi(private val context: Context, private val panel: Edge
         outputs[id] = box
         inputs[id] = { output.text.toString() }
         val tools = LinearLayout(context)
-        tools.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_terminal_stop)) {
-            stop(box)
-        })
-        tools.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_terminal_copy)) {
-            if (output.text.isNotEmpty()) context.getSystemService(ClipboardManager::class.java)
-                .setPrimaryClip(ClipData.newPlainText(output.contentDescription, output.text))
-        })
-        tools.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_terminal_clear)) {
-            stop(box); box.output(""); state.visibility = android.view.View.GONE
-        })
+        if (item.fields["result-controls"] == "on") {
+            tools.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_terminal_stop)) {
+                stop(box)
+            })
+            tools.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_terminal_copy)) {
+                if (output.text.isNotEmpty()) context.getSystemService(ClipboardManager::class.java)
+                    .setPrimaryClip(ClipData.newPlainText(output.contentDescription, output.text))
+            })
+            tools.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_terminal_clear)) {
+                stop(box); box.output(""); state.visibility = android.view.View.GONE
+            })
+        }
         addClose(tools)
-        parent.addView(tools); parent.addView(state)
+        if (tools.childCount > 0) parent.addView(tools)
+        parent.addView(state)
         val rows = item.fields["rows"]?.toIntOrNull() ?: 6
         parent.addView(scroll, LinearLayout.LayoutParams(-1, (output.lineHeight * rows + dp(16)).coerceAtLeast(dp(48))))
     }

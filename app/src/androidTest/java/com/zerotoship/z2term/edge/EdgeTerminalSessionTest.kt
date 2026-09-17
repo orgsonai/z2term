@@ -50,19 +50,57 @@ class EdgeTerminalSessionTest {
         if (p != null && alive(p)) runCatching { Os.kill(p.pid, OsConstants.SIGKILL) }
     }
 
-    @Test fun directoryAndVariablesPersistOnlyWithinOneOpeningAndEveryRunReplacesOutput() {
+    @Test fun directoryAndVariablesPersistAndRunsAppendOutputUntilExplicitReset() {
         val first = session()
         val second = session()
         try {
             val home = run(first, "pwd").output.trim()
             assertTrue(home, home.endsWith("/shared_home"))
+            first.clear()
             assertEquals(0, run(first, "cd /; export Z2_EDGE_TEST=remember; printf first").exitCode)
-            assertEquals("/\nremember", run(first, "pwd; printf '%s' \"\$Z2_EDGE_TEST\"").output.trim())
+            assertEquals("first/\nremember", run(first, "pwd; printf '%s' \"\$Z2_EDGE_TEST\"").output.trim())
             val failed = run(first, "printf broken >&2; false")
-            assertEquals("broken", failed.output.trim()); assertEquals(1, failed.exitCode)
+            assertEquals("first/\nrememberbroken", failed.output.trim()); assertEquals(1, failed.exitCode)
             first.close()
             assertEquals("$home\nempty", run(second, "pwd; printf '%s' \"\${Z2_EDGE_TEST-empty}\"").output.trim())
         } finally { first.close(); second.close() }
+    }
+
+    @Test fun recreatingViewsKeepsRunningShellAndRefreshIsTheOnlyReset() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val retained = EdgeTerminalState { session() }
+        var view: EdgeTerminalUi? = null
+        fun ui(block: (EdgeTerminalUi) -> Unit) = instrumentation.runOnMainSync {
+            val current = view ?: EdgeTerminalUi(context, "", retained).also { view = it }
+            block(current)
+        }
+        try {
+            ui {
+                val input = it.findViewById<android.widget.EditText>(com.zerotoship.z2term.R.id.edge_terminal_input)
+                input.setText("cd /; export Z2_EDGE_KEEP=kept; sleep 1; printf HIDDEN")
+                input.onEditorAction(android.view.inputmethod.EditorInfo.IME_ACTION_GO)
+                input.setText("draft")
+                it.dispose(); view = null
+            }
+            until("Shell must complete while no view exists") { retained.state()?.phase == EdgeTerminalSession.Phase.IDLE }
+            ui {
+                assertEquals("HIDDEN", retained.state()!!.output)
+                assertEquals("draft", it.findViewById<android.widget.EditText>(com.zerotoship.z2term.R.id.edge_terminal_input).text.toString())
+                assertTrue(retained.execute("pwd; printf '%s' \"\$Z2_EDGE_KEEP\""))
+            }
+            until("Second command must finish") { retained.state()?.phase == EdgeTerminalSession.Phase.IDLE }
+            assertEquals("HIDDEN/\nkept", retained.state()!!.output)
+            ui {
+                retained.stop()
+                assertFalse(retained.execute("printf should-not-run"))
+                retained.refresh()
+                assertNull(retained.state())
+                assertEquals("", retained.draft)
+                assertTrue(retained.execute("printf '%s' \"\${Z2_EDGE_KEEP-empty}\""))
+            }
+            until("Fresh shell must finish") { retained.state()?.phase == EdgeTerminalSession.Phase.IDLE }
+            assertEquals("empty", retained.state()!!.output)
+        } finally { instrumentation.runOnMainSync { view?.dispose(); retained.close() } }
     }
 
     @Test fun closingStopsOrdinaryBackgroundAndForegroundProcesses() {

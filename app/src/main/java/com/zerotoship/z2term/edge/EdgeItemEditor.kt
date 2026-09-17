@@ -8,10 +8,16 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.Toast
+import androidx.core.view.children
 import com.zerotoship.z2term.R
 import java.util.UUID
 
-/** A local draft; closing or cancelling the editor never updates the definition. */
+/**
+ * A local draft; closing or cancelling the editor never updates the definition.
+ * The form is a few named blocks (kind, display, command, value, connections) with the rarely used
+ * settings folded at the foot. A block with nothing to show for the chosen kind is hidden whole,
+ * so the form only ever lists what the selected component and behaviour actually use.
+ */
 object EdgeItemEditor {
     fun create(context: Context, panelId: String, item: EdgeStore.Item?, store: EdgeStore,
         beforeSave: () -> Unit, saved: () -> Unit, expanded: Boolean = false,
@@ -21,20 +27,40 @@ object EdgeItemEditor {
         val outer = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         val draft = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL; visibility = if (expanded) View.VISIBLE else View.GONE
-            setPadding(gutter, EdgeEditorUi.dp(context, 12), gutter, EdgeEditorUi.dp(context, 14))
+            setPadding(gutter, EdgeEditorUi.dp(context, 8), gutter, EdgeEditorUi.dp(context, 16))
+            background = EdgeSettingsUi.attached(context)
         }
-        if (!expanded) outer.addView(EdgeSettingsUi.button(context,
-            context.getString(if (item == null) R.string.edge_add_item else R.string.edge_edit_item)) {
-            draft.visibility = if (draft.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-        }, LinearLayout.LayoutParams(-1, -2).apply {
-            setMargins(gutter, EdgeEditorUi.dp(context, 4), gutter, EdgeEditorUi.dp(context, 10))
-        })
+        // The button that opens the draft also closes it; its label says which it will do.
+        val openLabel = context.getString(if (item == null) R.string.edge_add_item else R.string.edge_edit_item)
+        val toggle = if (expanded) null else EdgeSettingsUi.button(context, openLabel) {}.also {
+            outer.addView(it, LinearLayout.LayoutParams(-1, -2).apply {
+                setMargins(gutter, EdgeEditorUi.dp(context, 4), gutter, EdgeEditorUi.dp(context, 10))
+            })
+        }
         outer.addView(draft)
         val appCommand = item?.command?.takeIf { AppLaunchCommand.packageFrom(it) != null }
-        var launchMode = AppLaunchCommand.modeFrom(appCommand.orEmpty())
-        var scaleFreeform = AppLaunchCommand.scalesFreeform(appCommand.orEmpty())
+        val initialMode = AppLaunchCommand.modeFrom(appCommand.orEmpty())
+        val initialScale = AppLaunchCommand.scalesFreeform(appCommand.orEmpty())
+        var launchMode = initialMode
+        var scaleFreeform = initialScale
         val initial = EdgeItemComponent.from(item)
         var selection = initial
+
+        val blocks = mutableListOf<LinearLayout>()
+        fun group(name: Int, rule: Boolean = true) =
+            EdgeSettingsUi.group(context, draft, context.getString(name), rule).also { blocks += it }
+        fun fold(name: Int) = EdgeSettingsUi.fold(context, draft, context.getString(name)).also { blocks += it }
+        val kind = group(if (appCommand == null) R.string.edge_group_kind else R.string.edge_group_launch, rule = false)
+        val display = group(R.string.edge_group_display)
+        val commands = group(R.string.edge_group_command)
+        val valueBlock = group(R.string.edge_group_value)
+        val binding = group(R.string.edge_group_binding)
+        val advanced = fold(R.string.edge_advanced)
+        val layout = fold(R.string.edge_item_layout)
+        fun LinearLayout.addNote(message: Int): View = EdgeSettingsUi.note(context, context.getString(message)).also {
+            addView(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = EdgeEditorUi.dp(context, 12) })
+        }
+
         val components = EdgeItemComponent.actions.keys.toList()
         val component = EdgeSettingsUi.dress(context, Spinner(context)).apply {
             adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
@@ -52,59 +78,41 @@ object EdgeItemEditor {
             action.setSelection(choices.indexOf(selection.action))
         }
         showActions()
+        var windowMode: Spinner? = null
+        var scale: Spinner? = null
         if (appCommand == null) {
-            EdgeSettingsUi.labeled(context, draft, context.getString(R.string.edge_component), component)
-            EdgeSettingsUi.labeled(context, draft, context.getString(R.string.edge_component_action), action)
-        }
-        if (appCommand != null) {
-            EdgeSettingsUi.labeled(context, draft, context.getString(R.string.edge_window_mode),
-                EdgeSettingsUi.dress(context, Spinner(context)).apply {
-                    contentDescription = context.getString(R.string.edge_window_mode)
-                    adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
-                        listOf(R.string.edge_window_full, R.string.edge_window_freeform, R.string.edge_window_split, R.string.edge_window_ask).map { context.getString(it) })
-                    setSelection(AppLaunch.modes.indexOf(launchMode))
-                    onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                        override fun onNothingSelected(parent: AdapterView<*>?) = Unit
-                        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { launchMode = AppLaunch.modes[position] }
+            EdgeSettingsUi.labeled(context, kind, context.getString(R.string.edge_component), component)
+            EdgeSettingsUi.labeled(context, kind, context.getString(R.string.edge_component_action), action)
+        } else {
+            val mode = EdgeSettingsUi.dress(context, Spinner(context)).apply {
+                contentDescription = context.getString(R.string.edge_window_mode)
+                adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
+                    listOf(R.string.edge_window_full, R.string.edge_window_freeform, R.string.edge_window_split, R.string.edge_window_ask).map { context.getString(it) })
+                setSelection(AppLaunch.modes.indexOf(launchMode))
+                onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { launchMode = AppLaunch.modes[position] }
+                }
+            }
+            EdgeSettingsUi.labeled(context, kind, context.getString(R.string.edge_window_mode), mode)
+            windowMode = mode
+            val scaled = EdgeSettingsUi.dress(context, Spinner(context)).apply {
+                contentDescription = context.getString(R.string.edge_freeform_scale)
+                adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
+                    listOf(R.string.edge_freeform_scaled, R.string.edge_freeform_unscaled).map { context.getString(it) })
+                setSelection(if (scaleFreeform) 0 else 1)
+                onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                        scaleFreeform = position == 0
                     }
-                })
-            EdgeSettingsUi.labeled(context, draft, context.getString(R.string.edge_freeform_scale),
-                EdgeSettingsUi.dress(context, Spinner(context)).apply {
-                    contentDescription = context.getString(R.string.edge_freeform_scale)
-                    adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
-                        listOf(R.string.edge_freeform_scaled, R.string.edge_freeform_unscaled).map { context.getString(it) })
-                    setSelection(if (scaleFreeform) 0 else 1)
-                    onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                        override fun onNothingSelected(parent: AdapterView<*>?) = Unit
-                        override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                            scaleFreeform = position == 0
-                        }
-                    }
-                })
+                }
+            }
+            EdgeSettingsUi.labeled(context, kind, context.getString(R.string.edge_freeform_scale), scaled)
+            scale = scaled
         }
-        val entries = linkedMapOf<String, EditText>()
-        val groups = linkedMapOf<String, LinearLayout>()
-        val basic = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        draft.addView(basic)
-        val buttonStateHelp = EdgeSettingsUi.body(context, context.getString(R.string.edge_button_state_desc))
-        basic.addView(buttonStateHelp)
-        val sourceGroup = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        val source = EdgeSettingsUi.dress(context, Spinner(context)).apply {
-            adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
-                listOf(R.string.edge_source_auto, R.string.edge_source_torch, R.string.edge_source_screen,
-                    R.string.edge_source_process, R.string.edge_source_remember).map { context.getString(it) })
-            setSelection(EdgeButtonSource.choices.indexOf(item?.fields?.get("button-source") ?: "auto").coerceAtLeast(0))
-            contentDescription = context.getString(R.string.edge_button_source)
-        }
-        EdgeSettingsUi.labeled(context, sourceGroup, context.getString(R.string.edge_button_source), source)
-        basic.addView(sourceGroup)
-        val noteLines = EdgeSettingsUi.switchOf(context, item?.fields?.get("note-lines") == "on").apply {
-            text = context.getString(R.string.edge_note_lines)
-            setTextColor(EdgeSettingsUi.foreground(context))
-            minHeight = EdgeEditorUi.dp(context, 48)
-        }
-        val advanced = EdgeSettingsUi.section(context, draft, context.getString(R.string.edge_advanced), sub = true)
-        val fields = linkedMapOf("label" to R.string.edge_item_label, "icon" to R.string.edge_item_icon,
+
+        val labels = mapOf("label" to R.string.edge_item_label, "icon" to R.string.edge_item_icon,
             "run" to R.string.edge_item_run, "off" to R.string.edge_item_off, "state" to R.string.edge_item_state,
             "on-select" to R.string.edge_item_select, "every" to R.string.edge_item_every,
             "timeout" to R.string.edge_item_timeout, "out" to R.string.edge_item_out, "file" to R.string.edge_item_file,
@@ -115,9 +123,10 @@ object EdgeItemEditor {
             "rows" to R.string.edge_form_rows, "stdin" to R.string.edge_item_stdin,
             "width" to R.string.edge_item_width, "height" to R.string.edge_item_height,
             "align" to R.string.edge_item_align, "at" to R.string.edge_item_at)
-        val layout = EdgeSettingsUi.section(context, draft, context.getString(R.string.edge_item_layout), sub = true)
-        layout.addView(EdgeSettingsUi.body(context, context.getString(R.string.edge_item_layout_help)))
-        fields.forEach { (key, label) ->
+        val entries = linkedMapOf<String, EditText>()
+        val groups = linkedMapOf<String, LinearLayout>()
+        fun field(key: String, into: LinearLayout) {
+            val label = labels.getValue(key)
             val group = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
             group.addView(EdgeSettingsUi.caption(context, context.getString(label)))
             val entry = EdgeSettingsUi.field(context).apply {
@@ -139,26 +148,69 @@ object EdgeItemEditor {
                 listOf(R.string.edge_argument_optional, R.string.edge_argument_mandatory))
             if (key == "run" || key == "off") EdgeItemPickers.macros(context, group, entry)
             group.addView(EdgeSettingsUi.spacer(context, 12))
-            val optional = key in listOf("every", "timeout", "out", "file")
-            (if (key in setOf("width", "height", "align", "at")) layout else if (optional) advanced else basic).addView(group)
+            into.addView(group)
         }
-        basic.addView(noteLines, LinearLayout.LayoutParams(-1, -2))
+
+        // Display: what the item looks like in the panel.
+        field("label", display); field("icon", display); field("rows", display)
+        field("note-background", display); field("note-color", display)
+        val noteLines = EdgeSettingsUi.switchOf(context, item?.fields?.get("note-lines") == "on").apply {
+            text = context.getString(R.string.edge_note_lines)
+            setTextColor(EdgeSettingsUi.foreground(context))
+            minHeight = EdgeEditorUi.dp(context, 48)
+        }
+        display.addView(noteLines, LinearLayout.LayoutParams(-1, -2))
+
+        // Command: what runs, and for an ON/OFF button how its state is found.
+        val buttonStateHelp = commands.addNote(R.string.edge_button_state_desc)
+        field("run", commands); field("off", commands); field("state", commands)
+        val sourceGroup = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        val source = EdgeSettingsUi.dress(context, Spinner(context)).apply {
+            adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
+                listOf(R.string.edge_source_auto, R.string.edge_source_torch, R.string.edge_source_screen,
+                    R.string.edge_source_process, R.string.edge_source_remember).map { context.getString(it) })
+            setSelection(EdgeButtonSource.choices.indexOf(item?.fields?.get("button-source") ?: "auto").coerceAtLeast(0))
+            contentDescription = context.getString(R.string.edge_button_source)
+        }
+        EdgeSettingsUi.labeled(context, sourceGroup, context.getString(R.string.edge_button_source), source)
+        commands.addView(sourceGroup)
+        field("on-select", commands)
         val qr = EdgeSettingsUi.button(context, context.getString(R.string.qr_tools_command_qr)) {
             com.zerotoship.z2term.qr.QrToolsActivity.showCommand(context,
                 entries["label"]?.text.toString(), entries["run"]?.text.toString())
         }
-        basic.addView(qr)
-        val formHelp = EdgeSettingsUi.body(context, context.getString(R.string.edge_macro_help))
-        basic.addView(formHelp)
-        if (item != null) basic.addView(EdgeSettingsUi.caption(context, "ID: ${item.id}"))
+        commands.addView(qr, LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = EdgeEditorUi.dp(context, 12) })
+
+        // Value: what an input or fixed field holds.
+        field("default", valueBlock); field("choices", valueBlock); field("required", valueBlock); field("argument-kind", valueBlock)
+
+        // Connections: which items feed a command and where its result goes.
+        val formHelp = binding.addNote(R.string.edge_macro_help)
+        val elsewhere = binding.addNote(R.string.edge_binding_elsewhere)
+        field("args", binding); field("stdin", binding); field("result", binding)
+
+        val resultControls = EdgeSettingsUi.switchOf(context, item?.fields?.get("result-controls") == "on").apply {
+            text = context.getString(R.string.edge_result_controls)
+            setTextColor(EdgeSettingsUi.foreground(context))
+            minHeight = EdgeEditorUi.dp(context, 48)
+        }
+        advanced.addView(resultControls, LinearLayout.LayoutParams(-1, -2))
+        field("every", advanced); field("timeout", advanced); field("out", advanced); field("file", advanced)
+
+        layout.addNote(R.string.edge_item_layout_help)
+        field("width", layout); field("height", layout); field("align", layout); field("at", layout)
+
         fun showFields() {
             val selected = EdgeItemComponent.type(selection, item)
-            formHelp.visibility = if (selected in setOf("run", "macro", "argument", "result")) View.VISIBLE else View.GONE
             val stateButton = selection.action == "state_button"
+            val bound = selected == "macro" || (selected == "run" && !stateButton && appCommand == null)
+            formHelp.visibility = if (bound) View.VISIBLE else View.GONE
+            elsewhere.visibility = if (selected in setOf("argument", "result", "note", "input", "text")) View.VISIBLE else View.GONE
             qr.visibility = if (selected == "run" && !stateButton && appCommand == null) View.VISIBLE else View.GONE
             buttonStateHelp.visibility = if (stateButton) View.VISIBLE else View.GONE
             sourceGroup.visibility = if (stateButton) View.VISIBLE else View.GONE
             noteLines.visibility = if (selected == "note") View.VISIBLE else View.GONE
+            resultControls.visibility = if (selected in setOf("result", "macro") || bound) View.VISIBLE else View.GONE
             groups.forEach { (key, group) ->
                 val visible = when (key) {
                     "state" -> selected == "toggle" || stateButton
@@ -166,7 +218,7 @@ object EdgeItemEditor {
                     "on-select" -> selected == "list"
                     "every" -> selected in listOf("text", "toggle", "list") || stateButton
                     "file", "note-background", "note-color" -> selected == "note"
-                    "args", "stdin", "result" -> selected == "macro" || (selected == "run" && !stateButton && appCommand == null)
+                    "args", "stdin", "result" -> bound
                     "argument-kind" -> false
                     "default" -> selected == "argument"
                     "choices" -> selection.component == "choice"
@@ -177,6 +229,10 @@ object EdgeItemEditor {
                     else -> true
                 }
                 group.visibility = if (visible) View.VISIBLE else View.GONE
+            }
+            blocks.forEach { content ->
+                (content.parent as View).visibility =
+                    if (content.children.any { it.visibility == View.VISIBLE }) View.VISIBLE else View.GONE
             }
         }
         component.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -202,21 +258,44 @@ object EdgeItemEditor {
         session.track(outer) {
             selection != initial ||
                 EdgeButtonSource.choices[source.selectedItemPosition] != (item?.fields?.get("button-source") ?: "auto") ||
-                launchMode != AppLaunchCommand.modeFrom(appCommand.orEmpty()) ||
-                scaleFreeform != AppLaunchCommand.scalesFreeform(appCommand.orEmpty()) ||
+                launchMode != initialMode ||
+                scaleFreeform != initialScale ||
                 noteLines.isChecked != (item?.fields?.get("note-lines") == "on") ||
+                resultControls.isChecked != (item?.fields?.get("result-controls") == "on") ||
                 entries.any { (key, entry) -> entry.text.toString() != item?.fields?.get(key).orEmpty() }
         }
-        // Cancel and Save close the draft, so they share one line at its foot.
-        val commit = EdgeSettingsUi.row(context)
-        commit.addView(EdgeSettingsUi.button(context, context.getString(android.R.string.cancel)) {
-            session.discard(outer) {
-                entries.forEach { (key, entry) -> entry.setText(item?.fields?.get(key).orEmpty()) }
-                selection = initial; component.setSelection(components.indexOf(initial.component)); showActions()
-                source.setSelection(EdgeButtonSource.choices.indexOf(item?.fields?.get("button-source") ?: "auto").coerceAtLeast(0))
-                noteLines.isChecked = item?.fields?.get("note-lines") == "on"
-                if (cancelled != null) cancelled() else draft.visibility = View.GONE
+        fun reset() {
+            entries.forEach { (key, entry) -> entry.setText(item?.fields?.get(key).orEmpty()) }
+            selection = initial; component.setSelection(components.indexOf(initial.component)); showActions()
+            source.setSelection(EdgeButtonSource.choices.indexOf(item?.fields?.get("button-source") ?: "auto").coerceAtLeast(0))
+            noteLines.isChecked = item?.fields?.get("note-lines") == "on"
+            resultControls.isChecked = item?.fields?.get("result-controls") == "on"
+            launchMode = initialMode; windowMode?.setSelection(AppLaunch.modes.indexOf(initialMode))
+            scaleFreeform = initialScale; scale?.setSelection(if (initialScale) 0 else 1)
+            showFields()
+        }
+        // Closing is cancelling: the draft goes back to the saved definition either way.
+        fun close() {
+            reset()
+            if (cancelled != null) cancelled() else {
+                draft.visibility = View.GONE
+                toggle?.text = openLabel
             }
+        }
+        toggle?.let { button ->
+            button.setOnClickListener {
+                if (draft.visibility == View.VISIBLE) session.discard(outer) { close() }
+                else {
+                    draft.visibility = View.VISIBLE
+                    button.text = context.getString(R.string.edge_close)
+                }
+            }
+        }
+        // Cancel and Save close the draft, so they share one line at its foot.
+        draft.addView(EdgeSettingsUi.hairline(context))
+        val commit = EdgeSettingsUi.row(context).apply { setPadding(0, EdgeEditorUi.dp(context, 14), 0, 0) }
+        commit.addView(EdgeSettingsUi.button(context, context.getString(android.R.string.cancel)) {
+            session.discard(outer) { close() }
         }, LinearLayout.LayoutParams(0, -2, 1f))
         commit.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_save), EdgeSettingsUi.Kind.PRIMARY) {
             runCatching {
@@ -241,6 +320,11 @@ object EdgeItemEditor {
                     values["run"] = if (launchMode == "freeform")
                         AppLaunchCommand.withFreeformScale(modeCommand, scaleFreeform) else modeCommand
                 }
+                if (resultControls.visibility == View.VISIBLE) values["result-controls"] = if (resultControls.isChecked) "on" else "off"
+                if (values["type"] == "run" && values["label"].isNullOrBlank() && values["icon"].isNullOrBlank() &&
+                    AppLaunchCommand.packageFrom(values["run"].orEmpty()) == null) {
+                    values["label"] = context.getString(R.string.edge_run)
+                }
                 EdgeStore.validateItem(values)
                 session.leave(except = outer) {
                     runCatching {
@@ -264,7 +348,7 @@ object EdgeItemEditor {
                 EdgeSettingsUi.Kind.DANGER) { confirm.visibility = View.VISIBLE },
                 LinearLayout.LayoutParams(-2, -2).apply { topMargin = EdgeEditorUi.dp(context, 14) })
             confirm.addView(EdgeSettingsUi.body(context,
-                context.getString(R.string.edge_delete_item_warning, item?.fields?.get("label") ?: item?.id.orEmpty())).apply {
+                context.getString(R.string.edge_delete_item_warning, item?.let { EdgeComponentLabels.item(context, it) }.orEmpty())).apply {
                 textSize = 13f
                 setLineSpacing(EdgeEditorUi.dp(context, 3).toFloat(), 1f)
             }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = EdgeEditorUi.dp(context, 12) })

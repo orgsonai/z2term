@@ -172,6 +172,21 @@ class EdgeStore(val root: File) {
         return count
     }
 
+    /**
+     * Delete several panels at once. A listed parent takes every tab it owns with it; a listed tab
+     * leaves its parent and siblings in place. Returns the number of items deleted.
+     */
+    @Synchronized fun removePanels(ids: Collection<String>): Int {
+        val all = panels()
+        val byId = all.associateBy { it.id }
+        ids.forEach { id -> require(byId.containsKey(id)) { "No panel: $id" } }
+        val targets = ids.flatMap { id -> listOf(id) + byId.getValue(id).tabs }.toSet()
+        val tabs = all.flatMap { it.tabs }.toSet()
+        // Tabs first: if a later deletion fails, the parent still exists with a consistent tab list
+        // instead of leaving its remaining tabs behind as separate panels.
+        return targets.sortedBy { if (it in tabs) 0 else 1 }.sumOf { removePanel(it) }
+    }
+
     fun item(target: String): Item {
         val (panelId, itemId) = target(target)
         return panel(panelId).items.firstOrNull { it.id == itemId }
@@ -225,10 +240,11 @@ class EdgeStore(val root: File) {
         }
 
         fun validateItem(values: Map<String, String>) {
-            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color", "args", "result", "argument-kind", "default", "choices", "required", "rows", "stdin", "width", "height", "align", "at")
+            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color", "args", "result", "result-controls", "argument-kind", "default", "choices", "required", "rows", "stdin", "width", "height", "align", "at")
             require(values.keys.all { it in allowed }) { "Unknown item field: ${values.keys - allowed}" }
             val type = values["type"] ?: "run"
             require(type in setOf("run", "text", "toggle", "list", "input", "note", "terminal", "macro", "argument", "result")) { "Unsupported type: $type" }
+            values["result-controls"]?.let { require(it in setOf("on", "off")) { "result-controls: on|off" } }
             values["button-state"]?.let { require(it in setOf("on", "off")) { "button-state: on|off" } }
             values["button-source"]?.let { require(it in EdgeButtonSource.choices) { "button-source: auto|torch|screen|process|remember" } }
             listOf("note-background", "note-color").forEach { key ->

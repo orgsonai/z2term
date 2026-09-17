@@ -42,7 +42,7 @@ class EdgeMacroWindowTest {
         val literal = "日本語 '\" \$(exit 9);\nsecond line"
         try {
             store.setPanel(id, mapOf("handle" to "bar", "width" to "300", "height" to "70%", "close" to "off"))
-            store.setItem("$id:result", mapOf("type" to "result", "order" to "0", "rows" to "3"))
+            store.setItem("$id:result", mapOf("type" to "result", "order" to "0", "rows" to "3", "result-controls" to "on"))
             store.setItem("$id:argument", mapOf("type" to "argument", "order" to "1", "rows" to "3"))
             store.setItem("$id:language", mapOf("type" to "argument", "argument-kind" to "choice", "choices" to "auto|ja|en", "default" to "ja", "order" to "2"))
             store.setItem("$id:fixed", mapOf("type" to "argument", "argument-kind" to "fixed", "default" to "constant", "order" to "3"))
@@ -63,7 +63,9 @@ class EdgeMacroWindowTest {
                 original.draw(android.graphics.Canvas(image))
                 File(app.cacheDir, "edge-macro-form.png").outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
                 image.recycle()
+                original.findViewWithTag<EditText>("edge-argument:argument").requestFocus()
                 original.back(); assertSame(original, window())
+                assertFalse(original.findViewWithTag<EditText>("edge-argument:argument").hasFocus())
                 find(original, app.getString(R.string.edge_run))!!.performClick()
                 assertEquals("", original.findViewWithTag<TextView>("edge-result:result").text.toString())
                 find(original, app.getString(R.string.edge_terminal_clear))!!.performClick()

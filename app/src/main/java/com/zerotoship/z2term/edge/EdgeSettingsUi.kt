@@ -7,11 +7,13 @@ import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.RippleDrawable
 import android.graphics.drawable.StateListDrawable
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.SeekBar
@@ -212,6 +214,70 @@ internal object EdgeSettingsUi {
         return inner
     }
 
+    /**
+     * A named block inside a form: a long form reads as a few short ones. It is not collapsible,
+     * since what it holds is needed every time. Returns the block's content; the content's parent
+     * carries the name and rule, so hiding that parent hides the whole block.
+     */
+    fun group(context: Context, parent: LinearLayout, name: String, rule: Boolean = true): LinearLayout {
+        val block = column(context)
+        if (rule) block.addView(hairline(context))
+        block.addView(TextView(context).apply {
+            text = name; textSize = 13f; setTextColor(foreground(context)); setTypeface(null, Typeface.BOLD)
+            letterSpacing = 0.02f
+            setPadding(0, dp(context, if (rule) 14 else 4), 0, dp(context, 10))
+        })
+        val content = column(context)
+        block.addView(content, LinearLayout.LayoutParams(-1, -2))
+        parent.addView(block, LinearLayout.LayoutParams(-1, -2))
+        return content
+    }
+
+    /**
+     * [group] for settings needed only now and then: the name is a header that opens and closes it.
+     * Same edge, same type as [group], so the two read as one list of blocks.
+     */
+    fun fold(context: Context, parent: LinearLayout, name: String): LinearLayout {
+        val block = column(context)
+        block.addView(hairline(context))
+        val content = column(context).apply {
+            visibility = View.GONE
+            setPadding(0, dp(context, 2), 0, dp(context, 6))
+        }
+        val mark = TextView(context).apply { textSize = 13f; setTextColor(muted(context)) }
+        val header = row(context).apply {
+            minimumHeight = dp(context, 48)
+            background = ripple(context, null)
+            isClickable = true
+            contentDescription = name
+            addView(TextView(context).apply {
+                text = name; textSize = 13f; setTextColor(foreground(context)); setTypeface(null, Typeface.BOLD)
+                letterSpacing = 0.02f
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(mark)
+        }
+        fun sync() { mark.text = if (content.visibility == View.VISIBLE) "▾" else "▸" }
+        header.setOnClickListener {
+            content.visibility = if (content.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            sync()
+        }
+        sync()
+        block.addView(header, LinearLayout.LayoutParams(-1, -2))
+        block.addView(content, LinearLayout.LayoutParams(-1, -2))
+        parent.addView(block, LinearLayout.LayoutParams(-1, -2))
+        return content
+    }
+
+    /** An open editor hangs off the row it edits: a filled ground with an accent rule down its start edge. */
+    fun attached(context: Context): Drawable =
+        LayerDrawable(arrayOf<Drawable>(ColorDrawable(surface(context)), ColorDrawable(accent(context)))).apply {
+            setLayerGravity(1, Gravity.START or Gravity.FILL_VERTICAL)
+            setLayerWidth(1, dp(context, 3))
+        }
+
+    /** The row whose editor is open is tinted, so the editor below is read as belonging to it. */
+    fun opened(context: Context): Drawable = ripple(context, ColorDrawable(tint(accent(context), 0x1A)))
+
     // ---- controls ------------------------------------------------------------------------------
 
     enum class Kind { PRIMARY, OUTLINE, QUIET, DANGER }
@@ -310,6 +376,33 @@ internal object EdgeSettingsUi {
         val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
         thumbTintList = ColorStateList(states, intArrayOf(accent(context), strong(context)))
         trackTintList = ColorStateList(states, intArrayOf(tint(accent(context), 0x70), line(context)))
+    }
+
+    /**
+     * Box at the start, name and detail beside it; the whole row toggles the box. A disabled box
+     * (chosen through its parent) keeps its tick but ignores the row.
+     */
+    fun checkRow(context: Context, label: String, detail: String, changed: (Boolean) -> Unit): Pair<View, CheckBox> {
+        val states = arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf(android.R.attr.state_checked), intArrayOf())
+        val box = CheckBox(context).apply {
+            buttonTintList = ColorStateList(states, intArrayOf(tint(muted(context), 0x80), danger(context), strong(context)))
+            contentDescription = "$label: $detail"
+            setOnCheckedChangeListener { _, value -> changed(value) }
+        }
+        val line = row(context).apply {
+            minimumHeight = dp(context, 52)
+            background = ripple(context, null)
+            addView(box)
+            addView(column(context).apply {
+                setPadding(dp(context, 6), dp(context, 6), 0, dp(context, 6))
+                addView(body(context, label).apply {
+                    maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+                })
+                addView(caption(context, detail).apply { setPadding(0, dp(context, 2), 0, 0) })
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            setOnClickListener { if (box.isEnabled) box.toggle() }
+        }
+        return line to box
     }
 
     /** Label left, switch right: the same shape as every other row, so the eye keeps one edge. */

@@ -16,7 +16,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
-/** One panel opening owns one shell. Detached jobs may retain the engine, never the panel or views. */
+/** One panel item owns one shell until explicit stop or refresh. Detached jobs may retain the engine, never the panel or views. */
 internal class EdgeTerminalSession(private val launch: (String) -> Launch) : AutoCloseable {
     data class Launch(val process: PtyProcess, val environment: String, val engine: Boolean)
     enum class Phase { NEW, STARTING, IDLE, RUNNING, ENDED, FAILED }
@@ -62,7 +62,7 @@ internal class EdgeTerminalSession(private val launch: (String) -> Launch) : Aut
         require(command.isNotBlank() && command.length <= 16384 &&
             command.none { it == '\n' || it == '\r' || it == '\u0000' }) { "Enter a command on one line (up to 16384 characters)" }
         if (closed || phase !in setOf(Phase.NEW, Phase.IDLE)) return false
-        protocol.clear(); exitCode = null; error = null
+        exitCode = null; error = null
         pending = command
         if (phase == Phase.NEW) {
             phase = Phase.STARTING
@@ -110,7 +110,7 @@ internal class EdgeTerminalSession(private val launch: (String) -> Launch) : Aut
             if (synchronized(lock) { shell == null && !closed }) fail(e)
         } finally {
             close()
-            // Do not close/kill the tracer: nohup and detached tmux/screen can still need it.
+            // Do not close/kill the tracer: hangup-ignoring and detached jobs can still need it.
             // Keep draining the PTY above, then reap and detach only after all tracees exit.
             runCatching { launched.process.waitFor() }
             launched.process.detach()

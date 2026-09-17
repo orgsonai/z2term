@@ -1269,8 +1269,8 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="edge_type_macro">Macro with arguments</string>
     <string name="edge_type_argument">Argument box</string>
     <string name="edge_type_result">Result box</string>
-    <string name="edge_macro_args">Input sources in argument order (item IDs, comma separated)</string>
-    <string name="edge_macro_result">Output destination (item ID; empty: use output setting)</string>
+    <string name="edge_macro_args">Values to pass (in order)</string>
+    <string name="edge_macro_result">Where to show the result</string>
     <string name="edge_argument_kind">Input mode</string>
     <string name="edge_argument_default">Initial or fixed value</string>
     <string name="edge_argument_choices">Choices, separated by |</string>
@@ -1281,8 +1281,8 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="edge_argument_fixed">Fixed value</string>
     <string name="edge_argument_optional">Optional</string>
     <string name="edge_argument_mandatory">Required</string>
-    <string name="edge_pick_argument">Add an argument box</string>
-    <string name="edge_pick_result">Choose a result box</string>
+    <string name="edge_pick_argument">Choose an input item</string>
+    <string name="edge_pick_result">Choose a result display</string>
     <string name="edge_choose_value">Choose a value</string>
     <string name="edge_macro_done">Completed</string>
     <string name="edge_macro_stopped">Stopped</string>
@@ -1305,7 +1305,7 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="edge_action_shell" formatted="false">Connect to a shell</string>
     <string name="edge_action_state" formatted="false">Read and change a state</string>
     <string name="edge_action_select" formatted="false">Run a command with the selected value</string>
-    <string name="edge_item_stdin" formatted="false">Standard input source (item ID)</string>
+    <string name="edge_item_stdin">Send an item as standard input (optional)</string>
     <string name="edge_item_width" formatted="false">Width (dp or %, empty: automatic)</string>
     <string name="edge_item_height" formatted="false">Height (dp or %, empty: content)</string>
     <string name="edge_item_align" formatted="false">Alignment within a row</string>
@@ -1320,4 +1320,22 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="edge_out_toast" formatted="false">Toast</string>
     <string name="edge_out_notify" formatted="false">Notification</string>
     <string name="edge_flow_free" formatted="false">Free (per-item coordinates)</string>
+    <string name="edge_binding_none">Not connected</string>
+    <string name="edge_binding_missing">Deleted or unavailable item</string>
+    <string name="edge_binding_remove">Disconnect %1$s</string>
+    <string name="edge_result_controls">Show Stop, Copy and Clear buttons</string>
+    <string name="guide_sample_note">Notepad</string>
+    <string name="guide_sample_translation">Translation</string>
+    <string name="guide_sample_terminal">Terminal</string>
+    <string name="guide_sample_source">Text to translate</string>
+    <string name="guide_sample_language">Translate to</string>
+    <string name="guide_sample_translate">Translate</string>
+    <string name="guide_sample_result">Translated text</string>
+    <string name="guide_step_edge_local">Run these steps in the local Linux environment used by panels, from a terminal showing a shell prompt.</string>
+    <string name="guide_step_sample_create">Create one sample panel with three tabs (keep existing settings and items)</string>
+    <string name="guide_step_sample_open">Enable panels and open the sample (swipe inward from its right-edge bar to reopen)</string>
+    <string name="guide_step_translation_cli">Install the trans translation command yourself in this same Linux environment if missing.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nThese commands are instructions; tapping this card does not install anything. Text is sent to an external translation service.</string>
+    <string name="guide_sample_translation_missing">Install the trans command and prepare the translation macro first, then run the sample creation step again.</string>
+    <string name="guide_desc_edge_workspace">Create one panel with Notepad, Translation and Terminal tabs</string>
+    <string name="guide_step_sample_use">Switch between the three tabs. Double-tap the note to edit; it saves automatically. For translation, enter text, choose the target language and tap Translate. Switching tabs or closing clears translation input/results. The terminal keeps its shell, output and draft; use ↻ to reset manually. Sample handles start at 30% opacity.</string>
 </resources>

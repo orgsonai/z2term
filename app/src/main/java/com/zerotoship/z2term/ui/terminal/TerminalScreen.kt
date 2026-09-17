@@ -1064,9 +1064,7 @@ private fun runGuideCommand(
     command: String,
 ) {
     scope.launch {
-        session.writeBytes(byteArrayOf(0x03))
-        delay(150)
-        session.writeBytes((command + "\n").toByteArray(Charsets.UTF_8))
+        sendGuideCommand(command, session::writeBytes) { session.pasteText(it, syncClipboard = false, submit = true) }
     }
 }
 
@@ -1087,6 +1085,8 @@ internal fun stopEverythingAndQuit(context: Context) {
     com.zerotoship.z2term.automation.ActionRuntime.stop(reason = "App shutdown")
     ServerDaemonService.stop(context)
     SystemEventService.stop(context)
+    com.zerotoship.z2term.edge.EdgeRuntime.destroy()
+    context.stopService(Intent(context, com.zerotoship.z2term.edge.EdgeService::class.java))
     SessionManager.shutdown()
     TerminalService.stop(context)
     context.findActivity()?.finishAndRemoveTask()

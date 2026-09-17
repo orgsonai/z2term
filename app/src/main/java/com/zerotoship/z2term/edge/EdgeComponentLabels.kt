@@ -3,6 +3,10 @@ package com.zerotoship.z2term.edge
 import com.zerotoship.z2term.R
 
 internal object EdgeComponentLabels {
+    fun item(context: android.content.Context, item: EdgeStore.Item): String =
+        item.fields["label"]?.trim()?.takeIf { it.isNotEmpty() }
+            ?: context.getString(component(EdgeItemComponent.from(item).component))
+
     fun component(value: String): Int = when (value) {
         "display" -> R.string.edge_component_display
         "entry" -> R.string.edge_component_entry

@@ -1175,8 +1175,8 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="edge_type_macro">Macro con argumentos</string>
     <string name="edge_type_argument">Campo de argumento</string>
     <string name="edge_type_result">Campo de resultado</string>
-    <string name="edge_macro_args">Orígenes de los argumentos en orden (ID separados por comas)</string>
-    <string name="edge_macro_result">Destino del resultado (ID; vacío: usar ajuste de salida)</string>
+    <string name="edge_macro_args">Valores para el comando (en orden)</string>
+    <string name="edge_macro_result">Dónde mostrar el resultado</string>
     <string name="edge_argument_kind">Modo de entrada</string>
     <string name="edge_argument_default">Valor inicial o fijo</string>
     <string name="edge_argument_choices">Opciones separadas por |</string>
@@ -1187,8 +1187,8 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="edge_argument_fixed">Valor fijo</string>
     <string name="edge_argument_optional">Opcional</string>
     <string name="edge_argument_mandatory">Obligatorio</string>
-    <string name="edge_pick_argument">Añadir campo de argumento</string>
-    <string name="edge_pick_result">Elegir campo de resultado</string>
+    <string name="edge_pick_argument">Elegir un elemento de entrada</string>
+    <string name="edge_pick_result">Elegir dónde mostrar el resultado</string>
     <string name="edge_choose_value">Elegir un valor</string>
     <string name="edge_macro_done">Completado</string>
     <string name="edge_macro_stopped">Detenido</string>
@@ -1211,7 +1211,7 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="edge_action_shell" formatted="false">Conectar a un shell</string>
     <string name="edge_action_state" formatted="false">Consultar y cambiar un estado</string>
     <string name="edge_action_select" formatted="false">Ejecutar un comando con el valor seleccionado</string>
-    <string name="edge_item_stdin" formatted="false">Origen de la entrada estándar (ID del elemento)</string>
+    <string name="edge_item_stdin">Elemento como entrada estándar (opcional)</string>
     <string name="edge_item_width" formatted="false">Ancho (dp o %, vacío: automático)</string>
     <string name="edge_item_height" formatted="false">Altura (dp o %, vacío: contenido)</string>
     <string name="edge_item_align" formatted="false">Alineación en la fila</string>
@@ -1226,4 +1226,22 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="edge_out_toast" formatted="false">Mensaje breve</string>
     <string name="edge_out_notify" formatted="false">Notificación</string>
     <string name="edge_flow_free" formatted="false">Libre (coordenadas por elemento)</string>
+    <string name="edge_binding_none">Sin conexión</string>
+    <string name="edge_binding_missing">Elemento eliminado o no disponible</string>
+    <string name="edge_binding_remove">Desconectar %1$s</string>
+    <string name="edge_result_controls">Mostrar botones Detener, Copiar y Borrar</string>
+    <string name="guide_desc_edge_workspace">Crear un panel con pestañas de notas, traducción y terminal</string>
+    <string name="guide_sample_note">Notas</string>
+    <string name="guide_sample_translation">Traducción</string>
+    <string name="guide_sample_terminal">Terminal</string>
+    <string name="guide_sample_source">Texto original</string>
+    <string name="guide_sample_language">Traducir a</string>
+    <string name="guide_sample_translate">Traducir</string>
+    <string name="guide_sample_result">Traducción</string>
+    <string name="guide_step_edge_local">Usa una terminal del entorno Linux local de los paneles y espera al indicador del shell.</string>
+    <string name="guide_step_sample_create">Crear un panel de ejemplo con tres pestañas (conservar ajustes y elementos existentes)</string>
+    <string name="guide_step_sample_open">Activar los paneles y abrir el ejemplo (desliza hacia dentro desde la barra derecha para reabrirlo)</string>
+    <string name="guide_step_sample_use">Cambia entre las tres pestañas. Toca dos veces la nota para editarla; se guarda automáticamente. Para traducir, introduce el texto, elige el idioma y pulsa Traducir. Cambiar de pestaña o cerrar borra la entrada y el resultado de traducción. La terminal conserva la shell, la salida y el borrador; usa ↻ para restablecerlos. Las barras de ejemplo tienen una opacidad del 30 %.</string>
+    <string name="guide_step_translation_cli">Si falta trans, instálalo manualmente en este mismo entorno Linux.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nEsta tarjeta solo informa; tocarla no instala nada. El texto se envía a un servicio externo de traducción.</string>
+    <string name="guide_sample_translation_missing">Instala trans y prepara la macro de traducción antes de volver a crear el ejemplo.</string>
 </resources>

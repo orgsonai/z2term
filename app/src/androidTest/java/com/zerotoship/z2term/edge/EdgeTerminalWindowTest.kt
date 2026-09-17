@@ -26,7 +26,7 @@ import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class EdgeTerminalWindowTest {
-    @Test fun outsideTapAndBackKeepThePanelButCloseReopensAnEmptySession() {
+    @Test fun idleDismissalAndTabChangesRetainTheSessionUntilManualRefresh() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val app = instrumentation.targetContext
         assumeTrue("Overlay permission required for window test", Settings.canDrawOverlays(app))
@@ -47,7 +47,9 @@ class EdgeTerminalWindowTest {
             return null
         }
         try {
-            store.setPanel(id, mapOf("handle" to "bar", "width" to "260", "height" to "60%", "at" to "0%,100%", "close" to "off"))
+            store.setPanel("$id-note", mapOf("handle" to "off"))
+            store.setItem("$id-note:note", mapOf("type" to "note"))
+            store.setPanel(id, mapOf("handle" to "bar", "width" to "260", "height" to "60%", "at" to "0%,100%", "close" to "off", "tabs" to "$id-note"))
             store.setItem("$id:terminal", mapOf("type" to "terminal", "label" to "Test"))
             EdgeRuntime.on(app); EdgeRuntime.open(id)
             lateinit var original: EdgePanelWindow
@@ -81,7 +83,10 @@ class EdgeTerminalWindowTest {
                 assertEquals(bottom, original.paddingBottom)
                 assertTrue("The body must remain above the IME",
                     body.y + body.height <= original.height - original.paddingBottom + 1f)
-                assertTrue(original.hideKeyboard())
+                val input = original.findViewById<EditText>(R.id.edge_terminal_input)
+                input.setText("unfinished command")
+                original.outside() // First outside tap ends typing, keeping this panel.
+                assertFalse(input.hasFocus())
                 assertSame(original, window())
                 assertEquals("KEEP_RESULT", original.findViewById<TextView>(R.id.edge_terminal_output).text.toString())
             }
@@ -96,19 +101,26 @@ class EdgeTerminalWindowTest {
                     instrumentation.uiAutomation.injectInputEvent(it, true); it.recycle()
                 }
             }
-            instrumentation.runOnMainSync {
-                assertSame(original, window()); assertTrue(original.isAttachedToWindow)
-                original.back()
-                assertSame(original, window())
-                assertEquals("cd /; printf KEEP_RESULT", original.findViewById<EditText>(R.id.edge_terminal_input).text.toString())
-                assertEquals("KEEP_RESULT", original.findViewById<TextView>(R.id.edge_terminal_output).text.toString())
-                text(original, app.getString(R.string.edge_close))!!.performClick()
-            }
             until { EdgeRuntime.onMain { !original.isAttachedToWindow } }
             EdgeRuntime.open(id)
             instrumentation.runOnMainSync {
                 val fresh = window()
                 assertNotSame(original, fresh)
+                assertEquals("unfinished command", fresh.findViewById<EditText>(R.id.edge_terminal_input).text.toString())
+                assertEquals("KEEP_RESULT", fresh.findViewById<TextView>(R.id.edge_terminal_output).text.toString())
+            }
+            EdgeRuntime.open(id, tabId = "$id-note")
+            EdgeRuntime.reload(app)
+            EdgeRuntime.open(id, tabId = id)
+            instrumentation.runOnMainSync {
+                assertEquals("KEEP_RESULT", window().findViewById<TextView>(R.id.edge_terminal_output).text.toString())
+                window().back() // With no active text input, Back closes the panel.
+            }
+            EdgeRuntime.open(id)
+            instrumentation.runOnMainSync {
+                val fresh = window()
+                assertEquals("KEEP_RESULT", fresh.findViewById<TextView>(R.id.edge_terminal_output).text.toString())
+                text(fresh, app.getString(R.string.edge_terminal_refresh))!!.performClick()
                 assertEquals("", fresh.findViewById<EditText>(R.id.edge_terminal_input).text.toString())
                 assertEquals("", fresh.findViewById<TextView>(R.id.edge_terminal_output).text.toString())
             }
@@ -116,6 +128,7 @@ class EdgeTerminalWindowTest {
             EdgeRuntime.close()
             if (!enabled) EdgeRuntime.off(app)
             if (store.directory(id).isDirectory) store.removePanel(id)
+            if (store.directory("$id-note").isDirectory) store.removePanel("$id-note")
             if (enabled) EdgeRuntime.reload(app)
         }
     }

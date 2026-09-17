@@ -10,8 +10,9 @@
     <string name="edge_terminal_starting">準備中…</string>
     <string name="edge_terminal_running">実行中…</string>
     <string name="edge_terminal_exit">終了コード: %1$d</string>
-    <string name="edge_terminal_ended">終了済み・次の実行は新規セッション</string>
+    <string name="edge_terminal_ended">終了済み・リフレッシュで新規セッション</string>
     <string name="edge_terminal_truncated">直近の64K文字を表示</string>
-    <string name="edge_terminal_help">閉じるとセッションを終了します。処理を残す場合は nohup や tmux / screen のデタッチを使ってください。対話操作は通常の端末タブで行えます。</string>
+    <string name="edge_terminal_help">パネルを閉じてもタブを切り替えても、シェル・出力・入力途中の文字は継続します。初期化はリフレッシュで行います。対話操作は通常の端末タブで行えます。</string>
     <string name="edge_terminal_one_line_required">簡易ターミナルは16,384文字までの1行コマンドに対応します。複数行のスニペットは通常のターミナルで使ってください。</string>
+    <string name="edge_terminal_refresh">リフレッシュ（セッションを初期化）</string>
 </resources>

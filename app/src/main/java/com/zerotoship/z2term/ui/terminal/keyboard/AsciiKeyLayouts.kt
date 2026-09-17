@@ -3,9 +3,8 @@ package com.zerotoship.z2term.ui.terminal.keyboard
 /**
  * いまの英字面を [KeyLayout] で表したもの（0.8.403・段階 1b）。
  *
- * ⚠ **描画はまだここを見ていない。** [TerminalKeyboard] は 5 段べた書きのままで、画面は
- * 1 ドットも変わっていない。この段階の目的は「**いまの配列をモデルで表せる**」ことを
- * `AsciiKeyLayoutTest` で固定すること。描画を移すのは次の段階。
+ * [TerminalKeyboard] の共通キー部品がこの定義を描画する。
+ * 英字・数字・記号の長押し連打も、この定義の repeatable に従う。
  *
  * ラベルとフリックの表 ([AsciiKeys]) は**[TerminalKeyboard] と共有している**（あちらの
  * ローカル変数をここへ出した）。⚠ 二重に持つと、片方だけ直したときテストが「一致」と
@@ -340,12 +339,14 @@ private fun letterKey(label: String, flick: Map<KeyGesture, List<KeyAction>>): K
     val hints = flick.keys.filter { it != KeyGesture.DOWN }.toSet()
     return KeyDef(
         label = label,
+        repeatable = true,
         bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Text(label))) + flick,
         hintGestures = hints,
         fontRole = KeyFontRole.MAIN,
         layers = if (upper == null) emptyMap() else mapOf(
             KeyLayout.LAYER_SHIFT to KeyDef(
                 label = upper,
+                repeatable = true,
                 bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Text(upper))) + flick,
                 hintGestures = hints,
                 fontRole = KeyFontRole.MAIN,

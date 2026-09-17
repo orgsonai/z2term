@@ -10,8 +10,9 @@
     <string name="edge_terminal_starting">準備中…</string>
     <string name="edge_terminal_running">執行中…</string>
     <string name="edge_terminal_exit">結束碼：%1$d</string>
-    <string name="edge_terminal_ended">已結束 · 下次執行將建立新工作階段</string>
+    <string name="edge_terminal_ended">已結束 · 重新整理後啟動新工作階段</string>
     <string name="edge_terminal_truncated">顯示最近64K字元</string>
-    <string name="edge_terminal_help">關閉即結束工作階段。要保留工作，請使用 nohup 或分離的 tmux/screen。互動程式請使用一般終端分頁。</string>
+    <string name="edge_terminal_help">關閉面板或切換分頁時，Shell、輸出和輸入草稿會保留。請手動重新整理以重設。互動式命令請使用一般終端分頁。</string>
     <string name="edge_terminal_one_line_required">簡易終端支援最多16,384個字元的單行指令。多行程式碼片段請在一般終端中使用。</string>
+    <string name="edge_terminal_refresh">重新整理工作階段</string>
 </resources>

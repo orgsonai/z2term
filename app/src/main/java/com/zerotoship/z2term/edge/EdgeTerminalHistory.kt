@@ -1,6 +1,6 @@
 package com.zerotoship.z2term.edge
 
-/** A cursor over the regular shell history, plus commands accepted during this opening. */
+/** A cursor over the regular shell history, plus commands accepted by this panel item. */
 internal class EdgeTerminalHistory {
     private val recent = mutableListOf<String>()
     private var saved = emptyList<String>()

@@ -51,11 +51,12 @@ class EdgeTerminalInputsTest {
         val label = "$id registered"
         val command = "printf '$id'"
         runBlocking { store.upsert(Snippet(id, label, command)) }
+        val terminal = EdgeTerminalState { EdgeTerminalSession.create(app) }
         lateinit var ui: EdgeTerminalUi
         var created: EdgeTerminalUi? = null
         try {
             instrumentation.runOnMainSync {
-                ui = EdgeTerminalUi(app, "")
+                ui = EdgeTerminalUi(app, "", terminal)
                 created = ui
                 ui.findViewWithTag<View>("edge-snippets-button").performClick()
             }
@@ -63,8 +64,7 @@ class EdgeTerminalInputsTest {
             instrumentation.runOnMainSync {
                 ui.findViewWithTag<View>("edge-snippet:$id").performClick()
                 assertEquals(command, ui.findViewById<EditText>(R.id.edge_terminal_input).text.toString())
-                val session = EdgeTerminalUi::class.java.getDeclaredField("session").apply { isAccessible = true }
-                assertNull("Choosing a snippet must never start a command", session.get(ui))
+                assertNull("Choosing a snippet must never start a command", terminal.state())
                 assertEquals(View.GONE, ui.findViewWithTag<View>("edge-snippets").visibility)
                 ui.findViewWithTag<View>("edge-snippets-button").performClick()
                 val row = ui.findViewWithTag<View>("edge-snippet:$id").parent as ViewGroup
@@ -88,7 +88,7 @@ class EdgeTerminalInputsTest {
             }
             until { runBlocking { store.snippets.first().any { it.label == "$label new" && it.command == command } } }
         } finally {
-            instrumentation.runOnMainSync { created?.dispose() }
+            instrumentation.runOnMainSync { created?.dispose(); terminal.close() }
             runBlocking {
                 store.delete(id)
                 store.snippets.first().filter { it.label == "$label new" }.forEach { store.delete(it.id) }

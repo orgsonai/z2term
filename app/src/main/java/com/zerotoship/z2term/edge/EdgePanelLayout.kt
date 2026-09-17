@@ -9,7 +9,13 @@ internal object EdgePanelLayout {
         return root.fields["flow"] == "free" || panels.any { it.id in ids && it.items.any { item -> item.type in interactiveTypes || EdgeItemComponent.linked(item) } }
     }
 
-    fun label(item: EdgeStore.Item, applicationName: String? = null): String =
-        item.fields["label"]?.trim() ?: if (item.type == "run") applicationName ?: item.id else ""
+    fun label(item: EdgeStore.Item, applicationName: String? = null, buttonLabel: String = "▶"): String {
+        val label = item.fields["label"]?.trim()
+        if (!label.isNullOrBlank()) return label
+        if (item.type != "run") return ""
+        // An icon can stand alone, but a button must retain either an icon or a name.
+        if (label != null && (!item.fields["icon"].isNullOrBlank() || !applicationName.isNullOrBlank())) return ""
+        return applicationName?.takeIf { it.isNotBlank() } ?: buttonLabel
+    }
 
 }

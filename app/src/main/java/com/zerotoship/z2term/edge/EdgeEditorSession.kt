@@ -13,6 +13,9 @@ class EdgeEditorSession(private val context: Context) {
 
     fun track(view: View, dirty: () -> Boolean) { drafts[view] = dirty }
 
+    /** A draft that was closed on purpose; its view is gone and must not be asked about again. */
+    fun untrack(view: View) { drafts.remove(view) }
+
     fun hasUnsavedChanges() = drafts.any { (view, dirty) -> view.isAttachedToWindow && dirty() }
 
     fun leave(except: View? = null, action: () -> Unit) {

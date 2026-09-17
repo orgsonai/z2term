@@ -311,21 +311,16 @@ class TerminalSession(
      * [syncClipboard] が true のときだけシステムクリップボードにも反映する
      * (履歴から選んだ本文を以後の貼り付けと揃えるため)。通常の貼り付けは既にクリップに
      * 入っている内容なので false を渡し、無用なクリップ書き換え (履歴の重複積み) を避ける。
+     * [submit] は案内の実行用。貼り付け終了マーカーの後に Enter を付け、1回の書込みで送る。
      */
-    fun pasteText(text: String, syncClipboard: Boolean = true) {
+    fun pasteText(text: String, syncClipboard: Boolean = true, submit: Boolean = false) {
         if (text.isEmpty()) return
         if (syncClipboard) {
             val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
         }
-        val body = text.replace('\n', '\r').toByteArray(Charsets.UTF_8)
-        // Bracketed paste (DECSET 2004) が有効なら 200~/201~ で囲んで送る。
-        // これで bash/zsh/vim が「貼り付け」と認識し、各行の即時実行や自動インデント連鎖を防ぐ。
-        if (emulator.bracketedPasteMode) {
-            writeBytes(BRACKET_PASTE_START + body + BRACKET_PASTE_END)
-        } else {
-            writeBytes(body)
-        }
+        // Preserve paste/Enter ordering inside one asynchronous PTY write.
+        writeBytes(terminalPasteBytes(text, emulator.bracketedPasteMode, submit))
     }
 
     /**
@@ -1458,9 +1453,5 @@ class TerminalSession(
         private val LOG_NAME_UNSAFE_PATH = Regex("""[/\\:*?"<>| ]""")
         /** 同名ファイルを避ける連番の上限 (これを超えたら時刻を付けて逃がす)。 */
         private const val LOG_NAME_MAX_TRIES = 99
-        /** Bracketed paste 開始シーケンス ESC [ 200 ~ */
-        private val BRACKET_PASTE_START = byteArrayOf(0x1B, '['.code.toByte(), '2'.code.toByte(), '0'.code.toByte(), '0'.code.toByte(), '~'.code.toByte())
-        /** Bracketed paste 終了シーケンス ESC [ 201 ~ */
-        private val BRACKET_PASTE_END = byteArrayOf(0x1B, '['.code.toByte(), '2'.code.toByte(), '0'.code.toByte(), '1'.code.toByte(), '~'.code.toByte())
     }
 }

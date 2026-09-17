@@ -51,8 +51,6 @@
     <string name="edge_new_panel_name">Nombre del nuevo panel</string>
     <string name="edge_add_panel">Añadir panel</string>
     <string name="edge_other_panels">Abrir otro panel</string>
-    <string name="edge_delete_panel">Eliminar panel o pestaña actual</string>
-    <string name="edge_delete_panel_warning">¿Eliminar “%1$s”? Se borrarán sus elementos y notas locales. Se conservarán las pestañas secundarias y los archivos de notas externos.</string>
     <string name="edge_adjust">Ajustar apariencia</string>
     <string name="edge_adjust_size">Grosor del tirador / tamaño del botón (dp)</string>
     <string name="edge_adjust_length">Longitud de barra (% de pantalla)</string>
@@ -192,4 +190,20 @@
     <string name="edge_recreate_group_help">Recrea el panel principal seleccionado y todas sus pestañas en el orden guardado.</string>
     <string name="edge_recreate_tab_help">Recrea la pestaña seleccionada. Crea su panel principal si falta; si existe, conserva las demás pestañas y añade esta al final. Una pestaña ya registrada conserva su posición.</string>
     <string name="edge_recreate_files_help">Los ID coincidentes reciben ajustes nuevos o actualizados. Se conservan los elementos existentes y los ajustes no especificados. No se incluyen ediciones sin guardar, contenido de notas, scripts ni imágenes referenciados. Guarda esos archivos por separado.</string>
+    <string name="edge_group_kind">Componente y comportamiento</string>
+    <string name="edge_group_launch">Apertura de la aplicación</string>
+    <string name="edge_group_display">Visualización</string>
+    <string name="edge_group_command">Comando</string>
+    <string name="edge_group_value">Valor</string>
+    <string name="edge_group_binding">Conexiones</string>
+    <string name="edge_binding_elsewhere">Los valores y resultados se conectan desde el botón que ejecuta el comando. En el editor de ese botón, elige este elemento en «Valores para el comando (en orden)» o «Dónde mostrar el resultado».</string>
+    <string name="edge_delete_select_help">Marca lo que quieras eliminar. Al marcar un panel también se eliminan todas sus pestañas. La primera pestaña es el propio panel, así que solo se elimina junto con él.</string>
+    <string name="edge_delete_whole_panel">Panel completo (%1$d pestañas)</string>
+    <string name="edge_delete_kind_panel">Panel</string>
+    <string name="edge_delete_kind_tab">Pestaña</string>
+    <string name="edge_delete_tab_of">Pestaña de %1$s</string>
+    <string name="edge_delete_current">Actual</string>
+    <string name="edge_delete_selected">Eliminar selección (%1$d)</string>
+    <string name="edge_delete_selected_warning">¿Eliminar lo siguiente (%1$d)? También se borrarán sus elementos y notas locales. Se conservarán los archivos de notas externos.</string>
+    <string name="edge_delete_line">• %1$s (%2$s)</string>
 </resources>

@@ -72,6 +72,7 @@ object EdgeRuntime {
     private var openRootId: String? = null
     private val notes = mutableMapOf<String, EdgeNote>()
     private val terminals = mutableListOf<EdgeTerminalUi>()
+    private val terminalStates = mutableMapOf<String, EdgeTerminalState>()
     private var itemAreaHeight = 1
     @android.annotation.SuppressLint("StaticFieldLeak") // Window-scoped; disposed and cleared by clearPanel.
     private var macroForm: EdgeMacroUi? = null
@@ -266,6 +267,7 @@ object EdgeRuntime {
     fun destroy() = onMain {
         cancelWakeRestore()
         close(); removeHandles()
+        terminalStates.values.forEach { it.close() }; terminalStates.clear()
         receiver?.let { r -> app?.let { runCatching { it.unregisterReceiver(r) } } }
         receiver = null
         runner?.cancelAll(); runner = null
@@ -288,6 +290,8 @@ object EdgeRuntime {
         clearPanel(keepWindow = unlocked() && loaded.any { it.id == previous })
         removeHandles(); iconCache.evictAll()
         panels = loaded
+        val terminalTargets = panels.flatMap { p -> p.items.filter { it.type == "terminal" }.map { "${p.id}:${it.id}" } }.toSet()
+        terminalStates.keys.filter { it !in terminalTargets }.forEach { terminalStates.remove(it)?.close() }
         val targets = panels.flatMap { p -> p.items.map { "${p.id}:${it.id}" } }.toSet()
         values.keys.retainAll(targets); revisions.keys.retainAll(targets)
         badges.keys.retainAll(panels.map { it.id }.toSet())
@@ -730,7 +734,7 @@ object EdgeRuntime {
         page: Int = editorPage): Unit = onMain {
         check(!actionsSuspended) { "An action macro is running; stop it before opening the panel" }
         if (toggle && openRootId == id) {
-            if (terminals.isEmpty() && macroForm == null) close()
+            if (panelView?.finishInput() != true) editorSession?.leave { close() } ?: close()
             return@onMain
         }
         require(app != null && store(app!!).enabled()) { "Enable the panel first: z2-edge on" }
@@ -740,7 +744,6 @@ object EdgeRuntime {
         val root = panels.firstOrNull { id in it.tabs } ?: requested
         val active = tabId ?: if (root.id != id) id else selectedTabs[root.id]
         val panel = panels.firstOrNull { it.id == active && (it.id == root.id || it.id in root.tabs) } ?: root
-        val terminalMode = !settings && panel.items.any { it.type in EdgePanelLayout.interactiveTypes || EdgeItemComponent.linked(it) }
         val stablePanelSize = !settings && EdgePanelLayout.bounded(root, panels)
         val showTabBar = settings || root.fields["tabbar"] == "on" ||
             (root.fields["tabbar"] == "auto" && root.tabs.isNotEmpty())
@@ -978,14 +981,17 @@ object EdgeRuntime {
                 } finally { panels = original }
                 }, finish = { reload(app!!) }, session = session), LinearLayout.LayoutParams(-1, 0, 1f))
             }
-            if (settings && page == 2) rows.addView(EdgePanelEditor.create(ui(), root, panel, store(app!!), session, remove = { id ->
-                close() // Flush notes before removing their owning directory.
-                store(app!!).removePanel(id)
-                val remaining = store(app!!).panels()
-                if (remaining.isEmpty()) off(app!!)
+            if (settings && page == 2) rows.addView(EdgePanelEditor.create(ui(), root, panel, store(app!!), session, remove = { ids ->
+                val context = app!!
+                close() // Flush notes before removing their owning directories.
+                store(context).removePanels(ids)
+                val remaining = store(context).panels()
+                if (remaining.isEmpty()) off(context)
                 else {
-                    reload(app!!)
-                    open(remaining.first { candidate -> remaining.none { candidate.id in it.tabs } }.id, settings = true)
+                    reload(context)
+                    // Stay on Manage: the panel being edited if it survived, otherwise the first one left.
+                    val roots = remaining.filter { candidate -> remaining.none { candidate.id in it.tabs } }
+                    open((roots.firstOrNull { it.id == root.id } ?: roots.first()).id, settings = true, page = 2)
                 }
             }) { id ->
                 close()
@@ -1061,8 +1067,8 @@ object EdgeRuntime {
                 }
             }
             val overlay = (existingWindow ?: EdgePanelWindow(ui())).apply {
-                outside = { if (!terminalMode) session.leave { close() } }
-                back = { if (!terminalMode) session.leave { if (settings) open(root.id, tabId = panel.id) else close() } }
+                outside = { if (!finishInput()) session.leave { close() } }
+                back = { if (!finishInput()) session.leave { if (settings) open(root.id, tabId = panel.id) else close() } }
                 swipeArea = if (settings || root.tabs.isEmpty()) null else body
                 horizontalTabSwipe = flow != "horizontal"
                 changeTab = { forward ->
@@ -1072,7 +1078,7 @@ object EdgeRuntime {
                         runCatching { open(root.id, tabId = ids[index]) }.onFailure { fail(it) }
                     }
                 }
-                setOnClickListener { if (!terminalMode) session.leave { close() } }
+                setOnClickListener { if (!finishInput()) session.leave { close() } }
                 setOnLongClickListener(if (settings) null else View.OnLongClickListener {
                     runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }
                     true
@@ -1226,26 +1232,54 @@ object EdgeRuntime {
         }
         val details = LinearLayout(ui()).apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE
-            setBackgroundColor(EdgeSettingsUi.surface(ui()))
+            tag = "edge-editor:${item.id}"
         }
-        fun edit() {
-            if (details.visibility == View.VISIBLE) return
-            details.removeAllViews()
-            details.addView(EdgeItemEditor.create(ui(), panelId, item, store(app!!),
+        val itemName = item.fields["label"]?.takeIf { it.isNotBlank() }
+            ?: app!!.getString(EdgeComponentLabels.component(EdgeItemComponent.from(item).component))
+        val editLabel = app!!.getString(R.string.edge_edit)
+        val closeLabel = app!!.getString(R.string.edge_close)
+        var editor: View? = null
+        lateinit var editButton: Button
+        // Edit opens the draft under the row and the same button closes it again; closing an
+        // edited draft asks first, exactly like Cancel.
+        fun hideEditor() {
+            editor?.let { editorSession?.untrack(it) }
+            editor = null
+            details.removeAllViews(); details.visibility = View.GONE
+            editButton.text = editLabel
+            editButton.contentDescription = "$editLabel: $itemName"
+            heading.background = EdgeSettingsUi.ripple(ui(), null)
+        }
+        fun showEditor() {
+            val session = editorSession ?: return
+            val view = EdgeItemEditor.create(ui(), panelId, item, store(app!!),
                 beforeSave = { saveNotes() }, saved = { reload(app!!) }, expanded = true,
-                cancelled = { details.removeAllViews(); details.visibility = View.GONE },
-                onDelete = ::removeItem, session = editorSession!!))
+                cancelled = ::hideEditor, onDelete = ::removeItem, session = session)
+            details.removeAllViews(); details.addView(view)
             details.visibility = View.VISIBLE
+            editor = view
+            editButton.text = closeLabel
+            editButton.contentDescription = "$closeLabel: $itemName"
+            heading.background = EdgeSettingsUi.opened(ui())
         }
-        heading.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_edit), action = ::edit))
+        fun toggleEditor() {
+            val current = editor ?: return showEditor()
+            editorSession?.discard(current) { hideEditor() } ?: hideEditor()
+        }
+        editButton = EdgeSettingsUi.button(ui(), editLabel) { toggleEditor() }.apply {
+            tag = "edge-edit:${item.id}"
+            contentDescription = "$editLabel: $itemName"
+            // One width for both labels, so the row does not shift when the editor opens.
+            minWidth = paddingLeft + paddingRight +
+                maxOf(paint.measureText(editLabel), paint.measureText(closeLabel)).toInt() + 1
+        }
+        heading.addView(editButton)
         val confirmDelete = LinearLayout(ui()).apply {
             orientation = LinearLayout.VERTICAL
             visibility = View.GONE
             tag = "edge-delete-confirm:${item.id}"
             setPadding(dp(EdgeSettingsUi.GUTTER), dp(8), dp(EdgeSettingsUi.GUTTER), dp(8))
         }
-        val itemName = item.fields["label"]?.takeIf { it.isNotBlank() }
-            ?: app!!.getString(EdgeComponentLabels.component(EdgeItemComponent.from(item).component))
         confirmDelete.addView(EdgeSettingsUi.body(ui(), app!!.getString(R.string.edge_delete_item_warning, itemName)))
         val choices = EdgeSettingsUi.row(ui())
         choices.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_delete), EdgeSettingsUi.Kind.DANGER) {
@@ -1281,7 +1315,7 @@ object EdgeRuntime {
         }
         row.addView(confirmDelete)
         row.addView(details)
-        heading.setOnClickListener { edit() }
+        heading.setOnClickListener { toggleEditor() }
         heading.setOnLongClickListener { it.startDragAndDrop(null, View.DragShadowBuilder(it), ItemDrag(panelId, item.id), 0) }
     }
 
@@ -1337,9 +1371,9 @@ object EdgeRuntime {
         val pkg = packageFrom(item.command)
         val label = EdgePanelLayout.label(item, pkg?.let { runCatching {
             val pm = app!!.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(it, 0)).toString()
-        }.getOrNull() })
+        }.getOrNull() }, app!!.getString(R.string.edge_run))
         val showTitle = label.isNotBlank()
-        if (showTitle || item.type == "run") addIcon(title, item.fields["icon"] ?: pkg?.let { "@app:$it" } ?: if (iconOnly) label.take(1) else null, iconSize)
+        if (showTitle || item.type == "run") addIcon(title, item.fields["icon"]?.takeIf { it.isNotBlank() } ?: pkg?.let { "@app:$it" } ?: if (iconOnly) label.take(1) else null, iconSize)
         title.minimumHeight = dp(48)
         title.contentDescription = label
         title.tooltipText = label
@@ -1442,7 +1476,11 @@ object EdgeRuntime {
                 render(values[target].orEmpty())
             }
             "terminal" -> {
-                val terminal = EdgeTerminalUi(ui(), label, fillSpace, inlineClose)
+                val state = terminalStates.getOrPut("$panelId:${item.id}") {
+                    val context = app!!
+                    EdgeTerminalState { EdgeTerminalSession.create(context) }
+                }
+                val terminal = EdgeTerminalUi(ui(), label, state, fillSpace, inlineClose)
                 terminals.add(terminal)
                 row.addView(terminal, if (fillSpace) LinearLayout.LayoutParams(-1, 0, 1f) else LinearLayout.LayoutParams(-1, -2))
             }

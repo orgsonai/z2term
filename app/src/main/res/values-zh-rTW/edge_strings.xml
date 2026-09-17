@@ -51,8 +51,6 @@
     <string name="edge_new_panel_name">新面板名稱</string>
     <string name="edge_add_panel">新增面板</string>
     <string name="edge_other_panels">開啟其他面板</string>
-    <string name="edge_delete_panel">刪除目前面板或分頁</string>
-    <string name="edge_delete_panel_warning">刪除「%1$s」？其中的項目與本機筆記將被刪除。子分頁與外部筆記檔案會保留。</string>
     <string name="edge_adjust">調整外觀</string>
     <string name="edge_adjust_size">把手厚度／按鈕大小（dp）</string>
     <string name="edge_adjust_length">邊條長度（螢幕百分比）</string>
@@ -192,4 +190,20 @@
     <string name="edge_recreate_group_help">依儲存的順序重建所選父面板及其全部子分頁。</string>
     <string name="edge_recreate_tab_help">重建所選分頁。父面板不存在時建立；已存在時保留其他分頁並將此分頁加到末尾。已登錄的分頁保持原有位置。</string>
     <string name="edge_recreate_files_help">相同 ID 的設定會被新增或更新。現有項目和未指定的設定會保留。不包含未儲存的編輯、筆記本文、參照的指令碼和圖片。請另外備份這些檔案。</string>
+    <string name="edge_group_kind">元件與行為</string>
+    <string name="edge_group_launch">應用程式啟動</string>
+    <string name="edge_group_display">顯示</string>
+    <string name="edge_group_command">命令</string>
+    <string name="edge_group_value">值</string>
+    <string name="edge_group_binding">連接</string>
+    <string name="edge_binding_elsewhere">此項目的值與結果在執行命令的按鈕一側連接。請在該按鈕的編輯中，於「傳給命令的值（由上至下）」或「結果顯示位置」裡選擇此項目。</string>
+    <string name="edge_delete_select_help">勾選要刪除的內容。勾選面板會同時刪除它的所有分頁。第一個分頁就是面板本身，只能隨面板一起刪除。</string>
+    <string name="edge_delete_whole_panel">整個面板（%1$d 個分頁）</string>
+    <string name="edge_delete_kind_panel">面板</string>
+    <string name="edge_delete_kind_tab">分頁</string>
+    <string name="edge_delete_tab_of">%1$s 的分頁</string>
+    <string name="edge_delete_current">目前</string>
+    <string name="edge_delete_selected">刪除所選（%1$d）</string>
+    <string name="edge_delete_selected_warning">刪除以下 %1$d 項？其中的項目與本機筆記也會被刪除。外部筆記檔案會保留。</string>
+    <string name="edge_delete_line">• %1$s（%2$s）</string>
 </resources>

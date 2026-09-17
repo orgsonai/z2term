@@ -51,8 +51,6 @@
     <string name="edge_new_panel_name">New panel name</string>
     <string name="edge_add_panel">Add panel</string>
     <string name="edge_other_panels">Open another panel</string>
-    <string name="edge_delete_panel">Delete current panel or tab</string>
-    <string name="edge_delete_panel_warning">Delete “%1$s”? Its items and locally stored notes will be deleted. Child tabs and external note files are kept.</string>
     <string name="edge_adjust">Adjust appearance</string>
     <string name="edge_adjust_size">Handle thickness / button size (dp)</string>
     <string name="edge_adjust_length">Bar length (% of screen)</string>
@@ -207,4 +205,20 @@
     <string name="edge_recreate_group_help">Recreate the selected parent panel and all its tabs in their saved order.</string>
     <string name="edge_recreate_tab_help">Recreate the selected tab. Create its parent if missing; otherwise keep other tabs and append this tab. An existing tab keeps its position.</string>
     <string name="edge_recreate_files_help">Matching IDs receive added or updated settings. Existing items and unspecified settings are kept. Unsaved edits, note contents, referenced scripts and images are not included. Back up those files separately.</string>
+    <string name="edge_group_kind">Component and behavior</string>
+    <string name="edge_group_launch">App launch</string>
+    <string name="edge_group_display">Display</string>
+    <string name="edge_group_command">Command</string>
+    <string name="edge_group_value">Value</string>
+    <string name="edge_group_binding">Connections</string>
+    <string name="edge_binding_elsewhere">Values and results are connected from the button that runs the command. In that button’s editor, choose this item under “Values to pass (in order)” or “Where to show the result”.</string>
+    <string name="edge_delete_select_help">Tick what to delete. Ticking a panel deletes all of its tabs too. The first tab is the panel itself, so it can only be deleted together with the panel.</string>
+    <string name="edge_delete_whole_panel">Whole panel (%1$d tabs)</string>
+    <string name="edge_delete_kind_panel">Panel</string>
+    <string name="edge_delete_kind_tab">Tab</string>
+    <string name="edge_delete_tab_of">Tab of %1$s</string>
+    <string name="edge_delete_current">Current</string>
+    <string name="edge_delete_selected">Delete selected (%1$d)</string>
+    <string name="edge_delete_selected_warning">Delete the following (%1$d)? Their items and locally stored notes are deleted too. External note files are kept.</string>
+    <string name="edge_delete_line">• %1$s (%2$s)</string>
 </resources>

@@ -26,14 +26,13 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** The view owns no persisted command, output, directory or shell state. */
+/** Closing the view leaves the item-owned shell and output running. */
 @android.annotation.SuppressLint("ViewConstructor") // Created only in code, with the saved item label.
-internal class EdgeTerminalUi(context: Context, label: String, fillSpace: Boolean = false,
+internal class EdgeTerminalUi(context: Context, label: String, private val terminal: EdgeTerminalState, fillSpace: Boolean = false,
     close: (() -> Unit)? = null) : LinearLayout(context) {
     private val handler = Handler(Looper.getMainLooper())
-    private var session: EdgeTerminalSession? = null
     private var disposed = false
-    private val history = EdgeTerminalHistory()
+    private val history = terminal.history
     private val historyScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var historyRequest: Job? = null
     private val historyMoves = mutableListOf<Boolean>()
@@ -47,6 +46,8 @@ internal class EdgeTerminalUi(context: Context, label: String, fillSpace: Boolea
         imeOptions = EditorInfo.IME_ACTION_GO or EditorInfo.IME_FLAG_NO_EXTRACT_UI
         typeface = Typeface.MONOSPACE
         filters = arrayOf(InputFilter.LengthFilter(16384))
+        setText(terminal.draft)
+        setSelection(length())
     }
     private val output = TextView(context).apply {
         id = R.id.edge_terminal_output
@@ -67,7 +68,7 @@ internal class EdgeTerminalUi(context: Context, label: String, fillSpace: Boolea
     private val status = EdgeSettingsUi.caption(context, context.getString(R.string.edge_terminal_ready))
     private val run = EdgeSettingsUi.button(context, context.getString(R.string.edge_run)) { execute() }
     private val stop = EdgeSettingsUi.button(context, context.getString(R.string.edge_terminal_stop)) {
-        session?.close(); render()
+        terminal.stop(); render()
     }
     private val poll = object : Runnable {
         override fun run() {
@@ -87,8 +88,12 @@ internal class EdgeTerminalUi(context: Context, label: String, fillSpace: Boolea
             if (output.text.isNotEmpty()) context.getSystemService(ClipboardManager::class.java)
                 .setPrimaryClip(ClipData.newPlainText(label, output.text))
         }, LayoutParams(0, -2, 1f))
-        actions.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_terminal_clear)) {
-            session?.clear(); render()
+        actions.addView(EdgeSettingsUi.button(context, "↻") {
+            historyRequest?.cancel(); historyMoves.clear()
+            terminal.refresh(); entry.setText(""); showResults(); render()
+        }.apply {
+            contentDescription = context.getString(R.string.edge_terminal_refresh)
+            tooltipText = contentDescription
         }, LayoutParams(0, -2, 1f))
         actions.addView(EdgeEditorUi.button(context, "≡") { toggleSnippets() }.apply {
             contentDescription = context.getString(R.string.snippets_title)
@@ -180,10 +185,8 @@ internal class EdgeTerminalUi(context: Context, label: String, fillSpace: Boolea
     private fun execute() {
         if (disposed || entry.text.isNullOrBlank()) return
         runCatching {
-            if (session == null || session!!.state().phase in setOf(EdgeTerminalSession.Phase.ENDED, EdgeTerminalSession.Phase.FAILED))
-                session = EdgeTerminalSession.create(context)
             val command = entry.text.toString()
-            if (session!!.execute(command)) {
+            if (terminal.execute(command)) {
                 historyRequest?.cancel(); historyMoves.clear()
                 history.accepted(command)
                 entry.setText("")
@@ -194,7 +197,7 @@ internal class EdgeTerminalUi(context: Context, label: String, fillSpace: Boolea
     }
 
     private fun render() {
-        val state = session?.state()
+        val state = terminal.state()
         val text = state?.output.orEmpty()
         if (output.text.toString() != text) {
             val atEnd = !scroll.canScrollVertically(1)
@@ -203,8 +206,7 @@ internal class EdgeTerminalUi(context: Context, label: String, fillSpace: Boolea
         }
         val phase = state?.phase ?: EdgeTerminalSession.Phase.NEW
         status.visibility = if (phase == EdgeTerminalSession.Phase.NEW) GONE else VISIBLE
-        run.isEnabled = phase in setOf(EdgeTerminalSession.Phase.NEW, EdgeTerminalSession.Phase.IDLE,
-            EdgeTerminalSession.Phase.ENDED, EdgeTerminalSession.Phase.FAILED)
+        run.isEnabled = phase in setOf(EdgeTerminalSession.Phase.NEW, EdgeTerminalSession.Phase.IDLE)
         stop.isEnabled = phase in setOf(EdgeTerminalSession.Phase.STARTING, EdgeTerminalSession.Phase.RUNNING, EdgeTerminalSession.Phase.IDLE)
         status.text = listOfNotNull(state?.environment?.takeIf { it.isNotBlank() }, when (phase) {
             EdgeTerminalSession.Phase.NEW -> context.getString(R.string.edge_terminal_ready)
@@ -218,10 +220,11 @@ internal class EdgeTerminalUi(context: Context, label: String, fillSpace: Boolea
     }
 
     fun dispose() {
+        if (disposed) return
+        terminal.draft = entry.text.toString()
         disposed = true
         historyScope.cancel(); historyMoves.clear()
         snippets?.dispose()
         handler.removeCallbacks(poll)
-        session?.close(); session = null
     }
 }

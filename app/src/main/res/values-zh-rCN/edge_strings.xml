@@ -51,8 +51,6 @@
     <string name="edge_new_panel_name">新面板名称</string>
     <string name="edge_add_panel">添加面板</string>
     <string name="edge_other_panels">打开其他面板</string>
-    <string name="edge_delete_panel">删除当前面板或标签页</string>
-    <string name="edge_delete_panel_warning">删除“%1$s”？其中的项目和本地笔记将被删除。子标签页和外部笔记文件会保留。</string>
     <string name="edge_adjust">调整外观</string>
     <string name="edge_adjust_size">把手厚度／按钮大小（dp）</string>
     <string name="edge_adjust_length">边条长度（屏幕百分比）</string>
@@ -192,4 +190,20 @@
     <string name="edge_recreate_group_help">按保存的顺序重建所选父面板及其全部子标签页。</string>
     <string name="edge_recreate_tab_help">重建所选标签页。父面板不存在时创建；已存在时保留其他标签页并将此标签页追加到末尾。已注册的标签页保持原有位置。</string>
     <string name="edge_recreate_files_help">相同 ID 的设置会被添加或更新。现有项目和未指定的设置会保留。不包含未保存的编辑、笔记正文、引用的脚本和图片。请单独备份这些文件。</string>
+    <string name="edge_group_kind">组件与行为</string>
+    <string name="edge_group_launch">应用启动</string>
+    <string name="edge_group_display">显示</string>
+    <string name="edge_group_command">命令</string>
+    <string name="edge_group_value">值</string>
+    <string name="edge_group_binding">连接</string>
+    <string name="edge_binding_elsewhere">此项目的值和结果在执行命令的按钮一侧连接。请在该按钮的编辑中，于“传给命令的值（从上到下）”或“结果显示位置”里选择此项目。</string>
+    <string name="edge_delete_select_help">勾选要删除的内容。勾选面板会同时删除它的所有标签页。第一个标签页就是面板本身，只能随面板一起删除。</string>
+    <string name="edge_delete_whole_panel">整个面板（%1$d 个标签页）</string>
+    <string name="edge_delete_kind_panel">面板</string>
+    <string name="edge_delete_kind_tab">标签页</string>
+    <string name="edge_delete_tab_of">%1$s 的标签页</string>
+    <string name="edge_delete_current">当前</string>
+    <string name="edge_delete_selected">删除所选（%1$d）</string>
+    <string name="edge_delete_selected_warning">删除以下 %1$d 项？其中的项目和本地笔记也会被删除。外部笔记文件会保留。</string>
+    <string name="edge_delete_line">• %1$s（%2$s）</string>
 </resources>

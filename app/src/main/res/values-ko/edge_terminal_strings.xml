@@ -10,8 +10,9 @@
     <string name="edge_terminal_starting">준비 중…</string>
     <string name="edge_terminal_running">실행 중…</string>
     <string name="edge_terminal_exit">종료 코드: %1$d</string>
-    <string name="edge_terminal_ended">종료됨 · 다음 실행은 새 세션</string>
+    <string name="edge_terminal_ended">종료됨 · 새로고침하면 새 세션 시작</string>
     <string name="edge_terminal_truncated">최근 64K 문자 표시</string>
-    <string name="edge_terminal_help">닫으면 세션을 종료합니다. 작업을 유지하려면 nohup 또는 tmux/screen 분리를 사용하세요. 대화형 프로그램은 일반 터미널 탭에서 사용하세요.</string>
+    <string name="edge_terminal_help">패널을 닫거나 탭을 바꿔도 셸, 출력, 입력 중인 내용이 유지됩니다. 새로고침으로 직접 초기화하세요. 대화형 명령은 일반 터미널 탭에서 사용하세요.</string>
     <string name="edge_terminal_one_line_required">간이 터미널은 최대 16,384자의 한 줄 명령을 지원합니다. 여러 줄 스니펫은 일반 터미널에서 사용하세요.</string>
+    <string name="edge_terminal_refresh">세션 새로고침</string>
 </resources>

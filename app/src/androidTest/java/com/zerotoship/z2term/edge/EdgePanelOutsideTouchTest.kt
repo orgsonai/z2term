@@ -63,25 +63,18 @@ class EdgePanelOutsideTouchTest {
         try {
             store.setPanel(id, mapOf("handle" to "bar", "width" to "50%",
                 "height" to "40%", "at" to "100%,100%", "fit" to "fixed"))
-            for (type in listOf("run", "result", "terminal")) {
+            for (type in listOf("run", "input", "note", "argument", "result", "terminal")) {
                 EdgeRuntime.close()
                 store.setItem("$id:content", mapOf("type" to type, "label" to "Outside test"))
                 EdgeRuntime.on(app); EdgeRuntime.reload(app); EdgeRuntime.open(id)
                 instrumentation.waitForIdleSync()
                 outsidePress(50)
-                instrumentation.runOnMainSync {
-                    if (type == "run") assertNull(window())
-                    else {
-                        assertNotNull(window())
-                        assertFalse(containsText(window()!!, app.getString(R.string.edge_done)))
-                        window()!!.back()
-                        assertNotNull(window())
-                    }
-                }
-                if (type == "run") {
-                    EdgeRuntime.open(id)
-                    instrumentation.waitForIdleSync()
-                }
+                instrumentation.runOnMainSync { assertNull("Idle $type must close", window()) }
+                EdgeRuntime.open(id)
+                instrumentation.waitForIdleSync()
+                instrumentation.runOnMainSync { window()!!.back(); assertNull(window()) }
+                EdgeRuntime.open(id)
+                instrumentation.waitForIdleSync()
                 outsidePress(ViewConfiguration.getLongPressTimeout().toLong() + 150)
                 instrumentation.runOnMainSync {
                     assertNotNull(window())

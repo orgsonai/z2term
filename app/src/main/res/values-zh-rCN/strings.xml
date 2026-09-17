@@ -1173,8 +1173,8 @@ SSH 连接目标 %3$d 个
     <string name="edge_type_macro">带参数的宏</string>
     <string name="edge_type_argument">参数框</string>
     <string name="edge_type_result">结果框</string>
-    <string name="edge_macro_args">按参数顺序排列的输入来源（项目 ID，逗号分隔）</string>
-    <string name="edge_macro_result">结果目标（项目 ID，留空：使用输出设置）</string>
+    <string name="edge_macro_args">传给命令的值（从上到下）</string>
+    <string name="edge_macro_result">结果显示位置</string>
     <string name="edge_argument_kind">输入方式</string>
     <string name="edge_argument_default">初始值或固定值</string>
     <string name="edge_argument_choices">选项（以 | 分隔）</string>
@@ -1185,8 +1185,8 @@ SSH 连接目标 %3$d 个
     <string name="edge_argument_fixed">固定值</string>
     <string name="edge_argument_optional">可选</string>
     <string name="edge_argument_mandatory">必填</string>
-    <string name="edge_pick_argument">添加参数框</string>
-    <string name="edge_pick_result">选择结果框</string>
+    <string name="edge_pick_argument">选择提供值的项目</string>
+    <string name="edge_pick_result">选择结果显示项</string>
     <string name="edge_choose_value">选择值</string>
     <string name="edge_macro_done">已完成</string>
     <string name="edge_macro_stopped">已停止</string>
@@ -1209,7 +1209,7 @@ SSH 连接目标 %3$d 个
     <string name="edge_action_shell" formatted="false">连接到 shell</string>
     <string name="edge_action_state" formatted="false">读取和更改状态</string>
     <string name="edge_action_select" formatted="false">使用所选值运行命令</string>
-    <string name="edge_item_stdin" formatted="false">标准输入来源（项目 ID）</string>
+    <string name="edge_item_stdin">作为标准输入传入的项目（可选）</string>
     <string name="edge_item_width" formatted="false">宽度（dp 或 %，留空：自动）</string>
     <string name="edge_item_height" formatted="false">高度（dp 或 %，留空：适应内容）</string>
     <string name="edge_item_align" formatted="false">行内对齐</string>
@@ -1224,4 +1224,22 @@ SSH 连接目标 %3$d 个
     <string name="edge_out_toast" formatted="false">短消息</string>
     <string name="edge_out_notify" formatted="false">通知</string>
     <string name="edge_flow_free" formatted="false">自由（各项目坐标）</string>
+    <string name="edge_binding_none">未连接</string>
+    <string name="edge_binding_missing">项目已删除或不可用</string>
+    <string name="edge_binding_remove">断开 %1$s 的连接</string>
+    <string name="edge_result_controls">显示停止、复制和清除按钮</string>
+    <string name="guide_desc_edge_workspace">创建一个包含记事本、翻译和终端标签页的面板</string>
+    <string name="guide_sample_note">记事本</string>
+    <string name="guide_sample_translation">翻译</string>
+    <string name="guide_sample_terminal">终端</string>
+    <string name="guide_sample_source">原文</string>
+    <string name="guide_sample_language">目标语言</string>
+    <string name="guide_sample_translate">翻译</string>
+    <string name="guide_sample_result">译文</string>
+    <string name="guide_step_edge_local">请在面板使用的本地 Linux 环境中打开终端，等待 shell 输入提示后再继续。</string>
+    <string name="guide_step_sample_create">创建一个含三个标签页的示例面板（保留已有设置和项目）</string>
+    <string name="guide_step_sample_open">启用面板并打开示例（从右侧边栏向内滑动可再次打开）</string>
+    <string name="guide_step_sample_use">切换三个标签页使用。双击笔记正文即可编辑，内容自动保存。翻译时输入原文、选择目标语言并点击翻译。切换标签页或关闭面板会清除翻译输入和结果。终端的 Shell、输出和输入草稿会保留，可用 ↻ 手动刷新。示例栏的不透明度为30%。</string>
+    <string name="guide_step_translation_cli">若尚未安装 trans，请在同一 Linux 环境中手动执行对应命令。\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\n此卡片仅供阅读，点击不会安装。待翻译文本会发送至外部翻译服务。</string>
+    <string name="guide_sample_translation_missing">请先安装 trans 并准备翻译宏，再重新执行示例创建步骤。</string>
 </resources>

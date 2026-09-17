@@ -191,17 +191,30 @@ class AsciiKeyLayoutTest {
         assertEquals(flicksOf(q), flicksOf(shifted))
     }
 
-    @Test fun digitsRepeatButLettersLeaveItToTheFlickKey() {
-        // ⚠ いまの部品の都合をモデル側で固定しておく: 数字は BasicKey に連打を任せ (repeatable)、
-        // 英字は FlickKey が自前で連打する (repeatable=false)。描画の振り分けがこれを見ている。
+    @Test fun digitsAndLettersRepeatThroughTheSharedKeyCell() {
         val l = asciiKeyLayout(compact = false, hasFaceKey = true)
-        assertTrue(keyOf(l, 0, 1).repeatable)      // 数字
-        assertTrue(!keyOf(l, 1, 1).repeatable)     // 英字
+        assertTrue(keyOf(l, 0, 1).repeatable)
+        assertTrue(keyOf(l, 1, 1).repeatable)
         assertEquals(KeyFontRole.MAIN, keyOf(l, 0, 1).fontRole)
         assertEquals(KeyFontRole.MAIN, keyOf(l, 1, 1).fontRole)
         // 機能キーの文字サイズも役割で持つ (ESC / TAB / CTRL / ALT / ?# は小さめ)。
         assertEquals(KeyFontRole.SMALL, keyOf(l, 0, 0).fontRole)
         assertEquals(KeyFontRole.NORMAL, keyOf(l, 4, 4).fontRole)   // 矢印
+    }
+
+    @Test fun allPresetTextKeysRepeatIncludingShiftAndSymbols() {
+        for (compact in listOf(false, true)) for (symbols in listOf(false, true)) {
+            val layout = asciiKeyLayout(compact = compact, hasFaceKey = true, symbols = symbols)
+            val keys = layout.rows.flatMap { row -> row.slots.map { (it.content as SlotContent.Single).key } }
+            for (key in keys) {
+                if (key.actionsFor(KeyGesture.TAP).singleOrNull() is KeyAction.Text) {
+                    assertTrue(key.label, key.repeatable)
+                    assertTrue(key.label, key.onLayer(KeyLayout.LAYER_SHIFT).repeatable)
+                } else if (key.actionsFor(KeyGesture.TAP).singleOrNull() is KeyAction.Modifier) {
+                    assertTrue(key.label, !key.repeatable)
+                }
+            }
+        }
     }
 
     @Test fun digitsHaveNoShiftLayer() {

@@ -7,6 +7,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -214,6 +215,71 @@ class EdgePanelLayoutWindowTest {
             EdgeRuntime.close()
             if (!enabled) EdgeRuntime.off(app)
             if (store.directory(id).isDirectory) store.removePanel(id)
+            if (enabled) EdgeRuntime.reload(app)
+        }
+    }
+
+    @Test fun editButtonOpensAndClosesTheItemEditor() {
+        assumeTrue(Settings.canDrawOverlays(app))
+        val store = EdgeRuntime.store(app)
+        val enabled = store.enabled()
+        val id = "toggle_" + UUID.randomUUID().toString().replace("-", "")
+        try {
+            store.setPanel(id, emptyMap())
+            store.setItem("$id:note", mapOf("type" to "note", "label" to "Memo"))
+            EdgeRuntime.on(app); EdgeRuntime.open(id, settings = true, page = 0)
+            instrumentation.runOnMainSync {
+                val edit = window().findViewWithTag<TextView>("edge-edit:note")
+                val editor = window().findViewWithTag<ViewGroup>("edge-editor:note")
+                assertEquals(View.GONE, editor.visibility)
+                edit.performClick()
+                assertEquals(View.VISIBLE, editor.visibility)
+                assertEquals(app.getString(R.string.edge_close), edit.text.toString())
+                edit.performClick()
+                assertEquals("An untouched draft closes without asking", View.GONE, editor.visibility)
+                assertEquals(0, editor.childCount)
+                assertEquals(app.getString(R.string.edge_edit), edit.text.toString())
+            }
+        } finally {
+            EdgeRuntime.close()
+            if (!enabled) EdgeRuntime.off(app)
+            if (store.directory(id).isDirectory) store.removePanel(id)
+            if (enabled) EdgeRuntime.reload(app)
+        }
+    }
+
+    @Test fun tickedPanelIsDeletedWithItsTabsAndOtherPanelsStay() {
+        assumeTrue(Settings.canDrawOverlays(app))
+        val store = EdgeRuntime.store(app)
+        val enabled = store.enabled()
+        val suffix = UUID.randomUUID().toString().replace("-", "").take(24)
+        val root = "root_$suffix"
+        val tab = "tab_$suffix"
+        val other = "other_$suffix"
+        try {
+            store.setPanel(root, mapOf("label" to "Root", "handle" to "bar"))
+            store.addTab(root, tab, "Tab")
+            store.setPanel(other, mapOf("label" to "Other", "handle" to "bar"))
+            EdgeRuntime.on(app); EdgeRuntime.open(root, settings = true, page = 2)
+            instrumentation.runOnMainSync {
+                val start = window().findViewWithTag<View>("edge-panels-delete")
+                assertFalse("Nothing ticked, nothing to delete", start.isEnabled)
+                val parent = window().findViewWithTag<CheckBox>("edge-panel-check:$root")
+                val child = window().findViewWithTag<CheckBox>("edge-panel-check:$tab")
+                parent.performClick()
+                assertTrue(child.isChecked)
+                assertFalse("A tab goes with its ticked panel", child.isEnabled)
+                start.performClick()
+                assertEquals(View.VISIBLE, window().findViewWithTag<View>("edge-panels-delete-confirm").visibility)
+                window().findViewWithTag<View>("edge-panels-delete-accept").performClick()
+            }
+            assertFalse(store.directory(root).isDirectory)
+            assertFalse("The tab must not be left behind as a separate panel", store.directory(tab).isDirectory)
+            assertTrue(store.directory(other).isDirectory)
+        } finally {
+            EdgeRuntime.close()
+            if (!enabled) EdgeRuntime.off(app)
+            listOf(tab, root, other).forEach { if (store.directory(it).isDirectory) store.removePanel(it) }
             if (enabled) EdgeRuntime.reload(app)
         }
     }

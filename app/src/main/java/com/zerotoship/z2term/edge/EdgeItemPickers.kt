@@ -11,6 +11,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
+import androidx.core.widget.doAfterTextChanged
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.icon.IconStore
 import com.zerotoship.z2term.widget.WidgetStore
@@ -29,7 +30,44 @@ internal object EdgeItemPickers {
     fun bindings(context: Context, group: LinearLayout, entry: EditText,
         items: List<EdgeStore.Item>, arguments: Boolean, multiple: Boolean = arguments) {
         val candidates = items.filter { if (arguments) EdgeItemComponent.source(it) else it.type == "result" }
-        val labels = candidates.map { "${it.fields["label"] ?: it.id} (${it.id})" }
+        // IDs remain the saved identity; show names and their position in the panel.
+        val labels = candidates.map { "${items.indexOf(it) + 1}. ${EdgeComponentLabels.item(context, it)}" }
+        val displayNames = candidates.map { EdgeComponentLabels.item(context, it) }
+        val names = candidates.mapIndexed { index, item ->
+            val name = displayNames[index]
+            item.id to if (displayNames.count { it == name } > 1) labels[index] else name
+        }.toMap()
+        entry.visibility = View.GONE
+        val selected = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        group.addView(selected)
+        fun refresh() {
+            selected.removeAllViews()
+            val ids = entry.text.toString().takeIf { it.isNotBlank() }?.split(',')?.map { it.trim() }.orEmpty()
+            if (ids.isEmpty()) selected.addView(EdgeSettingsUi.caption(context, context.getString(R.string.edge_binding_none)))
+            ids.forEachIndexed { index, id ->
+                val name = names[id] ?: context.getString(R.string.edge_binding_missing)
+                val row = EdgeSettingsUi.row(context)
+                row.addView(EdgeSettingsUi.body(context, if (multiple) "${index + 1}: $name" else name),
+                    LinearLayout.LayoutParams(0, -2, 1f))
+                if (multiple) listOf(-1 to R.string.edge_move_up, 1 to R.string.edge_move_down).forEach { (delta, label) ->
+                    row.addView(EdgeSettingsUi.iconButton(context, if (delta < 0) "↑" else "↓") {
+                        val reordered = ids.toMutableList()
+                        java.util.Collections.swap(reordered, index, index + delta)
+                        entry.setText(reordered.joinToString(","))
+                    }.apply {
+                        isEnabled = index + delta in ids.indices
+                        contentDescription = context.getString(label, name)
+                    }, LinearLayout.LayoutParams(EdgeSettingsUi.dp(context, 40), EdgeSettingsUi.dp(context, 48)))
+                }
+                row.addView(EdgeSettingsUi.iconButton(context, "×") {
+                    entry.setText(ids.filterIndexed { position, _ -> position != index }.joinToString(","))
+                }.apply { contentDescription = context.getString(R.string.edge_binding_remove, name) },
+                    LinearLayout.LayoutParams(EdgeSettingsUi.dp(context, 40), EdgeSettingsUi.dp(context, 48)))
+                selected.addView(row)
+            }
+        }
+        entry.doAfterTextChanged { refresh() }
+        refresh()
         picker(context, group, entry, if (arguments) R.string.edge_pick_argument else R.string.edge_pick_result,
             labels) { label ->
             val id = candidates[labels.indexOf(label)].id

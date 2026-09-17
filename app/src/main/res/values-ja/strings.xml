@@ -1251,8 +1251,8 @@ SSH 接続先 %3$d 件
     <string name="edge_type_macro">引数付きマクロ</string>
     <string name="edge_type_argument">引数欄</string>
     <string name="edge_type_result">結果欄</string>
-    <string name="edge_macro_args">引数の参照元（項目IDを引数順にカンマ区切り）</string>
-    <string name="edge_macro_result">結果の表示先（項目ID、空欄：出力設定に従う）</string>
+    <string name="edge_macro_args">コマンドに渡す値（上から順番）</string>
+    <string name="edge_macro_result">結果を表示する欄</string>
     <string name="edge_argument_kind">入力方式</string>
     <string name="edge_argument_default">初期値・固定値</string>
     <string name="edge_argument_choices">選択肢（| 区切り）</string>
@@ -1263,8 +1263,8 @@ SSH 接続先 %3$d 件
     <string name="edge_argument_fixed">固定値</string>
     <string name="edge_argument_optional">任意</string>
     <string name="edge_argument_mandatory">必須</string>
-    <string name="edge_pick_argument">引数欄を追加</string>
-    <string name="edge_pick_result">結果欄を選択</string>
+    <string name="edge_pick_argument">値を受け取る項目を選ぶ</string>
+    <string name="edge_pick_result">結果を表示する欄を選ぶ</string>
     <string name="edge_choose_value">値を選択</string>
     <string name="edge_macro_done">完了</string>
     <string name="edge_macro_stopped">停止しました</string>
@@ -1287,7 +1287,7 @@ SSH 接続先 %3$d 件
     <string name="edge_action_shell" formatted="false">シェルに接続</string>
     <string name="edge_action_state" formatted="false">状態を取得して切り替える</string>
     <string name="edge_action_select" formatted="false">選択した値でコマンドを実行</string>
-    <string name="edge_item_stdin" formatted="false">標準入力の参照元（項目ID）</string>
+    <string name="edge_item_stdin">標準入力として渡す項目（必要な場合のみ）</string>
     <string name="edge_item_width" formatted="false">幅（dp または %、空欄で自動）</string>
     <string name="edge_item_height" formatted="false">高さ（dp または %、空欄で内容に合わせる）</string>
     <string name="edge_item_align" formatted="false">行内の寄せ方</string>
@@ -1302,4 +1302,22 @@ SSH 接続先 %3$d 件
     <string name="edge_out_notify" formatted="false">通知</string>
     <string name="edge_flow_free" formatted="false">自由配置（項目ごとの座標）</string>
     <string name="edge_item_layout_help" formatted="false">幅の % は行・列、高さの % はパネルが基準です。パネルの並べ方を「自由配置」にすると座標を使えます。0% が左端・上端、100% が右端・下端です。座標を空欄にした項目は順番に並びます。</string>
+    <string name="edge_binding_none">接続なし</string>
+    <string name="edge_binding_missing">削除済み・利用できない項目</string>
+    <string name="edge_binding_remove">%1$s の接続を解除</string>
+    <string name="edge_result_controls">停止・コピー・消去ボタンを表示</string>
+    <string name="guide_sample_note">メモ帳</string>
+    <string name="guide_sample_translation">翻訳</string>
+    <string name="guide_sample_terminal">ターミナル</string>
+    <string name="guide_sample_source">原文</string>
+    <string name="guide_sample_language">翻訳先</string>
+    <string name="guide_sample_translate">翻訳する</string>
+    <string name="guide_sample_result">訳文</string>
+    <string name="guide_step_edge_local">パネルが使うローカルLinux環境のターミナルで、シェルの入力待ちにしてから進めてください。</string>
+    <string name="guide_step_sample_create">3タブ入りのサンプルパネルを1つ作る（既存の設定・項目は上書きしません）</string>
+    <string name="guide_step_sample_open">パネルを有効にしてサンプルを開く（右端のバーを内側へスワイプすると再び開けます）</string>
+    <string name="guide_step_translation_cli">翻訳コマンド trans が未導入なら、同じLinux環境で次を手動実行してください。\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nこのカードは読むだけです。タップしてもインストールしません。翻訳する文章は外部の翻訳サービスへ送られます。</string>
+    <string name="guide_sample_translation_missing">先に翻訳コマンド trans の導入と翻訳マクロの準備を済ませてから、サンプル作成を再実行してください。</string>
+    <string name="guide_desc_edge_workspace">メモ帳・翻訳・ターミナルをタブで使うパネルを作る</string>
+    <string name="guide_step_sample_use">3つのタブを切り替えて使います。メモは本文をダブルタップで編集し、自動保存されます。翻訳は原文と翻訳先を指定して「翻訳する」を押します。タブ切替・閉じる操作で翻訳の入力と結果は消えます。ターミナルのシェル・出力・入力途中の文字は継続し、↻で手動リフレッシュできます。サンプルバーの不透明度は30％です。</string>
 </resources>

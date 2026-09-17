@@ -84,6 +84,12 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.620-alpha (versionCode 628) — build unverified**: The edge item editor is split into Component and behavior, Display, Command, Value and Connections, and blocks the chosen component does not use are hidden. Advanced settings and item size and position fold at the foot. Edit turns into Close while the editor is open and closes it again, asking first if there are unsaved changes. Manage › Remove panel or tab now uses checkboxes, so several panels and tabs can be deleted at once; ticking a panel deletes its tabs too. The guide card list scrolls, and a swipe no longer sends a card’s command. Japanese labels now use パネル consistently.
+
+**0.8.619-alpha (versionCode 627) — build unverified**: Edge mini terminals retain shells, output and drafts across closing, tab changes and reloads. Output appends; ↻ resets manually. Outside taps and Back end active typing first and otherwise close the panel. Sample handles default to 30% opacity. Guide commands now send bulk paste and a final Enter in one ordered write.
+
+**0.8.618-alpha (versionCode 626) — build unverified**: Panel bindings now show item names and support reordering and disconnecting. Buttons without a name or icon show Run. Result Stop/Copy/Clear controls are hidden by default and can be enabled in advanced settings. The single `edge-workspace` guide creates one panel with Notepad, Translation and Terminal tabs; translation requires a separately installed command and the bundled macro. Restores long-press repeat for letters, uppercase letters and symbols.
+
 **0.8.617-alpha (versionCode 625) — build unverified**: Creation uses Add app and Add item. Select components and behaviors independently, bind arguments, standard input and output displays, and configure per-item dimensions, alignment and free placement. Existing items, files and scripts are retained. See [components and behaviors](docs/en/EDGE-MACRO-FORMS.md).
 
 **0.8.615-alpha (versionCode 623) — build unverified**: Retains the 0.8.614 integration and corrects the unit-test syntax used by CI. Validation and distribution run on GitHub CI.

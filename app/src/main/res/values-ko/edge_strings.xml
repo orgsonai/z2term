@@ -51,8 +51,6 @@
     <string name="edge_new_panel_name">새 패널 이름</string>
     <string name="edge_add_panel">패널 추가</string>
     <string name="edge_other_panels">다른 패널 열기</string>
-    <string name="edge_delete_panel">현재 패널 또는 탭 삭제</string>
-    <string name="edge_delete_panel_warning">“%1$s”을(를) 삭제할까요? 항목과 내부에 저장된 메모가 삭제됩니다. 하위 탭과 외부 메모 파일은 유지됩니다.</string>
     <string name="edge_adjust">모양 조정</string>
     <string name="edge_adjust_size">핸들 두께 / 버튼 크기 (dp)</string>
     <string name="edge_adjust_length">바 길이 (화면 %)</string>
@@ -192,4 +190,20 @@
     <string name="edge_recreate_group_help">선택한 부모 패널과 모든 하위 탭을 저장된 순서로 다시 만듭니다.</string>
     <string name="edge_recreate_tab_help">선택한 탭을 다시 만듭니다. 부모 패널이 없으면 만들고, 있으면 다른 탭을 유지하며 끝에 추가합니다. 이미 등록된 탭의 순서는 유지됩니다.</string>
     <string name="edge_recreate_files_help">같은 ID에는 설정을 추가하거나 갱신합니다. 기존 항목과 지정되지 않은 설정은 유지됩니다. 저장하지 않은 편집, 메모 본문, 참조된 스크립트와 이미지는 포함되지 않습니다. 해당 파일은 별도로 백업하세요.</string>
+    <string name="edge_group_kind">구성 요소와 동작</string>
+    <string name="edge_group_launch">앱 실행</string>
+    <string name="edge_group_display">표시</string>
+    <string name="edge_group_command">명령</string>
+    <string name="edge_group_value">값</string>
+    <string name="edge_group_binding">연결</string>
+    <string name="edge_binding_elsewhere">이 항목의 값과 결과는 명령을 실행하는 버튼 쪽에서 연결합니다. 그 버튼의 편집에서 “명령에 전달할 값 (위에서부터 순서대로)” 또는 “결과를 표시할 곳”에서 이 항목을 선택하세요.</string>
+    <string name="edge_delete_select_help">삭제할 것에 체크하세요. 패널에 체크하면 그 패널의 탭도 모두 삭제됩니다. 첫 번째 탭은 패널 자체이므로 패널과 함께만 삭제할 수 있습니다.</string>
+    <string name="edge_delete_whole_panel">패널 전체 (탭 %1$d개)</string>
+    <string name="edge_delete_kind_panel">패널</string>
+    <string name="edge_delete_kind_tab">탭</string>
+    <string name="edge_delete_tab_of">%1$s의 탭</string>
+    <string name="edge_delete_current">현재</string>
+    <string name="edge_delete_selected">선택 항목 삭제 (%1$d)</string>
+    <string name="edge_delete_selected_warning">다음 %1$d개를 삭제할까요? 안의 항목과 내부에 저장된 메모도 삭제됩니다. 외부 메모 파일은 유지됩니다.</string>
+    <string name="edge_delete_line">• %1$s (%2$s)</string>
 </resources>

@@ -111,6 +111,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
         }
         return false
     }
+    private var wasImeVisible = false
     private var backHidesIme = false
     private var backDispatcher: OnBackInvokedDispatcher? = null
     private val backCallback = if (Build.VERSION.SDK_INT >= 33)
@@ -118,10 +119,15 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
 
     init {
         isFocusableInTouchMode = true
-        if (Build.VERSION.SDK_INT >= 30) setOnApplyWindowInsetsListener { _, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(this) { _, insets ->
             // System bars are excluded by WindowManager; IME insets are relative to that frame.
-            val bottom = insets.getInsets(WindowInsets.Type.ime()).bottom
-            setPadding(0, 0, 0, bottom)
+            val visible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            if (wasImeVisible && !visible) releaseInputFocus()
+            wasImeVisible = visible
+            if (Build.VERSION.SDK_INT >= 30) {
+                val bottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+                setPadding(0, 0, 0, bottom)
+            }
             insets
         }
     }
@@ -129,8 +135,24 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
     private fun imeVisible(): Boolean =
         ViewCompat.getRootWindowInsets(this)?.isVisible(WindowInsetsCompat.Type.ime()) == true
 
+    private fun releaseInputFocus() {
+        if (findFocus() is android.widget.EditText) {
+            findFocus()?.clearFocus()
+            requestFocus()
+        }
+    }
+
+    /** First dismiss typing; a later outside tap/back can close the panel. */
+    fun finishInput(): Boolean {
+        val editing = findFocus() is android.widget.EditText
+        val hidden = hideKeyboard()
+        releaseInputFocus()
+        return editing || hidden
+    }
+
     fun hideKeyboard(): Boolean {
         if (!imeVisible()) return false
+        releaseInputFocus()
         if (Build.VERSION.SDK_INT >= 30) windowInsetsController?.hide(WindowInsets.Type.ime())
         else context.getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(windowToken, 0)
         return true

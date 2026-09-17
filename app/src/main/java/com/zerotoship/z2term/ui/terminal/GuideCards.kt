@@ -5,13 +5,18 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
@@ -26,13 +31,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.edge.EdgeDefaultPanel
+import com.zerotoship.z2term.edge.EdgeSamplePanels
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.theme.ZtsGreen
@@ -136,6 +146,17 @@ enum class Guide(
         GuideStep(R.string.guide_step_edge_accessibility, "z2-key permission"),
         GuideStep(R.string.guide_step_edge_panel, commandOf = { EdgeDefaultPanel.command(it) }),
         GuideStep(R.string.guide_step_edge_on, "z2-edge on"),
+        GuideStep(R.string.guide_step_edge_settings),
+    )),
+
+    EDGE_WORKSPACE("edge-workspace", R.string.guide_desc_edge_workspace, listOf(
+        GuideStep(R.string.guide_step_edge_local),
+        GuideStep(R.string.guide_step_edge_overlay, "z2-edge permission"),
+        GuideStep(R.string.guide_step_translation_cli),
+        GuideStep(R.string.guide_step_install, "z2-macro install translate"),
+        GuideStep(R.string.guide_step_sample_create, commandOf = { EdgeSamplePanels.command(it) }),
+        GuideStep(R.string.guide_step_sample_open, "z2-edge on && z2-edge open sample-tools"),
+        GuideStep(R.string.guide_step_sample_use),
         GuideStep(R.string.guide_step_edge_settings),
     )),
 
@@ -464,7 +485,18 @@ internal fun GuideCardColumn(
             }
         }
 
-        content()
+        // カードの並びだけをスクロールさせる。見出しの ✕ と脚注は常に見えている位置に残す。
+        // ⚠ 高さの上限を付けないと、長いコマンドのカードが並んだとき端末を押し出して画面から
+        // はみ出し、**続きを見る手段が無い**まま上下のスワイプがカードのタップになっていた。
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.4f).dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            content()
+        }
 
         Text(
             text = hint,
@@ -488,6 +520,12 @@ internal fun GuideCardRow(
     /** 送らずに消す ✕。**null なら描かない** = 消せない行 (0.8.342・[GuideCardColumn] と同じ理由)。 */
     onSkip: (() -> Unit)?,
 ) {
+    // ⚠ `clickable` は**指が枠の外へ出たときしか**タップを取り消さない。カードの上で上下に
+    // スワイプすると、離した瞬間にタップとしてコマンドが送られていた (利用者の指摘)。
+    // 押した位置から touch slop を超えて動いたジェスチャーは、離してもタップに数えない。
+    // 動きは Initial パスで見るだけで消費しないので、外側のスクロールはそのまま効く。
+    val slop = LocalViewConfiguration.current.touchSlop
+    val moved = remember { BooleanArray(1) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -499,7 +537,18 @@ internal fun GuideCardRow(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .clickable(onClick = onTap)
+                .pointerInput(slop) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        moved[0] = false
+                        do {
+                            val change = awaitPointerEvent(PointerEventPass.Initial).changes
+                                .firstOrNull { it.id == down.id } ?: break
+                            if ((change.position - down.position).getDistance() > slop) moved[0] = true
+                        } while (change.pressed)
+                    }
+                }
+                .clickable { if (!moved[0]) onTap() }
                 .padding(horizontal = 10.dp, vertical = 7.dp),
             verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {

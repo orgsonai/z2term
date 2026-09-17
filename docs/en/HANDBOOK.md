@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.617-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.620-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -96,7 +96,7 @@ Z2Term comes with its **own in-app keyboard**.
 - **⇧ (shift)**: tap once = Shift for the next key (uppercase for letters) / tap again = keep Shift held / tap again = release.
 - **Flick down (swipe a key downward) = uppercase.** e.g. flick `q` down to get `Q`.
 - **Flick up / left / right = symbols** (the small green characters are the hints).
-- **Long-press to repeat**: letters, numbers, arrows, space, and `⏎` (return) repeat while held. `⌫` (delete) also repeats on long-press.
+- **Long-press to repeat**: letters, numbers, arrows, space, and `⏎` (return) repeat while held. `⌫` (delete) also repeats on long-press. Version 0.8.618 restores repeat flags for preset letters, uppercase letters and symbols. Saved custom layouts are retained.
 - Press `CTRL`, `ALT` or ⇧ before the target key to send a modified key. Letter shortcuts such as `Alt+b` and `Alt+f` keep their existing encoding. Arrows, Home/End, Insert/Delete, PageUp/PageDown and F1–F12 carry combinations of Ctrl, Alt and Shift; Shift+Tab sends backtab. The built-in keyboard, physical keyboard, custom layouts and special-key bar share the terminal key table. Ctrl, Alt and one-shot Shift clear after the key is sent. The receiving application determines the action.
 - **Paste and emoji (English display, 0.8.281)**: the key drawn with ↕ **pastes on tap** and **opens emoji when flicked down** (the small 📋 above it and 😀 below it are the cues; flicking up also pastes, so drifting upwards does not change where you land). ⚠ **Up and down match the ESC flicks** (aligned in 0.8.397 — before that, flicking up opened emoji, so the directions were reversed from one face to the next). It sits left of `a` on the 4-direction flick style, and at **the right end of the top row (right of ESC / TAB / ⇧)** on the simple style (0.8.397 — it used to be at the bottom left, but CTRL appeared both above and below, so the two swapped places). While open, the keys are replaced by the pad and **only the bottom row (× ⌫ space ⏎ ← →) stays**, so you can delete or start a new line right after pasting. Close it with × or by pressing the same key again. The 😀 / 📋 tabs at the top of the pad switch between emoji and paste.
 - **The key background turns bright green when pressed** (so you can see what you touched).
@@ -241,6 +241,7 @@ Settings > Maintenance > **"Show a guide"** puts the steps for using a bundled s
 - **The ✕ on the right drops a step you do not need** without sending it. When every card is gone the guide closes.
 - Cards without a command (turn a setting on, install a prerequisite package) are just to read; tapping one removes it.
 - Each row is two lines: **the macro's name and what it does**. Available: `watch-basic` (react to charging and headsets) / `battery-alert` (warn me when the battery drops below a % I pick) / `daily-report` (read out battery and connection every morning) / `otp-clip` (copy one-time codes from notifications) / `otp-sms` (copy one-time codes from SMS) / `unknown-call` (copy phone numbers from call notifications) / `remind` (remind me with a notification) / `rss` (get notified about new feed items and read them) / `qr` (hand something over as a QR code).
+- `edge-workspace` creates one sample panel with Notepad, Translation and Terminal tabs. The guide includes manual translation-command installation and bundled macro setup. [Steps](EDGE-MACRO-FORMS.md#one-sample-with-three-tabs).
 - **A step that needs a value of yours asks first** (feed URL, polling interval, time of day, battery threshold, the text for a QR). It will not send an empty answer — this keeps the example values from being registered as they are.
 - ⚠ **`watch-basic` registers two triggers** (`event:power_*` for charging, `event:headset_*` for headsets). The app does the waiting, so it runs the moment you plug or unplug — no resident server needed. The last step is `Z2_WHEN_EVENT=power_connected sh …`, which **pretends charging just started** so you can check it.
 - Chosen from a GUI tab, the guide opens **after switching to a terminal tab** (it needs somewhere to type).
@@ -898,6 +899,12 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
+**0.8.620-alpha (versionCode 628) — build unverified**: The edge item editor is split into Component and behavior, Display, Command, Value and Connections, and blocks the chosen component does not use are hidden. Advanced settings and item size and position fold at the foot. Edit turns into Close while the editor is open and closes it again, asking first if there are unsaved changes. Manage › Remove panel or tab now uses checkboxes, so several panels and tabs can be deleted at once; ticking a panel deletes its tabs too. The guide card list scrolls, and a swipe no longer sends a card’s command. Japanese labels now use パネル consistently.
+
+**0.8.619-alpha (versionCode 627) — build unverified**: Edge mini terminals retain shells, output and drafts across closing, tab changes and reloads. Output appends; ↻ resets manually. Outside taps and Back end active typing first and otherwise close the panel. Sample handles default to 30% opacity. Guide commands now send bulk paste and a final Enter in one ordered write.
+
+**0.8.618-alpha (versionCode 626) — build unverified**: Panel bindings now show item names and support reordering and disconnecting. Buttons without a name or icon show Run. Result Stop/Copy/Clear controls are hidden by default and can be enabled in advanced settings. The single `edge-workspace` guide creates one panel with Notepad, Translation and Terminal tabs; translation requires a separately installed command and the bundled macro. Restores long-press repeat for letters, uppercase letters and symbols.
+
 **0.8.617-alpha (versionCode 625) — build unverified**: Creation uses Add app and Add item. Select components and behaviors independently, bind arguments, standard input and output displays, and configure per-item dimensions, alignment and free placement. Existing items, files and scripts are retained. See [components and behaviors](EDGE-MACRO-FORMS.md).
 
 **0.8.615-alpha (versionCode 623) — build unverified**: Retains the 0.8.614 integration and corrects the unit-test syntax used by CI. Validation and distribution run on GitHub CI.
@@ -958,6 +965,7 @@ Appearance groups size/position, icons/layout, title/controls and handles into c
 From 0.8.577 the settings screen and the panel take their colours from the app palette built out of your terminal theme (the accent is the brand green), so changing the theme moves the panel with it.
 From 0.8.577 the **+** in the normal menu goes straight to the app list instead of opening settings. So you can tell it from the gear beside it, + is accented and bold and the gear stays quiet. Adding a custom slot is still gear → Items.
 From 0.8.575 the editor's **look** is rebuilt; what it can do is the same. Items/Appearance/Manage sit at the top (the current page is underlined), with the panel and tab chips below them. Anything you can press is filled or outlined, and a button you cannot press dims. Collapsible headings carry `▾`/`▸`, and a group inside a group is shown by a left rule and an indent. Items is one row per item - icon, name, kind, Edit and the move arrows - and the long explanations moved below the list. ⚠ **The panel itself (the normal menu) looks exactly as before.**
+From 0.8.620 the item editor is **split into blocks** (Component and behavior, Display, Command, Value, Connections); blocks the chosen component does not use are not shown, and Advanced settings and size/position fold at the bottom. **Edit opens it, and the same button - now Close - closes it** (tapping the row does too; unsaved changes are confirmed first). **To delete panels, open Manage › Remove panel or tab, tick what to delete** and press Delete selected. Ticking a panel deletes its tabs as well; ticking only a tab deletes just that tab. Several panels can be ticked at once.
 
 **Save panel settings as commands (0.8.595)**: The edge panel Manage page now displays recreation commands with a Copy commands button. It exports saved settings and items as `z2-edge` commands. Selecting a parent includes its tabs and their order; selecting a child preserves existing parent settings and other tabs. Note contents, referenced scripts and images need separate backups. Select the panel/tab on Manage, then use Copy commands to save the text. A missing parent is created with its saved appearance; a child is appended to an existing parent. An already registered tab keeps its position. Reusing an ID adds or updates the specified settings; existing items and unspecified settings remain. Unsaved edits, note history, ON/OFF state and transient display values are excluded. Displaying or copying commands does not run them or enable panels.
 
@@ -986,7 +994,7 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Add/edit/delete/reorder items | `set ID:item key=value ...` / `remove ID:item` / `set ID:item order=N` |
 | App launch mode / add note | Item `run=z2-intent -p PACKAGE --window MODE` / `type=note` |
 | Macro forms | `type=argument/macro/result`; see [arguments, results and translation](EDGE-MACRO-FORMS.md). |
-| Mini terminal | Item `type=terminal`. A fresh session for each opening; see [lifetime and controls](MINI-TERMINAL.md). |
+| Mini terminal | Item `type=terminal`. Retained across closing; reset manually with ↻; see [lifetime and controls](MINI-TERMINAL.md). |
 | Note background / text colour | Item `note-background` / `note-color` = `#RRGGBB` (omitted/empty means automatic; writable with `z2-edge set ID:memo`) |
 
 Optional add/settings controls are icons at the end. Tab/note addition and item editing live in settings. Run items can also be reordered directly in the menu.

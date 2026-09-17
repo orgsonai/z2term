@@ -45,7 +45,7 @@ internal object EdgeDefaultPanel {
         else "'" + word.replace("'", "'\\''") + "'"
 
     val fields: Map<String, String> = linkedMapOf(
-        "handle" to "bar", "side" to "right", "offset" to "31.5", "size" to "8", "length" to "8", "alpha" to "0.2",
+        "handle" to "bar", "side" to "right", "offset" to "31.5", "size" to "8", "length" to "8", "alpha" to "0.3",
         "width" to "14%", "height" to "47%", "flow" to "vertical", "labels" to "off", "add" to "on", "settings" to "on",
         "actions-up" to "scroll-variable", "actions-down" to "scroll-variable",
         "gesture-speed" to "40000", "gesture-range" to "400",

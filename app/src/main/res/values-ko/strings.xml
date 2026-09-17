@@ -1166,8 +1166,8 @@ SSH 연결: %3$d
     <string name="edge_type_macro">인수 매크로</string>
     <string name="edge_type_argument">인수 입력란</string>
     <string name="edge_type_result">결과 표시란</string>
-    <string name="edge_macro_args">인수 순서의 입력 원본 (항목 ID, 쉼표 구분)</string>
-    <string name="edge_macro_result">결과 대상 (항목 ID, 비우면 출력 설정 사용)</string>
+    <string name="edge_macro_args">명령에 전달할 값 (위에서부터 순서대로)</string>
+    <string name="edge_macro_result">결과를 표시할 곳</string>
     <string name="edge_argument_kind">입력 방식</string>
     <string name="edge_argument_default">초기값 또는 고정값</string>
     <string name="edge_argument_choices">선택지 (| 구분)</string>
@@ -1178,8 +1178,8 @@ SSH 연결: %3$d
     <string name="edge_argument_fixed">고정값</string>
     <string name="edge_argument_optional">선택 사항</string>
     <string name="edge_argument_mandatory">필수</string>
-    <string name="edge_pick_argument">인수 입력란 추가</string>
-    <string name="edge_pick_result">결과 표시란 선택</string>
+    <string name="edge_pick_argument">값을 가져올 항목 선택</string>
+    <string name="edge_pick_result">결과를 표시할 항목 선택</string>
     <string name="edge_choose_value">값 선택</string>
     <string name="edge_macro_done">완료</string>
     <string name="edge_macro_stopped">중지됨</string>
@@ -1202,7 +1202,7 @@ SSH 연결: %3$d
     <string name="edge_action_shell" formatted="false">셸 연결</string>
     <string name="edge_action_state" formatted="false">상태 읽기 및 변경</string>
     <string name="edge_action_select" formatted="false">선택한 값으로 명령 실행</string>
-    <string name="edge_item_stdin" formatted="false">표준 입력 원본 (항목 ID)</string>
+    <string name="edge_item_stdin">표준 입력으로 전달할 항목 (선택 사항)</string>
     <string name="edge_item_width" formatted="false">너비 (dp 또는 %, 비우면 자동)</string>
     <string name="edge_item_height" formatted="false">높이 (dp 또는 %, 비우면 내용에 맞춤)</string>
     <string name="edge_item_align" formatted="false">행 안의 정렬</string>
@@ -1217,4 +1217,22 @@ SSH 연결: %3$d
     <string name="edge_out_toast" formatted="false">짧은 메시지</string>
     <string name="edge_out_notify" formatted="false">알림</string>
     <string name="edge_flow_free" formatted="false">자유 (항목별 좌표)</string>
+    <string name="edge_binding_none">연결 없음</string>
+    <string name="edge_binding_missing">삭제되었거나 사용할 수 없는 항목</string>
+    <string name="edge_binding_remove">%1$s 연결 해제</string>
+    <string name="edge_result_controls">중지·복사·지우기 버튼 표시</string>
+    <string name="guide_desc_edge_workspace">메모장·번역·터미널 탭이 있는 패널 하나 만들기</string>
+    <string name="guide_sample_note">메모장</string>
+    <string name="guide_sample_translation">번역</string>
+    <string name="guide_sample_terminal">터미널</string>
+    <string name="guide_sample_source">원문</string>
+    <string name="guide_sample_language">번역할 언어</string>
+    <string name="guide_sample_translate">번역</string>
+    <string name="guide_sample_result">번역문</string>
+    <string name="guide_step_edge_local">패널이 사용하는 로컬 Linux 환경의 터미널에서 셸 입력 대기 상태로 진행하세요.</string>
+    <string name="guide_step_sample_create">탭 세 개가 있는 예제 패널 하나 만들기 (기존 설정과 항목 유지)</string>
+    <string name="guide_step_sample_open">패널을 켜고 예제 열기 (오른쪽 막대를 안쪽으로 밀면 다시 열립니다)</string>
+    <string name="guide_step_sample_use">세 탭을 전환하며 사용하세요. 메모는 두 번 눌러 편집하며 자동 저장됩니다. 번역은 원문과 대상 언어를 지정한 뒤 번역을 누르세요. 탭 전환이나 닫기로 번역 입력과 결과는 지워집니다. 터미널의 셸, 출력, 입력 중인 내용은 유지되며 ↻로 직접 초기화합니다. 샘플 바의 불투명도는 30%입니다.</string>
+    <string name="guide_step_translation_cli">trans가 없다면 같은 Linux 환경에서 해당 명령을 직접 실행하세요.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\n이 카드는 안내용이며 눌러도 설치되지 않습니다. 번역할 텍스트는 외부 번역 서비스로 전송됩니다.</string>
+    <string name="guide_sample_translation_missing">먼저 trans를 설치하고 번역 매크로를 준비한 다음 예제 만들기를 다시 실행하세요.</string>
 </resources>

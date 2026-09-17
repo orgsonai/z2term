@@ -104,6 +104,7 @@ class EdgeStoreTest {
             assertEquals("アプリ", panel.fields["label"])
             assertEquals("right", panel.fields["side"])
             assertEquals("14%", panel.fields["width"])
+            assertEquals("0.3", panel.fields["alpha"])
             assertEquals("scroll-variable", panel.fields["actions-up"])
             assertEquals(listOf("One", "Two's Lines"), panel.items.map { it.fields["label"] })
             assertEquals(listOf("com.example.one", "org.example.two"), panel.items.map { AppLaunchCommand.packageFrom(it.command) })
@@ -244,6 +245,29 @@ class EdgeStoreTest {
             store.removePanel("main")
             assertEquals("Home", store.panel("home").fields["label"])
             assertEquals(1, store.panels().size)
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun removingPanelsTakesTheirTabsAndLeavesSingleTabSiblings() {
+        val dir = Files.createTempDirectory("edge-remove-many-test").toFile()
+        try {
+            val store = EdgeStore(dir)
+            store.setPanel("main", mapOf("handle" to "bar"))
+            store.addTab("main", "work", "Work")
+            store.addTab("main", "home", "Home")
+            store.setPanel("side", mapOf("handle" to "bar"))
+            store.addTab("side", "left", "Left")
+            store.addTab("side", "right", "Right")
+            store.setPanel("keep", mapOf("handle" to "button"))
+            store.setItem("main:a", mapOf("label" to "A"))
+            store.setItem("work:b", mapOf("label" to "B"))
+            store.setItem("left:c", mapOf("label" to "C"))
+            rejects { store.removePanels(listOf("main", "missing")) }
+            assertEquals("An unknown ID deletes nothing", 7, store.panels().size)
+            // A whole panel (listed with one of its own tabs too) and one tab of another panel.
+            assertEquals(3, store.removePanels(listOf("main", "work", "left")))
+            assertEquals(listOf("keep", "right", "side"), store.panels().map { it.id })
+            assertEquals(listOf("right"), store.panel("side").tabs)
         } finally { dir.deleteRecursively() }
     }
 

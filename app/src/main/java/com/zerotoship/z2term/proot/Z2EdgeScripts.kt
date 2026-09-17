@@ -51,8 +51,10 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# input: 入力した文字を run の標準入力へ渡す。閉じると未送信の入力は消えます。
         |# macro: run=スクリプト args=引数欄IDのカンマ区切り result=結果欄ID（省略時はボタン下）。
         |# argument: argument-kind=text|choice|fixed、default=初期値、choices=値|値、required=on|off。
+        |# result-controls=on で結果欄に停止・コピー・消去を表示（既定off）。
         |# argument/result: rows=1〜20。引数は番号順の文字列として渡し、閉じると入力・結果をリセット。
-        |# macro/terminalは閉じるボタンで終了（外側タップでは閉じない）。実行中のフォームコマンドも停止。
+        |# 入力中は外側タップ・戻るで入力を解除し、それ以外は閉じる。フォームの実行は閉じると停止。
+        |# terminal: 閉じる・タブ切替でも継続。出力は追記し、↻で手動初期化。off・項目削除で終了。
         |# out=none|panel|toast|notify、order=整数、timeout=1〜300秒（既定30）。
         |# text/toggle/list は開いた時に更新。every=5〜86400秒（既定0）は開いている間だけ。
         |# run/state を省略すれば push/state でのみ更新。イベント更新は z2-when から push。
@@ -100,8 +102,10 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge badge ID '87%'                  Empty string clears the badge
         |# macro: run=script args=comma-separated-argument-IDs result=result-ID (empty: below button).
         |# argument: argument-kind=text|choice|fixed, default=value, choices=value|value, required=on|off.
+        |# result-controls=on shows Stop/Copy/Clear on results (default off).
         |# argument/result: rows=1..20. Values are literal arguments, ordered by args, reset on close.
-        |# macro/terminal panels need Close (outside taps keep them open); closing also stops form commands.
+        |# Outside taps/back finish active typing first; otherwise they close the panel and stop form commands.
+        |# terminal: survives close/tab changes, appends output; refresh manually with ↻. Off/deletion ends sessions.
         |# Types: run (default), text, toggle, list, input, note, terminal, macro, argument, result.
         |# toggle: run changes state; state reads on/off, 1/0, or true/false.
         |# run: button-state=on shows ON/OFF using the button border and background. off=OFF command (default: run).
