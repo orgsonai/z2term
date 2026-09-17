@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.624-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.625-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -898,6 +898,8 @@ when a `z2-when` rule fired **without opening the app**.
 **Action-macro GUI appearance (0.8.578)**: the list is one row per macro - tap the name to edit, with run, duplicate and delete at its right. Whatever is running, and the Stop button, sit together in one bordered block, and above it is "Android action permission" (nothing runs without it). Steps line their numbers up in a left column and print the line itself in a fixed pitch, with repeat and branch bodies shown by a left rule and an indent. The colours are the same ones the edge-panel editor uses, built from your terminal theme.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
+
+**0.8.625-alpha (versionCode 633) — build unverified**: Four fixes to `z2-shot`. (1) While you draw, the hint and shape controls at the foot are hidden so they do not sit on top of what you are framing; they return when you lift your finger. (2) The frequent "could not capture the screen" failure is fixed: automatic bar colouring samples the screen about once a second, and capturing right after that was refused by Android's minimum interval between screenshots, so the capture now waits out the remainder. (3) A Circle shape joins Free, Rectangle and Oval, using the shorter side of the drag as its diameter. (4) Dragging the image in the preview moves what is cropped.
 
 **0.8.624-alpha (versionCode 632) — build unverified**: The + and gear buttons can now be placed at the top or the foot of a panel (Position of + and gear in panel settings, or `tools-place=top|bottom` from the CLI). Left automatic they behave as before: in the navigation row when a tab switcher is present, otherwise at the foot. A panel set to `tabbar=off` also no longer shows a tab switcher when it has child tabs — adding a single tab used to force the switcher into view and pull both buttons up with it.
 

@@ -6,9 +6,11 @@
     <string name="shot_too_small">範囲が小さすぎます。もう少し大きく囲んでください。</string>
     <string name="shot_hint_free">撮りたいところを囲んで、指を離してください。</string>
     <string name="shot_hint_box">角から対角へなぞって、指を離してください。</string>
+    <string name="shot_hint_move">画像を指で動かすと、切り抜く位置を直せます。</string>
     <string name="shot_shape_free">自由</string>
     <string name="shot_shape_rect">四角</string>
-    <string name="shot_shape_oval">円</string>
+    <string name="shot_shape_oval">楕円</string>
+    <string name="shot_shape_circle">真円</string>
     <string name="shot_bg_transparent">外側：透明</string>
     <string name="shot_bg_keep">外側：残す</string>
     <string name="shot_redo">やり直し</string>

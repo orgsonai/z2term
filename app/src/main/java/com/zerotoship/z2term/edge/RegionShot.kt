@@ -17,6 +17,7 @@ import android.graphics.RectF
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.MediaStore
 import android.view.Choreographer
 import android.view.Display
@@ -36,6 +37,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 
 /**
  * 撮りたいところだけを撮る。
@@ -59,7 +61,7 @@ internal object RegionShot {
     private const val FOLDER = "Pictures/z2term"
 
     /** 囲み方。どれを選んでも以降の流れは同じで、変わるのは線の引き方だけ。 */
-    enum class Shape { FREE, RECT, OVAL }
+    enum class Shape { FREE, RECT, OVAL, CIRCLE }
 
     private val main = Handler(Looper.getMainLooper())
     private var session: Session? = null
@@ -76,8 +78,9 @@ internal object RegionShot {
         val initial = when (shape.trim().lowercase()) {
             "", "free", "freehand" -> Shape.FREE
             "rect", "rectangle", "box" -> Shape.RECT
-            "oval", "circle", "ellipse" -> Shape.OVAL
-            else -> throw IllegalArgumentException("z2-shot: free|rect|oval")
+            "oval", "ellipse" -> Shape.OVAL
+            "circle", "round" -> Shape.CIRCLE
+            else -> throw IllegalArgumentException("z2-shot: free|rect|oval|circle")
         }
         Session(service, initial).also { session = it }.begin()
     }
@@ -114,11 +117,27 @@ internal object RegionShot {
         private var region: Path? = null
         private var transparent = true
         private var preview = false
+        /** 下の操作バー。なぞっている間は引っ込める (案内が対象に重なって邪魔になる)。 */
+        private var controlsView: View? = null
 
         fun begin() {
             // パネルと取っ手を両方しまう。片方だけでは写り込みが残る。
             EdgeRuntime.suspendForActions(true)
-            waitFrames(3) { capture() }
+            waitFrames(3) { afterContrastGap { capture() } }
+        }
+
+        /**
+         * ⛔ **隠した直後に撮ると「画面を取得できませんでした」になる。**
+         *
+         * バーの自動配色は約1秒ごとに画面を取っている ([EdgeHandleContrast])。その直後に撮ると
+         * Android が撮影間隔の制限で断る。パネルを隠せば次のサンプリングは止まるが、**直前の
+         * 1枚とは間隔が空かない**ので、そのぶんだけ待ってから撮る。待つ根拠は実際の取得時刻で、
+         * 固定の当てずっぽうではない。
+         */
+        private fun afterContrastGap(action: () -> Unit) {
+            val since = SystemClock.uptimeMillis() - EdgeHandleContrast.lastRequestAt
+            val wait = (EdgeHandleContrast.MIN_INTERVAL_MS - since).coerceAtLeast(0L)
+            if (wait <= 0L) action() else main.postDelayed(action, wait)
         }
 
         private fun capture() {
@@ -199,12 +218,41 @@ internal object RegionShot {
             render()
         }
 
-        /** 透明の切り替えは囲みを保ったまま作り直す。囲み直させない。 */
-        private fun rebuild() {
-            val image = crop() ?: return
+        /** 切り出しだけ作り直す。表示の更新は呼び手に任せる (ドラッグ中は再構築したくない)。 */
+        private fun recrop(): Boolean {
+            val image = crop() ?: return false
             cropped?.recycle()
             cropped = image
-            render()
+            return true
+        }
+
+        /** 透明の切り替えは囲みを保ったまま作り直す。囲み直させない。 */
+        private fun rebuild() {
+            if (recrop()) render()
+        }
+
+        /**
+         * プレビューでの位置直し。囲みをそのまま平行移動する。
+         *
+         * ⭐ **円は狙った場所へ一発で置きにくい**ので、結果を見ながら動かせるようにする
+         * (利用者の指摘「特に円は場所が難しい」)。形は変えず、位置だけを直す。
+         *
+         * ⚠ **画像の外へは出さない。** はみ出すと外接矩形が縮んで、切り出しの大きさまで
+         * 変わってしまう。動かせる範囲へ丸める。
+         */
+        private fun moveRegion(dx: Float, dy: Float): Boolean {
+            val src = shot ?: return false
+            val path = region ?: return false
+            val bounds = RectF().also { path.computeBounds(it, true) }
+            val minX = -bounds.left
+            val maxX = src.width - bounds.right
+            val minY = -bounds.top
+            val maxY = src.height - bounds.bottom
+            val x = if (minX <= maxX) dx.coerceIn(minX, maxX) else 0f
+            val y = if (minY <= maxY) dy.coerceIn(minY, maxY) else 0f
+            if (x == 0f && y == 0f) return false
+            path.offset(x, y)
+            return true
         }
 
         // ── 書き出し ──────────────────────────────────────────────
@@ -268,7 +316,8 @@ internal object RegionShot {
             val content = FrameLayout(service)
             content.addView(if (preview) PreviewView() else SelectView(),
                 FrameLayout.LayoutParams(-1, -1))
-            content.addView(controls(), FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
+            content.addView(controls().also { controlsView = it },
+                FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
                 val side = EdgeSettingsUi.dp(service, 12)
                 leftMargin = side; rightMargin = side; bottomMargin = EdgeSettingsUi.dp(service, 36)
             })
@@ -294,8 +343,9 @@ internal object RegionShot {
                 setPadding(EdgeSettingsUi.dp(service, 12), EdgeSettingsUi.dp(service, 10),
                     EdgeSettingsUi.dp(service, 12), EdgeSettingsUi.dp(service, 10))
             }
-            if (!preview) column.addView(EdgeSettingsUi.body(service, service.getString(
-                if (shape == Shape.FREE) R.string.shot_hint_free else R.string.shot_hint_box
+            column.addView(EdgeSettingsUi.body(service, service.getString(
+                if (preview) R.string.shot_hint_move
+                else if (shape == Shape.FREE) R.string.shot_hint_free else R.string.shot_hint_box
             )).apply { textSize = 13f }, LinearLayout.LayoutParams(-1, -2))
             val row = EdgeSettingsUi.row(service)
             column.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
@@ -322,7 +372,8 @@ internal object RegionShot {
             } else {
                 // 形は並べて置く。選び直しても囲みの流れは変わらない。
                 listOf(Shape.FREE to R.string.shot_shape_free, Shape.RECT to R.string.shot_shape_rect,
-                    Shape.OVAL to R.string.shot_shape_oval).forEach { (value, label) ->
+                    Shape.OVAL to R.string.shot_shape_oval,
+                    Shape.CIRCLE to R.string.shot_shape_circle).forEach { (value, label) ->
                     button(service.getString(label),
                         if (shape == value) EdgeSettingsUi.Kind.PRIMARY else EdgeSettingsUi.Kind.OUTLINE) {
                         shape = value; render()
@@ -365,6 +416,14 @@ internal object RegionShot {
                         maxOf(anchorX, currentX), maxOf(anchorY, currentY)), Path.Direction.CW)
                     Shape.OVAL -> path.addOval(RectF(minOf(anchorX, currentX), minOf(anchorY, currentY),
                         maxOf(anchorX, currentX), maxOf(anchorY, currentY)), Path.Direction.CW)
+                    // 真円。対角ドラッグの**短い辺**を直径にして、指を動かした向きへ伸ばす。
+                    // 長い辺に合わせると、指より大きい円が出てきて狙いが付けられない。
+                    Shape.CIRCLE -> {
+                        val side = minOf(abs(currentX - anchorX), abs(currentY - anchorY))
+                        val left = if (currentX >= anchorX) anchorX else anchorX - side
+                        val top = if (currentY >= anchorY) anchorY else anchorY - side
+                        path.addOval(RectF(left, top, left + side, top + side), Path.Direction.CW)
+                    }
                 }
                 return path
             }
@@ -390,6 +449,8 @@ internal object RegionShot {
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         drawing = true
+                        // 案内と形の選択は、なぞっている間は対象に重なるだけなのでしまう。
+                        controlsView?.visibility = INVISIBLE
                         points.clear(); points.add(x); points.add(y)
                         anchorX = x; anchorY = y; currentX = x; currentY = y
                     }
@@ -398,6 +459,7 @@ internal object RegionShot {
                     }
                     MotionEvent.ACTION_UP -> if (drawing) {
                         drawing = false
+                        controlsView?.visibility = VISIBLE
                         points.add(x); points.add(y); currentX = x; currentY = y
                         performClick()
                         build()?.let { confirm(it) } ?: run {
@@ -405,18 +467,41 @@ internal object RegionShot {
                         }
                         return true
                     }
-                    MotionEvent.ACTION_CANCEL -> { drawing = false; points.clear() }
+                    MotionEvent.ACTION_CANCEL -> {
+                        drawing = false; controlsView?.visibility = VISIBLE; points.clear()
+                    }
                 }
                 invalidate()
                 return true
             }
         }
 
-        /** 切り出した結果だけを見せる。市松はここだけの表示で、画像には焼き込まない。 */
+        /** 切り出した結果を見せ、指で動かして位置を直せる。市松は表示だけで画像に焼き込まない。 */
         private inner class PreviewView : View(service) {
             private val light = Paint().apply { color = Color.parseColor("#FF3A3A3A") }
             private val dark = Paint().apply { color = Color.parseColor("#FF2A2A2A") }
             private val shade = Paint().apply { color = Color.parseColor("#CC000000") }
+            /** 直近の表示倍率。指の移動量を画像の画素へ直すのに使う。 */
+            private var shown = 1f
+            private var lastX = 0f
+            private var lastY = 0f
+
+            override fun performClick(): Boolean { super.performClick(); return true }
+
+            override fun onTouchEvent(event: MotionEvent): Boolean {
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> { lastX = event.x; lastY = event.y }
+                    MotionEvent.ACTION_MOVE -> {
+                        val scale = if (shown > 0f) shown else 1f
+                        val moved = moveRegion((event.x - lastX) / scale, (event.y - lastY) / scale)
+                        lastX = event.x; lastY = event.y
+                        // 画面は作り直さず、切り出しだけ差し替えて描き直す。
+                        if (moved && recrop()) invalidate()
+                    }
+                    MotionEvent.ACTION_UP -> performClick()
+                }
+                return true
+            }
 
             override fun onDraw(canvas: Canvas) {
                 canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), shade)
@@ -426,6 +511,7 @@ internal object RegionShot {
                     height - margin - EdgeSettingsUi.dp(service, 140))
                 if (room.width() <= 0 || room.height() <= 0) return
                 val scale = minOf(room.width() / image.width, room.height() / image.height, 1f)
+                shown = scale
                 val w = image.width * scale
                 val h = image.height * scale
                 val target = RectF(room.centerX() - w / 2, room.centerY() - h / 2,
@@ -460,6 +546,7 @@ internal object RegionShot {
             session = null
             window?.let { runCatching { wm.removeViewImmediate(it) } }
             window = null
+            controlsView = null
             shot?.recycle(); shot = null
             cropped?.recycle(); cropped = null
             region = null

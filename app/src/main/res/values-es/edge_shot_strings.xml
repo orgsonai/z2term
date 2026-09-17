@@ -6,9 +6,11 @@
     <string name="shot_too_small">Esa zona es demasiado pequeña. Dibuja una mayor.</string>
     <string name="shot_hint_free">Rodea lo que quieras y levanta el dedo.</string>
     <string name="shot_hint_box">Arrastra de una esquina a la opuesta y levanta el dedo.</string>
+    <string name="shot_hint_move">Arrastra la imagen para ajustar el recorte.</string>
     <string name="shot_shape_free">Libre</string>
     <string name="shot_shape_rect">Rectángulo</string>
     <string name="shot_shape_oval">Óvalo</string>
+    <string name="shot_shape_circle">Círculo</string>
     <string name="shot_bg_transparent">Fuera: transparente</string>
     <string name="shot_bg_keep">Fuera: se mantiene</string>
     <string name="shot_redo">Rehacer</string>

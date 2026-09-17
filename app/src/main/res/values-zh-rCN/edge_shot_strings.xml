@@ -6,9 +6,11 @@
     <string name="shot_too_small">范围太小，请圈得大一些。</string>
     <string name="shot_hint_free">圈住要截取的部分，然后抬起手指。</string>
     <string name="shot_hint_box">从一角拖到对角，然后抬起手指。</string>
+    <string name="shot_hint_move">拖动图像可调整截取位置。</string>
     <string name="shot_shape_free">自由</string>
     <string name="shot_shape_rect">矩形</string>
     <string name="shot_shape_oval">椭圆</string>
+    <string name="shot_shape_circle">正圆</string>
     <string name="shot_bg_transparent">外部：透明</string>
     <string name="shot_bg_keep">外部：保留</string>
     <string name="shot_redo">重来</string>

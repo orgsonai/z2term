@@ -6,9 +6,11 @@
     <string name="shot_too_small">영역이 너무 작습니다. 조금 더 크게 그리세요.</string>
     <string name="shot_hint_free">원하는 부분을 둘러싸고 손가락을 떼세요.</string>
     <string name="shot_hint_box">한쪽 모서리에서 반대쪽으로 끈 뒤 손가락을 떼세요.</string>
+    <string name="shot_hint_move">이미지를 끌어 잘라낼 위치를 조정합니다.</string>
     <string name="shot_shape_free">자유</string>
     <string name="shot_shape_rect">사각형</string>
     <string name="shot_shape_oval">타원</string>
+    <string name="shot_shape_circle">정원</string>
     <string name="shot_bg_transparent">바깥: 투명</string>
     <string name="shot_bg_keep">바깥: 유지</string>
     <string name="shot_redo">다시</string>

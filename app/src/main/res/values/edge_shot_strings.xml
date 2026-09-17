@@ -6,9 +6,11 @@
     <string name="shot_too_small">That area is too small. Draw a larger one.</string>
     <string name="shot_hint_free">Trace around what you want, then lift your finger.</string>
     <string name="shot_hint_box">Drag from one corner to the opposite one, then lift your finger.</string>
+    <string name="shot_hint_move">Drag the image to adjust what is inside.</string>
     <string name="shot_shape_free">Free</string>
     <string name="shot_shape_rect">Rectangle</string>
     <string name="shot_shape_oval">Oval</string>
+    <string name="shot_shape_circle">Circle</string>
     <string name="shot_bg_transparent">Outside: clear</string>
     <string name="shot_bg_keep">Outside: kept</string>
     <string name="shot_redo">Redo</string>

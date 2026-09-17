@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Display
 import androidx.annotation.RequiresApi
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +57,8 @@ internal class EdgeHandleContrast(
         val regions = targets.mapNotNull { target -> target.area()?.let { target to Rect(it) } }
         if (regions.isEmpty()) { schedule(1000); return }
         inFlight = true
+        // 取得の時刻を残す。z2-shot はこれを見て撮影間隔が空くまで待つ (RegionShot)。
+        lastRequestAt = SystemClock.uptimeMillis()
         capture(sourceService, regions)
     }
 
@@ -103,6 +106,18 @@ internal class EdgeHandleContrast(
                     }
                 })
         } catch (_: Exception) { complete(null, 5000) }
+    }
+
+    internal companion object {
+        /**
+         * 直近に画面取得を要求した時刻 ([SystemClock.uptimeMillis])。
+         *
+         * ⭐ **他の取得要求と共有する。** Android は画面取得の間隔に下限があり、続けて撮ると
+         * `ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT` で断られる。バーの配色は約1秒ごとに
+         * 撮っているので、`z2-shot` はここを見て必要なぶん待つ。
+         */
+        @Volatile var lastRequestAt = 0L
+        const val MIN_INTERVAL_MS = 1000L
     }
 
     private fun sample(image: Bitmap, requested: Rect): Double? {
