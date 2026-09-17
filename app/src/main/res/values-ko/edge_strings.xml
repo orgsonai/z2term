@@ -85,6 +85,7 @@
     <string name="edge_show_tabs">탭 표시</string>
     <string name="edge_show_add">+ 앱 버튼 표시</string>
     <string name="edge_show_settings">설정 아이콘 표시</string>
+    <string name="edge_tools_place">+와 설정 아이콘 위치</string>
     <string name="edge_show_labels">항목 라벨 표시</string>
     <string name="edge_fit">패널 높이</string>
     <string name="edge_fit_content">내용에 맞춤 (높이는 상한)</string>

@@ -85,6 +85,7 @@
     <string name="edge_show_tabs">顯示分頁</string>
     <string name="edge_show_add">顯示+應用程式按鈕</string>
     <string name="edge_show_settings">顯示設定圖示</string>
+    <string name="edge_tools_place">+與設定圖示的位置</string>
     <string name="edge_show_labels">顯示項目標籤</string>
     <string name="edge_fit">面板高度</string>
     <string name="edge_fit_content">配合內容（高度為上限）</string>

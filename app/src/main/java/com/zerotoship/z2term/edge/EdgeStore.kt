@@ -264,7 +264,7 @@ class EdgeStore(val root: File) {
         }
 
         fun validatePanel(values: Map<String, String>) {
-            val allowed = setOf("label", "handle", "bar-color", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height", "tabs", "layout", "title", "close", "tabbar", "add", "settings", "labels", "fit", "place", "at", "flow", "columns", "icon-size", "gesture-up", "gesture-down", "gesture-double-tap", "gesture-scroll", "gesture-speed", "gesture-range", "scroll-x", "scroll-y") + EdgeActions.Trigger.entries.map { it.key }
+            val allowed = setOf("label", "handle", "bar-color", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height", "tabs", "layout", "title", "close", "tabbar", "add", "settings", "labels", "fit", "place", "at", "flow", "columns", "icon-size", "tools-place", "gesture-up", "gesture-down", "gesture-double-tap", "gesture-scroll", "gesture-speed", "gesture-range", "scroll-x", "scroll-y") + EdgeActions.Trigger.entries.map { it.key }
             EdgeActions.Trigger.entries.forEach { trigger -> values[trigger.key]?.let { EdgeActions.decode(it) } }
             listOf("scroll-x", "scroll-y").forEach { key -> values[key]?.let { raw ->
                 require(raw.toFloatOrNull()?.let { it.isFinite() && it in 10f..90f } == true) { "$key: 10–90 percent" }
@@ -295,6 +295,7 @@ class EdgeStore(val root: File) {
             require(values["tabbar"].orEmpty() in setOf("", "on", "off", "auto")) { "tabbar: on|off|auto" }
             require(values["fit"].orEmpty() in setOf("", "content", "fixed")) { "fit: content|fixed" }
             require(values["place"].orEmpty() in setOf("", "handle", "left", "right", "top", "bottom", "center")) { "place: handle|left|right|top|bottom|center" }
+            require(values["tools-place"].orEmpty() in setOf("", "top", "bottom")) { "tools-place: top|bottom" }
             require(values["flow"].orEmpty() in setOf("", "vertical", "horizontal", "grid", "free")) { "flow: vertical|horizontal|grid|free" }
             values["columns"]?.let { require(it == "auto" || it.toIntOrNull()?.let { n -> n in 1..16 } == true) { "columns: auto|1–16" } }
             values["icon-size"]?.let { require(it.toIntOrNull()?.let { n -> n in 16..192 } == true) { "icon-size: 16–192 dp" } }

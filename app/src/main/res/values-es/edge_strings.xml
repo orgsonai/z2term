@@ -85,6 +85,7 @@
     <string name="edge_show_tabs">Mostrar pestañas</string>
     <string name="edge_show_add">Mostrar botón + aplicación</string>
     <string name="edge_show_settings">Mostrar icono de ajustes</string>
+    <string name="edge_tools_place">Posición de + y ajustes</string>
     <string name="edge_show_labels">Mostrar etiquetas</string>
     <string name="edge_fit">Alto del panel</string>
     <string name="edge_fit_content">Ajustar al contenido (alto máximo)</string>

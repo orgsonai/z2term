@@ -21,7 +21,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
         |# z2-edge panel ID width=80% height=60% fit=content|fixed
-        |# title=on|off close=on|off tabbar=off|on|auto add=on|off settings=on|off
+        |# title=on|off close=on|off tabbar=off|on|auto add=on|off settings=on|off tools-place=top|bottom
         |# labels=on|off flow=vertical|horizontal|grid columns=auto|1..16 icon-size=16..192
         |# place=handle|left|right|top|bottom|center at=X%,Y%
         |# z2-edge panel ID 'actions-double-tap=launch:org.example.app|wait:500|swipe-up'
@@ -89,7 +89,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge panel ID gesture-range=640    Distance to maximum: 32–2000dp (default 160); larger is gentler.
         |# Vertical slides set variable/fixed auto-scroll (50–40000 dp/s). Tap to stop.
         |# z2-edge panel ID width=80% height=60% fit=content|fixed
-        |# title=on|off close=on|off tabbar=off|on|auto add=on|off settings=on|off
+        |# title=on|off close=on|off tabbar=off|on|auto add=on|off settings=on|off tools-place=top|bottom
         |# labels=on|off flow=vertical|horizontal|grid columns=auto|1..16 icon-size=16..192
         |# place=handle|left|right|top|bottom|center at=X%,Y%
         |# z2-edge panel ID label=Name

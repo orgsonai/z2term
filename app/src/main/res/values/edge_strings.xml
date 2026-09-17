@@ -85,6 +85,7 @@
     <string name="edge_show_tabs">Show tabs</string>
     <string name="edge_show_add">Show + app button</string>
     <string name="edge_show_settings">Show settings icon</string>
+    <string name="edge_tools_place">Position of + and gear</string>
     <string name="edge_show_labels">Show item labels</string>
     <string name="edge_fit">Panel height</string>
     <string name="edge_fit_content">Fit content (height is a limit)</string>

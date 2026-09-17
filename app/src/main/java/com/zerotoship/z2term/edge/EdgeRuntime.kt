@@ -747,7 +747,14 @@ object EdgeRuntime {
         val stablePanelSize = !settings && EdgePanelLayout.bounded(root, panels)
         val showTabBar = settings || root.fields["tabbar"] == "on" ||
             (root.fields["tabbar"] == "auto" && root.tabs.isNotEmpty())
-        val hasNavigation = showTabBar || root.tabs.isNotEmpty()
+        // ⭐ **`tabbar=off` は「タブの切り替えを出すな」という明示**。タブがあるというだけで
+        // 勝手に出すと off を指定した意味が消え、しかも ＋/⚙ まで navigation へ吸われて上へ動く
+        // (0.8.624・利用者の指摘「強制表示されるのがうざい」「＋と設定マークが上になった」)。
+        // 未指定のときは今までどおり、タブがあれば切り替えを出す。
+        val hasNavigation = showTabBar || (root.fields["tabbar"] != "off" && root.tabs.isNotEmpty())
+        // ＋/⚙ を上下どちらへ置くか。空 (既定) は上の自動判定に任せる — タブ切り替えがあるなら
+        // その行へ、無ければ下へ。明示すればタブの有無に関わらずその側へ固定する。
+        val toolsPlace = root.fields["tools-place"].orEmpty()
         val wantsClose = !settings && (stablePanelSize || root.fields["close"] == "on")
         val panelTitle = root.fields["label"].orEmpty().takeIf { root.fields["title"] == "on" }.orEmpty()
         val inlineClose = wantsClose && !hasNavigation && panelTitle.isBlank() &&
@@ -876,7 +883,7 @@ object EdgeRuntime {
                         if (!restored) { restored = true; scrollTo(previousTabScroll, 0) }
                     }
                 }, LinearLayout.LayoutParams(0, -2, 1f))
-            } else if (root.tabs.isNotEmpty()) {
+            } else if (hasNavigation && root.tabs.isNotEmpty()) {
                 val choices = (listOf(root.id) + root.tabs).map { id -> panels.first { it.id == id } }
                 navigation.addView(android.widget.Spinner(ui()).apply {
                     contentDescription = app!!.getString(R.string.edge_select_tab)
@@ -893,7 +900,8 @@ object EdgeRuntime {
                     }
                 }, LinearLayout.LayoutParams(0, -2, 1f))
             }
-            if (hasNavigation) {
+            // tools-place=top は、タブ切り替えが無くても ＋/⚙ を置くための行を要る。
+            if (hasNavigation || (!settings && toolsPlace == "top")) {
                 if (wantsClose) navigation.addView(EdgePanelControls.close(ui(), closeAction))
                 body.addView(navigation)
                 if (settings) body.addView(EdgeSettingsUi.hairline(ui()))
@@ -940,7 +948,9 @@ object EdgeRuntime {
             })
             if (!settings && wantsClose && !hasNavigation && panelTitle.isBlank() && !inlineClose)
                 tools.addView(EdgePanelControls.close(ui(), closeAction))
-            if (!settings && hasNavigation && tools.childCount > 0)
+            // 上へ入れなければ、下の rows へ落ちる (この関数の末尾)。
+            val toolsOnTop = toolsPlace == "top" || (toolsPlace != "bottom" && hasNavigation)
+            if (!settings && toolsOnTop && tools.childCount > 0)
                 navigation.addView(tools, (navigation.childCount - if (wantsClose) 1 else 0).coerceAtLeast(0))
             val terminalOnly = !settings && panel.items.size == 1 && panel.items[0].type == "terminal" &&
                 root.fields["flow"] != "free" && listOf("width", "height", "at").all { panel.items[0].fields[it].isNullOrBlank() }

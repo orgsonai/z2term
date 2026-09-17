@@ -42,6 +42,7 @@ object EdgeAppearanceEditor {
             "length" to "6", "alpha" to "1", "width" to "360", "height" to "72%",
             "title" to "off", "close" to "off", "tabbar" to "off", "add" to "off", "settings" to "off",
             "labels" to "", "fit" to "content", "place" to "handle", "at" to "", "flow" to "",
+            "tools-place" to "",
             "columns" to "auto", "icon-size" to "40", "handle" to "off", "bar-color" to "auto", "side" to "right", "open" to "",
             "offset" to "30", "x" to "85", "y" to "30",
             "gesture-up" to "", "gesture-down" to "", "gesture-double-tap" to "",
@@ -164,6 +165,8 @@ object EdgeAppearanceEditor {
         choice("tabbar", R.string.edge_show_tabs, listOf("off", "on", "auto"), onOff + R.string.edge_option_auto)
         choice("add", R.string.edge_show_add, listOf("off", "on"), onOff)
         choice("settings", R.string.edge_show_settings, listOf("off", "on"), onOff)
+        choice("tools-place", R.string.edge_tools_place, listOf("", "top", "bottom"),
+            listOf(R.string.edge_option_auto, R.string.edge_place_top, R.string.edge_place_bottom))
         content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_size), expanded = true)
         control("width", R.string.edge_adjust_width, 1, 100) { "$it%" }
         control("height", R.string.edge_adjust_height, 1, 100) { "$it%" }

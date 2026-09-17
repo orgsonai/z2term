@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.623-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.624-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -899,6 +899,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
+**0.8.624-alpha (versionCode 632) — build unverified**: The + and gear buttons can now be placed at the top or the foot of a panel (Position of + and gear in panel settings, or `tools-place=top|bottom` from the CLI). Left automatic they behave as before: in the navigation row when a tab switcher is present, otherwise at the foot. A panel set to `tabbar=off` also no longer shows a tab switcher when it has child tabs — adding a single tab used to force the switcher into view and pull both buttons up with it.
+
 **0.8.623-alpha (versionCode 631) — build unverified**: New `z2-shot` captures only the part you draw around. Called from an edge panel button, it hides the panel and its handle, takes one screen image, and lets you draw on that still picture. Free, rectangle and oval shapes are available, and lifting your finger confirms the outline (Redo draws it again). You then choose whether the outside is transparent or keeps the original background, and Save (to Pictures/z2term) or Share. The panel, its handle and the selection UI never appear in the saved image. Needs Android 11 or later and the z2term Android actions permission.
 
 **0.8.620-alpha (versionCode 628) — build unverified**: The edge item editor is split into Component and behavior, Display, Command, Value and Connections, and blocks the chosen component does not use are hidden. Advanced settings and item size and position fold at the foot. Edit turns into Close while the editor is open and closes it again, asking first if there are unsaved changes. Manage › Remove panel or tab now uses checkboxes, so several panels and tabs can be deleted at once; ticking a panel deletes its tabs too. The guide card list scrolls, and a swipe no longer sends a card’s command. Japanese labels now use パネル consistently.
@@ -981,7 +983,8 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Setting | Field / command |
 |---|---|
 | Title, close, add and settings controls | `title` / `close` / `add` / `settings` = `on\|off` (default off) |
-| Tab bar | `tabbar=off\|on\|auto` (default off; auto shows it when child tabs exist) |
+| Tab bar | `tabbar=off\|on\|auto` (default off; auto shows it when child tabs exist. **off keeps the switcher hidden even with child tabs** — 0.8.624) |
+| + and gear position | `tools-place=top\|bottom` (default automatic: the navigation row when a tab switcher exists, otherwise the foot. Setting it pins the side regardless of tabs — 0.8.624) |
 | Item labels | `labels=on\|off` (omitted/empty follows tab layout; body text and results remain visible) |
 | Width and height | `width` / `height` (dp or %, default 360dp / 72%) |
 | Height sizing | `fit=content\|fixed` (default content; an empty panel keeps a 48dp touch area within its height limit) |

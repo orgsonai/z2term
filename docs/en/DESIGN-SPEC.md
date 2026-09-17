@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-18 / Target version: 0.8.623-alpha (versionCode 631)
+Last updated: 2026-09-18 / Target version: 0.8.624-alpha (versionCode 632)
+
+**0.8.624-alpha (versionCode 632) — build unverified**: The + and gear buttons can now be placed at the top or the foot of a panel (Position of + and gear in panel settings, or `tools-place=top|bottom` from the CLI). Left automatic they behave as before: in the navigation row when a tab switcher is present, otherwise at the foot. A panel set to `tabbar=off` also no longer shows a tab switcher when it has child tabs — adding a single tab used to force the switcher into view and pull both buttons up with it.
 
 **0.8.623-alpha (versionCode 631) — build unverified**: New `z2-shot` captures only the part you draw around. Called from an edge panel button, it hides the panel and its handle, takes one screen image, and lets you draw on that still picture. Free, rectangle and oval shapes are available, and lifting your finger confirms the outline (Redo draws it again). You then choose whether the outside is transparent or keeps the original background, and Save (to Pictures/z2term) or Share. The panel, its handle and the selection UI never appear in the saved image. Needs Android 11 or later and the z2term Android actions permission.
 
@@ -2385,7 +2387,8 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Setting | Field / command |
 |---|---|
 | Title, close, add and settings controls | `title` / `close` / `add` / `settings` = `on\|off` (default off) |
-| Tab bar | `tabbar=off\|on\|auto` (default off; auto shows it when child tabs exist) |
+| Tab bar | `tabbar=off\|on\|auto` (default off; auto shows it when child tabs exist. **off suppresses the tab switcher even with child tabs** — 0.8.624) |
+| + and gear position | `tools-place=top\|bottom` (default automatic, following `hasNavigation`. `top` creates the navigation row even without a tab switcher; `bottom` keeps them in the lower rows even when navigation exists — 0.8.624) |
 | Item labels | `labels=on\|off` (omitted/empty follows tab layout; body text and results remain visible) |
 | Width and height | `width` / `height` (dp or %, default 360dp / 72%) |
 | Height sizing | `fit=content\|fixed` (default content; an empty panel keeps a 48dp touch area within its height limit) |

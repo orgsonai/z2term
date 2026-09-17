@@ -85,6 +85,7 @@
     <string name="edge_show_tabs">显示标签页</string>
     <string name="edge_show_add">显示+应用按钮</string>
     <string name="edge_show_settings">显示设置图标</string>
+    <string name="edge_tools_place">+和设置图标的位置</string>
     <string name="edge_show_labels">显示项目标签</string>
     <string name="edge_fit">面板高度</string>
     <string name="edge_fit_content">适应内容（高度为上限）</string>
