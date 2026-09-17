@@ -82,8 +82,14 @@ internal object RegionShot {
         Session(service, initial).also { session = it }.begin()
     }
 
-    /** ユーザー補助が切れた・割り込まれたときの後始末。表示を必ず元へ戻す。 */
+    /**
+     * ユーザー補助が切れた・割り込まれたときの後始末。表示を必ず元へ戻す。
+     *
+     * Android 11 未満では [start] が先に断るので session は生まれない。その事実をここにも
+     * 書いておく（書かないと「30 でしか無いものを 29 から呼んでいる」ことになる）。
+     */
     fun cancel() {
+        if (Build.VERSION.SDK_INT < 30) return
         main.post { session?.finish(null) }
     }
 
