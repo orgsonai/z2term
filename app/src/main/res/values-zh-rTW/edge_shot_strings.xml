@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shot_busy">請先結束目前的擷取。</string>
+    <string name="shot_needs_android11">擷取局部需要 Android 11 或更新版本。</string>
+    <string name="shot_capture_failed">未能取得螢幕影像，請再試一次。</string>
+    <string name="shot_too_small">範圍太小，請圈得大一點。</string>
+    <string name="shot_hint_free">圈住要擷取的部分，然後放開手指。</string>
+    <string name="shot_hint_box">從一角拖到對角，然後放開手指。</string>
+    <string name="shot_shape_free">自由</string>
+    <string name="shot_shape_rect">矩形</string>
+    <string name="shot_shape_oval">橢圓</string>
+    <string name="shot_bg_transparent">外側：透明</string>
+    <string name="shot_bg_keep">外側：保留</string>
+    <string name="shot_redo">重來</string>
+    <string name="shot_save">儲存</string>
+    <string name="shot_share">分享</string>
+    <string name="shot_saved">已在 %2$s 儲存 %1$s。</string>
+    <string name="shot_save_failed">無法寫入影像。</string>
+</resources>

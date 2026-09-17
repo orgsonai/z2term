@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.620-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.621-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -899,6 +899,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
+**0.8.621-alpha (versionCode 629) — build unverified**: New `z2-shot` captures only the part you draw around. Called from an edge panel button, it hides the panel and its handle, takes one screen image, and lets you draw on that still picture. Free, rectangle and oval shapes are available, and lifting your finger confirms the outline (Redo draws it again). You then choose whether the outside is transparent or keeps the original background, and Save (to Pictures/z2term) or Share. The panel, its handle and the selection UI never appear in the saved image. Needs Android 11 or later and the z2term Android actions permission.
+
 **0.8.620-alpha (versionCode 628) — build unverified**: The edge item editor is split into Component and behavior, Display, Command, Value and Connections, and blocks the chosen component does not use are hidden. Advanced settings and item size and position fold at the foot. Edit turns into Close while the editor is open and closes it again, asking first if there are unsaved changes. Manage › Remove panel or tab now uses checkboxes, so several panels and tabs can be deleted at once; ticking a panel deletes its tabs too. The guide card list scrolls, and a swipe no longer sends a card’s command. Japanese labels now use パネル consistently.
 
 **0.8.619-alpha (versionCode 627) — build unverified**: Edge mini terminals retain shells, output and drafts across closing, tab changes and reloads. Output appends; ↻ resets manually. Outside taps and Back end active typing first and otherwise close the panel. Sample handles default to 30% opacity. Guide commands now send bulk paste and a final Enter in one ordered write.
@@ -1104,6 +1106,8 @@ Close with an outside tap, Back, or the optional Close button. Stop everything w
 For Back, Recents and other global actions, run `z2-key permission` and enable “z2term Android actions”.
 If Android restricts the switch, allow restricted settings from z2term App info first. `z2-key status`
 lists the actions the device provides. Auto-scroll uses focused-window metadata. Explicit element macros, selection and inspection also read target-window text, descriptions and IDs, excluding editable/password fields.
+
+To capture only part of the screen, use `z2-shot`. Set an item to `run=z2-shot`: pressing it hides the panel and its handle, takes one screen image, and lets you draw on that still picture. `z2-shot free` (the default) traces freehand, `z2-shot rect` drags out a rectangle and `z2-shot oval` an ellipse. **Lifting your finger confirms the outline**; Redo draws it again. Then choose whether the outside is transparent or keeps the original background, and press Save to write a PNG into `Pictures/z2term`, or Share to hand it to another app. **The panel, its handle and the selection UI never appear in the image** — they are hidden before the capture, and you draw on the still picture afterwards. Needs Android 11 or later and the permission from `z2-key permission`.
 
 Use `z2-app list` to find an application package, then set an item to `run=z2-intent -p PACKAGE`.
 It automatically uses the application label and full-color icon; explicit `label=` and `icon=` override them.

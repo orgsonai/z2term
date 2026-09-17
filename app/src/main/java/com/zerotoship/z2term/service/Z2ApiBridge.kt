@@ -338,6 +338,10 @@ object Z2ApiBridge {
                 if (args.firstOrNull() !in setOf("status", "permission")) com.zerotoship.z2term.edge.EdgeRuntime.close()
                 runOnMainSync { com.zerotoship.z2term.edge.AndroidActions.command(context, args) }
             }
+            // z2-shot: 囲んだところだけを撮る。パネルと取っ手を隠し、描画の反映を待ってから撮る。
+            "shot" -> runOnMainSync {
+                com.zerotoship.z2term.edge.RegionShot.start(context, args.getOrNull(0).orEmpty()); ""
+            }
             "app" -> com.zerotoship.z2term.edge.AppCatalog.command(context, args)
             "sensor" -> sensorRead(context, args.getOrNull(0).orEmpty())
             "alarm" -> alarmCmd(context, args)

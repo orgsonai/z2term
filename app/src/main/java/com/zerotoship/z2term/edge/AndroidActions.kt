@@ -69,11 +69,13 @@ class AndroidActions : AccessibilityService() {
         autoScroll.stop()
         com.zerotoship.z2term.automation.ActionRuntime.stop(reason = "Accessibility interrupted")
         com.zerotoship.z2term.automation.ActionCoordinatePicker.cancel()
+        RegionShot.cancel()
     }
     override fun onUnbind(intent: Intent?): Boolean {
         autoScroll.stop()
         if (active === this) {
             com.zerotoship.z2term.automation.ActionCoordinatePicker.cancel()
+            RegionShot.cancel()
             active = null
             EdgeRuntime.refreshHandleContrast()
         }
@@ -83,6 +85,7 @@ class AndroidActions : AccessibilityService() {
         autoScroll.stop()
         if (active === this) {
             com.zerotoship.z2term.automation.ActionCoordinatePicker.cancel()
+            RegionShot.cancel()
             active = null
             EdgeRuntime.refreshHandleContrast()
         }

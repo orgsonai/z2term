@@ -343,12 +343,12 @@ fun z2helpScript(lang: String = "ja"): String {
     )
 
     val edge = t(
-        en = "[Floating panels]\nz2-edge --help   Define panels and update their contents\nz2-key --help    Android global actions\nz2-app --help    List applications and export icons\nz2-action --help Named Android action macros",
-        ja = "[画面に浮かべるパネル]\nz2-edge --help   パネルの定義・表示の更新\nz2-key --help    戻る・ホーム・履歴などのAndroid操作\nz2-app --help    アプリ一覧・アイコンの取得\nz2-action --help 名前付きAndroid操作マクロ",
-        "zh-CN" to "[悬浮面板]\nz2-edge --help   定义面板并更新内容\nz2-key --help    Android 全局操作\nz2-app --help    列出应用并导出图标\nz2-action --help 命名的Android操作宏",
-        "zh-TW" to "[浮動面板]\nz2-edge --help   定義面板並更新內容\nz2-key --help    Android 全域操作\nz2-app --help    列出應用程式並匯出圖示\nz2-action --help 具名的Android操作巨集",
-        "es" to "[Paneles flotantes]\nz2-edge --help   Definir paneles y actualizar su contenido\nz2-key --help    Acciones globales de Android\nz2-app --help    Listar aplicaciones y exportar iconos\nz2-action --help Macros de acciones Android con nombre",
-        "ko" to "[플로팅 패널]\nz2-edge --help   패널 정의 및 내용 업데이트\nz2-key --help    Android 전역 동작\nz2-app --help    앱 목록 및 아이콘 내보내기\nz2-action --help 이름이 있는 Android 동작 매크로"
+        en = "[Floating panels]\nz2-edge --help   Define panels and update their contents\nz2-key --help    Android global actions\nz2-shot --help   Capture only the part you draw around\nz2-app --help    List applications and export icons\nz2-action --help Named Android action macros",
+        ja = "[画面に浮かべるパネル]\nz2-edge --help   パネルの定義・表示の更新\nz2-key --help    戻る・ホーム・履歴などのAndroid操作\nz2-shot --help   囲んだところだけを撮る\nz2-app --help    アプリ一覧・アイコンの取得\nz2-action --help 名前付きAndroid操作マクロ",
+        "zh-CN" to "[悬浮面板]\nz2-edge --help   定义面板并更新内容\nz2-key --help    Android 全局操作\nz2-shot --help   只截取圈出的部分\nz2-app --help    列出应用并导出图标\nz2-action --help 命名的Android操作宏",
+        "zh-TW" to "[浮動面板]\nz2-edge --help   定義面板並更新內容\nz2-key --help    Android 全域操作\nz2-shot --help   只擷取圈出的部分\nz2-app --help    列出應用程式並匯出圖示\nz2-action --help 具名的Android操作巨集",
+        "es" to "[Paneles flotantes]\nz2-edge --help   Definir paneles y actualizar su contenido\nz2-key --help    Acciones globales de Android\nz2-shot --help   Capturar solo la parte que rodeas\nz2-app --help    Listar aplicaciones y exportar iconos\nz2-action --help Macros de acciones Android con nombre",
+        "ko" to "[플로팅 패널]\nz2-edge --help   패널 정의 및 내용 업데이트\nz2-key --help    Android 전역 동작\nz2-shot --help   둘러싼 부분만 캡처\nz2-app --help    앱 목록 및 아이콘 내보내기\nz2-action --help 이름이 있는 Android 동작 매크로"
     )
 
     return """

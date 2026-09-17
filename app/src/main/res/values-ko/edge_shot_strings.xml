@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shot_busy">지금 진행 중인 캡처를 먼저 끝내세요.</string>
+    <string name="shot_needs_android11">영역 캡처에는 Android 11 이상이 필요합니다.</string>
+    <string name="shot_capture_failed">화면 이미지를 가져오지 못했습니다. 다시 시도하세요.</string>
+    <string name="shot_too_small">영역이 너무 작습니다. 조금 더 크게 그리세요.</string>
+    <string name="shot_hint_free">원하는 부분을 둘러싸고 손가락을 떼세요.</string>
+    <string name="shot_hint_box">한쪽 모서리에서 반대쪽으로 끈 뒤 손가락을 떼세요.</string>
+    <string name="shot_shape_free">자유</string>
+    <string name="shot_shape_rect">사각형</string>
+    <string name="shot_shape_oval">타원</string>
+    <string name="shot_bg_transparent">바깥: 투명</string>
+    <string name="shot_bg_keep">바깥: 유지</string>
+    <string name="shot_redo">다시</string>
+    <string name="shot_save">저장</string>
+    <string name="shot_share">공유</string>
+    <string name="shot_saved">%2$s에 %1$s을(를) 저장했습니다.</string>
+    <string name="shot_save_failed">이미지를 쓰지 못했습니다.</string>
+</resources>

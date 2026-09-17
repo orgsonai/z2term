@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shot_busy">先に今の切り取りを終わらせてください。</string>
+    <string name="shot_needs_android11">範囲の切り取りには Android 11 以降が必要です。</string>
+    <string name="shot_capture_failed">画面を取得できませんでした。もう一度試してください。</string>
+    <string name="shot_too_small">範囲が小さすぎます。もう少し大きく囲んでください。</string>
+    <string name="shot_hint_free">撮りたいところを囲んで、指を離してください。</string>
+    <string name="shot_hint_box">角から対角へなぞって、指を離してください。</string>
+    <string name="shot_shape_free">自由</string>
+    <string name="shot_shape_rect">四角</string>
+    <string name="shot_shape_oval">円</string>
+    <string name="shot_bg_transparent">外側：透明</string>
+    <string name="shot_bg_keep">外側：残す</string>
+    <string name="shot_redo">やり直し</string>
+    <string name="shot_save">保存</string>
+    <string name="shot_share">共有</string>
+    <string name="shot_saved">%2$s に %1$s を保存しました。</string>
+    <string name="shot_save_failed">画像を書き出せませんでした。</string>
+</resources>

@@ -197,6 +197,11 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |exec /usr/local/bin/z2api 1 torch "${d}{1:-toggle}"
     """.trimMargin() + "\n"
 
+    // 囲んだところだけを撮る。撮る前にパネルと取っ手を隠すのはアプリ側 (RegionShot) の仕事。
+    val shot = "#!/bin/sh\n" + m.shotHelp + "\n" + helpCase + """
+        |exec /usr/local/bin/z2api 1 shot "${d}{1:-free}"
+    """.trimMargin() + "\n"
+
     val media = "#!/bin/sh\n" + m.mediaHelp + "\n" + helpCase + """
         |exec /usr/local/bin/z2api 0 media "${d}{1:-playpause}"
     """.trimMargin() + "\n"
@@ -982,6 +987,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-vibrate" to vibrate,
         "z2-say" to say,
         "z2-torch" to torch,
+        "z2-shot" to shot,
         "z2-media" to media,
         "z2-volume" to volume,
         "z2-intent" to intent,

@@ -580,6 +580,16 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             "ko" to "# z2-torch on|off|toggle|status  (기본값 toggle). status로 외부 변경을 포함한 실제 상태(on/off)를 조회합니다."
         )
 
+    val shotHelp: String =
+        t(
+            en = "# z2-shot [free|rect|oval]  … capture only the part you draw around (default free). Needs Android 11 and z2term Android actions.",
+            ja = "# z2-shot [free|rect|oval]  … 囲んだところだけを撮る (既定 free)。Android 11 以降と「z2term Android 操作」が必要。",
+            "zh-CN" to "# z2-shot [free|rect|oval]  … 只截取圈出的部分 (默认 free)。需要 Android 11 与 z2term Android 操作。",
+            "zh-TW" to "# z2-shot [free|rect|oval]  … 只擷取圈出的部分 (預設 free)。需要 Android 11 與 z2term Android 操作。",
+            "es" to "# z2-shot [free|rect|oval]  … captura solo la parte que rodeas (free por omisión). Requiere Android 11 y las acciones Android de z2term.",
+            "ko" to "# z2-shot [free|rect|oval]  … 둘러싼 부분만 캡처합니다 (기본값 free). Android 11과 z2term Android 동작이 필요합니다."
+        )
+
     val mediaHelp: String =
         t(
             en = "# z2-media play|pause|playpause|next|previous|stop  (default playpause)",
