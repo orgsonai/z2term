@@ -714,7 +714,8 @@ object EdgeRuntime {
                 AndroidActions.startAutoScroll(speed,
                     android.graphics.Rect(originX, originY, originX + width, originY + height),
                     fields["scroll-x"]?.toFloatOrNull() ?: 50f,
-                    fields["scroll-y"]?.toFloatOrNull() ?: 50f, once, requirePreviousTarget) { error ->
+                    fields["scroll-y"]?.toFloatOrNull() ?: 50f, once, requirePreviousTarget,
+                    fields["scroll-how"].orEmpty().ifEmpty { "auto" }) { error ->
                     if (once) completed(error)
                     else if (error != null) fail(IllegalStateException(error))
                 }

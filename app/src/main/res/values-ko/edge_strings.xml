@@ -132,6 +132,11 @@
     <string name="edge_scroll_started">자동 스크롤 %1$d dp/초 — 탭하여 중지</string>
     <string name="edge_scroll_no_window">스크롤할 창을 찾을 수 없습니다. 접근성을 켜고 대상 앱에 포커스를 주세요.</string>
     <string name="edge_scroll_failed">Android가 제스처를 거부했거나 완료를 확인하지 않아 스크롤이 멈췄습니다.</string>
+    <string name="edge_scroll_how">스크롤 방식</string>
+    <string name="edge_scroll_how_node">화면을 건드리지 않음</string>
+    <string name="edge_scroll_how_swipe">스와이프 보내기</string>
+    <string name="edge_scroll_how_help">자동은 스크롤할 수 있는 요소에 직접 요청하고, 그런 요소가 없는 앱에서만 스와이프를 보냅니다. 보낸 스와이프는 손가락과 구별되지 않으므로 스와이프에 기능이 있는 화면(스와이프 답장, 글라이드 입력 등)에서는 그 기능이 실행됩니다. 요소에 요청하는 방식은 화면을 건드리지 않는 대신 한 번에 움직이는 양을 앱이 정합니다.</string>
+    <string name="edge_scroll_no_scrollable">이 창에는 스크롤할 수 있는 요소가 없습니다. 그래도 움직여야 한다면 스크롤 방식을 스와이프 보내기로 바꾸세요.</string>
     <string name="edge_action_step">동작 %1$d</string>
     <string name="edge_action_add">동작 추가</string>
     <string name="edge_action_panel">이 패널 열기/닫기</string>

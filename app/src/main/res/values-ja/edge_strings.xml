@@ -147,6 +147,11 @@
     <string name="edge_scroll_started">オートスクロール %1$d dp/秒 — タップで停止</string>
     <string name="edge_scroll_no_window">スクロール対象のウィンドウを取得できません。ユーザー補助を有効にし、対象のアプリを前面にしてください。</string>
     <string name="edge_scroll_failed">Androidがスクロール操作を受け付けないか、完了を確認できなかったため停止しました。</string>
+    <string name="edge_scroll_how">スクロールのしかた</string>
+    <string name="edge_scroll_how_node">画面に触らない</string>
+    <string name="edge_scroll_how_swipe">スワイプを送る</string>
+    <string name="edge_scroll_how_help">自動はスクロールできる部品に直接頼み、それが無いアプリでだけスワイプを送ります。送ったスワイプは指と区別が付かないため、払う操作に機能が割り当たっている画面（スワイプ返信・グライド入力など）ではその機能が動いてしまいます。部品に頼む方は画面に触らない代わりに、1回で動く量がアプリ任せになります。</string>
+    <string name="edge_scroll_no_scrollable">この画面にはスクロールできる部品がありません。それでも動かすなら「スクロールのしかた」を「スワイプを送る」にしてください。</string>
     <string name="edge_action_step">動作 %1$d</string>
     <string name="edge_action_add">動作を追加</string>
     <string name="edge_action_panel">このパネルを開く／閉じる</string>

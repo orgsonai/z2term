@@ -46,7 +46,8 @@ object EdgeAppearanceEditor {
             "columns" to "auto", "icon-size" to "40", "handle" to "off", "bar-color" to "auto", "side" to "right", "open" to "",
             "offset" to "30", "x" to "85", "y" to "30",
             "gesture-up" to "", "gesture-down" to "", "gesture-double-tap" to "",
-            "gesture-scroll" to "off", "gesture-speed" to "600", "gesture-range" to "160", "scroll-x" to "50", "scroll-y" to "50").toMutableMap()
+            "gesture-scroll" to "off", "gesture-speed" to "600", "gesture-range" to "160", "scroll-x" to "50", "scroll-y" to "50",
+            "scroll-how" to "auto").toMutableMap()
         val save = EdgeSettingsUi.button(context, context.getString(R.string.edge_save), EdgeSettingsUi.Kind.PRIMARY) {}
         fun values(): Map<String, String> = entries.mapValues { it.value.text.toString().trim() }
         fun update() {
@@ -217,6 +218,9 @@ object EdgeAppearanceEditor {
         }
         content = gestures
         content.addView(EdgeSettingsUi.spacer(context, 6))
+        choice("scroll-how", R.string.edge_scroll_how, listOf("auto", "node", "swipe"),
+            listOf(R.string.edge_option_auto, R.string.edge_scroll_how_node, R.string.edge_scroll_how_swipe))
+        help(R.string.edge_scroll_how_help)
         control("gesture-speed", R.string.edge_scroll_speed, 50, 40000) { it.toString() }
         control("gesture-range", R.string.edge_scroll_range, 32, 2000) { it.toString() }
         help(R.string.edge_scroll_range_help)

@@ -132,6 +132,11 @@
     <string name="edge_scroll_started">自動捲動%1$d dp/秒，輕觸停止</string>
     <string name="edge_scroll_no_window">無法識別捲動視窗。請啟用無障礙並聚焦目標應用程式。</string>
     <string name="edge_scroll_failed">Android拒絕手勢或未確認完成，捲動已停止。</string>
+    <string name="edge_scroll_how">捲動方式</string>
+    <string name="edge_scroll_how_node">不觸碰螢幕</string>
+    <string name="edge_scroll_how_swipe">傳送滑動</string>
+    <string name="edge_scroll_how_help">自動會直接請求可捲動的元件，只有應用程式沒有可捲動元件時才傳送滑動。傳送的滑動與手指無法區分，因此在滑動有功能的畫面（滑動回覆、滑行輸入等）會觸發那些功能。請求元件不會觸碰螢幕，但每次捲動的距離由應用程式決定。</string>
+    <string name="edge_scroll_no_scrollable">此視窗沒有可捲動的元件。若仍要捲動，請將「捲動方式」設為「傳送滑動」。</string>
     <string name="edge_action_step">操作%1$d</string>
     <string name="edge_action_add">新增操作</string>
     <string name="edge_action_panel">切換此面板</string>

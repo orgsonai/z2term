@@ -132,6 +132,11 @@
     <string name="edge_scroll_started">Desplazamiento automático: %1$d dp/s; toca para detener</string>
     <string name="edge_scroll_no_window">No se puede identificar la ventana. Activa Accesibilidad y enfoca la aplicación destino.</string>
     <string name="edge_scroll_failed">El desplazamiento se detuvo porque Android rechazó el gesto o no confirmó su finalización.</string>
+    <string name="edge_scroll_how">Cómo desplazar</string>
+    <string name="edge_scroll_how_node">No tocar la pantalla</string>
+    <string name="edge_scroll_how_swipe">Enviar un deslizamiento</string>
+    <string name="edge_scroll_how_help">Automático pide el desplazamiento a la propia vista y solo envía un deslizamiento cuando la aplicación no ofrece nada desplazable. Un deslizamiento enviado no se distingue de tu dedo, así que en pantallas donde deslizar hace algo (responder deslizando, escritura por deslizamiento) activa esa función. Pedirlo a la vista no toca la pantalla, pero la aplicación decide cuánto avanza cada paso.</string>
+    <string name="edge_scroll_no_scrollable">No hay nada desplazable en esta ventana. Si aun así debe moverse, pon Cómo desplazar en Enviar un deslizamiento.</string>
     <string name="edge_action_step">Acción %1$d</string>
     <string name="edge_action_add">Añadir acción</string>
     <string name="edge_action_panel">Abrir/cerrar este panel</string>

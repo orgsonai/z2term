@@ -264,7 +264,7 @@ class EdgeStore(val root: File) {
         }
 
         fun validatePanel(values: Map<String, String>) {
-            val allowed = setOf("label", "handle", "bar-color", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height", "tabs", "layout", "title", "close", "tabbar", "add", "settings", "labels", "fit", "place", "at", "flow", "columns", "icon-size", "tools-place", "gesture-up", "gesture-down", "gesture-double-tap", "gesture-scroll", "gesture-speed", "gesture-range", "scroll-x", "scroll-y") + EdgeActions.Trigger.entries.map { it.key }
+            val allowed = setOf("label", "handle", "bar-color", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height", "tabs", "layout", "title", "close", "tabbar", "add", "settings", "labels", "fit", "place", "at", "flow", "columns", "icon-size", "tools-place", "gesture-up", "gesture-down", "gesture-double-tap", "gesture-scroll", "gesture-speed", "gesture-range", "scroll-x", "scroll-y", "scroll-how") + EdgeActions.Trigger.entries.map { it.key }
             EdgeActions.Trigger.entries.forEach { trigger -> values[trigger.key]?.let { EdgeActions.decode(it) } }
             listOf("scroll-x", "scroll-y").forEach { key -> values[key]?.let { raw ->
                 require(raw.toFloatOrNull()?.let { it.isFinite() && it in 10f..90f } == true) { "$key: 10–90 percent" }
@@ -279,6 +279,10 @@ class EdgeStore(val root: File) {
             values["size"]?.let { require(it.toIntOrNull()?.let { n -> n in 2..96 } == true) { "size: 2–96 dp" } }
             require(values["gesture-scroll"].orEmpty() in setOf("", "off", "variable", "fixed")) {
                 "gesture-scroll: off|variable|fixed"
+            }
+            // ⚠ 空欄は auto。既定でスワイプを注入しない (0.8.627・[AndroidNodeScroll] 参照)。
+            require(values["scroll-how"].orEmpty() in setOf("", "auto", "node", "swipe")) {
+                "scroll-how: auto|node|swipe"
             }
             values["gesture-range"]?.let {
                 require(it.toIntOrNull()?.let { n -> n in 32..2000 } == true) { "gesture-range: 32–2000 dp" }

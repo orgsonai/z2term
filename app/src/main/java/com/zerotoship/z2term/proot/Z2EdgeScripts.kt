@@ -30,6 +30,9 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge panel ID gesture-up="command" gesture-down="command" gesture-double-tap="command"
         |# z2-edge panel ID gesture-scroll=off|variable|fixed gesture-speed=600
         |# z2-edge panel ID gesture-range=640    最高速度までの距離32〜2000dp（既定160）。大きいほど緩やか。
+        |# z2-edge panel ID scroll-how=auto|node|swipe
+        |#   auto（既定）=スクロールできる部品に直接頼み、無いアプリでだけスワイプを送る。
+        |#   node=部品にだけ頼む（画面に触らないので誤入力・誤送信が起きない）。swipe=常にスワイプ。
         |# 上下スライドで可変速/固定速スクロール。速度は50〜40000dp/秒。タップで停止。
         |# z2-edge panel ID label=名前            パネルの定義を追加・更新
         |# z2-edge set ID:項目 type=text 'run=date' label=時計 every=30
@@ -87,6 +90,9 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge panel ID gesture-up="command" gesture-down="command" gesture-double-tap="command"
         |# z2-edge panel ID gesture-scroll=off|variable|fixed gesture-speed=600
         |# z2-edge panel ID gesture-range=640    Distance to maximum: 32–2000dp (default 160); larger is gentler.
+        |# z2-edge panel ID scroll-how=auto|node|swipe
+        |#   auto (default) asks the scrollable view and only swipes where the app offers nothing.
+        |#   node never touches the screen (no stray typing or sending). swipe always sends a swipe.
         |# Vertical slides set variable/fixed auto-scroll (50–40000 dp/s). Tap to stop.
         |# z2-edge panel ID width=80% height=60% fit=content|fixed
         |# title=on|off close=on|off tabbar=off|on|auto add=on|off settings=on|off tools-place=top|bottom

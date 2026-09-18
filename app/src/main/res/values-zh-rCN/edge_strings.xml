@@ -132,6 +132,11 @@
     <string name="edge_scroll_started">自动滚动%1$d dp/秒，点按停止</string>
     <string name="edge_scroll_no_window">无法识别滚动窗口。请启用无障碍并聚焦目标应用。</string>
     <string name="edge_scroll_failed">Android拒绝手势或未确认完成，滚动已停止。</string>
+    <string name="edge_scroll_how">滚动方式</string>
+    <string name="edge_scroll_how_node">不触碰屏幕</string>
+    <string name="edge_scroll_how_swipe">发送滑动</string>
+    <string name="edge_scroll_how_help">自动会直接请求可滚动的控件，只有应用没有可滚动控件时才发送滑动。发送的滑动与手指无法区分，因此在滑动有功能的界面（滑动回复、滑行输入等）会触发这些功能。请求控件不会触碰屏幕，但每次滚动的距离由应用决定。</string>
+    <string name="edge_scroll_no_scrollable">此窗口没有可滚动的控件。若仍要滚动，请把“滚动方式”设为“发送滑动”。</string>
     <string name="edge_action_step">操作%1$d</string>
     <string name="edge_action_add">添加操作</string>
     <string name="edge_action_panel">切换此面板</string>

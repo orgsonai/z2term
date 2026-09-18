@@ -147,6 +147,11 @@
     <string name="edge_scroll_started">Auto-scroll %1$d dp/s — tap to stop</string>
     <string name="edge_scroll_no_window">Cannot identify the scroll window. Enable Accessibility and focus the target app.</string>
     <string name="edge_scroll_failed">Scrolling stopped because Android rejected the gesture or did not confirm completion.</string>
+    <string name="edge_scroll_how">How to scroll</string>
+    <string name="edge_scroll_how_node">Do not touch the screen</string>
+    <string name="edge_scroll_how_swipe">Send a swipe</string>
+    <string name="edge_scroll_how_help">Automatic asks the scrollable view itself and only sends a swipe where the app offers nothing scrollable. A swipe cannot be told apart from your finger, so on screens where swiping does something (swipe to reply, glide typing) it triggers that instead. Asking the view never touches the screen, but the app decides how far one step goes.</string>
+    <string name="edge_scroll_no_scrollable">Nothing scrollable in this window. Set How to scroll to Send a swipe if it still needs to move.</string>
     <string name="edge_action_step">Action %1$d</string>
     <string name="edge_action_add">Add action</string>
     <string name="edge_action_panel">Toggle this panel</string>

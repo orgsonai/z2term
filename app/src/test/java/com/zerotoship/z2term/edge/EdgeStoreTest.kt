@@ -81,6 +81,24 @@ class EdgeStoreTest {
         rejects { EdgeStore.validatePanel(mapOf("gesture-up" to "echo one\necho two")) }
     }
 
+    /**
+     * スクロールのしかた (0.8.627)。
+     *
+     * ⚠ **空欄が通ること**を押さえる。空欄は `auto` (部品へ頼み、無ければスワイプ) の意味で、
+     * ここを弾くと**既に保存済みのパネルが全部不正になる**。⚠ 知らない語は弾く — 打ち間違いを
+     * 黙って `auto` に倒すと、`node` を選んだつもりでスワイプが飛ぶ。
+     */
+    @Test fun scrollHowAcceptsOnlyTheThreeWaysAndAnEmptyValue() {
+        for (how in listOf("", "auto", "node", "swipe")) {
+            EdgeStore.validatePanel(mapOf("scroll-how" to how))
+        }
+        for (how in listOf("gesture", "none", "auto ", "NODE")) {
+            rejects { EdgeStore.validatePanel(mapOf("scroll-how" to how)) }
+        }
+        val fields = mapOf("gesture-scroll" to "variable", "scroll-how" to "node")
+        assertEquals(fields, EdgeStore.parse(EdgeStore.encode(fields)))
+    }
+
     @Test fun guideCommandBuildsTheSampleAppPanelWithExistingSubcommands() {
         val dir = Files.createTempDirectory("edge-guide-panel-test").toFile()
         try {

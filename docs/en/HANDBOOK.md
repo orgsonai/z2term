@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.626-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.627-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -899,6 +899,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
+**0.8.627-alpha (versionCode 635) — build unverified**: Edge-panel scrolling no longer touches the screen by default. It used to send a real swipe, which an app cannot tell apart from your finger, so on screens where swiping does something that action ran instead, and a stroke across a keyboard could type (the user's report: "the gesture types characters by itself — it is dangerous"). ⇒ it now asks the scrollable view directly and only falls back to a swipe where the app offers nothing scrollable. Appearance → Gestures → How to scroll offers **Automatic / Do not touch the screen / Send a swipe** (`scroll-how=auto|node|swipe` from the CLI). The scroll target is also picked from the window you are touching: a freeform window may hold no input focus, which left it unscrollable even while in front.
+
 **0.8.626-alpha (versionCode 634) — build unverified**: Two changes to the drawings `z2-icon` ships. (1) `sync` is redrawn as **two arrows forming a loop** — the old one did not read as anything in particular (the user's report: "sync has turned into a mark that makes no sense"). (2) **A camera drawing, `camera`, joins the list** (16 bundled now). A tile whose command contains `shot`, `photo` or `camera` gets it automatically (it is looked at before `moon`, because `screenshot` contains `screen`).
 
 **0.8.625-alpha (versionCode 633) — build unverified**: Four fixes to `z2-shot`. (1) While you draw, the hint and shape controls at the foot are hidden so they do not sit on top of what you are framing; they return when you lift your finger. (2) The frequent "could not capture the screen" failure is fixed: automatic bar colouring samples the screen about once a second, and capturing right after that was refused by Android's minimum interval between screenshots, so the capture now waits out the remainder. (3) A Circle shape joins Free, Rectangle and Oval, using the shorter side of the drag as its diameter. (4) Dragging the image in the preview moves what is cropped.
@@ -997,6 +999,7 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Arrangement | `flow=vertical\|horizontal\|grid\|free` (omitted/empty follows tab layout) |
 | Grid columns and icon size | `columns=auto` or 1–16; `icon-size=16..192` dp (default 40) |
 | Handle shape, position, activation | `handle` / `side` / `offset` / `x` / `y` / `size` / `length` / `alpha` / `open` (also via `z2-edge handle`) |
+| How to scroll | `scroll-how=auto\|node\|swipe` (default auto: ask the scrollable view, swipe only where the app offers nothing. node never touches the screen; swipe always sends one. 0.8.627) |
 | Bar colour | `bar-color=auto\|white\|black` (default auto; also `z2-edge handle ID bar --bar-color white`) |
 | Add, name and order tabs | `z2-edge tab PARENT ID LABEL`, `panel ID label=Name`, `panel PARENT tabs=a,b` |
 | Add/delete panels | `panel ID label=Name handle=bar side=right` / `delete ID` |

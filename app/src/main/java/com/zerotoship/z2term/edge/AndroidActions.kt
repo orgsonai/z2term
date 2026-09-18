@@ -18,19 +18,33 @@ import kotlinx.coroutines.*
 /** Global/coordinate actions use window metadata; explicit UI requests inspect non-editable nodes. */
 class AndroidActions : AccessibilityService() {
     private val autoScroll by lazy { AndroidAutoScroll(this) }
+    private val nodeScroll by lazy { AndroidNodeScroll(this) }
     private val coordinateStroke by lazy { AndroidStroke(this) }
     private val windowPackages = linkedMapOf<Int, String>()
     private data class ScrollTarget(val id: Int, val bounds: Rect)
     private var scrollTarget: ScrollTarget? = null
 
+    /**
+     * スクロールの相手にする窓。
+     *
+     * ⚠ **いま触っている窓 (`isActive`) を先に見る** (0.8.627)。入力欄を持たない窓や自由な大きさの窓
+     * (フリーフォーム) は**入力フォーカスを持たないことがあり**、`isFocused` だけで選ぶと「前面に
+     * 出ているのにスクロールできない」になる (利用者の指摘:「フリーフォームウィンドウとかだと
+     * 上手くスクロールもしません」)。⚠ **自分の窓は相手にしない** — パネルを触った拍子に
+     * 自分自身へスクロールを送っても何も起きないうえ、相手の取り違えに気付けない。
+     */
     @Suppress("DEPRECATION")
     private fun focusedTarget(): ScrollTarget? {
         val currentWindows = windows
         return try {
-            val target = currentWindows.firstOrNull {
-                it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused &&
-                    (Build.VERSION.SDK_INT < 30 || it.displayId == android.view.Display.DEFAULT_DISPLAY)
-            } ?: return null
+            val applications = currentWindows.filter {
+                it.type == AccessibilityWindowInfo.TYPE_APPLICATION &&
+                    (Build.VERSION.SDK_INT < 30 || it.displayId == android.view.Display.DEFAULT_DISPLAY) &&
+                    windowPackages[it.id] != packageName
+            }
+            val target = applications.firstOrNull { it.isActive }
+                ?: applications.firstOrNull { it.isFocused }
+                ?: return null
             val bounds = Rect().also { target.getBoundsInScreen(it) }
             // The application's window may extend behind the IME (adjustNothing/edge-to-edge).
             // Exclude the entire area below an intersecting IME, including floating keyboards.
@@ -62,17 +76,19 @@ class AndroidActions : AccessibilityService() {
         }
         if (autoScroll.running && (event?.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
                 event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)) {
-            if (runCatching { focusedTarget() }.getOrNull() != scrollTarget) autoScroll.stop()
+            if (runCatching { focusedTarget() }.getOrNull() != scrollTarget) { autoScroll.stop(); nodeScroll.stop() }
         }
     }
     override fun onInterrupt() {
         autoScroll.stop()
+        nodeScroll.stop()
         com.zerotoship.z2term.automation.ActionRuntime.stop(reason = "Accessibility interrupted")
         com.zerotoship.z2term.automation.ActionCoordinatePicker.cancel()
         RegionShot.cancel()
     }
     override fun onUnbind(intent: Intent?): Boolean {
         autoScroll.stop()
+        nodeScroll.stop()
         if (active === this) {
             com.zerotoship.z2term.automation.ActionCoordinatePicker.cancel()
             RegionShot.cancel()
@@ -83,6 +99,7 @@ class AndroidActions : AccessibilityService() {
     }
     override fun onDestroy() {
         autoScroll.stop()
+        nodeScroll.stop()
         if (active === this) {
             com.zerotoship.z2term.automation.ActionCoordinatePicker.cancel()
             RegionShot.cancel()
@@ -140,13 +157,22 @@ class AndroidActions : AccessibilityService() {
             if (Build.VERSION.SDK_INT >= 30) {
                 require(name == "split" || service.systemActions.any { it.id == action }) { "Android does not offer this action: $name" }
             } else require(name != "screenshot") { "Screenshot requires Android 11" }
-            EdgeRuntime.onMain { service.autoScroll.stop() }
+            EdgeRuntime.onMain { service.autoScroll.stop(); service.nodeScroll.stop() }
             check(service.performGlobalAction(action)) { "Android rejected action: $name" }
             return ""
         }
 
+        /**
+         * スクロールを始める。
+         *
+         * [how] は `auto` / `node` / `swipe` (空欄は `auto`)。⚠ **既定でスワイプを注入しない**
+         * (0.8.627) — 注入したスワイプはアプリから見て指と区別が付かず、払う操作に機能が
+         * 割り当たっている画面では**その機能が動いてしまう** ([AndroidNodeScroll] の解説)。
+         * `auto` は部品へ頼み、スクロールできる部品が無いときだけスワイプへ落とす。
+         */
         fun startAutoScroll(speedDp: Float, bounds: android.graphics.Rect, xPercent: Float = 50f,
-            yPercent: Float = 50f, once: Boolean = false, requirePreviousTarget: Boolean = false, done: (String?) -> Unit) {
+            yPercent: Float = 50f, once: Boolean = false, requirePreviousTarget: Boolean = false,
+            how: String = "auto", done: (String?) -> Unit) {
             val service = active ?: error("Enable z2term Android actions in Accessibility settings")
             check(!service.coordinateStroke.inFlight) { "Wait for the previous coordinate gesture to finish" }
             val target = service.focusedTarget()
@@ -155,26 +181,44 @@ class AndroidActions : AccessibilityService() {
                 service.getString(com.zerotoship.z2term.R.string.edge_scroll_no_window)
             }
             val area = Rect(target.bounds)
-            check(area.intersect(bounds) && area.height() >= 96 * service.resources.displayMetrics.density) {
+            check(area.intersect(bounds)) {
                 service.getString(com.zerotoship.z2term.R.string.edge_scroll_no_window)
             }
-            service.scrollTarget = target
-            service.autoScroll.start(speedDp, area, xPercent, yPercent, once, {
+            val stillTarget = {
                 service.focusedTarget() == target &&
                     service.getSystemService(android.os.PowerManager::class.java).isInteractive &&
                     !service.getSystemService(android.app.KeyguardManager::class.java).isKeyguardLocked
-            }, done)
+            }
+            service.scrollTarget = target
+            if (how != "swipe") {
+                service.autoScroll.stop()
+                if (service.nodeScroll.start(speedDp, target.id, area, xPercent, yPercent, once, stillTarget, done)) return
+                check(how != "node") { service.getString(com.zerotoship.z2term.R.string.edge_scroll_no_scrollable) }
+            }
+            service.nodeScroll.stop()
+            // ⚠ スワイプは Android の MOVE 取り込み間隔ぶんの長さが要る ([EdgeScrollTiming])。
+            //   部品へ頼む側にこの制限は無いので、確かめるのはここへ入ってから。
+            check(area.height() >= 96 * service.resources.displayMetrics.density) {
+                service.getString(com.zerotoship.z2term.R.string.edge_scroll_no_window)
+            }
+            service.autoScroll.start(speedDp, area, xPercent, yPercent, once, stillTarget, done)
         }
 
         fun stopAutoScroll(): Boolean {
-            val scrolling = active?.autoScroll?.recentlyRunning() == true
+            val scrolling = active?.autoScroll?.recentlyRunning() == true ||
+                active?.nodeScroll?.recentlyRunning() == true
             active?.autoScroll?.stop()
+            active?.nodeScroll?.stop()
             return scrolling
         }
 
-        fun recentlyAutoScrolling() = active?.autoScroll?.recentlyRunning() == true
+        fun recentlyAutoScrolling() = active?.autoScroll?.recentlyRunning() == true ||
+            active?.nodeScroll?.recentlyRunning() == true
 
-        fun outsideTouch(event: android.view.MotionEvent) { active?.autoScroll?.outsideTouch(event) }
+        fun outsideTouch(event: android.view.MotionEvent) {
+            active?.autoScroll?.outsideTouch(event)
+            active?.nodeScroll?.outsideTouch(event)
+        }
 
         fun connected() = active != null
 
