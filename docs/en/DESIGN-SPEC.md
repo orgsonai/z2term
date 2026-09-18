@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-18 / Target version: 0.8.629-alpha (versionCode 637)
+Last updated: 2026-09-18 / Target version: 0.8.630-alpha (versionCode 638)
+
+**0.8.630-alpha (versionCode 638) — build unverified**: Making a QR code no longer needs `qrencode` installed. The encoder (ZXing) is already in the app for the QR tools screen, so the terminal can now call the same one (`z2-qr encode`). `z2-qr encode "text"` writes a PNG (by default `~/.z2term/qr/qr.png`) and prints where it went; `-t` draws it right there with block characters instead. `-p` is the size to aim for in pixels and `-m` the quiet zone in modules. The bundled `qr.sh` keeps using `qrencode` when it is installed and falls back to the app when it is not, **so there is nothing to reinstall every time a tab (distro) is rebuilt.** ⚠ Where the app is out of reach (over `ssh`), `qrencode` is still required.
 
 **0.8.629-alpha (versionCode 637) — build unverified**: A new bundled sample macro, `md.sh`, reads Markdown here on the terminal (the eleventh). `md.sh README.md` lays out headings, lists, tables, code and quotes on the screen; links stay tappable and pictures appear in place inside a tab (`z2-img`). `md.sh -v README.md` opens it in the reading screen (`z2-view`) added in 0.8.628. **Nothing to install** — `sh` and `awk` are enough. Lines wrap to the width of the screen and never start with a closing punctuation mark; a table too wide for the screen breaks into "heading: value" lines; and since this terminal does not draw italics, `*emphasis*` is underlined instead (as man does). Install it with `z2-macro install md`.
 
@@ -1260,7 +1262,8 @@ wanted is "hand what is in front of me to another device without retyping it", a
 it to a proven implementation makes the result more trustworthy, not less (the in-house encoder had
 to be compared against `qrencode` module by module).
 
-- **A missing requirement prints how to install it in this tab, then stops.** `qrencode` exists in
+- **The app can encode too (`z2-qr encode`, 0.8.630).** ⚠ The decision above rested on "the app has no encoder", and that premise changed when **ZXing entered the APK with the QR tools screen in 0.8.602**. The answer is not to revive an in-house encoder but to **call the proven one that is already there** from the terminal as well. ⭐ A tool that only reads or only makes something should not send you to `pacman -S` every time a tab (distro) is rebuilt. ⚠ **`qrencode` still comes first**, so nothing changes for anyone who already installed it. ⚠ **The modules come from the low-level [`Encoder`]** (`QRCodeWriter` only returns a bitmap stretched to the size you ask for, so the caller cannot choose how many pixels a module gets; anything but an integer multiple blurs the edges and the camera misses it). ⚠ **The text is handed over as a file** (a long string with newlines or quotes cannot survive sh quoting as an argument). The exchange uses the same `/storage/app/z2api/<stage>` as `z2-view`, and only **the name of the stage** is passed to the app.
+- **Only when neither is there** does it print how to install it in this tab, then stop. `qrencode` exists in
   every distro but is not installed by default. ⚠ The package name differs per distro (Alpine alone
   calls it `libqrencode-tools`), so the hint follows whichever package manager `command -v` finds.
 - **Image by default, `-t` for blocks, `-o` for a PNG.** ⚠ Block characters can leave gaps between

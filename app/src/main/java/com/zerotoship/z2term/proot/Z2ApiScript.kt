@@ -178,8 +178,67 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |[ -z "${d}out" ] || printf '%s\n' "${d}out"
     """.trimMargin() + "\n"
 
+    // z2-qr encode (0.8.630): QR を作るのに qrencode を入れさせない。⭐ 符号化する道具
+    // (ZXing) は QR ツール画面のためにもう APK に入っているので、端末からも同じものを呼ぶ。
+    // 読むだけ・作るだけの道具のために `pacman -S` が要ると、タブ (distro) を作り直すたびに
+    // 入れ直しになる。⚠ 受け渡しは z2-view と同じ /storage/app/z2api の下で、アプリへ渡すのは
+    // 置き場の名前だけ (パスを受けると任意のファイルを読み書きさせる口になる)。
+    // ⚠ 文字は**ファイルで渡す** — 改行や引用符を含む長い文字列を引数で運ぶと sh のクォートで事故る。
     val qr = "#!/bin/sh\n" + m.qrHelp + "\n" + helpCase + """
-        |[ ${d}# -eq 0 ] || { echo "usage: z2-qr" >&2; exit 1; }
+        |if [ "${d}{1:-}" = encode ]; then
+        |  shift
+        |  out=""; target=600; margin=4; blocks=0
+        |  while getopts "o:p:m:t" opt; do
+        |    case "${d}opt" in
+        |      o) out=${d}OPTARG ;;
+        |      p) target=${d}OPTARG ;;
+        |      m) margin=${d}OPTARG ;;
+        |      t) blocks=1 ;;
+        |      *) echo "${m.qrUsage}" >&2; exit 1 ;;
+        |    esac
+        |  done
+        |  shift ${d}((OPTIND - 1))
+        |  case "${d}target" in ''|*[!0-9]*) echo "${m.qrUsage}" >&2; exit 1 ;; esac
+        |  case "${d}margin" in ''|*[!0-9]*) echo "${m.qrUsage}" >&2; exit 1 ;; esac
+        |  if [ ${d}# -ge 1 ]; then text="${d}*"; else text=${d}(head -c 2000); fi
+        |  [ -n "${d}text" ] || { echo "${m.qrUsage}" >&2; exit 1; }
+        |  DIR=/storage/app/z2api
+        |  mkdir -p "${d}DIR" || exit 1
+        |  stage=${d}(mktemp -d "${d}DIR/qr-XXXXXXXXXX") || exit 1
+        |  trap 'rm -rf "${d}stage"' 0
+        |  trap 'exit 1' 1 2 15
+        |  printf '%s' "${d}text" > "${d}stage/text.txt" || exit 1
+        |  if [ "${d}blocks" = 1 ]; then mode=matrix; else mode=png; fi
+        |  Z2API_WAIT=100 /usr/local/bin/z2api 1 qr-encode \
+        |    "${d}{stage##*/}" "${d}target" "${d}margin" "${d}mode" >/dev/null || exit 1
+        |  if [ "${d}blocks" = 1 ]; then
+        |    [ -s "${d}stage/qr.txt" ] || { echo "${m.qrEncodeFailed}" >&2; exit 1; }
+        |    # 升目を半分ブロック (U+2580) で描く。1 行に上下 2 段ぶん入るので、文字の縦横比が
+        |    # 1:2 の端末で正方形に見える。⚠ 明暗は毎回自分で指定する — テーマ任せにすると
+        |    # 白地・黒地が入れ替わった瞬間にカメラが読めなくなる。
+        |    LC_ALL=C awk '{ r[NR] = ${d}0 }
+        |      END {
+        |        for (y = 1; y <= NR; y += 2) {
+        |          top = r[y]; bot = (y + 1 <= NR) ? r[y + 1] : ""
+        |          line = ""
+        |          for (x = 1; x <= length(top); x++) {
+        |            t = substr(top, x, 1)
+        |            b = (bot == "") ? "0" : substr(bot, x, 1)
+        |            line = line sprintf("%c[%d;%dm\342\226\200", 27, (t == "1") ? 30 : 37, (b == "1") ? 40 : 47)
+        |          }
+        |          printf "%s%c[0m\n", line, 27
+        |        }
+        |      }' "${d}stage/qr.txt"
+        |    exit 0
+        |  fi
+        |  [ -s "${d}stage/qr.png" ] || { echo "${m.qrEncodeFailed}" >&2; exit 1; }
+        |  [ -n "${d}out" ] || out=${d}HOME/.z2term/qr/qr.png
+        |  mkdir -p "${d}(dirname "${d}out")" 2>/dev/null || true
+        |  cp "${d}stage/qr.png" "${d}out" || exit 1
+        |  printf '%s\n' "${d}out"
+        |  exit 0
+        |fi
+        |[ ${d}# -eq 0 ] || { echo "${m.qrUsage}" >&2; exit 1; }
         |exec /usr/local/bin/z2api 0 qr
     """.trimMargin() + "\n"
 

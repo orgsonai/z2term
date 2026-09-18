@@ -267,34 +267,68 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# After a scan, one button opens the content in its app (browser, LINE and other apps,
         |# dialer, mail, SMS, Wi-Fi, contacts, calendar). Nothing opens by itself.
         |# Put it on a quick-settings tile or an edge panel.
+        |# z2-qr encode [-o FILE.png] [-p PIXELS] [-m MODULES] [-t] [TEXT] … make a QR code.
+        |#   Nothing to install: the app encodes it (the same encoder the QR screen uses).
+        |#   With no TEXT it reads standard input. -o is where the PNG goes
+        |#   (default ~/.z2term/qr/qr.png) and the path is printed. -t draws it here instead,
+        |#   with block characters. -p is the size to aim for in pixels (default 600),
+        |#   -m the quiet zone in modules (default 4). Up to 2000 bytes.
     """.trimMargin(),
         ja = """
         |# z2-qr … QRツールをカメラで読み取る状態で開く。
         |# 読み取ると、中身に合った「開く」ボタンが 1 つ出ます (ブラウザー・LINE などのアプリ・
         |# 電話・メール・SMS・Wi-Fi・連絡先・予定)。読み取っただけでは開きません。
         |# クイック設定のタイルやエッジパネルに置けます。
+        |# z2-qr encode [-o ファイル.png] [-p 画素] [-m 升] [-t] [テキスト] … QR を作る。
+        |#   入れるものはありません (QR ツール画面と同じ符号化をアプリ側で行います)。
+        |#   テキストを省くと標準入力から読みます。-o は PNG の書き出し先で
+        |#   (既定 ~/.z2term/qr/qr.png)、書いた場所を 1 行出します。-t なら絵の代わりに
+        |#   ブロック文字でこの端末に描きます。-p は目安の一辺の画素数 (既定 600)、
+        |#   -m は余白の升数 (既定 4)。2000 バイトまで。
     """.trimMargin(),
         "zh-CN" to """
         |# z2-qr … 打开 QR 工具并直接用相机扫描。
         |# 扫描后会出现一个与内容对应的「打开」按钮 (浏览器、LINE 等应用、电话、邮件、短信、
         |# Wi-Fi、联系人、日程)。只扫描不会自动打开。可以放到快捷设置磁贴或边缘面板上。
+        |# z2-qr encode [-o 文件.png] [-p 像素] [-m 格] [-t] [文本] … 生成二维码。
+        |#   不需要安装任何东西 (由应用来编码，和 QR 工具画面用的是同一套)。
+        |#   省略文本时从标准输入读。-o 是 PNG 的写出位置 (默认 ~/.z2term/qr/qr.png)，
+        |#   并打印写到哪里。-t 则不出图，改用方块字符画在这个终端里。
+        |#   -p 是目标边长像素 (默认 600)，-m 是留白的格数 (默认 4)。最多 2000 字节。
     """.trimMargin(),
         "zh-TW" to """
         |# z2-qr … 開啟 QR 工具並直接用相機掃描。
         |# 掃描後會出現一個與內容對應的「開啟」按鈕 (瀏覽器、LINE 等應用程式、電話、郵件、簡訊、
         |# Wi-Fi、聯絡人、行事曆)。只掃描不會自動開啟。可以放到快速設定圖塊或邊緣面板上。
+        |# z2-qr encode [-o 檔案.png] [-p 像素] [-m 格] [-t] [文字] … 產生二維條碼。
+        |#   不需要安裝任何東西 (由應用程式編碼，和 QR 工具畫面用的是同一套)。
+        |#   省略文字時從標準輸入讀。-o 是 PNG 的寫出位置 (預設 ~/.z2term/qr/qr.png)，
+        |#   並印出寫到哪裡。-t 則不出圖，改用方塊字元畫在這個終端機裡。
+        |#   -p 是目標邊長像素 (預設 600)，-m 是留白的格數 (預設 4)。最多 2000 位元組。
     """.trimMargin(),
         "es" to """
         |# z2-qr … abre las herramientas QR con la cámara ya leyendo.
         |# Tras leer, un botón abre el contenido en su app (navegador, LINE y otras apps, teléfono,
         |# correo, SMS, Wi-Fi, contactos, calendario). Nada se abre solo.
         |# Puedes ponerlo en un mosaico de ajustes rápidos o en un panel lateral.
+        |# z2-qr encode [-o ARCHIVO.png] [-p PÍXELES] [-m MÓDULOS] [-t] [TEXTO] … crea un QR.
+        |#   No hay que instalar nada: lo codifica la aplicación (el mismo codificador que la
+        |#   pantalla de QR). Sin TEXTO lee la entrada estándar. -o es dónde va el PNG
+        |#   (por defecto ~/.z2term/qr/qr.png) y se imprime la ruta. -t lo dibuja aquí con
+        |#   caracteres de bloque. -p es el tamaño buscado en píxeles (600) y -m el margen
+        |#   en módulos (4). Hasta 2000 bytes.
     """.trimMargin(),
         "ko" to """
         |# z2-qr … 카메라로 읽는 상태로 QR 도구를 엽니다.
         |# 읽고 나면 내용에 맞는 「열기」 버튼이 하나 나옵니다 (브라우저, LINE 등의 앱, 전화, 메일,
         |# SMS, Wi-Fi, 연락처, 일정). 읽기만 해서는 열리지 않습니다.
         |# 빠른 설정 타일이나 엣지 패널에 둘 수 있습니다.
+        |# z2-qr encode [-o 파일.png] [-p 픽셀] [-m 칸] [-t] [텍스트] … QR을 만듭니다.
+        |#   설치할 것은 없습니다 (QR 도구 화면과 같은 부호화를 앱이 합니다).
+        |#   텍스트를 생략하면 표준 입력에서 읽습니다. -o 는 PNG를 쓸 곳이고
+        |#   (기본 ~/.z2term/qr/qr.png), 쓴 곳을 한 줄 출력합니다. -t 는 그림 대신
+        |#   블록 문자로 이 터미널에 그립니다. -p 는 목표 한 변의 픽셀 (기본 600),
+        |#   -m 은 여백의 칸 수 (기본 4). 2000바이트까지.
     """.trimMargin()
     )
 
@@ -566,6 +600,24 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         "zh-TW" to "讀不出像素尺寸，按正方形畫出：",
         "es" to "no se puede leer el tamaño en píxeles; se dibuja como un cuadrado:",
         "ko" to "픽셀 크기를 읽을 수 없어 정사각형으로 그립니다:"
+    )
+
+    val qrUsage: String = t(
+        en = "usage: z2-qr  |  z2-qr encode [-o FILE.png] [-p PIXELS] [-m MODULES] [-t] [TEXT]",
+        ja = "usage: z2-qr  |  z2-qr encode [-o ファイル.png] [-p 画素] [-m 升] [-t] [テキスト]",
+        "zh-CN" to "用法: z2-qr  |  z2-qr encode [-o 文件.png] [-p 像素] [-m 格] [-t] [文本]",
+        "zh-TW" to "用法: z2-qr  |  z2-qr encode [-o 檔案.png] [-p 像素] [-m 格] [-t] [文字]",
+        "es" to "uso: z2-qr  |  z2-qr encode [-o ARCHIVO.png] [-p PÍXELES] [-m MÓDULOS] [-t] [TEXTO]",
+        "ko" to "사용법: z2-qr  |  z2-qr encode [-o 파일.png] [-p 픽셀] [-m 칸] [-t] [텍스트]"
+    )
+
+    val qrEncodeFailed: String = t(
+        en = "z2-qr: could not make the code (is the text too long? up to 2000 bytes)",
+        ja = "z2-qr: QR を作れませんでした (文字が長すぎませんか。2000 バイトまでです)",
+        "zh-CN" to "z2-qr: 无法生成二维码 (文本是不是太长了? 最多 2000 字节)",
+        "zh-TW" to "z2-qr: 無法產生二維條碼 (文字是不是太長了? 最多 2000 位元組)",
+        "es" to "z2-qr: no se ha podido crear el código (¿texto demasiado largo? hasta 2000 bytes)",
+        "ko" to "z2-qr: QR을 만들지 못했습니다 (글자가 너무 길지 않나요? 2000바이트까지입니다)"
     )
 
     val clipHelp: String = t(

@@ -3341,11 +3341,13 @@ private fun qrBody(d: String, t: CliText): String {
 #
 # # Requirements (without these it will not run, or will look different)
 #
-#   1) qrencode must be installed ... it does the encoding. Once per tab (distro):
+#   1) The encoding is done by the app ... inside a tab of z2term there is nothing
+#      to install (z2-qr encode). If qrencode is already there it is used instead.
+#      Where the app is out of reach (over ssh), install it once per tab (distro):
 #        Arch        : pacman -S qrencode
 #        Ubuntu/Kali : apt install qrencode
 #        Alpine      : apk add libqrencode-tools
-#      If it is missing, the install command is printed and the script stops.
+#      With neither, the install command is printed and the script stops.
 #
 #   2) The image (default) only shows inside a tab of this app ... it is drawn with
 #      Kitty graphics. Over ssh, or on any terminal that cannot show images, you get
@@ -3390,11 +3392,13 @@ private fun qrBody(d: String, t: CliText): String {
 #
 # ■ 前提条件 (これが揃っていないと動かない / 見え方が変わる)
 #
-#   1) qrencode が入っていること … QR を作る本体。タブ (distro) ごとに 1 回入れる
+#   1) 符号化はアプリがやる … z2term のタブの中なら入れるものはない (z2-qr encode)。
+#      qrencode が入っていればそちらを使う。ssh で入った先などアプリに手が届かない
+#      ところでは、タブ (distro) ごとに 1 回入れる:
 #        Arch        : pacman -S qrencode
 #        Ubuntu/Kali : apt install qrencode
 #        Alpine      : apk add libqrencode-tools
-#      入っていなければ、その場で導入コマンドを出して止まる。
+#      どちらも無いときだけ、その場で導入コマンドを出して止まる。
 #
 #   2) 絵で出す (既定) のはこのアプリのタブの中だけ … 画像は Kitty graphics で
 #      描いている。ssh で入った先の別の端末や、画像を出せない端末では絵が出ない
@@ -3439,11 +3443,13 @@ private fun qrBody(d: String, t: CliText): String {
 #
 # # 前提条件 (不满足就跑不起来，或者看到的样子会不一样)
 #
-#   1) 必须装了 qrencode … 编码由它来做。每个标签页 (发行版) 装一次:
+#   1) 编码由应用来做 … 在 z2term 的标签页里什么都不用装 (z2-qr encode)。
+#      已经装了 qrencode 的话就用它。通过 ssh 连到别处、应用够不着的地方，
+#      每个标签页 (发行版) 装一次:
 #        Arch        : pacman -S qrencode
 #        Ubuntu/Kali : apt install qrencode
 #        Alpine      : apk add libqrencode-tools
-#      没有的话会当场打出安装命令并停下。
+#      两个都没有时才会当场打出安装命令并停下。
 #
 #   2) 图片 (默认) 只有在这个应用的标签页里才看得到 … 它是用 Kitty graphics 画的。
 #      通过 ssh 连到别的机器，或者在显示不了图片的终端上，看到的会是一堆乱码。
@@ -3486,11 +3492,13 @@ private fun qrBody(d: String, t: CliText): String {
 #
 # # 前提條件 (不滿足就跑不起來，或者看到的樣子會不一樣)
 #
-#   1) 必須裝了 qrencode … 編碼由它來做。每個分頁 (發行版) 裝一次:
+#   1) 編碼由應用程式來做 … 在 z2term 的分頁裡什麼都不用裝 (z2-qr encode)。
+#      已經裝了 qrencode 的話就用它。透過 ssh 連到別處、應用程式搆不著的地方，
+#      每個分頁 (發行版) 裝一次:
 #        Arch        : pacman -S qrencode
 #        Ubuntu/Kali : apt install qrencode
 #        Alpine      : apk add libqrencode-tools
-#      沒有的話會當場打出安裝指令並停下。
+#      兩個都沒有時才會當場打出安裝指令並停下。
 #
 #   2) 圖片 (預設) 只有在這個應用程式的分頁裡才看得到 … 它是用 Kitty graphics 畫的。
 #      透過 ssh 連到別的機器，或者在顯示不了圖片的終端機上，看到的會是一堆亂碼。
@@ -3533,11 +3541,13 @@ private fun qrBody(d: String, t: CliText): String {
 #
 # # Requisitos (sin esto no funciona, o se ve distinto)
 #
-#   1) qrencode tiene que estar instalado ... es quien codifica. Una vez por pestaña (distribución):
+#   1) Codifica la aplicación ... dentro de una pestaña de z2term no hay nada que
+#      instalar (z2-qr encode). Si ya tienes qrencode, se usa ese. Donde la app no
+#      llega (por ssh), instálalo una vez por pestaña (distribución):
 #        Arch        : pacman -S qrencode
 #        Ubuntu/Kali : apt install qrencode
 #        Alpine      : apk add libqrencode-tools
-#      Si falta, se imprime el comando de instalación y el script se para.
+#      Solo si no hay ninguno se imprime el comando y el script se para.
 #
 #   2) La imagen (por omisión) solo se ve dentro de una pestaña de esta aplicación ... se dibuja
 #      con gráficos de Kitty. Por ssh, o en cualquier terminal que no pueda mostrar imágenes,
@@ -3582,11 +3592,13 @@ private fun qrBody(d: String, t: CliText): String {
 #
 # # 요건 (이것이 없으면 되지 않거나 다르게 보입니다)
 #
-#   1) qrencode가 설치되어 있어야 합니다 ... 코드로 만드는 것이 이것입니다. 탭(배포판)마다 한 번:
+#   1) 부호화는 앱이 합니다 ... z2term 탭 안에서는 설치할 것이 없습니다 (z2-qr encode).
+#      qrencode가 이미 있으면 그쪽을 씁니다. ssh로 들어간 곳처럼 앱에 손이 닿지 않는
+#      곳에서는 탭(배포판)마다 한 번 설치하세요:
 #        Arch        : pacman -S qrencode
 #        Ubuntu/Kali : apt install qrencode
 #        Alpine      : apk add libqrencode-tools
-#      없으면 설치 명령을 찍고 스크립트가 멈춥니다.
+#      둘 다 없을 때만 설치 명령을 찍고 스크립트가 멈춥니다.
 #
 #   2) 그림(기본값)은 이 앱의 탭 안에서만 보입니다 ... kitty graphics로 그리기 때문입니다.
 #      ssh 너머나 그림을 낼 수 없는 터미널에서는 뜻 모를 문자만 쏟아집니다. 거기서는 -t를 쓰세요.
@@ -3655,21 +3667,24 @@ private fun qrBody(d: String, t: CliText): String {
         "ko" to "앞머리의 주석 덩어리를 도움말로 찍습니다 (줄 수를 정해 두지 않습니다).\n" +
             "# Las líneas en blanco no lo cortan (lo decide NF), así que las secciones separadas por blancos quedan enteras."
     )
+    // ⭐ 0.8.630: 符号化する道具はアプリにもある (z2-qr encode = ZXing)。端末に qrencode を
+    // 入れさせるのは「読むだけ・作るだけ」に対して重すぎるので、あるものを使う順にする。
+    // ⚠ qrencode が先 — 既に入れている人の見た目 (訂正レベル・大きさ) を変えないため。
     val cNeedEncoder = t(
-        en = "Requirement 1: qrencode. If it is missing, print how to install it here and stop.",
-        ja = "前提条件 1: qrencode。無ければ、このタブでの入れ方を出して止まる。",
-        "zh-CN" to "前提条件 1: qrencode。没有的话，打出在这个标签页里的安装方法并停下。",
-        "zh-TW" to "前提條件 1: qrencode。沒有的話，打出在這個分頁裡的安裝方法並停下。",
-        "es" to "Requisito 1: qrencode. Si falta, imprime aquí cómo instalarlo y se para.",
-        "ko" to "요건 1: qrencode. 없으면 여기에 설치하는 법을 찍고 멈춥니다."
+        en = "Requirement 1: something to encode with. qrencode if it is here, else the app.",
+        ja = "前提条件 1: QR を作る道具。qrencode があればそれ、無ければアプリ (z2-qr) を使う。",
+        "zh-CN" to "前提条件 1: 用来编码的东西。有 qrencode 就用它，没有就用应用 (z2-qr)。",
+        "zh-TW" to "前提條件 1: 用來編碼的東西。有 qrencode 就用它，沒有就用應用程式 (z2-qr)。",
+        "es" to "Requisito 1: algo con lo que codificar: qrencode si está, si no la aplicación.",
+        "ko" to "요건 1: 부호화할 도구. qrencode가 있으면 그것, 없으면 앱(z2-qr)을 씁니다."
     )
     val mMissing = t(
-        en = "qr.sh: missing requirement - qrencode is not installed",
-        ja = "qr.sh: 前提条件が足りない — qrencode が入っていない",
-        "zh-CN" to "qr.sh: 前提条件不满足 — 没有安装 qrencode",
-        "zh-TW" to "qr.sh: 前提條件不滿足 — 沒有安裝 qrencode",
-        "es" to "qr.sh: falta un requisito - qrencode no está instalado",
-        "ko" to "qr.sh: 요건이 빠졌습니다 - qrencode가 설치되어 있지 않습니다"
+        en = "qr.sh: nothing to encode with here - no qrencode, and the app is out of reach",
+        ja = "qr.sh: QR を作る道具が無い — qrencode も無く、アプリ (z2-qr) にも手が届かない",
+        "zh-CN" to "qr.sh: 这里没有可以编码的东西 — 既没有 qrencode，也够不着应用 (z2-qr)",
+        "zh-TW" to "qr.sh: 這裡沒有可以編碼的東西 — 既沒有 qrencode，也搆不著應用程式 (z2-qr)",
+        "es" to "qr.sh: aquí no hay con qué codificar: ni qrencode ni acceso a la aplicación (z2-qr)",
+        "ko" to "qr.sh: 부호화할 도구가 없습니다 - qrencode도 없고 앱(z2-qr)에도 손이 닿지 않습니다"
     )
     val mInstallOnce = t(
         en = "  Install it once in this tab:",
@@ -3687,6 +3702,22 @@ private fun qrBody(d: String, t: CliText): String {
         "zh-TW" to "    Arch: pacman -S qrencode / Ubuntu、Kali: apt install qrencode",
         "es" to "    Arch: pacman -S qrencode / Ubuntu, Kali: apt install qrencode",
         "ko" to "    Arch: pacman -S qrencode / Ubuntu, Kali: apt install qrencode"
+    )
+    val cMakeFns = t(
+        en = "Make the PNG. qrencode picks the module size from a probe; the app takes a target.",
+        ja = "PNG を作る。qrencode は試し焼きから 1 升の画素を決め、アプリには目安の画素を渡す。",
+        "zh-CN" to "生成 PNG。qrencode 先试做一张来定每格的像素，应用则直接给目标像素。",
+        "zh-TW" to "產生 PNG。qrencode 先試做一張來定每格的像素，應用程式則直接給目標像素。",
+        "es" to "Crea el PNG. qrencode elige el tamaño de módulo probando; la app recibe el objetivo.",
+        "ko" to "PNG를 만듭니다. qrencode는 시험 출력으로 한 칸의 픽셀을 정하고, 앱에는 목표 픽셀을 넘깁니다."
+    )
+    val cMakeBlocks = t(
+        en = "Draw it with block characters. Both paths emit their own colours, so any theme works.",
+        ja = "文字 (ブロック) で描く。どちらも明暗を自分で出すので、端末のテーマに関係なく読める。",
+        "zh-CN" to "用方块字符画。两条路都自己带颜色，所以跟终端主题无关都能读。",
+        "zh-TW" to "用方塊字元畫。兩條路都自己帶顏色，所以跟終端機主題無關都能讀。",
+        "es" to "Lo dibuja con caracteres de bloque. Ambos emiten su propio color, valga el tema que valga.",
+        "ko" to "블록 문자로 그립니다. 두 경로 모두 자기 색을 내보내므로 테마와 무관하게 읽힙니다."
     )
     val mNoTmp = t(en = "cannot create a work directory", ja = "作業場所を作れない", "zh-CN" to "建不了工作目录", "zh-TW" to "建不了工作目錄", "es" to "no se puede crear un directorio de trabajo",
     "ko" to "작업 디렉터리를 만들 수 없습니다")
@@ -3809,7 +3840,11 @@ done
 shift ${d}((OPTIND - 1))
 
 # $cNeedEncoder
-if ! command -v qrencode >/dev/null 2>&1; then
+have_qrencode=0
+command -v qrencode >/dev/null 2>&1 && have_qrencode=1
+have_app=0
+command -v z2-qr >/dev/null 2>&1 && have_app=1
+if [ "${d}have_qrencode" = 0 ] && [ "${d}have_app" = 0 ]; then
     printf '$mMissing\n' >&2
     printf '$mInstallOnce\n' >&2
     if   command -v pacman >/dev/null 2>&1; then printf '    pacman -S qrencode\n' >&2
@@ -3891,6 +3926,26 @@ module_px_for() {
     awk -v t="${d}TARGET_PX" -v w="${d}w" 'BEGIN { s = int(t / w); if (s < 2) s = 2; if (s > 20) s = 20; print s }'
 }
 
+# $cMakeFns
+make_png() {
+    if [ "${d}have_qrencode" = 1 ]; then
+        s=${d}(module_px_for "${d}1") || s=${d}PNG_MODULE_PX
+        qrencode -s "${d}s" -m "${d}MARGIN" -o "${d}2" -r "${d}1" 2>"${d}TMP/err"
+    else
+        z2-qr encode -p "${d}TARGET_PX" -m "${d}MARGIN" -o "${d}2" < "${d}1" >/dev/null 2>"${d}TMP/err"
+    fi
+}
+
+# $cMakeBlocks
+make_blocks() {
+    if [ "${d}have_qrencode" = 1 ]; then
+        # $cAnsi
+        qrencode -t ANSIUTF8 -m "${d}MARGIN" -r "${d}1" 2>"${d}TMP/err"
+    else
+        z2-qr encode -t -m "${d}MARGIN" < "${d}1" 2>"${d}TMP/err"
+    fi
+}
+
 # $cInline
 show_inline() {
     base64 < "${d}1" | tr -d '\n' | fold -w 4096 > "${d}TMP/chunks"
@@ -3930,21 +3985,19 @@ while [ "${d}i" -le "${d}pieces" ]; do
         else
             dest=${d}outpng
         fi
-        if qrencode -s "${d}PNG_MODULE_PX" -m "${d}MARGIN" -o "${d}dest" -r "${d}p" 2>"${d}TMP/err"; then
+        if make_png "${d}p" "${d}dest"; then
             printf '%s\n' "${d}dest"
         else
             printf '$mPieceFail\n' "${d}i" "${d}(cat "${d}TMP/err")" >&2
             failed=1
         fi
     elif [ "${d}astext" -eq 1 ]; then
-        # $cAnsi
-        qrencode -t ANSIUTF8 -m "${d}MARGIN" -r "${d}p" 2>"${d}TMP/err" || {
+        make_blocks "${d}p" || {
             printf '$mPieceFail\n' "${d}i" "${d}(cat "${d}TMP/err")" >&2
             failed=1
         }
     else
-        s=${d}(module_px_for "${d}p") || s=${d}PNG_MODULE_PX
-        if qrencode -s "${d}s" -m "${d}MARGIN" -o "${d}TMP/out-${d}i.png" -r "${d}p" 2>"${d}TMP/err"; then
+        if make_png "${d}p" "${d}TMP/out-${d}i.png"; then
             show_inline "${d}TMP/out-${d}i.png"
         else
             printf '$mPieceFail\n' "${d}i" "${d}(cat "${d}TMP/err")" >&2

@@ -318,6 +318,18 @@ object Z2ApiBridge {
             }
             // z2-qr (0.8.602): カメラで読み取る状態の QR ツール。タイルやエッジパネルから呼ぶ入口。
             "qr" -> { com.zerotoship.z2term.qr.QrToolsActivity.scan(context); null }
+            // z2-qr encode (0.8.630): QR を**アプリ側で作る**。ZXing はもう入っているので、
+            // 端末に qrencode を入れさせる理由が無い (タブを作り直すたびの入れ直しが消える)。
+            "qr-encode" -> {
+                require(args.isNotEmpty()) { "qr-encode STAGE [TARGET_PX] [MARGIN] [matrix]" }
+                doQrEncode(
+                    context,
+                    stage = args[0],
+                    targetPx = args.getOrNull(1)?.toIntOrNull() ?: 600,
+                    margin = args.getOrNull(2)?.toIntOrNull() ?: 4,
+                    matrix = args.getOrNull(3) == "matrix"
+                )
+            }
             "clip-set" -> { val text = args.joinToString(" "); runOnMain { setClipboard(context, text) }; null }
             "clip-get" -> runOnMainSync { getClipboard(context) }
             "battery" -> batteryJson(context)
@@ -1493,6 +1505,48 @@ object Z2ApiBridge {
         val staging = java.io.File(requireNotNull(context.getExternalFilesDir(null)), "z2api")
         val page = java.io.File(java.io.File(staging, stage), "page.html")
         com.zerotoship.z2term.viewer.ViewerActivity.show(context, page, title)
+    }
+
+    /**
+     * `z2-qr encode` — 端末が `/storage/app/z2api/<stage>/text.txt` へ置いた文字を QR にして、
+     * 同じ置き場へ `qr.png` (絵) か `qr.txt` (升目の 0/1) を書き戻す。
+     *
+     * ⚠ **受け取るのは置き場の名前だけ** ([doView] と同じ)。パスをそのまま受けると、端末側から
+     * 任意のファイルを読み書きさせる口になる。
+     * ⚠ **文字はファイルで受け取る**。改行や引用符を含む長い文字列を引数で運ぶと、
+     * sh 側のクォートで必ず事故る (`z2-share --file` と同じ理由)。
+     */
+    private fun doQrEncode(
+        context: Context,
+        stage: String,
+        targetPx: Int,
+        margin: Int,
+        matrix: Boolean
+    ): String {
+        require(stage.isNotBlank() && !stage.contains('/') && !stage.contains("..")) { "qr-encode: bad stage" }
+        val dir = File(File(requireNotNull(context.getExternalFilesDir(null)), DIR_NAME), stage)
+        val src = File(dir, "text.txt")
+        require(src.isFile) { "qr-encode: no text" }
+        val bytes = src.readBytes()
+        require(bytes.isNotEmpty()) { "qr-encode: empty text" }
+        require(bytes.size <= com.zerotoship.z2term.qr.QrImages.MAX_BYTES) { "qr-encode: too long" }
+        val modules = com.zerotoship.z2term.qr.QrImages.encodeModules(
+            String(bytes, Charsets.UTF_8), margin
+        )
+        if (matrix) {
+            val text = buildString {
+                for (row in modules) {
+                    for (dark in row) append(if (dark) '1' else '0')
+                    append('\n')
+                }
+            }
+            File(dir, "qr.txt").writeText(text)
+        } else {
+            File(dir, "qr.png").writeBytes(
+                com.zerotoship.z2term.qr.QrImages.modulesToPng(modules, targetPx.coerceIn(64, 2048))
+            )
+        }
+        return modules.size.toString()
     }
 
     private fun doOpen(context: Context, target: String) {

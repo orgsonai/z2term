@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.629-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.630-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -899,6 +899,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
+**0.8.630-alpha (versionCode 638) — build unverified**: Making a QR code no longer needs `qrencode` installed. The encoder (ZXing) is already in the app for the QR tools screen, so the terminal can now call the same one (`z2-qr encode`). `z2-qr encode "text"` writes a PNG (by default `~/.z2term/qr/qr.png`) and prints where it went; `-t` draws it right there with block characters instead. `-p` is the size to aim for in pixels and `-m` the quiet zone in modules. The bundled `qr.sh` keeps using `qrencode` when it is installed and falls back to the app when it is not, **so there is nothing to reinstall every time a tab (distro) is rebuilt.** ⚠ Where the app is out of reach (over `ssh`), `qrencode` is still required.
+
 **0.8.629-alpha (versionCode 637) — build unverified**: A new bundled sample macro, `md.sh`, reads Markdown here on the terminal (the eleventh). `md.sh README.md` lays out headings, lists, tables, code and quotes on the screen; links stay tappable and pictures appear in place inside a tab (`z2-img`). `md.sh -v README.md` opens it in the reading screen (`z2-view`) added in 0.8.628. **Nothing to install** — `sh` and `awk` are enough. Lines wrap to the width of the screen and never start with a closing punctuation mark; a table too wide for the screen breaks into "heading: value" lines; and since this terminal does not draw italics, `*emphasis*` is underlined instead (as man does). Install it with `z2-macro install md`.
 
 **0.8.628-alpha (versionCode 636) — build unverified**: New `z2-view` reads a page you built on the terminal **inside the app** — no server, no browser. `rss.sh` now writes such a page on every poll (the user's report: "following RSS through notifications is hard to read"). Notifications stay as they were, with a second button: Open sends that article to the browser, List opens everything collected, grouped by site, with an Open button on each article. From the terminal it is `rss.sh view`. The page is shown with JavaScript and network loads switched off, and follows the terminal's colours.
@@ -1248,6 +1250,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-open <URL or path>` | Open a URL or file in the default app |
 | `z2-view <file.html> [title]` | **Read a page you made here, inside z2term** (0.8.628). No server and no browser. JavaScript and network loads are off, and only `http(s)` links leave for your usual browser. The phone's theme arrives as CSS variables (`--z2-bg` `--z2-bg2` `--z2-fg` `--z2-dim` `--z2-line` `--z2-accent`), so a page written with them follows the terminal colours. Up to 4 MB; embed pictures as `data:` URIs (remote ones are not fetched) |
 | `z2-qr` | Scan a QR code with the camera and show one Open button for its content |
+| `z2-qr encode [-o FILE.png] [-p PIXELS] [-m MODULES] [-t] [TEXT]` | **Make a QR code** (0.8.630). Nothing to install — the app encodes it, the same way the QR tools screen does. With no TEXT it reads standard input. A PNG by default (`~/.z2term/qr/qr.png`), and the path is printed; `-t` draws it here with block characters instead. `-p` is the size to aim for in pixels (default 600), `-m` the quiet zone in modules (default 4). Up to 2000 bytes |
 | `z2-img [-w COLS] [-r ROWS] [--clear] <file>...` | **Draw a picture in the terminal** (0.8.495). PNG / JPEG / WebP / GIF / BMP. Pass `-` to read one image from stdin (`curl -s <url> \| z2-img -`). By default it **fits the terminal width**; `-w` (columns) and `-r` (rows) set it explicitly. `--clear` removes every picture drawn so far. Given several files, it prints each name on its own line before the picture. ⚠ **Pictures only appear in a z2term tab, or in a terminal that speaks the kitty graphics protocol.** Over `ssh` or inside a pager you just get gibberish. ⚠ By default it **only writes to a terminal** — down a pipe or into a file the bytes are indistinguishable from garbage — so pass `-f` if you really mean it. ⚠ The aspect ratio assumes a cell is twice as tall as it is wide; if it looks squashed, tune it with `Z2_IMG_ASPECT=0.45 z2-img photo.jpg` (smaller = taller). ⚠ **Large photos are subsampled while decoding** (4 megapixels max). Only a few hundred pixels ever reach the screen, so nothing looks different, but the original resolution is not kept in memory |
 | `z2-clip get` / `z2-clip set [text]` | Get / set the clipboard (set reads stdin if no argument). ⚠ **Writing only works while you are looking at z2term** (or while z2term is the input method you use) — since Android 10 a `set` from a macro running in the background is dropped silently. For macros triggered by calls, SMS or notifications, use the `z2-notify -c` copy button instead (0.8.335) |
 | `z2-battery` | Show battery level / charging state (JSON) |
@@ -1421,7 +1424,9 @@ A sample for passing a long URL or a config **to another device without retyping
 
 ```sh
 z2-macro install qr                  # install it
-apk add libqrencode-tools            # Alpine (Arch: pacman -S qrencode / Ubuntu, Kali: apt install qrencode)
+# Since 0.8.630 qrencode is not needed (the app encodes it). Install it once per tab only
+# where the app is out of reach, such as over ssh:
+#   apk add libqrencode-tools      # Alpine (Arch: pacman -S qrencode / Ubuntu, Kali: apt install qrencode)
 
 qr.sh "https://example.com"          # encode a string and draw it
 qr.sh -f notes.txt                   # encode the contents of a file
@@ -1431,7 +1436,7 @@ qr.sh -t "text"                      # print blocks instead of an image
 qr.sh -h                             # the full help
 ```
 
-- ⚠ **You install `qrencode` yourself** (once per tab). If it is missing, the script prints the install command for that tab and stops.
+- **The app does the encoding** (0.8.630). Inside a tab of z2term there is nothing to install. If `qrencode` is there it is used instead, so nothing changes for you. ⚠ Where the app is out of reach (over `ssh`), `qrencode` is still needed; only when neither is there does the script print the install command for that tab and stop.
 - ⚠ **The image only shows inside a tab of this app.** On a terminal that cannot show images (over `ssh`, say) you get gibberish, so use `-t` there.
 - ⚠ **To scan with a camera, prefer the image or the PNG.** Blocks (`-t`) can leave gaps between rows depending on the font: readable to you, not to the camera.
 - Long input is **split into several codes at line breaks**, numbered `[1/3]`. Scan them in order.
