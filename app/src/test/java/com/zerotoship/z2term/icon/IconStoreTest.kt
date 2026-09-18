@@ -283,6 +283,8 @@ class IconStoreTest {
         assertEquals("moon", IconSamples.guess("z2-screen keepon 1h"))
         assertEquals("bolt", IconSamples.guess("z2-torch on"))
         assertEquals("sync", IconSamples.guess("backup.sh"))
+        assertEquals("folder", IconSamples.guess("md.sh -v /notes.md"))
+        assertEquals("folder", IconSamples.guess("sh '/root/.z2term/macros/md.sh' -v /notes.md"))
         // ⚠ battery が alert より、unknown が call より先。狭い意味の語を上に置いてある。
         assertEquals("battery", IconSamples.guess("battery-alert.sh"))
         assertEquals("warning", IconSamples.guess("unknown-call.sh"))
@@ -297,6 +299,8 @@ class IconStoreTest {
         assertNull(IconSamples.guess("latest.sh"))
         assertNull(IconSamples.guess("direct.sh"))
         assertNull(IconSamples.guess("login.sh"))
+        assertNull(IconSamples.guess("cmd.sh"))
+        assertNull(IconSamples.guess("md.sh.bak"))
     }
 
     /** 枠番号は往復する (`z2-icon list` が枠を番号で出すのに使う)。 */

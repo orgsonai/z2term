@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-19 / Target version: 0.8.636-alpha (versionCode 644)
+Last updated: 2026-09-19 / Target version: 0.8.637-alpha (versionCode 645)
+
+**0.8.637-alpha (versionCode 645) — build and device verification pending at commit time**: Tiles running the Markdown reader `md.sh` now receive the folder icon automatically, including commands with quoted absolute script paths. Unrelated names such as `cmd.sh` and `md.sh.bak` are excluded. This fixes the missing assignment found by the bundled-macro icon test in CI. See the GitHub Release for publication-time verification results.
 
 **0.8.636-alpha (versionCode 644) — build and device verification pending at commit time**: Fixed the scope used to calculate the keyboard layout preview height, addressing a Kotlin compilation error. The preview remains fixed at the bottom, capped at 45% of the available height and 320dp. See the GitHub Release for publication-time verification results.
 

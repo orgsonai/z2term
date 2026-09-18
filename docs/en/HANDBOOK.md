@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.636-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.637-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -898,6 +898,8 @@ when a `z2-when` rule fired **without opening the app**.
 **Action-macro GUI appearance (0.8.578)**: the list is one row per macro - tap the name to edit, with run, duplicate and delete at its right. Whatever is running, and the Stop button, sit together in one bordered block, and above it is "Android action permission" (nothing runs without it). Steps line their numbers up in a left column and print the line itself in a fixed pitch, with repeat and branch bodies shown by a left rule and an indent. The colours are the same ones the edge-panel editor uses, built from your terminal theme.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
+
+**0.8.637-alpha (versionCode 645) — build and device verification pending at commit time**: Tiles running the Markdown reader `md.sh` now receive the folder icon automatically, including commands with quoted absolute script paths. Unrelated names such as `cmd.sh` and `md.sh.bak` are excluded. This fixes the missing assignment found by the bundled-macro icon test in CI. See the GitHub Release for publication-time verification results.
 
 **0.8.636-alpha (versionCode 644) — build and device verification pending at commit time**: Fixed the scope used to calculate the keyboard layout preview height, addressing a Kotlin compilation error. The preview remains fixed at the bottom, capped at 45% of the available height and 320dp. See the GitHub Release for publication-time verification results.
 

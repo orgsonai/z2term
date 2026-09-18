@@ -1127,8 +1127,12 @@ object IconSamples {
      */
     fun guess(command: String): String? {
         val c = command.lowercase()
+        if (MARKDOWN_MACRO.containsMatchIn(c)) return "folder"
         return KEYWORDS.firstOrNull { (words, _) -> words.any { it in c } }?.second
     }
+
+    // Match the script name in a command or path without treating cmd.sh as Markdown.
+    private val MARKDOWN_MACRO = Regex("""(?:^|[\s/;|&()'"])md\.sh(?:$|[\s;|&()'"])""")
 
     /**
      * 「この語が入っていればこの絵」の対応。**上から順に見て先に当たったもの**を採る。

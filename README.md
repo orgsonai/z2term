@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.637-alpha (versionCode 645) — build and device verification pending at commit time**: Tiles running the Markdown reader `md.sh` now receive the folder icon automatically, including commands with quoted absolute script paths. Unrelated names such as `cmd.sh` and `md.sh.bak` are excluded. This fixes the missing assignment found by the bundled-macro icon test in CI. See the GitHub Release for publication-time verification results.
+
 **0.8.636-alpha (versionCode 644) — build and device verification pending at commit time**: Fixed the scope used to calculate the keyboard layout preview height, addressing a Kotlin compilation error. The preview remains fixed at the bottom, capped at 45% of the available height and 320dp. See the GitHub Release for publication-time verification results.
 
 **0.8.635-alpha (versionCode 643) — build and device verification pending**: The RSS guide now registers named Automation rules for polling and notification actions, then opens the collected article list. Open targets the article; List opens the collected page. The guide includes permission for opening screens from notifications and where to edit existing rules. Tile/widget assignment and rss-open installation are no longer part of setup.
