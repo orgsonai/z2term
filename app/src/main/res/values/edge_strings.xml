@@ -102,7 +102,7 @@
     <string name="edge_flow_vertical">Vertical</string>
     <string name="edge_flow_horizontal">Horizontal</string>
     <string name="edge_flow_grid">Grid</string>
-    <string name="edge_columns">Grid columns (1–16, auto)</string>
+    <string name="edge_columns">Grid columns</string>
     <string name="edge_icon_size">Icon size (dp)</string>
     <string name="edge_handle_kind">Handle type</string>
     <string name="edge_handle_bar">Bar</string>
@@ -227,4 +227,17 @@
     <string name="edge_delete_selected">Delete selected (%1$d)</string>
     <string name="edge_delete_selected_warning">Delete the following (%1$d)? Their items and locally stored notes are deleted too. External note files are kept.</string>
     <string name="edge_delete_line">• %1$s (%2$s)</string>
+    <string name="edge_dimension_unit">Unit for %1$s</string>
+    <string name="edge_unit_percent" formatted="false">% of screen</string>
+    <string name="edge_panel_width">Panel width</string>
+    <string name="edge_panel_height">Panel height / limit</string>
+    <string name="edge_handle_opacity" formatted="false">Handle opacity (5–100%)</string>
+    <string name="edge_bar_thickness">Bar thickness (dp)</string>
+    <string name="edge_button_diameter">Button size (dp)</string>
+    <string name="edge_column_count">%1$d columns</string>
+    <string name="edge_position_advanced">Position by coordinates</string>
+    <string name="edge_value_invalid">Check the value and allowed range.</string>
+    <string name="edge_field_invalid">Check “%1$s” before saving.</string>
+    <string name="edge_appearance_intro">Change size and placement below. Other settings open by tapping their headings. Changes apply when you save.</string>
+    <string name="edge_position_help" formatted="false">Enter X%,Y% (for example 50%,50% for the center). These coordinates override panel placement. Clear the field to use placement again.</string>
 </resources>

@@ -102,7 +102,7 @@
     <string name="edge_flow_vertical">세로</string>
     <string name="edge_flow_horizontal">가로</string>
     <string name="edge_flow_grid">격자</string>
-    <string name="edge_columns">격자 열 수 (1–16, auto)</string>
+    <string name="edge_columns">격자 열 수</string>
     <string name="edge_icon_size">아이콘 크기 (dp)</string>
     <string name="edge_handle_kind">핸들 유형</string>
     <string name="edge_handle_bar">바</string>
@@ -212,4 +212,17 @@
     <string name="edge_delete_selected">선택 항목 삭제 (%1$d)</string>
     <string name="edge_delete_selected_warning">다음 %1$d개를 삭제할까요? 안의 항목과 내부에 저장된 메모도 삭제됩니다. 외부 메모 파일은 유지됩니다.</string>
     <string name="edge_delete_line">• %1$s (%2$s)</string>
+    <string name="edge_dimension_unit">%1$s 단위</string>
+    <string name="edge_unit_percent" formatted="false">화면 %</string>
+    <string name="edge_panel_width">패널 너비</string>
+    <string name="edge_panel_height">패널 높이 / 상한</string>
+    <string name="edge_handle_opacity" formatted="false">손잡이 불투명도 (5–100%)</string>
+    <string name="edge_bar_thickness">막대 두께 (dp)</string>
+    <string name="edge_button_diameter">버튼 크기 (dp)</string>
+    <string name="edge_column_count">%1$d열</string>
+    <string name="edge_position_advanced">좌표로 위치 지정</string>
+    <string name="edge_value_invalid">값과 입력 범위를 확인하세요.</string>
+    <string name="edge_field_invalid">저장 전에 “%1$s” 값을 확인하세요.</string>
+    <string name="edge_appearance_intro">여기서 크기와 위치를 조정하세요. 다른 항목은 제목을 눌러 열 수 있습니다. 저장하면 변경이 확정됩니다.</string>
+    <string name="edge_position_help" formatted="false">X%,Y%로 입력하세요(중앙은 50%,50%). 좌표가 패널 배치보다 우선합니다. 비우면 원래 배치를 사용합니다.</string>
 </resources>

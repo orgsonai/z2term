@@ -102,7 +102,7 @@
     <string name="edge_flow_vertical">縦一列</string>
     <string name="edge_flow_horizontal">横一列</string>
     <string name="edge_flow_grid">格子</string>
-    <string name="edge_columns">格子の列数（1〜16、auto で自動）</string>
+    <string name="edge_columns">格子の列数</string>
     <string name="edge_icon_size">アイコンの大きさ（dp）</string>
     <string name="edge_handle_kind">取っ手の形</string>
     <string name="edge_handle_bar">バー</string>
@@ -227,4 +227,17 @@
     <string name="edge_delete_selected">選択したものを削除（%1$d）</string>
     <string name="edge_delete_selected_warning">次のもの（%1$d 件）を削除します。中の項目と、パネル内に保存したメモ本文も削除されます。外部のメモファイルは残ります。</string>
     <string name="edge_delete_line">・%1$s（%2$s）</string>
+    <string name="edge_dimension_unit">%1$sの単位</string>
+    <string name="edge_unit_percent">画面の％</string>
+    <string name="edge_panel_width">パネルの幅</string>
+    <string name="edge_panel_height">パネルの高さ・上限</string>
+    <string name="edge_handle_opacity">取っ手の不透明度（5〜100％）</string>
+    <string name="edge_bar_thickness">バーの太さ（dp）</string>
+    <string name="edge_button_diameter">ボタンの大きさ（dp）</string>
+    <string name="edge_column_count">%1$d列</string>
+    <string name="edge_position_advanced">座標で位置を指定</string>
+    <string name="edge_value_invalid">値と入力できる範囲を確認してください。</string>
+    <string name="edge_field_invalid">「%1$s」の入力を確認してください。</string>
+    <string name="edge_appearance_intro">大きさと位置をここで調整できます。他の項目は見出しをタップして開きます。変更は保存すると確定します。</string>
+    <string name="edge_position_help" formatted="false">X%,Y%で指定します（中央なら50%,50%）。入力中は「パネルの配置」より優先します。空欄に戻すと元の配置を使います。</string>
 </resources>

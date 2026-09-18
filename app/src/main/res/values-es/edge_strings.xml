@@ -102,7 +102,7 @@
     <string name="edge_flow_vertical">Vertical</string>
     <string name="edge_flow_horizontal">Horizontal</string>
     <string name="edge_flow_grid">Cuadrícula</string>
-    <string name="edge_columns">Columnas de cuadrícula (1–16, auto)</string>
+    <string name="edge_columns">Columnas de la cuadrícula</string>
     <string name="edge_icon_size">Tamaño de icono (dp)</string>
     <string name="edge_handle_kind">Tipo de tirador</string>
     <string name="edge_handle_bar">Barra</string>
@@ -212,4 +212,17 @@
     <string name="edge_delete_selected">Eliminar selección (%1$d)</string>
     <string name="edge_delete_selected_warning">¿Eliminar lo siguiente (%1$d)? También se borrarán sus elementos y notas locales. Se conservarán los archivos de notas externos.</string>
     <string name="edge_delete_line">• %1$s (%2$s)</string>
+    <string name="edge_dimension_unit">Unidad de %1$s</string>
+    <string name="edge_unit_percent" formatted="false">% de pantalla</string>
+    <string name="edge_panel_width">Ancho del panel</string>
+    <string name="edge_panel_height">Altura / límite del panel</string>
+    <string name="edge_handle_opacity" formatted="false">Opacidad del tirador (5–100%)</string>
+    <string name="edge_bar_thickness">Grosor de la barra (dp)</string>
+    <string name="edge_button_diameter">Tamaño del botón (dp)</string>
+    <string name="edge_column_count">%1$d columnas</string>
+    <string name="edge_position_advanced">Posición por coordenadas</string>
+    <string name="edge_value_invalid">Comprueba el valor y el rango permitido.</string>
+    <string name="edge_field_invalid">Revisa «%1$s» antes de guardar.</string>
+    <string name="edge_appearance_intro">Ajusta aquí el tamaño y la posición. Toca los títulos para abrir otros ajustes. Los cambios se confirman al guardar.</string>
+    <string name="edge_position_help" formatted="false">Introduce X%,Y% (50%,50% para centrar). Las coordenadas tienen prioridad sobre la posición del panel. Vacía el campo para volver a usarla.</string>
 </resources>

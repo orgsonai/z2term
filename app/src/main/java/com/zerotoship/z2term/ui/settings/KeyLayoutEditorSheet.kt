@@ -22,11 +22,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -48,7 +53,7 @@ import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsWarning
 
 /**
- * キー配列 1 枚を GUI / JSON で編集する固定画面（0.8.409〜0.8.412・段階 3〜4）。
+ * キー配列 1 枚を GUI / JSON で編集する画面（0.8.409〜0.8.412・段階 3〜4）。
  *
  * **JSON を正規の入口にする理由**: [KeyLayout] はタップだけでなく 4 方向フリック、長押し、
  * アクション列、2 段の分割、レイヤーまで持つ。これを「よく使う項目だけ」のフォームへ写すと、
@@ -67,7 +72,8 @@ fun KeyLayoutEditorSheet(
     onDismiss: () -> Unit,
 ) {
     val scroll = rememberScrollState()
-    val editorScroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    var viewportTop by remember { mutableStateOf(0f) }
     // v1 の自作面にも記号子面とリセット基準を補う。開いただけでは保存せず、編集保存時に移行する。
     val editorInitial = remember(initial) { initial.withEditorDefaults() }
     val initialJson = remember(editorInitial) { KeyLayoutJson.toPrettyJsonString(editorInitial) }
@@ -113,144 +119,157 @@ fun KeyLayoutEditorSheet(
         Column(
             modifier = Modifier.fillMaxSize(),
         ) {
-            SettingsPageTopBar(
-                title = stringResource(
-                    R.string.settings_key_layout_editor_title,
-                    candidate?.name?.ifBlank { editorInitial.name } ?: editorInitial.name,
-                ),
-                onBack = ::requestClose,
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = stringResource(
-                        if (jsonMode) R.string.settings_key_layout_editor_desc
-                        else R.string.settings_key_layout_visual_intro,
+            // Instructions, preview and key settings scroll together to leave room for editing.
+            Column(Modifier.fillMaxWidth().weight(1f)
+                .onGloballyPositioned { viewportTop = it.positionInRoot().y }
+                .verticalScroll(scroll)) {
+                SettingsPageTopBar(
+                    title = stringResource(
+                        R.string.settings_key_layout_editor_title,
+                        candidate?.name?.ifBlank { editorInitial.name } ?: editorInitial.name,
                     ),
-                    color = ZtsTextSecondary,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp,
-                    fontFamily = FontFamily.Monospace,
+                    onBack = ::requestClose,
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    EditorButton(
-                        label = stringResource(R.string.settings_key_layout_mode_visual),
-                        modifier = Modifier.weight(1f),
-                        primary = !jsonMode,
-                        onClick = { jsonMode = false },
-                    )
-                    EditorButton(
-                        label = stringResource(R.string.settings_key_layout_mode_json),
-                        modifier = Modifier.weight(1f),
-                        primary = jsonMode,
-                        onClick = { jsonMode = true },
-                    )
-                }
-
-                when {
-                    decoded == null -> EditorStatus(
-                        text = stringResource(R.string.settings_key_layout_editor_invalid_json),
-                        color = ZtsError,
-                    )
-                    problems.isNotEmpty() -> EditorStatus(
-                        text = stringResource(
-                            R.string.settings_key_layout_editor_invalid_layout,
-                            problems.joinToString("; "),
-                        ),
-                        color = ZtsError,
-                    )
-                    else -> {
-                        EditorStatus(
-                            text = stringResource(
-                                R.string.settings_key_layout_editor_summary,
-                                decoded.rows.size,
-                                decoded.rows.sumOf { it.slots.size },
-                                decoded.allKeys().size,
-                            ),
-                            color = ZtsGreen,
-                        )
-                        if (!decoded.hasEscapeHatch()) {
-                            EditorStatus(
-                                text = stringResource(R.string.settings_key_layout_editor_no_escape_inline),
-                                color = ZtsWarning,
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (jsonMode) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(scroll)
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    BasicTextField(
-                        value = source,
-                        onValueChange = { source = it },
-                        textStyle = TextStyle(
-                            color = ZtsTextPrimary,
-                            fontSize = 11.sp,
-                            lineHeight = 16.sp,
-                            fontFamily = FontFamily.Monospace,
-                        ),
-                        cursorBrush = SolidColor(ZtsGreen),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 300.dp, max = 520.dp)
-                            .verticalScroll(editorScroll)
-                            .background(ZtsBgSecondary, RoundedCornerShape(8.dp))
-                            .border(
-                                1.dp,
-                                if (candidate == null) ZtsError else ZtsBorder,
-                                RoundedCornerShape(8.dp),
-                            )
-                            .padding(12.dp),
-                    )
                     Text(
-                        text = stringResource(R.string.settings_key_layout_editor_id_note, editorInitial.id),
+                        text = stringResource(
+                            if (jsonMode) R.string.settings_key_layout_editor_desc
+                            else R.string.settings_key_layout_visual_intro,
+                        ),
                         color = ZtsTextSecondary,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp,
                         fontFamily = FontFamily.Monospace,
                     )
-                }
-            } else if (candidate != null) {
-                KeyLayoutVisualEditor(
-                    layout = candidate,
-                    modifier = Modifier.weight(1f),
-                    onChange = { changed ->
-                        // GUI と JSON は別の正本を持たない。GUI の 1 操作ごとに同じ JSON へ戻し、
-                        // JSON タブへ切り替えればそのまま続きを編集できる。
-                        source = KeyLayoutJson.toPrettyJsonString(
-                            changed.copy(
-                                id = editorInitial.id,
-                                faceId = editorInitial.faceId,
-                                styleId = editorInitial.styleId,
-                            ),
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        EditorButton(
+                            label = stringResource(R.string.settings_key_layout_mode_visual),
+                            modifier = Modifier.weight(1f),
+                            primary = !jsonMode,
+                            onClick = { jsonMode = false },
                         )
-                    },
+                        EditorButton(
+                            label = stringResource(R.string.settings_key_layout_mode_json),
+                            modifier = Modifier.weight(1f),
+                            primary = jsonMode,
+                            onClick = { jsonMode = true },
+                        )
+                    }
+
+                    when {
+                        decoded == null -> EditorStatus(
+                            text = stringResource(R.string.settings_key_layout_editor_invalid_json),
+                            color = ZtsError,
+                        )
+                        problems.isNotEmpty() -> EditorStatus(
+                            text = stringResource(
+                                R.string.settings_key_layout_editor_invalid_layout,
+                                problems.joinToString("; "),
+                            ),
+                            color = ZtsError,
+                        )
+                        else -> {
+                            EditorStatus(
+                                text = stringResource(
+                                    R.string.settings_key_layout_editor_summary,
+                                    decoded.rows.size,
+                                    decoded.rows.sumOf { it.slots.size },
+                                    decoded.allKeys().size,
+                                ),
+                                color = ZtsGreen,
+                            )
+                            if (!decoded.hasEscapeHatch()) {
+                                EditorStatus(
+                                    text = stringResource(R.string.settings_key_layout_editor_no_escape_inline),
+                                    color = ZtsWarning,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (jsonMode) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        BasicTextField(
+                            value = source,
+                            onValueChange = { source = it },
+                            textStyle = TextStyle(
+                                color = ZtsTextPrimary,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp,
+                                fontFamily = FontFamily.Monospace,
+                            ),
+                            cursorBrush = SolidColor(ZtsGreen),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 300.dp)
+                                .background(ZtsBgSecondary, RoundedCornerShape(8.dp))
+                                .border(
+                                    1.dp,
+                                    if (candidate == null) ZtsError else ZtsBorder,
+                                    RoundedCornerShape(8.dp),
+                                )
+                                .padding(12.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_key_layout_editor_id_note, editorInitial.id),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                    }
+                } else if (candidate != null) {
+                    KeyLayoutVisualEditor(
+                        layout = candidate,
+                        modifier = Modifier.fillMaxWidth(),
+                        onNavigate = { targetY ->
+                            val target = (scroll.value + targetY - viewportTop).roundToInt()
+                            scope.launch { scroll.animateScrollTo(target.coerceIn(0, scroll.maxValue)) }
+                        },
+                        onChange = { changed ->
+                            // GUI と JSON は別の正本を持たない。GUI の 1 操作ごとに同じ JSON へ戻し、
+                            // JSON タブへ切り替えればそのまま続きを編集できる。
+                            source = KeyLayoutJson.toPrettyJsonString(
+                                changed.copy(
+                                    id = editorInitial.id,
+                                    faceId = editorInitial.faceId,
+                                    styleId = editorInitial.styleId,
+                                ),
+                            )
+                        },
+                    )
+                }
+
+                EditorButton(
+                    label = stringResource(R.string.settings_key_layout_restore_default),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    danger = true,
+                    onClick = { resetPending = true },
+                )
+
+                EditorButton(
+                    label = stringResource(R.string.settings_key_layout_delete),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                    danger = true,
+                    onClick = { deletePending = true },
                 )
             }
-
-            EditorButton(
-                label = stringResource(R.string.settings_key_layout_restore_default),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                danger = true,
-                onClick = { resetPending = true },
-            )
 
             Row(
                 modifier = Modifier
@@ -260,12 +279,6 @@ fun KeyLayoutEditorSheet(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                EditorButton(
-                    label = stringResource(R.string.settings_key_layout_delete),
-                    modifier = Modifier.weight(1f),
-                    danger = true,
-                    onClick = { deletePending = true },
-                )
                 EditorButton(
                     label = stringResource(R.string.action_cancel),
                     modifier = Modifier.weight(1f),
@@ -374,6 +387,7 @@ private fun EditorButton(
     }
     Box(
         modifier = modifier
+            .heightIn(min = 48.dp)
             .background(ZtsBgCard, RoundedCornerShape(8.dp))
             .border(1.dp, border, RoundedCornerShape(8.dp))
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)

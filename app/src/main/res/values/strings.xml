@@ -100,10 +100,10 @@
     <string name="settings_key_layout_editor_escape_title">You may be unable to leave this layout</string>
     <string name="settings_key_layout_editor_escape_msg">No key switches face, opens Settings, hides the keyboard or switches to another input method. The terminal screen still has Settings in its toolbar, but screens using this as the OS input method do not.</string>
     <string name="settings_key_layout_editor_save_anyway">Save anyway</string>
-    <string name="settings_key_layout_visual_intro">Select a key on the keyboard at the bottom, then change its settings above. Changes appear on the keyboard immediately.</string>
+    <string name="settings_key_layout_visual_intro">Select a key, edit its settings, then save. The whole page scrolls.</string>
     <string name="settings_key_layout_mode_visual">Visual</string>
     <string name="settings_key_layout_mode_json">JSON</string>
-    <string name="settings_key_layout_visual_desc">Tap a key at the bottom to show its settings here. Use multiple selection only to change width, appearance or gestures for several keys together.</string>
+    <string name="settings_key_layout_visual_desc">Tap a key to go to its settings. For several keys, turn on Multiple selection, select the keys, then tap Edit selected keys.</string>
     <string name="settings_key_layout_preview_title">Tap a key to edit it</string>
     <string name="settings_key_layout_preview_desc">The selected key is highlighted in green</string>
     <string name="settings_key_layout_child_letters">Letters</string>
@@ -1338,4 +1338,6 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="guide_sample_translation_missing">Install the trans command and prepare the translation macro first, then run the sample creation step again.</string>
     <string name="guide_desc_edge_workspace">Create one panel with Notepad, Translation and Terminal tabs</string>
     <string name="guide_step_sample_use">Switch between the three tabs. Double-tap the note to edit; it saves automatically. For translation, enter text, choose the target language and tap Translate. Switching tabs or closing clears translation input/results. The terminal keeps its shell, output and draft; use ↻ to reset manually. Sample handles start at 30% opacity.</string>
+    <string name="settings_key_layout_edit_selected">Edit selected keys</string>
+    <string name="settings_key_layout_back_to_keys">Back to keys</string>
 </resources>

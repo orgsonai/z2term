@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-18 / Target version: 0.8.632-alpha (versionCode 640)
+Last updated: 2026-09-18 / Target version: 0.8.633-alpha (versionCode 641)
+
+**0.8.633-alpha (versionCode 641) — build and device verification pending**: The keyboard layout editor scrolls its heading, instructions, mode controls and keyboard preview together. Only Cancel and Save stay at the bottom. Tap a key to reach its settings; Back to keys returns to selection. Multiple selection stays beside the preview, followed by Edit selected keys. Choices wrap, action buttons have touch targets of at least 48dp, occasional appearance and structure controls fold away, and reset/delete sit at the end of the page. Edge-panel Appearance starts with size and placement, with a scrolling diagram. Width and height separate numbers from units (screen percentage or dp), opacity uses percentages, and grid columns use a picker. Controls follow the selected handle shape and item flow, while coordinates sit in an advanced group. Hidden values are retained and invalid input identifies the affected setting. Save, discard and conflict checks remain in place.
 
 **0.8.632-alpha (versionCode 640) — build unverified**: Notes in an edge panel can now be copied, cut and pasted (reported as "long-pressing selects but no menu appears, so I cannot copy or cut"). In a window drawn on top of other apps, text can be selected but Android's floating selection menu does not always appear. ⇒ While a note is being edited, **Cut, Copy and Paste** now sit right below the text. Cut and Copy are dimmed while nothing is selected. The labels come from Android itself, so they follow the phone's language. ⚠ **The system selection menu is left alone** — where it does appear, it still works.
 
@@ -2944,8 +2946,8 @@ The symbol sheet is still separate because its fourth row has eight keys, but it
 same row/role width rules, so switching to `?#` no longer restores the older wider modifiers and space.
 No labels, flick destinations or actions changed.
 
-**Fixed configurable-face layout editor (0.8.413).** The editor is a page in the existing Settings
-window rather than another dialog. It shares the full-width back bar and system-bar insets, while Save
+**Settings layout editor (0.8.413; editing-area improvements in 0.8.633).** The editor is a page in the existing Settings
+window rather than another dialog. The heading, mode controls, preview and form scroll together. It shares the full-width back bar and system-bar insets, while Save
 and Cancel stay outside the scrolling body. A saved layout carries a backward-compatible `face`
 (`ascii` when omitted), so the built-in Latin, Japanese and number presets and another custom layout
 can all be duplicated and edited. Built-ins and every custom layout are independent face entries;

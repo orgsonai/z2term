@@ -102,7 +102,7 @@
     <string name="edge_flow_vertical">直向</string>
     <string name="edge_flow_horizontal">橫向</string>
     <string name="edge_flow_grid">網格</string>
-    <string name="edge_columns">網格欄數（1–16，auto）</string>
+    <string name="edge_columns">網格欄數</string>
     <string name="edge_icon_size">圖示大小（dp）</string>
     <string name="edge_handle_kind">把手類型</string>
     <string name="edge_handle_bar">邊條</string>
@@ -212,4 +212,17 @@
     <string name="edge_delete_selected">刪除所選（%1$d）</string>
     <string name="edge_delete_selected_warning">刪除以下 %1$d 項？其中的項目與本機筆記也會被刪除。外部筆記檔案會保留。</string>
     <string name="edge_delete_line">• %1$s（%2$s）</string>
+    <string name="edge_dimension_unit">%1$s的單位</string>
+    <string name="edge_unit_percent">螢幕％</string>
+    <string name="edge_panel_width">面板寬度</string>
+    <string name="edge_panel_height">面板高度／上限</string>
+    <string name="edge_handle_opacity" formatted="false">把手不透明度（5–100%）</string>
+    <string name="edge_bar_thickness">側邊條粗細（dp）</string>
+    <string name="edge_button_diameter">按鈕大小（dp）</string>
+    <string name="edge_column_count">%1$d欄</string>
+    <string name="edge_position_advanced">以座標定位</string>
+    <string name="edge_value_invalid">請檢查數值及允許範圍。</string>
+    <string name="edge_field_invalid">儲存前請檢查「%1$s」。</string>
+    <string name="edge_appearance_intro">在這裡調整大小和位置。點選標題展開其他設定。儲存後變更才會生效。</string>
+    <string name="edge_position_help" formatted="false">輸入X%,Y%（置中為50%,50%）。座標優先於面板位置選項。清空此欄可恢復原來的位置設定。</string>
 </resources>

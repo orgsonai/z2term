@@ -3,11 +3,9 @@ package com.zerotoship.z2term.edge
 import android.text.Editable
 import android.text.TextWatcher
 import android.content.Context
-import android.view.Gravity
 import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.SeekBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -22,22 +20,22 @@ object EdgeAppearanceEditor {
             setBackgroundColor(EdgeSettingsUi.canvas(context))
         }
         val diagram = EdgePanelPreview(context, panel.fields, screenWidth, screenHeight)
-        // The diagram and its rule appear and disappear together; the IME leaves no orphan hairline.
-        val stage = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(EdgeSettingsUi.surface(context))
-            addView(diagram, LinearLayout.LayoutParams(-1, minOf(EdgeEditorUi.dp(context, 140), screenHeight / 5)))
-            addView(EdgeSettingsUi.hairline(context))
-        }
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(outer) { _, insets ->
-            stage.visibility = if (insets.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())) View.GONE else View.VISIBLE
-            insets
-        }
-        outer.addView(stage)
-        val sections = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        outer.addView(ScrollView(context).apply { addView(sections) }, LinearLayout.LayoutParams(-1, 0, 1f))
+        val sections = EdgeSettingsUi.column(context)
+        outer.addView(ScrollView(context).apply {
+            isFillViewport = true
+            addView(sections)
+        }, LinearLayout.LayoutParams(-1, 0, 1f))
         var content = sections
         val entries = linkedMapOf<String, EditText>()
+        val fields = linkedMapOf<String, View>()
+        val labels = linkedMapOf<String, Int>()
+        val inputs = linkedMapOf<String, EditText>()
+        var refreshVisibility: () -> Unit = {}
+        val status = EdgeSettingsUi.caption(context, "").apply {
+            setTextColor(EdgeSettingsUi.danger(context))
+            visibility = View.GONE
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
         val defaults = mapOf("size" to if (panel.handle == "button") "48" else "6",
             "length" to "6", "alpha" to "1", "width" to "360", "height" to "72%",
             "title" to "off", "close" to "off", "tabbar" to "off", "add" to "off", "settings" to "off",
@@ -51,67 +49,38 @@ object EdgeAppearanceEditor {
         val save = EdgeSettingsUi.button(context, context.getString(R.string.edge_save), EdgeSettingsUi.Kind.PRIMARY) {}
         fun values(): Map<String, String> = entries.mapValues { it.value.text.toString().trim() }
         fun update() {
+            refreshVisibility()
             val draft = values()
-            val valid = runCatching {
-                EdgeStore.validatePanel(panel.fields + draft)
-            }.isSuccess
-            save.isEnabled = valid
-            if (valid) runCatching { diagram.update(panel.fields + draft); preview(draft) }.onFailure {
+            val invalid = draft.entries.firstOrNull { (key, value) ->
+                runCatching { EdgeStore.validatePanel(mapOf(key to value)) }.isFailure
+            }
+            inputs.forEach { (key, input) ->
+                val invalidInput = runCatching { EdgeStore.validatePanel(mapOf(key to draft.getValue(key))) }.isFailure
+                input.error = if (invalidInput) context.getString(R.string.edge_value_invalid) else null
+            }
+            val validation = runCatching { EdgeStore.validatePanel(panel.fields + draft) }
+            save.isEnabled = validation.isSuccess
+            status.visibility = if (validation.isSuccess) View.GONE else View.VISIBLE
+            status.text = invalid?.key?.let { key ->
+                context.getString(R.string.edge_field_invalid, labels[key]?.let(context::getString) ?: key)
+            } ?: validation.exceptionOrNull()?.message.orEmpty()
+            if (validation.isSuccess) runCatching {
+                diagram.update(panel.fields + draft); preview(draft)
+            }.onFailure {
                 save.isEnabled = false
-                Toast.makeText(context, it.message, Toast.LENGTH_LONG).show()
+                status.text = it.message
+                status.visibility = View.VISIBLE
             }
         }
-        fun control(key: String, label: Int, low: Int, high: Int, convert: (Int) -> String) {
-            val group = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-            val line = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-            line.addView(TextView(context).apply {
-                text = context.getString(label); textSize = 14f
-                setTextColor(EdgeSettingsUi.foreground(context))
-                setPadding(0, 0, EdgeEditorUi.dp(context, 12), 0)
-            }, LinearLayout.LayoutParams(0, -2, 1f))
-            // The number is the value; the slider only reaches it faster. Keep them on one baseline.
-            val entry = EdgeSettingsUi.field(context).apply {
-                setText(panel.fields[key] ?: defaults.getValue(key))
-                gravity = Gravity.CENTER
-                contentDescription = context.getString(label)
-            }
-            entries[key] = entry
-            line.addView(entry, LinearLayout.LayoutParams(EdgeEditorUi.dp(context, 88), -2))
-            group.addView(line)
-            fun sliderValue(raw: String): Int {
-                val number = raw.removeSuffix("%").toFloatOrNull() ?: return low
-                if (!number.isFinite()) return low
-                val value = when {
-                    key == "alpha" -> number * 100
-                    key in listOf("width", "height") && !raw.endsWith("%") ->
-                        number * context.resources.displayMetrics.density * 100 /
-                            (if (key == "width") screenWidth else screenHeight).coerceAtLeast(1)
-                    else -> number
-                }
-                return value.toInt().coerceIn(low, high)
-            }
-            val slider = EdgeSettingsUi.dress(context, SeekBar(context).apply {
-                min = low; max = high
-                progress = sliderValue(entry.text.toString())
-                contentDescription = context.getString(label)
-            })
-            slider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onStartTrackingTouch(bar: SeekBar?) = Unit
-                override fun onStopTrackingTouch(bar: SeekBar?) = Unit
-                override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    if (fromUser) entry.setText(convert(progress))
-                }
-            })
-            entry.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-                override fun afterTextChanged(s: Editable?) {
-                    slider.progress = sliderValue(s.toString().trim())
-                    update()
-                }
-            })
-            group.addView(slider)
-            content.addView(group, LinearLayout.LayoutParams(-1, -2).apply {
+        fun control(key: String, label: Int, low: Int, high: Int) {
+            val field = EdgeAppearanceValue(context, key, label,
+                panel.fields[key] ?: defaults.getValue(key), low, high,
+                if (key == "width") screenWidth else screenHeight, ::update)
+            entries[key] = field.value
+            inputs[key] = field.input
+            fields[key] = field.view
+            labels[key] = label
+            content.addView(field.view, LinearLayout.LayoutParams(-1, -2).apply {
                 bottomMargin = EdgeEditorUi.dp(context, 10)
             })
         }
@@ -121,7 +90,12 @@ object EdgeAppearanceEditor {
                 contentDescription = context.getString(label)
             }
             entries[key] = input
-            EdgeSettingsUi.labeled(context, content, context.getString(label), input)
+            labels[key] = label
+            inputs[key] = input
+            val group = EdgeSettingsUi.column(context)
+            fields[key] = group
+            EdgeSettingsUi.labeled(context, group, context.getString(label), input)
+            content.addView(group)
             input.addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
@@ -129,13 +103,16 @@ object EdgeAppearanceEditor {
             })
         }
         fun choice(key: String, label: Int, options: List<String>, names: List<Int>) {
+            labels[key] = label
             if (options == listOf("off", "on")) {
                 val input = EditText(context).apply { setText(panel.fields[key] ?: defaults.getValue(key)) }
                 entries[key] = input
-                content.addView(EdgeSettingsUi.toggleRow(context, context.getString(label),
+                val toggle = EdgeSettingsUi.toggleRow(context, context.getString(label),
                     input.text.toString() == "on") { checked ->
                     input.setText(if (checked) "on" else "off"); update()
-                }, LinearLayout.LayoutParams(-1, -2))
+                }
+                fields[key] = toggle
+                content.addView(toggle, LinearLayout.LayoutParams(-1, -2))
                 return
             }
             val input = EditText(context).apply { setText(panel.fields[key] ?: defaults.getValue(key)) }
@@ -143,7 +120,9 @@ object EdgeAppearanceEditor {
             val picker = EdgeSettingsUi.dress(context, android.widget.Spinner(context))
             picker.contentDescription = context.getString(label)
             picker.adapter = android.widget.ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
-                names.map { context.getString(it) })
+                names.mapIndexed { index, name ->
+                    if (key == "columns" && index > 0) context.getString(name, index) else context.getString(name)
+                })
             picker.setSelection(options.indexOf(input.text.toString()).coerceAtLeast(0))
             picker.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
@@ -151,7 +130,10 @@ object EdgeAppearanceEditor {
                     if (input.text.toString() != options[position]) { input.setText(options[position]); update() }
                 }
             }
-            EdgeSettingsUi.labeled(context, content, context.getString(label), picker)
+            val group = EdgeSettingsUi.column(context)
+            fields[key] = group
+            EdgeSettingsUi.labeled(context, group, context.getString(label), picker)
+            content.addView(group)
         }
         fun help(message: Int) {
             content.addView(EdgeSettingsUi.note(context, context.getString(message)),
@@ -160,6 +142,43 @@ object EdgeAppearanceEditor {
                 })
         }
         val onOff = listOf(R.string.edge_option_off, R.string.edge_option_on)
+        content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_size), expanded = true)
+        help(R.string.edge_appearance_intro)
+        content.addView(diagram, LinearLayout.LayoutParams(-1, EdgeEditorUi.dp(context, 160)))
+        control("width", R.string.edge_panel_width, 1, 100)
+        control("height", R.string.edge_panel_height, 1, 100)
+        choice("fit", R.string.edge_fit, listOf("content", "fixed"), listOf(R.string.edge_fit_content, R.string.edge_fit_fixed))
+        choice("place", R.string.edge_place, listOf("handle", "left", "right", "top", "bottom", "center"),
+            listOf(R.string.edge_place_handle, R.string.edge_place_left, R.string.edge_place_right, R.string.edge_place_top, R.string.edge_place_bottom, R.string.edge_place_center))
+        val placement = content
+        content = EdgeSettingsUi.fold(context, placement, context.getString(R.string.edge_position_advanced))
+        help(R.string.edge_position_help)
+        entry("at", R.string.edge_at)
+        content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_items))
+        choice("labels", R.string.edge_show_labels, listOf("", "on", "off"), listOf(R.string.edge_option_auto, R.string.edge_option_on, R.string.edge_option_off))
+        choice("flow", R.string.edge_flow, listOf("", "vertical", "horizontal", "grid", "free"),
+            listOf(R.string.edge_option_auto, R.string.edge_flow_vertical, R.string.edge_flow_horizontal, R.string.edge_flow_grid, R.string.edge_flow_free))
+        choice("columns", R.string.edge_columns, listOf("auto") + (1..16).map { it.toString() },
+            listOf(R.string.edge_option_auto) + (1..16).map { R.string.edge_column_count })
+        control("icon-size", R.string.edge_icon_size, 16, 192)
+        content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_handle))
+        choice("handle", R.string.edge_handle_kind, listOf("off", "bar", "button"),
+            listOf(R.string.edge_option_off, R.string.edge_handle_bar, R.string.edge_handle_button))
+        choice("side", R.string.edge_handle_side, listOf("left", "right"), listOf(R.string.edge_place_left, R.string.edge_place_right))
+        choice("bar-color", R.string.edge_bar_color, listOf("auto", "white", "black"),
+            listOf(R.string.edge_option_auto, R.string.theme_color_white, R.string.theme_color_black))
+        val barHelp = content
+        content = EdgeSettingsUi.column(context)
+        val barExplanation = content
+        barHelp.addView(content)
+        help(R.string.edge_bar_color_help)
+        content = barHelp
+        control("size", R.string.edge_adjust_size, 2, 96)
+        control("length", R.string.edge_adjust_length, 1, 100)
+        control("alpha", R.string.edge_handle_opacity, 5, 100)
+        control("offset", R.string.edge_handle_offset, 0, 100)
+        control("x", R.string.edge_handle_x, 0, 100)
+        control("y", R.string.edge_handle_y, 0, 100)
         content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_controls))
         choice("title", R.string.edge_show_title, listOf("off", "on"), onOff)
         choice("close", R.string.edge_show_close, listOf("off", "on"), onOff)
@@ -168,32 +187,6 @@ object EdgeAppearanceEditor {
         choice("settings", R.string.edge_show_settings, listOf("off", "on"), onOff)
         choice("tools-place", R.string.edge_tools_place, listOf("", "top", "bottom"),
             listOf(R.string.edge_option_auto, R.string.edge_place_top, R.string.edge_place_bottom))
-        content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_size), expanded = true)
-        control("width", R.string.edge_adjust_width, 1, 100) { "$it%" }
-        control("height", R.string.edge_adjust_height, 1, 100) { "$it%" }
-        choice("fit", R.string.edge_fit, listOf("content", "fixed"), listOf(R.string.edge_fit_content, R.string.edge_fit_fixed))
-        choice("place", R.string.edge_place, listOf("handle", "left", "right", "top", "bottom", "center"),
-            listOf(R.string.edge_place_handle, R.string.edge_place_left, R.string.edge_place_right, R.string.edge_place_top, R.string.edge_place_bottom, R.string.edge_place_center))
-        entry("at", R.string.edge_at)
-        content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_items))
-        choice("labels", R.string.edge_show_labels, listOf("", "on", "off"), listOf(R.string.edge_option_auto, R.string.edge_option_on, R.string.edge_option_off))
-        choice("flow", R.string.edge_flow, listOf("", "vertical", "horizontal", "grid", "free"),
-            listOf(R.string.edge_option_auto, R.string.edge_flow_vertical, R.string.edge_flow_horizontal, R.string.edge_flow_grid, R.string.edge_flow_free))
-        entry("columns", R.string.edge_columns)
-        control("icon-size", R.string.edge_icon_size, 16, 192) { it.toString() }
-        content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_handle))
-        choice("handle", R.string.edge_handle_kind, listOf("off", "bar", "button"),
-            listOf(R.string.edge_option_off, R.string.edge_handle_bar, R.string.edge_handle_button))
-        choice("side", R.string.edge_handle_side, listOf("left", "right"), listOf(R.string.edge_place_left, R.string.edge_place_right))
-        choice("bar-color", R.string.edge_bar_color, listOf("auto", "white", "black"),
-            listOf(R.string.edge_option_auto, R.string.theme_color_white, R.string.theme_color_black))
-        help(R.string.edge_bar_color_help)
-        control("size", R.string.edge_adjust_size, 2, 96) { it.toString() }
-        control("length", R.string.edge_adjust_length, 1, 100) { it.toString() }
-        control("alpha", R.string.edge_adjust_alpha, 5, 100) { (it / 100f).toString() }
-        control("offset", R.string.edge_handle_offset, 0, 100) { it.toString() }
-        control("x", R.string.edge_handle_x, 0, 100) { it.toString() }
-        control("y", R.string.edge_handle_y, 0, 100) { it.toString() }
         content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_gestures))
         help(R.string.edge_gestures_help)
         val gestures = content
@@ -211,6 +204,7 @@ object EdgeAppearanceEditor {
                 EdgeActions.Trigger.INWARD -> R.string.edge_trigger_inward
                 EdgeActions.Trigger.OUTWARD -> R.string.edge_trigger_outward
             }
+            labels[trigger.key] = label
             val section = EdgeSettingsUi.section(context, gestures, context.getString(label), sub = true)
             section.addView(EdgeActionEditor.create(context, initial) { draft ->
                 value.setText(draft); update()
@@ -221,15 +215,36 @@ object EdgeAppearanceEditor {
         choice("scroll-how", R.string.edge_scroll_how, listOf("auto", "node", "swipe"),
             listOf(R.string.edge_option_auto, R.string.edge_scroll_how_node, R.string.edge_scroll_how_swipe))
         help(R.string.edge_scroll_how_help)
-        control("gesture-speed", R.string.edge_scroll_speed, 50, 40000) { it.toString() }
-        control("gesture-range", R.string.edge_scroll_range, 32, 2000) { it.toString() }
+        control("gesture-speed", R.string.edge_scroll_speed, 50, 40000)
+        control("gesture-range", R.string.edge_scroll_range, 32, 2000)
         help(R.string.edge_scroll_range_help)
-        control("scroll-x", R.string.edge_scroll_x, 10, 90) { it.toString() }
-        control("scroll-y", R.string.edge_scroll_y, 10, 90) { it.toString() }
+        control("scroll-x", R.string.edge_scroll_x, 10, 90)
+        control("scroll-y", R.string.edge_scroll_y, 10, 90)
         content.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_accessibility_setup)) {
             runCatching { AndroidActions.command(context, listOf("permission")) }
                 .onFailure { Toast.makeText(context, it.message, Toast.LENGTH_LONG).show() }
         }, LinearLayout.LayoutParams(-1, -2))
+        refreshVisibility = {
+            fun show(key: String, visible: Boolean) {
+                fields[key]?.visibility = if (visible) View.VISIBLE else View.GONE
+            }
+            val handle = entries.getValue("handle").text.toString()
+            listOf("side", "bar-color", "length", "offset").forEach { show(it, handle == "bar") }
+            listOf("x", "y").forEach { show(it, handle == "button") }
+            listOf("size", "alpha").forEach { show(it, handle != "off") }
+            barExplanation.visibility = if (handle == "bar") View.VISIBLE else View.GONE
+            val sizeLabel = if (handle == "button") R.string.edge_button_diameter else R.string.edge_bar_thickness
+            ((fields["size"] as? LinearLayout)?.getChildAt(0) as? TextView)?.text = context.getString(sizeLabel)
+            inputs["size"]?.contentDescription = context.getString(sizeLabel)
+            labels["size"] = sizeLabel
+            val flow = entries.getValue("flow").text.toString()
+            val grid = flow == "grid" || flow.isEmpty()
+            show("columns", grid)
+            val tools = entries.getValue("add").text.toString() == "on" || entries.getValue("settings").text.toString() == "on"
+            show("tools-place", tools)
+            // Explicit coordinates take precedence over the placement picker; retain that choice.
+            show("place", entries.getValue("at").text.isBlank())
+        }
         sections.addView(EdgeSettingsUi.hairline(context))
         sections.addView(EdgeSettingsUi.note(context, context.getString(R.string.edge_preview_help)),
             LinearLayout.LayoutParams(-1, -2).apply {
@@ -252,7 +267,12 @@ object EdgeAppearanceEditor {
                 finish()
             }.onFailure { Toast.makeText(context, it.message, Toast.LENGTH_LONG).show() }
         }
+        update()
         outer.addView(EdgeSettingsUi.hairline(context))
+        outer.addView(status.apply {
+            setPadding(EdgeEditorUi.dp(context, EdgeSettingsUi.GUTTER), EdgeEditorUi.dp(context, 6),
+                EdgeEditorUi.dp(context, EdgeSettingsUi.GUTTER), 0)
+        }, LinearLayout.LayoutParams(-1, -2))
         outer.addView(LinearLayout(context).apply {
             setPadding(EdgeEditorUi.dp(context, EdgeSettingsUi.GUTTER), EdgeEditorUi.dp(context, 10),
                 EdgeEditorUi.dp(context, EdgeSettingsUi.GUTTER), EdgeEditorUi.dp(context, 12))
