@@ -64,7 +64,7 @@ minute). **Do not write in style B what style A can express.**
    your script's start command; it then runs without opening the app and after reboot (also turn on
    "auto-start on boot").
 4. Handy tool: install `jq` (JSON parsing). e.g. Alpine `apk add jq` / Debian-family `apt install jq`.
-5. **If you would rather not start from a blank file**: `z2-macro list` shows the 10 bundled samples and
+5. **If you would rather not start from a blank file**: `z2-macro list` shows the 11 bundled samples and
    `z2-macro install <name>` copies one into `~/.z2term/macros/` (`z2-macro install all` for every one).
    ⚠ To keep your edits, **`install` never overwrites**. An app update that fixes a sample therefore does
    not reach a copy you already have: when `z2-macro list` marks one `differs`, read `z2-macro diff <name>`

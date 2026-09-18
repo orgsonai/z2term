@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.628-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.629-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -240,7 +240,7 @@ Settings > Maintenance > **"Show a guide"** puts the steps for using a bundled s
 - The order they appear in is the order to follow. **Tapping a card runs that one line** (anything half-typed is thrown away with `Ctrl-C` first, so nothing mixes in).
 - **The ✕ on the right drops a step you do not need** without sending it. When every card is gone the guide closes.
 - Cards without a command (turn a setting on, install a prerequisite package) are just to read; tapping one removes it.
-- Each row is two lines: **the macro's name and what it does**. Available: `watch-basic` (react to charging and headsets) / `battery-alert` (warn me when the battery drops below a % I pick) / `daily-report` (read out battery and connection every morning) / `otp-clip` (copy one-time codes from notifications) / `otp-sms` (copy one-time codes from SMS) / `unknown-call` (copy phone numbers from call notifications) / `remind` (remind me with a notification) / `rss` (get notified about new feed items and read them) / `qr` (hand something over as a QR code).
+- Each row is two lines: **the macro's name and what it does**. Available: `watch-basic` (react to charging and headsets) / `battery-alert` (warn me when the battery drops below a % I pick) / `daily-report` (read out battery and connection every morning) / `otp-clip` (copy one-time codes from notifications) / `otp-sms` (copy one-time codes from SMS) / `unknown-call` (copy phone numbers from call notifications) / `remind` (remind me with a notification) / `rss` (get notified about new feed items and read them) / `qr` (hand something over as a QR code) / `md` (read Markdown).
 - `edge-workspace` creates one sample panel with Notepad, Translation and Terminal tabs. The guide includes manual translation-command installation and bundled macro setup. [Steps](EDGE-MACRO-FORMS.md#one-sample-with-three-tabs).
 - **A step that needs a value of yours asks first** (feed URL, polling interval, time of day, battery threshold, the text for a QR). It will not send an empty answer — this keeps the example values from being registered as they are.
 - ⚠ **`watch-basic` registers two triggers** (`event:power_*` for charging, `event:headset_*` for headsets). The app does the waiting, so it runs the moment you plug or unplug — no resident server needed. The last step is `Z2_WHEN_EVENT=power_connected sh …`, which **pretends charging just started** so you can check it.
@@ -899,6 +899,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
+**0.8.629-alpha (versionCode 637) — build unverified**: A new bundled sample macro, `md.sh`, reads Markdown here on the terminal (the eleventh). `md.sh README.md` lays out headings, lists, tables, code and quotes on the screen; links stay tappable and pictures appear in place inside a tab (`z2-img`). `md.sh -v README.md` opens it in the reading screen (`z2-view`) added in 0.8.628. **Nothing to install** — `sh` and `awk` are enough. Lines wrap to the width of the screen and never start with a closing punctuation mark; a table too wide for the screen breaks into "heading: value" lines; and since this terminal does not draw italics, `*emphasis*` is underlined instead (as man does). Install it with `z2-macro install md`.
+
 **0.8.628-alpha (versionCode 636) — build unverified**: New `z2-view` reads a page you built on the terminal **inside the app** — no server, no browser. `rss.sh` now writes such a page on every poll (the user's report: "following RSS through notifications is hard to read"). Notifications stay as they were, with a second button: Open sends that article to the browser, List opens everything collected, grouped by site, with an Open button on each article. From the terminal it is `rss.sh view`. The page is shown with JavaScript and network loads switched off, and follows the terminal's colours.
 
 **0.8.627-alpha (versionCode 635) — build unverified**: Edge-panel scrolling no longer touches the screen by default. It used to send a real swipe, which an app cannot tell apart from your finger, so on screens where swiping does something that action ran instead, and a stroke across a keyboard could type (the user's report: "the gesture types characters by itself — it is dangerous"). ⇒ it now asks the scrollable view directly and only falls back to a swipe where the app offers nothing scrollable. Appearance → Gestures → How to scroll offers **Automatic / Do not touch the screen / Send a swipe** (`scroll-how=auto|node|swipe` from the CLI). The scroll target is also picked from the window you are touching: a freeform window may hold no input focus, which left it unscrollable even while in front.
@@ -1267,7 +1269,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-usb list` / `z2-usb allow [number]` | **Use a USB device connected to the phone from Linux** (0.8.425). Run `list`, then `allow`, and approve Android's permission sheet. The number is optional when there is only one device. An ordinary USB-A-to-USB-C adapter works if it carries **data** and the phone supports USB Host/OTG. Permission lasts until the device is unplugged; run `allow` again after reconnecting it. ⚠ This covers dynamically linked programs on z2root that use ordinary `open` / libusb. Statically linked programs and programs issuing the `openat` system call directly bypass the shim and are not covered |
 | `z2-server list\|start\|stop\|status <server>` | Start / stop **a resident server you registered**. ⚠ A daemon started straight from a rule runs **outside the residency frame**, so it stops answering once the screen is off; starting it here puts it inside. `<server>` is the index from `list`, an id, or the name from the app. E.g. `z2-when wifi:connect run 'z2-server start sshd'` |
 | `z2-when <trigger> run <cmd>` | **Automation hub.** Auto-run a command on charge / battery / time / device events (see "Automation hub" below). Also `list` / `remove <id\|all>` / `on\|off <id>` / `log <id>`. **To narrow it down**: `if=` (all of them) / `if_any=` (any one of them, 0.8.372); **to do something else when it does not match**: `else=` (0.8.372). E.g. `z2-when charge:start run ~/.z2term/macros/backup.sh` |
-| `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`diff` / `show` / `run` / `dir` too) — a starting point for your first macro. **`list` shows the state of each one** (`new` / `same` / `differs`; 0.8.332). ⚠ `install` **never overwrites** (your edits are yours). That means a fixed sample never reaches a copy you already have, so `install` tells "the same thing is already installed" apart from "yours differs from the bundled one", and in the latter case points at `z2-macro diff <name>` (look first) and `z2-macro install -f <name>` (replace with the bundled one). ⚠ **`differs` does not mean "out of date"** — your copy can be the one that is ahead (an extension never folded back into the app), so always read the `diff` before you use `-f`. Bundled: `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `unknown-call` / `remind` / `rss` / `rss-open` / `qr`. On install it also tells you **how that script is meant to be run** (drive it with `z2-when` / assign it to a widget button / register it as a resident server). ⚠ **No bundled sample belongs in a resident server** (0.8.338; they all run once and exit from `z2-when` or a button, so residency both restarts them every time they finish and burns battery while idle) |
+| `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`diff` / `show` / `run` / `dir` too) — a starting point for your first macro. **`list` shows the state of each one** (`new` / `same` / `differs`; 0.8.332). ⚠ `install` **never overwrites** (your edits are yours). That means a fixed sample never reaches a copy you already have, so `install` tells "the same thing is already installed" apart from "yours differs from the bundled one", and in the latter case points at `z2-macro diff <name>` (look first) and `z2-macro install -f <name>` (replace with the bundled one). ⚠ **`differs` does not mean "out of date"** — your copy can be the one that is ahead (an extension never folded back into the app), so always read the `diff` before you use `-f`. Bundled: `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `unknown-call` / `remind` / `rss` / `rss-open` / `qr` / `md`. On install it also tells you **how that script is meant to be run** (drive it with `z2-when` / assign it to a widget button / register it as a resident server). ⚠ **No bundled sample belongs in a resident server** (0.8.338; they all run once and exit from `z2-when` or a button, so residency both restarts them every time they finish and burns battery while idle) |
 | `z2-update [--check] [--keep] [--dir <folder>]` | **Replace z2term itself with a newer version** (0.8.371). It checks GitHub Releases, and if there is a newer one, downloads the APK and takes you to **the install screen**. ⚠ **The last tap is yours** — Android has no way for an app to replace itself silently. ⚠ The first time it needs "Install unknown apps" (it says so if it is missing). `--check` only looks, `--keep` leaves the APK behind, `--dir` changes where it lands (by default it goes inside the app and is deleted once the update goes through). Settings > App info has the same button and the same two settings. ⚠ **Installed from F-Droid or a store? It refuses** — update it there. e.g. `z2-when time:daily=03:00 run 'z2-update'` |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | Fire an arbitrary Android Intent (launch apps, open settings, set alarms, … see `docs/en/MACRO-GUIDE.md`) |
 
@@ -1434,6 +1436,32 @@ qr.sh -h                             # the full help
 - ⚠ **To scan with a camera, prefer the image or the PNG.** Blocks (`-t`) can leave gaps between rows depending on the font: readable to you, not to the camera.
 - Long input is **split into several codes at line breaks**, numbered `[1/3]`. Scan them in order.
 - If it looks squashed, adjust the ratio: `Z2_QR_ASPECT=0.45 qr.sh "text"` (smaller = taller; default 0.5).
+
+### Read Markdown (0.8.629)
+
+A sample that lays out `README.md` or your own notes **so they can be read here, on the terminal**.
+Nothing to install: `sh` and `awk` are enough.
+
+```sh
+z2-macro install md                  # install it
+
+md.sh README.md                      # render it here, in this terminal
+md.sh -v README.md                   # open it inside the app (z2-view)
+md.sh README.md | less -R            # a long document, a screenful at a time (-R keeps colours)
+cat notes.md | md.sh                 # read from standard input
+md.sh -o page.html README.md         # write the HTML and stop (nothing opens)
+md.sh -h                             # the full help
+```
+
+- Headings, paragraphs, lists (nested, numbered, `[ ]`/`[x]`), quotes, code, tables, rules, links, pictures and front matter (`---`) are handled.
+- **Links can be tapped** (OSC 8). A terminal without it (over `ssh`, say) shows them as text.
+- **Pictures appear in place** (`z2-img`). ⚠ Only inside a tab of this app; anywhere else you get the caption and the path.
+- **Lines wrap to the width of the screen** and never start with a closing punctuation mark. Pick the width with `-w 60`.
+- **A table too wide for the screen breaks into "heading: value" lines**, so it still reads on a phone.
+- **`*emphasis*` is underlined.** This terminal does not draw italics, so otherwise it would look like plain text (`man` does the same).
+- `-v` embeds pictures that are on this device into the page (1.5 MB each at most). ⚠ The reading screen fetches nothing from the network, so `http(s)` pictures stay as their caption.
+- ⚠ **Setext headings (`===` / `---`) and reference links (`[text][1]`) come out as they are written.**
+- If you have rules and arrows set to full width (Settings → ambiguous width), run `Z2_MD_AMBIWIDTH=2 md.sh README.md` so the table columns line up.
 
 ### Automation hub (`z2-when`)
 

@@ -635,6 +635,38 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         append(qrBody(d, t))
     }
 
+    // --- 11. 実用: Markdown を読む (端末に整形して出す / アプリの読み物画面で開く) ---
+    val md = buildString {
+        appendLine("#!/bin/sh")
+        t.lines(
+            en = listOf(
+            "# md.sh — read a Markdown file here, formatted, or open it inside the app.",
+                "# Headings, lists, tables, code, links; pictures show in place. Runs once, no residency.",
+            ),
+            ja = listOf(
+            "# md.sh — Markdown をこの端末に整形して出す / アプリの読み物画面で開く。",
+                "# 見出し・箇条書き・表・コード・リンクを整え、絵は本文の位置に出す。常駐しない使い切り。",
+            ),
+            "zh-CN" to listOf(
+                "# md.sh — 把 Markdown 在这里排好版显示，或者在应用里打开来读。",
+                "# 标题、列表、表格、代码、链接都排好，图片就在正文的位置显示。跑一次就结束，不常驻。",
+            ),
+            "zh-TW" to listOf(
+                "# md.sh — 把 Markdown 在這裡排好版顯示，或者在應用程式裡開啟來讀。",
+                "# 標題、清單、表格、程式碼、連結都排好，圖片就在正文的位置顯示。跑一次就結束，不常駐。",
+            ),
+            "es" to listOf(
+                "# md.sh — lee aquí un archivo Markdown ya formateado, o ábrelo dentro de la aplicación.",
+                "# Títulos, listas, tablas, código y enlaces; las imágenes salen en su sitio. Corre una vez.",
+            ),
+            "ko" to listOf(
+                "# md.sh — Markdown을 이 터미널에 보기 좋게 내보내거나 앱의 읽기 화면에서 엽니다.",
+                "# 제목·목록·표·코드·링크를 정리하고, 그림은 본문 자리에 나옵니다. 한 번 돌고 끝납니다.",
+            )
+        ).forEach { appendLine(it) }
+        append(mdBody(d, t))
+    }
+
     return linkedMapOf(
         "watch-basic.sh" to watchBasic,
         "battery-alert.sh" to batteryAlert,
@@ -647,6 +679,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         "rss.sh" to rss,
         "rss-open.sh" to rssOpen,
         "qr.sh" to qr,
+        "md.sh" to md,
     )
 }
 
@@ -3923,5 +3956,1457 @@ while [ "${d}i" -le "${d}pieces" ]; do
 done
 
 exit "${d}failed"
+"""
+}
+
+/**
+ * Markdown を読むサンプルの本体。
+ *
+ * **アプリ側に「文書ビューア」を作らないための見本**でもある (rss.sh / remind.sh と同じ立ち位置)。
+ * 必要な部品はすでに全部ある — 折り返しと色は端末が、リンクは OSC 8 が、絵は kitty graphics
+ * (`z2-img`) が、頁として読むのは `z2-view` が引き受ける。ここが足していないのは
+ * **Markdown を解く 1 本の awk** だけで、用途限定の画面は 1 枚も増えない。
+ *
+ * 設計上の要点:
+ *  - **追加インストールを要らなくする**。読むだけの道具に `pacman -S` を要求すると、
+ *    タブ (distro) を作り直すたびに入れ直しになる。`sh` と `awk` だけで書く
+ *    (qr.sh が `qrencode` を、rss.sh が `python3` を要るのとは事情が違う —
+ *    あちらは符号化と XML 解析という「自分で書くと必ず壊れる」処理が中身)。
+ *  - **端末と読み物画面で同じ解析を使う** (`mode=ansi|html`)。2 本に分けると、
+ *    表の桁がずれる・引用が抜けるといった違いが**片方だけ**に出て気付けない。
+ *  - **見た目の桁は自分で数える**。`LC_ALL=C` でバイト列として扱い、幅の判定は
+ *    アプリの `EastAsianWidth` と同じ範囲にそろえる。awk 任せ (`length()`) だと、
+ *    gawk は文字数・busybox はバイト数を返すので、同じ表が端末ごとに崩れる。
+ *  - **折り返しの残り桁は測り直す**。引き算で出すと、行末ちょうどに空白が来たとき
+ *    -1 になって次の行が 1 桁はみ出す (実際に踏んだ)。
+ *  - **awk はファイルに書いて `-f` で渡す**。引数で渡すと gawk が 4096 バイト境界に
+ *    またがった多バイト文字でプログラムを打ち切る (これも実際に踏んだ)。
+ *  - **斜体は下線で出す**。端末が SGR 3 を描かないので、`*強調*` が素の字と区別できない。
+ *    man と同じ逃げ方をする。⚠ 端末が斜体を描くようになったらここを戻すこと。
+ */
+private fun mdBody(d: String, t: CliText): String {
+    // ⚠ 先頭の改行を落とす。`#!/bin/sh` と説明の間に**空行を作らない**ため (qr.sh と同じ)。
+    val head = (t(
+        en = """
+#
+# Usage:
+#   md.sh README.md                render it here, in this terminal
+#   md.sh -v README.md             open it inside the app (z2-view)
+#   cat notes.md | md.sh           read from standard input
+#   md.sh -o page.html README.md   write the HTML and stop (nothing opens)
+#
+# z2-run: md.sh README.md   (after installing, the name alone works. Runs once)
+#
+# Options:
+#   -v        open it inside the app (z2-view)
+#   -o FILE   write the HTML there. Nothing is shown here
+#   -w N      wrap at N columns (default: the width of the screen, up to 100)
+#   -p        no colour and no decoration (plain text)
+#   -t TITLE  title for the reading screen (default: the first heading, else the file name)
+#   -h        this help
+#
+# A long document, a screenful at a time: md.sh README.md | less -R   (-R keeps the colours)
+#
+# Nothing to install: sh and awk are enough.
+# Headings, paragraphs, lists (nested, numbered, [ ]/[x]), quotes, code, tables,
+# rules, links, pictures and front matter (---) are handled. WARNING setext headings
+# (=== / ---) and reference links ([text][1]) come out as they are written.
+#
+# What to expect:
+#   - Pictures appear in place only inside a tab of this app (drawn with kitty
+#     graphics through z2-img). Over ssh you get the caption and the path instead.
+#   - Links can be tapped (OSC 8). A terminal without it shows them as text.
+#   - This terminal does not draw italics, so *emphasis* is underlined (as man does).
+#   - A table too wide for the screen is broken into "heading: value" lines.
+#   - -v embeds pictures that are on this device into the page (1.5 MB each at most).
+#     The reading screen fetches nothing from the network, so http(s) pictures
+#     stay as their caption.
+""",
+        ja = """
+#
+# 使い方:
+#   md.sh README.md                この端末に整形して出す
+#   md.sh -v README.md             アプリの読み物画面で開く (z2-view)
+#   cat notes.md | md.sh           標準入力から読む
+#   md.sh -o page.html README.md   HTML に書き出すだけ (開かない)
+#
+# z2-run: md.sh README.md   (入れた後は名前だけで打てる。常駐させない使い切り)
+#
+# オプション:
+#   -v        アプリの読み物画面で開く (z2-view)
+#   -o FILE   HTML を書き出す。画面には出さない
+#   -w N      折り返す桁数 (既定: 画面の幅。最大 100)
+#   -p        色も飾りも付けない (ただの文字)
+#   -t 題名   読み物画面の題名 (既定: 最初の見出し、無ければファイル名)
+#   -h        この説明
+#
+# 長い文書を少しずつ読む: md.sh README.md | less -R   (-R で色が通る)
+#
+# 追加で入れるものはありません。sh と awk だけで動きます。
+# 見出し・段落・箇条書き (入れ子・番号・[ ]/[x])・引用・コード・表・区切り線・
+# リンク・画像・頭書き (---) に対応します。⚠ 見出しの下線書き (=== / ---) と
+# 参照リンク ([文字][1]) は、書いたままの字で出ます。
+#
+# 見え方について:
+#   - 絵が本文の位置に出るのはこのアプリのタブの中だけです (kitty graphics で
+#     z2-img が描きます)。ssh で入った先では説明とパスだけになります。
+#   - リンクは押せます (OSC 8)。対応しない端末では文字のままです。
+#   - この端末は斜体を描かないので、*強調* は下線で出します (man と同じ)。
+#   - 画面の幅に入らない表は「見出し: 中身」の並びに崩します。
+#   - -v は端末にある絵を頁へ埋め込みます (1 枚 1.5MB まで)。読み物画面は外へ
+#     取りに行かないので、http(s) の絵は説明だけになります。
+""",
+        "zh-CN" to """
+#
+# 用法:
+#   md.sh README.md                在这个终端里排好版显示
+#   md.sh -v README.md             在应用里打开来读 (z2-view)
+#   cat notes.md | md.sh           从标准输入读
+#   md.sh -o page.html README.md   只写出 HTML (不打开)
+#
+# z2-run: md.sh README.md   (装好之后只写名字就行。跑一次就结束)
+#
+# 选项:
+#   -v        在应用里打开来读 (z2-view)
+#   -o FILE   把 HTML 写到这里。画面上不显示
+#   -w N      按 N 列折行 (默认: 画面宽度，最多 100)
+#   -p        不上色也不加装饰 (纯文字)
+#   -t 标题   阅读画面的标题 (默认: 第一个标题，没有就用文件名)
+#   -h        这个说明
+#
+# 长文一屏一屏地读: md.sh README.md | less -R   (-R 才能保留颜色)
+#
+# 不需要另外安装: 有 sh 和 awk 就够了。
+# 支持标题、段落、列表 (嵌套、编号、[ ]/[x])、引用、代码、表格、分隔线、
+# 链接、图片和开头的 --- 头信息。⚠ 下划线式标题 (=== / ---) 和
+# 引用式链接 ([文字][1]) 会按原样显示。
+#
+# 关于显示:
+#   - 图片只有在这个应用的标签页里才会显示在正文的位置 (用 kitty graphics，
+#     由 z2-img 画)。通过 ssh 连到别处时，只会看到说明和路径。
+#   - 链接可以点 (OSC 8)。不支持的终端上就是普通文字。
+#   - 这个终端不画斜体，所以 *强调* 用下划线表示 (和 man 一样)。
+#   - 放不进画面宽度的表格会拆成“表头: 内容”的样子。
+#   - -v 会把本机上的图片嵌进页面 (每张最多 1.5MB)。阅读画面不会去网上取，
+#     所以 http(s) 的图片只留下说明。
+""",
+        "zh-TW" to """
+#
+# 用法:
+#   md.sh README.md                在這個終端機裡排好版顯示
+#   md.sh -v README.md             在應用程式裡開啟來讀 (z2-view)
+#   cat notes.md | md.sh           從標準輸入讀
+#   md.sh -o page.html README.md   只寫出 HTML (不開啟)
+#
+# z2-run: md.sh README.md   (裝好之後只寫名字就行。跑一次就結束)
+#
+# 選項:
+#   -v        在應用程式裡開啟來讀 (z2-view)
+#   -o FILE   把 HTML 寫到這裡。畫面上不顯示
+#   -w N      按 N 欄折行 (預設: 畫面寬度，最多 100)
+#   -p        不上色也不加裝飾 (純文字)
+#   -t 標題   閱讀畫面的標題 (預設: 第一個標題，沒有就用檔案名)
+#   -h        這個說明
+#
+# 長文一頁一頁地讀: md.sh README.md | less -R   (-R 才能保留顏色)
+#
+# 不需要另外安裝: 有 sh 和 awk 就夠了。
+# 支援標題、段落、清單 (巢狀、編號、[ ]/[x])、引用、程式碼、表格、分隔線、
+# 連結、圖片和開頭的 --- 頭資訊。⚠ 底線式標題 (=== / ---) 和
+# 參照式連結 ([文字][1]) 會按原樣顯示。
+#
+# 關於顯示:
+#   - 圖片只有在這個應用程式的分頁裡才會顯示在正文的位置 (用 kitty graphics，
+#     由 z2-img 畫)。透過 ssh 連到別處時，只會看到說明和路徑。
+#   - 連結可以按 (OSC 8)。不支援的終端機上就是普通文字。
+#   - 這個終端機不畫斜體，所以 *強調* 用底線表示 (和 man 一樣)。
+#   - 放不進畫面寬度的表格會拆成「表頭: 內容」的樣子。
+#   - -v 會把本機上的圖片嵌進頁面 (每張最多 1.5MB)。閱讀畫面不會去網路上取，
+#     所以 http(s) 的圖片只留下說明。
+""",
+        "es" to """
+#
+# Uso:
+#   md.sh README.md                lo formatea y lo muestra aquí
+#   md.sh -v README.md             lo abre dentro de la aplicación (z2-view)
+#   cat notes.md | md.sh           lee de la entrada estándar
+#   md.sh -o page.html README.md   solo escribe el HTML (no abre nada)
+#
+# z2-run: md.sh README.md   (una vez instalada, basta el nombre. Corre una vez)
+#
+# Opciones:
+#   -v        lo abre dentro de la aplicación (z2-view)
+#   -o FILE   escribe ahí el HTML. No muestra nada aquí
+#   -w N      corta las líneas a N columnas (por defecto: el ancho de la pantalla, hasta 100)
+#   -p        sin color ni adornos (texto tal cual)
+#   -t TÍTULO título de la pantalla de lectura (por defecto: el primer encabezado, si no el nombre)
+#   -h        esta ayuda
+#
+# Un documento largo, pantalla a pantalla: md.sh README.md | less -R   (-R conserva el color)
+#
+# No hay que instalar nada: con sh y awk basta.
+# Admite encabezados, párrafos, listas (anidadas, numeradas, [ ]/[x]), citas, código,
+# tablas, filetes, enlaces, imágenes y el encabezamiento --- del principio.
+# ATENCIÓN los encabezados subrayados (=== / ---) y los enlaces por referencia
+# ([texto][1]) salen tal y como están escritos.
+#
+# Qué esperar:
+#   - Las imágenes salen en su sitio solo dentro de una pestaña de esta aplicación
+#     (las dibuja z2-img con kitty graphics). Por ssh verás el pie y la ruta.
+#   - Los enlaces se pueden tocar (OSC 8). Un terminal sin eso los muestra como texto.
+#   - Este terminal no dibuja cursiva, así que *el énfasis* va subrayado (como en man).
+#   - Una tabla que no cabe se despliega en líneas «encabezado: valor».
+#   - -v incrusta en la página las imágenes que están en el dispositivo (1,5 MB cada una).
+#     La pantalla de lectura no descarga nada, así que las de http(s) quedan como pie.
+""",
+        "ko" to """
+#
+# 사용법:
+#   md.sh README.md                이 터미널에 보기 좋게 내보냅니다
+#   md.sh -v README.md             앱 안에서 엽니다 (z2-view)
+#   cat notes.md | md.sh           표준 입력에서 읽습니다
+#   md.sh -o page.html README.md   HTML만 씁니다 (열지 않음)
+#
+# z2-run: md.sh README.md   (설치한 뒤에는 이름만으로 됩니다. 한 번 돌고 끝)
+#
+# 옵션:
+#   -v        앱 안에서 엽니다 (z2-view)
+#   -o FILE   HTML을 거기에 씁니다. 화면에는 내보내지 않습니다
+#   -w N      N칸에서 줄을 바꿉니다 (기본: 화면 너비, 최대 100)
+#   -p        색도 장식도 없이 (그냥 글자)
+#   -t 제목   읽기 화면의 제목 (기본: 첫 제목, 없으면 파일 이름)
+#   -h        이 설명
+#
+# 긴 문서를 한 화면씩: md.sh README.md | less -R   (-R 이라야 색이 지나갑니다)
+#
+# 따로 설치할 것은 없습니다. sh 와 awk 면 됩니다.
+# 제목·문단·목록(중첩·번호·[ ]/[x])·인용·코드·표·구분선·링크·그림과
+# 맨 앞의 --- 머리말을 다룹니다. ⚠ 밑줄식 제목(=== / ---)과
+# 참조 링크([글자][1])는 쓴 그대로 나옵니다.
+#
+# 어떻게 보이는지:
+#   - 그림이 본문 자리에 나오는 것은 이 앱의 탭 안에서만입니다 (kitty graphics로
+#     z2-img가 그립니다). ssh로 들어간 곳에서는 설명과 경로만 나옵니다.
+#   - 링크는 누를 수 있습니다 (OSC 8). 지원하지 않는 터미널에서는 글자 그대로입니다.
+#   - 이 터미널은 이탤릭을 그리지 않으므로 *강조* 는 밑줄로 냅니다 (man과 같습니다).
+#   - 화면 너비에 안 들어가는 표는 "제목: 내용" 형태로 풀어서 냅니다.
+#   - -v 는 기기에 있는 그림을 페이지에 박아 넣습니다 (한 장 1.5MB까지). 읽기 화면은
+#     네트워크에서 아무것도 가져오지 않으므로 http(s) 그림은 설명만 남습니다.
+"""
+    )).trimStart('\n')
+
+    val cCollect = t(
+        en = "# Gather the input (several files become one read, in the order given).",
+        ja = "# 入力をまとめる (複数のファイルは続けて 1 つの読み物にする)。",
+        "zh-CN" to "# 把输入合起来 (给了多个文件就按顺序接成一篇)。",
+        "zh-TW" to "# 把輸入合起來 (給了多個檔案就按順序接成一篇)。",
+        "es" to "# Reúne la entrada (varios archivos se encadenan en una sola lectura).",
+        "ko" to "# 입력을 모읍니다 (여러 파일은 준 순서대로 이어 붙여 한 편으로 만듭니다)."
+    )
+    val cTitle = t(
+        en = "# Title: -t, else the first # heading, else the file name",
+        ja = "# 題名: -t → 最初の # 見出し → ファイル名",
+        "zh-CN" to "# 标题: -t → 第一个 # 标题 → 文件名",
+        "zh-TW" to "# 標題: -t → 第一個 # 標題 → 檔案名",
+        "es" to "# Título: -t, si no el primer encabezado #, si no el nombre del archivo",
+        "ko" to "# 제목: -t → 첫 번째 # 제목 → 파일 이름"
+    )
+    val cWidth = t(
+        en = "# The width of the screen",
+        ja = "# 画面の幅",
+        "zh-CN" to "# 画面的宽度",
+        "zh-TW" to "# 畫面的寬度",
+        "es" to "# El ancho de la pantalla",
+        "ko" to "# 화면의 너비"
+    )
+    val cColorEnv = t(
+        en = "# A way out when the colours should (or should not) go down a pipe, e.g. into a pager",
+        ja = "# パイプの先 (ページャなど) へ色を送りたいとき / 送りたくないときの逃げ道",
+        "zh-CN" to "# 想把颜色送进管道 (比如分页器)、或者不想送时的出口",
+        "zh-TW" to "# 想把顏色送進管道 (比如分頁器)、或者不想送時的出口",
+        "es" to "# Salida para cuando el color sí (o no) debe pasar por una tubería, p. ej. a un paginador",
+        "ko" to "# 색을 파이프(페이저 등)로 보내고 싶을 때 / 보내고 싶지 않을 때의 도피구"
+    )
+    val cImgWhere = t(
+        en = "# A picture can only appear in place inside a tab (kitty graphics) with z2-img present.",
+        ja = "# 絵を本文の位置に出せるのは、タブの中 (kitty graphics) で z2-img があるときだけ。",
+        "zh-CN" to "# 只有在标签页里 (kitty graphics) 并且装了 z2-img 时，图片才能出现在正文的位置。",
+        "zh-TW" to "# 只有在分頁裡 (kitty graphics) 並且有 z2-img 時，圖片才能出現在正文的位置。",
+        "es" to "# Una imagen solo sale en su sitio dentro de una pestaña (kitty graphics) y con z2-img.",
+        "ko" to "# 그림이 본문 자리에 나오는 것은 탭 안(kitty graphics)에 z2-img가 있을 때뿐입니다."
+    )
+    val cAmbi = t(
+        en = "# How wide to count ambiguous characters (rules, arrows, circled digits). Use\n" +
+            "# Z2_MD_AMBIWIDTH=2 if Settings has them as full width. Default 1, as the app does.",
+        ja = "# 曖昧幅 (罫線・矢印・丸数字) をいくつと数えるか。⚙設定の「曖昧幅」を全角にしている\n" +
+            "# 人は Z2_MD_AMBIWIDTH=2。既定はアプリの既定と同じ 1。",
+        "zh-CN" to "# 模糊宽度的字符 (制表线、箭头、带圈数字) 算几列。在 ⚙设置里把“模糊宽度”\n" +
+            "# 设成全角的人请用 Z2_MD_AMBIWIDTH=2。默认和应用一样是 1。",
+        "zh-TW" to "# 模糊寬度的字元 (製表線、箭頭、帶圈數字) 算幾欄。在 ⚙設定裡把「模糊寬度」\n" +
+            "# 設成全形的人請用 Z2_MD_AMBIWIDTH=2。預設和應用程式一樣是 1。",
+        "es" to "# Cuánto miden los caracteres ambiguos (filetes, flechas, dígitos en círculo). Usa\n" +
+            "# Z2_MD_AMBIWIDTH=2 si en Ajustes están como ancho completo. Por defecto 1, como la app.",
+        "ko" to "# 애매한 너비의 문자(괘선·화살표·동그라미 숫자)를 몇 칸으로 셀지. 설정에서\n" +
+            "# '애매한 너비'를 전각으로 둔 사람은 Z2_MD_AMBIWIDTH=2. 기본값은 앱과 같은 1."
+    )
+    val cAwkFile = t(
+        en = "# WARNING the awk program is written to a FILE and handed over with -f. Passed as an\n" +
+            "#   argument instead, gawk cuts the program where a multibyte character (like the\n" +
+            "#   Japanese in these notes) straddles its 4096-byte read boundary, and dies with\n" +
+            "#   \"unexpected newline or end of string\".",
+        ja = "# ⚠ awk の本体は**ファイルに書いて -f で渡す**。引数として渡すと、gawk が\n" +
+            "#   4096 バイトごとに読む境界に多バイト文字 (この註釈のような日本語) がまたがったとき\n" +
+            "#   そこでプログラムが切れたことにされ、「unexpected newline or end of string」で落ちる。",
+        "zh-CN" to "# ⚠ awk 的本体要**写成文件用 -f 传**。当成参数传的话，多字节字符 (比如这段\n" +
+            "#   注释里的日文) 一旦跨过 gawk 每 4096 字节的读取边界，程序就会被当成到此为止，\n" +
+            "#   然后以 “unexpected newline or end of string” 报错退出。",
+        "zh-TW" to "# ⚠ awk 的本體要**寫成檔案用 -f 傳**。當成參數傳的話，多位元組字元 (比如這段\n" +
+            "#   註解裡的日文) 一旦跨過 gawk 每 4096 位元組的讀取邊界，程式就會被當成到此為止，\n" +
+            "#   然後以「unexpected newline or end of string」報錯結束。",
+        "es" to "# ATENCIÓN el programa awk se escribe en un ARCHIVO y se pasa con -f. Si se pasa como\n" +
+            "#   argumento, gawk lo corta donde un carácter multibyte (como el japonés de estas\n" +
+            "#   notas) cruza su límite de lectura de 4096 bytes, y muere con\n" +
+            "#   \"unexpected newline or end of string\".",
+        "ko" to "# ⚠ awk 본체는 **파일에 써서 -f 로 넘깁니다**. 인수로 넘기면, 다바이트 문자(이 주석의\n" +
+            "#   일본어 같은)가 gawk가 4096바이트마다 읽는 경계에 걸쳤을 때 프로그램이 거기서\n" +
+            "#   끝난 것으로 취급되어 \"unexpected newline or end of string\" 으로 죽습니다."
+    )
+    val cInlineImg = t(
+        en = "# Embed the pictures into the page for the reading screen, as data: URIs.\n" +
+            "# WARNING z2-view fetches nothing from the network (JavaScript and loads are off), so\n" +
+            "#   a picture that is not embedded simply does not appear. 4 MB for the whole page.",
+        ja = "# 読み物画面用の HTML に、絵を data: URI として埋め込む。\n" +
+            "# ⚠ z2-view は外の絵を取りに行かない (JavaScript も通信も切ってある) ので、\n" +
+            "#   埋め込まないと絵は出ない。頁全体で 4MB まで。",
+        "zh-CN" to "# 给阅读画面用的 HTML 里，把图片以 data: URI 的形式嵌进去。\n" +
+            "# ⚠ z2-view 不会去网上取图 (JavaScript 和对外通信都关着)，所以不嵌进去\n" +
+            "#   图片就不会出现。整页最多 4MB。",
+        "zh-TW" to "# 給閱讀畫面用的 HTML 裡，把圖片以 data: URI 的形式嵌進去。\n" +
+            "# ⚠ z2-view 不會去網路上取圖 (JavaScript 和對外連線都關著)，所以不嵌進去\n" +
+            "#   圖片就不會出現。整頁最多 4MB。",
+        "es" to "# Incrusta las imágenes en la página de lectura como URI data:.\n" +
+            "# ATENCIÓN z2-view no descarga nada (JavaScript y cargas están apagados), así que una\n" +
+            "#   imagen sin incrustar simplemente no aparece. 4 MB para la página entera.",
+        "ko" to "# 읽기 화면용 HTML에 그림을 data: URI로 박아 넣습니다.\n" +
+            "# ⚠ z2-view는 바깥 그림을 가지러 가지 않으므로(JavaScript도 통신도 꺼 두었습니다)\n" +
+            "#   박아 넣지 않으면 그림은 나오지 않습니다. 페이지 전체로 4MB까지."
+    )
+    val cImgLoop = t(
+        en = "# Only a document that has pictures is read line by line (to call z2-img in place)",
+        ja = "# 絵のある文書だけ 1 行ずつ読む (絵の位置で z2-img を呼ぶため)",
+        "zh-CN" to "# 只有含图片的文档才一行一行地读 (为了在图片的位置调用 z2-img)",
+        "zh-TW" to "# 只有含圖片的文件才一行一行地讀 (為了在圖片的位置呼叫 z2-img)",
+        "es" to "# Solo un documento con imágenes se lee línea a línea (para llamar a z2-img en su sitio)",
+        "ko" to "# 그림이 있는 문서만 한 줄씩 읽습니다 (그림 자리에서 z2-img를 부르기 위해)"
+    )
+
+    val mUsageHint = t(
+        en = "see md.sh -h", ja = "使い方は md.sh -h",
+        "zh-CN" to "用法请看 md.sh -h", "zh-TW" to "用法請看 md.sh -h",
+        "es" to "consulta md.sh -h", "ko" to "사용법은 md.sh -h"
+    )
+    val mNoTmp = t(
+        en = "cannot make a temporary directory", ja = "一時ディレクトリを作れません",
+        "zh-CN" to "无法创建临时目录", "zh-TW" to "無法建立暫存目錄",
+        "es" to "no se puede crear un directorio temporal", "ko" to "임시 디렉터리를 만들 수 없습니다"
+    )
+    val mUnreadable = t(
+        en = "unreadable file:", ja = "読めないファイル:",
+        "zh-CN" to "无法读取的文件:", "zh-TW" to "無法讀取的檔案:",
+        "es" to "archivo ilegible:", "ko" to "읽을 수 없는 파일:"
+    )
+    val mEmpty = t(
+        en = "nothing to read", ja = "中身がありません",
+        "zh-CN" to "没有内容", "zh-TW" to "沒有內容",
+        "es" to "no hay nada que leer", "ko" to "내용이 없습니다"
+    )
+    val mWidthNum = t(
+        en = "-w takes a number", ja = "-w は数字で",
+        "zh-CN" to "-w 要给数字", "zh-TW" to "-w 要給數字",
+        "es" to "-w necesita un número", "ko" to "-w 는 숫자로"
+    )
+    val mNoDir = t(
+        en = "cannot make the folder to put it in", ja = "置き場を作れません",
+        "zh-CN" to "无法创建存放的文件夹", "zh-TW" to "無法建立存放的資料夾",
+        "es" to "no se puede crear la carpeta donde dejarlo", "ko" to "둘 곳을 만들 수 없습니다"
+    )
+    val mConvFail = t(
+        en = "the conversion failed", ja = "変換に失敗しました",
+        "zh-CN" to "转换失败", "zh-TW" to "轉換失敗",
+        "es" to "la conversión ha fallado", "ko" to "변환에 실패했습니다"
+    )
+    val mNoView = t(
+        en = "no z2-view here (the app needs updating). The HTML is at:",
+        ja = "z2-view がありません (アプリの更新が要ります)。HTML は次にあります:",
+        "zh-CN" to "这里没有 z2-view (需要更新应用)。HTML 在:",
+        "zh-TW" to "這裡沒有 z2-view (需要更新應用程式)。HTML 在:",
+        "es" to "aquí no hay z2-view (hace falta actualizar la aplicación). El HTML está en:",
+        "ko" to "z2-view가 없습니다 (앱 업데이트가 필요합니다). HTML은 여기 있습니다:"
+    )
+    val mImgLabel = t(
+        en = "[picture]", ja = "[画像]",
+        "zh-CN" to "[图片]", "zh-TW" to "[圖片]",
+        "es" to "[imagen]", "ko" to "[그림]"
+    )
+
+    return """$head
+set -u
+
+usage() {
+    awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 && NF { exit }' "${d}0"
+    exit 0
+}
+
+die() { printf '%s\n' "md.sh: ${d}*" >&2; exit 1; }
+
+viewmode=0
+outfile=""
+width=""
+plain=0
+title=""
+
+while getopts "vo:w:pt:h" opt; do
+    case "${d}opt" in
+        v) viewmode=1 ;;
+        o) outfile=${d}OPTARG ;;
+        w) width=${d}OPTARG ;;
+        p) plain=1 ;;
+        t) title=${d}OPTARG ;;
+        h) usage ;;
+        *) die "$mUsageHint" ;;
+    esac
+done
+shift ${d}((OPTIND - 1))
+
+TMP=${d}(mktemp -d) || die "$mNoTmp"
+trap 'rm -rf "${d}TMP"' EXIT INT TERM
+
+TAB=${d}(printf '\t')
+IMGMARK=${d}(printf '\001')
+
+$cCollect
+src=${d}TMP/src
+: > "${d}src"
+srcdir=.
+if [ ${d}# -gt 0 ]; then
+    first=${d}1
+    srcdir=${d}(dirname -- "${d}first")
+    for f in "${d}@"; do
+        [ -r "${d}f" ] || die "$mUnreadable ${d}f"
+        cat -- "${d}f" >> "${d}src"
+        printf '\n' >> "${d}src"
+    done
+else
+    first=""
+    cat > "${d}src"
+fi
+[ -s "${d}src" ] || die "$mEmpty"
+
+$cTitle
+if [ -z "${d}title" ]; then
+    title=${d}(LC_ALL=C awk '/^#[ \t]+/ { sub(/^#[ \t]+/, ""); sub(/[ \t]+#*[ \t]*${d}/, ""); print; exit }' "${d}src")
+fi
+if [ -z "${d}title" ]; then
+    if [ -n "${d}first" ]; then title=${d}(basename -- "${d}first"); else title="Markdown"; fi
+fi
+
+$cWidth
+if [ -z "${d}width" ]; then
+    width=${d}(tput cols 2>/dev/null) || width=""
+    case "${d}width" in ''|*[!0-9]*) width=80 ;; esac
+    [ "${d}width" -gt 100 ] && width=100
+fi
+case "${d}width" in *[!0-9]*|'') die "$mWidthNum" ;; esac
+[ "${d}width" -lt 20 ] && width=20
+
+tty=0
+[ -t 1 ] && tty=1
+color=1
+[ "${d}plain" = 1 ] && color=0
+[ "${d}tty" = 1 ] || color=0
+$cColorEnv
+case "${d}{Z2_MD_COLOR:-}" in 1) color=1 ;; 0) color=0 ;; esac
+
+$cImgWhere
+imgtok=0
+if [ "${d}tty" = 1 ] && command -v z2-img >/dev/null 2>&1; then imgtok=1; fi
+
+$cAmbi
+ambi=${d}{Z2_MD_AMBIWIDTH:-1}
+case "${d}ambi" in 1|2) ;; *) ambi=1 ;; esac
+
+$cAwkFile
+cat > "${d}TMP/md.awk" <<"Z2MD_AWK"
+# Markdown を ANSI (端末) か HTML (読み物画面) にする。
+#
+# ⭐ LC_ALL=C で走らせる前提。文字列をバイト列として扱い、見た目の桁は自分で数える
+#    (awk によって length() が文字数だったりバイト数だったりするため、そろえないと
+#    表の桁が環境ごとにずれる)。
+# ⭐ 幅の判定はアプリの EastAsianWidth と同じ範囲にしてある。ここがずれると、
+#    画面の折り返しと食い違って表が崩れる。
+
+# ---------- 文字とバイト ----------
+
+# 位置 i から始まる 1 文字のバイト数
+function clen(s, i,   b) {
+    b = ORD[substr(s, i, 1)]
+    if (b < 192) return 1
+    if (b < 224) return 2
+    if (b < 240) return 3
+    return 4
+}
+
+# 位置 i の文字のコードポイント
+function cpat(s, i,   b, nb, cp, k) {
+    b = ORD[substr(s, i, 1)]
+    nb = clen(s, i)
+    if (nb == 1) return b
+    if (nb == 2) cp = b - 192
+    else if (nb == 3) cp = b - 224
+    else cp = b - 240
+    for (k = 1; k < nb; k++) cp = cp * 64 + (ORD[substr(s, i + k, 1)] % 64)
+    return cp
+}
+
+# 見た目の桁数 (2 桁になる文字はアプリと同じ範囲)
+function cwidth(cp) {
+    if (cp < 128) return 1
+    if (cp >= 4352 && cp <= 4447) return 2
+    if (cp >= 11904 && cp <= 12350) return 2
+    if (cp >= 12353 && cp <= 13311) return 2
+    if (cp >= 13312 && cp <= 19903) return 2
+    if (cp >= 19968 && cp <= 40959) return 2
+    if (cp >= 40960 && cp <= 42191) return 2
+    if (cp >= 44032 && cp <= 55203) return 2
+    if (cp >= 63744 && cp <= 64255) return 2
+    if (cp >= 65072 && cp <= 65135) return 2
+    if (cp >= 65280 && cp <= 65376) return 2
+    if (cp >= 65504 && cp <= 65510) return 2
+    if (cp >= 127744 && cp <= 128591) return 2
+    if (cp >= 128640 && cp <= 128767) return 2
+    if (cp >= 129280 && cp <= 129535) return 2
+    if (cp >= 131072 && cp <= 196605) return 2
+    if (cp >= 196608 && cp <= 262141) return 2
+    if (isambi(cp)) return ambi
+    return 1
+}
+
+# 曖昧幅 (CJK では全角に描かれることがあるもの)
+function isambi(cp) {
+    if (cp >= 8208 && cp <= 8286) return 1
+    if (cp >= 8448 && cp <= 10175) return 1
+    if (cp >= 65024 && cp <= 65039) return 1
+    return 0
+}
+
+# i にあるエスケープ列の次の位置
+function skipesc(s, i,   ln) {
+    ln = length(s)
+    if (substr(s, i + 1, 1) == "[") {
+        i += 2
+        while (i <= ln && index("0123456789;:?", substr(s, i, 1)) > 0) i++
+        return i + 1
+    }
+    if (substr(s, i + 1, 1) == "]") {
+        i += 2
+        while (i <= ln) {
+            if (substr(s, i, 1) == ESC && substr(s, i + 1, 1) == BSL) return i + 2
+            i++
+        }
+        return ln + 1
+    }
+    return i + 2
+}
+
+# エスケープ列を飛ばして数える見た目の桁数
+function vwidth(s,   i, ln, w) {
+    ln = length(s); i = 1; w = 0
+    while (i <= ln) {
+        if (substr(s, i, 1) == ESC) { i = skipesc(s, i); continue }
+        w += cwidth(cpat(s, i))
+        i += clen(s, i)
+    }
+    return w
+}
+
+function rep(ch, cnt,   s, i) {
+    s = ""
+    for (i = 0; i < cnt; i++) s = s ch
+    return s
+}
+
+function sp(cnt) { return rep(" ", cnt) }
+
+# ---------- 出力 ----------
+
+function emit(s) {
+    if (s == "" && QPFX == "") { print ""; nout++; return }
+    print QPFX s
+    nout++
+}
+
+function blank() {
+    if (nout > 0 && !lastblank) { print ""; nout++ }
+    lastblank = 1
+}
+
+function esc(s) {
+    gsub(/&/, "\\&amp;", s); gsub(/</, "\\&lt;", s); gsub(/>/, "\\&gt;", s)
+    gsub(/"/, "\\&quot;", s)
+    return s
+}
+
+function txt(s) { return html ? esc(s) : s }
+
+# ---------- 行内の記法 ----------
+
+function findclose(s, i, mark,   ln, m) {
+    ln = length(s); m = length(mark)
+    while (i <= ln) {
+        if (substr(s, i, 1) == "\\") { i += 2; continue }
+        if (substr(s, i, m) == mark) return i
+        i++
+    }
+    return 0
+}
+
+function findbracket(s, i,   ln, lvl, c) {
+    ln = length(s); lvl = 1
+    while (i <= ln) {
+        c = substr(s, i, 1)
+        if (c == "\\") { i += 2; continue }
+        if (c == "[") lvl++
+        else if (c == "]") { lvl--; if (lvl == 0) return i }
+        i++
+    }
+    return 0
+}
+
+function linkout(url, label) {
+    if (html) {
+        # 端末の外から来た文字がそのまま載るので、http(s) 以外はリンクにしない
+        if (url ~ /^https?:\/\//) return "<a href=\"" esc(url) "\">" label "</a>"
+        return label
+    }
+    if (!color) return (label == url) ? url : label " <" url ">"
+    if (url ~ /^(https?:\/\/|mailto:)/)
+        return ESC "]8;;" url ESC BSL L1 U1 label U0 L0 ESC "]8;;" ESC BSL
+    return L1 U1 label U0 L0
+}
+
+function dim(s) {
+    if (html) return "<span class=\"fm\">" s "</span>"
+    return color ? D1 s D0 : s
+}
+
+function inl(s,   out, ln, i, c, c2, j, k, url, label, run, body) {
+    out = ""
+    ln = length(s)
+    i = 1
+    while (i <= ln) {
+        c = substr(s, i, 1)
+        c2 = substr(s, i, 2)
+
+        if (c == "\\" && i < ln) { out = out txt(substr(s, i + 1, 1)); i += 2; continue }
+
+        if (c == "`") {
+            run = 1
+            while (substr(s, i + run, 1) == "`") run++
+            j = index(substr(s, i + run), substr(s, i, run))
+            if (j > 0) {
+                body = substr(s, i + run, j - 1)
+                sub(/^ /, "", body); sub(/ ${d}/, "", body)
+                out = out (html ? "<code>" esc(body) "</code>" : (color ? C1 body C0 : body))
+                i = i + run + j - 1 + run
+                continue
+            }
+        }
+
+        if (c2 == "![") {
+            j = findbracket(s, i + 2)
+            if (j > 0 && substr(s, j + 1, 1) == "(") {
+                k = findclose(s, j + 2, ")")
+                if (k > 0) {
+                    label = substr(s, i + 2, j - i - 2)
+                    url = substr(s, j + 2, k - j - 2)
+                    sub(/[ \t].*${d}/, "", url)
+                    out = out dim(IMGLABEL " " txt(label == "" ? url : label))
+                    i = k + 1
+                    continue
+                }
+            }
+        }
+
+        if (c == "[") {
+            j = findbracket(s, i + 1)
+            if (j > 0 && substr(s, j + 1, 1) == "(") {
+                k = findclose(s, j + 2, ")")
+                if (k > 0) {
+                    label = substr(s, i + 1, j - i - 1)
+                    url = substr(s, j + 2, k - j - 2)
+                    sub(/[ \t]+["(].*${d}/, "", url)
+                    out = out linkout(url, inl(label))
+                    i = k + 1
+                    continue
+                }
+            }
+        }
+
+        if (c == "<") {
+            j = index(substr(s, i), ">")
+            if (j > 0) {
+                url = substr(s, i + 1, j - 2)
+                if (url ~ /^(https?:\/\/|mailto:)[^ ]+${d}/) {
+                    out = out linkout(url, txt(url))
+                    i = i + j
+                    continue
+                }
+            }
+        }
+
+        if (c2 == "**" || c2 == "__") {
+            j = findclose(s, i + 2, c2)
+            if (j > i + 2) {
+                body = inl(substr(s, i + 2, j - i - 2))
+                out = out (html ? "<strong>" body "</strong>" : (color ? B1 body B0 : body))
+                i = j + 2
+                continue
+            }
+        }
+
+        if (c2 == "~~") {
+            j = findclose(s, i + 2, "~~")
+            if (j > i + 2) {
+                body = inl(substr(s, i + 2, j - i - 2))
+                out = out (html ? "<del>" body "</del>" : (color ? K1 body K0 : body))
+                i = j + 2
+                continue
+            }
+        }
+
+        if (c == "*" || (c == "_" && (i == 1 || substr(s, i - 1, 1) ~ /[ \t([]/))) {
+            j = findclose(s, i + 1, c)
+            if (j > i + 1 && substr(s, i + 1, 1) != " ") {
+                body = inl(substr(s, i + 1, j - i - 1))
+                out = out (html ? "<em>" body "</em>" : (color ? I1 body I0 : body))
+                i = j + 1
+                continue
+            }
+        }
+
+        # 素の URL もリンクにする (行頭か、空白・括弧の直後から始まるものだけ)
+        if (c == "h" && (i == 1 || substr(s, i - 1, 1) ~ /[ \t(<]/)) {
+            if (match(substr(s, i), /^https?:\/\/[^ \t<>()]+/)) {
+                url = substr(s, i, RLENGTH)
+                sub(/[.,;:]${d}/, "", url)
+                out = out linkout(url, txt(url))
+                i += length(url)
+                continue
+            }
+        }
+
+        out = out txt(c)
+        i++
+    }
+    return out
+}
+
+# ---------- 折り返し ----------
+
+# 見た目の桁で折り返す。first は 1 行目の前置き、cont は 2 行目以降の前置き。
+function wrap(s, first, cont,   ln, i, j, col, out, lim, brk, brkout, brkw, cp, w, tok, prevw, done) {
+    if (html) { emit(first s); return }
+    # 引用の前置き (emit が足す) のぶんも引く
+    lim = width - vwidth(QPFX) - vwidth(first)
+    if (lim < 8) lim = 8
+    ln = length(s)
+    i = 1; col = 0; out = ""; brk = 0; prevw = 0; done = 0
+    while (i <= ln) {
+        if (substr(s, i, 1) == ESC) {
+            j = skipesc(s, i)
+            out = out substr(s, i, j - i)
+            i = j
+            continue
+        }
+        cp = cpat(s, i)
+        w = cwidth(cp)
+        tok = substr(s, i, clen(s, i))
+
+        if (cp == 32 && col > 0) { brk = 1; brkout = out; brkw = col }
+        else if (prevw == 2 && w == 2 && !nostart(cp)) { brk = 2; brkout = out; brkw = col }
+
+        if (col + w > lim && col > 0) {
+            if (brk == 1) {
+                emit(first brkout)
+                out = substr(out, length(brkout) + 2)
+            } else if (brk == 2) {
+                emit(first brkout)
+                out = substr(out, length(brkout) + 1)
+            } else {
+                emit(first out)
+                out = ""
+            }
+            # ⚠ 残りの桁は引き算で出さない。折り返しの機会が「いま見ている文字の
+            #   直前」だったとき (行末ちょうどに空白が来た場合) 引き算では -1 になり、
+            #   次の行が 1 桁はみ出す。短い残りを測り直すほうが安い。
+            col = vwidth(out)
+            done = 1
+            first = cont
+            lim = width - vwidth(QPFX) - vwidth(cont)
+            if (lim < 8) lim = 8
+            brk = 0
+            if (out == "" && cp == 32) { i += clen(s, i); prevw = 0; continue }
+        }
+        out = out tok
+        col += w
+        prevw = w
+        i += clen(s, i)
+    }
+    if (out != "" || !done) emit(first out)
+    lastblank = 0
+}
+
+# 行頭に置かない文字 (最低限の禁則)
+function nostart(cp) {
+    if (cp == 12290 || cp == 12289) return 1                                  # 。 、
+    if (cp == 65289 || cp == 12301 || cp == 12303 || cp == 12309) return 1    # ） 」 』 〕
+    if (cp == 65281 || cp == 65311 || cp == 65292 || cp == 65294) return 1    # ！ ？ ， ．
+    if (cp == 12539 || cp == 65306 || cp == 65307) return 1                   # ・ ： ；
+    return 0
+}
+
+# ---------- ブロックの見分け ----------
+
+function fencemark(s) { sub(/^[ \t]+/, "", s); return substr(s, 1, 3) }
+
+function isblank(i) { return (L[i] ~ /^[ \t]*${d}/) }
+function isfence(s) { return (s ~ /^[ \t]*(```|~~~)/) }
+function isitem(s)  { return (s ~ /^[ \t]*([-*+]|[0-9]+[.)])[ \t]+/) }
+
+# 区切り線 (--- / *** / ___)。
+# ⚠ 正規表現の {3,} は使わない。awk によっては回数指定を解釈せず、
+#   区切り線が段落として出てしまう。印の数は数えて判断する。
+function ishr(s,   marks) {
+    if (s !~ /^[ \t]*[-*_][-*_ \t]*${d}/) return 0
+    marks = s
+    gsub(/[ \t]/, "", marks)
+    if (length(marks) < 3) return 0
+    if (marks ~ /^-+${d}/ || marks ~ /^\*+${d}/ || marks ~ /^_+${d}/) return 1
+    return 0
+}
+
+function istablerow(s) { return (s ~ /\|/ && s !~ /^[ \t]*\|?[ \t]*${d}/) }
+
+function isdelim(s) {
+    if (s !~ /\|/) return 0
+    return (s ~ /^[ \t]*\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*${d}/)
+}
+
+function isimgline(s) { return (s ~ /^[ \t]*!\[[^]]*\][ \t]*\([^)]+\)[ \t]*${d}/) }
+
+# ---------- ブロックごとの組み立て ----------
+
+function heading(i,   s, lvl, body) {
+    s = L[i]
+    sub(/^[ \t]+/, "", s)
+    lvl = 0
+    while (substr(s, lvl + 1, 1) == "#") lvl++
+    body = substr(s, lvl + 1)
+    if (lvl > 6) lvl = 6
+    sub(/^[ \t]+/, "", body)
+    sub(/[ \t]+#+[ \t]*${d}/, "", body)
+    blank()
+    if (html) { emit("<h" lvl ">" inl(body) "</h" lvl ">"); lastblank = 0; return i + 1 }
+    if (lvl <= 2 && color) {
+        wrap(B1 inl(body) B0, "", "  ")
+        emit(D1 rep(lvl == 1 ? HH : HL, width - vwidth(QPFX)) D0)
+    } else {
+        wrap((color ? D1 rep("#", lvl) " " D0 B1 inl(body) B0 : rep("#", lvl) " " inl(body)),
+             "", sp(lvl + 1))
+    }
+    lastblank = 0
+    return i + 1
+}
+
+function fence(i,   mark, lang, s, body) {
+    s = L[i]
+    sub(/^[ \t]+/, "", s)
+    mark = substr(s, 1, 3)
+    lang = substr(s, 4)
+    sub(/^[ \t]+/, "", lang); sub(/[ \t`~]+${d}/, "", lang)
+    blank()
+    if (html) emit("<pre><code>")
+    else if (lang != "" && color) emit(D1 lang D0)
+    i++
+    while (i <= n && L[i] !~ ("^[ \t]*" mark)) {
+        body = L[i]
+        if (html) emit(esc(body))
+        else emit((color ? C1 : "") "  " body (color ? C0 : ""))
+        i++
+    }
+    if (html) emit("</code></pre>")
+    lastblank = 0
+    return i + 1
+}
+
+function indentcode(i,   body) {
+    blank()
+    if (html) emit("<pre><code>")
+    while (i <= n && (L[i] ~ /^(    |\t)/ || (isblank(i) && i + 1 <= n && L[i + 1] ~ /^(    |\t)/))) {
+        body = L[i]
+        sub(/^(    |\t)/, "", body)
+        if (html) emit(esc(body))
+        else emit((color ? C1 : "") "  " body (color ? C0 : ""))
+        i++
+    }
+    if (html) emit("</code></pre>")
+    lastblank = 0
+    return i
+}
+
+function imgline(i,   s, url, label, j) {
+    s = L[i]
+    sub(/^[ \t]+/, "", s); sub(/[ \t]+${d}/, "", s)
+    j = index(s, "](")
+    label = substr(s, 3, j - 3)
+    url = substr(s, j + 2, length(s) - j - 2)
+    sub(/[ \t].*${d}/, "", url)
+    blank()
+    if (html) {
+        emit(IMGTOKEN url IMGTOKEN2 label IMGTOKEN)
+    } else if (imgtok && url !~ /^https?:\/\//) {
+        if (label != "") emit(dim(IMGLABEL " " label))
+        print IMGMARK url "\t" label
+        nout++
+    } else {
+        wrap(dim(IMGLABEL " " (label == "" ? url : label " (" url ")")), "", "  ")
+    }
+    lastblank = 0
+    return i + 1
+}
+
+function listblock(i,   s, ind, marker, body, ordered) {
+    blank()
+    top = 0
+    delete INDENTS
+    while (i <= n) {
+        if (isblank(i)) {
+            if (i + 1 <= n && isitem(L[i + 1]) && sametype(L[i + 1])) { i++; continue }
+            if (i + 1 <= n && !isitem(L[i + 1]) && L[i + 1] ~ /^(    |\t|  )[^ \t]/) { i++; continue }
+            break
+        }
+        if (QD[i] != QCUR) break
+        if (!isitem(L[i])) {
+            if (L[i] ~ /^[ \t]+[^ \t]/ && PEND != "" && !isfence(L[i])) {
+                body = L[i]
+                sub(/^[ \t]+/, "", body)
+                PEND = PEND joiner(PEND, body) body
+                i++
+                continue
+            }
+            break
+        }
+        flushitem()
+        s = L[i]
+        match(s, /^[ \t]*/)
+        ind = RLENGTH
+        sub(/^[ \t]*/, "", s)
+        ordered = (s ~ /^[0-9]/)
+        match(s, /^([-*+]|[0-9]+[.)])[ \t]+/)
+        marker = substr(s, 1, RLENGTH)
+        body = substr(s, RLENGTH + 1)
+        while (top > 0 && ind < INDENTS[top]) { closelevel(); top-- }
+        if (top == 0 || ind > INDENTS[top]) {
+            top++
+            INDENTS[top] = ind
+            openlevel(ordered)
+        }
+        sub(/[ \t]+${d}/, "", marker)
+        PEND = body
+        PENDLVL = top
+        PENDORD = ordered
+        PENDMARK = marker
+        i++
+    }
+    flushitem()
+    while (top > 0) { closelevel(); top-- }
+    lastblank = 0
+    return i
+}
+
+# 空行をまたいだ次の項目が、いまと同じ種類 (箇条書き / 番号付き) か
+function sametype(s,   ind, ordered, k) {
+    match(s, /^[ \t]*/)
+    ind = RLENGTH
+    sub(/^[ \t]*/, "", s)
+    ordered = (s ~ /^[0-9]/)
+    k = top
+    while (k > 0 && ind < INDENTS[k]) k--
+    if (k == 0) return 1
+    return (LTYPE[k] == (ordered ? "ol" : "ul"))
+}
+
+function openlevel(ordered) {
+    LTYPE[top] = ordered ? "ol" : "ul"
+    LIOPEN[top] = 0
+    if (html) emit("<" LTYPE[top] ">")
+}
+
+# 入れ子のリストは親の <li> の**中**へ入れる (兄弟として並べると字下げが 1 段足りない)。
+function closelevel() {
+    if (!html) return
+    if (LIOPEN[top]) { emit("</li>"); LIOPEN[top] = 0 }
+    emit("</" LTYPE[top] ">")
+}
+
+# 行をつなぐときの区切り (和文どうしは空白を入れない)
+function joiner(a, b,   c1, c2) {
+    if (a == "" || b == "") return ""
+    c1 = cpat(a, lastcharpos(a))
+    c2 = cpat(b, 1)
+    return (c1 > 127 && c2 > 127) ? "" : " "
+}
+
+function lastcharpos(s,   i, p) {
+    i = 1; p = 1
+    while (i <= length(s)) { p = i; i += clen(s, i) }
+    return p
+}
+
+function flushitem(   body, first, cont, ind, mark, done) {
+    if (PEND == "") return
+    body = PEND
+    PEND = ""
+    if (html) {
+        if (LIOPEN[PENDLVL]) emit("</li>")
+        if (body ~ /^\[[ xX]\][ \t]/) {
+            done = (body ~ /^\[[xX]\]/)
+            sub(/^\[[ xX]\][ \t]+/, "", body)
+            emit("<li>" (done ? "[x] " : "[ ] ") inl(body))
+        } else {
+            emit("<li>" inl(body))
+        }
+        LIOPEN[PENDLVL] = 1
+        return
+    }
+    ind = sp((PENDLVL - 1) * 2)
+    if (body ~ /^\[[ xX]\][ \t]/) {
+        done = (body ~ /^\[[xX]\]/)
+        sub(/^\[[ xX]\][ \t]+/, "", body)
+        mark = done ? (color ? B1 "[x]" B0 : "[x]") : "[ ]"
+        mark = mark " "
+    } else if (PENDORD) {
+        mark = PENDMARK " "
+    } else {
+        mark = (PENDLVL % 2 == 1 ? BULLET1 : BULLET2) " "
+        if (color) mark = D1 mark D0
+    }
+    first = ind mark
+    cont = ind sp(vwidth(mark))
+    wrap(inl(body), first, cont)
+}
+
+function table(i,   ncols, r, c, j, line, parts, cnt, wmax, total, out, sep, cell) {
+    blank()
+    r = 0; ncols = 0
+    delete TB
+    delete RAW
+    delete ALIGN
+    delete COLW
+    while (i <= n && istablerow(L[i]) && QD[i] == QCUR) {
+        line = L[i]
+        sub(/^[ \t]*\|/, "", line)
+        sub(/\|[ \t]*${d}/, "", line)
+        cnt = split(line, parts, "|")
+        if (isdelim(L[i])) {
+            for (c = 1; c <= cnt; c++) {
+                j = parts[c]
+                gsub(/[ \t]/, "", j)
+                if (j ~ /^:.*:${d}/) ALIGN[c] = "c"
+                else if (j ~ /:${d}/) ALIGN[c] = "r"
+                else ALIGN[c] = "l"
+            }
+            i++
+            continue
+        }
+        r++
+        for (c = 1; c <= cnt; c++) {
+            j = parts[c]
+            sub(/^[ \t]+/, "", j); sub(/[ \t]+${d}/, "", j)
+            gsub(/\\\|/, "|", j)
+            RAW[r, c] = j
+            TB[r, c] = inl(j)
+        }
+        if (cnt > ncols) ncols = cnt
+        i++
+    }
+    if (html) {
+        emit("<table>")
+        for (j = 1; j <= r; j++) {
+            emit(j == 1 ? "<thead><tr>" : "<tr>")
+            for (c = 1; c <= ncols; c++) {
+                cell = ((j SUBSEP c) in TB) ? TB[j, c] : ""
+                emit(j == 1 ? "<th>" cell "</th>" : "<td>" cell "</td>")
+            }
+            emit(j == 1 ? "</tr></thead><tbody>" : "</tr>")
+        }
+        emit("</tbody></table>")
+        lastblank = 0
+        return i
+    }
+    total = 0
+    for (c = 1; c <= ncols; c++) {
+        wmax = 0
+        for (j = 1; j <= r; j++) {
+            if (!((j SUBSEP c) in TB)) continue
+            if (vwidth(TB[j, c]) > wmax) wmax = vwidth(TB[j, c])
+        }
+        COLW[c] = wmax
+        total += wmax + 3
+    }
+    total -= 3
+    if (total > width - vwidth(QPFX)) {
+        # 幅に入らない表は「見出し: 中身」の並びにする (携帯の幅で読めるように)
+        for (j = 2; j <= r; j++) {
+            for (c = 1; c <= ncols; c++) {
+                if (!((j SUBSEP c) in TB) || RAW[j, c] == "") continue
+                wrap(((1 SUBSEP c) in TB ? dim(RAW[1, c] ": ") : "") TB[j, c], "", "  ")
+            }
+            if (j < r) blank()
+        }
+        lastblank = 0
+        return i
+    }
+    for (j = 1; j <= r; j++) {
+        out = ""
+        for (c = 1; c <= ncols; c++) {
+            cell = ((j SUBSEP c) in TB) ? TB[j, c] : ""
+            if (j == 1 && color) cell = B1 cell B0
+            out = out pad(cell, COLW[c], ALIGN[c])
+            if (c < ncols) out = out (color ? D1 " " VBAR " " D0 : " | ")
+        }
+        emit(out)
+        if (j == 1) {
+            sep = ""
+            for (c = 1; c <= ncols; c++) {
+                sep = sep rep(HL, COLW[c])
+                if (c < ncols) sep = sep HL CROSS HL
+            }
+            emit(color ? D1 sep D0 : sep)
+        }
+    }
+    lastblank = 0
+    return i
+}
+
+function pad(s, w, a,   d, l) {
+    d = w - vwidth(s)
+    if (d <= 0) return s
+    if (a == "r") return sp(d) s
+    if (a == "c") { l = int(d / 2); return sp(l) s sp(d - l) }
+    return s sp(d)
+}
+
+function para(i,   body) {
+    body = ""
+    while (i <= n && !isblank(i) && QD[i] == QCUR && !isfence(L[i]) && !ishr(L[i]) \
+           && L[i] !~ /^[ \t]*#+([ \t]|${d})/ && !isitem(L[i]) && !isimgline(L[i])) {
+        if (istablerow(L[i]) && i + 1 <= n && isdelim(L[i + 1])) break
+        if (body == "") body = L[i]
+        else body = body joiner(body, L[i]) L[i]
+        i++
+    }
+    sub(/^[ \t]+/, "", body)
+    if (body == "") return i + 1
+    blank()
+    if (html) emit("<p>" inl(body) "</p>")
+    else wrap(inl(body), "", "")
+    lastblank = 0
+    return i
+}
+
+function hr() {
+    blank()
+    if (html) emit("<hr>")
+    else emit((color ? D1 : "") rep(HL, width - vwidth(QPFX)) (color ? D0 : ""))
+    lastblank = 0
+}
+
+# 生の HTML (<details> など)。読み物画面はそのまま通し、端末では札を外して
+# 中の文字だけ薄く出す (<summary><b>…</b></summary> がそのまま流れると読めない)。
+function rawhtml(i,   line) {
+    blank()
+    while (i <= n && !isblank(i)) {
+        if (html) { emit(L[i]); i++; continue }
+        line = L[i]
+        gsub(/<[^>]*>/, "", line)
+        sub(/^[ \t]+/, "", line); sub(/[ \t]+${d}/, "", line)
+        if (line != "") wrap(dim(inl(line)), "", "  ")
+        i++
+    }
+    lastblank = 0
+    return i
+}
+
+function block(i,   s) {
+    if (isblank(i)) return i + 1
+    setquote(QD[i])
+    s = L[i]
+    if (isfence(s)) return fence(i)
+    if (s ~ /^[ \t]*#+([ \t]|${d})/) return heading(i)
+    if (ishr(s)) { hr(); return i + 1 }
+    if (isitem(s)) return listblock(i)
+    if (isimgline(s)) return imgline(i)
+    if (istablerow(s) && i + 1 <= n && isdelim(L[i + 1])) return table(i)
+    if (s ~ /^(    |\t)/ && QD[i] == 0) return indentcode(i)
+    if (s ~ /^[ \t]*<[a-zA-Z\/!]/) return rawhtml(i)
+    return para(i)
+}
+
+# 引用の深さに応じた前置き (端末) / <blockquote> の開け閉め (読み物画面) を決める
+function setquote(d,   k) {
+    QCUR = d
+    QPFX = ""
+    if (html) {
+        while (HQ > d) { emit("</blockquote>"); HQ-- }
+        while (HQ < d) { emit("<blockquote>"); HQ++ }
+        return
+    }
+    if (d <= 0) return
+    for (k = 0; k < d; k++) QPFX = QPFX (color ? D1 VBAR D0 " " : "| ")
+}
+
+# ---------- 走らせる ----------
+
+BEGIN {
+    ESC = sprintf("%c", 27)
+    BSL = sprintf("%c", 92)
+    for (i = 0; i < 256; i++) ORD[sprintf("%c", i)] = i
+    HL     = sprintf("%c%c%c", 226, 148, 128)   # ─
+    HH     = sprintf("%c%c%c", 226, 148, 129)   # ━
+    VBAR   = sprintf("%c%c%c", 226, 148, 130)   # │
+    CROSS  = sprintf("%c%c%c", 226, 148, 188)   # ┼
+    BULLET1 = sprintf("%c%c%c", 226, 128, 162)  # •
+    BULLET2 = sprintf("%c%c%c", 226, 151, 166)  # ◦
+    html = (mode == "html")
+    if (ambi < 1) ambi = 1
+    if (!html && width < 20) width = 20
+    if (color) {
+        B1 = ESC "[1m"; B0 = ESC "[22m"
+        # ⚠ 斜体 (SGR 3) はこの端末では描かれない。*強調* が普通の字と区別できなく
+        #   なるので、man と同じように下線も一緒に付ける (斜体を描く端末では両方出る)。
+        I1 = ESC "[3m" ESC "[4m"; I0 = ESC "[24m" ESC "[23m"
+        U1 = ESC "[4m"; U0 = ESC "[24m"
+        K1 = ESC "[9m"; K0 = ESC "[29m"
+        D1 = ESC "[2m"; D0 = ESC "[22m"
+        C1 = ESC "[36m"; C0 = ESC "[39m"
+        L1 = ESC "[34m"; L0 = ESC "[39m"
+    }
+    nout = 0; lastblank = 1; top = 0; PEND = ""; QCUR = 0; QPFX = ""; HQ = 0
+    infence = 0; fenceq = 0; fencere = ""
+}
+
+# 先に引用の > を剥がして深さだけ覚える。
+# ⚠ ただし ``` の中は剥がさない。コードには行頭の > (リダイレクト・>>> の入力例) が
+#   ふつうに出てくるので、一緒に剥がすとコードが書き換わってしまう。
+{
+    line = ${d}0
+    if (infence) {
+        d = 0
+        while (d < fenceq && line ~ /^[ \t]*>/) { sub(/^[ \t]*>[ ]?/, "", line); d++ }
+        L[NR] = line
+        QD[NR] = fenceq
+        if (line ~ fencere) infence = 0
+    } else {
+        d = 0
+        while (line ~ /^[ \t]*>/) { sub(/^[ \t]*>[ ]?/, "", line); d++ }
+        L[NR] = line
+        QD[NR] = d
+        if (line ~ /^[ \t]*(```|~~~)/) {
+            fenceq = d
+            fencere = "^[ \t]*" fencemark(line)
+            infence = 1
+        }
+    }
+}
+
+END {
+    n = NR
+    if (html) {
+        print "<!doctype html><html><head><meta charset=\"utf-8\">"
+        print "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        print "<title>" esc(title) "</title>"
+        print "<style>" CSS "</style></head><body><main>"
+    }
+    i = 1
+    # フロントマター (--- で囲まれた頭書き) は薄く出す
+    if (n >= 2 && L[1] ~ /^---[ \t]*${d}/) {
+        j = 2
+        while (j <= n && L[j] !~ /^(---|\.\.\.)[ \t]*${d}/) j++
+        if (j <= n) {
+            for (k = 2; k < j; k++) emit(html ? "<p class=\"fm\">" esc(L[k]) "</p>" : dim(L[k]))
+            lastblank = 0
+            i = j + 1
+        }
+    }
+    while (i <= n) i = block(i)
+    if (html) {
+        while (HQ > 0) { print "</blockquote>"; HQ-- }
+        print "</main></body></html>"
+    }
+}
+Z2MD_AWK
+
+CSS='
+:root{color-scheme:light dark}
+body{margin:0;background:var(--z2-bg,#fff);color:var(--z2-fg,#111);
+font:16px/1.75 -apple-system,"Noto Sans JP","Noto Sans",sans-serif}
+main{padding:14px 16px 40px;max-width:42em;margin:0 auto}
+h1,h2,h3,h4,h5,h6{line-height:1.35;margin:1.8em 0 .5em;font-weight:600}
+h1{font-size:20px;margin-top:.3em;padding-bottom:.3em;border-bottom:2px solid var(--z2-line,#ddd)}
+h2{font-size:17px;padding-bottom:.25em;border-bottom:1px solid var(--z2-line,#ddd)}
+h3{font-size:15px}
+h4,h5,h6{font-size:14px;color:var(--z2-dim,#666)}
+p{margin:.85em 0}
+a{color:var(--z2-accent,#0a7d3f)}
+code{font-family:ui-monospace,monospace;font-size:.88em;background:var(--z2-bg2,#f1f1f1);padding:1px 4px}
+pre{background:var(--z2-bg2,#f1f1f1);padding:10px 12px;overflow-x:auto;
+border-left:2px solid var(--z2-line,#ddd)}
+pre code{background:none;padding:0;font-size:12.5px;line-height:1.55}
+blockquote{margin:.9em 0;padding:.1em 0 .1em 12px;border-left:3px solid var(--z2-line,#ddd);
+color:var(--z2-dim,#666)}
+ul,ol{margin:.7em 0;padding-left:1.4em}
+li{margin:.3em 0}
+table{border-collapse:collapse;margin:1em 0;font-size:14px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--z2-line,#ddd);padding:5px 8px;text-align:left;vertical-align:top}
+th{background:var(--z2-bg2,#f1f1f1);font-weight:600;white-space:nowrap}
+hr{border:0;border-top:1px solid var(--z2-line,#ddd);margin:1.6em 0}
+img{max-width:100%;height:auto;margin:.6em 0}
+.fm{font-size:12px;color:var(--z2-dim,#666)}
+'
+
+$cInlineImg
+inline_images() {
+    in=${d}1
+    out=${d}2
+    if ! grep -q "${d}IMGTOK" "${d}in" 2>/dev/null; then
+        cp "${d}in" "${d}out"
+        return
+    fi
+    : > "${d}TMP/map"
+    LC_ALL=C awk -v tok="${d}IMGTOK" -v tok2="${d}IMGTOK2" '
+        {
+            s = ${d}0
+            while ((i = index(s, tok)) > 0) {
+                s = substr(s, i + length(tok))
+                j = index(s, tok)
+                if (j == 0) break
+                body = substr(s, 1, j - 1)
+                s = substr(s, j + length(tok))
+                k = index(body, tok2)
+                print (k > 0) ? substr(body, 1, k - 1) : body
+            }
+        }
+    ' "${d}in" | sort -u | while IFS= read -r url; do
+        [ -n "${d}url" ] || continue
+        real=${d}url
+        case "${d}real" in /*) ;; *) real=${d}srcdir/${d}real ;; esac
+        [ -r "${d}real" ] || continue
+        case "${d}real" in
+            *.png|*.PNG) mime=image/png ;;
+            *.jpg|*.JPG|*.jpeg|*.JPEG) mime=image/jpeg ;;
+            *.gif|*.GIF) mime=image/gif ;;
+            *.webp|*.WEBP) mime=image/webp ;;
+            *.svg|*.SVG) mime=image/svg+xml ;;
+            *) continue ;;
+        esac
+        sz=${d}(wc -c < "${d}real" 2>/dev/null) || continue
+        [ "${d}sz" -le 1500000 ] || continue
+        command -v base64 >/dev/null 2>&1 || continue
+        printf '%s\t%s\n' "${d}url" "data:${d}mime;base64,${d}(base64 < "${d}real" | tr -d '\n')" >> "${d}TMP/map"
+    done
+    LC_ALL=C awk -v mapfile="${d}TMP/map" -v tok="${d}IMGTOK" -v tok2="${d}IMGTOK2" -v lbl="${d}IMGLABEL" '
+        BEGIN {
+            while ((getline ln < mapfile) > 0) {
+                p = index(ln, "\t")
+                if (p > 0) MAP[substr(ln, 1, p - 1)] = substr(ln, p + 1)
+            }
+        }
+        {
+            out = ""
+            s = ${d}0
+            while ((i = index(s, tok)) > 0) {
+                out = out substr(s, 1, i - 1)
+                s = substr(s, i + length(tok))
+                j = index(s, tok)
+                if (j == 0) { out = out s; s = ""; break }
+                body = substr(s, 1, j - 1)
+                s = substr(s, j + length(tok))
+                k = index(body, tok2)
+                url = (k > 0) ? substr(body, 1, k - 1) : body
+                alt = (k > 0) ? substr(body, k + length(tok2)) : ""
+                if (url in MAP) {
+                    out = out "<img src=\"" MAP[url] "\" alt=\"" alt "\">"
+                } else {
+                    out = out "<p class=\"fm\">" lbl " " (alt == "" ? url : alt " (" url ")") "</p>"
+                }
+            }
+            print out s
+        }
+    ' "${d}in" > "${d}out"
+}
+
+IMGTOK="@@Z2IMG@@"
+IMGTOK2="@@ALT@@"
+IMGLABEL="$mImgLabel"
+
+if [ "${d}viewmode" = 1 ] || [ -n "${d}outfile" ]; then
+    page=${d}{outfile:-${d}HOME/.z2term/md/page.html}
+    mkdir -p "${d}(dirname -- "${d}page")" || die "$mNoDir"
+    LC_ALL=C awk -v mode=html -v color=0 -v width=0 -v ambi="${d}ambi" \
+        -v imgtok=0 -v title="${d}title" -v CSS="${d}CSS" -v IMGLABEL="${d}IMGLABEL" \
+        -v IMGTOKEN="${d}IMGTOK" -v IMGTOKEN2="${d}IMGTOK2" -v IMGMARK="${d}IMGMARK" \
+        -f "${d}TMP/md.awk" "${d}src" > "${d}TMP/page.html" || die "$mConvFail"
+    inline_images "${d}TMP/page.html" "${d}page"
+    if [ "${d}viewmode" = 1 ]; then
+        command -v z2-view >/dev/null 2>&1 || {
+            printf '%s\n' "md.sh: $mNoView" >&2
+            printf '%s\n' "${d}page"
+            exit 1
+        }
+        z2-view "${d}page" "${d}title"
+    else
+        printf '%s\n' "${d}page"
+    fi
+    exit 0
+fi
+
+render() {
+    LC_ALL=C awk -v mode=ansi -v color="${d}color" -v width="${d}width" -v ambi="${d}ambi" \
+        -v imgtok="${d}imgtok" -v title="${d}title" -v CSS="" -v IMGLABEL="${d}IMGLABEL" \
+        -v IMGTOKEN="${d}IMGTOK" -v IMGTOKEN2="${d}IMGTOK2" -v IMGMARK="${d}IMGMARK" \
+        -f "${d}TMP/md.awk" "${d}src"
+}
+
+if [ "${d}imgtok" = 1 ] && grep -q '!\[' "${d}src" 2>/dev/null; then
+    $cImgLoop
+    render | while IFS= read -r line; do
+        case "${d}line" in
+            "${d}IMGMARK"*)
+                rest=${d}{line#"${d}IMGMARK"}
+                p=${d}{rest%%"${d}TAB"*}
+                case "${d}p" in /*) ;; *) p=${d}srcdir/${d}p ;; esac
+                if [ -r "${d}p" ]; then
+                    z2-img "${d}p" 2>/dev/null || printf '%s %s\n' "${d}IMGLABEL" "${d}p"
+                else
+                    printf '%s %s\n' "${d}IMGLABEL" "${d}p"
+                fi
+                ;;
+            *) printf '%s\n' "${d}line" ;;
+        esac
+    done
+else
+    render
+fi
 """
 }
