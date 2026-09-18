@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="viewer_missing">Esa página ya no está.</string>
+    <string name="viewer_too_large">Ese archivo es demasiado grande para leerlo aquí (4 MB como máximo).</string>
+    <string name="viewer_no_browser">Ninguna aplicación de este teléfono puede abrir ese enlace.</string>
+</resources>

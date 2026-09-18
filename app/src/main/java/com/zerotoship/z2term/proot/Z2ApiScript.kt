@@ -163,6 +163,21 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |exec /usr/local/bin/z2api 0 open "${d}1"
     """.trimMargin() + "\n"
 
+    // z2-view (0.8.628): 端末で書いた HTML をアプリの中で読む。⚠ 受け渡しは z2-share と同じ
+    // /storage/app/z2api の下へ写してから名前だけを渡す (アプリ側に任意のパスを読ませない)。
+    val view = "#!/bin/sh\n" + m.viewHelp + "\n" + helpCaseDash + """
+        |[ ${d}# -ge 1 ] && [ ${d}# -le 2 ] || { echo "${m.viewUsage}" >&2; exit 1; }
+        |[ -f "${d}1" ] && [ -r "${d}1" ] || { echo "${m.viewUnreadable} ${d}1" >&2; exit 1; }
+        |DIR=/storage/app/z2api
+        |mkdir -p "${d}DIR" || exit 1
+        |stage=${d}(mktemp -d "${d}DIR/view-XXXXXXXXXX") || exit 1
+        |trap 'rm -rf "${d}stage"' 0
+        |trap 'exit 1' 1 2 15
+        |head -c 4194304 < "${d}1" > "${d}stage/page.html" || exit 1
+        |out=${d}(Z2API_WAIT=3000 /usr/local/bin/z2api 1 view "${d}{stage##*/}" "${d}{2:-}") || exit 1
+        |[ -z "${d}out" ] || printf '%s\n' "${d}out"
+    """.trimMargin() + "\n"
+
     val qr = "#!/bin/sh\n" + m.qrHelp + "\n" + helpCase + """
         |[ ${d}# -eq 0 ] || { echo "usage: z2-qr" >&2; exit 1; }
         |exec /usr/local/bin/z2api 0 qr
@@ -980,6 +995,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-toast" to toast,
         "z2-share" to share,
         "z2-open" to open,
+        "z2-view" to view,
         "z2-qr" to qr,
         "z2-img" to img,
         "z2-clip" to clip,

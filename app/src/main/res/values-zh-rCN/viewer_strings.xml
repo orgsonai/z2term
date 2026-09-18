@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="viewer_missing">该页面已不存在。</string>
+    <string name="viewer_too_large">文件太大，无法在这里打开（最多 4 MB）。</string>
+    <string name="viewer_no_browser">此手机上没有可以打开该链接的应用。</string>
+</resources>

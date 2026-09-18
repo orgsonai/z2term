@@ -343,6 +343,79 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
     """.trimMargin()
     )
 
+    val viewHelp: String = t(
+        en = """
+        |# z2-view <file.html> [title] … read a page you made here, inside z2term.
+        |# No server and no browser: the file is handed to the app and shown as it is.
+        |# JavaScript and network loads are off, so nothing on the page can run or phone home.
+        |# http:// and https:// links open in your usual browser.
+        |# The phone's theme arrives as CSS variables (--z2-bg --z2-bg2 --z2-fg --z2-dim
+        |# --z2-line --z2-accent), so a page written with them follows the terminal colours.
+        |# Up to 4 MB. Pictures must be embedded (data: URIs); remote ones are not fetched.
+    """.trimMargin(),
+        ja = """
+        |# z2-view <ファイル.html> [題名] … ここで作った頁を z2term の中で読みます。
+        |# サーバーもブラウザも要りません。ファイルをアプリへ渡して、そのまま出します。
+        |# JavaScript も外部への通信も切ってあるので、頁の側からは何も実行できません。
+        |# http:// と https:// のリンクは、いつものブラウザで開きます。
+        |# 端末のテーマが CSS 変数で届きます (--z2-bg --z2-bg2 --z2-fg --z2-dim
+        |# --z2-line --z2-accent)。これを使って書けば、配色がテーマに揃います。
+        |# 4 MB まで。絵は頁の中に埋め込んでください (data: URI)。外の絵は取りに行きません。
+    """.trimMargin(),
+        "zh-CN" to """
+        |# z2-view <文件.html> [标题] … 在 z2term 里阅读你在这里做好的页面。
+        |# 不需要服务器和浏览器：把文件交给应用，原样显示。
+        |# JavaScript 和对外通信都已关闭，页面里什么都跑不起来。
+        |# http:// 和 https:// 的链接会用你平常的浏览器打开。
+        |# 手机的主题以 CSS 变量送达 (--z2-bg --z2-bg2 --z2-fg --z2-dim --z2-line --z2-accent)。
+        |# 最大 4 MB。图片请嵌入页面 (data: URI)，外部图片不会去取。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-view <檔案.html> [標題] … 在 z2term 裡閱讀你在這裡做好的頁面。
+        |# 不需要伺服器和瀏覽器：把檔案交給應用程式，原樣顯示。
+        |# JavaScript 和對外連線都已關閉，頁面裡什麼都跑不起來。
+        |# http:// 和 https:// 的連結會用你平常的瀏覽器開啟。
+        |# 手機的主題以 CSS 變數送達 (--z2-bg --z2-bg2 --z2-fg --z2-dim --z2-line --z2-accent)。
+        |# 最大 4 MB。圖片請嵌入頁面 (data: URI)，外部圖片不會去取。
+    """.trimMargin(),
+        "es" to """
+        |# z2-view <archivo.html> [título] … lee dentro de z2term una página hecha aquí.
+        |# Sin servidor ni navegador: el archivo se entrega a la aplicación y se muestra tal cual.
+        |# JavaScript y las cargas de red están desactivados, así que la página no ejecuta nada.
+        |# Los enlaces http:// y https:// se abren en tu navegador habitual.
+        |# El tema del teléfono llega como variables CSS (--z2-bg --z2-bg2 --z2-fg --z2-dim
+        |# --z2-line --z2-accent), así la página sigue los colores del terminal.
+        |# Hasta 4 MB. Las imágenes deben ir incrustadas (data: URI); las remotas no se descargan.
+    """.trimMargin(),
+        "ko" to """
+        |# z2-view <파일.html> [제목] … 여기서 만든 페이지를 z2term 안에서 읽습니다.
+        |# 서버도 브라우저도 필요 없습니다. 파일을 앱에 넘겨 그대로 보여 줍니다.
+        |# JavaScript와 외부 통신을 껐으므로 페이지 쪽에서는 아무것도 실행할 수 없습니다.
+        |# http:// 와 https:// 링크는 평소 쓰는 브라우저로 엽니다.
+        |# 휴대전화 테마가 CSS 변수로 전달됩니다 (--z2-bg --z2-bg2 --z2-fg --z2-dim
+        |# --z2-line --z2-accent). 이를 쓰면 배색이 테마를 따릅니다.
+        |# 최대 4 MB. 그림은 페이지 안에 넣어 주세요 (data: URI). 외부 그림은 가져오지 않습니다.
+    """.trimMargin()
+    )
+
+    val viewUsage: String = t(
+        en = "usage: z2-view <file.html> [title]",
+        ja = "usage: z2-view <ファイル.html> [題名]",
+        "zh-CN" to "用法: z2-view <文件.html> [标题]",
+        "zh-TW" to "用法: z2-view <檔案.html> [標題]",
+        "es" to "uso: z2-view <archivo.html> [título]",
+        "ko" to "사용법: z2-view <파일.html> [제목]"
+    )
+
+    val viewUnreadable: String = t(
+        en = "z2-view: unreadable file:",
+        ja = "z2-view: 読めないファイル:",
+        "zh-CN" to "z2-view: 无法读取的文件:",
+        "zh-TW" to "z2-view: 無法讀取的檔案:",
+        "es" to "z2-view: archivo ilegible:",
+        "ko" to "z2-view: 읽을 수 없는 파일:"
+    )
+
     val openHelp: String = t(
         en = """
         |# z2-open <url|path> … open it with the default app (https://… or /sdcard/…).

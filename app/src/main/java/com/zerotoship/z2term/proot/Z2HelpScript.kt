@@ -33,6 +33,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-toast "message"             Toast (short on-screen message)
         |  z2-share "text"                Hand text to Android's share sheet
         |  z2-open <url|path>             Open a URL/file in the default app
+        |  z2-view <file.html>            Read a page you made here, inside the app
         |  z2-qr                          Scan a QR code with the camera (one button opens it)
         |  z2-img <file>                  Draw a picture in the terminal (PNG/JPEG/WebP/GIF/BMP)
         |  z2-clip get | set [text]       Get / set the clipboard (set: stdin if no arg)
@@ -86,6 +87,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-toast "メッセージ"          トースト(画面下の短いメッセージ)
         |  z2-share "テキスト"            Android の共有メニューに渡す
         |  z2-open <URL かパス>           URL/ファイルを既定アプリで開く
+        |  z2-view <ファイル.html>        ここで作った頁をアプリの中で読む
         |  z2-qr                          カメラでQRを読み取る(開くボタンを1つ出す)
         |  z2-img <ファイル>              端末にそのまま絵を出す(PNG/JPEG/WebP/GIF/BMP)
         |  z2-clip get | set [テキスト]   クリップボード取得/設定(set は引数なしで標準入力)
@@ -139,6 +141,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-toast "消息"                吐司(屏幕下方的短消息)
         |  z2-share "文本"                交给 Android 的分享菜单
         |  z2-open <URL 或路径>           用默认应用打开 URL/文件
+        |  z2-view <文件.html>            在应用里阅读这里做好的页面
         |  z2-qr                          用相机扫描 QR(出现一个打开按钮)
         |  z2-img <文件>                  直接在终端里画出图片(PNG/JPEG/WebP/GIF/BMP)
         |  z2-clip get | set [文本]       获取/设置剪贴板(set 不带参数则读标准输入)
@@ -192,6 +195,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-toast "訊息"                快顯訊息(螢幕下方的短訊息)
         |  z2-share "文字"                交給 Android 的分享選單
         |  z2-open <URL 或路徑>           用預設應用程式開啟 URL/檔案
+        |  z2-view <檔案.html>            在應用程式裡閱讀這裡做好的頁面
         |  z2-qr                          用相機掃描 QR(出現一個開啟按鈕)
         |  z2-img <檔案>                  直接在終端機裡畫出圖片(PNG/JPEG/WebP/GIF/BMP)
         |  z2-clip get | set [文字]       取得/設定剪貼簿(set 不帶參數則讀標準輸入)
@@ -245,6 +249,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-toast "mensaje"             Toast (mensaje corto en pantalla)
         |  z2-share "texto"               Pasa el texto al menú de compartir de Android
         |  z2-open <url|ruta>             Abre una URL o un archivo en su aplicación
+        |  z2-view <archivo.html>         Lee en la app una página hecha aquí
         |  z2-qr                          Lee un código QR con la cámara (un botón lo abre)
         |  z2-img <archivo>               Dibuja una imagen en la terminal (PNG/JPEG/WebP/GIF/BMP)
         |  z2-clip get | set [texto]      Lee / fija el portapapeles (set sin argumento: stdin)
@@ -298,6 +303,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-toast "메시지"             토스트 (화면에 잠깐 뜨는 짧은 메시지)
         |  z2-share "텍스트"             텍스트를 Android 공유 메뉴로 넘깁니다
         |  z2-open <url|경로>            URL이나 파일을 그 앱으로 엽니다
+        |  z2-view <파일.html>            여기서 만든 페이지를 앱 안에서 읽기
         |  z2-qr                         카메라로 QR 읽기 (여는 버튼 하나)
         |  z2-img <파일>                 터미널에 그림을 그립니다 (PNG/JPEG/WebP/GIF/BMP)
         |  z2-clip get | set [텍스트]    클립보드 읽기 / 넣기 (set에 인수가 없으면 stdin)

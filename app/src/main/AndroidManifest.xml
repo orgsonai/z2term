@@ -115,6 +115,9 @@
         <!-- The scanner is embedded in our app-lock-aware activity. -->
         <activity android:name="com.journeyapps.barcodescanner.CaptureActivity" tools:node="remove" />
         <activity android:name=".qr.QrToolsActivity" android:exported="false" />
+        <!-- z2-view: 端末が書いた 1 枚を読むだけ。外から開かせない (exported=false)。 -->
+        <activity android:name=".viewer.ViewerActivity" android:exported="false"
+            android:label="${appLabel}" android:launchMode="singleTop" />
         <activity android:name=".qr.QrReceiveActivity" android:exported="true"
             android:label="${appLabel} — QR" android:launchMode="singleTop">
             <intent-filter>

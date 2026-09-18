@@ -688,8 +688,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) Optional - one feed or word per line that must not get buried:  ~/.z2term/rss/important.txt
 #      Anything matching gets a notification of its own, so a busy feed cannot push it out.
 #      Write part of a URL or part of a title (e.g. example.org).
-#   4) Optional - let the notification's button open that very article:
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac'
+#   4) Optional - make the notification buttons work:
+#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in List) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#      Open sends that article to your browser; List opens everything collected, to read inside z2term.
+#      Note: opening a screen from a notification button needs the "display over other apps" permission.
 #   5) Optional - widget: point a live tail at ~/.z2term/rss/latest.txt in "start (head)" mode.
 #      Each line carries its URL, so tapping a line opens that article.
 #
@@ -707,8 +709,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) 見逃したくないフィード / 語を 1 行 1 本で書く (任意):  ~/.z2term/rss/important.txt
 #      ここに当たった記事は 1 本ずつ別の通知になるので、流量の多いフィードに埋もれない。
 #      書くのは URL の一部でも題名の一部でもよい (例: example.org)。
-#   4) 通知の「開く」でその記事をブラウザへ (任意):
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac'
+#   4) 通知のボタンを効かせる (任意):
+#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in 一覧) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#      「開く」はその記事をブラウザへ、「一覧」は集めた記事を読み物にして z2term の中で開く。
+#      ⚠ 通知のボタンから画面を開くには「他のアプリの上に表示」の許可が要る (エッジパネルと同じ)。
 #   5) ウィジェット (任意): ライブ tail で ~/.z2term/rss/latest.txt を「先頭 (head)」表示。
 #      行に URL が入っているので、タップするとその記事が開く。
 #
@@ -726,8 +730,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) 可选 - 一行一个、不想被埋掉的订阅源或词:  ~/.z2term/rss/important.txt
 #      命中的文章会单独发一条通知，这样流量大的源就压不掉它。
 #      写 URL 的一部分或标题的一部分都行 (例: example.org)。
-#   4) 可选 - 让通知上的按钮直接打开那一篇:
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac'
+#   4) 可选 - 让通知的按钮起作用:
+#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in 列表) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#      “打开”把那篇文章送到浏览器，“列表”把收集到的文章做成读物，在 z2term 里打开。
+#      注意: 从通知按钮打开画面需要“显示在其他应用上层”的权限 (和边缘面板同一个)。
 #   5) 可选 - 小组件: 用实时 tail 以“开头 (head)”模式看 ~/.z2term/rss/latest.txt。
 #      每行都带着自己的 URL，所以点一行就能打开那篇文章。
 #
@@ -745,8 +751,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) 可選 - 一行一個、不想被埋掉的訂閱源或詞:  ~/.z2term/rss/important.txt
 #      命中的文章會單獨發一條通知，這樣流量大的源就壓不掉它。
 #      寫 URL 的一部分或標題的一部分都行 (例: example.org)。
-#   4) 可選 - 讓通知上的按鈕直接開啟那一篇:
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac'
+#   4) 可選 - 讓通知的按鈕起作用:
+#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in 列表) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#      “開啟”把那篇文章送到瀏覽器，“列表”把收集到的文章做成讀物，在 z2term 裡開啟。
+#      注意: 從通知按鈕開啟畫面需要“顯示在其他應用程式上層”的權限 (和邊緣面板同一個)。
 #   5) 可選 - 小工具: 用即時 tail 以“開頭 (head)”模式看 ~/.z2term/rss/latest.txt。
 #      每行都帶著自己的 URL，所以點一行就能開啟那篇文章。
 #
@@ -764,8 +772,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) Opcional - un feed o una palabra por línea que no deba quedar enterrada:  ~/.z2term/rss/important.txt
 #      Lo que coincida recibe una notificación propia, así que un feed movido no puede taparlo.
 #      Escribe parte de una URL o parte de un título (p. ej. example.org).
-#   4) Opcional - que el botón de la notificación abra ese mismo artículo:
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac'
+#   4) Opcional - haz que funcionen los botones de la notificación:
+#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in Lista) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#      «Abrir» manda ese artículo a tu navegador; «Lista» abre todo lo reunido para leerlo dentro de z2term.
+#      Nota: abrir una pantalla desde un botón de notificación necesita el permiso «mostrar sobre otras aplicaciones».
 #   5) Opcional - widget: apunta un seguimiento en vivo a ~/.z2term/rss/latest.txt en modo «principio (head)».
 #      Cada línea lleva su URL, así que tocar una línea abre ese artículo.
 #
@@ -783,8 +793,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) 선택 - 묻히면 안 되는 피드나 낱말을 한 줄에 하나씩:  ~/.z2term/rss/important.txt
 #      맞는 것은 따로 알림을 받으므로, 글이 많은 피드에 덮이지 않습니다.
 #      URL의 일부나 제목의 일부를 적으세요 (예: example.org).
-#   4) 선택 - 알림의 버튼이 그 글을 바로 열게 하기:
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac' 
+#   4) 선택 - 알림의 버튼을 쓰이게 하기:
+#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in 목록) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#      「열기」는 그 글을 브라우저로, 「목록」은 모은 글을 읽을거리로 만들어 z2term 안에서 엽니다.
+#      참고: 알림 버튼에서 화면을 열려면 「다른 앱 위에 표시」 권한이 필요합니다 (엣지 패널과 같은 권한).
 #   5) 선택 - 위젯: 라이브 tail을 ~/.z2term/rss/latest.txt에 「앞 (head)」 모드로 맞춥니다.
 #      줄마다 URL이 붙어 있어서, 줄을 누르면 그 글이 열립니다.
 #
@@ -865,6 +877,45 @@ private fun rssBody(d: String, t: CliText): String {
         "es" to "Lístalos con: rss.sh list [cantidad]",
         "ko" to "목록을 보려면: rss.sh list [개수]"
     )
+    val cList = t(en = "List", ja = "一覧", "zh-CN" to "列表", "zh-TW" to "列表", "es" to "Lista",
+    "ko" to "목록")
+    val cPageTitle = t(
+        en = "Feeds", ja = "購読中のフィード", "zh-CN" to "订阅中的源", "zh-TW" to "訂閱中的源",
+        "es" to "Feeds suscritos", "ko" to "구독 중인 피드"
+    )
+    val cPageSites = t(en = "%s sites", ja = "%s サイト", "zh-CN" to "%s 个站点", "zh-TW" to "%s 個站點",
+    "es" to "%s sitios", "ko" to "%s개 사이트")
+    val cPageArticles = t(en = "%s articles", ja = "記事 %s 本", "zh-CN" to "%s 篇文章", "zh-TW" to "%s 篇文章",
+    "es" to "%s artículos", "ko" to "글 %s개")
+    /**
+     * 読み物 (HTML) を作る理由。⚠ **通知は「気付く」ためのもので「読む」のには向かない**
+     * (利用者の指摘)。⚠ サーバーは立てない — 読み物 1 枚のために常駐は増やさない。
+     * z2-view がアプリの中で開く (JavaScript も外部通信も切った状態)。
+     */
+    val cPageDoc = t(
+        en = "# Build the reading page (z2-view shows it inside the app; no server, no browser).\n" +
+            "# Grouped by site, newest first, with an Open button per article. The phone's theme\n" +
+            "# arrives as CSS variables, so the page follows the terminal colours.",
+        ja = "# 読み物 (HTML) を作る。z2-view がアプリの中で開く (サーバーもブラウザも要らない)。\n" +
+            "# サイトごとにまとめ、新しい順。1 本ずつに「開く」を置く。端末のテーマが CSS 変数で\n" +
+            "# 届くので、配色は端末に揃う。",
+        "zh-CN" to "# 做出读物 (HTML)。z2-view 会在应用里打开它 (不需要服务器和浏览器)。\n" +
+            "# 按站点分组，新的在前，每篇都放一个“打开”。手机的主题以 CSS 变量送达。",
+        "zh-TW" to "# 做出讀物 (HTML)。z2-view 會在應用程式裡開啟它 (不需要伺服器和瀏覽器)。\n" +
+            "# 按站點分組，新的在前，每篇都放一個“開啟”。手機的主題以 CSS 變數送達。",
+        "es" to "# Construye la página de lectura (z2-view la muestra dentro de la aplicación; sin servidor).\n" +
+            "# Agrupada por sitio, lo más nuevo primero, con un botón Abrir por artículo.",
+        "ko" to "# 읽을거리(HTML)를 만듭니다. z2-view가 앱 안에서 엽니다 (서버도 브라우저도 필요 없음).\n" +
+            "# 사이트별로 묶고 새것부터, 글마다 「열기」를 둡니다. 휴대전화 테마가 CSS 변수로 옵니다."
+    )
+    val cViewHint = t(
+        en = "Read them with: rss.sh view",
+        ja = "読み物: rss.sh view",
+        "zh-CN" to "阅读的方法: rss.sh view",
+        "zh-TW" to "閱讀的方法: rss.sh view",
+        "es" to "Léelos con: rss.sh view",
+        "ko" to "읽으려면: rss.sh view"
+    )
     val cHitMax = t(
         en = "max number of per-article notifications in one run (the rest go to the summary)",
         ja = "1 回に出す個別通知の上限 (超えた分はまとめ通知へ回す)",
@@ -920,10 +971,12 @@ private fun rssBody(d: String, t: CliText): String {
         "zh-TW" to "# 把不能錯過的挑出來。匯總通知的正文只放得下 3 條，流量大的\n" +
             "# 訂閱源要是同時更新，重要的那一條就被擠出去了。命中的文章**單獨發通知**\n" +
             "# (通知 ID 由應用程式一條一條分開發放，所以分開之後既不會被覆寫也不會被省略)。",
-        "es" to "# Separa lo que no debe perderse. El cuerpo del resumen solo lleva 3 líneas, así que un feed\n",
-        "ko" to "# 놓치면 안 되는 것을 갈라냅니다. 요약의 본문에는 3줄만 들어가므로, 글이 많은 피드는\n" +
+        "es" to "# Separa lo que no debe perderse. El cuerpo del resumen solo lleva 3 líneas, así que un feed\n" +
             "# movido que se actualice a la vez empuja fuera al que importaba. Las coincidencias reciben\n" +
-            "# **su propia notificación** (la aplicación da un id distinto a cada una, así que nada se sustituye)."
+            "# **su propia notificación** (la aplicación da un id distinto a cada una, así que nada se sustituye).",
+        "ko" to "# 놓치면 안 되는 것을 갈라냅니다. 요약의 본문에는 3줄만 들어가므로, 글이 많은 피드가\n" +
+            "# 동시에 갱신되면 중요한 한 건이 밀려납니다. 맞은 글은 **알림을 따로** 냅니다\n" +
+            "# (알림 id는 앱이 건마다 따로 매기므로, 나누면 덮어쓰지도 생략하지도 않습니다)."
     )
     val cNameDoc = t(
         en = "# Put the URL in the notification's name: pressing the button hands it back as {name} in\n" +
@@ -934,9 +987,10 @@ private fun rssBody(d: String, t: CliText): String {
             "# 所以即使屏幕上有好几条通知，也不会搞错是哪一条的“打开”(准备 4 的规则)。",
         "zh-TW" to "# 把 URL 放進通知的名字裡。按下按鈕時它會原樣作為 notify_action 的 {name} 回來，\n" +
             "# 所以即使螢幕上有好幾條通知，也不會搞錯是哪一條的“開啟”(準備 4 的規則)。",
-        "es" to "# Mete la URL en el nombre de la notificación: al pulsar el botón vuelve como {name} en\n",
-        "ko" to "# URL을 알림의 이름에 넣습니다: 버튼을 누르면 {name}으로 되돌아옵니다\n" +
-            "# notify_action, así que se abre el artículo correcto aunque haya varias en pantalla (preparación 4)."
+        "es" to "# Mete la URL en el nombre de la notificación: al pulsar el botón vuelve como {name} en\n" +
+            "# notify_action, así que se abre el artículo correcto aunque haya varias en pantalla (preparación 4).",
+        "ko" to "# URL을 알림의 이름에 넣어 둡니다. 버튼을 누르면 notify_action의 {name}으로 그대로\n" +
+            "# 돌아오므로, 알림이 여러 개 떠 있어도 어느 것의 「열기」인지 헷갈리지 않습니다 (준비 4)."
     )
     val cListDoc = t(
         en = "# Print what was collected as a readable list (no colour — it should look the same as the file/widget).\n" +
@@ -950,12 +1004,16 @@ private fun rssBody(d: String, t: CliText): String {
             "# latest.txt 本身保持一行一篇的原始数据 (小组件的 tail 和 rss-open.sh 会读它)。",
         "zh-TW" to "# 把收集到的文章排得好讀一些輸出。不用顏色 — 要和檔案、小工具裡看到的一致。\n" +
             "# latest.txt 本身保持一行一篇的原始資料 (小工具的 tail 和 rss-open.sh 會讀它)。",
-        "es" to "# Imprime lo reunido como una lista legible (sin color: debe verse igual que el archivo y el widget).\n",
-        "ko" to "# 모은 것을 읽기 좋은 목록으로 찍습니다 (색 없이. 파일이나 위젯과 똑같이 보여야 합니다).\n" +
+        "es" to "# Imprime lo reunido como una lista legible (sin color: debe verse igual que el archivo y el widget).\n" +
             "# En una terminal, el título mismo se vuelve un enlace (OSC 8) en vez de poner la URL en otra línea:\n" +
             "# una URL larga se parte y se mezcla con los títulos, y la lista deja de leerse. Fuera de una terminal\n" +
             "# (tubería, redirección) los escapes estorban, así que sale texto pelado y la URL a la vista.\n" +
-            "# latest.txt sigue siendo datos en bruto, un artículo por línea (los leen el tail del widget y rss-open.sh)."
+            "# latest.txt sigue siendo datos en bruto, un artículo por línea (los leen el tail del widget y rss-open.sh).",
+        "ko" to "# 모은 것을 읽기 좋은 목록으로 찍습니다 (색 없이. 파일이나 위젯과 똑같이 보여야 합니다).\n" +
+            "# 터미널에서는 제목 자체를 OSC 8 링크로 만들고 URL 줄은 넣지 않습니다. 긴 URL은 줄바꿈되어\n" +
+            "# 제목과 섞이고, 목록으로 읽을 수 없게 되기 때문입니다. 터미널이 아닐 때(파이프·리다이렉트)는\n" +
+            "# 이스케이프가 방해되므로 맨 텍스트로 떨어뜨리고 URL도 보이게 합니다.\n" +
+            "# latest.txt는 한 줄 한 글의 날 데이터 그대로 둡니다 (위젯의 tail과 rss-open.sh가 읽습니다)."
     )
 
     return """$head
@@ -967,8 +1025,88 @@ LATEST="${d}DIR/latest.txt"
 IMPORTANT="${d}DIR/important.txt"
 HITS="${d}DIR/.hits"
 REST="${d}DIR/.rest"
+ARTICLES="${d}DIR/articles.tsv"
+PAGE="${d}DIR/latest.html"
 KEEP=500                                  # $cKeep
 HITMAX=5                                  # $cHitMax
+
+$cPageDoc
+build_page() {
+  # 0.8.628 より前から使っている人のぶんは latest.txt から起こす (時刻は分からないので 0)。
+  if [ ! -s "${d}ARTICLES" ] && [ -s "${d}LATEST" ]; then
+    awk '{ url = ${d}NF; t = ${d}0; sub(/[ \t]+[^ \t]+${d}/, "", t); print "0\t" url "\t" t }' \
+      "${d}LATEST" > "${d}ARTICLES"
+  fi
+  [ -s "${d}ARTICLES" ] || return 1
+  python3 - "${d}ARTICLES" "${d}PAGE" "$cPageTitle" "$cPageSites" "$cPageArticles" "$cOpen" <<'Z2RSS_HTML'
+import html, sys, time
+
+src, dst, title, l_sites, l_articles, l_open = sys.argv[1:7]
+
+rows = []
+for line in open(src, encoding="utf-8", errors="replace"):
+    part = line.rstrip("\n").split("\t")
+    if len(part) < 3:
+        continue
+    url = part[1].strip()
+    # 端末の外から来た文字なので、http(s) 以外は載せない (javascript: などを作らせない)。
+    if not url.startswith("http://") and not url.startswith("https://"):
+        continue
+    stamp = int(part[0]) if part[0].isdigit() else 0
+    rows.append((stamp, url, "\t".join(part[2:]).strip() or url))
+
+groups = {}
+for stamp, url, name in rows:
+    host = url.split("://", 1)[-1].split("/", 1)[0]
+    groups.setdefault(host, []).append((stamp, url, name))
+
+style = (
+    '<style>'
+    ':root{color-scheme:light dark}'
+    'body{margin:0;background:var(--z2-bg,#fff);color:var(--z2-fg,#111);'
+    'font:16px/1.55 -apple-system,"Noto Sans JP","Noto Sans",sans-serif}'
+    'header{padding:14px 16px;border-bottom:1px solid var(--z2-line,#ddd)}'
+    'h1{margin:0;font-size:17px;font-weight:600}'
+    'header p{margin:3px 0 0;font-size:13px;color:var(--z2-dim,#666)}'
+    'section{padding:0 16px}'
+    'h2{position:sticky;top:0;margin:0;padding:13px 0 5px;font-size:12px;font-weight:600;'
+    'letter-spacing:.05em;color:var(--z2-accent,#0a7d3f);background:var(--z2-bg,#fff);'
+    'border-bottom:1px solid var(--z2-line,#ddd)}'
+    'h2 span{float:right;font-weight:400;color:var(--z2-dim,#666)}'
+    'article{padding:11px 0;border-bottom:1px solid var(--z2-line,#eee)}'
+    'a.t{display:block;color:inherit;text-decoration:none}'
+    'p.m{display:flex;justify-content:space-between;align-items:center;'
+    'margin:6px 0 0;font-size:12px;color:var(--z2-dim,#666)}'
+    'a.o{color:var(--z2-accent,#0a7d3f);text-decoration:none;'
+    'border:1px solid currentColor;padding:3px 12px}'
+    '</style>'
+)
+
+out = ['<!doctype html><html><head><meta charset="utf-8">',
+       '<meta name="viewport" content="width=device-width,initial-scale=1">',
+       '<title>' + html.escape(title) + '</title>', style, '</head><body>',
+       '<header><h1>' + html.escape(title) + '</h1><p>'
+       + html.escape(l_sites.replace("%s", str(len(groups)))) + ' \u00b7 '
+       + html.escape(l_articles.replace("%s", str(len(rows)))) + '</p></header>']
+for host, items in groups.items():
+    out.append('<section><h2>' + html.escape(host) + '<span>' + str(len(items)) + '</span></h2>')
+    for stamp, url, name in items:
+        link = html.escape(url, quote=True)
+        when = time.strftime("%m-%d %H:%M", time.localtime(stamp)) if stamp else ""
+        out.append('<article><a class="t" href="' + link + '">' + html.escape(name) + '</a>'
+                   '<p class="m"><time>' + when + '</time>'
+                   '<a class="o" href="' + link + '">' + html.escape(l_open) + '</a></p></article>')
+    out.append('</section>')
+out.append('</body></html>')
+open(dst, "w", encoding="utf-8").write("\n".join(out))
+Z2RSS_HTML
+}
+
+if [ "${d}1" = view ]; then
+  build_page || { echo "$cListNone"; exit 0; }
+  z2-view "${d}PAGE" "$cPageTitle"
+  exit 0
+fi
 
 $cListDoc
 if [ "${d}1" = list ]; then
@@ -1041,6 +1179,12 @@ cat "${d}NEW" "${d}SEEN" | head -n "${d}KEEP" > "${d}SEEN.t" && mv "${d}SEEN.t" 
 $cPrepend
 { awk -F'\t' '{ print ${d}2 "  " ${d}1 }' "${d}NEW"; cat "${d}LATEST" 2>/dev/null; } \
   | head -n "${d}KEEP" > "${d}LATEST.t" && mv "${d}LATEST.t" "${d}LATEST"
+# 読み物にはいつ来たかも要る (latest.txt は 1 行 1 記事の素データのままにしておく)。
+stamp=${d}(date +%s)
+{ awk -F'\t' -v now="${d}stamp" '{ print now "\t" ${d}1 "\t" ${d}2 }' "${d}NEW"; \
+  cat "${d}ARTICLES" 2>/dev/null; } \
+  | head -n "${d}KEEP" > "${d}ARTICLES.t" && mv "${d}ARTICLES.t" "${d}ARTICLES"
+build_page || true
 
 $cSplitDoc
 : > "${d}HITS"
@@ -1060,18 +1204,24 @@ TAB=${d}(printf '\t')
 while IFS="${d}TAB" read -r u t; do
   [ -n "${d}u" ] || continue
   host=${d}{u#*://}; host=${d}{host%%/*}
-  z2-notify -h -n "rss:${d}u" -b "$cOpen" "${d}{t:-${d}u}" "${d}host"
+  z2-notify -h -n "rss:${d}u" -b "$cOpen" -b "$cList" "${d}{t:-${d}u}" "${d}host"
 done < "${d}HITS"
 
 rn=${d}(grep -c . "${d}REST" 2>/dev/null)
 if [ "${d}{rn:-0}" -gt 0 ]; then
-  z2-notify -h -n "rss:${d}(head -1 "${d}REST" | cut -f1)" -b "$cOpen" \
+  z2-notify -h -n "rss:${d}(head -1 "${d}REST" | cut -f1)" -b "$cOpen" -b "$cList" \
     "${d}(printf '$cNotify' "${d}rn")" "${d}(cut -f2 "${d}REST" | head -3)"
 fi
 rm -f "${d}HITS" "${d}REST"
 
-# 端末から直に走らせたときだけ一覧の出し方を案内する (自動実行のログを汚さない)。
-[ -t 1 ] && echo "$cListHint"
+# 端末から直に走らせたときだけ出し方を案内する (自動実行のログを汚さない)。
+# ⚠ ここを `[ -t 1 ] && echo` で終わらせない — 端末でないときに終了コードが 1 になり、
+#   z2-when の記録が「失敗」になる。
+if [ -t 1 ]; then
+  echo "$cListHint"
+  echo "$cViewHint"
+fi
+exit 0
 """
 }
 

@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.627-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.628-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -899,6 +899,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
+**0.8.628-alpha (versionCode 636) — build unverified**: New `z2-view` reads a page you built on the terminal **inside the app** — no server, no browser. `rss.sh` now writes such a page on every poll (the user's report: "following RSS through notifications is hard to read"). Notifications stay as they were, with a second button: Open sends that article to the browser, List opens everything collected, grouped by site, with an Open button on each article. From the terminal it is `rss.sh view`. The page is shown with JavaScript and network loads switched off, and follows the terminal's colours.
+
 **0.8.627-alpha (versionCode 635) — build unverified**: Edge-panel scrolling no longer touches the screen by default. It used to send a real swipe, which an app cannot tell apart from your finger, so on screens where swiping does something that action ran instead, and a stroke across a keyboard could type (the user's report: "the gesture types characters by itself — it is dangerous"). ⇒ it now asks the scrollable view directly and only falls back to a swipe where the app offers nothing scrollable. Appearance → Gestures → How to scroll offers **Automatic / Do not touch the screen / Send a swipe** (`scroll-how=auto|node|swipe` from the CLI). The scroll target is also picked from the window you are touching: a freeform window may hold no input focus, which left it unscrollable even while in front.
 
 **0.8.626-alpha (versionCode 634) — build unverified**: Two changes to the drawings `z2-icon` ships. (1) `sync` is redrawn as **two arrows forming a loop** — the old one did not read as anything in particular (the user's report: "sync has turned into a mark that makes no sense"). (2) **A camera drawing, `camera`, joins the list** (16 bundled now). A tile whose command contains `shot`, `photo` or `camera` gets it automatically (it is looked at before `moon`, because `screenshot` contains `screen`).
@@ -1242,6 +1244,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-share "text"` | Hand text to Android's share sheet |
 | `z2-share --file /sdcard/Download/report.pdf` | Share file contents with another app; multiple files supported. [Sharing and input forms](SHARE-WORKFLOW.md) |
 | `z2-open <URL or path>` | Open a URL or file in the default app |
+| `z2-view <file.html> [title]` | **Read a page you made here, inside z2term** (0.8.628). No server and no browser. JavaScript and network loads are off, and only `http(s)` links leave for your usual browser. The phone's theme arrives as CSS variables (`--z2-bg` `--z2-bg2` `--z2-fg` `--z2-dim` `--z2-line` `--z2-accent`), so a page written with them follows the terminal colours. Up to 4 MB; embed pictures as `data:` URIs (remote ones are not fetched) |
 | `z2-qr` | Scan a QR code with the camera and show one Open button for its content |
 | `z2-img [-w COLS] [-r ROWS] [--clear] <file>...` | **Draw a picture in the terminal** (0.8.495). PNG / JPEG / WebP / GIF / BMP. Pass `-` to read one image from stdin (`curl -s <url> \| z2-img -`). By default it **fits the terminal width**; `-w` (columns) and `-r` (rows) set it explicitly. `--clear` removes every picture drawn so far. Given several files, it prints each name on its own line before the picture. ⚠ **Pictures only appear in a z2term tab, or in a terminal that speaks the kitty graphics protocol.** Over `ssh` or inside a pager you just get gibberish. ⚠ By default it **only writes to a terminal** — down a pipe or into a file the bytes are indistinguishable from garbage — so pass `-f` if you really mean it. ⚠ The aspect ratio assumes a cell is twice as tall as it is wide; if it looks squashed, tune it with `Z2_IMG_ASPECT=0.45 z2-img photo.jpg` (smaller = taller). ⚠ **Large photos are subsampled while decoding** (4 megapixels max). Only a few hundred pixels ever reach the screen, so nothing looks different, but the original resolution is not kept in memory |
 | `z2-clip get` / `z2-clip set [text]` | Get / set the clipboard (set reads stdin if no argument). ⚠ **Writing only works while you are looking at z2term** (or while z2term is the input method you use) — since Android 10 a `set` from a macro running in the background is dropped silently. For macros triggered by calls, SMS or notifications, use the `z2-notify -c` copy button instead (0.8.335) |
@@ -1364,6 +1367,16 @@ sh ~/.z2term/macros/rss.sh list 50    # pick a count
 ```
 
 One article per line, as `[ 1] Article title  (zenn.dev)`. **Tap the title to open the article** — the URL is not printed, because long URLs wrap and tangle with the titles until the list is unreadable. Piped or redirected, it falls back to plain text with the URLs shown.
+
+**Read them as a page** (0.8.628)
+
+```sh
+sh ~/.z2term/macros/rss.sh view
+```
+
+Everything collected becomes **one page grouped by site**, opened inside z2term — no server and no browser. Each article carries an Open button that takes you to the original site. The notification gains a second button as well: Open for that article, List for this page. Note that opening a screen from a notification button needs the "display over other apps" permission (the same one the edge panel uses). The page is shown with JavaScript and network loads switched off.
+
+⚠ **If you already installed `rss.sh`, install it again**: look at `z2-macro diff rss.sh` first, then `z2-macro install -f rss.sh` (your own edits go too).
 
 **3. Give the ones you must not miss their own notification** (optional, 0.8.334)
 

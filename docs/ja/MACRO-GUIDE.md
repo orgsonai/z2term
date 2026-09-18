@@ -274,6 +274,7 @@ z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term
 | `z2-battery` | `z2-battery` | 電池状態 | `{"level":N,"charging":bool}` |
 | `z2-share` | `z2-share "テキスト"` | 共有メニューへ | — |
 | `z2-open` | `z2-open <URL\|パス>` | 既定アプリで開く | — |
+| `z2-view` | `z2-view <ファイル.html> [題名]` | 端末で作った頁を**アプリの中で読む**（サーバー不要） | — |
 | `z2-intent` | 下記参照 | 任意の Intent を発火 | — |
 | `z2-state` | `z2-state [キー]` | **今の端末の状態**を返す（下記） | JSON / キー指定ならその値 |
 | `z2-screen` | `z2-screen keepon 1h` / `keepon off` / `status` | **画面の自動消灯を期限つきで止める**（下記） | 状態 JSON |

@@ -310,6 +310,12 @@ object Z2ApiBridge {
             "toast" -> { val msg = args.joinToString(" "); mainHandler.post { Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }; null }
             "share" -> { doShareText(context, args.joinToString(" ")); null }
             "open" -> { doOpen(context, args.getOrNull(0).orEmpty()); null }
+            // z2-view (0.8.628): 端末で作った HTML をアプリの中で読む。file:// は他アプリへ
+            // 渡せず、サーバーを立てるのは常駐が増えるので、自前で開く ([ViewerActivity])。
+            "view" -> {
+                require(args.size >= 1) { "view STAGE [TITLE]" }
+                doView(context, args[0], args.getOrNull(1).orEmpty()); null
+            }
             // z2-qr (0.8.602): カメラで読み取る状態の QR ツール。タイルやエッジパネルから呼ぶ入口。
             "qr" -> { com.zerotoship.z2term.qr.QrToolsActivity.scan(context); null }
             "clip-set" -> { val text = args.joinToString(" "); runOnMain { setClipboard(context, text) }; null }
@@ -1474,6 +1480,19 @@ object Z2ApiBridge {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(chooser)
+    }
+
+    /**
+     * `z2-view` — 端末が `/storage/app/z2api/<stage>/page.html` へ置いた 1 枚を開く。
+     *
+     * ⚠ **受け取るのは置き場の名前だけ**。パスをそのまま受けると、端末側から任意のファイルを
+     * アプリに読ませる口になる (共有ストレージの外も含めて)。
+     */
+    private fun doView(context: Context, stage: String, title: String) {
+        require(stage.isNotBlank() && !stage.contains('/') && !stage.contains("..")) { "view: bad stage" }
+        val staging = java.io.File(requireNotNull(context.getExternalFilesDir(null)), "z2api")
+        val page = java.io.File(java.io.File(staging, stage), "page.html")
+        com.zerotoship.z2term.viewer.ViewerActivity.show(context, page, title)
     }
 
     private fun doOpen(context: Context, target: String) {

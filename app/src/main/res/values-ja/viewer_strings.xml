@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="viewer_missing">その頁はもうありません。</string>
+    <string name="viewer_too_large">このファイルは大きすぎて開けません（4 MB まで）。</string>
+    <string name="viewer_no_browser">そのリンクを開けるアプリがこの端末にありません。</string>
+</resources>
