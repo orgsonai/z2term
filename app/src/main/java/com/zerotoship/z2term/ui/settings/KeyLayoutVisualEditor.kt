@@ -152,16 +152,6 @@ fun KeyLayoutVisualEditor(
                 lineHeight = 15.sp,
                 fontFamily = FontFamily.Monospace,
             )
-            ToggleField(
-                title = stringResource(R.string.settings_key_layout_multi_select),
-                description = stringResource(R.string.settings_key_layout_multi_select_desc),
-                checked = multiSelect,
-                onChange = { enabled ->
-                    multiSelect = enabled
-                    if (!enabled) selected = selected.firstOrNull()?.let(::setOf).orEmpty()
-                },
-            )
-
             if (path != null && key != null) {
             Text(
                 text = stringResource(
@@ -175,13 +165,6 @@ fun KeyLayoutVisualEditor(
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
             )
-            Text(
-                text = stringResource(R.string.settings_key_layout_selected_count, selected.size),
-                color = ZtsTextSecondary,
-                fontSize = 10.sp,
-                fontFamily = FontFamily.Monospace,
-            )
-
             VisualTextField(
                 label = stringResource(R.string.settings_key_layout_label),
                 value = key.label,
@@ -219,6 +202,9 @@ fun KeyLayoutVisualEditor(
                 .padding(horizontal = 8.dp, vertical = 7.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
+            // ⭐ 「複数選択」はここに置く (0.8.631)。上の設定欄に置いていたときは**スクロールで
+            // 流れて消える**ため、キーを選んでいる最中に切り替えられなかった (利用者の指摘)。
+            // 切り替えたい場面＝プレビューでキーを叩いている最中なので、押す場所の隣に常に出す。
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -231,13 +217,28 @@ fun KeyLayoutVisualEditor(
                     fontWeight = FontWeight.SemiBold,
                     fontFamily = FontFamily.Monospace,
                 )
-                Text(
-                    text = stringResource(R.string.settings_key_layout_preview_desc),
-                    color = ZtsTextSecondary,
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace,
-                )
+                ChoiceChip(
+                    label = stringResource(R.string.settings_key_layout_multi_select),
+                    selected = multiSelect,
+                ) {
+                    multiSelect = !multiSelect
+                    if (!multiSelect) selected = selected.firstOrNull()?.let(::setOf).orEmpty()
+                }
             }
+            // 1 行の高さは変えない (ON のときだけ件数、OFF のときは読み方の説明)。
+            Text(
+                text = when {
+                    multiSelect && selected.size > 1 ->
+                        stringResource(R.string.settings_key_layout_selected_count, selected.size)
+                    multiSelect -> stringResource(R.string.settings_key_layout_multi_select_desc)
+                    else -> stringResource(R.string.settings_key_layout_preview_desc)
+                },
+                color = if (multiSelect) ZtsGreen else ZtsTextSecondary,
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             LayoutPreview(
                 layout = workingLayout,
                 selected = selected,

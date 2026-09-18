@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-18 / Target version: 0.8.630-alpha (versionCode 638)
+Last updated: 2026-09-18 / Target version: 0.8.631-alpha (versionCode 639)
+
+**0.8.631-alpha (versionCode 639) — build unverified**: In the key-layout editor, **"Multiple selection" has moved onto the preview keyboard** (reported as "it sits at the top where it does not stay put, which is awkward"). It used to live in the scrolling settings column, so it slid out of sight as soon as you scrolled to a key's settings — exactly when you want it. It now sits next to the keys you tap, and while it is on, the number of selected keys is shown underneath. The duplicate count in the settings column is gone.
 
 **0.8.630-alpha (versionCode 638) — build unverified**: Making a QR code no longer needs `qrencode` installed. The encoder (ZXing) is already in the app for the QR tools screen, so the terminal can now call the same one (`z2-qr encode`). `z2-qr encode "text"` writes a PNG (by default `~/.z2term/qr/qr.png`) and prints where it went; `-t` draws it right there with block characters instead. `-p` is the size to aim for in pixels and `-m` the quiet zone in modules. The bundled `qr.sh` keeps using `qrencode` when it is installed and falls back to the app when it is not, **so there is nothing to reinstall every time a tab (distro) is rebuilt.** ⚠ Where the app is out of reach (over `ssh`), `qrencode` is still required.
 
