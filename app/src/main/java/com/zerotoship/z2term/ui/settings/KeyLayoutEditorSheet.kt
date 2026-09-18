@@ -121,6 +121,7 @@ fun KeyLayoutEditorSheet(
     ) {
         BackHandler(onBack = ::requestClose)
         BoxWithConstraints(Modifier.fillMaxSize()) {
+            val previewMaxHeight = (maxHeight * 0.45f).coerceAtMost(320.dp)
             Column(
                 modifier = Modifier.fillMaxSize(),
             ) {
@@ -277,7 +278,7 @@ fun KeyLayoutEditorSheet(
                     KeyLayoutEditorPreview(
                         layout = candidate,
                         state = selection,
-                        modifier = Modifier.heightIn(max = (maxHeight * 0.45f).coerceAtMost(320.dp)),
+                        modifier = Modifier.heightIn(max = previewMaxHeight),
                         onSelect = {
                             focus.clearFocus()
                             val target = (scroll.value + selection.detailsY - viewportTop).roundToInt()

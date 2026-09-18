@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.636-alpha (versionCode 644) — build and device verification pending at commit time**: Fixed the scope used to calculate the keyboard layout preview height, addressing a Kotlin compilation error. The preview remains fixed at the bottom, capped at 45% of the available height and 320dp. See the GitHub Release for publication-time verification results.
+
 **0.8.635-alpha (versionCode 643) — build and device verification pending**: The RSS guide now registers named Automation rules for polling and notification actions, then opens the collected article list. Open targets the article; List opens the collected page. The guide includes permission for opening screens from notifications and where to edit existing rules. Tile/widget assignment and rss-open installation are no longer part of setup.
 
 **0.8.634-alpha (versionCode 642) — build and device verification pending**: The keyboard layout preview is fixed at the bottom again, with Multiple selection beside it. Settings scroll above the visible keys; the heading, instructions and mode controls remain in the scrolling area. The preview has a height limit to retain room for editing in landscape and while typing. Extra key rows scroll within the preview. Selecting another key keeps the current settings scroll position, and the redundant Back to keys and Edit selected keys buttons are removed.
