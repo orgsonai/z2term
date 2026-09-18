@@ -98,10 +98,10 @@
     <string name="settings_key_layout_editor_escape_title">この配列から抜けられない可能性があります</string>
     <string name="settings_key_layout_editor_escape_msg">面切替・設定・キーボードを閉じる・OS の入力方法へ切り替える、のどれも割り当てられていません。端末画面ではツールバーの設定から戻せますが、OS の入力方法として使う画面にはツールバーがありません。</string>
     <string name="settings_key_layout_editor_save_anyway">それでも保存</string>
-    <string name="settings_key_layout_visual_intro">キーを選んで設定を変え、保存します。画面全体をスクロールできます。</string>
+    <string name="settings_key_layout_visual_intro">下に固定したキーボードでキーを選び、上の設定欄で編集します。</string>
     <string name="settings_key_layout_mode_visual">見た形で編集</string>
     <string name="settings_key_layout_mode_json">JSON</string>
-    <string name="settings_key_layout_visual_desc">キーをタップすると設定へ移動します。まとめて変える場合は「複数選択」をONにし、キーを選んで「選択キーを編集」を押します。</string>
+    <string name="settings_key_layout_visual_desc">設定欄をスクロールしてもプレビューは下に残ります。幅・見た目・ジェスチャをまとめて変える場合は、キーの隣の「複数選択」をONにします。</string>
     <string name="settings_key_layout_preview_title">タップして編集するキーボード</string>
     <string name="settings_key_layout_preview_desc">選択中のキーは緑で表示されます</string>
     <string name="settings_key_layout_child_letters">英字</string>
@@ -1320,6 +1320,4 @@ SSH 接続先 %3$d 件
     <string name="guide_sample_translation_missing">先に翻訳コマンド trans の導入と翻訳マクロの準備を済ませてから、サンプル作成を再実行してください。</string>
     <string name="guide_desc_edge_workspace">メモ帳・翻訳・ターミナルをタブで使うパネルを作る</string>
     <string name="guide_step_sample_use">3つのタブを切り替えて使います。メモは本文をダブルタップで編集し、自動保存されます。翻訳は原文と翻訳先を指定して「翻訳する」を押します。タブ切替・閉じる操作で翻訳の入力と結果は消えます。ターミナルのシェル・出力・入力途中の文字は継続し、↻で手動リフレッシュできます。サンプルバーの不透明度は30％です。</string>
-    <string name="settings_key_layout_edit_selected">選択キーを編集</string>
-    <string name="settings_key_layout_back_to_keys">配列へ戻る</string>
 </resources>

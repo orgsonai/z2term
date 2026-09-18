@@ -95,10 +95,10 @@
     <string name="settings_key_layout_editor_escape_title">可能無法從這個配置退出</string>
     <string name="settings_key_layout_editor_escape_msg">切換面、開啟設定、收起鍵盤、切換到其他輸入法，這幾樣都沒有綁定。在終端機畫面還可以從工具列的設定退出，但作為系統輸入法使用的畫面沒有工具列。</string>
     <string name="settings_key_layout_editor_save_anyway">仍然儲存</string>
-    <string name="settings_key_layout_visual_intro">選取一個鍵，修改設定後儲存。整個頁面皆可捲動。</string>
+    <string name="settings_key_layout_visual_intro">在底部固定的鍵盤中選取按鍵，再於上方編輯設定。</string>
     <string name="settings_key_layout_mode_visual">可視化編輯</string>
     <string name="settings_key_layout_mode_json">JSON</string>
-    <string name="settings_key_layout_visual_desc">點選按鍵可移至設定。批次修改時，開啟多選，選好後點選「編輯選取的鍵」。</string>
+    <string name="settings_key_layout_visual_desc">捲動設定時，預覽仍固定在底部。若要批次修改寬度、外觀或手勢，請開啟按鍵旁的多選。</string>
     <string name="settings_key_layout_preview_title">點選鍵即可編輯</string>
     <string name="settings_key_layout_preview_desc">選中的鍵以綠色顯示</string>
     <string name="settings_key_layout_child_letters">字母</string>
@@ -1242,6 +1242,4 @@ SSH 連線目標 %3$d 個
     <string name="guide_step_sample_use">切換三個分頁使用。點兩下筆記正文即可編輯，內容自動儲存。翻譯時輸入原文、選擇目標語言並點選翻譯。切換分頁或關閉面板會清除翻譯輸入和結果。終端的 Shell、輸出和輸入草稿會保留，可用 ↻ 手動重新整理。範例列的不透明度為30%。</string>
     <string name="guide_step_translation_cli">若尚未安裝 trans，請在同一 Linux 環境中手動執行對應命令。\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\n此卡片僅供閱讀，點選不會安裝。待翻譯文字會傳送至外部翻譯服務。</string>
     <string name="guide_sample_translation_missing">請先安裝 trans 並準備翻譯巨集，再重新執行範例建立步驟。</string>
-    <string name="settings_key_layout_edit_selected">編輯選取的鍵</string>
-    <string name="settings_key_layout_back_to_keys">返回鍵盤</string>
 </resources>

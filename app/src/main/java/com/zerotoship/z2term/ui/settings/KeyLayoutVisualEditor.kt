@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
@@ -32,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
@@ -80,6 +83,50 @@ import com.zerotoship.z2term.ui.theme.ZtsWarning
 import java.util.Locale
 import kotlin.math.roundToInt
 
+/** Shared by the scrolling settings and the fixed preview; selection never edits the layout. */
+internal class KeyLayoutEditorSelection(layout: KeyLayout) {
+    var editingSymbols by mutableStateOf(false)
+    var multiSelect by mutableStateOf(false)
+    var selected by mutableStateOf(layout.keyPaths().firstOrNull()?.let(::setOf).orEmpty())
+    var detailsY = 0f
+
+    fun surface(layout: KeyLayout): KeyLayout =
+        if (editingSymbols) layout.copy(rows = layout.symbolRows.orEmpty()) else layout
+
+    fun changeSurface(layout: KeyLayout, symbols: Boolean) {
+        if (editingSymbols == symbols) return
+        editingSymbols = symbols
+        selected = surface(layout).keyPaths().firstOrNull()?.let(::setOf).orEmpty()
+        multiSelect = false
+    }
+
+    fun select(path: KeyCellPath) {
+        selected = when {
+            !multiSelect -> setOf(path)
+            path !in selected -> selected + path
+            selected.size > 1 -> selected - path
+            else -> selected
+        }
+    }
+}
+
+@Composable
+internal fun rememberKeyLayoutEditorSelection(layout: KeyLayout): KeyLayoutEditorSelection {
+    val state = remember(layout.id) { KeyLayoutEditorSelection(layout) }
+    val supportsSymbols = layout.faceId == com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace.ASCII.id &&
+        layout.symbolRows != null
+    LaunchedEffect(supportsSymbols) {
+        if (!supportsSymbols) state.changeSurface(layout, false)
+    }
+    val paths = state.surface(layout).keyPaths()
+    LaunchedEffect(paths, state.selected, state.multiSelect) {
+        val valid = state.selected.filterTo(LinkedHashSet()) { it in paths }
+        val repaired = if (valid.isEmpty()) paths.firstOrNull()?.let(::setOf).orEmpty() else valid
+        state.selected = if (state.multiSelect) repaired else repaired.firstOrNull()?.let(::setOf).orEmpty()
+    }
+    return state
+}
+
 /**
  * 配列を見た形のまま複数選択し、基本項目とアクション列を編集する（0.8.410〜0.8.412・段階 4）。
  *
@@ -87,54 +134,20 @@ import kotlin.math.roundToInt
  * 将来の項目を、GUI でラベルを 1 文字直しただけで落とさないことが最優先。
  */
 @Composable
-fun KeyLayoutVisualEditor(
+internal fun KeyLayoutVisualEditor(
     layout: KeyLayout,
     modifier: Modifier = Modifier,
-    onNavigate: (Float) -> Unit,
+    state: KeyLayoutEditorSelection,
     onChange: (KeyLayout) -> Unit,
 ) {
-    val focus = LocalFocusManager.current
-    var previewY by remember { mutableStateOf(0f) }
-    var detailsY by remember { mutableStateOf(0f) }
-    fun showDetails() {
-        focus.clearFocus()
-        onNavigate(detailsY)
-    }
     val supportsSymbols = layout.faceId == com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace.ASCII.id &&
         layout.symbolRows != null
-    var editingSymbols by remember(layout.id) { mutableStateOf(false) }
-    LaunchedEffect(supportsSymbols) {
-        if (!supportsSymbols) editingSymbols = false
-    }
-    val workingLayout = if (editingSymbols) layout.copy(rows = layout.symbolRows.orEmpty()) else layout
-    val surfaceKey = "${layout.id}:${if (editingSymbols) "symbols" else "main"}"
-    fun publish(changed: KeyLayout) {
-        onChange(
-            if (editingSymbols) layout.copy(name = changed.name, symbolRows = changed.rows)
-            else changed,
-        )
-    }
-    var multiSelect by remember(surfaceKey) { mutableStateOf(false) }
-    var selected by remember(surfaceKey) {
-        mutableStateOf(workingLayout.keyPaths().firstOrNull()?.let(::setOf).orEmpty())
-    }
-    val paths = workingLayout.keyPaths()
-    LaunchedEffect(paths, selected, multiSelect) {
-        val valid = selected.filterTo(LinkedHashSet()) { it in paths }
-        val repaired = if (valid.isEmpty()) paths.firstOrNull()?.let(::setOf).orEmpty() else valid
-        selected = if (multiSelect) repaired else repaired.firstOrNull()?.let(::setOf).orEmpty()
-    }
-    val path = selected.firstOrNull { it in paths }
+    val workingLayout = state.surface(layout)
+    val selected = state.selected
+    val path = selected.firstOrNull { it in workingLayout.keyPaths() }
     val key = path?.let(workingLayout::keyAt)
-    val selectPath: (KeyCellPath) -> Unit = { tapped ->
-        selected = if (!multiSelect) {
-            setOf(tapped)
-        } else when {
-            tapped !in selected -> selected + tapped
-            selected.size > 1 -> selected - tapped
-            else -> selected
-        }
-        if (!multiSelect) showDetails()
+    fun publish(changed: KeyLayout) {
+        onChange(if (state.editingSymbols) layout.copy(name = changed.name, symbolRows = changed.rows) else changed)
     }
 
     Column(
@@ -145,12 +158,12 @@ fun KeyLayoutVisualEditor(
             ChoiceRow {
                 ChoiceChip(
                     label = stringResource(R.string.settings_key_layout_child_letters),
-                    selected = !editingSymbols,
-                ) { editingSymbols = false }
+                    selected = !state.editingSymbols,
+                ) { state.changeSurface(layout, false) }
                 ChoiceChip(
                     label = stringResource(R.string.settings_key_layout_child_symbols),
-                    selected = editingSymbols,
-                ) { editingSymbols = true }
+                    selected = state.editingSymbols,
+                ) { state.changeSurface(layout, true) }
             }
         }
         VisualTextField(
@@ -165,56 +178,9 @@ fun KeyLayoutVisualEditor(
             lineHeight = 15.sp,
             fontFamily = FontFamily.Monospace,
         )
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(ZtsBgSecondary)
-                .border(1.dp, ZtsBorder)
-                .padding(horizontal = 8.dp, vertical = 7.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            // Keep selection controls beside the keys while the form scrolls.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_key_layout_preview_title),
-                    modifier = Modifier.weight(1f).onGloballyPositioned { previewY = it.positionInRoot().y },
-                    color = ZtsTextPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = FontFamily.Monospace,
-                )
-                ChoiceChip(
-                    label = stringResource(R.string.settings_key_layout_multi_select),
-                    selected = multiSelect,
-                ) {
-                    multiSelect = !multiSelect
-                    if (!multiSelect) selected = selected.firstOrNull()?.let(::setOf).orEmpty()
-                }
-            }
-            Text(
-                text = when {
-                    multiSelect && selected.size > 1 ->
-                        stringResource(R.string.settings_key_layout_selected_count, selected.size)
-                    multiSelect -> stringResource(R.string.settings_key_layout_multi_select_desc)
-                    else -> stringResource(R.string.settings_key_layout_preview_desc)
-                },
-                color = if (multiSelect) ZtsGreen else ZtsTextSecondary,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace,
-            )
-            LayoutPreview(
-                layout = workingLayout,
-                selected = selected,
-                onSelect = selectPath,
-            )
-            TinyButton(stringResource(R.string.settings_key_layout_edit_selected)) { showDetails() }
-        }
         if (path != null && key != null) {
             Row(
-                modifier = Modifier.fillMaxWidth().onGloballyPositioned { detailsY = it.positionInRoot().y },
+                modifier = Modifier.fillMaxWidth().onGloballyPositioned { state.detailsY = it.positionInRoot().y },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -231,10 +197,6 @@ fun KeyLayoutVisualEditor(
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
                 )
-                TinyButton(stringResource(R.string.settings_key_layout_back_to_keys)) {
-                    focus.clearFocus()
-                    onNavigate(previewY)
-                }
             }
             VisualTextField(
                 label = stringResource(R.string.settings_key_layout_label),
@@ -249,7 +211,7 @@ fun KeyLayoutVisualEditor(
                     layout = workingLayout,
                     path = path,
                     onChange = ::publish,
-                    onSelect = { selected = it?.let(::setOf).orEmpty() },
+                    onSelect = { state.selected = it?.let(::setOf).orEmpty() },
                 )
             }
 
@@ -266,14 +228,63 @@ fun KeyLayoutVisualEditor(
     }
 }
 
+/** Stays above Save/Cancel. Only overflowing key rows scroll within the bounded preview. */
+@Composable
+internal fun KeyLayoutEditorPreview(
+    layout: KeyLayout,
+    state: KeyLayoutEditorSelection,
+    modifier: Modifier = Modifier,
+    onSelect: () -> Unit,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth()
+            .background(ZtsBgSecondary)
+            .border(1.dp, ZtsBorder)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = if (state.multiSelect)
+                    stringResource(R.string.settings_key_layout_selected_count, state.selected.size)
+                else stringResource(R.string.settings_key_layout_preview_title),
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                color = if (state.multiSelect) ZtsGreen else ZtsTextPrimary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            ChoiceChip(stringResource(R.string.settings_key_layout_multi_select), state.multiSelect) {
+                state.multiSelect = !state.multiSelect
+                if (!state.multiSelect) state.selected = state.selected.firstOrNull()?.let(::setOf).orEmpty()
+            }
+        }
+        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+            val surface = state.surface(layout)
+            val rowCount = surface.rows.size.coerceAtLeast(1)
+            val gaps = (10 + (rowCount - 1) * 4).dp
+            val rowHeight = ((maxHeight - gaps) / rowCount).coerceIn(28.dp, 48.dp)
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                LayoutPreview(
+                    layout = surface,
+                    selected = state.selected,
+                    rowHeight = rowHeight,
+                    onSelect = { state.select(it); onSelect() },
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun LayoutPreview(
     layout: KeyLayout,
     selected: Set<KeyCellPath>,
+    rowHeight: Dp,
     onSelect: (KeyCellPath) -> Unit,
 ) {
-    // The preview scrolls with the form, so extra rows need not shrink the touch targets.
-    val rowHeight = 48.dp
+    // Rows adapt to the preview budget; large layouts scroll rather than shrinking below 28dp.
     Column(
         modifier = Modifier
             .fillMaxWidth()

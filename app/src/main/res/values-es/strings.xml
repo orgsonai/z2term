@@ -95,10 +95,10 @@
     <string name="settings_key_layout_editor_escape_title">Puede que no consigas salir de esta distribución</string>
     <string name="settings_key_layout_editor_escape_msg">Ninguna tecla cambia de plano, abre los ajustes, oculta el teclado ni cambia a otro método de entrada. La pantalla de la terminal todavía tiene los ajustes en su barra de herramientas, pero las pantallas que usan esto como método de entrada del sistema no.</string>
     <string name="settings_key_layout_editor_save_anyway">Guardar de todos modos</string>
-    <string name="settings_key_layout_visual_intro">Selecciona una tecla, cambia sus ajustes y guarda. Toda la página se desplaza.</string>
+    <string name="settings_key_layout_visual_intro">Selecciona una tecla en el teclado fijo de abajo y edita sus ajustes arriba.</string>
     <string name="settings_key_layout_mode_visual">Visual</string>
     <string name="settings_key_layout_mode_json">JSON</string>
-    <string name="settings_key_layout_visual_desc">Toca una tecla para ir a sus ajustes. Para varias, activa la selección múltiple, elige las teclas y pulsa Editar teclas seleccionadas.</string>
+    <string name="settings_key_layout_visual_desc">La vista previa permanece visible al desplazar los ajustes. Activa la selección múltiple junto a las teclas para cambiar el ancho, aspecto o gestos de varias teclas.</string>
     <string name="settings_key_layout_preview_title">Toca una tecla para editarla</string>
     <string name="settings_key_layout_preview_desc">La tecla seleccionada se resalta en verde</string>
     <string name="settings_key_layout_child_letters">Letras</string>
@@ -1244,6 +1244,4 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="guide_step_sample_use">Cambia entre las tres pestañas. Toca dos veces la nota para editarla; se guarda automáticamente. Para traducir, introduce el texto, elige el idioma y pulsa Traducir. Cambiar de pestaña o cerrar borra la entrada y el resultado de traducción. La terminal conserva la shell, la salida y el borrador; usa ↻ para restablecerlos. Las barras de ejemplo tienen una opacidad del 30 %.</string>
     <string name="guide_step_translation_cli">Si falta trans, instálalo manualmente en este mismo entorno Linux.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nEsta tarjeta solo informa; tocarla no instala nada. El texto se envía a un servicio externo de traducción.</string>
     <string name="guide_sample_translation_missing">Instala trans y prepara la macro de traducción antes de volver a crear el ejemplo.</string>
-    <string name="settings_key_layout_edit_selected">Editar teclas seleccionadas</string>
-    <string name="settings_key_layout_back_to_keys">Volver al teclado</string>
 </resources>

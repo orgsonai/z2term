@@ -95,10 +95,10 @@
     <string name="settings_key_layout_editor_escape_title">이 배열에서 빠져나오지 못할 수 있습니다</string>
     <string name="settings_key_layout_editor_escape_msg">면 전환, 설정 열기, 키보드 숨기기, 다른 입력 방식으로 전환을 하는 키가 하나도 없습니다. 터미널 화면에는 툴바에 설정이 있지만, 이것을 OS의 입력 방식으로 쓰는 화면에는 없습니다.</string>
     <string name="settings_key_layout_editor_save_anyway">그래도 저장</string>
-    <string name="settings_key_layout_visual_intro">키를 선택하고 설정을 바꾼 뒤 저장하세요. 화면 전체를 스크롤할 수 있습니다.</string>
+    <string name="settings_key_layout_visual_intro">아래에 고정된 키보드에서 키를 고르고 위의 설정에서 편집하세요.</string>
     <string name="settings_key_layout_mode_visual">시각적</string>
     <string name="settings_key_layout_mode_json">JSON</string>
-    <string name="settings_key_layout_visual_desc">키를 누르면 설정으로 이동합니다. 여러 키를 바꾸려면 다중 선택을 켜고 키를 고른 다음 선택한 키 편집을 누르세요.</string>
+    <string name="settings_key_layout_visual_desc">설정을 스크롤해도 미리보기는 아래에 유지됩니다. 여러 키의 너비, 모양, 제스처를 바꾸려면 키 옆의 다중 선택을 켜세요.</string>
     <string name="settings_key_layout_preview_title">키를 누르면 편집합니다</string>
     <string name="settings_key_layout_preview_desc">고른 키는 초록색으로 표시됩니다</string>
     <string name="settings_key_layout_child_letters">영문</string>
@@ -1235,6 +1235,4 @@ SSH 연결: %3$d
     <string name="guide_step_sample_use">세 탭을 전환하며 사용하세요. 메모는 두 번 눌러 편집하며 자동 저장됩니다. 번역은 원문과 대상 언어를 지정한 뒤 번역을 누르세요. 탭 전환이나 닫기로 번역 입력과 결과는 지워집니다. 터미널의 셸, 출력, 입력 중인 내용은 유지되며 ↻로 직접 초기화합니다. 샘플 바의 불투명도는 30%입니다.</string>
     <string name="guide_step_translation_cli">trans가 없다면 같은 Linux 환경에서 해당 명령을 직접 실행하세요.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\n이 카드는 안내용이며 눌러도 설치되지 않습니다. 번역할 텍스트는 외부 번역 서비스로 전송됩니다.</string>
     <string name="guide_sample_translation_missing">먼저 trans를 설치하고 번역 매크로를 준비한 다음 예제 만들기를 다시 실행하세요.</string>
-    <string name="settings_key_layout_edit_selected">선택한 키 편집</string>
-    <string name="settings_key_layout_back_to_keys">키 배열로 돌아가기</string>
 </resources>
