@@ -972,7 +972,7 @@
     <string name="guide_desc_otp_sms">copiar los códigos de un solo uso de los SMS</string>
     <string name="guide_desc_unknown_call">notificación para copiar números de teléfono</string>
     <string name="guide_desc_remind">recordármelo con una notificación</string>
-    <string name="guide_desc_rss">avisarme de las novedades de un feed y leerlas</string>
+    <string name="guide_desc_rss">consultar feeds con automatización y abrir artículos o la lista desde las notificaciones</string>
     <string name="guide_desc_qr">pasar algo en forma de código QR</string>
     <string name="guide_step_install">Instalar la macro</string>
     <string name="guide_step_setup">Preparar los enganches y los mosaicos (una sola vez)</string>
@@ -990,9 +990,14 @@
     <string name="guide_step_needs_python">Necesita python3 (Alpine: apk add python3 / Debian, Kali: apt install -y python3 / Arch: pacman -S python)</string>
     <string name="guide_step_needs_qrencode">Necesita qrencode (Alpine: apk add libqrencode-tools / Debian, Kali: apt install qrencode / Arch: pacman -S qrencode)</string>
     <string name="guide_step_feeds">Escribe la URL del feed que quieras leer</string>
-    <string name="guide_step_rss_open_install">Instala también la herramienta que los abre de uno en uno</string>
-    <string name="guide_step_rss_open_try">Abrir el artículo más reciente</string>
-    <string name="guide_step_widget">En los ajustes del widget de estado, asigna rss-open a un botón</string>
+    <string name="guide_step_rss_existing">Omite con × los pasos ya registrados. Edita la regla antigua de notificaciones en Automatización para que Lista ejecute rss.sh view</string>
+    <string name="guide_step_rss_permission">Permitir mostrar sobre otras aplicaciones para abrir pantallas desde las notificaciones</string>
+    <string name="guide_step_rss_poll">Añadir la consulta periódica a Automatización (introduce un intervalo)</string>
+    <string name="guide_step_rss_notifications">Añadir las acciones de notificación a Automatización (Abrir → artículo, Lista → artículos reunidos)</string>
+    <string name="guide_step_rss_view">Abrir la lista de artículos reunidos</string>
+    <string name="guide_step_rss_manage">Cambia los horarios y las acciones de notificación en Lista de comandos → Automatización → Reglas de automatización</string>
+    <string name="guide_rss_poll_name">Consultas RSS</string>
+    <string name="guide_rss_notifications_name">Acciones de notificación RSS</string>
     <string name="guide_ask_run">Ejecutar</string>
     <string name="guide_ask_feed_url">URL del feed que leer (de uno en uno; puedes añadir más después)</string>
     <string name="guide_ask_interval">Cada cuánto consultarlo (30m / 1h …; no bajes de 30 minutos)</string>

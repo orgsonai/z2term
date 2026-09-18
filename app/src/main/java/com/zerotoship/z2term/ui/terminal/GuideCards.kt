@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.edge.EdgeDefaultPanel
 import com.zerotoship.z2term.edge.EdgeSamplePanels
+import com.zerotoship.z2term.proot.rssNotificationAction
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.theme.ZtsGreen
@@ -251,11 +252,8 @@ enum class Guide(
     )),
 
     /**
-     * フィードの新着を通知する。前提 (python3) から、読む道具 (`rss-open`) の用意まで**1 本**。
-     *
-     * ⚠ `rss` と `rss-open` を別の案内に分けていたのをやめた (0.8.335・利用者の指摘)。
-     * 一覧に「フィードの新着を通知する」「集めた記事を 1 本ずつ開く」が並んでいても、
-     * **同じ 1 つの購読の話**だとは読めない。集めるのと読むのは続きなので、続けて並べる。
+     * Collect and read feeds through scheduled polling and notification actions (0.8.635).
+     * Both rules live in Automation; the final step opens the collected list with rss.sh view.
      */
     RSS("rss", R.string.guide_desc_rss, listOf(
         GuideStep(R.string.guide_step_needs_python),
@@ -265,16 +263,27 @@ enum class Guide(
             "mkdir -p ~/.z2term/rss && echo \"%s\" >> ~/.z2term/rss/feeds.txt",
             askRes = R.string.guide_ask_feed_url
         ),
+        GuideStep(R.string.guide_step_rss_existing),
+        GuideStep(R.string.guide_step_rss_permission, "z2-edge permission"),
         GuideStep(
-            R.string.guide_step_when,
-            "z2-when time:every=%s run ~/.z2term/macros/rss.sh",
+            R.string.guide_step_rss_poll,
+            commandOf = { context ->
+                val name = guideShellQuote(context.getString(R.string.guide_rss_poll_name))
+                "z2-when time:every=%s name=$name run ~/.z2term/macros/rss.sh"
+            },
             askRes = R.string.guide_ask_interval,
             askDefault = "30m"
         ),
+        GuideStep(
+            R.string.guide_step_rss_notifications,
+            commandOf = { context ->
+                val name = guideShellQuote(context.getString(R.string.guide_rss_notifications_name))
+                "z2-when event:notify_action name=$name run ${guideShellQuote(rssNotificationAction)}"
+            }
+        ),
         GuideStep(R.string.guide_step_try, "sh ~/.z2term/macros/rss.sh"),
-        GuideStep(R.string.guide_step_rss_open_install, "z2-macro install rss-open"),
-        GuideStep(R.string.guide_step_rss_open_try, "sh ~/.z2term/macros/rss-open.sh"),
-        GuideStep(R.string.guide_step_widget),
+        GuideStep(R.string.guide_step_rss_view, "sh ~/.z2term/macros/rss.sh view"),
+        GuideStep(R.string.guide_step_rss_manage),
     )),
 
     /** QR にして別の端末へ渡す。 */

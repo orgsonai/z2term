@@ -964,7 +964,7 @@
     <string name="guide_desc_otp_sms">SMS에서 일회용 코드 복사하기</string>
     <string name="guide_desc_unknown_call">전화번호 복사 알림</string>
     <string name="guide_desc_remind">알림으로 일깨워 주기</string>
-    <string name="guide_desc_rss">새 글을 알림으로 받고 읽기</string>
+    <string name="guide_desc_rss">자동화로 피드를 확인하고 알림에서 글이나 목록 열기</string>
     <string name="guide_desc_qr">QR 코드로 건네주기</string>
     <string name="guide_step_install">매크로 설치</string>
     <string name="guide_step_setup">훅과 타일 자리 설정 (한 번만)</string>
@@ -982,9 +982,14 @@
     <string name="guide_step_needs_python">python3가 필요합니다 (Alpine: apk add python3 / Debian, Kali: apt install -y python3 / Arch: pacman -S python)</string>
     <string name="guide_step_needs_qrencode">qrencode가 필요합니다 (Alpine: apk add libqrencode-tools / Debian, Kali: apt install qrencode / Arch: pacman -S qrencode)</string>
     <string name="guide_step_feeds">읽고 싶은 피드 URL 적기</string>
-    <string name="guide_step_rss_open_install">하나씩 열어 주는 도구도 설치</string>
-    <string name="guide_step_rss_open_try">가장 새 글 열기</string>
-    <string name="guide_step_widget">상태 위젯 설정에서 rss-open을 버튼에 배정</string>
+    <string name="guide_step_rss_existing">이미 등록한 단계는 ×로 건너뛰세요. 자동화에서 기존 알림 규칙을 편집하여 목록이 rss.sh view를 실행하도록 하세요</string>
+    <string name="guide_step_rss_permission">알림에서 화면을 열 수 있도록 다른 앱 위에 표시 허용</string>
+    <string name="guide_step_rss_poll">정기 확인을 자동화에 등록 (간격 입력)</string>
+    <string name="guide_step_rss_notifications">알림 동작을 자동화에 등록 (열기 → 글, 목록 → 모은 글)</string>
+    <string name="guide_step_rss_view">모은 글의 목록 열기</string>
+    <string name="guide_step_rss_manage">명령 목록 → 자동화 → 자동화 규칙에서 확인 시간과 알림 동작을 바꿀 수 있습니다</string>
+    <string name="guide_rss_poll_name">RSS 정기 확인</string>
+    <string name="guide_rss_notifications_name">RSS 알림 동작</string>
     <string name="guide_ask_run">실행</string>
     <string name="guide_ask_feed_url">읽을 피드 URL (하나씩. 나중에 더 넣을 수 있습니다)</string>
     <string name="guide_ask_interval">얼마나 자주 볼지 (30m / 1h …. 30분보다 짧게는 하지 마세요)</string>

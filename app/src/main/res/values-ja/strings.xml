@@ -1036,7 +1036,7 @@
     <string name="guide_desc_otp_sms">SMS の認証コードをコピーする</string>
     <string name="guide_desc_unknown_call">電話番号のコピー通知</string>
     <string name="guide_desc_remind">通知でリマインドする</string>
-    <string name="guide_desc_rss">フィードの新着を通知して、1 本ずつ読む</string>
+    <string name="guide_desc_rss">自動化でフィードを巡回し、通知から記事や一覧を開く</string>
     <string name="guide_desc_qr">QR にして別の端末へ渡す</string>
     <string name="guide_step_install">マクロを入れる</string>
     <string name="guide_step_setup">受け口とタイル枠を用意する（最初に 1 回）</string>
@@ -1054,9 +1054,14 @@
     <string name="guide_step_needs_python">前提: python3（Alpine: apk add python3 ／ Debian・Kali: apt install -y python3 ／ Arch: pacman -S python）</string>
     <string name="guide_step_needs_qrencode">前提: qrencode（Alpine: apk add libqrencode-tools ／ Debian・Kali: apt install qrencode ／ Arch: pacman -S qrencode）</string>
     <string name="guide_step_feeds">読みたいフィードの URL を書く</string>
-    <string name="guide_step_rss_open_install">集めた記事を 1 本ずつ開く道具も入れる</string>
-    <string name="guide_step_rss_open_try">いちばん新しい記事を開いてみる</string>
-    <string name="guide_step_widget">状態ウィジェットの設定で、ボタンに rss-open を割り当てる</string>
+    <string name="guide_step_rss_existing">登録済みの手順は × で省略。古い通知ルールは自動化で編集し、「一覧」を rss.sh view へ振り分けます</string>
+    <string name="guide_step_rss_permission">通知から画面を開くため「他のアプリの上に表示」を許可する</string>
+    <string name="guide_step_rss_poll">定期巡回を自動化に登録する（間隔を入力）</string>
+    <string name="guide_step_rss_notifications">通知の操作を自動化に登録する（開く → 記事、一覧 → 集めた記事）</string>
+    <string name="guide_step_rss_view">集めた記事の一覧を開いてみる</string>
+    <string name="guide_step_rss_manage">巡回日時や通知の動作は「コマンド一覧 → 自動化 → 自動化ルール」で変更できます</string>
+    <string name="guide_rss_poll_name">RSS 定期巡回</string>
+    <string name="guide_rss_notifications_name">RSS 通知の開く・一覧</string>
     <string name="guide_ask_run">実行</string>
     <string name="guide_ask_feed_url">読みたいフィードの URL（1 本ずつ。あとから何本でも足せます）</string>
     <string name="guide_ask_interval">どれくらいの間隔で見に行くか（30m / 1h など。30 分より短くしない）</string>

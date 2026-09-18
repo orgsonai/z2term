@@ -1053,7 +1053,7 @@
     <string name="guide_desc_otp_sms">copy one-time codes from SMS</string>
     <string name="guide_desc_unknown_call">copy phone numbers from call notifications</string>
     <string name="guide_desc_remind">remind me with a notification</string>
-    <string name="guide_desc_rss">get notified about new feed items and read them</string>
+    <string name="guide_desc_rss">poll feeds with automation and open articles or the list from notifications</string>
     <string name="guide_desc_qr">hand something over as a QR code</string>
     <string name="guide_step_install">Install the macro</string>
     <string name="guide_step_setup">Set up the hooks and tile slots (once)</string>
@@ -1071,9 +1071,14 @@
     <string name="guide_step_needs_python">Needs python3 (Alpine: apk add python3 / Debian, Kali: apt install -y python3 / Arch: pacman -S python)</string>
     <string name="guide_step_needs_qrencode">Needs qrencode (Alpine: apk add libqrencode-tools / Debian, Kali: apt install qrencode / Arch: pacman -S qrencode)</string>
     <string name="guide_step_feeds">Write the feed URL you want to read</string>
-    <string name="guide_step_rss_open_install">Also install the tool that opens them one at a time</string>
-    <string name="guide_step_rss_open_try">Open the newest article</string>
-    <string name="guide_step_widget">In the status widget settings, assign rss-open to a button</string>
+    <string name="guide_step_rss_existing">Skip steps already registered with ×. Edit an old notification rule in Automation so List runs rss.sh view</string>
+    <string name="guide_step_rss_permission">Allow display over other apps to open screens from notifications</string>
+    <string name="guide_step_rss_poll">Add scheduled polling to Automation (enter an interval)</string>
+    <string name="guide_step_rss_notifications">Add notification actions to Automation (Open → article, List → collected articles)</string>
+    <string name="guide_step_rss_view">Open the list of collected articles</string>
+    <string name="guide_step_rss_manage">Change polling times and notification actions in Command list → Automation → Automation rules</string>
+    <string name="guide_rss_poll_name">RSS polling</string>
+    <string name="guide_rss_notifications_name">RSS notification actions</string>
     <string name="guide_ask_run">Run</string>
     <string name="guide_ask_feed_url">Feed URL to read (one at a time; you can add more later)</string>
     <string name="guide_ask_interval">How often to poll (30m / 1h …; do not go below 30 minutes)</string>

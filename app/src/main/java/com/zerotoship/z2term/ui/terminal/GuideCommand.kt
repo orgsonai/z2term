@@ -9,3 +9,6 @@ internal suspend fun sendGuideCommand(command: String, write: (ByteArray) -> Uni
     delay(150)
     pasteAndSubmit(command)
 }
+
+/** Preserve localized names and deferred shell expansion as one shell argument. */
+internal fun guideShellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"

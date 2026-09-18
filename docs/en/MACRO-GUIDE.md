@@ -1140,31 +1140,33 @@ is what `notify:otp` in 5-6 is for.
 
 ### 5-8. Worked example: subscribe to feeds (how the parts fit together)
 
-The two scripts installed by `z2-macro install rss rss-open` build "poll → keep only what is new →
-notify → open in the browser → list it on the home screen" **without adding a single screen to the
-app**. Read them as a worked example of how the generic parts connect.
+The macro installed by `z2-macro install rss` combines polling, keeping new items, notifications and opening articles or a list. The guide in 0.8.635 registers polling and notification actions in Automation without tile or widget setup.
 
 | What it does | The part doing it |
 |---|---|
-| Polling | `z2-when time:every=30m run ~/.z2term/macros/rss.sh` |
-| Keeping only what is new | **Subtract** `seen.txt` (`grep -Fxv`). Feed dates and ordering are not trusted |
-| Telling you | `z2-notify -b Open` (a notification with a button) |
-| Not missing one | One word per line in `~/.z2term/rss/important.txt`; each match gets **its own notification** (0.8.334 — the summary body only carries 3 lines, so a busy feed pushes it out) |
-| Handling the button | `z2-when event:notify_action run 'case "$Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${Z2_WHEN_EVENT_NAME#rss:}" ;; esac'` (the URL rides in the notification's name, so the article you pressed opens) |
-| Opening it | `z2-open <URL>` |
-| Browsing the list | A live-tail widget on `~/.z2term/rss/latest.txt` in **"start (head)"** mode |
-| Opening the next one | A status-widget button assigned to `rss-open` (it subtracts `opened.txt`, so nothing opens twice) |
+| Polling | `z2-when time:every=30m name='RSS polling' run ~/.z2term/macros/rss.sh` |
+| Keeping new items | Subtract `seen.txt` (`grep -Fxv`); feed dates and ordering are not trusted |
+| Telling you | `z2-notify -b Open -b List` |
+| Important items | One word per line in `~/.z2term/rss/important.txt`; matches get separate notifications, up to five per poll |
+| Notification actions | `event:notify_action` routes `Z2_WHEN_ACTION` to the article or list |
+| Opening an article | `z2-open <URL>`, using the URL after `rss:` in the notification name |
+| Reading the list | `sh ~/.z2term/macros/rss.sh view` opens articles grouped by site through `z2-view` |
 
-- **Both are one-shot** (5-3). **Do not register them as resident servers.**
-- Parsing uses python3's standard library only (no pip). One failing feed does not stop the others,
-  and broken XML is skipped silently.
-- Polling costs battery, so **do not go below 30 minutes**.
-- For the setup steps, see "Subscribe to feeds (RSS / Atom)" in `docs/en/HANDBOOK.md`.
+Register notification actions with:
 
-**"Subtract to find what is new" is a standard trick.** When the other side's dates and ordering
-cannot be trusted, remembering what you already saw and subtracting it is enough (the same idea as
-`z2scan`'s baseline diff).
+```sh
+z2-when event:notify_action name='RSS notification actions' run 'case "$Z2_WHEN_EVENT_NAME" in rss:*) case "$Z2_WHEN_ACTION" in 一覧|List|列表|Lista|목록) sh "$HOME/.z2term/macros/rss.sh" view ;; *) z2-open "${Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+```
 
+If a rule already exists, edit its run command in **Command list → Automation → Automation rules** instead of adding another. Leaving an old rule that always opens the article enabled would also open it for List. Opening screens from notifications requires display over other apps permission.
+
+- The macro is **one-shot** (5-3); do not register it as a resident server.
+- Parsing uses python3's standard library only (no pip). One failing feed does not stop the others, and broken XML is skipped.
+- Polling costs battery; **do not go below 30 minutes**.
+- See Subscribing to feeds (RSS / Atom) in `docs/en/HANDBOOK.md` for setup.
+- `rss-open` remains a separate sample for opening the next article; it is not required by the guide.
+
+**Subtracting to find new items is a standard technique.** When feed dates and ordering cannot be trusted, remember what was already seen and subtract it.
 
 ### 5-9. Worked example: remind yourself with a notification (one-shot vs repeating)
 

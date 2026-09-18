@@ -965,7 +965,7 @@
     <string name="guide_desc_otp_sms">从短信里复制一次性验证码</string>
     <string name="guide_desc_unknown_call">来电号码复制通知</string>
     <string name="guide_desc_remind">用通知来提醒我</string>
-    <string name="guide_desc_rss">订阅源有新内容就通知，并逐条阅读</string>
+    <string name="guide_desc_rss">通过自动化巡查订阅源，从通知打开文章或列表</string>
     <string name="guide_desc_qr">做成二维码交给另一台设备</string>
     <string name="guide_step_install">安装这个宏</string>
     <string name="guide_step_setup">准备好接口和磁贴位（最开始做一次）</string>
@@ -983,9 +983,14 @@
     <string name="guide_step_needs_python">前提: python3（Alpine: apk add python3 ／ Debian、Kali: apt install -y python3 ／ Arch: pacman -S python）</string>
     <string name="guide_step_needs_qrencode">前提: qrencode（Alpine: apk add libqrencode-tools ／ Debian、Kali: apt install qrencode ／ Arch: pacman -S qrencode）</string>
     <string name="guide_step_feeds">写上你想读的订阅源 URL</string>
-    <string name="guide_step_rss_open_install">把逐条打开收集到的文章的工具也装上</string>
-    <string name="guide_step_rss_open_try">打开最新的一篇文章看看</string>
-    <string name="guide_step_widget">在状态小组件的设置里，把 rss-open 分配给某个按钮</string>
+    <string name="guide_step_rss_existing">已注册的步骤用 × 跳过。请在自动化中编辑旧通知规则，让“列表”运行 rss.sh view</string>
+    <string name="guide_step_rss_permission">允许“显示在其他应用上层”，以便从通知打开页面</string>
+    <string name="guide_step_rss_poll">将定期巡查注册到自动化（输入间隔）</string>
+    <string name="guide_step_rss_notifications">将通知操作注册到自动化（打开 → 文章，列表 → 已收集文章）</string>
+    <string name="guide_step_rss_view">打开已收集文章的列表</string>
+    <string name="guide_step_rss_manage">在“命令列表 → 自动化 → 自动化规则”中更改巡查时间和通知操作</string>
+    <string name="guide_rss_poll_name">RSS 定期巡查</string>
+    <string name="guide_rss_notifications_name">RSS 通知操作</string>
     <string name="guide_ask_run">执行</string>
     <string name="guide_ask_feed_url">想读的订阅源 URL（一次一个，之后想加多少都行）</string>
     <string name="guide_ask_interval">每隔多久去看一次（30m / 1h 等。不要短于 30 分钟）</string>

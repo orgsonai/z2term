@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.634-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.635-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -899,6 +899,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
+**0.8.635-alpha (versionCode 643) — build and device verification pending**: The RSS guide now registers named Automation rules for polling and notification actions, then opens the collected article list. Open targets the article; List opens the collected page. The guide includes permission for opening screens from notifications and where to edit existing rules. Tile/widget assignment and rss-open installation are no longer part of setup.
+
 **0.8.634-alpha (versionCode 642) — build and device verification pending**: The keyboard layout preview is fixed at the bottom again, with Multiple selection beside it. Settings scroll above the visible keys; the heading, instructions and mode controls remain in the scrolling area. The preview has a height limit to retain room for editing in landscape and while typing. Extra key rows scroll within the preview. Selecting another key keeps the current settings scroll position, and the redundant Back to keys and Edit selected keys buttons are removed.
 
 **0.8.633-alpha (versionCode 641) — build and device verification pending**: The keyboard layout editor scrolls its heading, instructions, mode controls and keyboard preview together. Only Cancel and Save stay at the bottom. Tap a key to reach its settings; Back to keys returns to selection. Multiple selection stays beside the preview, followed by Edit selected keys. Choices wrap, action buttons have touch targets of at least 48dp, occasional appearance and structure controls fold away, and reset/delete sit at the end of the page. Edge-panel Appearance starts with size and placement, with a scrolling diagram. Width and height separate numbers from units (screen percentage or dp), opacity uses percentages, and grid columns use a picker. Controls follow the selected handle shape and item flow, while coordinates sit in an advanced group. Hidden values are retained and invalid input identifies the affected setting. Save, discard and conflict checks remain in place.
@@ -1355,76 +1357,72 @@ answer stays in the reply box, so you only have to fix it. After three tries it 
 
 ### Subscribing to feeds (RSS / Atom)
 
-**There is no RSS reader in the app.** You build one out of parts that already exist: scheduled runs, notifications, opening a browser, and widgets. The upside is that you can rewrite any of it when your needs differ.
+Combine existing tools for scheduled runs, notifications, opening articles in a browser and reading a list inside the app. **Register two Automation rules: polling and notification actions.**
+
+**Use the guide (0.8.635)**: choose `rss` under Show guide. It walks through installation, entering a feed URL, granting permission to open screens from notifications, registering polling and notification actions, then fetching and viewing the list. No tile or widget setup is needed. The rules are named RSS polling and RSS notification actions. Skip steps already registered with ×, and edit rules in **Command list → Automation → Automation rules**.
+
+**1. Install the macro and its requirement**
 
 ```sh
-z2-macro install rss rss-open        # the collecting side and the opening side
-python3 -V || apk add python3        # parsing needs python3 (Debian: apt-get install -y python3 / Arch: pacman -S python)
+z2-macro install rss
+python3 -V || apk add python3        # Debian: apt-get install -y python3 / Arch: pacman -S python
 ```
 
-**1. List the feeds you want** — one URL per line in `~/.z2term/rss/feeds.txt` (lines starting with `#` are ignored).
+**2. List the feeds you want** — one URL per line in `~/.z2term/rss/feeds.txt` (lines starting with `#` are ignored).
 
-**2. Poll them on a schedule**
+**3. Register polling in Automation**
 
 ```sh
-z2-when time:every=30m run ~/.z2term/macros/rss.sh
+z2-when time:every=30m name='RSS polling' run ~/.z2term/macros/rss.sh
 ```
 
-A notification ("N new") appears only when something is new. **Do not go below 30 minutes** — polling costs battery.
+Notifications appear only when something is new. **Do not go below 30 minutes** — polling costs battery. Edit the Automation rule to change the schedule.
 
-**Read what was collected as a list** (0.8.255)
+**4. Register Open and List notification actions in Automation**
 
 ```sh
-sh ~/.z2term/macros/rss.sh list       # 20 items
-sh ~/.z2term/macros/rss.sh list 50    # pick a count
+z2-when event:notify_action name='RSS notification actions' run 'case "$Z2_WHEN_EVENT_NAME" in rss:*) case "$Z2_WHEN_ACTION" in 一覧|List|列表|Lista|목록) sh "$HOME/.z2term/macros/rss.sh" view ;; *) z2-open "${Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
 ```
 
-One article per line, as `[ 1] Article title  (zenn.dev)`. **Tap the title to open the article** — the URL is not printed, because long URLs wrap and tangle with the titles until the list is unreadable. Piped or redirected, it falls back to plain text with the URLs shown.
+Open sends the article from the pressed notification to your browser. List opens the collected articles grouped by site inside z2term. The URL travels in the notification name, so Open always targets that article even with several notifications on screen. List labels from every supported language are recognized, including after an app language change.
 
-**Read them as a page** (0.8.628)
+**If an old notification rule already exists, edit it instead of adding another.** Replace its run command with the part after `run` in the example, without the outer single quotes. Leaving an old rule that always opens an article enabled would also open that article when List is pressed.
+
+Opening a screen from a notification requires **display over other apps** permission. The guide has a permission card; `z2-edge permission` opens the same settings (shared with the edge panel).
+
+**5. Try fetching and viewing the list**
 
 ```sh
+sh ~/.z2term/macros/rss.sh
 sh ~/.z2term/macros/rss.sh view
 ```
 
-Everything collected becomes **one page grouped by site**, opened inside z2term — no server and no browser. Each article carries an Open button that takes you to the original site. The notification gains a second button as well: Open for that article, List for this page. Note that opening a screen from a notification button needs the "display over other apps" permission (the same one the edge panel uses). The page is shown with JavaScript and network loads switched off.
+Each article on the page opens its original site. JavaScript and network loads are disabled for the list page. From then on, List in a notification opens the same page.
 
-⚠ **If you already installed `rss.sh`, install it again**: look at `z2-macro diff rss.sh` first, then `z2-macro install -f rss.sh` (your own edits go too).
+For a terminal list, use `sh ~/.z2term/macros/rss.sh list` (20 items) or `sh ~/.z2term/macros/rss.sh list 50` (choose a count). Tap a title to open it. Piped or redirected output includes the URLs as plain text.
 
-**3. Give the ones you must not miss their own notification** (optional, 0.8.334)
+**Updating an older macro**: inspect `z2-macro diff rss.sh`, preserve any edits you need, then run `z2-macro install -f rss.sh` (this overwrites your changes). Edit the notification rule separately.
 
-Put one feed or word per line in `~/.z2term/rss/important.txt` (part of a URL or part of a title both work). Anything matching gets **a notification of its own**.
+**Give important items their own notification** (optional, 0.8.334)
+
+Put one feed or word per line in `~/.z2term/rss/important.txt` (part of a URL or title also works). Each matching article gets its own notification.
 
 ```sh
 echo 'example.org' >> ~/.z2term/rss/important.txt
 ```
 
-The summary notification only carries 3 lines in its body, so a busy feed updating at the same time pushes the one that mattered out. Splitting it off keeps it visible. ⚠ At most **5 per run**, so a too-broad word cannot bury the shade under every article.
-
-**4. Let the notification's button open that very article** (optional)
-
-```sh
-z2-when event:notify_action run 'case "$Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${Z2_WHEN_EVENT_NAME#rss:}" ;; esac'
-```
-
-The URL is in the notification's name, so the article you pressed is the one that opens — however many notifications are on screen.
-
-**5. Read from a widget** (optional)
-
-- Point a **live tail widget** at `~/.z2term/rss/latest.txt` in **"start (head)"** mode and the newest articles sit at the top
-- Assign `rss-open` to a button on the **status widget**, and each tap opens **the next article down the list** (it remembers what it opened, so nothing opens twice)
-
-Everything it produces is plain text.
+The summary body carries up to three items. Separate notifications are capped at **five per poll**, so a broad match cannot flood the notification shade.
 
 | File | Contents |
 |---|---|
-| `~/.z2term/rss/feeds.txt` | The feed URLs you want (you write this) |
-| `~/.z2term/rss/latest.txt` | "title  URL", newest first. This is the one you read |
+| `~/.z2term/rss/feeds.txt` | Feed URLs |
+| `~/.z2term/rss/latest.txt` | Title and URL, newest first |
+| `~/.z2term/rss/articles.tsv` | Arrival time, URL and title for the list |
+| `~/.z2term/rss/latest.html` | The list page opened inside the app |
 | `~/.z2term/rss/new.txt` | Only what the last poll added |
-| `~/.z2term/rss/seen.txt` | Articles already seen (used to decide what is new) |
-| `~/.z2term/rss/opened.txt` | Articles `rss-open` has opened |
+| `~/.z2term/rss/seen.txt` | Collected articles, used to detect new items |
 
-Delete them all to start over. One dead feed does not stop the others, and broken XML is skipped silently.
+One failed feed does not stop the others, and broken XML is skipped. `rss-open` remains available as a separate sample for opening the next article, recording opened articles in `opened.txt`; this guide does not use it.
 
 ### Hand something to another device as a QR code (0.8.308)
 

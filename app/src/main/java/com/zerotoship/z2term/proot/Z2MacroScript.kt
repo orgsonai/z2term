@@ -683,11 +683,14 @@ fun z2MacroSamples(lang: String): Map<String, String> {
     )
 }
 
+/** Notification labels are protocol values: accept every bundled language, including older installs. */
+internal val rssNotificationAction = """case "${'$'}Z2_WHEN_EVENT_NAME" in rss:*) case "${'$'}Z2_WHEN_ACTION" in 一覧|List|列表|Lista|목록) sh "${'$'}HOME/.z2term/macros/rss.sh" view ;; *) z2-open "${'$'}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac"""
+
 /**
  * フィード購読サンプルの本体。
  *
  * **アプリ側に RSS 機能を作らないための見本**でもある。定期実行 (`z2-when time:`)・通知
- * (`z2-notify -b`)・ブラウザで開く (`z2-open`)・ライブ tail ウィジェットという既存の
+ * (`z2-notify -b`)・ブラウザで開く (`z2-open`)・一覧を読む (`z2-view`) という既存の
  * 汎用部品だけで購読が成立することを示す。用途限定の画面を 1 枚も増やさずに済む。
  *
  * 設計上の要点:
@@ -696,8 +699,8 @@ fun z2MacroSamples(lang: String): Map<String, String> {
  *  - **解析は python3 に任せる**。RSS と Atom は形が揺れるので `grep`/`sed` で切ると
  *    フィードを 1 本増やすたびに壊れる。標準ライブラリだけで足りるので pip は要らない。
  *  - **1 本落ちても他は続ける**。取得失敗で全体が止まると、電波の悪い日に何も来なくなる。
- *  - `latest.txt` の行に **URL を残す**。ライブ tail ウィジェットは行に URL があれば
- *    タップでそれを開くので、一覧から直接読める。
+ *  - `latest.txt` の行に **URL を残す**。端末の一覧表示や `rss-open` と互換を保つ。
+ *    通知の「一覧」は `rss.sh view` が作る頁を開く。
  *  - **見逃したくないものは通知を分ける** (`important.txt`・0.8.334)。まとめ通知の本文には
  *    3 件しか載らないので、流量の多いフィードが同時に更新されると**大事な 1 本が押し出される**。
  *    当たった記事は 1 件ずつ別の通知にする (通知 id はアプリ側で個別に振られるため、分ければ
@@ -721,12 +724,13 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) Optional - one feed or word per line that must not get buried:  ~/.z2term/rss/important.txt
 #      Anything matching gets a notification of its own, so a busy feed cannot push it out.
 #      Write part of a URL or part of a title (e.g. example.org).
-#   4) Optional - make the notification buttons work:
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in List) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#   4) Register notification actions in Automation:
+#        z2-when event:notify_action run '$rssNotificationAction'
 #      Open sends that article to your browser; List opens everything collected, to read inside z2term.
 #      Note: opening a screen from a notification button needs the "display over other apps" permission.
-#   5) Optional - widget: point a live tail at ~/.z2term/rss/latest.txt in "start (head)" mode.
-#      Each line carries its URL, so tapping a line opens that article.
+#   5) Read the collected list: sh ~/.z2term/macros/rss.sh view
+#      Manage both rules in Command list -> Automation -> Automation rules.
+#      Edit an existing notification rule instead of adding another one.
 #
 # Needs: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 # Battery: the more often you poll the more it costs. Do not go below 30 minutes.
@@ -742,12 +746,13 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) 見逃したくないフィード / 語を 1 行 1 本で書く (任意):  ~/.z2term/rss/important.txt
 #      ここに当たった記事は 1 本ずつ別の通知になるので、流量の多いフィードに埋もれない。
 #      書くのは URL の一部でも題名の一部でもよい (例: example.org)。
-#   4) 通知のボタンを効かせる (任意):
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in 一覧) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#   4) 通知の操作を自動化へ登録する:
+#        z2-when event:notify_action run '$rssNotificationAction'
 #      「開く」はその記事をブラウザへ、「一覧」は集めた記事を読み物にして z2term の中で開く。
 #      ⚠ 通知のボタンから画面を開くには「他のアプリの上に表示」の許可が要る (エッジパネルと同じ)。
-#   5) ウィジェット (任意): ライブ tail で ~/.z2term/rss/latest.txt を「先頭 (head)」表示。
-#      行に URL が入っているので、タップするとその記事が開く。
+#   5) 集めた記事の一覧を開く: sh ~/.z2term/macros/rss.sh view
+#      2 本のルールは「コマンド一覧 -> 自動化 -> 自動化ルール」で変更できる。
+#      通知のルールが登録済みなら、追加せず既存のルールを編集する。
 #
 # 必要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 # 電池: 取りに行くほど食う。30 分より短くしないこと。
@@ -763,12 +768,13 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) 可选 - 一行一个、不想被埋掉的订阅源或词:  ~/.z2term/rss/important.txt
 #      命中的文章会单独发一条通知，这样流量大的源就压不掉它。
 #      写 URL 的一部分或标题的一部分都行 (例: example.org)。
-#   4) 可选 - 让通知的按钮起作用:
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in 列表) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#   4) 将通知操作注册到自动化:
+#        z2-when event:notify_action run '$rssNotificationAction'
 #      “打开”把那篇文章送到浏览器，“列表”把收集到的文章做成读物，在 z2term 里打开。
 #      注意: 从通知按钮打开画面需要“显示在其他应用上层”的权限 (和边缘面板同一个)。
-#   5) 可选 - 小组件: 用实时 tail 以“开头 (head)”模式看 ~/.z2term/rss/latest.txt。
-#      每行都带着自己的 URL，所以点一行就能打开那篇文章。
+#   5) 打开已收集文章的列表: sh ~/.z2term/macros/rss.sh view
+#      在“命令列表 -> 自动化 -> 自动化规则”中管理这两条规则。
+#      如果通知规则已存在，请编辑原规则，不要重复添加。
 #
 # 需要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 # 电池: 取得越勤耗得越多。不要短于 30 分钟。
@@ -784,12 +790,13 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) 可選 - 一行一個、不想被埋掉的訂閱源或詞:  ~/.z2term/rss/important.txt
 #      命中的文章會單獨發一條通知，這樣流量大的源就壓不掉它。
 #      寫 URL 的一部分或標題的一部分都行 (例: example.org)。
-#   4) 可選 - 讓通知的按鈕起作用:
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in 列表) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#   4) 將通知操作註冊到自動化:
+#        z2-when event:notify_action run '$rssNotificationAction'
 #      “開啟”把那篇文章送到瀏覽器，“列表”把收集到的文章做成讀物，在 z2term 裡開啟。
 #      注意: 從通知按鈕開啟畫面需要“顯示在其他應用程式上層”的權限 (和邊緣面板同一個)。
-#   5) 可選 - 小工具: 用即時 tail 以“開頭 (head)”模式看 ~/.z2term/rss/latest.txt。
-#      每行都帶著自己的 URL，所以點一行就能開啟那篇文章。
+#   5) 開啟已收集文章的列表: sh ~/.z2term/macros/rss.sh view
+#      在「指令列表 -> 自動化 -> 自動化規則」中管理這兩條規則。
+#      如果通知規則已存在，請編輯原規則，不要重複新增。
 #
 # 需要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 # 電池: 取得越勤耗得越多。不要短於 30 分鐘。
@@ -805,12 +812,13 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) Opcional - un feed o una palabra por línea que no deba quedar enterrada:  ~/.z2term/rss/important.txt
 #      Lo que coincida recibe una notificación propia, así que un feed movido no puede taparlo.
 #      Escribe parte de una URL o parte de un título (p. ej. example.org).
-#   4) Opcional - haz que funcionen los botones de la notificación:
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in Lista) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#   4) Registra las acciones de notificación en Automatización:
+#        z2-when event:notify_action run '$rssNotificationAction'
 #      «Abrir» manda ese artículo a tu navegador; «Lista» abre todo lo reunido para leerlo dentro de z2term.
 #      Nota: abrir una pantalla desde un botón de notificación necesita el permiso «mostrar sobre otras aplicaciones».
-#   5) Opcional - widget: apunta un seguimiento en vivo a ~/.z2term/rss/latest.txt en modo «principio (head)».
-#      Cada línea lleva su URL, así que tocar una línea abre ese artículo.
+#   5) Abrir la lista de artículos reunidos: sh ~/.z2term/macros/rss.sh view
+#      Gestiona ambas reglas en Lista de comandos -> Automatización -> Reglas de automatización.
+#      Si ya existe una regla de notificaciones, edítala en lugar de añadir otra.
 #
 # Necesita: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 # Batería: cuanto más a menudo consultes, más cuesta. No bajes de 30 minutos.
@@ -826,12 +834,13 @@ private fun rssBody(d: String, t: CliText): String {
 #   3) 선택 - 묻히면 안 되는 피드나 낱말을 한 줄에 하나씩:  ~/.z2term/rss/important.txt
 #      맞는 것은 따로 알림을 받으므로, 글이 많은 피드에 덮이지 않습니다.
 #      URL의 일부나 제목의 일부를 적으세요 (예: example.org).
-#   4) 선택 - 알림의 버튼을 쓰이게 하기:
-#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) case "${d}Z2_WHEN_ACTION" in 목록) ~/.z2term/macros/rss.sh view ;; *) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac ;; esac'
+#   4) 알림 동작을 자동화에 등록하기:
+#        z2-when event:notify_action run '$rssNotificationAction'
 #      「열기」는 그 글을 브라우저로, 「목록」은 모은 글을 읽을거리로 만들어 z2term 안에서 엽니다.
 #      참고: 알림 버튼에서 화면을 열려면 「다른 앱 위에 표시」 권한이 필요합니다 (엣지 패널과 같은 권한).
-#   5) 선택 - 위젯: 라이브 tail을 ~/.z2term/rss/latest.txt에 「앞 (head)」 모드로 맞춥니다.
-#      줄마다 URL이 붙어 있어서, 줄을 누르면 그 글이 열립니다.
+#   5) 모은 글의 목록 열기: sh ~/.z2term/macros/rss.sh view
+#      명령 목록 -> 자동화 -> 자동화 규칙에서 두 규칙을 관리합니다.
+#      알림 규칙이 이미 있으면 새로 추가하지 말고 기존 규칙을 편집하세요.
 #
 # 필요: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 # 배터리: 자주 볼수록 더 듭니다. 30분보다 짧게는 하지 마세요.
