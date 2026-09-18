@@ -39,15 +39,60 @@ internal object EdgeNoteUi {
         }
     }.apply { style(this, ink, paper) }
 
-    fun editor(context: Context, ruled: Boolean, ink: Int? = null, paper: Int? = null): EditText = object : EditText(context) {
-        private val rules = Rules(this, ruled, ink != null || paper != null)
+    /**
+     * メモの編集欄。選択が変わったら [onSelectionChange] を呼ぶ。
+     *
+     * ⚠ **重ねて表示する窓 (エッジパネル) では、長押しで選べてもフローティングの選択メニューが
+     * 出ないことがある** (利用者の報告: 「長押し選択してもメニューが出ずにコピーとか切り取りも
+     * 出来ません」)。あれは `PopupWindow` を親の窓にぶら下げて出すもので、Activity ではない窓の
+     * token では黙って出ないことがある。⇒ **コピー・切り取り・貼り付けはパネル側のボタンからも
+     * 叩けるようにする** ([EdgeRuntime] の note)。選択の有無でボタンの可否を切り替えるために、
+     * ここで選択の変化を知らせる。⚠ システムの選択メニューは**殺さない** — 出る端末では
+     * そちらの方が手数が少ないので、こちらは常に使える控えとして足すだけにする。
+     */
+    internal class NoteEditor(context: Context, ruled: Boolean, custom: Boolean) : EditText(context) {
+        private val rules = Rules(this, ruled, custom)
+        var onSelectionChange: (() -> Unit)? = null
+
         override fun onDraw(canvas: Canvas) {
             rules.draw(canvas)
             super.onDraw(canvas)
         }
-    }.apply {
-        background = null
-        style(this, ink, paper)
+
+        override fun onSelectionChanged(selStart: Int, selEnd: Int) {
+            super.onSelectionChanged(selStart, selEnd)
+            // ⚠ 親クラスの初期化中にも呼ばれる。そのときは代入前なので null で素通りする。
+            onSelectionChange?.invoke()
+        }
+    }
+
+    fun editor(context: Context, ruled: Boolean, ink: Int? = null, paper: Int? = null): NoteEditor =
+        NoteEditor(context, ruled, ink != null || paper != null).apply {
+            background = null
+            style(this, ink, paper)
+        }
+
+    /**
+     * 選択メニューの代わりに押すボタン (コピー・切り取り・貼り付け)。
+     * ⚠ 文言は Android の物 (`android.R.string.copy` など) を使う — 端末の言語でそのまま出るし、
+     * 利用者が他のアプリで見慣れた言い回しと揃う。
+     */
+    fun action(context: Context, textRes: Int): TextView = TextView(context).apply {
+        text = context.getString(textRes)
+        contentDescription = text
+        textSize = 12f
+        gravity = Gravity.CENTER
+        isClickable = true
+        // ⚠ **入力欄から焦点を奪わない**。奪うと押した瞬間に選択が外れ、コピーも切り取りも
+        //   空振りする。押せるが焦点は取らない、が正解 (読み上げからは押せるままになる)。
+        isFocusable = false
+        isFocusableInTouchMode = false
+        background = EdgeSettingsUi.ripple(context, null)
+        setTextColor(ColorStateList(
+            arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf()),
+            intArrayOf(EdgeEditorUi.muted(context), EdgeEditorUi.foreground(context))))
+        setPadding(EdgeEditorUi.dp(context, 10), EdgeEditorUi.dp(context, 8),
+            EdgeEditorUi.dp(context, 10), EdgeEditorUi.dp(context, 8))
     }
 
     private fun style(view: TextView, ink: Int?, paper: Int?) = with(view) {

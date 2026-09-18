@@ -1549,6 +1549,26 @@ object EdgeRuntime {
                     redo.setOnClickListener { restore(note.redo()) }
                     history.addView(undo); history.addView(redo)
                     history.addView(smaller); history.addView(larger)
+                    // 選択メニューの代わり (0.8.632)。重ねて出す窓ではフローティングの選択メニューが
+                    // 出ないことがあり、選べてもコピーできなかった (利用者の報告)。⚠ システムの
+                    // メニューは殺さない — 出る端末ではそちらが速いので、ここは常に使える控え。
+                    val clip = EdgeToolRow(ui()).apply { visibility = View.GONE }
+                    val cut = EdgeNoteUi.action(ui(), android.R.string.cut)
+                    val copy = EdgeNoteUi.action(ui(), android.R.string.copy)
+                    val paste = EdgeNoteUi.action(ui(), android.R.string.paste)
+                    fun updateClip() {
+                        val hasSelection = editor.selectionEnd != editor.selectionStart
+                        cut.isEnabled = hasSelection
+                        copy.isEnabled = hasSelection
+                    }
+                    // ⚠ 自前で切り貼りせず TextView の口を叩く。選択範囲・取り消し履歴・
+                    //   クリップボードの扱いが本物と同じになる (自分で書くと必ずどれかがずれる)。
+                    cut.setOnClickListener { editor.onTextContextMenuItem(android.R.id.cut) }
+                    copy.setOnClickListener { editor.onTextContextMenuItem(android.R.id.copy) }
+                    paste.setOnClickListener { editor.onTextContextMenuItem(android.R.id.paste) }
+                    clip.addView(cut); clip.addView(copy); clip.addView(paste)
+                    editor.onSelectionChange = { updateClip() }
+                    updateClip()
                     editor.addTextChangedListener(object : android.text.TextWatcher {
                         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
                         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -1558,12 +1578,13 @@ object EdgeRuntime {
                     })
                     preview.setOnClickListener {
                         preview.visibility = View.GONE; editor.visibility = View.VISIBLE; history.visibility = View.VISIBLE
+                        clip.visibility = View.VISIBLE
                         editor.requestFocus()
                         editor.post { app?.getSystemService(android.view.inputmethod.InputMethodManager::class.java)
                             ?.showSoftInput(editor, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT) }
                     }
                     updateHistory(); updateSize()
-                    row.addView(preview); row.addView(editor); row.addView(history)
+                    row.addView(preview); row.addView(editor); row.addView(clip); row.addView(history)
                     macroForm?.registerInput(item.id) { note.text }
                 }.onFailure { row.addView(text(it.message ?: "Cannot open note")) }
             }

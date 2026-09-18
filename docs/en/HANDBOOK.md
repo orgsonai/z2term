@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.631-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.632-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -898,6 +898,8 @@ when a `z2-when` rule fired **without opening the app**.
 **Action-macro GUI appearance (0.8.578)**: the list is one row per macro - tap the name to edit, with run, duplicate and delete at its right. Whatever is running, and the Stop button, sit together in one bordered block, and above it is "Android action permission" (nothing runs without it). Steps line their numbers up in a left column and print the line itself in a fixed pitch, with repeat and branch bodies shown by a left rule and an indent. The colours are the same ones the edge-panel editor uses, built from your terminal theme.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
+
+**0.8.632-alpha (versionCode 640) — build unverified**: Notes in an edge panel can now be copied, cut and pasted (reported as "long-pressing selects but no menu appears, so I cannot copy or cut"). In a window drawn on top of other apps, text can be selected but Android's floating selection menu does not always appear. ⇒ While a note is being edited, **Cut, Copy and Paste** now sit right below the text. Cut and Copy are dimmed while nothing is selected. The labels come from Android itself, so they follow the phone's language. ⚠ **The system selection menu is left alone** — where it does appear, it still works.
 
 **0.8.631-alpha (versionCode 639) — build unverified**: In the key-layout editor, **"Multiple selection" has moved onto the preview keyboard** (reported as "it sits at the top where it does not stay put, which is awkward"). It used to live in the scrolling settings column, so it slid out of sight as soon as you scrolled to a key's settings — exactly when you want it. It now sits next to the keys you tap, and while it is on, the number of selected keys is shown underneath. The duplicate count in the settings column is gone.
 

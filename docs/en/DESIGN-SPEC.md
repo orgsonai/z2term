@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-18 / Target version: 0.8.631-alpha (versionCode 639)
+Last updated: 2026-09-18 / Target version: 0.8.632-alpha (versionCode 640)
+
+**0.8.632-alpha (versionCode 640) — build unverified**: Notes in an edge panel can now be copied, cut and pasted (reported as "long-pressing selects but no menu appears, so I cannot copy or cut"). In a window drawn on top of other apps, text can be selected but Android's floating selection menu does not always appear. ⇒ While a note is being edited, **Cut, Copy and Paste** now sit right below the text. Cut and Copy are dimmed while nothing is selected. The labels come from Android itself, so they follow the phone's language. ⚠ **The system selection menu is left alone** — where it does appear, it still works.
 
 **0.8.631-alpha (versionCode 639) — build unverified**: In the key-layout editor, **"Multiple selection" has moved onto the preview keyboard** (reported as "it sits at the top where it does not stay put, which is awkward"). It used to live in the scrolling settings column, so it slid out of sight as soon as you scrolled to a key's settings — exactly when you want it. It now sits next to the keys you tap, and while it is on, the number of selected keys is shown underneath. The duplicate count in the settings column is gone.
 
