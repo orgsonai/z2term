@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>4. タイル・ウィジェット・アイコン — Z2Term 使いこなしガイド</title>
-<meta name="description" content="クイック設定のタイルとホーム画面のウィジェットからアプリを開かずに実行する方法、常駐サーバー、通知とタイルのアイコンを自分のドット絵に差し替える z2-icon の使いかた。">
+<title>4. エッジパネル・タイル・アイコン — Z2Term 使いこなしガイド</title>
+<meta name="description" content="画面の端のエッジパネルとクイック設定のタイルからアプリを開かずに実行する方法、常駐サーバー、通知とタイルのアイコンを自分のドット絵に差し替える z2-icon の使いかた。">
 <link rel="canonical" href="https://orgsonai.github.io/z2term/guide-tile.ja.html">
 <link rel="stylesheet" href="z2.css?v=4">
 <script src="z2.js?v=4" defer></script>
@@ -25,17 +25,52 @@
 
 <div class="wrap narrow doc">
 
-  <p class="crumb"><a href="guide.ja.html">使いこなしガイド</a> / 4. タイル・ウィジェット・アイコン</p>
+  <p class="crumb"><a href="guide.ja.html">使いこなしガイド</a> / 4. エッジパネル・タイル・アイコン</p>
 
-  <h1>4. タイル・ウィジェット・アイコン</h1>
+  <h1>4. エッジパネル・タイル・アイコン</h1>
   <p class="lede">書いたマクロを、<strong>アプリを開かずに</strong>実行できる場所へ置きます。
-    クイック設定のタイル、ホーム画面のウィジェット、常駐サーバーの 3 つです。</p>
+    画面の端のパネル、クイック設定のタイル、常駐サーバーの 3 つです。</p>
 
   <div class="chapnav">
     <a href="guide-terminal.ja.html">1. ターミナル</a>
     <a href="guide-macro.ja.html">2. マクロ</a>
     <a href="guide-when.ja.html">3. 自動化</a>
-    <a href="guide-tile.ja.html" aria-current="page">4. タイル</a>
+    <a href="guide-tile.ja.html" aria-current="page">4. エッジ・タイル</a>
+  </div>
+
+  <h2>画面の端から呼ぶ（エッジパネル）</h2>
+
+  <figure class="shot">
+    <img src="images/shot-edge-workspace.png" alt="右端のバーから開いたパネル。メモ帳・翻訳・ターミナルの3タブが並ぶ">
+    <figcaption>端のバーを内側へ払うと開きます。<b>タブを分けて何枚でも持てます</b></figcaption>
+  </figure>
+
+  <ol class="steps">
+    <li><b>見本を作る。</b>⚙設定 →「メンテナンス」→「案内を表示」→ <code>edge-panel</code>。
+      カードを上から順に押すと、<b>重ねて表示の許可</b> → <b>見本のパネル作り</b> → <b>パネルを ON</b> まで進みます。
+      見本は、端のバーから開くアプリ一覧です。</li>
+    <li><b>開く。</b>画面の端に出た細いバーを<b>内側へ払います</b>。</li>
+    <li><b>中身を足す。</b>パネルの「＋」から、アプリか<b>自由な枠（マクロ・コマンド）</b>を選びます。
+      アイコンは <code>z2-icon</code> の絵から選べます。</li>
+  </ol>
+
+  <div class="note"><b>設定を開くには</b>、パネルを開いたまま<b>メニューの外側を長押し</b>します。
+    タイルと違って <b>Android の編集画面を触らずに済む</b>ので、置くまでの手数は少なめです。</div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>したいこと</th><th>やりかた</th></tr></thead>
+      <tbody>
+        <tr><td>メモ・翻訳・ターミナルの見本がほしい</td>
+          <td>案内の <code>edge-workspace</code>。バー 1 本から 3 つのタブを開きます</td></tr>
+        <tr><td>タブを行き来する</td>
+          <td>メニューの上でスワイプ（縦並びなら左右、横並びなら上下）</td></tr>
+        <tr><td>バーの上下スワイプでスクロールしたい</td>
+          <td>ユーザー補助の「z2term Android 操作」が要ります</td></tr>
+        <tr><td>端末から作る</td>
+          <td><code>z2-edge panel</code> / <code>z2-edge set</code></td></tr>
+      </tbody>
+    </table>
   </div>
 
   <h2>クイック設定のタイルに置く</h2>
@@ -109,46 +144,6 @@ z2-icon clear notify        <span class="c"># 既定のアイコンへ戻す</sp
     <img src="images/statusbar-icon.png" alt="ステータスバーに自分のドット絵アイコンが出ている">
     <figcaption><code>notify</code> を差し替えると、このアプリの通知すべてがその絵になります</figcaption>
   </figure>
-
-  <h2>ホーム画面のウィジェット</h2>
-
-  <figure class="shot">
-    <img src="images/widget-status.png" alt="ホーム画面に置いた状態ウィジェット。SSH の宛先、稼働数、マクロのボタンが並ぶ">
-    <figcaption>状態ウィジェット。<b>ボタンを押すとマクロが裏で走ります</b>（画面は切り替わりません）</figcaption>
-  </figure>
-
-  <p>ホーム画面の空きを長押し →「ウィジェット」→ <b>Z2Term の状態</b>。置いた直後に、
-    並べるマクロを選ぶ画面が出ます（最大 4 個）。</p>
-
-  <div class="tablewrap">
-    <table>
-      <thead><tr><th>出ているもの</th><th>意味</th></tr></thead>
-      <tbody>
-        <tr><td>1 行目</td><td>PC からこの端末に入るための <code>ssh</code> コマンド。<b>緑なら <code>sshd</code> が動いています</b></td></tr>
-        <tr><td>2 行目</td><td><code>常駐 1/3 · 自動化 2/5 · 電池 87%</code> ＝「動いている数 / 登録してある数」。
-          <b>3 つは別のもの</b>を数えています（サーバー / ルール / 電池）</td></tr>
-        <tr><td>ボタンの印</td><td><code>■</code> 実行中 / <code>✓</code> 今日走って終わった / 印なし 今日はまだ</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="note"><b>「開始したのにすぐ止まった」ように見えるとき</b>は、一瞬で終わっているだけのことがあります。
-    <code>■</code> が消えて <code>✓</code> が付いていれば正常に終わっています。
-    実行中のボタンをもう一度押すと止められます。</div>
-
-  <h3>もう 1 つ: ライブ tail</h3>
-
-  <figure class="shot">
-    <img src="images/widget-tail.png" alt="ライブ tail ウィジェット。ログファイルの末尾が表示されている">
-    <figcaption>ファイルの末尾（または先頭）を、アプリを開かずに眺められます</figcaption>
-  </figure>
-
-  <p>よく見るのはこのあたりです。</p>
-  <ul>
-    <li><code>~/.z2term/when/&lt;id&gt;.log</code> … その自動化ルールが実行した記録</li>
-    <li><code>~/.z2term/events.jsonl</code> … 検知したイベント（画面・充電・Wi-Fi など）</li>
-    <li><code>~/.z2term/widget/run.log</code> … ウィジェットから走らせたマクロの出力</li>
-  </ul>
 
   <h2>常駐サーバー（アプリを開かず動かし続ける）</h2>
 

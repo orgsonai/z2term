@@ -36,7 +36,7 @@
     <a href="guide-terminal.ja.html">1. ターミナル</a>
     <a href="guide-macro.ja.html">2. マクロ</a>
     <a href="guide-when.ja.html" aria-current="page">3. 自動化</a>
-    <a href="guide-tile.ja.html">4. タイル</a>
+    <a href="guide-tile.ja.html">4. エッジ・タイル</a>
   </div>
 
   <h2>書き方はこれだけ</h2>
@@ -63,7 +63,7 @@ z2-when remove &lt;id&gt;      <span class="c"># 削除（all で全部）</span
   <h3>画面からも操作できます</h3>
 
   <figure class="shot">
-    <img src="images/sheet-automation.png" alt="ツールバーの 📜 から開いた自動化タブ。登録済みのルールが並んでいる">
+    <img src="images/shot-automation.png" alt="ツールバーの 📜 から開いた自動化タブ。登録済みのルールが並んでいる">
     <figcaption>ツールバーの <b>📜 →「自動化」</b>タブ。追加・編集・ON/OFF・実行ログがここにあります</figcaption>
   </figure>
 
@@ -181,12 +181,11 @@ z2-when 'event:ringer_*' run 'z2-toast "マナーモード: $Z2_WHEN_EVENT"'</pr
   </ol>
 
   <div class="tip">ルールの実行記録は <code>~/.z2term/when/&lt;id&gt;.log</code> です。
-    ホーム画面の<b>ライブ tail ウィジェット</b>に出しておくと、アプリを開かず眺められます
-    （→ <a href="guide-tile.ja.html">4 章</a>）。</div>
+    <code>tail -f</code> で追えます。</div>
 
   <div class="next">
     <a href="guide-macro.ja.html"><span>← 前へ</span><b>2. マクロ（Android を操る）</b></a>
-    <a href="guide-tile.ja.html"><span>次へ →</span><b>4. タイル・ウィジェット・アイコン</b></a>
+    <a href="guide-tile.ja.html"><span>次へ →</span><b>4. エッジパネル・タイル・アイコン</b></a>
   </div>
 
 </div>

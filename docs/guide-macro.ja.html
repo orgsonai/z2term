@@ -35,7 +35,7 @@
     <a href="guide-terminal.ja.html">1. ターミナル</a>
     <a href="guide-macro.ja.html" aria-current="page">2. マクロ</a>
     <a href="guide-when.ja.html">3. 自動化</a>
-    <a href="guide-tile.ja.html">4. タイル</a>
+    <a href="guide-tile.ja.html">4. エッジ・タイル</a>
   </div>
 
   <h2>マクロとは、ここでは何のことか</h2>
@@ -46,7 +46,7 @@
   <ol class="steps">
     <li><b>名前だけで呼べる</b>（この場所は <code>PATH</code> に入っています）。<code>remind.sh 30m 薬</code> のように。</li>
     <li><b>きっかけで自動実行できる</b>（<code>z2-when</code> → <a href="guide-when.ja.html">3 章</a>）。</li>
-    <li><b>タイルやウィジェットに割り当てられる</b>（→ <a href="guide-tile.ja.html">4 章</a>）。</li>
+    <li><b>エッジパネルやタイルに割り当てられる</b>（→ <a href="guide-tile.ja.html">4 章</a>）。</li>
   </ol>
 
   <p>まずは同梱のサンプルを入れてみるのが早道です。</p>
@@ -56,7 +56,7 @@ z2-macro install all     <span class="c"># 全部 ~/.z2term/macros/ に置く</s
 z2-macro show remind     <span class="c"># 中身を読む（そのまま書き換えて構いません）</span></pre>
 
   <div class="note">導入すると、そのスクリプトの<b>動かし方</b>（常駐に登録する / <code>z2-when</code> で回す /
-    ウィジェットに割り当てる）も一緒に表示されます。既にあるファイルは上書きしません。</div>
+    タイルに割り当てる）も一緒に表示されます。既にあるファイルは上書きしません。</div>
 
   <h2>Android を操作する <code>z2-*</code> コマンド</h2>
 
@@ -109,7 +109,7 @@ git switch -c <span class="g">"$name"</span></pre>
   <h2>自分のマクロを書く</h2>
 
   <p>ふつうの POSIX シェルスクリプトです。1 行目にシェバン、<b>2 行目に「何をするものか」</b>を
-    コメントで書いておくと、ウィジェットやタイルの一覧にその説明が出ます。</p>
+    コメントで書いておくと、タイルの一覧にその説明が出ます。</p>
 
   <pre><span class="c">#!/bin/sh</span>
 <span class="c"># ~/.z2term/macros/lowbat.sh ─ 電池が減ったら知らせる</span>
