@@ -452,6 +452,8 @@ ol.steps>li b{color:var(--fg)}
    スキャンラインが下りながら上から絵が出る。画像が未配置でも alt と枠が残る。 */
 .term-imgs{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0 6px;align-items:flex-start}
 .term-img{position:relative;margin:0;max-width:220px;flex:0 1 auto}
+/* 線の基準。figure 全体だと説明文のぶんだけ絵より下まで走ってしまう */
+.term-img .frame{position:relative;display:block}
 .term-img img{
   width:100%;display:block;border:1px solid var(--line2);border-radius:8px;background:var(--bg2);
   min-height:54px;font-size:11px;color:var(--faint);
@@ -464,7 +466,7 @@ ol.steps>li b{color:var(--fg)}
   background:var(--accent);box-shadow:0 0 14px 2px rgba(34,197,94,.85);opacity:0;
 }
 .term-img.drawn .scan{animation:imgscan 1.15s cubic-bezier(.25,.6,.3,1) forwards}
-@keyframes imgscan{0%{top:0;opacity:1}92%{opacity:1}100%{top:100%;opacity:0}}
+@keyframes imgscan{0%{top:0;opacity:1}96%{opacity:1}100%{top:100%;opacity:0}}
 .term-img figcaption{
   font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:6px;text-align:left;
 }

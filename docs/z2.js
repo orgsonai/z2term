@@ -153,6 +153,16 @@
     this.stage.classList.remove('flash');
   };
 
+  /* 絵の高さが決まるまで待つ。まだ読み込めていない絵は min-height ぶんの
+     高さしかなく、そのまま始めると線がそこで終わって絵の下まで届かない。 */
+  function loaded(img) {
+    if (img.complete && img.naturalHeight) return Promise.resolve();
+    return new Promise(function (done) {
+      img.addEventListener('load', function () { done(); }, { once: true });
+      img.addEventListener('error', function () { done(); }, { once: true });
+    });
+  }
+
   /* 端末の中に画像を「描く」。上からスキャンラインが下りて絵が現れる。 */
   Term.prototype.images = async function (items, tok) {
     var box = document.createElement('div');
@@ -165,13 +175,18 @@
       var fig = document.createElement('figure');
       fig.className = 'term-img' + (it.wide ? ' wide' : '');
       fig.innerHTML =
-        '<span class="scan"></span>' +
-        '<img src="' + esc(it.src) + '" alt="' + esc(it.alt || '') + '" loading="lazy">' +
+        '<span class="frame"><span class="scan"></span>' +
+        '<img src="' + esc(it.src) + '" alt="' + esc(it.alt || '') + '">' +
+        '</span>' +
         (it.cap ? '<figcaption>' + esc(it.cap) + '</figcaption>' : '');
       box.appendChild(fig);
+
+      await loaded(fig.querySelector('img'));
+      if (tok !== this.token) return;
       requestAnimationFrame(function (f) {
         return function () { f.classList.add('drawn'); };
       }(fig));
+
       this.body.scrollTop = this.body.scrollHeight;
       await sleep(420);
     }
