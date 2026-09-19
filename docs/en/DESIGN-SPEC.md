@@ -1721,6 +1721,14 @@ when `executionEngine = "chroot"`, `launchChroot()` is used.
 - `launchChroot()`: via `su -c`, bind mount (/dev, /dev/pts, /proc, /sys, /root, /sdcard) → `chroot` → login shell. The `ensure*` helpers (z2-*/OSC7/history/sshd/gui/z2run) are shared with the proot path.
 - **Ctrl+C / job control**: because the controlling terminal can't be owned via `su`, the login shell is launched **through `setsid -c`** to enable it.
 - On chroot launch failure, it auto-falls back to proot (`TerminalSession.startTerminal`). End-to-end verified on a rooted device under SELinux Enforcing (moto g13 / Magisk).
+- ⚠ **Bind-mount the rootfs onto itself before chrooting** (0.8.639). Read from inside the chroot,
+  `/proc/self/mounts` has **no line for `/` at all**: the Android root lies outside the chroot and the
+  rootfs itself is not a mount point. `/etc/mtab` is a symlink to that file, so anything that inspects
+  "which filesystem am I on" gets it wrong — pacman cannot determine the cachedir's mount point
+  (`could not determine cachedir mount point` → `not enough free disk space`, with 93GB actually free).
+  Placing `mount -o bind "$RFS" "$RFS"` **before every other bind** makes it appear as `/` and fixes it.
+  The cleanup side must also `umount -l` the rootfs itself, after the mounts inside it are gone.
+  ⚠ The z2root path sees the host mount table verbatim, which does contain a `/` line, so it never hits this.
 - ⚠ **Always quote values embedded into the bootstrap with `shq`** (0.8.638). This path is the only one that goes through a shell, so a value that is harmless in the z2root path (passed straight into the `env` array) breaks here. `TZ` was in fact left bare, and the shell read the `<` of the POSIX abbreviation `<+09>` ([PosixTimeZone]) as an input redirection, killing the script with `can't open +09` **before it ever reached the line that runs `chroot`**. The symptom is `[process exited exitCode=-1]` the instant a tab opens, and because **both su and every bind mount succeed**, suspecting the root side (su resolution, grants, SELinux) leads nowhere. The fast way to split the problem is to drop a marker inside the rootfs and check whether chroot was entered at all.
 
 ### 4.4 Distro management (`distro/`)

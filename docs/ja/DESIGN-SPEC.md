@@ -1695,6 +1695,14 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 - `launchChroot()`: `su -c` で bind mount(/dev,/dev/pts,/proc,/sys,/root,/sdcard) → `chroot` → login shell。`ensure*`(z2-*/OSC7/履歴/sshd/gui/z2run) は proot 経路と共通で流用。
 - **Ctrl+C / ジョブ制御**: su 経由だと制御端末を所有できないため、login shell を **`setsid -c` 経由**で起動して有効化。
 - chroot 起動失敗時は proot へ自動フォールバック（`TerminalSession.startTerminal`）。SELinux Enforcing 下の root 端末(moto g13/Magisk)で end-to-end 検証済み。
+- ⚠ **rootfs を自分自身に bind mount してから chroot する** (0.8.639)。chroot した側から
+  `/proc/self/mounts` を読むと、Android のルートは chroot の外なので現れず、rootfs 自体は
+  マウントポイントでもないため **`/` の行が 1 つも無い**。`/etc/mtab` はそこへの symlink なので、
+  「いまいるファイルシステム」を見るツールが軒並み誤る (pacman は cachedir のマウント先を決められず
+  `could not determine cachedir mount point` → `not enough free disk space` で中止。空きは 93GB あった)。
+  `mount -o bind "$RFS" "$RFS"` を**他の bind より先に**置くと `/` として現れて解決する。
+  掃除側も rootfs 自身の `umount -l` を、中のマウントを外した後に行う。
+  ⚠ z2root 経路はホストの mount テーブルがそのまま見えて `/` の行があるので、この症状は出ない。
 - ⚠ **ブートストラップに値を埋め込むときは必ず `shq` でクォートする** (0.8.638)。この経路だけが**シェルを通る**ため、`env` 配列へ直接渡す z2root 経路では無害な値がここでは壊れる。実際に `TZ` を裸で置いていて、POSIX 形式の略称 `<+09>` ([PosixTimeZone]) の `<` をシェルが入力リダイレクトと読み、**`chroot` を実行する行へ届く前に** `can't open +09` でスクリプトが終了していた。症状は「タブを開いた瞬間に `[プロセス終了 exitCode=-1]`」で、**su も bind mount も成功している**ため root 周り (su 解決・許可・SELinux) を疑うと空振りする。切り分けは「rootfs の中に印を置いて chroot に入れたかを見る」のが速い。
 
 ### 4.4 ディストロ管理 (`distro/`)

@@ -786,7 +786,18 @@ class ProotLauncher(private val context: Context) {
                 append(' ').append(shq(vol.trimStart('/')))
             }
             append("; do umount -l \"\$RFS/\$m\" 2>/dev/null; done\n")
+            // rootfs 自身の bind (下記) も剥がす。中のマウントを外した後でないと外れない。
+            append("umount -l \"\$RFS\" 2>/dev/null\n")
             append("mkdir -p \"\$RFS/dev\" \"\$RFS/dev/pts\" \"\$RFS/proc\" \"\$RFS/sys\" \"\$RFS/root\" \"\$RFS/sdcard\" \"\$RFS/tmp\"\n")
+            // ⚠ **rootfs を自分自身に bind する**。chroot した側から `/proc/self/mounts` を読むと、
+            // Android のルートは chroot の外なので現れず、rootfs はマウントポイントではないため
+            // **`/` の行が 1 つも無い**状態になる。`/etc/mtab` はそこへの symlink なので、
+            // 「今いるファイルシステム」を知りたいツールが軒並み誤る — pacman は cachedir の
+            // マウント先を決められず `could not determine cachedir mount point` →
+            // `not enough free disk space` でインストールを中止する (空きは十分あるのに)。
+            // 自分自身へ bind するとマウントポイントになり、chroot 後に `/` として現れる
+            // (chroot 環境を作るときの定番の作法)。⚠ **他の bind より先に**置くこと。
+            append("mount -o bind \"\$RFS\" \"\$RFS\"\n")
             append("mount -o bind /dev \"\$RFS/dev\"\n")
             append("mount -o bind /dev/pts \"\$RFS/dev/pts\" 2>/dev/null\n")
             // POSIX 共有メモリ。Android の /dev には shm が無いため、bind しただけでは
