@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.638-alpha (versionCode 646) — built and verified on device**: The hidden "chroot" execution engine on rooted devices always died with `[process exited]` the moment a tab opened. The cause was the `TZ` value embedded unquoted into the chroot bootstrap script. A POSIX `TZ` writes the abbreviation as `<+09>`, so the shell read `<` as an input redirection and the script died (`can't open +09`) before ever reaching the line that runs `chroot`. The z2root path passes the environment directly and never goes through a shell, so only the chroot path was affected. Verified on a rooted device (Magisk, SELinux Enforcing): real-root chroot startup, the full set of bind mounts, job control, the `z2-*` commands, and the clock inside the distro.
+
 **0.8.637-alpha (versionCode 645) — build and device verification pending at commit time**: Tiles running the Markdown reader `md.sh` now receive the folder icon automatically, including commands with quoted absolute script paths. Unrelated names such as `cmd.sh` and `md.sh.bak` are excluded. This fixes the missing assignment found by the bundled-macro icon test in CI. See the GitHub Release for publication-time verification results.
 
 **0.8.636-alpha (versionCode 644) — build and device verification pending at commit time**: Fixed the scope used to calculate the keyboard layout preview height, addressing a Kotlin compilation error. The preview remains fixed at the bottom, capped at 45% of the available height and 320dp. See the GitHub Release for publication-time verification results.

@@ -833,7 +833,11 @@ class ProotLauncher(private val context: Context) {
             }
             append("exec chroot \"\$RFS\" /usr/bin/env -i HOME=/root TERM=xterm-256color LANG=C.UTF-8 ")
             // proot 経路と同じく端末の時計に合わせる ([PosixTimeZone])。
-            append("TZ=${PosixTimeZone.current()} ")
+            // ⚠ **必ずクォートする**。POSIX の TZ は略称を `<+09>` の形で書く ([PosixTimeZone]) ので、
+            // 裸で置くとシェルが `<` を入力リダイレクトと読み、この行が実行される前に
+            // `can't open +09` で落ちる (= chroot に一度も入れない)。env 配列へ直接渡す
+            // proot/z2root 経路と違い、chroot 経路はここだけシェルを通るため踏んでいた。
+            append("TZ=").append(shq(PosixTimeZone.current())).append(' ')
             // ⚠ proot 経路と同じくマクロ置き場を末尾に足す (0.8.287)。
             append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR TMPDIR=/tmp")
             append(displayEnv)

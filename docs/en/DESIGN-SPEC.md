@@ -1721,6 +1721,7 @@ when `executionEngine = "chroot"`, `launchChroot()` is used.
 - `launchChroot()`: via `su -c`, bind mount (/dev, /dev/pts, /proc, /sys, /root, /sdcard) → `chroot` → login shell. The `ensure*` helpers (z2-*/OSC7/history/sshd/gui/z2run) are shared with the proot path.
 - **Ctrl+C / job control**: because the controlling terminal can't be owned via `su`, the login shell is launched **through `setsid -c`** to enable it.
 - On chroot launch failure, it auto-falls back to proot (`TerminalSession.startTerminal`). End-to-end verified on a rooted device under SELinux Enforcing (moto g13 / Magisk).
+- ⚠ **Always quote values embedded into the bootstrap with `shq`** (0.8.638). This path is the only one that goes through a shell, so a value that is harmless in the z2root path (passed straight into the `env` array) breaks here. `TZ` was in fact left bare, and the shell read the `<` of the POSIX abbreviation `<+09>` ([PosixTimeZone]) as an input redirection, killing the script with `can't open +09` **before it ever reached the line that runs `chroot`**. The symptom is `[process exited exitCode=-1]` the instant a tab opens, and because **both su and every bind mount succeed**, suspecting the root side (su resolution, grants, SELinux) leads nowhere. The fast way to split the problem is to drop a marker inside the rootfs and check whether chroot was entered at all.
 
 ### 4.4 Distro management (`distro/`)
 
