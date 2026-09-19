@@ -334,6 +334,8 @@ In the SFTP / FTP / SMB / WebDAV file screen, both Android Back and the top-left
 Every SSH host in 📜 → **Connections** has a **[VNC]** button. It opens **that server's desktop in a new
 tab** — the machine over there, not the Linux inside the app.
 
+<img src="../images/shot-vnc-remote.png" width="280" alt="Another machine's desktop (Raspberry Pi OS) opened in a new tab">
+
 Before using it, fill in two fields under **✎ (Edit)** for the host:
 
 - **VNC port** — display `:1` is **5901**, `:2` is 5902 (`5900 + number`). "Screen sharing" on
@@ -674,6 +676,8 @@ You can run `adb` against this phone itself — no PC, no USB. `z2adb` helps wit
 ## 9. What you can do in Settings (⚙)
 
 Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←** at the top-left or your phone's back button.
+
+<img src="../images/shot-settings.png" width="280" alt="The settings page, with groups such as Display, Keyboard and input, and Linux environment">
 
 Settings are split into **9 groups** (Display / "Keyboard, input / Language" / Linux environment / Permissions and notifications / App lock / Maintenance / Developer / How to use (Tips) / About this app), and **tapping a heading opens or closes it**. The open/closed state is **remembered even after you close the app**, so you can keep the groups you use often expanded.
 
@@ -1486,6 +1490,8 @@ Auto-run a command **when you start charging / the battery drops / a set time ar
 **Rules may start servers too** (e.g. `z2-when wifi:connect run 'sshd --lan'`). A server started that way **keeps running** after the rule itself finishes (fixed in 0.8.253 — before that it was taken down the instant the run ended, so the log said "listening" while nothing answered). ⚠ It only survives **while the app is alive**; register anything that must stay up permanently as a **resident server**.
 
 **You can also build them on screen** (0.8.272). In 📜 → the "Automation" tab, **+ New** lets you pick a trigger from a list and type the command. Tap **✎** on an existing rule to see the full command and its filters (`if` / `cooldown` / `between` / `days`) and edit them. When the command points at a single script, **its contents are shown too** (edit the script itself in the terminal). Rules created with `z2-when` in the terminal can be edited the same way — both read the same files (`~/.z2term/when/*.rule`).
+
+<img src="../images/shot-automation.png" width="280" alt="The Automation tab in the command list, showing z2-when rules with on/off switches">
 
 **Conditions are built by picking, not typing (0.8.373).** Under "When to run it", choose **all of them / any one of them** and add rows with **+ Add a condition**. The item (`connected to Wi-Fi` / `battery level (%)` / `Wi-Fi network name`, …) comes from a dropdown, so a typo can no longer leave you with a rule that never fires. Boolean items take "yes / no", name items "is / is not", number items "more than / less than" plus a value. **Every row shows its current value** (0.8.374). ⚠ **`volume` is not a percentage** — it is the device's own step count (0-15 on many phones), and without this you can write `volume > 77`, a condition that can **never** hold (hit on a real device). With `now: 0 / 15` on the row, picking a threshold is obvious. `battery level` shows `now: 74`, `Wi-Fi network name` shows what you are on right now (`now: (none)` when off). It is read once when the editor opens — no polling, no extra traffic. Right below, **"When it does not match"** takes a command to run instead (empty = do nothing). ⚠ **A condition written in the terminal that the screen cannot represent** (`screen=on`, or a rule carrying both `if` and `if_any`) is **shown as text** — the screen must never reinterpret and rewrite what you wrote.
 

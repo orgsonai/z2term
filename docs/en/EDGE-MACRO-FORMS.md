@@ -23,6 +23,8 @@ The item editor is split, from the top, into Component and behavior, Display, Co
 
 Settings → Maintenance → Show a guide → **edge-workspace** adds one guide that creates **one panel with Notepad, Translation and Terminal tabs**, opened from a single right-edge bar. Both this sample and the app-panel sample use 30% handle opacity (`alpha=0.3`).
 
+<img src="../images/shot-edge-workspace.png" width="280" alt="The three-tab panel opened from the right-edge bar: Notepad, Translation and Terminal">
+
 1. Run the guide in a shell in the local Linux environment used by panels.
 2. Grant overlay permission. This sample does not require Accessibility.
 3. If `trans` is missing, manually run the installation command shown for your distribution. The information card does not install anything when tapped.

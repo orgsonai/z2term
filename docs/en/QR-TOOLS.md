@@ -44,6 +44,10 @@ Named commands use `z2term://command?name=...&text=...` with UTF-8 URL encoding.
 
 Generation accepts up to 2,000 UTF-8 bytes; the content field accepts 4,096 characters. Shorten content if generation fails.
 
+**Making one in the terminal (0.8.630)**: `z2-qr encode "text"` writes a PNG (by default `~/.z2term/qr/qr.png`), and `-t` draws it right there with block characters instead. `qrencode` does not need to be installed.
+
+<img src="../images/shot-qr.png" width="280" alt="z2-qr encode -t run in the terminal, drawing a QR code with block characters">
+
 ## Sharing through your own relay
 
 Open **Command list → bottom of Servers → Share files through a relay**. This optional feature requires your own server. There is no automatic third-party relay or direct device-address sharing.
