@@ -1,0 +1,10 @@
+0.8.639-alpha
+
+- First release on F-Droid.
+- On the hidden "chroot" engine for rooted devices, installing a package
+  failed with `not enough free disk space` even with plenty free. The rootfs
+  is now bind-mounted onto itself so it appears as `/`.
+- Added since 0.8.483: edge panels that float over other apps, recording and
+  replaying actions, QR tools, `z2-shot` to capture part of the screen,
+  `z2-view` to read a page built on the terminal, and a rebuilt key layout
+  editor.

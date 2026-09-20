@@ -33,3 +33,7 @@ After a user-run build, check element waits immediately after launch, ambiguous 
 ## Remaining investigations
 
 Operation capture, full-screen recording and image recognition need separate implementation and data-scope investigation. Coordinate selection consumes its touches; element requests inspect only the explicitly targeted window.
+
+## Batch recording and added gestures (0.8.605)
+
+**0.8.605-alpha (versionCode 613) — build not verified**: Action automation gained freehand recording, which captures taps, swipes and two-finger gestures from start to stop in one pass. Choose between record-only and a root mode that records real interaction. Only leading and trailing idle time is trimmed; waits between actions and time-stamped paths are retained. Manual accelerating/decelerating swipes, double taps, pinch in/out and two-finger swipes were added as well. "Place" on a saved macro adds it to a tile or an edge panel. Device behavior not yet verified. See [ACTION-MACROS.md](ACTION-MACROS.md).

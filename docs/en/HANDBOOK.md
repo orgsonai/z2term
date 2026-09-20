@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.637-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.639-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -902,6 +902,10 @@ when a `z2-when` rule fired **without opening the app**.
 **Action-macro GUI appearance (0.8.578)**: the list is one row per macro - tap the name to edit, with run, duplicate and delete at its right. Whatever is running, and the Stop button, sit together in one bordered block, and above it is "Android action permission" (nothing runs without it). Steps line their numbers up in a left column and print the line itself in a fixed pitch, with repeat and branch bodies shown by a left rule and an indent. The colours are the same ones the edge-panel editor uses, built from your terminal theme.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
+
+**0.8.639-alpha (versionCode 647) — built and verified on device**: On the hidden "chroot" engine, installing a package always failed with `not enough free disk space` even with plenty of space free. Read from inside the chroot, `/proc/self/mounts` has **no line for `/` at all**: the Android root lies outside the chroot and the rootfs itself is not a mount point. `/etc/mtab` is a symlink to that file, so anything asking "which filesystem am I on" gets it wrong — pacman could not determine the cachedir's mount point and aborted. The rootfs is now **bind-mounted onto itself** so it appears as `/` (the standard way to prepare a chroot). Verified on device: `pacman -Sy` installs to completion, and sshd starts inside the chroot (host keys generated, then a safe stop because no authorized_keys is set).
+
+**0.8.638-alpha (versionCode 646) — built and verified on device**: The hidden "chroot" execution engine on rooted devices always died with `[process exited]` the moment a tab opened. The cause was the `TZ` value embedded unquoted into the chroot bootstrap script. A POSIX `TZ` writes the abbreviation as `<+09>`, so the shell read `<` as an input redirection and the script died (`can't open +09`) before ever reaching the line that runs `chroot`. The z2root path passes the environment directly and never goes through a shell, so only the chroot path was affected. Verified on a rooted device (Magisk, SELinux Enforcing): real-root chroot startup, the full set of bind mounts, job control, the `z2-*` commands, and the clock inside the distro.
 
 **0.8.637-alpha (versionCode 645) — build and device verification pending at commit time**: Tiles running the Markdown reader `md.sh` now receive the folder icon automatically, including commands with quoted absolute script paths. Unrelated names such as `cmd.sh` and `md.sh.bak` are excluded. This fixes the missing assignment found by the bundled-macro icon test in CI. See the GitHub Release for publication-time verification results.
 

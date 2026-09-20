@@ -39,11 +39,12 @@ Description: |-
     custom theme editor, alternate screen, East Asian Width, scrollback with
     search, OSC 4/7/8/10/11/12/52.
   * Linux GUI: Xvnc and openbox with an RFB client built into the app, with audio
-    and video. "z2gui" starts a desktop, "z2run <app>" launches a GUI program.
+    and video. "z2gui" starts a desktop, "z2run <app>" launches a GUI program. The
+    same screen also connects to another machine over VNC or RDP.
   * SSH and SFTP client with public-key auth (secrets encrypted by the Android
     Keystore), known_hosts confirmation, port forwarding in both directions that
     can outlive the tab, and a built-in sshd bound to localhost by default.
-  * Android bridge: around 20 "z2-*" helpers call host features from the shell
+  * Android bridge: around 40 "z2-*" helpers call host features from the shell
     (notifications, clipboard, battery, sensors, torch, intents, alarms,
     text-to-speech, and wireless adb to the device itself).
   * It can ask you things: "z2-ask" puts a question in the notification shade and
@@ -54,6 +55,14 @@ Description: |-
     filters. Rules are plain text and survive reboots without opening the app.
   * Resident servers: register any start command and keep it running in the
     background without the app being open.
+  * Edge panels: a panel that floats over other apps, holding buttons, notes, a
+    mini terminal and your own macros, opened by swiping a bar at the screen edge.
+  * Action automation: record taps, swipes and gestures and play them back. Steps
+    combine with repeats, conditions and calls to other macros, and run from a
+    tile, a widget or an edge panel.
+  * QR tools: scan and create QR codes offline, with a history. "z2-qr" makes one
+    from the terminal as well, and "z2-shot" grabs just the part of the screen you
+    draw around.
   * Japanese IME: kana-kanji conversion with prediction and learning, plus a
     custom on-screen keyboard that can also be enabled as an OS-wide input
     method. Its key layout is editable on every face and can be saved under a
@@ -74,9 +83,9 @@ RepoType: git
 Repo: https://github.com/orgsonai/z2term
 
 Builds:
-  - versionName: 0.8.415-alpha
-    versionCode: 423
-    commit: v0.8.415-alpha
+  - versionName: 0.8.639-alpha
+    versionCode: 647
+    commit: v0.8.639-alpha
     subdir: app
     # NDK は fdroidserver が sdkmanager で自動導入し、パスを $$NDK$$ で渡してくる。
     # ソースは NDK 27 以降で確認している。
@@ -87,12 +96,18 @@ Builds:
     #   違うため、直書きせず環境ごとに切り替える作りにしてある)。NDK 同梱の
     #   source.properties から Pkg.Revision を写して渡す。
     #   local.properties は prebuild より前に作られるので追記でよい。
-    # prebuild 2: z2root / z2accept / z2attach を app/src/main/cpp/ のソースから
+    # prebuild 2: プログラミングフォント (*.ttf) は git に入っておらず、F-Droid では
+    #   同梱しない (下の注記)。app/build.gradle.kts の verifyBundledFonts は「同梱漏れ」を
+    #   ビルドエラーにするので、F-Droid のビルドではこのフラグで警告へ格下げする。
+    #   これが無いと assembleRelease が必ず「fonts が見つかりません」で止まる。
+    #   フォント不在時は TerminalFonts が端末の monospace へ落とすので動作に支障はない。
+    # prebuild 3: z2root / z2accept / z2attach を app/src/main/cpp/ のソースから
     #   NDK clang でビルドし jniLibs へ置く。prebuilt は同梱していない
     #   (Android 10+ は nativeLibraryDir からの execve しか許さないため、
     #   自前ビルドでも .so という名前での同梱が要る)。
     prebuild:
       - "grep Pkg.Revision $$NDK$$/source.properties | tr -d ' ' | sed s/Pkg.Revision=/ndk.version=/ >> ../local.properties"
+      - "echo allowMissingBundledAssets=true >> ../gradle.properties"
       - "ANDROID_NDK_HOME=$$NDK$$ bash ../scripts/build-z2root.sh"
     # scanner は「ソースツリーに置かれたバイナリ」を一律で弾く (scan は prebuild の
     # 後に走るので、生成したばかりの .so も対象に入る)。次の 2 つは正当な例外:
@@ -115,5 +130,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+-alpha$
-CurrentVersion: 0.8.415-alpha
-CurrentVersionCode: 423
+CurrentVersion: 0.8.639-alpha
+CurrentVersionCode: 647

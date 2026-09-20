@@ -13,7 +13,7 @@ and lets the shell reach the phone itself — read a notification, ask you a que
 notification shade, or run a script when the battery, the network or an incoming SMS changes.
 
 - **No root, no PC, no setup script.** Install one APK and you have a working distribution with `apk` / `apt` / `pacman`. The default execution engine (`z2root`) is a ptrace-based userspace implementation written for this app.
-- **The shell can talk to Android.** Around 20 `z2-*` helpers (notifications, clipboard, sensors, torch, intents, alarms, wireless `adb` to the device itself) plus `z2-when` — an automation hub that runs scripts on device events and keeps working after a reboot without the app being opened.
+- **The shell can talk to Android.** Around 40 `z2-*` helpers (notifications, clipboard, sensors, torch, intents, alarms, wireless `adb` to the device itself) plus `z2-when` — an automation hub that runs scripts on device events and keeps working after a reboot without the app being opened.
 - **Usable in Japanese.** A built-in kana-kanji IME with prediction and learning, which can also be turned on as an OS-wide input method.
 
 > The 5th project of the Zero to Ship initiative.
@@ -38,7 +38,7 @@ phone, and everything came in one APK?**
 |---|---|---|
 | Full Linux distribution | Alpine / Ubuntu / Arch / Kali on z2root | `proot-distro` package installs one |
 | Linux GUI | Built-in GUI tab (Xvnc + an RFB client inside the app), with audio and video. The same viewer also opens a **remote** VNC or RDP desktop | A separate X11, VNC or RDP viewer app |
-| Drive Android from the shell | Built in — ~20 `z2-*` helpers | A separate companion app |
+| Drive Android from the shell | Built in — ~40 `z2-*` helpers | A separate companion app |
 | Event-driven automation | Built in — `z2-when` (charging, battery level, time / cron, Wi-Fi, connectivity, boot, share, SMS, sensors, notifications, new files) with an Automation tab, logs and a kill switch | A separate companion app, usually paired with a third-party automation app |
 | Japanese input | Built-in IME (conversion, prediction, learning), also selectable as the OS input method | The OS keyboard |
 | SSH / SFTP, FTP, WebDAV and SMB clients, plus `sshd` | Built in; services use SSH port forwarding by default, SSH keys held by the Android Keystore | Install the packages yourself |
@@ -405,7 +405,7 @@ From the settings screen → "OSS licenses / corresponding source", you can also
 | Channel | Status |
 |---|---|
 | **GitHub Releases / direct APK** | Primary channel; one APK per release |
-| **F-Droid** | Runtime-downloaded rootfs; fully source-built engine |
+| **F-Droid** | Prepared for submission, not published yet. Runtime-downloaded rootfs; fully source-built engine (`docs/FDROID.md`) |
 | **Google Play** | No distribution planned |
 
 ## Default behavior of the SSH server (sshd)
