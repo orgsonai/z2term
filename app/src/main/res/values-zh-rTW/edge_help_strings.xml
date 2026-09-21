@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_help_start" formatted="false">應用程式請用「新增應用程式」，顯示、輸入和命令請用「新增自訂項目」。選擇元件和行為後，下方會顯示用法和範例。儲存後點「完成」返回面板。</string>
+    <string name="edge_help_choose" formatted="false">如何選擇元件</string>
+    <string name="edge_help_components" formatted="false">按鈕：點擊執行命令\n顯示：查看結果、固定文字或 HTML\n輸入框：傳遞文字、儲存筆記或使用 shell\n選擇框：從預設選項中選值\n開關：讀取並切換狀態\n清單：從命令產生的清單中操作\n\n連接輸入框、選擇框 → 按鈕 → 結果顯示，即可組成表單。</string>
+    <string name="edge_help_execute" formatted="false">點擊後執行指定命令。先設定名稱和命令。如需輸入值或結果顯示框，請在「連接」中選擇。</string>
+    <string name="edge_help_state_button" formatted="false">顯示 ON/OFF 的按鈕。設定開啟、關閉命令及讀取狀態的方法。狀態命令應輸出 on 或 off。</string>
+    <string name="edge_help_receive" formatted="false">顯示按鈕的執行結果。儲存此項後，在按鈕編輯的「連接」中選為結果顯示框。此處不需要填寫命令。</string>
+    <string name="edge_help_fixed" formatted="false">顯示固定文字或數值。在「預設值」中填寫內容。連接到按鈕後，也可將內容作為參數傳遞。</string>
+    <string name="edge_help_read" formatted="false">開啟時執行命令並顯示文字輸出。例如 date 顯示目前日期和時間。在「進階設定」中指定自動重新整理的間隔。</string>
+    <string name="edge_help_view" formatted="false">在面板內顯示 HTML。設定呼叫 z2-view 的巨集，或開啟已準備的 HTML 檔案的命令。下方範例需要先準備 page.html。可選擇手動或自動重新整理。表單和操作按鈕由巨集定義。儲存後點「完成」查看。</string>
+    <string name="edge_help_value" formatted="false">將使用者輸入的文字傳遞給其他元件。儲存後，在執行按鈕的「連接」中選為輸入來源。可依需求設定預設值或必填。</string>
+    <string name="edge_help_choice" formatted="false">從預設值中選擇。用 | 分隔選項，儲存後在按鈕的「連接」中選擇此項。預設值必須與某個選項相同。</string>
+    <string name="edge_help_file" formatted="false">儲存所寫文字的筆記。檔案路徑可留空。關閉面板後仍保留內容，也可傳遞給連接的按鈕。</string>
+    <string name="edge_help_send" formatted="false">輸入文字並點「傳送」，即可作為標準輸入傳給命令。例如 cat 會原樣傳回輸入的文字。</string>
+    <string name="edge_help_shell" formatted="false">在面板內使用 shell。此編輯器不需設定命令。儲存並點「完成」即可輸入。關閉後仍保留 shell、輸出和草稿。互動式程式請使用一般終端分頁。</string>
+    <string name="edge_help_state" formatted="false">讀取並切換目前狀態。狀態命令應輸出 on 或 off，執行命令負責切換狀態。操作後會重新讀取狀態。</string>
+    <string name="edge_help_select" formatted="false">將命令輸出的每一行變成可選項目。點擊後執行選擇命令，選取的值透過 \"$1\" 傳入。如需區分名稱和值，每行輸出「名稱＋定位字元＋值」。</string>
+    <string name="edge_help_command" formatted="false">輸入此裝置可用的 shell 命令。可在下方選擇已安裝的巨集，並附加所需參數。請先在一般終端分頁中確認能正常執行。</string>
+    <string name="edge_help_every" formatted="false">留空或0表示不定期重新整理。指定5～86400秒後，僅在面板顯示時重新整理。檢視會定期執行顯示命令；手動「重新整理」可由巨集定義不同操作。</string>
+    <string name="edge_help_timeout" formatted="false">留空為30秒。網路請求等較慢的操作可設定為1～300秒。</string>
+    <string name="edge_help_note_path" formatted="false">留空則使用此項的專用檔案。如需使用現有檔案，請指定應用程式共用主目錄內的路徑。</string>
+    <string name="edge_help_default" formatted="false">開啟時使用的值。選擇框應填寫選項中的一個值。</string>
+    <string name="edge_help_choices" formatted="false">用 | 分隔選項。不允許空白或重複的選項。</string>
+    <string name="edge_help_rows" formatted="false">留空使用元件預設值。可指定1～20行來設定顯示高度。</string>
+    <string name="edge_help_size" formatted="false">留空為自動。僅數字使用dp；加 % 表示相對於欄寬或面板高度的比例。</string>
+    <string name="edge_help_example">輸入範例：%1$s</string>
+    <string name="edge_help_use_example">填入此範例</string>
+</resources>

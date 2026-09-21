@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">正在選取或複製文件…</string>
+    <string name="process_text_title">用z2term處理</string>
+    <string name="process_text_enable">用於處理所選文字</string>
+    <string name="process_text_contract">將原文傳入所選命令的標準輸入。確認標準輸出後再取代。</string>
+    <string name="process_text_setup">在命令清單 → 片段中註冊命令，並啟用「用於處理所選文字」。</string>
+    <string name="process_text_replace">取代所選文字</string>
+    <string name="process_text_too_large">支援不含NUL、最大64 KiB的文字。</string>
+    <string name="workspace_title">工作階段配置</string>
+    <string name="workspace_hint">選取並排顯示的分頁。點按窗格選擇輸入目標，拖曳分隔線調整大小。</string>
+    <string name="workspace_vertical">上下</string>
+    <string name="workspace_horizontal">左右</string>
+    <string name="workspace_need_two">請先再開啟一個終端或GUI分頁。</string>
+    <string name="workspace_single">返回單窗格</string>
+    <string name="workspace_external_hint">將目前分頁顯示在外接螢幕上。手機可控制該分頁或顯示其他分頁。</string>
+    <string name="workspace_no_display">沒有可用的外接螢幕。</string>
+    <string name="workspace_return">返回手機</string>
+    <string name="workspace_projected">正在外接螢幕上顯示。鍵盤控制該工作階段。</string>
+    <string name="workspace_controller">外接螢幕：此區域可作觸控板，下方鍵盤可用於輸入。</string>
+    <string name="workspace_display_failed">無法使用此螢幕。工作階段仍在執行。</string>
+    <string name="settings_gui_direct">直接顯示本機 GUI（實驗功能）</string>
+    <string name="settings_gui_direct_desc">直接讀取本機幀緩衝。首次使用時安裝 Xvfb 和僅用於輸入的 x11vnc。適用於新建 GUI 分頁。解析度在啟動時固定，無 GPU 加速。</string>
+    <string name="tip_gui_split_title">長按 GUI 按鈕分割 GUI/CUI</string>
+    <string name="tip_gui_split_body">長按 + 旁的 GUI（🖥）按鈕開啟工作階段配置。選擇上下或左右排列，再選擇另一個分頁，即可同時使用 GUI 和終端機（CUI）。同一選單也可恢復單一畫面或選擇外部顯示器。短按仍會開啟 GUI。</string>
+</resources>

@@ -72,6 +72,7 @@ object EdgeRuntime {
     private var openRootId: String? = null
     private val notes = mutableMapOf<String, EdgeNote>()
     private val terminals = mutableListOf<EdgeTerminalUi>()
+    private val viewers = mutableListOf<com.zerotoship.z2term.viewer.ViewerPane>()
     private val terminalStates = mutableMapOf<String, EdgeTerminalState>()
     private var itemAreaHeight = 1
     @android.annotation.SuppressLint("StaticFieldLeak") // Window-scoped; disposed and cleared by clearPanel.
@@ -282,12 +283,16 @@ object EdgeRuntime {
 
     fun reload(context: Context): Unit = onMain {
         val loaded = store(context).panels() // Reject invalid definitions before disturbing visible state.
-        if (!store(context).enabled()) return@onMain
+        if (!store(context).enabled()) {
+            com.zerotoship.z2term.viewer.ViewerStore.prune(context, loaded)
+            return@onMain
+        }
         require(Settings.canDrawOverlays(context)) { context.getString(R.string.edge_overlay_help) }
         initialize(context)
         val previous = openRootId
         val wasEditing = editingItems
         clearPanel(keepWindow = unlocked() && loaded.any { it.id == previous })
+        com.zerotoship.z2term.viewer.ViewerStore.prune(context, loaded)
         removeHandles(); iconCache.evictAll()
         panels = loaded
         val terminalTargets = panels.flatMap { p -> p.items.filter { it.type == "terminal" }.map { "${p.id}:${it.id}" } }.toSet()
@@ -953,7 +958,7 @@ object EdgeRuntime {
             val toolsOnTop = toolsPlace == "top" || (toolsPlace != "bottom" && hasNavigation)
             if (!settings && toolsOnTop && tools.childCount > 0)
                 navigation.addView(tools, (navigation.childCount - if (wantsClose) 1 else 0).coerceAtLeast(0))
-            val terminalOnly = !settings && panel.items.size == 1 && panel.items[0].type == "terminal" &&
+            val terminalOnly = !settings && panel.items.size == 1 && panel.items[0].type in setOf("terminal", "view") &&
                 root.fields["flow"] != "free" && listOf("width", "height", "at").all { panel.items[0].fields[it].isNullOrBlank() }
             val closeTerminal = panel.items.firstOrNull { it.type == "terminal" }?.id
             fun terminalClose(item: EdgeStore.Item): (() -> Unit)? =
@@ -975,6 +980,10 @@ object EdgeRuntime {
             }
             if (settings && page == 0) {
                 rows.addView(tools)
+                rows.addView(EdgeSettingsUi.note(ui(), app!!.getString(R.string.edge_help_start)),
+                    LinearLayout.LayoutParams(-1, -2).apply {
+                        setMargins(dp(EdgeSettingsUi.GUTTER), dp(8), dp(EdgeSettingsUi.GUTTER), dp(8))
+                    })
                 rows.addView(EdgeItemEditor.create(ui(), panel.id, null, store(app!!),
                     beforeSave = { saveNotes() }, saved = { reload(app!!) }, session = session))
             }
@@ -1081,6 +1090,7 @@ object EdgeRuntime {
                 outside = { if (!finishInput()) session.leave { close() } }
                 back = { if (!finishInput()) session.leave { if (settings) open(root.id, tabId = panel.id) else close() } }
                 swipeArea = if (settings || root.tabs.isEmpty()) null else body
+                tabStrip = navigation.findViewWithTag<View>("edge-tabs")
                 horizontalTabSwipe = flow != "horizontal"
                 changeTab = { forward ->
                     val ids = listOf(root.id) + root.tabs
@@ -1176,6 +1186,7 @@ object EdgeRuntime {
         saveNotes()
         notes.entries.removeAll { !it.value.needsSave }
         terminals.forEach { it.dispose() }; terminals.clear()
+        viewers.forEach { it.dispose() }; viewers.clear()
         macroForm?.dispose(); macroForm = null
         generation++
         scheduled.forEach { main.removeCallbacks(it) }; scheduled.clear()
@@ -1495,6 +1506,19 @@ object EdgeRuntime {
                 terminals.add(terminal)
                 row.addView(terminal, if (fillSpace) LinearLayout.LayoutParams(-1, 0, 1f) else LinearLayout.LayoutParams(-1, -2))
             }
+            "view" -> {
+                val context = app!!
+                val key = com.zerotoship.z2term.viewer.ViewerStore.edgeKey(target, item.command)
+                val viewer = com.zerotoship.z2term.viewer.ViewerPane(ui(), key, target,
+                    EdgeMacroCommand.resolve(item.command, com.zerotoship.z2term.widget.WidgetStore.availableMacros(context)),
+                    item.every, item.timeout,
+                    expand = { close(); com.zerotoship.z2term.viewer.ViewerActivity.open(context, key) }, external = { close() }, runner = runner!!,
+                    options = com.zerotoship.z2term.viewer.ViewerOptions.from(item.fields))
+                viewers.add(viewer)
+                editorSession?.track(viewer) { viewer.hasDraft }
+                row.addView(viewer, if (fillSpace) LinearLayout.LayoutParams(-1, 0, 1f)
+                    else LinearLayout.LayoutParams(-1, dp(360)))
+            }
             "note" -> {
                 runCatching {
                     val noteStore = store(app!!)
@@ -1605,7 +1629,7 @@ object EdgeRuntime {
         if (item.type == "text") macroForm?.registerInput(item.id) { values[target].orEmpty() }
         // An empty heading only wastes height; run items keep it as their tap target.
         if (title.childCount == 0 && item.type != "run") row.removeView(title)
-        if (item.type !in setOf("toggle", "list", "note", "terminal", "macro", "argument", "result")) {
+        if (item.type !in setOf("toggle", "list", "note", "terminal", "macro", "argument", "result", "view")) {
             row.addView(result)
             if (result.text.isEmpty()) result.visibility = View.GONE
             renderers[target] = { result.text = it; result.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE }

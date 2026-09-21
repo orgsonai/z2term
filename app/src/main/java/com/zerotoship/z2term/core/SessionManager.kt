@@ -203,7 +203,7 @@ object SessionManager {
      * GUI タブを後付けする (端末 ↔ GUI のペア成立)。display 番号は端末側が既に reserve 済みの
      * ことが多いが、念のため `reserveDisplay` で取りこぼし無しにする。
      */
-    fun openGuiForDisplay(context: Context, display: Int, distroId: String? = null): GuiSession = synchronized(lock) {
+    fun openGuiForDisplay(context: Context, display: Int, distroId: String? = null, backend: String? = null): GuiSession = synchronized(lock) {
         // 同じdisplayでもOSが違うGUIは再利用しない。OS切替時はcloseGuiForDisplayが先に閉じる。
         val existing = mutableSessions.firstOrNull {
             it is GuiSession && it.display == display &&
@@ -214,7 +214,7 @@ object SessionManager {
             return@synchronized existing
         }
         reserveDisplay(display)
-        val s = GuiSession(context.applicationContext, display = display, initialDistroId = distroId)
+        val s = GuiSession(context.applicationContext, display = display, initialDistroId = distroId, initialBackend = backend)
         mutableSessions.add(s)
         _sessions.value = mutableSessions.toList()
         _activeId.value = s.id

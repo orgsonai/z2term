@@ -3,4 +3,16 @@
     <string name="viewer_missing">그 페이지는 더 이상 없습니다.</string>
     <string name="viewer_too_large">이 파일은 너무 커서 여기서 열 수 없습니다(최대 4 MB).</string>
     <string name="viewer_no_browser">그 링크를 열 수 있는 앱이 이 휴대전화에 없습니다.</string>
+    <string name="viewer_expand">확대</string>
+    <string name="viewer_component">뷰 (z2-view)</string>
+    <string name="viewer_empty">아직 페이지가 없습니다. z2-view를 호출하는 명령을 설정하거나 이 항목으로 페이지를 보내세요.</string>
+    <string name="viewer_required">%1$s 항목을 입력하세요.</string>
+    <string name="viewer_show_refresh">새로고침 버튼 표시</string>
+    <string name="viewer_show_expand">확대 버튼 표시</string>
+    <string name="viewer_update_mode">뷰 갱신 방식</string>
+    <string name="viewer_update_manual">수동만</string>
+    <string name="viewer_update_auto">자동</string>
+    <string name="viewer_update_help">수동만: 열거나 탭을 바꿔도 명령을 실행하지 않고 이전 페이지를 사용합니다. 처음에는 새로고침을 누르세요. 자동: 열 때와 고급 설정의 갱신 간격에 따라 갱신합니다. 간격이 비어 있거나 0이면 열 때만 갱신합니다. 추가·삭제 등 동작에 따른 페이지 변경은 두 방식 모두 반영합니다.</string>
+    <string name="viewer_empty_manual">아직 페이지가 없습니다. 새로고침을 눌러 설정한 명령으로 표시하세요.</string>
+    <string name="viewer_empty_hidden">아직 페이지가 없습니다. 항목 설정에서 새로고침 버튼을 표시하거나 매크로에서 이 항목으로 페이지를 보내세요.</string>
 </resources>

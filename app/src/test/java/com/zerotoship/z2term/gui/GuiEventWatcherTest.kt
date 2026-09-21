@@ -11,6 +11,13 @@ class GuiEventWatcherTest {
         assertEquals(GuiOpenEvent(1, "ubuntu-24.04"), parseGuiOpenEvent(" OPEN  1  ubuntu-24.04 "))
     }
 
+    @Test fun backendIsExplicitAndInvalidPortsAreRejected() {
+        assertEquals(GuiOpenEvent(3, "arch", "direct"), parseGuiOpenEvent("OPEN 3 arch direct"))
+        assertEquals(GuiOpenEvent(3, "arch", "vnc"), parseGuiOpenEvent("OPEN 3 arch vnc"))
+        assertNull(parseGuiOpenEvent("OPEN 59636 arch direct"))
+        assertNull(parseGuiOpenEvent("OPEN 3 arch direct extra"))
+    }
+
     @Test
     fun `legacy OPEN event remains accepted`() {
         assertEquals(GuiOpenEvent(2, null), parseGuiOpenEvent("OPEN 2"))

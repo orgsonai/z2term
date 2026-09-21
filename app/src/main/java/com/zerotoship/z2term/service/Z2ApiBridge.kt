@@ -232,6 +232,17 @@ object Z2ApiBridge {
                 }
                 return
             }
+            if (cmd == "file") {
+                require(needResp) { "Document selection requires a response" }
+                Thread {
+                    try {
+                        writeResponse(id, true, com.zerotoship.z2term.documents.DocumentRequests.command(context, args))
+                    } catch (e: Exception) {
+                        writeResponse(id, false, e.cause?.message ?: e.message ?: "Document operation failed")
+                    }
+                }.apply { isDaemon = true; name = "z2-file"; start() }
+                return
+            }
             // Keep downloads off the notification and session command queue.
             if (cmd == "update") {
                 updateWorker.execute {
@@ -314,7 +325,7 @@ object Z2ApiBridge {
             // 渡せず、サーバーを立てるのは常駐が増えるので、自前で開く ([ViewerActivity])。
             "view" -> {
                 require(args.size >= 1) { "view STAGE [TITLE]" }
-                doView(context, args[0], args.getOrNull(1).orEmpty()); null
+                doView(context, args[0], args.getOrNull(1).orEmpty(), args.getOrNull(2).orEmpty(), args.getOrNull(3).orEmpty()); null
             }
             // z2-qr (0.8.602): カメラで読み取る状態の QR ツール。タイルやエッジパネルから呼ぶ入口。
             "qr" -> { com.zerotoship.z2term.qr.QrToolsActivity.scan(context); null }
@@ -1500,11 +1511,21 @@ object Z2ApiBridge {
      * ⚠ **受け取るのは置き場の名前だけ**。パスをそのまま受けると、端末側から任意のファイルを
      * アプリに読ませる口になる (共有ストレージの外も含めて)。
      */
-    private fun doView(context: Context, stage: String, title: String) {
+    private fun doView(context: Context, stage: String, title: String, target: String, session: String) {
         require(stage.isNotBlank() && !stage.contains('/') && !stage.contains("..")) { "view: bad stage" }
         val staging = java.io.File(requireNotNull(context.getExternalFilesDir(null)), "z2api")
-        val page = java.io.File(java.io.File(staging, stage), "page.html")
-        com.zerotoship.z2term.viewer.ViewerActivity.show(context, page, title)
+        val directory = java.io.File(staging, stage)
+        require(directory.canonicalFile.parentFile == staging.canonicalFile) { "view: bad stage" }
+        val page = java.io.File(directory, "page.html")
+        val controls = java.io.File(directory, "controls.json")
+        require(page.canonicalFile.parentFile == directory.canonicalFile &&
+            controls.canonicalFile.parentFile == directory.canonicalFile) { "view: bad file" }
+        require(title.toByteArray().size <= com.zerotoship.z2term.viewer.ViewerPage.TITLE_LIMIT) { "view: title too long" }
+        val html = com.zerotoship.z2term.viewer.ViewerPage.read(page, com.zerotoship.z2term.viewer.ViewerPage.HTML_LIMIT)
+        val actions = if (controls.isFile) com.zerotoship.z2term.viewer.ViewerControls.parse(
+            com.zerotoship.z2term.viewer.ViewerPage.read(controls, com.zerotoship.z2term.viewer.ViewerControls.LIMIT)) else null
+        com.zerotoship.z2term.viewer.ViewerStore.publish(context,
+            com.zerotoship.z2term.viewer.ViewerPage(html, title, actions), target, session)
     }
 
     /**

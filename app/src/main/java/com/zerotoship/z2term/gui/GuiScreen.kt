@@ -65,13 +65,27 @@ fun GuiScreen(
     ctrlSticky: Boolean = false,
     onCtrlConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
+    interactive: Boolean = true,
+    showFrame: Boolean = true,
+    manageIme: Boolean = true,
+    viewport: GuiViewport = session.viewport,
 ) {
     val state by session.state.collectAsState()
     val message by session.message.collectAsState()
     val tick by session.desktopClient.redraw.collectAsState()
-    val vrev by session.viewport.rev.collectAsState()
+    val vrev by viewport.rev.collectAsState()
     val crev by session.cursor.rev.collectAsState()
     val clipboardFiles by session.clipboardFiles.collectAsState()
+    val viewOwner = remember(session.id) { Any() }
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    androidx.compose.runtime.DisposableEffect(session, showFrame, lifecycle) {
+        fun updateViewing() = session.desktopClient.setViewing(viewOwner,
+            showFrame && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED))
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, _ -> updateViewing() }
+        lifecycle.addObserver(observer)
+        updateViewing()
+        onDispose { lifecycle.removeObserver(observer); session.desktopClient.setViewing(viewOwner, false) }
+    }
 
     // 長押し右クリックの輪。押している間だけフレームごとに現在時刻を更新して弧を伸ばす
     // (0.8.431)。押していない間 (holdStart == 0) はループを回さないので、通常の描画負荷は
@@ -94,18 +108,18 @@ fun GuiScreen(
             .background(Color.Black),
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        if (showFrame) Canvas(modifier = Modifier.fillMaxSize()) {
             @Suppress("UNUSED_EXPRESSION") run { tick; vrev; crev } // FB / 表示変換 / カーソル変更で再描画
             val bmp = session.desktopClient.frame ?: return@Canvas
             val bw = bmp.width.toFloat()
             val bh = bmp.height.toFloat()
             if (bw <= 0f || bh <= 0f) return@Canvas
             // フィット倍率 × ユーザーズーム。中央フィット + パン (GuiInputView の toFb と一致)。
-            val eff = minOf(size.width / bw, size.height / bh) * session.viewport.scale
+            val eff = minOf(size.width / bw, size.height / bh) * viewport.scale
             val dw = bw * eff
             val dh = bh * eff
-            val left = (size.width - dw) / 2f + session.viewport.panX
-            val top = (size.height - dh) / 2f + session.viewport.panY
+            val left = (size.width - dw) / 2f + viewport.panX
+            val top = (size.height - dh) / 2f + viewport.panY
             drawIntoCanvas { canvas ->
                 synchronized(session.desktopClient.frameLock) {
                     canvas.nativeCanvas.drawBitmap(bmp, null, RectF(left, top, left + dw, top + dh), null)
@@ -118,7 +132,7 @@ fun GuiScreen(
             // 無視するサーバでも位置が分かるよう、こちらの矢印は常に描く。形は
             // GuiCursor.Visual 経由で差し替え可能にしてある。
             val cursor = session.cursor.snapshot()
-            if (cursor.initialized) {
+            if (cursor.initialized && !session.desktopClient.drawsCursorInFrame) {
                 val cx = left + cursor.x * eff
                 val cy = top + cursor.y * eff
                 when (cursor.visual) {
@@ -132,25 +146,29 @@ fun GuiScreen(
             }
         }
 
-        if (state == GuiSession.State.CONNECTED) {
+        if (!showFrame) Text(androidx.compose.ui.res.stringResource(com.zerotoship.z2term.R.string.workspace_controller), color = Color.White)
+
+        if (interactive && state == GuiSession.State.CONNECTED) {
             // 透明オーバーレイ: タッチ/キー → リモート入力。OS IME 表示はキーボードモードに追従。
             AndroidView(
                 factory = { ctx ->
                     GuiInputView(ctx).also {
+                        it.forceRelativeTouch = !showFrame
                         it.desktopClient = session.desktopClient
-                        it.viewport = session.viewport
+                        it.viewport = viewport
                         it.cursor = session.cursor
                         it.ctrlSticky = ctrlSticky
                         it.onCtrlConsumed = onCtrlConsumed
                     }
                 },
                 update = {
+                    it.forceRelativeTouch = !showFrame
                     it.desktopClient = session.desktopClient
-                    it.viewport = session.viewport
+                    it.viewport = viewport
                     it.cursor = session.cursor
                     it.ctrlSticky = ctrlSticky
                     it.onCtrlConsumed = onCtrlConsumed
-                    if (imeVisible) it.showIme() else it.hideIme()
+                    if (manageIme) { if (imeVisible) it.showIme() else it.hideIme() }
                 },
                 modifier = Modifier.fillMaxSize(),
             )
@@ -184,7 +202,7 @@ fun GuiScreen(
             }
         }
 
-        clipboardFiles?.let { offer ->
+        if (interactive) clipboardFiles?.let { offer ->
             ClipboardFileBar(
                 offer = offer,
                 onReceive = session::receiveClipboardFiles,

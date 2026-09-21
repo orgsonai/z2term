@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.gui
 
+import java.io.File
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -68,6 +69,7 @@ class GuiSession(
      * 固定後に全体設定が変わっても、同じXvncへ別OSのアプリを混ぜない。
      */
     initialDistroId: String? = null,
+    initialBackend: String? = null,
     /**
      * 非 null なら**リモート画面のタブ** (A1)。z2gui を起動せず、この接続先へ繋ぐ。
      * null なら従来どおりローカルの Xvnc を立てる。
@@ -114,8 +116,16 @@ class GuiSession(
     private val _clipboardFiles = MutableStateFlow<ClipboardFileOffer?>(null)
     val clipboardFiles: StateFlow<ClipboardFileOffer?> = _clipboardFiles.asStateFlow()
 
+    /** Captured once: changing preferences never changes a running desktop. */
+    val localDirect = remote == null && (initialBackend?.let { it == "direct" } ?: AppSettings.lastKnown.guiDirect)
+
     val desktopClient: RemoteDesktopClient = (
-        remote?.createClient() ?: RfbClient(host = "127.0.0.1", port = remotePort)
+        remote?.createClient() ?: if (localDirect) {
+            com.zerotoship.z2term.gui.direct.DirectDesktopClient(
+                source = { File(context.filesDir, "shared_home/.z2term/gui-frames/$boundDistroId-$display/Xvfb_screen0") },
+                port = remotePort,
+            )
+        } else RfbClient(host = "127.0.0.1", port = remotePort)
     ).also { client ->
         // GUI (xterm 等) で選択/コピーしたテキストを Android クリップボードへ反映 (M8-6 T6)。
         client.onRemoteClipboardText = { text -> copyToAndroidClipboard(text) }
@@ -324,8 +334,11 @@ class GuiSession(
             startRemote(target)
             return
         }
+        val scale = if (localDirect) minOf(1.0, kotlin.math.sqrt(8_388_608.0 / (width.toLong() * height).coerceAtLeast(1))) else 1.0
+        val startWidth = (width * scale).toInt().coerceIn(1, 4096)
+        val startHeight = (height * scale).toInt().coerceIn(1, 4096)
         _state.value = State.STARTING
-        _message.value = "GUI を起動中… (${width}x$height)"
+        _message.value = "GUI を起動中… (${startWidth}x$startHeight)"
         scope.launch {
             try {
                 // 選択中の OS で起動する (HANDOFF「選択中のOSで立ち上げ」要望)。
@@ -347,8 +360,9 @@ class GuiSession(
                     command = "/usr/local/bin/z2gui",
                     rows = 24,
                     cols = 80,
-                    extraArgs = listOf("start", "${width}x$height"),
+                    extraArgs = listOf("start", "${startWidth}x$startHeight"),
                     display = display,  // z2gui へ Z2_DISPLAY/Z2_RFBPORT として渡す (このタブ専用の :N)
+                    guiBackend = if (localDirect) "direct" else "vnc",
                     guiAudioPort = audioPort,  // 設定 ON のときだけ非 null。z2gui が PulseAudio を起こす。
                 )
                 pty = p
@@ -376,7 +390,14 @@ class GuiSession(
                 syncCursorAfterConnect()
                 _state.value = State.CONNECTED
                 _message.value = "${desktopClient.width}x${desktopClient.height}  ${desktopClient.desktopName}"
-                rxJob = scope.launch { desktopClient.run() }
+                rxJob = scope.launch {
+                    try {
+                        desktopClient.run()
+                        if (_state.value == State.CONNECTED) fail("GUI connection closed")
+                    } catch (e: Exception) {
+                        if (_state.value == State.CONNECTED) fail("GUI: ${e.message}")
+                    }
+                }
                 // GUI 音声 ON のとき: PulseAudio の TCP 出力 (127.0.0.1:audioPort) を AudioTrack で再生開始。
                 // PulseAudio 側の起動より先でも接続拒否はリトライするので、ここで張っておいて問題ない。
                 if (audioPort != null) {
@@ -701,7 +722,7 @@ class GuiSession(
         // ESC [ ... <letter> (CSI: SGR/カーソル等) と ESC ] ... (BEL|ESC\) (OSC: タイトル等) を剥がす。
         private val ANSI_REGEX = Regex("\\[[0-?]*[ -/]*[@-~]|\\][^]*(|\\\\)")
         // 表示可能でない C0 制御 (0x00-0x1F のうち TAB/SPACE 以外) と DEL を消す。
-        private val CONTROL_REGEX = Regex("[ --]")
+        private val CONTROL_REGEX = Regex("[\u0000-\u0008\u000B-\u001F\u007F]")
         // apk/apt/pacman 共通の進行表現。 "(1/9) Installing ..." "[1/9]" "Get:1 ..." 等。
         private val PKG_PROGRESS_REGEX = Regex("""[(\[]\s*\d+\s*/\s*\d+\s*[)\]]|^Get:\d+\s""")
     }

@@ -109,7 +109,7 @@ object GuiEventWatcher {
         }
     }
 
-    /** "OPEN N [distro]" を解釈して GUI タブを開かせる。未知の行は無視。 */
+    /** "OPEN N [distro [backend]]" を解釈して GUI タブを開かせる。未知の行は無視。 */
     private fun handleLine(context: Context, line: String) {
         val event = parseGuiOpenEvent(line)
         if (event == null) {
@@ -120,7 +120,7 @@ object GuiEventWatcher {
         // 拾うので、Activity 不在でも内部状態は正しく整う (起動時に最新の active が選ばれる)。
         mainHandler.post {
             try {
-                SessionManager.openGuiForDisplay(context, event.display, event.distroId)
+                SessionManager.openGuiForDisplay(context, event.display, event.distroId, event.backend)
             } catch (e: Exception) {
                 Log.w(TAG, "GUI tab creation failed (display=${event.display}, distro=${event.distroId})", e)
             }
@@ -128,15 +128,17 @@ object GuiEventWatcher {
     }
 }
 
-internal data class GuiOpenEvent(val display: Int, val distroId: String?)
+internal data class GuiOpenEvent(val display: Int, val distroId: String?, val backend: String? = null)
 
 private val DISTRO_ID_REGEX = Regex("[a-z0-9][a-z0-9._-]{0,63}")
 
-/** 新形式 `OPEN N distro` と旧形式 `OPEN N` を副作用なしで厳密に解析する。 */
+/** `OPEN N distro [vnc|direct]` と旧形式 `OPEN N` を副作用なしで厳密に解析する。 */
 internal fun parseGuiOpenEvent(line: String): GuiOpenEvent? {
     val parts = line.trim().split(Regex("\\s+"))
-    if (parts.size !in 2..3 || parts[0] != "OPEN") return null
-    val display = parts[1].toIntOrNull()?.takeIf { it > 0 } ?: return null
+    if (parts.size !in 2..4 || parts[0] != "OPEN") return null
+    val display = parts[1].toIntOrNull()?.takeIf { it in 1..59635 } ?: return null
     val distroId = parts.getOrNull(2)?.takeIf { DISTRO_ID_REGEX.matches(it) } ?: if (parts.size == 2) null else return null
-    return GuiOpenEvent(display, distroId)
+    val backend = parts.getOrNull(3)
+    if (backend != null && backend !in listOf("vnc", "direct")) return null
+    return GuiOpenEvent(display, distroId, backend)
 }

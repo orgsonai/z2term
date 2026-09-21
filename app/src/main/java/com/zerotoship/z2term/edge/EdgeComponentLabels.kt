@@ -20,6 +20,7 @@ internal object EdgeComponentLabels {
         "receive" -> R.string.edge_action_receive
         "fixed" -> R.string.edge_action_fixed
         "read" -> R.string.edge_action_read
+        "view" -> R.string.viewer_component
         "value" -> R.string.edge_action_value
         "file" -> R.string.edge_action_file
         "send" -> R.string.edge_action_send

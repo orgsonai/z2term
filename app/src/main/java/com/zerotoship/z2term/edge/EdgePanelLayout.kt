@@ -2,7 +2,7 @@ package com.zerotoship.z2term.edge
 
 /** Shared tab geometry is decided by the whole group, never by the selected page. */
 internal object EdgePanelLayout {
-    val interactiveTypes = setOf("terminal", "macro", "argument", "result")
+    val interactiveTypes = setOf("terminal", "macro", "argument", "result", "view")
 
     fun bounded(root: EdgeStore.Panel, panels: List<EdgeStore.Panel>): Boolean {
         val ids = root.tabs.toSet() + root.id

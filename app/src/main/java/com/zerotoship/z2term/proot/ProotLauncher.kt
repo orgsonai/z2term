@@ -371,7 +371,8 @@ class ProotLauncher(private val context: Context) {
          * ([dropbearBootstrapScript])。常駐サーバー経由の sshd は [HeadlessRun] 起動なので
          * 元から空。
          */
-        sessionId: String = ""
+        sessionId: String = "",
+        guiBackend: String? = null,
     ): PtyProcess = DistroOperations.use(distroId).use {
         val rootfs = File(distrosDir, distroId)
         if (!rootfs.exists()) {
@@ -552,6 +553,7 @@ class ProotLauncher(private val context: Context) {
             // z2runがOPENイベントへ起動元OSを載せ、GUIタブを同じrootfsへ固定するための識別子。
             // displayだけでは、設定変更後に古いXvncへ別OSのアプリを送る混線を検出できない。
             "Z2_DISTRO_ID=$distroId",
+            "Z2_GUI_BACKEND=${guiBackend ?: if (AppSettings.lastKnown.guiDirect) "direct" else "vnc"}",
             "TERM=xterm-256color",
             "LANG=C.UTF-8",
             // ⚠ **時計を端末に合わせる** (0.8.302)。これが無いと distro の中は UTC のままで、
@@ -852,6 +854,7 @@ class ProotLauncher(private val context: Context) {
             // ⚠ proot 経路と同じくマクロ置き場を末尾に足す (0.8.287)。
             append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR TMPDIR=/tmp")
             append(displayEnv)
+            append(" Z2_GUI_BACKEND=").append(if (AppSettings.lastKnown.guiDirect) "direct" else "vnc")
             append(sessionEnv)
             append(" Z2_DISTRO_ID=").append(shq(File(rootfs).name))
             // 制御端末を取り直してジョブ制御 / Ctrl+C を効かせる。

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">正在选择或复制文档…</string>
+    <string name="process_text_title">用z2term处理</string>
+    <string name="process_text_enable">用于处理所选文本</string>
+    <string name="process_text_contract">将原文传入所选命令的标准输入。确认标准输出后再替换。</string>
+    <string name="process_text_setup">在命令列表 → 片段中注册命令，并启用“用于处理所选文本”。</string>
+    <string name="process_text_replace">替换所选文本</string>
+    <string name="process_text_too_large">支持不含NUL、最大64 KiB的文本。</string>
+    <string name="workspace_title">会话布局</string>
+    <string name="workspace_hint">选择并排显示的标签。点按窗格选择输入目标，拖动分隔线调整大小。</string>
+    <string name="workspace_vertical">上下</string>
+    <string name="workspace_horizontal">左右</string>
+    <string name="workspace_need_two">请先再打开一个终端或GUI标签。</string>
+    <string name="workspace_single">返回单窗格</string>
+    <string name="workspace_external_hint">将当前标签显示在外接屏幕上。手机可控制该标签或显示其他标签。</string>
+    <string name="workspace_no_display">没有可用的外接屏幕。</string>
+    <string name="workspace_return">返回手机</string>
+    <string name="workspace_projected">正在外接屏幕上显示。键盘控制该会话。</string>
+    <string name="workspace_controller">外接屏幕：此区域可作触控板，下方键盘可用于输入。</string>
+    <string name="workspace_display_failed">无法使用此屏幕。会话仍在运行。</string>
+    <string name="settings_gui_direct">直接显示本地 GUI（实验功能）</string>
+    <string name="settings_gui_direct_desc">直接读取本地帧缓冲。首次使用时安装 Xvfb 和仅用于输入的 x11vnc。适用于新建 GUI 标签页。分辨率在启动时固定，无 GPU 加速。</string>
+    <string name="tip_gui_split_title">长按 GUI 按钮分屏使用 GUI/CUI</string>
+    <string name="tip_gui_split_body">长按 + 旁的 GUI（🖥）按钮打开会话布局。选择上下或左右排列，再选择另一个标签页，即可同时使用 GUI 和终端（CUI）。同一菜单也可恢复单屏或选择外部显示器。短按仍会打开 GUI。</string>
+</resources>

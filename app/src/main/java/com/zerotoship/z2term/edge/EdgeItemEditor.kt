@@ -4,11 +4,14 @@ import android.content.Context
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Spinner
+import android.widget.TextView
 import android.widget.Toast
 import androidx.core.view.children
+import androidx.core.widget.doAfterTextChanged
 import com.zerotoship.z2term.R
 import java.util.UUID
 
@@ -51,6 +54,10 @@ object EdgeItemEditor {
             EdgeSettingsUi.group(context, draft, context.getString(name), rule).also { blocks += it }
         fun fold(name: Int) = EdgeSettingsUi.fold(context, draft, context.getString(name)).also { blocks += it }
         val kind = group(if (appCommand == null) R.string.edge_group_kind else R.string.edge_group_launch, rule = false)
+        if (appCommand == null) {
+            val guide = EdgeSettingsUi.fold(context, kind, context.getString(R.string.edge_help_choose))
+            guide.addView(EdgeSettingsUi.note(context, context.getString(R.string.edge_help_components)))
+        }
         val display = group(R.string.edge_group_display)
         val commands = group(R.string.edge_group_command)
         val valueBlock = group(R.string.edge_group_value)
@@ -111,6 +118,11 @@ object EdgeItemEditor {
             EdgeSettingsUi.labeled(context, kind, context.getString(R.string.edge_freeform_scale), scaled)
             scale = scaled
         }
+        val behaviorHelp = EdgeSettingsUi.note(context, "").apply {
+            tag = "edge-behavior-help"
+            visibility = if (appCommand == null) View.VISIBLE else View.GONE
+        }
+        kind.addView(behaviorHelp)
 
         val labels = mapOf("label" to R.string.edge_item_label, "icon" to R.string.edge_item_icon,
             "run" to R.string.edge_item_run, "off" to R.string.edge_item_off, "state" to R.string.edge_item_state,
@@ -125,6 +137,8 @@ object EdgeItemEditor {
             "align" to R.string.edge_item_align, "at" to R.string.edge_item_at)
         val entries = linkedMapOf<String, EditText>()
         val groups = linkedMapOf<String, LinearLayout>()
+        val examples = linkedMapOf<String, TextView>()
+        val exampleButtons = linkedMapOf<String, Button>()
         fun field(key: String, into: LinearLayout) {
             val label = labels.getValue(key)
             val group = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -135,6 +149,26 @@ object EdgeItemEditor {
             }
             entries[key] = entry; groups[key] = group
             group.addView(entry)
+            EdgeItemHelp.field(key)?.let { message ->
+                group.addView(EdgeSettingsUi.note(context, context.getString(message)))
+            }
+            val example = EdgeSettingsUi.note(context, "").apply {
+                tag = "edge-example:$key"
+                setTextIsSelectable(true)
+            }
+            examples[key] = example
+            group.addView(example)
+            val useExample = EdgeSettingsUi.button(context, context.getString(R.string.edge_help_use_example),
+                EdgeSettingsUi.Kind.QUIET) {
+                // Examples only fill an empty draft; they never save or execute commands.
+                if (entry.text.isEmpty()) EdgeItemHelp.example(key, selection)?.let { entry.setText(it) }
+            }
+            exampleButtons[key] = useExample
+            group.addView(useExample, LinearLayout.LayoutParams(-2, -2))
+            entry.doAfterTextChanged {
+                useExample.visibility = if (appCommand == null && entry.text.isEmpty() &&
+                    EdgeItemHelp.example(key, selection) != null) View.VISIBLE else View.GONE
+            }
             if (key in setOf("note-background", "note-color")) EdgeColorField.add(context, group, entry, label)
             if (key == "icon") EdgeItemPickers.icons(context, group, entry)
             if (key in setOf("args", "stdin", "result")) EdgeItemPickers.bindings(context, group, entry,
@@ -160,10 +194,29 @@ object EdgeItemEditor {
             minHeight = EdgeEditorUi.dp(context, 48)
         }
         display.addView(noteLines, LinearLayout.LayoutParams(-1, -2))
+        val initialViewOptions = com.zerotoship.z2term.viewer.ViewerOptions.from(item?.fields.orEmpty())
+        fun viewSwitch(label: Int, checked: Boolean) = EdgeSettingsUi.switchOf(context, checked).apply {
+            text = context.getString(label)
+            setTextColor(EdgeSettingsUi.foreground(context))
+            minHeight = EdgeEditorUi.dp(context, 48)
+            display.addView(this, LinearLayout.LayoutParams(-1, -2))
+        }
+        val viewRefreshButton = viewSwitch(R.string.viewer_show_refresh, initialViewOptions.showRefresh)
+        val viewExpandButton = viewSwitch(R.string.viewer_show_expand, initialViewOptions.showExpand)
 
         // Command: what runs, and for an ON/OFF button how its state is found.
         val buttonStateHelp = commands.addNote(R.string.edge_button_state_desc)
         field("run", commands); field("off", commands); field("state", commands)
+        val viewUpdateGroup = EdgeSettingsUi.column(context)
+        val viewUpdateMode = EdgeSettingsUi.dress(context, Spinner(context)).apply {
+            contentDescription = context.getString(R.string.viewer_update_mode)
+            adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
+                listOf(R.string.viewer_update_manual, R.string.viewer_update_auto).map { context.getString(it) })
+            setSelection(if (initialViewOptions.automatic) 1 else 0)
+        }
+        EdgeSettingsUi.labeled(context, viewUpdateGroup, context.getString(R.string.viewer_update_mode), viewUpdateMode)
+        viewUpdateGroup.addNote(R.string.viewer_update_help)
+        commands.addView(viewUpdateGroup)
         val sourceGroup = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         val source = EdgeSettingsUi.dress(context, Spinner(context)).apply {
             adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
@@ -202,6 +255,14 @@ object EdgeItemEditor {
 
         fun showFields() {
             val selected = EdgeItemComponent.type(selection, item)
+            behaviorHelp.text = context.getString(EdgeItemHelp.behavior(selection))
+            examples.forEach { (key, view) ->
+                val example = if (appCommand == null) EdgeItemHelp.example(key, selection) else null
+                view.text = example?.let { context.getString(R.string.edge_help_example, it) }.orEmpty()
+                view.visibility = if (example == null) View.GONE else View.VISIBLE
+                exampleButtons.getValue(key).visibility =
+                    if (example != null && entries.getValue(key).text.isEmpty()) View.VISIBLE else View.GONE
+            }
             val stateButton = selection.action == "state_button"
             val bound = selected == "macro" || (selected == "run" && !stateButton && appCommand == null)
             formHelp.visibility = if (bound) View.VISIBLE else View.GONE
@@ -210,13 +271,17 @@ object EdgeItemEditor {
             buttonStateHelp.visibility = if (stateButton) View.VISIBLE else View.GONE
             sourceGroup.visibility = if (stateButton) View.VISIBLE else View.GONE
             noteLines.visibility = if (selected == "note") View.VISIBLE else View.GONE
+            listOf(viewRefreshButton, viewExpandButton, viewUpdateGroup).forEach {
+                it.visibility = if (selected == "view") View.VISIBLE else View.GONE
+            }
             resultControls.visibility = if (selected in setOf("result", "macro") || bound) View.VISIBLE else View.GONE
             groups.forEach { (key, group) ->
                 val visible = when (key) {
                     "state" -> selected == "toggle" || stateButton
                     "off" -> stateButton
                     "on-select" -> selected == "list"
-                    "every" -> selected in listOf("text", "toggle", "list") || stateButton
+                    "every" -> selected in listOf("text", "toggle", "list") || stateButton ||
+                        (selected == "view" && viewUpdateMode.selectedItemPosition == 1)
                     "file", "note-background", "note-color" -> selected == "note"
                     "args", "stdin", "result" -> bound
                     "argument-kind" -> false
@@ -224,7 +289,7 @@ object EdgeItemEditor {
                     "choices" -> selection.component == "choice"
                     "required" -> selected == "argument" && selection.component != "display"
                     "rows" -> selected in setOf("argument", "result", "macro", "run")
-                    "out" -> selected !in setOf("note", "terminal", "argument", "result")
+                    "out" -> selected !in setOf("note", "terminal", "argument", "result", "view")
                     "run", "timeout" -> selected !in setOf("note", "terminal", "argument", "result")
                     else -> true
                 }
@@ -254,6 +319,10 @@ object EdgeItemEditor {
                 showFields()
             }
         }
+        viewUpdateMode.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { showFields() }
+        }
         showFields()
         session.track(outer) {
             selection != initial ||
@@ -262,6 +331,9 @@ object EdgeItemEditor {
                 scaleFreeform != initialScale ||
                 noteLines.isChecked != (item?.fields?.get("note-lines") == "on") ||
                 resultControls.isChecked != (item?.fields?.get("result-controls") == "on") ||
+                viewRefreshButton.isChecked != initialViewOptions.showRefresh ||
+                viewExpandButton.isChecked != initialViewOptions.showExpand ||
+                (viewUpdateMode.selectedItemPosition == 1) != initialViewOptions.automatic ||
                 entries.any { (key, entry) -> entry.text.toString() != item?.fields?.get(key).orEmpty() }
         }
         fun reset() {
@@ -270,6 +342,9 @@ object EdgeItemEditor {
             source.setSelection(EdgeButtonSource.choices.indexOf(item?.fields?.get("button-source") ?: "auto").coerceAtLeast(0))
             noteLines.isChecked = item?.fields?.get("note-lines") == "on"
             resultControls.isChecked = item?.fields?.get("result-controls") == "on"
+            viewRefreshButton.isChecked = initialViewOptions.showRefresh
+            viewExpandButton.isChecked = initialViewOptions.showExpand
+            viewUpdateMode.setSelection(if (initialViewOptions.automatic) 1 else 0)
             launchMode = initialMode; windowMode?.setSelection(AppLaunch.modes.indexOf(initialMode))
             scaleFreeform = initialScale; scale?.setSelection(if (initialScale) 0 else 1)
             showFields()
@@ -307,6 +382,11 @@ object EdgeItemEditor {
                     if (selected == "auto") values.remove("button-source") else values["button-source"] = selected
                 }
                 if (values["type"] == "note") values["note-lines"] = if (noteLines.isChecked) "on" else "off"
+                if (values["type"] == "view") {
+                    values["view-refresh"] = if (viewUpdateMode.selectedItemPosition == 1) "auto" else "manual"
+                    values["view-refresh-button"] = if (viewRefreshButton.isChecked) "on" else "off"
+                    values["view-expand-button"] = if (viewExpandButton.isChecked) "on" else "off"
+                }
                 entries.forEach { (key, entry) ->
                     // Preserve hidden values; only visible fields are edited.
                     if (groups.getValue(key).visibility == View.VISIBLE) {

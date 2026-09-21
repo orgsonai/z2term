@@ -37,7 +37,8 @@ class EdgeRunner(private val context: Context) {
             val output = File(dir, "$token.out")
             val errors = File(dir, "$token.err")
             val status = File(dir, "$token.status")
-            val script = EdgeCommandScript.create(token, command, input, value, arguments)
+            val stdin = File(dir, "$token.in")
+            val script = EdgeCommandScript.create(token, command, null, value, arguments, inputFile = input != null)
             fun read(file: File): String = if (file.isFile) file.inputStream().use { stream ->
                 val bytes = ByteArray(65536)
                 var total = 0
@@ -57,7 +58,7 @@ class EdgeRunner(private val context: Context) {
                         else if (output.length() > 65536) "Output exceeds 64 KiB" else null
                     Result(read(output), error)
                 }.getOrElse { Result("", it.message ?: "Cannot read output") }
-                output.delete(); errors.delete(); status.delete()
+                output.delete(); errors.delete(); status.delete(); stdin.delete()
                 jobs.remove(key, job)
                 main.post {
                     if (!job.cancelled.get()) { done(result); job.afterStop?.invoke() }
@@ -65,6 +66,7 @@ class EdgeRunner(private val context: Context) {
             }
             if (job.cancelled.get() || job.stopping) { complete(); return@execute }
             val launched = runCatching {
+                if (input != null) stdin.writeText(input, Charsets.UTF_8)
                 HeadlessRun.launch(context, script, null, job.name, onExit = { complete() })
             }.getOrDefault(false)
             if (!launched) complete("Cannot start command in the local environment")

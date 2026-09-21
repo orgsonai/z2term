@@ -3,4 +3,16 @@
     <string name="viewer_missing">該頁面已不存在。</string>
     <string name="viewer_too_large">檔案太大，無法在這裡開啟（最多 4 MB）。</string>
     <string name="viewer_no_browser">此手機上沒有可以開啟該連結的應用程式。</string>
+    <string name="viewer_expand">展開</string>
+    <string name="viewer_component">檢視（z2-view）</string>
+    <string name="viewer_empty">還沒有頁面。請設定呼叫 z2-view 的命令，或向此項目傳送頁面。</string>
+    <string name="viewer_required">請輸入%1$s。</string>
+    <string name="viewer_show_refresh">顯示「重新整理」按鈕</string>
+    <string name="viewer_show_expand">顯示「展開」按鈕</string>
+    <string name="viewer_update_mode">檢視重新整理方式</string>
+    <string name="viewer_update_manual">僅手動</string>
+    <string name="viewer_update_auto">自動</string>
+    <string name="viewer_update_help">僅手動：開啟或切換分頁時使用上次頁面，不執行命令。首次請點「重新整理」。自動：開啟時重新整理，並依進階設定中的間隔重新整理。間隔空白或0時僅在開啟時重新整理。新增、刪除等操作帶來的頁面變化在兩種方式下都會顯示。</string>
+    <string name="viewer_empty_manual">尚無頁面。點「重新整理」即可執行設定的命令並顯示頁面。</string>
+    <string name="viewer_empty_hidden">尚無頁面。請在此項設定中顯示「重新整理」按鈕，或從巨集向此項傳送頁面。</string>
 </resources>

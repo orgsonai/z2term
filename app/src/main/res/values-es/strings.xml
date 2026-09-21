@@ -1201,7 +1201,7 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="edge_component" formatted="false">Componente</string>
     <string name="edge_component_action" formatted="false">Comportamiento</string>
     <string name="edge_component_button" formatted="false">Botón</string>
-    <string name="edge_component_display" formatted="false">Texto</string>
+    <string name="edge_component_display" formatted="false">Vista</string>
     <string name="edge_component_entry" formatted="false">Entrada de texto</string>
     <string name="edge_component_choice" formatted="false">Selector</string>
     <string name="edge_component_switch" formatted="false">Interruptor</string>

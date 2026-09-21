@@ -32,7 +32,8 @@ data class Snippet(
      */
     val groupId: String = "",
     val inputForm: Boolean = false,
-    val shareAction: Boolean = false
+    val shareAction: Boolean = false,
+    val processTextAction: Boolean = false
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
@@ -41,6 +42,7 @@ data class Snippet(
         put("groupId", groupId)
         put("inputForm", inputForm)
         put("shareAction", shareAction)
+        put("processTextAction", processTextAction)
     }
 
     companion object {
@@ -51,7 +53,8 @@ data class Snippet(
             // 0.8.387 より前に書き出したものには無い = 未分類 (「すべて」には出る)。
             groupId = o.optString("groupId"),
             inputForm = o.optBoolean("inputForm", false),
-            shareAction = o.optBoolean("shareAction", false)
+            shareAction = o.optBoolean("shareAction", false),
+            processTextAction = o.optBoolean("processTextAction", false)
         )
     }
 }

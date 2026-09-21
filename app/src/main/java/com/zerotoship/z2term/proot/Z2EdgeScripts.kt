@@ -16,6 +16,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# バー幅: --size 2〜48dp、ボタン: 32〜96dp。バーは300ms長押し後に移動。
         |# z2-edge handle ID off                  取っ手を隠す
         |# z2-edge set ID:memo type=note file=~/memo.txt
+        |# z2-edge set ID:page type=view 'run=z2-view "${d}HOME/page.html"'
         |# z2-edge set ID:term type=terminal label=Terminal
         |# メモの色: note-background=#FFF4BD note-color=#000000（空値で自動へ戻す）
         |# z2-edge tab PARENT ID [LABEL]
@@ -43,7 +44,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge push ID:項目 '文字列'           表示を外から更新（- なら標準入力）
         |# z2-edge state ID:項目 on|off           toggle / ON・OFFボタンの表示を更新
         |# z2-edge badge ID '87%'                 取っ手へ文字を表示（空文字で消去）
-        |# 型: run / text / toggle / list / input / note / terminal / macro / argument / result。run が既定。
+        |# 型: run / text / toggle / list / input / note / terminal / macro / argument / result / view。run が既定。
         |# toggle: run=切替コマンド state=状態を読むコマンド（on/off・1/0・true/false）。
         |# run: button-state=on でON/OFFをボタンの枠と背景色で表示。off=OFF用コマンド（省略時はrunと同じ）。
         |# button-source=auto|torch|screen|process|remember（既定auto）。torch/screenは実態に連動。
@@ -59,6 +60,9 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# 入力中は外側タップ・戻るで入力を解除し、それ以外は閉じる。フォームの実行は閉じると停止。
         |# terminal: 閉じる・タブ切替でも継続。出力は追記し、↻で手動初期化。off・項目削除で終了。
         |# out=none|panel|toast|notify、order=整数、timeout=1〜300秒（既定30）。
+        |# view: run=で頁を作るコマンドを指定。z2-viewの表示先がこの項目になります。
+        |# view-refresh=manual|auto（既定manual）。手動は前回の頁を表示し、自動は開いた時とevery間隔で更新。
+        |# view-refresh-button=on|off / view-expand-button=on|off で更新・拡大の表示（各既定on）。マクロの操作は残す。
         |# text/toggle/list は開いた時に更新。every=5〜86400秒（既定0）は開いている間だけ。
         |# run/state を省略すれば push/state でのみ更新。イベント更新は z2-when から push。
         |# 定義: ~/.z2term/edge/ID/panel.conf と 項目.item（UTF-8、1行1フィールド）。
@@ -80,6 +84,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# Bar: --size 2..48 dp; button: 32..96 dp. Hold 300ms to move a handle; bar hit area is at least 24dp.
         |# z2-edge handle ID off
         |# z2-edge set ID:memo type=note file=~/memo.txt
+        |# z2-edge set ID:page type=view 'run=z2-view "${d}HOME/page.html"'
         |# z2-edge set ID:term type=terminal label=Terminal
         |# Note colours: note-background=#FFF4BD note-color=#000000 (empty resets to automatic).
         |# z2-edge tab PARENT ID [LABEL]
@@ -112,7 +117,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# argument/result: rows=1..20. Values are literal arguments, ordered by args, reset on close.
         |# Outside taps/back finish active typing first; otherwise they close the panel and stop form commands.
         |# terminal: survives close/tab changes, appends output; refresh manually with ↻. Off/deletion ends sessions.
-        |# Types: run (default), text, toggle, list, input, note, terminal, macro, argument, result.
+        |# Types: run (default), text, toggle, list, input, note, terminal, macro, argument, result, view.
         |# toggle: run changes state; state reads on/off, 1/0, or true/false.
         |# run: button-state=on shows ON/OFF using the button border and background. off=OFF command (default: run).
         |# button-source=auto|torch|screen|process|remember (default auto). torch/screen follow actual state.
@@ -122,6 +127,9 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# list: run outputs label<TAB>value per line; on-select receives the value as ${d}1.
         |# input: run receives entered text on stdin; closing discards unsent input.
         |# out=none|panel|toast|notify, order=integer, timeout=1..300 seconds (default 30).
+        |# view: run= produces a page with z2-view; the page returns to this item.
+        |# view-refresh=manual|auto (default manual). Manual uses the last page; auto runs on open and at every= intervals.
+        |# view-refresh-button=on|off / view-expand-button=on|off show Refresh/Expand (both default on); macro actions remain.
         |# text/toggle/list refresh on open; every=5..86400 only while open (default 0).
         |# Omit run/state for push-only items. Use z2-when with push for event updates.
         |# Definitions: ~/.z2term/edge/ID/panel.conf and item.item, UTF-8 key=value lines.

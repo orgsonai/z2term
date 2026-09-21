@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_help_start" formatted="false">Use Add app for apps, or Add custom slot for displays, inputs and commands. Choose a component and behavior to see instructions and examples below. After saving, tap Done to return to the panel.</string>
+    <string name="edge_help_choose" formatted="false">Choosing a component</string>
+    <string name="edge_help_components" formatted="false">Button: run a command on tap\nDisplay: show results, fixed text or an HTML view\nEntry: pass text, save notes or use a shell\nChoice: select a value from prepared options\nSwitch: read and change a state\nList: act on a command-generated list\n\nConnect entries and choices → a button → a result display to build a form.</string>
+    <string name="edge_help_execute" formatted="false">Runs a command when tapped. Start with a label and command. Use Connections to choose input values or a result display.</string>
+    <string name="edge_help_state_button" formatted="false">A button that shows ON/OFF. Set the commands to turn it on and off, then choose how to read its state. A state command should print on or off.</string>
+    <string name="edge_help_receive" formatted="false">Displays a button’s output. Save this field, then select it under Connections → Result display in the button editor. No command is needed here.</string>
+    <string name="edge_help_fixed" formatted="false">Displays a fixed value. Enter the content in Initial or fixed value. A connected button can also pass it as an argument.</string>
+    <string name="edge_help_read" formatted="false">Runs a command when opened and displays its text output. For example, date shows the current date and time. Set automatic refresh in Advanced settings.</string>
+    <string name="edge_help_view" formatted="false">Displays HTML inside the panel. Set a macro that calls z2-view, or a command that opens a prepared HTML file. Create page.html first for the example below. Choose manual or automatic refresh. Macros define forms and action buttons. Save, then tap Done to see the view.</string>
+    <string name="edge_help_value" formatted="false">Passes text entered by the user to another component. Save this field, then select it as an input under Connections in the button editor. Set a default or make input required if needed.</string>
+    <string name="edge_help_choice" formatted="false">Lets the user choose from prepared values. Separate options with |, save, then select this field under Connections in the button editor. The default must match one of the options.</string>
+    <string name="edge_help_file" formatted="false">A note that saves what you write. Leave the file path empty to get started. Content remains after closing the panel and can be passed to a connected button.</string>
+    <string name="edge_help_send" formatted="false">Type text and tap Send to pass it to the command as standard input. For example, cat returns the entered text unchanged.</string>
+    <string name="edge_help_shell" formatted="false">Use a shell inside the panel. No command is needed in this editor. Save and tap Done to start typing. The shell, output and draft remain after closing. Use a regular terminal tab for interactive programs.</string>
+    <string name="edge_help_state" formatted="false">Reads and changes the current state. The state command should print on or off; the run command should toggle it. The state is read again after the action.</string>
+    <string name="edge_help_select" formatted="false">Turns each output line into a selectable item. Tapping a row runs the selection command, which receives the value as \"$1\". To use different labels and values, print label + tab + value on each line.</string>
+    <string name="edge_help_command" formatted="false">Enter a shell command available on this device. Pick an installed macro below and append any arguments it needs. Check it in a regular terminal tab first.</string>
+    <string name="edge_help_every" formatted="false">Empty or 0 disables periodic refresh. A value of 5–86400 seconds refreshes only while the panel is visible. Views repeat the display command; macros can define a different action for the manual Refresh button.</string>
+    <string name="edge_help_timeout" formatted="false">Empty means 30 seconds. Increase to 1–300 seconds for slower work such as network requests.</string>
+    <string name="edge_help_note_path" formatted="false">Empty uses a file dedicated to this item. To use an existing file, specify a path inside the app’s shared home.</string>
+    <string name="edge_help_default" formatted="false">The value used when opened. For a choice field, use one of its options.</string>
+    <string name="edge_help_choices" formatted="false">Separate options with |. Empty or duplicate options are not allowed.</string>
+    <string name="edge_help_rows" formatted="false">Empty uses the component default. Set 1–20 lines to choose the display height.</string>
+    <string name="edge_help_size" formatted="false">Empty means automatic. A number uses dp; % uses the column width or panel height.</string>
+    <string name="edge_help_example">Example: %1$s</string>
+    <string name="edge_help_use_example">Use example</string>
+</resources>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">文書を選択・コピーしています…</string>
+    <string name="process_text_title">z2termで加工</string>
+    <string name="process_text_enable">選択した文章の処理に使う</string>
+    <string name="process_text_contract">選んだコマンドへ元の文章を標準入力で渡します。標準出力の結果を確認してから置き換えます。</string>
+    <string name="process_text_setup">コマンド一覧 → スニペットでコマンドを登録し「選択した文章の処理に使う」をONにしてください。</string>
+    <string name="process_text_replace">選択文を置き換える</string>
+    <string name="process_text_too_large">NULを含まないテキストを64 KiBまで扱えます。</string>
+    <string name="workspace_title">セッションの配置</string>
+    <string name="workspace_hint">並べるタブを選びます。ペインをタップして入力先を選び、境界をドラッグして大きさを調整します。</string>
+    <string name="workspace_vertical">上下</string>
+    <string name="workspace_horizontal">左右</string>
+    <string name="workspace_need_two">先に端末またはGUIのタブをもう1枚開いてください。</string>
+    <string name="workspace_single">1画面へ戻す</string>
+    <string name="workspace_external_hint">今のタブを外部画面へ表示します。スマホではそのタブを操作するか、別のタブを表示できます。</string>
+    <string name="workspace_no_display">利用できる外部画面がありません。</string>
+    <string name="workspace_return">スマホへ戻す</string>
+    <string name="workspace_projected">外部画面に表示中です。キーボードはそのセッションへ入力します。</string>
+    <string name="workspace_controller">外部画面に表示中です。この領域をタッチパッド、下のキーボードを入力に使えます。</string>
+    <string name="workspace_display_failed">この画面には表示できません。セッションは継続しています。</string>
+    <string name="settings_gui_direct">ローカル GUI を直接表示（試験機能）</string>
+    <string name="settings_gui_direct_desc">画面データを直接読み取ります。Xvfb と入力用の x11vnc を初回起動時に導入します。新しく開いた GUI タブに適用。解像度は起動時に固定され、GPU 高速化は行いません。</string>
+    <string name="tip_gui_split_title">GUIボタンの長押しでGUI／CUIを分割</string>
+    <string name="tip_gui_split_body">＋の隣にあるGUI（🖥）ボタンを長押しすると、セッションの配置を開きます。「上下」または「左右」と並べるタブを選ぶと、GUIと端末（CUI）を同時に使えます。同じ画面から1画面に戻す操作や外部画面の選択もできます。短く押すと従来どおりGUIを開きます。</string>
+</resources>

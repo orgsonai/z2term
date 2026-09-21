@@ -263,6 +263,9 @@ fun z2guiScript(
         |DISP=":${d}DISPLAY_NUM"
         |RFBPORT="${d}{Z2_RFBPORT:-$rfbPort}"
         |DEFAULT_GEOM="$defaultGeometry"
+        |BACKEND="${d}{Z2_GUI_BACKEND:-vnc}"
+        |case "${d}BACKEND" in vnc|direct) ;; *) echo "Unknown GUI backend" >&2; exit 1 ;; esac
+        |FRAME_DIR="${d}{HOME:-/root}/.z2term/gui-frames/${d}{Z2_DISTRO_ID:-alpine}-${d}DISPLAY_NUM"
         |# DISPLAY は start_x の中だけで export する。ここで全体に export すると `z2gui stop` の
         |# プロセス自身が DISPLAY=:N を持ち、stop_x のディスプレイ単位 kill が自分を巻き込む。
         |export HOME="${d}{HOME:-/root}"
@@ -296,7 +299,10 @@ fun z2guiScript(
         |has() { command -v "${d}1" >/dev/null 2>&1; }
         |
         |# X サーバの実体名を解決 (TigerVNC は distro により Xvnc または Xtigervnc)。
-        |xbin() { for b in Xvnc Xtigervnc; do has "${d}b" && { echo "${d}b"; return 0; }; done; return 1; }
+        |xbin() {
+        |  if [ "${d}BACKEND" = direct ]; then has Xvfb && { echo Xvfb; return 0; }; return 1; fi
+        |  for b in Xvnc Xtigervnc; do has "${d}b" && { echo "${d}b"; return 0; }; done; return 1
+        |}
         |
         |# パッケージマネージャと、その distro のサーバ/WM/D-Bus/シェル/フォントのパッケージ名を決める。
         |PM=""; INSTALL=""; SRV_PKGS=""
@@ -316,11 +322,17 @@ fun z2guiScript(
         |    # bash: Alpine の最小 rootfs には無いが、GUI パッケージの .desktop が指す
         |    # ラッパーには `#!/usr/bin/env bash` のものがある。実行ファイルだけ存在しても
         |    # interpreter 不在なら exit 127 で窓が出ないため、GUI ランタイムとして保証する。
-        |    PM=apk;    SRV_PKGS="tigervnc openbox dbus bash gsettings-desktop-schemas xdg-desktop-portal xdg-desktop-portal-gtk font-misc-misc font-alias font-noto ttf-dejavu"
+        |    PM=apk; XPKGS=tigervnc
+        |    [ "${d}BACKEND" = direct ] && XPKGS="xvfb x11vnc"
+        |    SRV_PKGS="${d}XPKGS openbox dbus bash gsettings-desktop-schemas xdg-desktop-portal xdg-desktop-portal-gtk font-misc-misc font-alias font-noto ttf-dejavu"
         |  elif has apt-get; then
-        |    PM=apt;    SRV_PKGS="tigervnc-standalone-server openbox dbus xdg-desktop-portal xdg-desktop-portal-gtk xfonts-base fonts-noto-core fonts-dejavu"
+        |    PM=apt; XPKGS=tigervnc-standalone-server
+        |    [ "${d}BACKEND" = direct ] && XPKGS="xvfb x11vnc"
+        |    SRV_PKGS="${d}XPKGS openbox dbus xdg-desktop-portal xdg-desktop-portal-gtk xfonts-base fonts-noto-core fonts-dejavu"
         |  elif has pacman; then
-        |    PM=pacman; SRV_PKGS="tigervnc openbox dbus xdg-desktop-portal xdg-desktop-portal-gtk xorg-fonts-misc noto-fonts ttf-dejavu"
+        |    PM=pacman; XPKGS=tigervnc
+        |    [ "${d}BACKEND" = direct ] && XPKGS="xorg-server-xvfb x11vnc"
+        |    SRV_PKGS="${d}XPKGS openbox dbus xdg-desktop-portal xdg-desktop-portal-gtk xorg-fonts-misc noto-fonts ttf-dejavu"
         |  else
         |    PM=""
         |  fi
@@ -386,6 +398,7 @@ fun z2guiScript(
         |
         |gui_stack_ready() {
         |  xbin >/dev/null 2>&1 && has openbox && has dbus-daemon || return 1
+        |  if [ "${d}BACKEND" = direct ]; then has x11vnc || return 1; fi
         |  # KDE/GTK/Qt共通のDesktop Portal。ファイル選択・テーマ・URI連携を提供するだけでなく、
         |  # KDE Frameworks 6.8以前はSettings portal不在時の空DBus応答を読んでNULL参照するため必須。
         |  [ -x /usr/libexec/xdg-desktop-portal ] || [ -x /usr/lib/xdg-desktop-portal ] || return 1
@@ -461,7 +474,7 @@ fun z2guiScript(
         |    # ⚠ dbus-daemon を必ず含める (0.8.498)。PIDFILE には前から控えていたのに
         |    #    ここに無かったので stop で殺されず、次の起動が**死んだ前回のバス**を
         |    #    掴んで KDE/GTK アプリが固まっていた。
-        |    Xvnc|Xtigervnc|openbox|xterm|urxvt|lxterminal|konsole|dbus-daemon) return 0 ;;
+        |    Xvnc|Xtigervnc|Xvfb|x11vnc|openbox|xterm|urxvt|lxterminal|konsole|dbus-daemon) return 0 ;;
         |    # ⛔ **z2root エンジンではゲストの comm が全部 `libz2root.so` になる** (実体名は出ない)。
         |    #    名前で見分けられないので、environ の DISPLAY=:N で「この画面のプロセス」だけを拾う。
         |    #    これが無いと is_gui_proc は**必ず false** になり、`z2gui stop` は 1 つも kill できず
@@ -490,6 +503,8 @@ fun z2guiScript(
         |  stop_audio
         |  # セッションバスの控え (z2run が読む) も消す。残すと次回に死んだアドレスを掴ませてしまう。
         |  rm -f "/tmp/z2gui-xdg-${d}{DISPLAY_NUM}/dbus-address" "/tmp/z2gui-xdg-${d}{DISPLAY_NUM}/dbus.sock" 2>/dev/null
+        |  rm -f "${d}FRAME_DIR/Xvfb_screen0"
+        |  rm -f "/tmp/z2gui-backend-${d}{DISPLAY_NUM}"
         |  rm -f "${d}DBUS_PIDFILE" "${d}PIDFILE" "/tmp/.X${d}{DISPLAY_NUM}-lock" "/tmp/.X11-unix/X${d}{DISPLAY_NUM}" 2>/dev/null
         |}
         |
@@ -660,9 +675,15 @@ fun z2guiScript(
         |  GEOM="${d}{1:-${d}DEFAULT_GEOM}"
         |  CLEAN="${d}2"
         |  case "${d}GEOM" in
-        |    *[0-9]x[0-9]*) : ;;
-        |    *) echo "${strings.invalidGeometry}: '${d}GEOM' (e.g. 1280x720)"; exit 1 ;;
+        |    *[!0-9x]*|x*|*x|*x*x*|*[!0-9]) echo "${strings.invalidGeometry}"; exit 1 ;;
+        |    *x*) ;;
+        |    *) echo "${strings.invalidGeometry}"; exit 1 ;;
         |  esac
+        |  GW=${d}{GEOM%x*}; GH=${d}{GEOM#*x}
+        |  if [ "${d}BACKEND" = direct ]; then
+        |    [ "${d}GW" -ge 1 ] && [ "${d}GW" -le 4096 ] && [ "${d}GH" -ge 1 ] && [ "${d}GH" -le 4096 ] && \
+        |      [ "${d}((GW * GH))" -le 8388608 ] || { echo "Direct GUI: maximum 4096 per side, 8388608 pixels" >&2; exit 1; }
+        |  fi
         |  # 第2引数が clean のときはキャッシュごと入れ直す (救済)。それ以外は通常導入。
         |  if [ "${d}CLEAN" = "clean" ]; then clean_pkgs || exit 1; else ensure_pkgs || exit 1; fi
         |  XSERVER=${d}(xbin) || { echo "${strings.noXvnc}"; exit 1; }
@@ -677,6 +698,9 @@ fun z2guiScript(
         |  # この start_x 配下の子プロセス (openbox/GUI アプリ) に DISPLAY を渡す。
         |  # 全体ではなく start_x 内だけで export する (stop の自己巻き込み回避。冒頭コメント参照)。
         |  export DISPLAY="${d}DISP"
+        |  export XDG_SESSION_TYPE=x11
+        |  unset WAYLAND_DISPLAY
+        |  printf '%s\n' "${d}BACKEND" > "/tmp/z2gui-backend-${d}{DISPLAY_NUM}"
         |  : > "${d}PIDFILE" 2>/dev/null   # このディスプレイの PID 控えを初期化
         |  mkdir -p /tmp/.X11-unix 2>/dev/null
         |  chmod 1777 /tmp/.X11-unix 2>/dev/null
@@ -689,7 +713,13 @@ fun z2guiScript(
         |  # その非同期エラーで mpv 等が segfault する (proot では shmget が失敗してアプリ側が自動で
         |  # 非 SHM 描画に落ちるため顕在化しなかった)。VNC はローカルなので SHM の利点はほぼ無く、
         |  # 拡張ごと切れば全クライアントが確実に通常描画にフォールバックする (両エンジンで安全)。
-        |  setsid "${d}XSERVER" "${d}DISP" -geometry "${d}GEOM" -depth 24 -SecurityTypes None -localhost -rfbport "${d}RFBPORT" -extension MIT-SHM -noreset </dev/null >"/tmp/z2gui-xvnc-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |  if [ "${d}BACKEND" = direct ]; then
+        |    (umask 077; mkdir -p "${d}FRAME_DIR") || exit 1
+        |    [ ! -L "${d}FRAME_DIR/Xvfb_screen0" ] || { echo "Invalid framebuffer path" >&2; exit 1; }
+        |    (umask 077; exec setsid "${d}XSERVER" "${d}DISP" -screen 0 "${d}{GEOM}x24" -fbdir "${d}FRAME_DIR" -nolisten tcp -extension MIT-SHM -noreset) </dev/null >"/tmp/z2gui-xvnc-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |  else
+        |    setsid "${d}XSERVER" "${d}DISP" -geometry "${d}GEOM" -depth 24 -SecurityTypes None -localhost -rfbport "${d}RFBPORT" -extension MIT-SHM -noreset </dev/null >"/tmp/z2gui-xvnc-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |  fi
         |  echo ${d}! >> "${d}PIDFILE" 2>/dev/null
         |  i=0
         |  while [ ${d}i -lt 50 ]; do
@@ -698,6 +728,13 @@ fun z2guiScript(
         |  done
         |  if ! x_running; then
         |    echo "${strings.xvncFailed}"; cat "/tmp/z2gui-xvnc-${d}{DISPLAY_NUM}.log" 2>/dev/null; exit 1
+        |  fi
+        |  if [ "${d}BACKEND" = direct ]; then
+        |    # Image data stays in XWD; RFB carries input and clipboard only.
+        |    setsid x11vnc -display "${d}DISP" -nofb -rfbport "${d}RFBPORT" -localhost -nopw -forever -shared </dev/null >"/tmp/z2gui-input-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |    IPID=${d}!; echo "${d}IPID" >> "${d}PIDFILE"
+        |    sleep 0.3
+        |    kill -0 "${d}IPID" 2>/dev/null || { cat "/tmp/z2gui-input-${d}{DISPLAY_NUM}.log" >&2; stop_x; exit 1; }
         |  fi
         |  # GUI 音声 (Z2_AUDIO=1 のときだけ)。X とは独立だが Xvnc 起動確認後に立てる。失敗しても続行。
         |  start_audio

@@ -3,4 +3,16 @@
     <string name="viewer_missing">该页面已不存在。</string>
     <string name="viewer_too_large">文件太大，无法在这里打开（最多 4 MB）。</string>
     <string name="viewer_no_browser">此手机上没有可以打开该链接的应用。</string>
+    <string name="viewer_expand">展开</string>
+    <string name="viewer_component">视图（z2-view）</string>
+    <string name="viewer_empty">还没有页面。请设置调用 z2-view 的命令，或向此项目发送页面。</string>
+    <string name="viewer_required">请输入%1$s。</string>
+    <string name="viewer_show_refresh">显示“刷新”按钮</string>
+    <string name="viewer_show_expand">显示“展开”按钮</string>
+    <string name="viewer_update_mode">视图刷新方式</string>
+    <string name="viewer_update_manual">仅手动</string>
+    <string name="viewer_update_auto">自动</string>
+    <string name="viewer_update_help">仅手动：打开或切换标签页时使用上次页面，不执行命令。首次请点“刷新”。自动：打开时刷新，并按高级设置中的间隔刷新。间隔为空或0时仅在打开时刷新。添加、删除等操作带来的页面变化在两种方式下都会显示。</string>
+    <string name="viewer_empty_manual">尚无页面。点“刷新”即可运行配置的命令并显示页面。</string>
+    <string name="viewer_empty_hidden">尚无页面。请在此项设置中显示“刷新”按钮，或从宏向此项发送页面。</string>
 </resources>

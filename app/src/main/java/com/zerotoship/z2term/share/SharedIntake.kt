@@ -59,9 +59,10 @@ object SharedIntake {
     }
 
     /** A document chosen for a snippet is imported, without firing share rules. */
-    fun importDocument(context: Context, uri: Uri): String = save(context, "", listOf(uri), "").files.single()
+    fun importDocument(context: Context, uri: Uri, active: () -> Boolean = { true }): String =
+        save(context, "", listOf(uri), "", active).files.single()
 
-    private fun save(context: Context, body: String, uris: List<Uri>, subject: String): Intake {
+    private fun save(context: Context, body: String, uris: List<Uri>, subject: String, active: () -> Boolean = { true }): Intake {
         require(uris.size <= 32) { "At most 32 files may be received together" }
         require(uris.all { it.scheme == "content" }) { "Only shared content URIs are accepted" }
         val id = UUID.randomUUID().toString()
@@ -71,7 +72,7 @@ object SharedIntake {
         try {
             // Copy the entire selection or fail; a missing attachment must not look like success.
             File(dir, "manifest.json").writeText("")
-            val names = uris.map { requireNotNull(copyIn(context, it, dir)) { "Cannot import attachment" } }
+            val names = uris.map { requireNotNull(copyIn(context, it, dir, active)) { "Cannot import attachment" } }
             val files = names.map { "$relative/$it" }
             val manifest = "$relative/manifest.json"
             val json = JSONObject().put("version", 1).put("id", id)
@@ -98,7 +99,7 @@ object SharedIntake {
         intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM).orEmpty().filterNotNull()
 
     /** [uri] の中身を [dir] にコピーし、置いたファイル名を返す。失敗したら null。 */
-    private fun copyIn(context: Context, uri: Uri, dir: File): String? = runCatching {
+    private fun copyIn(context: Context, uri: Uri, dir: File, active: () -> Boolean): String? = runCatching {
         val name = displayName(context.contentResolver, uri)
         val target = uniqueFile(dir, name)
         context.contentResolver.openInputStream(uri)?.use { input ->
@@ -106,6 +107,7 @@ object SharedIntake {
             target.outputStream().use { output ->
                 val buf = ByteArray(64 * 1024)
                 while (true) {
+                    check(active()) { "Document operation cancelled" }
                     val n = input.read(buf)
                     if (n < 0) break
                     total += n

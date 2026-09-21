@@ -990,6 +990,7 @@ private fun EditForm(
     var groupId by remember(initial.id) { mutableStateOf(initial.groupId) }
     var inputForm by remember(initial.id) { mutableStateOf(initial.inputForm) }
     var shareAction by remember(initial.id) { mutableStateOf(initial.shareAction) }
+    var processTextAction by remember(initial.id) { mutableStateOf(initial.processTextAction) }
     val validTemplate = !inputForm || runCatching { SnippetTemplate.fields(command) }.isSuccess
 
     Text(
@@ -1029,6 +1030,11 @@ private fun EditForm(
         Text(stringResource(R.string.snippet_share_action), color = ZtsTextPrimary, fontSize = 13.sp)
     }
     if (shareAction) Text(stringResource(R.string.snippet_share_action_hint), color = ZtsTextSecondary, fontSize = 12.sp)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(processTextAction, { processTextAction = it })
+        Text(stringResource(R.string.process_text_enable), color = ZtsTextPrimary, fontSize = 13.sp)
+    }
+    if (processTextAction) Text(stringResource(R.string.process_text_contract), color = ZtsTextSecondary, fontSize = 12.sp)
     // どのグループに置くか。⚠ **グループを 1 つも作っていない人には出さない** — 選べる先が
     // 「未分類」しかない欄は、置き場所を選べるように見えて何も決められない。
     if (groups.isNotEmpty()) {
@@ -1066,7 +1072,7 @@ private fun EditForm(
             accent = true,
             onClick = {
                 if (command.isNotBlank() && validTemplate) {
-                    onSave(initial.copy(label = label.trim(), command = command, groupId = groupId, inputForm = inputForm, shareAction = shareAction))
+                    onSave(initial.copy(label = label.trim(), command = command, groupId = groupId, inputForm = inputForm, shareAction = shareAction, processTextAction = processTextAction))
                 }
             }
         )

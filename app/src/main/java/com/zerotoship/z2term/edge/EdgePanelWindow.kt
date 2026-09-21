@@ -21,6 +21,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
     var outside: () -> Unit = {}
     var contentAlignment: android.view.View.OnLayoutChangeListener? = null
     var swipeArea: View? = null
+    var tabStrip: View? = null
     var horizontalTabSwipe = true
     var changeTab: (Boolean) -> Unit = {}
     private var swipeStartX = 0f
@@ -47,7 +48,8 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
                 swiping = false
                 swipeOnResult = swipeArea?.let { resultAt(it, event) } == true
                 swipeHorizontal = swipeOnResult || horizontalTabSwipe
-                swipeCandidate = swipeArea?.let { contains(it, event) && !editingAt(it, event) } == true
+                swipeCandidate = tabStrip?.let { contains(it, event) } != true &&
+                    swipeArea?.let { contains(it, event) && !editingAt(it, event) } == true
             }
             MotionEvent.ACTION_POINTER_DOWN -> swipeCandidate = false
             MotionEvent.ACTION_MOVE -> if (swipeCandidate) {
@@ -105,7 +107,8 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
 
     private fun resultAt(view: View, event: MotionEvent): Boolean {
         if (!contains(view, event)) return false
-        if (view is EdgeResultScrollView) return true
+        // HTML pages use the same directional lock as text output: vertical reading, horizontal tabs.
+        if (view is EdgeResultScrollView || view is android.webkit.WebView) return true
         if (view is ViewGroup) for (i in view.childCount - 1 downTo 0) {
             if (resultAt(view.getChildAt(i), event)) return true
         }

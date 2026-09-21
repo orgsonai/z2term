@@ -1295,7 +1295,7 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="edge_component" formatted="false">Component</string>
     <string name="edge_component_action" formatted="false">Behavior</string>
     <string name="edge_component_button" formatted="false">Button</string>
-    <string name="edge_component_display" formatted="false">Text display</string>
+    <string name="edge_component_display" formatted="false">Display</string>
     <string name="edge_component_entry" formatted="false">Text input</string>
     <string name="edge_component_choice" formatted="false">Choice</string>
     <string name="edge_component_switch" formatted="false">Switch</string>

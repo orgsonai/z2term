@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_help_start" formatted="false">应用请用“添加应用”，显示、输入和命令请用“添加自定义项”。选择组件和行为后，下方会显示用法和示例。保存后点“完成”返回面板。</string>
+    <string name="edge_help_choose" formatted="false">如何选择组件</string>
+    <string name="edge_help_components" formatted="false">按钮：点击执行命令\n显示：查看结果、固定文字或 HTML\n输入框：传递文字、保存笔记或使用 shell\n选择框：从预设选项中选择值\n开关：读取并切换状态\n列表：从命令生成的列表中操作\n\n连接输入框、选择框 → 按钮 → 结果显示，即可组成表单。</string>
+    <string name="edge_help_execute" formatted="false">点击后执行指定命令。先设置名称和命令。如需输入值或结果显示框，请在“连接”中选择。</string>
+    <string name="edge_help_state_button" formatted="false">显示 ON/OFF 的按钮。设置开启、关闭命令以及读取状态的方法。状态命令应输出 on 或 off。</string>
+    <string name="edge_help_receive" formatted="false">显示按钮的执行结果。保存此项后，在按钮编辑的“连接”中将其选为结果显示框。这里不需要填写命令。</string>
+    <string name="edge_help_fixed" formatted="false">显示固定文字或数值。在“默认值”中填写内容。连接到按钮后，也可将内容作为参数传递。</string>
+    <string name="edge_help_read" formatted="false">打开时执行命令并显示文字输出。例如 date 显示当前日期和时间。在“高级设置”中指定自动刷新间隔。</string>
+    <string name="edge_help_view" formatted="false">在面板内显示 HTML。设置调用 z2-view 的宏，或打开已准备的 HTML 文件的命令。下方示例需要先准备 page.html。可选择手动或自动刷新。表单和操作按钮由宏定义。保存后点“完成”查看。</string>
+    <string name="edge_help_value" formatted="false">将用户输入的文字传递给其他组件。保存后，在执行按钮的“连接”中选为输入来源。可按需设置默认值或必填。</string>
+    <string name="edge_help_choice" formatted="false">从预设值中选择。用 | 分隔选项，保存后在按钮的“连接”中选择此项。默认值必须与某个选项相同。</string>
+    <string name="edge_help_file" formatted="false">保存所写文字的笔记。文件路径可留空。关闭面板后仍保留内容，也可传递给连接的按钮。</string>
+    <string name="edge_help_send" formatted="false">输入文字并点“发送”，即可作为标准输入传给命令。例如 cat 会原样返回输入的文字。</string>
+    <string name="edge_help_shell" formatted="false">在面板内使用 shell。此编辑器无需设置命令。保存并点“完成”即可输入。关闭后仍保留 shell、输出和草稿。交互式程序请使用普通终端标签页。</string>
+    <string name="edge_help_state" formatted="false">读取并切换当前状态。状态命令应输出 on 或 off，执行命令负责切换状态。操作后会重新读取状态。</string>
+    <string name="edge_help_select" formatted="false">将命令输出的每一行变成可选项。点击后运行选择命令，选中的值通过 \"$1\" 传入。如需区分名称和值，每行输出“名称＋制表符＋值”。</string>
+    <string name="edge_help_command" formatted="false">输入此设备可用的 shell 命令。可在下方选择已安装的宏，并追加所需参数。请先在普通终端标签页中确认运行正常。</string>
+    <string name="edge_help_every" formatted="false">留空或0表示不定期刷新。指定5～86400秒后，仅在面板显示时刷新。视图定期运行显示命令；手动“刷新”可由宏定义不同操作。</string>
+    <string name="edge_help_timeout" formatted="false">留空为30秒。网络请求等较慢的操作可设置为1～300秒。</string>
+    <string name="edge_help_note_path" formatted="false">留空则使用此项的专用文件。如需使用现有文件，请指定应用共享主目录内的路径。</string>
+    <string name="edge_help_default" formatted="false">打开时使用的值。选择框应填写选项中的一个值。</string>
+    <string name="edge_help_choices" formatted="false">用 | 分隔选项。不允许空选项或重复选项。</string>
+    <string name="edge_help_rows" formatted="false">留空使用组件默认值。可指定1～20行来设置显示高度。</string>
+    <string name="edge_help_size" formatted="false">留空为自动。仅数字使用dp；加 % 表示相对于列宽或面板高度的比例。</string>
+    <string name="edge_help_example">输入示例：%1$s</string>
+    <string name="edge_help_use_example">填入此示例</string>
+</resources>

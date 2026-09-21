@@ -189,6 +189,12 @@ import com.zerotoship.z2term.ime.KanaModeState
 /** キーボードモード。CUSTOM=独自キーボード、SYSTEM=OS IME + 特殊キーバー */
 enum class KeyboardMode { CUSTOM, SYSTEM }
 
+/** Keyboard geometry belongs to the screen and survives a terminal/GUI focus change. */
+private class SessionKeyboardUi(physicalKeyboard: Boolean) {
+    val collapsed = mutableStateOf(physicalKeyboard)
+    val sizeBarOpen = mutableStateOf(false)
+}
+
 /** ContextWrapper の連鎖を辿って Activity を取り出す (Compose の Context は wrapper のことがある)。 */
 private fun Context.findActivity(): Activity? {
     var c: Context = this
@@ -252,11 +258,21 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     val sessions by SessionManager.sessions.collectAsState()
     val activeId by SessionManager.activeId.collectAsState()
     val activeSession = sessions.firstOrNull { it.id == activeId }
+    com.zerotoship.z2term.workspace.ExternalDisplayEffect()
+    val physicalKeyboard = rememberPhysicalKeyboardConnected()
+    val keyboardUi = remember { SessionKeyboardUi(physicalKeyboard) }
+    LaunchedEffect(physicalKeyboard) { keyboardUi.collapsed.value = physicalKeyboard }
+    val split = activeId?.let {
+        com.zerotoship.z2term.workspace.Workspace.layout.select(it, sessions.map { session -> session.id }.toSet()).second != null
+    } ?: false
+
+    // Keep the inset subscription alive across the terminal/GUI composition boundary.
+    val screenInsets = if (activeSession is GuiSession && !split) WindowInsets.systemBars else WindowInsets.safeDrawing
 
     // GUI タブがアクティブなら GUI 画面を描いて終わり (端末 UI は出さない)。
     // タブバーは GuiTabScreen 側にも置くので端末↔GUI の切替はできる。
     if (activeSession is GuiSession) {
-        GuiTabScreen(sessions = sessions, activeId = activeId, modifier = modifier)
+        GuiTabScreen(sessions = sessions, activeId = activeId, modifier = modifier, split = split, keyboardUi = keyboardUi, screenInsets = screenInsets)
         // ⚠ **接続中の確認ダイアログはここにも要る。** この分岐は端末 UI ごと早期 return するので、
         // 下 (端末タブ側) に 1 つ置いてあるだけでは GUI タブの間だけ**誰も出さないダイアログ**になる。
         // RDP の証明書確認は GUI タブが前面に出た後 (GuiSession.start → connect) に走るため、
@@ -284,7 +300,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     }
 
     var ctrlSticky by remember { mutableStateOf(false) }
-    var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
+    var keyboardMode by remember { mutableStateOf(if (settings.keyboardMode == "system") KeyboardMode.SYSTEM else KeyboardMode.CUSTOM) }
     var inputViewRef by remember { mutableStateOf<TerminalInputView?>(null) }
     // つまずきの言い換え (0.8.237)。当たったヒントを数秒だけ出す。
     var hint by remember { mutableStateOf<TerminalHints.Hint?>(null) }
@@ -299,14 +315,10 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
 
     // 複数行の貼り付けを確認する帯。null の間は出さない (= 1 行の貼り付けでは何も起きない)。
     var pastePreview by remember { mutableStateOf<String?>(null) }
-    var keyboardCollapsed by remember { mutableStateOf(false) }
-    // 外付けキーボードを繋いだら内蔵キーボードを畳む (0.8.523)。抜いたら戻す。
-    // ⚠ 変わった瞬間だけ倒すので、畳んだあとに手で開き直した状態は次の抜き差しまで残る。
-    val physicalKeyboard = rememberPhysicalKeyboardConnected()
-    LaunchedEffect(physicalKeyboard) { keyboardCollapsed = physicalKeyboard }
+    var keyboardCollapsed by keyboardUi.collapsed
     // ⌨ ツールバーボタンのトリプルタップで開く、その場でのサイズ調整。
     // トグルバーを非表示にしている利用者にも必ず入り口が残る。
-    var keyboardSizeBarOpen by remember { mutableStateOf(false) }
+    var keyboardSizeBarOpen by keyboardUi.sizeBarOpen
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     // 常駐サーバーが稼働中か (🔒 の薄くロック表示・タップ時ダイアログの出し分けに使う)。
     // supervisor の起動/停止は UI 外で起きるので周期ポーリングで追従する (ServersSheet と同方式)。
@@ -481,11 +493,15 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // キーを押したときしか通らず、OS 側は InputConnection が無いので出番が無い。
     // ⚠ **画面のキーボードは出さない** (`requestKeyboard` は外付けが無いときだけ)。外付けを
     // 繋いだのに画面がキーボードで埋まっては、畳んだ意味が無くなる。変換だけ OS に任せる。
-    LaunchedEffect(keyboardMode, physicalKeyboard, inputViewRef, active.id) {
+    LaunchedEffect(keyboardMode, physicalKeyboard, keyboardCollapsed, settingsOpen, inputViewRef, active.id) {
         val v = inputViewRef ?: return@LaunchedEffect
         v.session = active
         v.imeEnabled = keyboardMode == KeyboardMode.SYSTEM || physicalKeyboard
-        if (keyboardMode == KeyboardMode.SYSTEM && !physicalKeyboard) v.requestKeyboard()
+        if (keyboardMode == KeyboardMode.SYSTEM && !physicalKeyboard && !keyboardCollapsed && !settingsOpen) {
+            v.requestKeyboard()
+        } else {
+            v.hideKeyboard()
+        }
     }
     // 設定シートを開いたら OS ソフトキーボードを隠す (キーボードを出したまま設定に
     // 入ると、シートとキーボードが重なって操作しづらいため)。
@@ -526,7 +542,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             // safeDrawing = systemBars ∪ ime ∪ displayCutout を 1 つの inset で適用。
             // systemBarsPadding().imePadding() の連鎖は消費順序の都合で 3 ボタンナビ
             // (下部) の inset が効かずキーボード最下段が被ることがあったため統一。
-            .windowInsetsPadding(WindowInsets.safeDrawing),
+            .windowInsetsPadding(screenInsets),
         toolbar = { railVertical ->
         TopBar(
             session = active,
@@ -671,13 +687,13 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         // OS が 1 つも無いときの案内 (0.8.314)。ダウンロードの催促ダイアログの代わりで、
         // 画面を塞がない 1 枚。⚙設定 → Linux環境 で入れれば自然に出なくなる。
         // Androidシェルで使える機能と、Linuxを追加する入口を案内する。
-        if (noOsNotice) {
+        if (!split && noOsNotice) {
             NoOsNoticeCard(onOpenSettings = { settingsOpen = true })
         }
 
         // 手順の案内 (0.8.314)。⚙設定 → メンテナンス → 案内を表示 から開く。
         // はじめの案内と同じ見た目・同じ送り方 (Ctrl-C → コマンド → ⏎)。
-        activeGuide?.let { guide ->
+        activeGuide?.takeIf { !split }?.let { guide ->
             GuideCards(
                 guide = guide,
                 onRun = { cmd -> runGuideCommand(active, scope, cmd) },
@@ -689,7 +705,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         // ⚠ **OS が 1 つ入ってから出す** (0.8.339)。まっさらな端末では押しても何も走らないのに
         // 押した枚から消えていき、一度も動かないまま「二度と出ない」状態になっていた。
         // 判定が出るまで (null) も出さない。
-        if (!settings.introDone && hasOs == true) {
+        if (!split && !settings.introDone && hasOs == true) {
             IntroCards(
                 onRun = { cmd -> runGuideCommand(active, scope, cmd) },
                 onOpenGuide = { GuideHost.current = it },
@@ -713,11 +729,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     )
                 }
             }
-            Box(modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-            ) {
-                TerminalRenderer(
+            com.zerotoship.z2term.workspace.SessionPanes(active, Modifier.weight(1f).fillMaxHeight()) {
+            Box(Modifier.fillMaxSize()) {
+                if (!com.zerotoship.z2term.workspace.Workspace.projected(active.id)) TerminalRenderer(
                     session = active,
                     // 内蔵キーボードは composing.text、OS の入力方法からは systemComposing。
                     // ⛔ **出所は `imeEnabled` と同じ条件で選ぶ** (0.8.546・利用者の指摘
@@ -734,6 +748,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     currentMatch = if (searchOpen) searchMatches.getOrNull(currentMatchIndex) else null,
                     modifier = Modifier.fillMaxSize()
                 )
+                if (com.zerotoship.z2term.workspace.Workspace.projected(active.id)) Text(stringResource(R.string.workspace_projected), Modifier.padding(16.dp))
                 AndroidView(
                     factory = { ctx ->
                         TerminalInputView(ctx).also { v ->
@@ -830,6 +845,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         modifier = Modifier.align(Alignment.TopStart)
                     )
                 }
+            }
             }
             if (isSideKB && landscapePos == AppSettings.LANDSCAPE_KB_RIGHT) {
                 key(active.id) {
@@ -1114,6 +1130,9 @@ internal fun stopEverythingAndQuit(context: Context) {
 private fun GuiTabScreen(
     sessions: List<AppSession>,
     activeId: String?,
+    split: Boolean,
+    keyboardUi: SessionKeyboardUi,
+    screenInsets: WindowInsets,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -1157,15 +1176,11 @@ private fun GuiTabScreen(
     // 起動確認待ち (GUI 基盤の初回ダウンロード)。
     var pendingGuiStart by remember(gui.id) { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    // キーボードは端末タブと同一仕様 (CUSTOM=独自 / SYSTEM=OS IME + 特殊キーバー)。GUI に上乗せ
-    // (オーバーレイ) で出すので解像度は変えない。▾ で折りたたんで GUI を広く使うこともできる。
-    var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
-    var keyboardCollapsed by remember { mutableStateOf(false) }
-    // 外付けキーボードを繋いだら内蔵キーボードを畳む (0.8.523)。抜いたら戻す。
-    // ⚠ 変わった瞬間だけ倒すので、畳んだあとに手で開き直した状態は次の抜き差しまで残る。
-    val physicalKeyboard = rememberPhysicalKeyboardConnected()
-    LaunchedEffect(physicalKeyboard) { keyboardCollapsed = physicalKeyboard }
-    var keyboardSizeBarOpen by remember { mutableStateOf(false) }
+    // キーボードは端末タブと同一仕様 (CUSTOM=独自 / SYSTEM=OS IME + 特殊キーバー)。
+    // 分割中は端末と同じ領域を確保する。開閉状態も入力先をまたいで共有する。
+    var keyboardMode by remember { mutableStateOf(if (settings.keyboardMode == "system") KeyboardMode.SYSTEM else KeyboardMode.CUSTOM) }
+    var keyboardCollapsed by keyboardUi.collapsed
+    var keyboardSizeBarOpen by keyboardUi.sizeBarOpen
     var ctrlSticky by remember { mutableStateOf(false) }
     // 画面消灯ロックは設定 (keepScreenOn) に永続化した端末タブ共通の状態 (画面跨ぎで維持・再起動で復元)。
     val keepScreenOn = settings.keepScreenOn
@@ -1250,7 +1265,7 @@ private fun GuiTabScreen(
         )
         val w = (size.width / mag).toInt().coerceIn(320, 4096)
         val h = (size.height / mag).toInt().coerceIn(320, 4096)
-        val installed = guiPackagesInstalled(context, snap.distroId)
+        val installed = guiPackagesInstalled(context, gui.distroId ?: snap.distroId, gui.localDirect)
         // 確認 ON かつ未導入 (通信が走る) のときだけダイアログ。
         // 導入済み、または確認 OFF ならそのまま起動する。
         if (snap.confirmBeforeDownload && !installed) {
@@ -1281,10 +1296,10 @@ private fun GuiTabScreen(
         manager?.addPrimaryClipChangedListener(listener)
         onDispose { manager?.removePrimaryClipChangedListener(listener) }
     }
-    LaunchedEffect(gui.id) {
+    LaunchedEffect(gui.id, com.zerotoship.z2term.workspace.Workspace.projection) {
         snapshotFlow {
             val px = guiAreaPx
-            if (guiState != GuiSession.State.CONNECTED || px.width <= 0 || px.height <= 0) {
+            if (com.zerotoship.z2term.workspace.Workspace.projected(gui.id) || guiState != GuiSession.State.CONNECTED || px.width <= 0 || px.height <= 0) {
                 null
             } else {
                 val mag = settings.guiMagnification.coerceIn(
@@ -1297,7 +1312,7 @@ private fun GuiTabScreen(
             .filterNotNull()
             .distinctUntilChanged()
             .debounce(350)
-            .collect { (w, h) -> gui.requestResize(w, h) }
+            .collect { (w, h) -> if (!com.zerotoship.z2term.workspace.Workspace.projected(gui.id)) gui.requestResize(w, h) }
     }
 
     // 設定シートは TerminalSession を要求するので、開いている端末タブを 1 つ借りる。
@@ -1329,8 +1344,8 @@ private fun GuiTabScreen(
         modifier = modifier
             .fillMaxSize()
             .background(ZtsBgPrimary)
-            // OS IME はオーバーレイで出すので解像度に影響させない → systemBars のみ。
-            .windowInsetsPadding(WindowInsets.systemBars),
+            // 分割時は端末と同じ領域を確保し、入力先だけの変更でペインを伸縮させない。
+            .windowInsetsPadding(screenInsets),
         toolbar = { railVertical ->
         GuiTopBar(
             session = gui,
@@ -1428,7 +1443,7 @@ private fun GuiTabScreen(
         }
         val guiBottomKbWidthPercent = if (isLandscapeGui) settings.landscapeBottomKeyboardWidthPercent
             else settings.portraitKeyboardWidthPercent
-        val keyboardOutsideGui = !isLandscapeGui && keyboardMode == KeyboardMode.CUSTOM
+        val keyboardOutsideGui = split || (!isLandscapeGui && keyboardMode == KeyboardMode.CUSTOM)
 
         Row(modifier = Modifier
             .fillMaxWidth()
@@ -1447,7 +1462,7 @@ private fun GuiTabScreen(
             }
             // 縦画面の独自キーボードだけは GUI 枠の外へ出す。枠の内側に重ねると、
             // 枠高さよりキーボードが高いとき Compose の制約で下段が欠ける。
-            // 横画面は枠を上下に割ると GUI が潰れるので、従来どおりオーバーレイのままにする。
+            // 単画面の横画面はオーバーレイ。分割中は CUI と同じ領域をキーボードに確保する。
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -1456,20 +1471,23 @@ private fun GuiTabScreen(
                 Box(
                     modifier = (if (keyboardOutsideGui) Modifier.weight(1f) else Modifier.fillMaxHeight())
                         .fillMaxWidth()
-                        .padding(4.dp)
-                        .border(2.dp, ZtsGreen)
-                        .padding(2.dp)
-                        .onSizeChanged { guiAreaPx = it }
-                ) {
-                    GuiScreen(
-                        session = gui,
-                        // 設定シートを開いている間は OS IME を隠す (シートと重ならないように)。
-                        imeVisible = keyboardMode == KeyboardMode.SYSTEM && !keyboardCollapsed && !settingsOpen,
-                        ctrlSticky = ctrlSticky,
-                        onCtrlConsumed = { ctrlSticky = false },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                        .then(if (split) Modifier else Modifier.padding(4.dp).border(2.dp, ZtsGreen).padding(2.dp))
 
+                ) {
+                    com.zerotoship.z2term.workspace.SessionPanes(gui, Modifier.fillMaxSize()) {
+                        Box(Modifier.fillMaxSize()) {
+                            GuiScreen(
+                                session = gui,
+                                showFrame = !com.zerotoship.z2term.workspace.Workspace.projected(gui.id),
+                                // 設定シートを開いている間は OS IME を隠す。
+                                imeVisible = keyboardMode == KeyboardMode.SYSTEM && !keyboardCollapsed && !settingsOpen,
+                                ctrlSticky = ctrlSticky,
+                                onCtrlConsumed = { ctrlSticky = false },
+                                modifier = Modifier.fillMaxSize().onSizeChanged { guiAreaPx = it }
+                            )
+                            if (split) CandidateBar(composing = composing, modifier = Modifier.align(Alignment.BottomStart))
+                        }
+                    }
                     if (brightnessBarOpen) {
                         BrightnessBar(
                             level = brightness,
@@ -1512,7 +1530,7 @@ private fun GuiTabScreen(
                         )
                     }
                 }
-                if (keyboardOutsideGui) {
+                if (keyboardOutsideGui && !split) {
                     GuiKeyboardPanel(
                         keyboardMode = keyboardMode,
                         keyboardCollapsed = keyboardCollapsed,
@@ -1572,6 +1590,28 @@ private fun GuiTabScreen(
                 onClose = { keyboardSizeBarOpen = false }
             )
         }
+        if (split) {
+            GuiKeyboardPanel(
+                keyboardMode = keyboardMode,
+                keyboardCollapsed = keyboardCollapsed,
+                onToggleCollapsed = {
+                    if (!keyboardCollapsed) keyboardSizeBarOpen = false
+                    keyboardCollapsed = !keyboardCollapsed
+                },
+                keyboardToggleBar = settings.keyboardToggleBar,
+                specialKeyBar = settings.specialKeyBar,
+                isSideKeyboard = isSideKBGui,
+                style = kbStyleGui,
+                composing = composing,
+                faceEntries = faceEntries,
+                client = gui.desktopClient,
+                ctrlSticky = ctrlSticky,
+                onCtrlToggle = { ctrlSticky = !ctrlSticky },
+                bottomWidthPercent = guiBottomKbWidthPercent,
+                showCandidates = false,
+            )
+        }
+
     }
 
     if (settingsOpen && terminalForSettings != null) {
@@ -1689,12 +1729,13 @@ private fun GuiKeyboardPanel(
     /** 下配置キーボードの幅 (画面幅に対する %)。サイド配置では使わない。 */
     bottomWidthPercent: Float,
     modifier: Modifier = Modifier,
+    showCandidates: Boolean = true,
 ) {
     // ⚠ サイズ調整帯はここに置かない (0.8.431)。この帯は横画面だと**緑枠の内側**の
     // オーバーレイとして描かれるので、キーボードの大きさを変えると枠ごと寸法が変わり、
     // スライダー自身の幅まで動いて操作できなかった。呼び出し側の画面幅いっぱいの場所へ出す。
     Column(modifier = modifier.fillMaxWidth()) {
-        CandidateBar(composing = composing)
+        if (showCandidates) CandidateBar(composing = composing)
         if (keyboardToggleBar) {
             KeyboardToggleBar(collapsed = keyboardCollapsed, onToggle = onToggleCollapsed)
         }
@@ -1733,11 +1774,11 @@ private fun GuiKeyboardPanel(
  * GUI 一式 (X サーバ + WM + D-Bus + distro 固有の必須データ) が選択中 distro に導入済みかを判定する
  * (M8-6 T7 のダウンロード確認ゲート用)。z2gui の `check` と同じ条件を Android 側から軽量に判定する。
  */
-private fun guiPackagesInstalled(context: Context, distroId: String): Boolean {
+private fun guiPackagesInstalled(context: Context, distroId: String, direct: Boolean): Boolean {
     val base = java.io.File(context.filesDir, "distros/$distroId")
     fun hasBin(name: String) =
         java.io.File(base, "usr/bin/$name").exists() || java.io.File(base, "bin/$name").exists()
-    val xserver = hasBin("Xvnc") || hasBin("Xtigervnc")
+    val xserver = if (direct) hasBin("Xvfb") && hasBin("x11vnc") else hasBin("Xvnc") || hasBin("Xtigervnc")
     // Alpine の gThumb はこの schema を package dependency に持たないため、既存環境では
     // GUI 基盤のバイナリだけ揃っていても選択直後に GLib-GIO-ERROR で終了する。
     // z2gui が追加導入を始める前に、設定どおりダウンロード確認を出せるようここでも見る。
@@ -3018,6 +3059,8 @@ private fun TabBar(
     // 各タブの実測サイズ (id -> px。**主軸ぶんだけ**) を覚えておき、ドラッグ中のタブが
     // 隣のタブの中心を越えたら SessionManager.moveSession で即スワップし、
     // その分だけ dragOffset を戻して連続移動を続ける。
+    var workspaceOpen by remember { mutableStateOf(false) }
+    if (workspaceOpen) com.zerotoship.z2term.workspace.WorkspaceDialog(onDismiss = { workspaceOpen = false })
     val tabWidths = remember { mutableStateMapOf<String, Int>() }
     val draggingId = remember { mutableStateOf<String?>(null) }
     val dragOffset = remember { mutableStateOf(0f) }
@@ -3127,7 +3170,7 @@ private fun TabBar(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 NewTabButton(label = "+", onClick = onNew, modifier = Modifier.fillMaxWidth())
-                NewTabButton(label = "🖥", onClick = onNewGui, modifier = Modifier.fillMaxWidth())
+                NewTabButton(label = "🖥", onClick = onNewGui, onLongClick = { workspaceOpen = true }, modifier = Modifier.fillMaxWidth())
             }
         }
         return
@@ -3156,18 +3199,20 @@ private fun TabBar(
         // 新規端末タブ
         NewTabButton(label = "+", onClick = onNew)
         // 新規 GUI タブ (Xvnc + RFB)。端末用「+」の隣に並べる。
-        NewTabButton(label = "🖥", onClick = onNewGui)
+        NewTabButton(label = "🖥", onClick = onNewGui, onLongClick = { workspaceOpen = true })
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NewTabButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun NewTabButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, onLongClick: (() -> Unit)? = null) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(ZtsBgCard)
             .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick,
+                onLongClickLabel = if (onLongClick != null) stringResource(R.string.workspace_title) else null)
             .padding(horizontal = 12.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center
     ) {

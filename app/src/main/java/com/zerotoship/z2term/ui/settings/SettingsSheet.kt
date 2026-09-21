@@ -1003,6 +1003,12 @@ fun SettingsSheet(
 
                 Section(title = stringResource(R.string.settings_section_gui)) {
                     ToggleField(
+                        title = stringResource(R.string.settings_gui_direct),
+                        description = stringResource(R.string.settings_gui_direct_desc),
+                        checked = settings.guiDirect,
+                        onChange = { session.setGuiDirect(it) }
+                    )
+                    ToggleField(
                         title = stringResource(R.string.settings_gui_audio),
                         description = stringResource(R.string.settings_gui_audio_desc),
                         checked = settings.guiAudioEnabled,
@@ -3007,6 +3013,7 @@ private fun TipsSection() {
         TipItem(R.string.tip_tab_reorder_title, R.string.tip_tab_reorder_body)
         TipItem(R.string.tip_esc_flick_title, R.string.tip_esc_flick_body)
         TipItem(R.string.tip_backspace_flick_title, R.string.tip_backspace_flick_body)
+        TipItem(R.string.tip_gui_split_title, R.string.tip_gui_split_body)
         TipItem(R.string.tip_gui_scroll_title, R.string.tip_gui_scroll_body)
         TipItem(R.string.tip_gui_clean_title, R.string.tip_gui_clean_body)
         TipItem(R.string.tip_z2_commands_title, R.string.tip_z2_commands_body)

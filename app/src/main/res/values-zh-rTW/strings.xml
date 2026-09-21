@@ -1199,7 +1199,7 @@ SSH 連線目標 %3$d 個
     <string name="edge_component" formatted="false">元件</string>
     <string name="edge_component_action" formatted="false">行為</string>
     <string name="edge_component_button" formatted="false">按鈕</string>
-    <string name="edge_component_display" formatted="false">文字顯示</string>
+    <string name="edge_component_display" formatted="false">顯示</string>
     <string name="edge_component_entry" formatted="false">文字輸入</string>
     <string name="edge_component_choice" formatted="false">選擇欄</string>
     <string name="edge_component_switch" formatted="false">開關</string>

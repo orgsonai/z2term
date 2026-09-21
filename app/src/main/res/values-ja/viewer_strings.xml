@@ -3,4 +3,16 @@
     <string name="viewer_missing">その頁はもうありません。</string>
     <string name="viewer_too_large">このファイルは大きすぎて開けません（4 MB まで）。</string>
     <string name="viewer_no_browser">そのリンクを開けるアプリがこの端末にありません。</string>
+    <string name="viewer_expand">拡大</string>
+    <string name="viewer_component">ビュー（z2-view）</string>
+    <string name="viewer_empty">まだ頁がありません。z2-viewを呼ぶコマンドを設定するか、この項目へ頁を送ってください。</string>
+    <string name="viewer_required">%1$sを入力してください。</string>
+    <string name="viewer_show_refresh">「更新」ボタンを表示</string>
+    <string name="viewer_show_expand">「拡大」ボタンを表示</string>
+    <string name="viewer_update_mode">ビューの更新方式</string>
+    <string name="viewer_update_manual">手動のみ</string>
+    <string name="viewer_update_auto">自動</string>
+    <string name="viewer_update_help">手動のみ：開く・タブ切替ではコマンドを実行せず、前回の表示を使います。初回は「更新」を押してください。自動：開いたときに更新し、「詳細設定」の更新間隔でも読み直します。間隔が空欄または0なら開いたときだけです。追加・削除などの操作による表示更新はどちらでも反映します。</string>
+    <string name="viewer_empty_manual">まだページがありません。「更新」を押すと、設定したコマンドで表示します。</string>
+    <string name="viewer_empty_hidden">まだページがありません。項目の設定で「更新」ボタンを表示するか、マクロからこの項目へページを送ってください。</string>
 </resources>

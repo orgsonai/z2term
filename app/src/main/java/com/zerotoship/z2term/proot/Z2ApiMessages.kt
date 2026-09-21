@@ -30,6 +30,15 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
      */
     private val t = CliText(lang)
 
+    val fileHelp: String = t(
+        en = "# z2-file pick [MIME] — choose a document; copy it into HOME and print its path.\n# z2-file save FILE [MIME] — choose a destination and save a copy.\n# Cancellation fails. Up to 512 MiB; selection expires after 5 minutes.",
+        ja = "# z2-file pick [MIME] — 文書を選び、ホームに取り込んだパスを返す。\n# z2-file save FILE [MIME] — 保存先を選び、ファイルのコピーを書き出す。\n# 取消は失敗扱い。512 MiBまで。選択の待ち時間は5分。",
+        "zh-CN" to "# z2-file pick [MIME] — 选择文档，复制到主目录并返回路径。\n# z2-file save FILE [MIME] — 选择位置并保存文件副本。\n# 取消返回失败。最大512 MiB，选择限时5分钟。",
+        "zh-TW" to "# z2-file pick [MIME] — 選取文件，複製到家目錄並傳回路徑。\n# z2-file save FILE [MIME] — 選取位置並儲存檔案副本。\n# 取消傳回失敗。最大512 MiB，選取限時5分鐘。",
+        "es" to "# z2-file pick [MIME] — elegir un documento, copiarlo a HOME y devolver su ruta.\n# z2-file save FILE [MIME] — elegir destino y guardar una copia.\n# Cancelar devuelve error. Máximo 512 MiB; selección de hasta 5 minutos.",
+        "ko" to "# z2-file pick [MIME] — 문서를 선택하여 홈에 복사하고 경로를 반환합니다.\n# z2-file save FILE [MIME] — 저장 위치를 선택하여 파일 사본을 저장합니다.\n# 취소하면 실패합니다. 최대 512 MiB, 선택 제한 시간 5분."
+    )
+
     // --- z2-usb ---
 
     val usbHelp: String = t(
@@ -386,6 +395,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# The phone's theme arrives as CSS variables (--z2-bg --z2-bg2 --z2-fg --z2-dim
         |# --z2-line --z2-accent), so a page written with them follows the terminal colours.
         |# Up to 4 MB. Pictures must be embedded (data: URIs); remote ones are not fetched.
+        |# Use --edge PANEL:ITEM to send to an existing type=view edge item.
+        |# Use --controls FILE.json for generic forms and actions handled by an installed macro.
+        |# View items default to manual refresh. view-refresh=auto runs run= on open; z2-view returns to that item.
     """.trimMargin(),
         ja = """
         |# z2-view <ファイル.html> [題名] … ここで作った頁を z2term の中で読みます。
@@ -395,6 +407,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# 端末のテーマが CSS 変数で届きます (--z2-bg --z2-bg2 --z2-fg --z2-dim
         |# --z2-line --z2-accent)。これを使って書けば、配色がテーマに揃います。
         |# 4 MB まで。絵は頁の中に埋め込んでください (data: URI)。外の絵は取りに行きません。
+        |# --edge パネル:項目 で、既存のtype=view項目へ表示を送ります。
+        |# --controls ファイル.json で汎用フォームと操作を定義し、導入済みマクロへ渡せます。
+        |# ビューは既定で手動更新。view-refresh=autoなら開いた時にrun=を実行し、z2-viewは同じ項目へ表示します。
     """.trimMargin(),
         "zh-CN" to """
         |# z2-view <文件.html> [标题] … 在 z2term 里阅读你在这里做好的页面。
@@ -403,6 +418,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# http:// 和 https:// 的链接会用你平常的浏览器打开。
         |# 手机的主题以 CSS 变量送达 (--z2-bg --z2-bg2 --z2-fg --z2-dim --z2-line --z2-accent)。
         |# 最大 4 MB。图片请嵌入页面 (data: URI)，外部图片不会去取。
+        |# --edge 面板:项目 可发送到已有的 type=view 项目。
+        |# --controls 文件.json 可定义通用表单和操作，交给已安装的宏处理。
+        |# 视图默认手动刷新。view-refresh=auto 时打开会执行 run=，z2-view 返回同一项目。
     """.trimMargin(),
         "zh-TW" to """
         |# z2-view <檔案.html> [標題] … 在 z2term 裡閱讀你在這裡做好的頁面。
@@ -411,6 +429,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# http:// 和 https:// 的連結會用你平常的瀏覽器開啟。
         |# 手機的主題以 CSS 變數送達 (--z2-bg --z2-bg2 --z2-fg --z2-dim --z2-line --z2-accent)。
         |# 最大 4 MB。圖片請嵌入頁面 (data: URI)，外部圖片不會去取。
+        |# --edge 面板:項目 可傳送到既有的 type=view 項目。
+        |# --controls 檔案.json 可定義通用表單與操作，交給已安裝的巨集處理。
+        |# 檢視預設手動重新整理。view-refresh=auto 時開啟會執行 run=，z2-view 回到同一項目。
     """.trimMargin(),
         "es" to """
         |# z2-view <archivo.html> [título] … lee dentro de z2term una página hecha aquí.
@@ -420,6 +441,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# El tema del teléfono llega como variables CSS (--z2-bg --z2-bg2 --z2-fg --z2-dim
         |# --z2-line --z2-accent), así la página sigue los colores del terminal.
         |# Hasta 4 MB. Las imágenes deben ir incrustadas (data: URI); las remotas no se descargan.
+        |# --edge PANEL:ELEMENTO envía a un elemento existente de tipo type=view.
+        |# --controls ARCHIVO.json define formularios y acciones para una macro instalada.
+        |# La vista se actualiza manualmente por defecto. view-refresh=auto ejecuta run= al abrir; z2-view vuelve al mismo elemento.
     """.trimMargin(),
         "ko" to """
         |# z2-view <파일.html> [제목] … 여기서 만든 페이지를 z2term 안에서 읽습니다.
@@ -429,16 +453,19 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# 휴대전화 테마가 CSS 변수로 전달됩니다 (--z2-bg --z2-bg2 --z2-fg --z2-dim
         |# --z2-line --z2-accent). 이를 쓰면 배색이 테마를 따릅니다.
         |# 최대 4 MB. 그림은 페이지 안에 넣어 주세요 (data: URI). 외부 그림은 가져오지 않습니다.
+        |# --edge 패널:항목 으로 기존 type=view 항목에 보냅니다.
+        |# --controls 파일.json 으로 범용 폼과 작업을 정의하여 설치한 매크로로 전달합니다.
+        |# 뷰는 기본적으로 수동 갱신입니다. view-refresh=auto이면 열 때 run=을 실행하고 z2-view는 같은 항목으로 돌아옵니다.
     """.trimMargin()
     )
 
     val viewUsage: String = t(
-        en = "usage: z2-view <file.html> [title]",
-        ja = "usage: z2-view <ファイル.html> [題名]",
-        "zh-CN" to "用法: z2-view <文件.html> [标题]",
-        "zh-TW" to "用法: z2-view <檔案.html> [標題]",
-        "es" to "uso: z2-view <archivo.html> [título]",
-        "ko" to "사용법: z2-view <파일.html> [제목]"
+        en = "usage: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <file.html> [title]",
+        ja = "usage: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <ファイル.html> [題名]",
+        "zh-CN" to "用法: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <文件.html> [标题]",
+        "zh-TW" to "用法: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <檔案.html> [標題]",
+        "es" to "uso: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <archivo.html> [título]",
+        "ko" to "사용법: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <파일.html> [제목]"
     )
 
     val viewUnreadable: String = t(

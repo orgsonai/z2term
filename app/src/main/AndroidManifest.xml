@@ -115,6 +115,15 @@
         <!-- The scanner is embedded in our app-lock-aware activity. -->
         <activity android:name="com.journeyapps.barcodescanner.CaptureActivity" tools:node="remove" />
         <activity android:name=".qr.QrToolsActivity" android:exported="false" />
+        <activity android:name=".documents.DocumentPickerActivity" android:exported="false" />
+        <activity android:name=".share.ProcessTextActivity" android:exported="true"
+            android:label="@string/process_text_title">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
         <!-- z2-view: 端末が書いた 1 枚を読むだけ。外から開かせない (exported=false)。 -->
         <activity android:name=".viewer.ViewerActivity" android:exported="false"
             android:label="${appLabel}" android:launchMode="singleTop" />

@@ -1192,7 +1192,7 @@ SSH 연결: %3$d
     <string name="edge_component" formatted="false">구성 요소</string>
     <string name="edge_component_action" formatted="false">동작</string>
     <string name="edge_component_button" formatted="false">버튼</string>
-    <string name="edge_component_display" formatted="false">텍스트 표시</string>
+    <string name="edge_component_display" formatted="false">표시</string>
     <string name="edge_component_entry" formatted="false">텍스트 입력</string>
     <string name="edge_component_choice" formatted="false">선택란</string>
     <string name="edge_component_switch" formatted="false">스위치</string>

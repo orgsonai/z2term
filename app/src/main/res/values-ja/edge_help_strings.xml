@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_help_start" formatted="false">アプリは「アプリ追加」、表示や入力・コマンドは「自由な枠を追加」から設置します。部品と動作を選ぶと、その下に使い方と入力例が出ます。保存後に「完了」でパネルへ戻れます。</string>
+    <string name="edge_help_choose" formatted="false">部品の選び方</string>
+    <string name="edge_help_components" formatted="false">ボタン：押してコマンドを実行\n表示：実行結果・固定の文字・HTMLのビューを見る\n入力欄：文字を渡す、メモを保存する、シェルを使う\n選択欄：用意した候補から値を選ぶ\nスイッチ：状態を見て切り替える\nリスト：コマンドで作った一覧から操作する\n\n入力欄・選択欄 → ボタン → 結果表示のように、部品を接続してフォームも作れます。</string>
+    <string name="edge_help_execute" formatted="false">押すと指定したコマンドを実行します。まず表示名とコマンドを設定してください。入力値や結果欄を使う場合は「接続」で選びます。</string>
+    <string name="edge_help_state_button" formatted="false">ON/OFFを表示するボタンです。ONにするコマンド・OFFにするコマンドを設定し、状態の取得方法を選びます。コマンドで状態を調べる場合は on または off を出力します。</string>
+    <string name="edge_help_receive" formatted="false">ボタンの実行結果を表示する欄です。この欄を保存した後、実行するボタンの「接続」→「結果を表示する欄」で選んでください。ここにコマンドを書く必要はありません。</string>
+    <string name="edge_help_fixed" formatted="false">決まった文字や値を表示します。「初期値・固定値」に内容を書いてください。実行ボタンから接続すると、その内容を引数として渡すこともできます。</string>
+    <string name="edge_help_read" formatted="false">開くとコマンドを実行し、その文字出力を表示します。例えば date で日時を表示できます。自動で読み直す間隔は「詳細設定」で指定します。</string>
+    <string name="edge_help_view" formatted="false">HTMLをパネル内に表示します。z2-view を呼ぶマクロ、または用意したHTMLを開くコマンドを設定してください。下の例では先に page.html を用意します。手動のみ／自動の更新方式を選べます。フォームや操作ボタンはマクロが定義します。保存後に「完了」で表示を確認できます。</string>
+    <string name="edge_help_value" formatted="false">利用者が入力した文字を他の部品へ渡します。この欄を保存した後、実行するボタンの「接続」で入力元に選んでください。必要なら初期値や必須入力を設定します。</string>
+    <string name="edge_help_choice" formatted="false">決まった候補から値を選べます。「選択肢」に候補を | で区切って入力し、保存後に実行するボタンの「接続」で選んでください。初期値は候補のどれかと同じ値にします。</string>
+    <string name="edge_help_file" formatted="false">書いた文字を保存するメモ欄です。保存先は空欄のまま使えます。パネルを閉じても内容を保持し、他のボタンに接続して本文を渡すこともできます。</string>
+    <string name="edge_help_send" formatted="false">文字を入力して「送信」を押すと、指定したコマンドへ標準入力として渡します。例えば cat なら入力した文字をそのまま返します。</string>
+    <string name="edge_help_shell" formatted="false">パネル内でシェルを使います。設定用のコマンドは不要です。保存して「完了」で戻ると入力できます。閉じてもシェル・出力・入力途中の文字を保持します。対話操作には通常の端末タブを使ってください。</string>
+    <string name="edge_help_state" formatted="false">現在の状態を取得して切り替えます。「状態を取得するコマンド」は on または off を出力し、「実行するコマンド」は状態を切り替える処理にします。操作後に状態を読み直します。</string>
+    <string name="edge_help_select" formatted="false">コマンドの出力を1行ずつ選べる一覧にします。行を押すと「選択時に実行するコマンド」を実行し、選んだ値を \"$1\" で受け取れます。表示名と値を分ける場合は、1行を「表示名＋タブ＋値」にします。</string>
+    <string name="edge_help_command" formatted="false">この端末で使えるシェルコマンドを入力します。導入済みのマクロは下の一覧から選び、必要な引数を後ろに追記できます。先に通常の端末タブで動作を確かめてください。</string>
+    <string name="edge_help_every" formatted="false">空欄または0で定期更新なし。5〜86400秒で指定すると、パネルの表示中だけ読み直します。ビューの定期更新は表示用コマンドを実行し、手動の「更新」はマクロが別の処理を定義できます。</string>
+    <string name="edge_help_timeout" formatted="false">空欄は30秒です。通信などで時間がかかる処理は1〜300秒の範囲で増やせます。</string>
+    <string name="edge_help_note_path" formatted="false">空欄ならこの項目専用のファイルへ保存します。既存ファイルを使う場合は、アプリの共有ホーム内のパスを指定してください。</string>
+    <string name="edge_help_default" formatted="false">開いたときの値です。選択欄では、選択肢に含まれる値を指定します。</string>
+    <string name="edge_help_choices" formatted="false">候補を | で区切ります。空の候補や重複は使えません。</string>
+    <string name="edge_help_rows" formatted="false">空欄は部品ごとの既定値です。1〜20行で表示の高さを指定できます。</string>
+    <string name="edge_help_size" formatted="false">空欄で自動。数字のみはdp、末尾に % を付けると幅は列、高さはパネルに対する割合です。</string>
+    <string name="edge_help_example">入力例：%1$s</string>
+    <string name="edge_help_use_example">この例を入力</string>
+</resources>

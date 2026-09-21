@@ -565,6 +565,7 @@ class TerminalSession(
     fun setSessionLogMaskSecrets(value: Boolean) { scope.launch { settings.setSessionLogMaskSecrets(value) } }
     fun setSessionLogTimestamp(value: Boolean) { scope.launch { settings.setSessionLogTimestamp(value) } }
     fun setConfirmBeforeDownload(enabled: Boolean) { scope.launch { settings.setConfirmBeforeDownload(enabled) } }
+    fun setGuiDirect(enabled: Boolean) { scope.launch { settings.setGuiDirect(enabled) } }
     fun setGuiAudioEnabled(enabled: Boolean) { scope.launch { settings.setGuiAudioEnabled(enabled) } }
     fun setGuiMagnification(value: Float) { scope.launch { settings.setGuiMagnification(value) } }
     fun setLandscapeKeyboardPosition(value: String) { scope.launch { settings.setLandscapeKeyboardPosition(value) } }

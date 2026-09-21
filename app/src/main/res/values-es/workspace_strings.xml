@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">Seleccionando o copiando un documento…</string>
+    <string name="process_text_title">Procesar con z2term</string>
+    <string name="process_text_enable">Usar para texto seleccionado</string>
+    <string name="process_text_contract">El comando recibe el texto original por stdin. Revisa stdout antes de sustituir la selección.</string>
+    <string name="process_text_setup">Registra un comando en Comandos → Fragmentos y activa “Usar para texto seleccionado”.</string>
+    <string name="process_text_replace">Sustituir selección</string>
+    <string name="process_text_too_large">Texto sin NUL, hasta 64 KiB.</string>
+    <string name="workspace_title">Distribución de sesiones</string>
+    <string name="workspace_hint">Elige otra pestaña. Toca un panel para activarlo y arrastra el separador para cambiar su tamaño.</string>
+    <string name="workspace_vertical">Arriba / abajo</string>
+    <string name="workspace_horizontal">Izquierda / derecha</string>
+    <string name="workspace_need_two">Abre otra pestaña de terminal o GUI.</string>
+    <string name="workspace_single">Un panel</string>
+    <string name="workspace_external_hint">Muestra la pestaña actual en otra pantalla. El teléfono puede controlarla o mostrar otra pestaña.</string>
+    <string name="workspace_no_display">No hay pantallas externas disponibles.</string>
+    <string name="workspace_return">Volver al teléfono</string>
+    <string name="workspace_projected">Mostrando en la pantalla externa. El teclado controla esa sesión.</string>
+    <string name="workspace_controller">Pantalla externa: usa esta zona como panel táctil y el teclado inferior para escribir.</string>
+    <string name="workspace_display_failed">No se puede usar esta pantalla. La sesión sigue activa.</string>
+    <string name="settings_gui_direct">GUI local directa (experimental)</string>
+    <string name="settings_gui_direct_desc">Lee el framebuffer local. Instala Xvfb y x11vnc para entrada en el primer uso. Se aplica a nuevas pestañas GUI. Resolución inicial fija, sin aceleración GPU.</string>
+    <string name="tip_gui_split_title">Mantén pulsado GUI para dividir GUI y terminal</string>
+    <string name="tip_gui_split_body">Mantén pulsado el botón GUI (🖥), junto a +, para abrir la disposición de sesiones. Elige arriba/abajo o izquierda/derecha y otra pestaña para usar GUI y terminal (CUI) a la vez. El mismo menú permite volver a un panel o elegir una pantalla externa. Un toque breve abre GUI como antes.</string>
+</resources>

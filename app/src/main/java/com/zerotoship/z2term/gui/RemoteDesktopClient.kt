@@ -22,6 +22,9 @@ interface RemoteDesktopClient {
     val frame: Bitmap?
     val frameLock: Any
     val redraw: StateFlow<Int>
+    /** Local framebuffer backends can stop reading pixels while no surface displays them. */
+    fun setViewing(owner: Any, viewing: Boolean) = Unit
+    val drawsCursorInFrame: Boolean get() = false
 
     /** リモート側でコピーされたテキスト。対応しないプロトコルでは呼ばれない。 */
     var onRemoteClipboardText: ((String) -> Unit)?

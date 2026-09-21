@@ -106,6 +106,7 @@ class AppSettings(private val context: Context) {
          * その出力を TCP で受けて AudioTrack で再生する (オプトイン)。OFF (既定) では依存ゼロ・一切起動しない。
          */
         val guiAudioEnabled: Boolean = DEFAULT_GUI_AUDIO,
+        val guiDirect: Boolean = false,
         /**
          * GUI の表示倍率。1.0 = 端末画素そのまま (最も精細)、大きいほど低解像度＝表示が大きい。
          * Xvnc の仮想画面解像度 = 表示領域px / 倍率 で決まる (次回 GUI 起動から反映)。
@@ -567,6 +568,7 @@ class AppSettings(private val context: Context) {
             specialKeyBar = p[KEY_SPECIAL_KEY_BAR] ?: DEFAULT_SPECIAL_KEY_BAR,
             confirmBeforeDownload = p[KEY_CONFIRM_DOWNLOAD] ?: DEFAULT_CONFIRM_DOWNLOAD,
             guiAudioEnabled = p[KEY_GUI_AUDIO] ?: DEFAULT_GUI_AUDIO,
+            guiDirect = p[KEY_GUI_DIRECT] ?: false,
             guiMagnification = p[KEY_GUI_MAGNIFICATION] ?: DEFAULT_GUI_MAGNIFICATION,
             landscapeKeyboardPosition = p[KEY_LANDSCAPE_KB_POS] ?: DEFAULT_LANDSCAPE_KEYBOARD_POSITION,
             landscapeRailPosition = p[KEY_LANDSCAPE_RAIL_POS] ?: DEFAULT_LANDSCAPE_RAIL_POSITION,
@@ -883,6 +885,10 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_CONFIRM_DOWNLOAD] = enabled }
     }
 
+    suspend fun setGuiDirect(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_GUI_DIRECT] = enabled }
+    }
+
     suspend fun setGuiAudioEnabled(enabled: Boolean) {
         context.dataStore.edit { it[KEY_GUI_AUDIO] = enabled }
     }
@@ -1079,6 +1085,7 @@ class AppSettings(private val context: Context) {
         private val KEY_KEYBOARD_TOGGLE_BAR = booleanPreferencesKey("keyboard_toggle_bar")
         private val KEY_SPECIAL_KEY_BAR = booleanPreferencesKey("special_key_bar")
         private val KEY_CONFIRM_DOWNLOAD = booleanPreferencesKey("confirm_before_download")
+        private val KEY_GUI_DIRECT = booleanPreferencesKey("gui_direct")
         private val KEY_GUI_AUDIO = booleanPreferencesKey("gui_audio_enabled")
         private val KEY_GUI_MAGNIFICATION = floatPreferencesKey("gui_magnification")
         private val KEY_LANDSCAPE_KB_POS = stringPreferencesKey("landscape_kb_position")

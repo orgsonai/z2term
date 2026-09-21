@@ -3,4 +3,16 @@
     <string name="viewer_missing">Esa página ya no está.</string>
     <string name="viewer_too_large">Ese archivo es demasiado grande para leerlo aquí (4 MB como máximo).</string>
     <string name="viewer_no_browser">Ninguna aplicación de este teléfono puede abrir ese enlace.</string>
+    <string name="viewer_expand">Ampliar</string>
+    <string name="viewer_component">Vista (z2-view)</string>
+    <string name="viewer_empty">Todavía no hay página. Configura un comando que llame a z2-view o envía una página a este elemento.</string>
+    <string name="viewer_required">Introduce %1$s.</string>
+    <string name="viewer_show_refresh">Mostrar botón Actualizar</string>
+    <string name="viewer_show_expand">Mostrar botón Ampliar</string>
+    <string name="viewer_update_mode">Modo de actualización de la vista</string>
+    <string name="viewer_update_manual">Solo manual</string>
+    <string name="viewer_update_auto">Automático</string>
+    <string name="viewer_update_help">Solo manual: al abrir o cambiar de pestaña se usa la última página sin ejecutar el comando. Pulsa Actualizar la primera vez. Automático: actualiza al abrir y según el intervalo de Ajustes avanzados. Vacío o 0 actualiza solo al abrir. Los cambios de acciones como añadir o eliminar se muestran en ambos modos.</string>
+    <string name="viewer_empty_manual">Aún no hay página. Pulsa Actualizar para ejecutar el comando configurado y mostrarla.</string>
+    <string name="viewer_empty_hidden">Aún no hay página. Activa el botón Actualizar en los ajustes de este elemento o envía una página desde una macro.</string>
 </resources>

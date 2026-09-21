@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.639-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.643-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -902,6 +902,24 @@ when a `z2-when` rule fired **without opening the app**.
 **Action-macro GUI appearance (0.8.578)**: the list is one row per macro - tap the name to edit, with run, duplicate and delete at its right. Whatever is running, and the Stop button, sit together in one bordered block, and above it is "Android action permission" (nothing runs without it). Steps line their numbers up in a left column and print the line itself in a fixed pitch, with repeat and branch bodies shown by a left rule and an indent. The colours are the same ones the edge-panel editor uses, built from your terminal theme.
 
 **Action automation on the foreground screen**: Coordinate, scrolling and UI-element steps can be saved without an app target. GUI Run moves z2term to the background and waits for another app to settle before starting. Each step resolves the foreground app at its start and holds the target during the action. Use `target PACKAGE` / `launch PACKAGE` for a specific app and `target current` to return to the foreground screen. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
+
+**Add a view from the editor**
+
+1. Tap ⚙ in the edge panel. If it is hidden, leave the panel open and long-press the space outside it.
+2. Open Items → Add custom slot (macro / command).
+3. Choose Display, then View (z2-view). In 0.8.640, the component is called Text display.
+4. Enter a label and a command that produces HTML and calls `z2-view`. With the updated macros installed, use `rss.sh view` or `remind.sh view`. For your own prepared HTML, use `z2-view "$HOME/page.html"`.
+5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
+
+Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.8.643-alpha (versionCode 651)**: Split panes omit the GUI-only outer frame and padding and retain their dimensions when focus moves between GUI and terminal. Keyboard visibility and reserved space are shared. The separate Layout button is removed, restoring the original tab-strip dimensions. Long-press the GUI (🖥) button next to + to arrange sessions; a short press still opens GUI. Settings Tips explains this gesture. Desktop release build, 73 related unit tests and lint (zero errors) passed. Fourteen related device tests passed, including per-frame pane measurements across 12 orientation, split and keyboard combinations, keyboard visibility retention and a touch long-press on GUI.
+
+**0.8.642-alpha (versionCode 650)**: Layout places terminal, GUI, VNC and RDP sessions in two panes or on an external display. Settings adds experimental direct local GUI pixels from XWD, with existing RFB for input. `z2-file pick/save` opens Android document selection/export. Opted-in snippets process selected text from other apps, preview the result, and return it. Task-specific behavior stays in user commands/macros. Direct GUI uses a fixed starting resolution without GPU acceleration. Release installation, startup and the text-processing screen were verified on Android, and six tests passed in the separate debug package. External displays, split-pane interaction, text replacement and direct rendering on Android remain unverified. [Usage and specification](WORKSPACE.md).
+
+**0.8.641-alpha (versionCode 649)**: Edge item editing now includes instructions and examples for every component and behavior. Choosing a component explains the available uses; selecting a behavior shows its purpose and the next settings to configure. Use example fills an empty draft field without saving or running it. Refresh intervals, timeouts, choices and dimensions have inline guidance. Text display is renamed Display to include HTML views. Available in all six UI languages. Swiping the tab strip scrolls its labels; swiping horizontally on a view changes tabs. View refresh is selectable as Manual only (default) or Automatic, and the Refresh and Expand buttons can each be shown or hidden. Purpose-specific logic remains in macros. Desktop release build, 133 related unit tests and lintDebug (zero errors) passed, along with seven Android device tests for touch routing, presentation and generic controls. Manual finger interaction with the actual panel has not been checked.
+
+**0.8.640-alpha (versionCode 648)**: Edge panels now accept generic `type=view` items and HTML sent with `z2-view --edge PANEL:ITEM`. A separate `--controls` definition supplies text, date/time and choice forms and action buttons; values are passed as arguments to an installed macro. The app has no purpose-specific interpretation: RSS fetching and reminder storage, scheduling, addition and deletion remain macro-side. Bundled macros demonstrate the public protocol. No new dependencies. [Viewer and form documentation](VIEWER.md). Desktop release build, 104 related tests, and lintDebug passed. Not yet verified on device.
 
 **0.8.639-alpha (versionCode 647) — built and verified on device**: On the hidden "chroot" engine, installing a package always failed with `not enough free disk space` even with plenty of space free. Read from inside the chroot, `/proc/self/mounts` has **no line for `/` at all**: the Android root lies outside the chroot and the rootfs itself is not a mount point. `/etc/mtab` is a symlink to that file, so anything asking "which filesystem am I on" gets it wrong — pacman could not determine the cachedir's mount point and aborted. The rootfs is now **bind-mounted onto itself** so it appears as `/` (the standard way to prepare a chroot). Verified on device: `pacman -Sy` installs to completion, and sshd starts inside the chroot (host keys generated, then a safe stop because no authorized_keys is set).
 

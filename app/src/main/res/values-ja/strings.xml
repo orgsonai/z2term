@@ -1277,7 +1277,7 @@ SSH 接続先 %3$d 件
     <string name="edge_component" formatted="false">部品</string>
     <string name="edge_component_action" formatted="false">動作</string>
     <string name="edge_component_button" formatted="false">ボタン</string>
-    <string name="edge_component_display" formatted="false">文字表示</string>
+    <string name="edge_component_display" formatted="false">表示</string>
     <string name="edge_component_entry" formatted="false">入力欄</string>
     <string name="edge_component_choice" formatted="false">選択欄</string>
     <string name="edge_component_switch" formatted="false">スイッチ</string>

@@ -5,7 +5,7 @@ import org.junit.Test
 
 class EdgeItemComponentTest {
     @Test fun savedTypesRemainRunnableAfterEditingTheirComponentAndBehavior() {
-        val definitions = listOf("run", "text", "toggle", "list", "input", "note", "terminal", "macro", "result")
+        val definitions = listOf("run", "text", "toggle", "list", "input", "note", "terminal", "macro", "result", "view")
             .map { mapOf("type" to it, "label" to "keep", "run" to "printf example") } +
             listOf("text", "choice", "fixed").map {
                 mapOf("type" to "argument", "argument-kind" to it, "choices" to "a|b", "default" to "a")

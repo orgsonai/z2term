@@ -78,6 +78,9 @@ class TerminalInputView(context: Context) : View(context) {
         set(value) {
             if (field == value) return
             field = value
+            // A newly constructed editor is not served yet. restartInput() here can
+            // close the previous GUI editor's session and briefly hide the IME.
+            if (!isAttachedToWindow) return
             val imm = context.getSystemService(InputMethodManager::class.java)
             imm?.restartInput(this)
             if (!value) {
@@ -415,6 +418,13 @@ class TerminalInputView(context: Context) : View(context) {
         // 直るのはその状態機械がリセットされるため)。本アプリは 2 本指ピンチのみ
         // 使うので影響なし。
         scaleDetector.isQuickScaleEnabled = false
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        // Claim the editor in the same traversal that replaces the GUI input view, so
+        // Android does not briefly dismiss the IME between the two input targets.
+        if (imeEnabled) requestFocus()
     }
 
     override fun onCheckIsTextEditor(): Boolean = imeEnabled

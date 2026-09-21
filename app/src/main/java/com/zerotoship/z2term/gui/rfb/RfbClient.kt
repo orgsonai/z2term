@@ -38,6 +38,7 @@ class RfbClient(
     private val host: String = "127.0.0.1",
     private val port: Int = 5901,
     password: String = "",
+    private val inputOnly: Boolean = false,
 ) : RemoteDesktopClient {
     /**
      * VNC 認証 (security type 2) のパスワード。空ならパスワードを要求しないサーバ専用
@@ -146,13 +147,15 @@ class RfbClient(
             throw e
         }
 
-        pixels = IntArray(width * height)
-        frame = createBitmap(width, height)
+        if (!inputOnly) {
+            pixels = IntArray(width * height)
+            frame = createBitmap(width, height)
+        }
         _connected.value = true
         Log.i(TAG, "RFB connected: ${width}x$height '$desktopName'")
 
         // 最初は全画面 (non-incremental) を要求
-        sendFramebufferUpdateRequest(out, incremental = false)
+        if (!inputOnly) sendFramebufferUpdateRequest(out, incremental = false)
     }
 
     private fun handshake(inp: DataInputStream, out: DataOutputStream) {
@@ -468,7 +471,7 @@ class RfbClient(
         // 解像度が変わった直後は全画面 (non-incremental) を要求し直す。それ以外は差分。
         val full = pendingFullRequest
         pendingFullRequest = false
-        sendFramebufferUpdateRequest(out, incremental = !full)
+        if (!inputOnly) sendFramebufferUpdateRequest(out, incremental = !full)
     }
 
     /** 描画矩形ではない擬似エンコーディングか (バウンディング計算から外す)。 */

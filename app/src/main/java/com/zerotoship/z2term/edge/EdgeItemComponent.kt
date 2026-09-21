@@ -5,7 +5,7 @@ internal object EdgeItemComponent {
     data class Selection(val component: String, val action: String)
     val actions = linkedMapOf(
         "button" to listOf("execute", "state_button"),
-        "display" to listOf("receive", "fixed", "read"),
+        "display" to listOf("receive", "fixed", "read", "view"),
         "entry" to listOf("value", "file", "send", "shell"),
         "choice" to listOf("value"),
         "switch" to listOf("state"),
@@ -13,6 +13,7 @@ internal object EdgeItemComponent {
     )
     fun from(item: EdgeStore.Item?): Selection = if (item?.isStateButton == true) Selection("button", "state_button") else when (item?.type) {
         "text" -> Selection("display", "read")
+        "view" -> Selection("display", "view")
         "result" -> Selection("display", "receive")
         "argument" -> when (item.fields["argument-kind"]) {
             "fixed" -> Selection("display", "fixed")
@@ -30,7 +31,7 @@ internal object EdgeItemComponent {
         require(selection.action in actions.getValue(selection.component))
         return when (selection.component) {
             "button" -> if (original?.type == "macro" && selection.action == "execute") "macro" else "run"
-            "display" -> when (selection.action) { "receive" -> "result"; "read" -> "text"; else -> "argument" }
+            "display" -> when (selection.action) { "receive" -> "result"; "read" -> "text"; "view" -> "view"; else -> "argument" }
             "entry" -> when (selection.action) { "file" -> "note"; "send" -> "input"; "shell" -> "terminal"; else -> "argument" }
             "choice" -> "argument"
             "switch" -> "toggle"

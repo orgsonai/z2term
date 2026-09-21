@@ -1079,9 +1079,10 @@ build_page() {
     awk '{ url = ${d}NF; t = ${d}0; sub(/[ \t]+[^ \t]+${d}/, "", t); print "0\t" url "\t" t }' \
       "${d}LATEST" > "${d}ARTICLES"
   fi
-  [ -s "${d}ARTICLES" ] || return 1
+  mkdir -p "${d}DIR" || return 1
+  touch "${d}ARTICLES" || return 1
   python3 - "${d}ARTICLES" "${d}PAGE" "$cPageTitle" "$cPageSites" "$cPageArticles" "$cOpen" <<'Z2RSS_HTML'
-import html, sys, time
+import html, sys, time, os, tempfile
 
 src, dst, title, l_sites, l_articles, l_open = sys.argv[1:7]
 
@@ -1140,14 +1141,28 @@ for host, items in groups.items():
                    '<a class="o" href="' + link + '">' + html.escape(l_open) + '</a></p></article>')
     out.append('</section>')
 out.append('</body></html>')
-open(dst, "w", encoding="utf-8").write("\n".join(out))
+fd, pending = tempfile.mkstemp(dir=os.path.dirname(dst), prefix=".page-")
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as page:
+        page.write("\n".join(out))
+    os.replace(pending, dst)
+finally:
+    if os.path.exists(pending):
+        os.unlink(pending)
 Z2RSS_HTML
 }
 
 if [ "${d}1" = view ]; then
-  build_page || { echo "$cListNone"; exit 0; }
-  z2-view "${d}PAGE" "$cPageTitle"
-  exit 0
+  build_page || exit 1
+  controls=${d}(mktemp "${d}DIR/.controls-XXXXXXXX") || exit 1
+  trap 'rm -f "${d}controls"' 0
+  printf '%s\n' '{"handler":"rss.sh","refresh":["refresh-view"]}' > "${d}controls"
+  z2-view --controls "${d}controls" "${d}PAGE" "$cPageTitle"
+  exit ${d}?
+fi
+if [ "${d}1" = refresh-view ]; then
+  sh "${d}0" && sh "${d}0" view
+  exit ${d}?
 fi
 
 $cListDoc
@@ -3172,7 +3187,7 @@ each() {
     [ -f "${d}f" ] || continue
     n=${d}((n+1))
     id=${d}(basename "${d}f" .txt)
-    "${d}1" "${d}n" "${d}id" "${d}f"
+    "${d}1" "${d}n" "${d}id" "${d}f" || return ${d}?
   done
   return 0
 }
@@ -3215,23 +3230,27 @@ ask_delete() {
 
 del_one() {
   kind=${d}(cut -f1 "${d}3"); wid=${d}(cut -f3 "${d}3"); body=${d}(cut -f4- "${d}3")
-  [ "${d}kind" = repeat ] && [ "${d}wid" != - ] && z2-when remove "${d}wid" >/dev/null 2>&1
-  [ "${d}kind" = once ] && z2-alarm cancel "r${d}2" >/dev/null 2>&1
-  rm -f "${d}3"
+  # A repeating item can also have a snooze alarm. Cancel both before removing its data.
+  z2-alarm cancel "r${d}2" >/dev/null || return 1
+  if [ "${d}kind" = repeat ] && [ "${d}wid" != - ]; then
+    z2-when remove "${d}wid" >/dev/null || return 1
+  fi
+  rm -f "${d}3" || return 1
   echo "$mRemoved ${d}body"
 }
 
 TARGET=
 del_if_match() {
   [ "${d}1" = "${d}TARGET" ] || [ "${d}2" = "${d}TARGET" ] || return 0
-  del_one "${d}@"; HIT=1
+  del_one "${d}@" || return ${d}?
+  HIT=1
 }
 
 cmd_del() {
   [ -n "${d}1" ] || die "$mUsageDel"
   if [ "${d}1" = all ]; then each del_one; return; fi
   TARGET=${d}1; HIT=0
-  each del_if_match
+  each del_if_match || return ${d}?
   [ "${d}HIT" = 1 ] || die "$mNoSuchNum ${d}TARGET"
 }
 
@@ -3268,12 +3287,18 @@ cmd_ask() {
   z2-notify -h -n remind-ok "$mOkTitle" "${d}(echo "${d}out" | tr '\t' ' ')"
 }
 
-cmd_setup() {
+${reminderViewFunctions(d, t)}
+
+ensure_hooks() {
 $cHooks
   z2-when list 2>/dev/null | grep -q "${d}SELF fire" ||
-    z2-when 'event:alarm' run "sh ${d}SELF fire \"${d}Z2_WHEN_EVENT_NAME\"" >/dev/null
+    z2-when 'event:alarm' run "sh ${d}SELF fire \"${d}Z2_WHEN_EVENT_NAME\"" >/dev/null || return 1
   z2-when list 2>/dev/null | grep -q "${d}SELF reply" ||
     z2-when 'event:notify_action' run "sh ${d}SELF reply \"${d}Z2_WHEN_EVENT_NAME\" \"${d}Z2_WHEN_ACTION\"" >/dev/null
+}
+
+cmd_setup() {
+  ensure_hooks || return 1
 
 $cTiles
   free=${d}(z2-tile list | awk -F'\t' '${d}2=="-" || index(${d}3, "remind") { print ${d}1 }')
@@ -3293,6 +3318,9 @@ $cPathHint
 
 case ${d}1 in
   ''|list|ls)  cmd_list ;;
+  view)        cmd_view ;;
+  view-add)    shift; cmd_view_add "${d}@" ;;
+  view-delete) shift; cmd_view_delete "${d}@" ;;
   peek)        cmd_peek ;;
   add)         shift; cmd_add "${d}@" ;;
   del|rm)      shift; cmd_del "${d}@" ;;

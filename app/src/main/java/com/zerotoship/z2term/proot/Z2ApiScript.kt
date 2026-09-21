@@ -163,9 +163,42 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |exec /usr/local/bin/z2api 0 open "${d}1"
     """.trimMargin() + "\n"
 
+    val file = "#!/bin/sh\n" + m.fileHelp + "\n" + helpCase + """
+        |DIR=/storage/app/z2api
+        |op=${d}{1:-}; [ ${d}# -eq 0 ] || shift
+        |case "${d}op" in
+        |  pick)
+        |    [ ${d}# -le 1 ] || exit 2
+        |    path=${d}(Z2API_WAIT=3100 /usr/local/bin/z2api 1 file pick "${d}{1:-*/*}") || exit ${d}?
+        |    printf '%s/%s\n' "${d}HOME" "${d}path"
+        |    ;;
+        |  save)
+        |    [ ${d}# -ge 1 ] && [ ${d}# -le 2 ] && [ -f "${d}1" ] && [ -r "${d}1" ] || exit 2
+        |    mkdir -p "${d}DIR" || exit 1
+        |    stage=${d}(mktemp -d "${d}DIR/file-XXXXXXXX") || exit 1
+        |    trap 'rm -rf "${d}stage"' EXIT
+        |    trap 'exit 1' HUP INT TERM
+        |    head -c 536870913 < "${d}1" > "${d}stage/data" || exit 1
+        |    [ "${d}(wc -c < "${d}stage/data")" -le 536870912 ] || { echo 'z2-file: file exceeds 512 MiB' >&2; exit 1; }
+        |    Z2API_WAIT=3100 /usr/local/bin/z2api 1 file save "${d}{stage##*/}" "${d}{1##*/}" "${d}{2:-application/octet-stream}"
+        |    ;;
+        |  *) echo 'z2-file pick [MIME] | save FILE [MIME]' >&2; exit 2 ;;
+        |esac
+    """.trimMargin() + "\n"
+
     // z2-view (0.8.628): 端末で書いた HTML をアプリの中で読む。⚠ 受け渡しは z2-share と同じ
     // /storage/app/z2api の下へ写してから名前だけを渡す (アプリ側に任意のパスを読ませない)。
     val view = "#!/bin/sh\n" + m.viewHelp + "\n" + helpCaseDash + """
+        |target=${d}{Z2_VIEW_TARGET:-}; session=${d}{Z2_VIEW_SESSION:-}; controls=
+        |while [ ${d}# -gt 0 ]; do
+        |  case ${d}1 in
+        |    --edge) [ ${d}# -ge 2 ] || exit 1; target=${d}2; session=; shift 2 ;;
+        |    --controls) [ ${d}# -ge 2 ] || exit 1; controls=${d}2; shift 2 ;;
+        |    --) shift; break ;;
+        |    -*) echo "${m.viewUsage}" >&2; exit 1 ;;
+        |    *) break ;;
+        |  esac
+        |done
         |[ ${d}# -ge 1 ] && [ ${d}# -le 2 ] || { echo "${m.viewUsage}" >&2; exit 1; }
         |[ -f "${d}1" ] && [ -r "${d}1" ] || { echo "${m.viewUnreadable} ${d}1" >&2; exit 1; }
         |DIR=/storage/app/z2api
@@ -173,8 +206,13 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |stage=${d}(mktemp -d "${d}DIR/view-XXXXXXXXXX") || exit 1
         |trap 'rm -rf "${d}stage"' 0
         |trap 'exit 1' 1 2 15
-        |head -c 4194304 < "${d}1" > "${d}stage/page.html" || exit 1
-        |out=${d}(Z2API_WAIT=3000 /usr/local/bin/z2api 1 view "${d}{stage##*/}" "${d}{2:-}") || exit 1
+        |head -c 4194305 < "${d}1" > "${d}stage/page.html" || exit 1
+        |[ "${d}(wc -c < "${d}stage/page.html")" -le 4194304 ] || { echo 'z2-view: HTML exceeds 4 MB' >&2; exit 1; }
+        |if [ -n "${d}controls" ]; then
+        |  head -c 262145 < "${d}controls" > "${d}stage/controls.json" || exit 1
+        |  [ "${d}(wc -c < "${d}stage/controls.json")" -le 262144 ] || { echo 'z2-view: controls exceed 256 KiB' >&2; exit 1; }
+        |fi
+        |out=${d}(Z2API_WAIT=5000 /usr/local/bin/z2api 1 view "${d}{stage##*/}" "${d}{2:-}" "${d}target" "${d}session") || exit 1
         |[ -z "${d}out" ] || printf '%s\n' "${d}out"
     """.trimMargin() + "\n"
 
@@ -1055,6 +1093,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-share" to share,
         "z2-open" to open,
         "z2-view" to view,
+        "z2-file" to file,
         "z2-qr" to qr,
         "z2-img" to img,
         "z2-clip" to clip,

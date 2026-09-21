@@ -3,4 +3,16 @@
     <string name="viewer_missing">That page is no longer there.</string>
     <string name="viewer_too_large">That file is too large to read here (4 MB at most).</string>
     <string name="viewer_no_browser">No app on this phone can open that link.</string>
+    <string name="viewer_expand">Expand</string>
+    <string name="viewer_component">View (z2-view)</string>
+    <string name="viewer_empty">No page yet. Set a command that calls z2-view, or send a page to this item.</string>
+    <string name="viewer_required">Enter %1$s.</string>
+    <string name="viewer_show_refresh">Show Refresh button</string>
+    <string name="viewer_show_expand">Show Expand button</string>
+    <string name="viewer_update_mode">View refresh mode</string>
+    <string name="viewer_update_manual">Manual only</string>
+    <string name="viewer_update_auto">Automatic</string>
+    <string name="viewer_update_help">Manual only: opening or switching tabs uses the last page without running the command. Press Refresh the first time. Automatic: refreshes on open and at the interval in Advanced settings. An empty or zero interval refreshes only on open. Page updates from actions such as adding or deleting still appear in either mode.</string>
+    <string name="viewer_empty_manual">No page yet. Press Refresh to run the configured command and display it.</string>
+    <string name="viewer_empty_hidden">No page yet. Enable the Refresh button in this item’s settings, or send a page to this item from a macro.</string>
 </resources>

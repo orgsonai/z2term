@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">Choosing or copying a document…</string>
+    <string name="process_text_title">Process with z2term</string>
+    <string name="process_text_enable">Offer for selected text</string>
+    <string name="process_text_contract">The selected command receives the original text on stdin. Check stdout before replacing the selection.</string>
+    <string name="process_text_setup">Register a command in Commands → Snippets and enable “Offer for selected text”.</string>
+    <string name="process_text_replace">Replace selection</string>
+    <string name="process_text_too_large">Text must be valid text without NUL, up to 64 KiB.</string>
+    <string name="workspace_title">Session layout</string>
+    <string name="workspace_hint">Choose a second tab. Tap a pane to focus it; drag the divider to resize. The keyboard controls the focused pane.</string>
+    <string name="workspace_vertical">Top / bottom</string>
+    <string name="workspace_horizontal">Left / right</string>
+    <string name="workspace_need_two">Open another terminal or GUI tab first.</string>
+    <string name="workspace_single">One pane</string>
+    <string name="workspace_external_hint">Show the current tab on an external display. The phone can control it or show a different tab.</string>
+    <string name="workspace_no_display">No external display is available.</string>
+    <string name="workspace_return">Return to phone</string>
+    <string name="workspace_projected">Shown on the external display. The keyboard controls that session.</string>
+    <string name="workspace_controller">External display: use this area as a touchpad and the keyboard below for input.</string>
+    <string name="workspace_display_failed">Cannot use this display. The session is still running.</string>
+    <string name="settings_gui_direct">Direct local GUI display (experimental)</string>
+    <string name="settings_gui_direct_desc">Reads the local framebuffer directly. Uses Xvfb for display and x11vnc only for input; packages are downloaded on first use. Applies to newly opened GUI tabs. Fixed starting resolution; no GPU acceleration.</string>
+    <string name="tip_gui_split_title">Long-press GUI to split GUI and terminal</string>
+    <string name="tip_gui_split_body">Long-press the GUI (🖥) button beside + to open session layout. Choose top/bottom or left/right and another tab to use GUI and terminal (CUI) together. The same menu restores one pane or selects an external display. A short tap opens GUI as before.</string>
+</resources>

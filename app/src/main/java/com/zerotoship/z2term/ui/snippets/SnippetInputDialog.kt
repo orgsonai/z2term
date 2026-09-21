@@ -28,7 +28,7 @@ import kotlinx.coroutines.withContext
 /** Shared by the snippet list and the explicit choice following an Android share. */
 @Composable
 fun SnippetInputDialog(snippet: Snippet, onInsert: (String) -> Unit, onCancel: () -> Unit,
-                       sharedFiles: List<String> = emptyList()) {
+                       sharedFiles: List<String> = emptyList(), confirmLabel: String? = null, hint: String? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val fields = remember(snippet) { runCatching { SnippetTemplate.fields(snippet.command) }.getOrNull() }
@@ -97,11 +97,11 @@ fun SnippetInputDialog(snippet: Snippet, onInsert: (String) -> Unit, onCancel: (
                 if (failed || fields == null || rendered == null) Text(stringResource(R.string.snippet_inputs_invalid), color = ZtsError)
                 Text(stringResource(R.string.snippet_inputs_preview), color = ZtsTextSecondary)
                 Text(rendered.orEmpty(), color = ZtsTextPrimary, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-                Text(stringResource(R.string.snippet_inputs_hint), color = ZtsTextSecondary, fontSize = 12.sp)
+                Text(hint ?: stringResource(R.string.snippet_inputs_hint), color = ZtsTextSecondary, fontSize = 12.sp)
             }
         },
         confirmButton = { TextButton(enabled = rendered != null && !busy, onClick = { rendered?.let(onInsert) }) {
-            Text(stringResource(R.string.share_intake_insert), color = ZtsGreen)
+            Text(confirmLabel ?: stringResource(R.string.share_intake_insert), color = ZtsGreen)
         } },
         dismissButton = { TextButton(enabled = !busy, onClick = onCancel) { Text(stringResource(R.string.action_cancel), color = ZtsTextSecondary) } }
     )

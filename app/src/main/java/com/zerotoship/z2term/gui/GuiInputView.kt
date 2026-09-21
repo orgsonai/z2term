@@ -156,6 +156,9 @@ class GuiInputView(context: Context) : View(context) {
     }
 
     /** 表示座標 (x,y) → FB 座標。ズーム/パン (viewport) を反映。FB 未確定・画面外は null。 */
+    /** The phone acts as a relative touchpad while its desktop is on another display. */
+    var forceRelativeTouch = false
+
     private fun toFb(x: Float, y: Float): Pair<Int, Int>? {
         val client = desktopClient ?: return null
         val fbW = client.width
@@ -355,7 +358,7 @@ class GuiInputView(context: Context) : View(context) {
                     flushPendingClick()
                     dtHolding = false
                 }
-                if (cursor?.snapshot()?.mode == GuiCursor.Mode.ABSOLUTE) {
+                if (!forceRelativeTouch && cursor?.snapshot()?.mode == GuiCursor.Mode.ABSOLUTE) {
                     moveCursorTo(event.x, event.y)
                 }
                 // ダブルタップの 2 回目はドラッグ / ダブルクリックの判定に任せる
@@ -381,7 +384,7 @@ class GuiInputView(context: Context) : View(context) {
                             desktopClient?.sendPointerEvent(RemoteDesktopClient.BUTTON_LEFT, pos.x.toInt(), pos.y.toInt())
                             // ボタンを押した位置から、slop を越えた現在位置までの最初の移動も
                             // 捨てずに送る。絶対は現在の指位置、相対はその差分を使う。
-                            if (cursor?.snapshot()?.mode == GuiCursor.Mode.ABSOLUTE) {
+                            if (!forceRelativeTouch && cursor?.snapshot()?.mode == GuiCursor.Mode.ABSOLUTE) {
                                 moveCursorTo(event.x, event.y)
                             } else {
                                 moveCursorBy(event.x - lastTouchX, event.y - lastTouchY)
@@ -400,7 +403,7 @@ class GuiInputView(context: Context) : View(context) {
                 val dy = event.y - lastTouchY
                 lastTouchX = event.x
                 lastTouchY = event.y
-                if (cursor?.snapshot()?.mode == GuiCursor.Mode.ABSOLUTE) {
+                if (!forceRelativeTouch && cursor?.snapshot()?.mode == GuiCursor.Mode.ABSOLUTE) {
                     moveCursorTo(event.x, event.y)
                 } else if (dx != 0f || dy != 0f) {
                     moveCursorBy(dx, dy)

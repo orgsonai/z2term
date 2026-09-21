@@ -58,8 +58,14 @@ fun z2runScript(lang: String = "ja"): String {
         |#    GuiSession.start 側も同じ Xvnc を立てに行くが z2gui の x_alive ガードで二重起動は防止される。
         |#    早めに通知することで、ユーザーが GUI タブに切替えて寸法を確定し始める時間を稼げる。
         |mkdir -p /storage/app 2>/dev/null
+        |# Follow the backend of an existing server even when this shell has older settings.
+        |if [ -e "${d}XSOCK" ] && [ -r "/tmp/z2gui-backend-${d}{DISPLAY_NUM}" ]; then
+        |  Z2_GUI_BACKEND=${d}(cat "/tmp/z2gui-backend-${d}{DISPLAY_NUM}")
+        |fi
+        |case "${d}{Z2_GUI_BACKEND:-vnc}" in direct) Z2_GUI_BACKEND=direct ;; *) Z2_GUI_BACKEND=vnc ;; esac
+        |export Z2_GUI_BACKEND
         |if [ -n "${d}{Z2_DISTRO_ID:-}" ]; then
-        |  echo "OPEN ${d}{DISPLAY_NUM} ${d}{Z2_DISTRO_ID}" >> /storage/app/z2gui.events 2>/dev/null || true
+        |  echo "OPEN ${d}{DISPLAY_NUM} ${d}{Z2_DISTRO_ID} ${d}{Z2_GUI_BACKEND}" >> /storage/app/z2gui.events 2>/dev/null || true
         |else
         |  # 旧起動経路との互換。新しいProotLauncherは常にZ2_DISTRO_IDを注入する。
         |  echo "OPEN ${d}{DISPLAY_NUM}" >> /storage/app/z2gui.events 2>/dev/null || true
