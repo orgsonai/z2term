@@ -1,0 +1,11 @@
+0.8.643-alpha
+
+- First release on F-Droid.
+- Place terminal, GUI, VNC and RDP tabs side by side or on an external
+  display: long-press the 🖥 button next to +.
+- Edge panels gain generic views and forms. `z2-view --edge` sends HTML;
+  entered values go to a macro.
+- `z2-file pick/save` opens and exports via Android's document picker.
+- Process text selected in other apps with a snippet and return it.
+- Rooted chroot engine: installing packages no longer fails despite free
+  space.

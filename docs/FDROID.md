@@ -1,6 +1,6 @@
 # Z2Term F-Droid 提出手順
 
-最終更新: 2026-09-20
+最終更新: 2026-09-23
 
 F-Droid は「APK を受け取って配る」ところではなく、**ソースから自分でビルドして配る**ところ。
 だから提出物は APK ではなく、`fdroiddata` という F-Droid 側のリポジトリに置く
@@ -105,9 +105,9 @@ F-Droid は**タグを指定してビルドする**ので、先にリリース�
 `docs/RELEASE.md` の通り。
 
 ```sh
-git tag v0.8.639-alpha
-git push origin v0.8.639-alpha
-git push github v0.8.639-alpha
+git tag v0.8.643-alpha
+git push origin v0.8.643-alpha
+git push github v0.8.643-alpha
 ```
 
 ⚠ **yml の `commit:` に書いたタグが GitHub に無いとビルドできない。**
@@ -147,13 +147,13 @@ done
 
 ### いま提出先に決めてあるタグ
 
-`metadata/com.zerotoship.z2term.yml` の `Builds:` は **0.8.639-alpha (versionCode 647) /
-`commit: v0.8.639-alpha`** を指している。このタグは**まだ打っていない**ので、提出の前に
+`metadata/com.zerotoship.z2term.yml` の `Builds:` は **0.8.643-alpha (versionCode 651) /
+`commit: v0.8.643-alpha`** を指している。このタグは**まだ打っていない**ので、提出の前に
 上のとおり打って両方へ push する (打つと GitHub Actions が署名済み APK を作り、
 GitHub Release が公開される = 通常のリリースと同じ)。
 
-更新内容 `metadata/{ja-JP,en-US}/changelogs/647.txt` は用意済みで、ja 287 / en 483 文字
-(いずれも 500 以内)。
+更新内容 `metadata/{ja-JP,en-US}/changelogs/651.txt` は用意済みで、ja 332 / en 486 文字
+(いずれも 500 以内)。0.8.639 (647) 向けに書いた `647.txt` はビルド定義から外れたので読まれない。
 
 ---
 
