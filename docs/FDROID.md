@@ -188,9 +188,27 @@ git push origin com.zerotoship.z2term
 
 F-Droid のビルドサーバーと同じ環境が Docker イメージで公開されている。
 **スマホ (Android の chroot) では Docker が動かないので、PC (Arch デスクトップ) で行う。**
-⚠ **2026-09-20 時点でこの検証はまだ実施していない。** 下の 4 つはソースを読んで
-組み立てた対策で、実際のビルドで確かめたわけではない: 署名設定の削除・NDK の受け渡し・
-scanner の除外・フォント検査の格下げ。
+✅ **2026-09-23 に 0.8.643-alpha (651) で実施し、`BUILD SUCCESSFUL` まで通った**
+(PC の Docker、fdroidserver master)。§1 の対策 4 つ (署名設定の削除・NDK の受け渡し・
+scanner の除外・フォント検査の格下げ) はすべて実際のビルドで効いた。
+
+- prebuild 3 行が順に通り、z2root など 6 つの .so がソースから作られた
+- scanner は jniLibs の .so 6 つと `kkc_matrix.bin` を「Ignoring」で通し、止まらなかった
+- フォント検査は `WARNING: [fonts] …` に格下げされ、ビルドは続いた
+- できた APK は未署名で `com.zerotoship.z2term` / 651 / 0.8.643-alpha、
+  `lib/arm64-v8a/libz2*.so` と `assets/kkc_matrix.bin` が入っている
+
+⚠ 手元で試すときの注意 (F-Droid 本番のビルドでは起きない):
+
+- `ndk: r27c` の NDK は **`--on-server` を付けたときだけ**自動で入る。付けないと
+  `Android NDK version 'r27c' could not be found!` で止まる。ただし `--on-server` は
+  「ソースは展開済み」を前提にするので、それだけではビルドできない。
+  下の手順のとおり **1 回目 `--on-server` で NDK だけ入れ、2 回目を普通に**走らせる
+- `fdroid lint` は fdroiddata 一式 (`config/` の画像まで) が無いと落ちる。
+  空のフォルダに yml だけ置くのではなく、fdroiddata を clone して使う
+- タグを打つ前に試すなら、試し用の yml だけ `Repo:` をローカルの bare clone、
+  `commit:` をコミットのハッシュに差し替える。このとき lint が
+  `Repo: git URLs must use https://` を出すのは想定どおり
 
 ```sh
 git clone --depth=1 https://gitlab.com/fdroid/fdroidserver ~/fdroidserver
@@ -212,8 +230,11 @@ cd /build
 fdroid readmeta
 fdroid rewritemeta com.zerotoship.z2term
 fdroid lint com.zerotoship.z2term
-fdroid build com.zerotoship.z2term
+fdroid build -l --on-server com.zerotoship.z2term   # NDK を入れるためだけ (この後で止まる)
+fdroid build -v -l com.zerotoship.z2term            # 本番と同じビルド
 ```
+
+成果物は `unsigned/com.zerotoship.z2term_<versionCode>.apk`。
 
 `fdroid rewritemeta` は yml の書式を F-Droid の正規形に整える (コメントは消える)。
 **整えた結果をこちらの控えへ書き戻すのではなく、控えは人が読める形のまま保つ**こと。
