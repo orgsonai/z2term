@@ -53,6 +53,17 @@ class EdgeRowsTest {
         assertEquals(100, EdgeRows.percents(listOf(1f, 1f, 1f)).sum())
     }
 
+    @Test fun iconsFollowTheRowHeightAndNeverOverflowTheCell() {
+        // No size given and room to spare: the panel's icon size and padding stay.
+        assertNull(EdgeRows.iconFit(40, 72f, null, labelled = false))
+        // A narrow cell shrinks the icon; a tall row enlarges it, still within the cell width.
+        assertEquals(26, EdgeRows.iconFit(40, 30f, null, labelled = false))
+        assertEquals(60, EdgeRows.iconFit(40, 120f, 64f, labelled = false))
+        assertEquals(46, EdgeRows.iconFit(40, 50f, 64f, labelled = false))
+        assertEquals(20, EdgeRows.iconFit(40, 200f, 24f, labelled = true))
+        assertEquals(12, EdgeRows.iconFit(40, 8f, null, labelled = false))
+    }
+
     @Test fun droppingJoinsTheTargetRow() {
         val start = listOf(listOf("a", "b"), listOf("n"))
         assertEquals(listOf(listOf("b"), listOf("n", "a")), EdgeRows.drop(start, "a", "n", after = true))

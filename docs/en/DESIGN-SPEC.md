@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-23 / Target version: 0.8.646-alpha (versionCode 654)
+Last updated: 2026-09-23 / Target version: 0.8.647-alpha (versionCode 655)
+
+**0.8.647-alpha (versionCode 655)**: Edge panel icons now grow or shrink with the row height and item width. A row with a height fills it, and a narrow item fits its icon instead of letting it spill out.
 
 **0.8.646-alpha (versionCode 654)**: The edge panel Layout page is easier to use. The preview now has the real panel's proportions; long-press an item to drag it to another row or onto a line between rows for a new row. Dragging the line under a row changes its height, and the line between items changes their widths (Reset size returns to automatic). The list's up/down buttons are replaced by ←→ for the order inside a row and a "Row N ▾" menu that moves an item to another row in one step, and the list keeps its scroll position.
 
@@ -2455,6 +2457,7 @@ Menus with child tabs allow direct selection in normal use. When the tab strip i
 - **The preview is drawn at the real panel's proportions and edited directly** (`EdgeRowSketch`): long-press an item and drop it on a row to place it where the finger is (counted against the other items' centres), or on the line between rows to make a new row there. Long-press drags in the menu and the list land next to the item they are dropped on (`EdgeRows.drop`).
 - **Row height and widths are dragged**: dragging the line under a row writes `height=N%` (of the panel height) to every item of the row; dragging the line between two items writes `width=N%` to every item of the row, adding up to 100. Values are saved on release and shown under the preview while dragging. Reset size on the row heading clears `width` / `height`.
 - **Widths are shares of the row** (`EdgeRows.weights`): `N%` as given, dp converted to a share of the panel width; items without a width split the rest, or take the average once nothing is left. Below 100 in total (a single sized item), the right side stays empty. A row with a height never grows.
+- **Icons follow the row and item size (0.8.647)** (`EdgeRows.iconFit`): the user reported icons spilling out after resizing rows. Every item frame kept its padding and a 48dp minimum height, and icons stayed at `icon-size`. ⇒ In a row with a height, the icon grows or shrinks to that height (and, for items without a name, to the item width). In a row without a height it only shrinks when the item is too narrow. Fitted items use 2dp padding and no 48dp minimum. Range 12–192dp.
 - **An item moved to another row drops its own size**: when its neighbours change, its `width` / `height` are cleared so it follows the row it joined.
 - **Adding apps**: in a tab with rows, a new app joins the last row when that row holds only apps, otherwise it starts a new row. Items added from the CLI without `row` appear at the end, one per row.
 - **Settings pages are Layout / Panel / Gestures / Manage**: Layout lists items row by row under a small preview of the rows; Panel holds size, placement, icons, title and buttons, and the handle; Gestures holds gestures and scrolling; Manage is unchanged. Tabs can be added from Layout and Manage. The Arrangement and Grid columns pickers are gone (`flow` / `columns` remain in the CLI for tabs without rows).

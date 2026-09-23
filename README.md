@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.647-alpha (versionCode 655)**: Edge panel icons now grow or shrink with the row height and item width. A row with a height fills it, and a narrow item fits its icon instead of letting it spill out.
+
 **0.8.646-alpha (versionCode 654)**: The edge panel Layout page is easier to use. The preview now has the real panel's proportions; long-press an item to drag it to another row or onto a line between rows for a new row. Dragging the line under a row changes its height, and the line between items changes their widths (Reset size returns to automatic). The list's up/down buttons are replaced by ←→ for the order inside a row and a "Row N ▾" menu that moves an item to another row in one step, and the list keeps its scroll position.
 
 **0.8.645-alpha (versionCode 653)**: Edge panels are now arranged in rows. Items in one row sit side by side and rows stack from the top, so app icons can sit in a row with a note below them. The arrangement belongs to each tab and no longer affects other tabs. Rows with a terminal, note or view fill the remaining height when the panel height is set. Settings are split into Layout, Panel, Gestures and Manage; Layout lists items row by row under a preview and moves them with the arrows. Existing panels keep their look and switch to rows on the first move. From the CLI, `z2-edge set ID:item row=N` sets the row.

@@ -1062,13 +1062,19 @@ object EdgeRuntime {
                     rows.addView(strip, if (grow) LinearLayout.LayoutParams(-1, 0, 1f) else LinearLayout.LayoutParams(-1, -2))
                     // Widths are shares of the row, so the items always fill it exactly.
                     val shares = EdgeRows.weights(line.map { it.fields["width"] }, panelWidth / density)
+                    val rowHeight = line.mapNotNull { item -> item.fields["height"]?.takeIf { it.isNotBlank() }
+                        ?.let { EdgeStore.dimensionPixels(it, panelHeight, density) } }.maxOrNull()
                     line.forEachIndexed { index, item ->
                         val cell = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
                         strip.addView(cell, LinearLayout.LayoutParams(0, if (grow) -1 else -2, shares[index]))
                         // Unset labels: a row of its own has room for the name, a shared row shows icons.
                         val bare = labels == "off" || (labels.isEmpty() && line.size > 1)
-                        addItem(cell, panel.id, item, bare, iconSize, horizontalOrder = line.size > 1,
-                            fillSpace = grow && EdgeRows.grows(item), inlineClose = terminalClose(item), sizedCell = true)
+                        // Icons follow the size given to the row and the cell instead of spilling out of it.
+                        val cellWidth = panelWidth * shares[index] / maxOf(shares.sum(), 100f)
+                        val fitted = EdgeRows.iconFit(iconSize, cellWidth / density, rowHeight?.div(density), labelled = !bare)
+                        addItem(cell, panel.id, item, bare, fitted ?: iconSize, horizontalOrder = line.size > 1,
+                            fillSpace = grow && EdgeRows.grows(item), inlineClose = terminalClose(item), sizedCell = true,
+                            tight = fitted != null)
                     }
                     // A lone item narrower than the panel leaves the rest of its row empty.
                     val spare = 100f - shares.sum()
@@ -1560,10 +1566,12 @@ object EdgeRuntime {
     }
 
     private fun addItem(rows: LinearLayout, panelId: String, item: EdgeStore.Item, iconOnly: Boolean = false, iconSize: Int = 40, horizontalOrder: Boolean = false,
-        fillSpace: Boolean = false, inlineClose: (() -> Unit)? = null, sizedCell: Boolean = false) {
+        fillSpace: Boolean = false, inlineClose: (() -> Unit)? = null, sizedCell: Boolean = false, tight: Boolean = false) {
         val target = "$panelId:${item.id}"
+        // A tight cell was sized to its icon: no padding or minimum height beyond it.
         val row = LinearLayout(ui()).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(8), dp(4), dp(8), dp(8))
+            orientation = LinearLayout.VERTICAL
+            if (tight) setPadding(dp(2), dp(2), dp(2), dp(2)) else setPadding(dp(8), dp(4), dp(8), dp(8))
         }
         val title = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL }
         val pkg = packageFrom(item.command)
@@ -1572,7 +1580,7 @@ object EdgeRuntime {
         }.getOrNull() }, app!!.getString(R.string.edge_run))
         val showTitle = label.isNotBlank()
         if (showTitle || item.type == "run") addIcon(title, item.fields["icon"]?.takeIf { it.isNotBlank() } ?: pkg?.let { "@app:$it" } ?: if (iconOnly) label.take(1) else null, iconSize)
-        title.minimumHeight = dp(48)
+        title.minimumHeight = if (tight) 0 else dp(48)
         title.contentDescription = label
         title.tooltipText = label
         if (iconOnly) title.gravity = Gravity.CENTER

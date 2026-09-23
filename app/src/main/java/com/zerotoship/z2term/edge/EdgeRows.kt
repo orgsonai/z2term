@@ -94,6 +94,19 @@ internal object EdgeRows {
         return given.map { (it ?: rest).coerceAtLeast(1f) }
     }
 
+    /**
+     * Icon size (dp) in a row cell. A row with a height fills it, larger or smaller than the panel's
+     * icon size; otherwise the icon only shrinks when the cell is too narrow. Null keeps the panel's
+     * size and the usual padding. A named item keeps its width for the name, so only height limits it.
+     */
+    fun iconFit(base: Int, cellWidthDp: Float, rowHeightDp: Float?, labelled: Boolean): Int? {
+        val padding = 4f
+        val byWidth = if (labelled) Float.MAX_VALUE else cellWidthDp - padding
+        if (rowHeightDp == null && byWidth >= base) return null
+        val size = if (rowHeightDp != null) minOf(rowHeightDp - padding, byWidth) else byWidth
+        return size.toInt().coerceIn(12, 192)
+    }
+
     /** Whole percentages that keep [weights] in proportion and add up to exactly 100. */
     fun percents(weights: List<Float>): List<Int> {
         val total = weights.sum().coerceAtLeast(0.001f)
