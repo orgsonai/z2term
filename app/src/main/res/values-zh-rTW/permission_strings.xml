@@ -40,7 +40,6 @@
     <string name="permissions_missing">未啟用／未允許</string>
     <string name="tools_automation_actions">操作自動化</string>
     <string name="tools_automation_rules">自動化規則</string>
-    <string name="tools_automation_actions_desc">組合點選、滑動、等待與應用程式操作。開啟管理畫面即可建立、編輯、執行、停止並查看歷史。</string>
     <string name="permissions_tab_access">權限</string>
     <string name="permissions_tab_logs">通知與日誌</string>
     <string name="permissions_log_missing">請在「權限」分頁中允許：%1$s</string>

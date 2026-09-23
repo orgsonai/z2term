@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.automation
 
+import android.annotation.SuppressLint
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
@@ -20,6 +21,9 @@ import java.io.File
 import java.util.UUID
 
 /** Shared by CLI, shell macros, tiles, triggers and panels. State belongs to the main thread. */
+// Holds only the application context and windows it adds itself; every one is removed and
+// cleared when it closes, so nothing outlives the overlay it belongs to.
+@SuppressLint("StaticFieldLeak")
 internal object ActionRuntime {
     private val main = Handler(Looper.getMainLooper())
     private data class Run(val id: String, val name: String, val program: ActionProgram, val context: Context,

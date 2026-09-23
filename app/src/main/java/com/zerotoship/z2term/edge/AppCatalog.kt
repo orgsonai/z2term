@@ -9,6 +9,7 @@ import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import androidx.core.graphics.createBitmap
 
 object AppCatalog {
     data class LaunchableApp(val packageName: String, val label: String)
@@ -44,7 +45,7 @@ object AppCatalog {
     }
 
     fun bitmap(drawable: Drawable, size: Int = 96): Bitmap {
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(size, size)
         val old = android.graphics.Rect(drawable.bounds)
         drawable.setBounds(0, 0, size, size)
         drawable.draw(Canvas(bitmap))

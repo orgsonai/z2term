@@ -43,7 +43,7 @@
     <string name="tip_gui_clean_title">Type z2gui clean to reinstall the GUI</string>
     <string name="tip_gui_clean_body">If the desktop stops coming up — usually an install that failed halfway — run z2gui clean in the terminal. It clears the package cache and puts the whole GUI stack back, leaving your files alone. Use z2gui start clean to reinstall and open it in one go.</string>
     <string name="tip_z2_commands_title">Type z2term for the list of built-in commands</string>
-    <string name="tip_z2_commands_body">Z2Term adds its own commands, all starting with z2, to the terminal. Run z2term (or z2help) for the full list with a one-line description of each, then add --help to any of them to see how to use it.</string>
+    <string name="tip_z2_commands_body" tools:ignore="TypographyDashes">Z2Term adds its own commands, all starting with z2, to the terminal. Run z2term (or z2help) for the full list with a one-line description of each, then add --help to any of them to see how to use it.</string>
     <string name="tip_macro_title">Ask an AI to write your macros</string>
     <string name="tip_macro_body">A reminder, an RSS check, keeping a note of calls from unknown numbers — these are not app features, they are macros. Describe what you want and an AI can write it for you.</string>
     <string name="settings_group_about">About this app</string>
@@ -55,9 +55,6 @@
     <string name="settings_section_distro">Distro (switching restarts the current session)</string>
     <string name="settings_section_keyboard_style">Keyboard behavior</string>
     <string name="settings_keyboard_toggle_bar">Keyboard toggle bar</string>
-    <string name="settings_keyboard_number_face">Show the number face</string>
-    <string name="settings_keyboard_number_face_desc">Adds a numbers-only face (a keypad) to the built-in keyboard, so the switch key cycles through 12 as well. Turn it off and the cycle is あ → A → あ as before</string>
-    <string name="settings_keyboard_face_order">Face switching order</string>
     <!-- Custom key layouts (0.8.408–0.8.411, stages 2–4 + default sizing) -->
     <string name="settings_section_key_layout">Key layout (your own)</string>
     <string name="settings_key_layout_desc">Choose the faces to use and their order here. Duplicate any face to make your own; use Edit on a custom face to rename it or change its keys.</string>
@@ -68,19 +65,12 @@
     <string name="settings_keyboard_face_builtin_ascii">Letters — four-way flick (built in)</string>
     <string name="settings_keyboard_face_builtin_ascii_simple">Letters — simple (built in, initially off)</string>
     <string name="settings_keyboard_face_builtin_number">Numbers (built in)</string>
-    <string name="settings_key_layout_default">Select a custom layout</string>
-    <string name="settings_key_layout_duplicate">Duplicate the letter layout</string>
     <string name="settings_key_layout_new_name">My letters</string>
-    <string name="settings_key_layout_duplicate_kana">Duplicate the Japanese layout</string>
-    <string name="settings_key_layout_duplicate_number">Duplicate the number board</string>
-    <string name="settings_key_layout_duplicate_active">Duplicate the selected custom layout</string>
     <string name="settings_key_layout_new_kana_name">My Japanese</string>
     <string name="settings_key_layout_new_number_name">My numbers</string>
     <string name="settings_key_layout_copy_name">My copy</string>
     <string name="settings_key_layout_name">Name</string>
-    <string name="settings_key_layout_edit">Edit contents</string>
     <string name="settings_key_layout_delete">Delete this layout</string>
-    <string name="settings_key_layout_target_note">ABC, あ or 12 shows this custom layout’s type. Its use and position are controlled independently in “Faces used by the keyboard” above.</string>
     <string name="settings_key_layout_duplicate_action">Duplicate</string>
     <string name="settings_key_layout_edit_action">Edit</string>
     <string name="settings_keyboard_test_title">Keyboard input test</string>
@@ -90,7 +80,7 @@
     <string name="settings_key_layout_editor_desc">This is one layout as JSON. rows are keyboard rows; slots are frames; w is a fixed width where one even frame equals 1 (omit it to share the remainder); bind assigns tap / up / down / left / right / long / double. Splits, layers and action sequences round-trip here without being dropped.</string>
     <string name="settings_key_layout_editor_invalid_json">This is not a readable layout object. Check that it is one layout beginning with { and ending with }.</string>
     <string name="settings_key_layout_editor_invalid_layout">The layout structure is not usable: %1$s</string>
-    <string name="settings_key_layout_editor_summary">Ready — %1$d rows / %2$d frames / %3$d keys</string>
+    <string name="settings_key_layout_editor_summary">Ready — rows: %1$d / frames: %2$d / keys: %3$d</string>
     <string name="settings_key_layout_editor_no_escape_inline">⚠ No key switches face, opens Settings, hides the keyboard or switches input method. You may be unable to leave this layout when it is used as the OS input method.</string>
     <string name="settings_key_layout_editor_id_note">ID %1$s stays fixed so the current selection is not broken. A different id in the JSON is saved as this value.</string>
     <string name="settings_key_layout_editor_save">Save these contents</string>
@@ -105,7 +95,6 @@
     <string name="settings_key_layout_mode_json">JSON</string>
     <string name="settings_key_layout_visual_desc">The preview stays visible while settings scroll. Turn on Multiple selection beside the keys to change width, appearance or gestures for several keys.</string>
     <string name="settings_key_layout_preview_title">Tap a key to edit it</string>
-    <string name="settings_key_layout_preview_desc">The selected key is highlighted in green</string>
     <string name="settings_key_layout_child_letters">Letters</string>
     <string name="settings_key_layout_child_symbols">Symbols (?#)</string>
     <string name="settings_key_layout_restore_default">Restore duplicated defaults</string>
@@ -114,9 +103,8 @@
     <string name="settings_key_layout_delete_confirm_title">Delete this keyboard face?</string>
     <string name="settings_key_layout_delete_confirm_msg">“%1$s” will be deleted and cannot be restored.</string>
     <string name="settings_key_layout_multi_select">Multiple selection</string>
-    <string name="settings_key_layout_multi_select_desc">Keep selected keys while you tap additional keys</string>
     <string name="settings_key_layout_selected">Row %1$d / frame %2$d%3$s</string>
-    <string name="settings_key_layout_selected_count">%1$d key(s) selected</string>
+    <string name="settings_key_layout_selected_count">Selected keys: %1$d</string>
     <string name="settings_key_layout_label">Key label</string>
     <string name="settings_key_layout_width">Outer-frame width</string>
     <string name="settings_key_layout_width_auto">Share the remainder</string>
@@ -187,8 +175,6 @@
     <string name="settings_confirm_download">Confirm before download</string>
     <string name="settings_confirm_download_desc">ON: prompt before downloading a distro or GUI package. OFF: download without confirmation.</string>
     <string name="settings_section_process_guard">Background process protection</string>
-    <string name="settings_battery_opt_toggle">Exclude from battery optimization</string>
-    <string name="settings_battery_opt_toggle_desc">ON: the OS is less likely to kill the session and its running processes in the background. Turning OFF opens system settings (Android does not allow apps to re-enable optimization directly).</string>
     <string name="settings_phantom_title">If processes still get killed (Android 12/13)</string>
     <string name="settings_phantom_desc">Android 12/13 may kill the \"phantom processes\" that proot spawns. This cannot be changed inside the app — run the following from a PC via adb, then reboot the device. Android 14+ is usually relaxed already.</string>
     <string name="settings_low_power">Low-power mode</string>
@@ -305,11 +291,10 @@
     <string name="licenses_open_button">Open the bundled OSS list</string>
     <string name="licenses_summary">Shows license texts, copyrights, and corresponding-source URLs in one place.</string>
     <string name="licenses_section_summary">Bundled OSS licenses and corresponding source URLs. Tap to view the full text.</string>
-    <string name="licenses_component_count">%1$d components</string>
+    <string name="licenses_component_count">Components: %1$d</string>
     <string name="licenses_view_full_text">Full license</string>
     <string name="licenses_full_text_title">Full license</string>
     <string name="licenses_license_text_heading">License text</string>
-    <string name="licenses_source_line">Source: %1$s</string>
     <string name="licenses_full_text_missing">(The full text for this license is not bundled. SPDX: %1$s\nSee the official text at https://spdx.org/licenses/%1$s.html.)</string>
     <string name="confirm_clean_install_title">Clean install %1$s</string>
     <string name="confirm_download_title">Download %1$s</string>
@@ -401,7 +386,6 @@
     <string name="ssh_new_profile_title">New connection</string>
     <string name="ssh_edit_profile_title">Edit connection: %1$s</string>
     <string name="ssh_field_name">Name</string>
-    <string name="connection_protocol">Connection type</string>
     <string name="connection_field_webdav_url">WebDAV URL</string>
     <string name="connection_field_smb_host">SMB host</string>
     <string name="connection_field_smb_share">Share name</string>
@@ -439,10 +423,7 @@
     <string name="ssh_field_private_key">Private key (PEM)</string>
     <string name="ssh_field_passphrase">Passphrase (if set on the key)</string>
     <!-- Remote VNC (A1): reach the same host's desktop from the same entry -->
-    <string name="ssh_vnc_section">VNC (desktop)</string>
-    <string name="ssh_field_vnc_port">VNC port</string>
     <string name="ssh_field_vnc_password">VNC password</string>
-    <string name="ssh_vnc_note">[VNC] opens this host\'s desktop in a new tab. Display :N is port 5900+N (:1 = 5901). This password is the VNC one, not the SSH one (8 characters max). If the server only listens on 127.0.0.1, forward it first with ssh -L 5901:localhost:5901 and point this entry at 127.0.0.1.</string>
     <string name="vnc_connecting">Connecting to %1$s:%2$d…</string>
     <string name="vnc_disconnected">Disconnected by the server.</string>
     <string name="vnc_error_password_required">This VNC server wants a password. Set "VNC password" for this host in Tools (📜) › Connections.</string>
@@ -475,17 +456,14 @@
 
     <!-- SFTP sheet (D3 batch 3) -->
     <string name="sftp_toast_list_failed">List failed: %1$s</string>
-    <string name="sftp_toast_save_target_unavailable">Cannot open save target</string>
     <string name="sftp_toast_download_complete">Download complete: %1$s</string>
     <string name="sftp_toast_download_failed">Download failed: %1$s</string>
-    <string name="sftp_toast_open_file_failed">Cannot open file</string>
     <string name="sftp_toast_upload_complete">Upload complete: %1$s</string>
     <string name="sftp_toast_upload_failed">Upload failed: %1$s</string>
     <string name="sftp_button_up">↑ Up</string>
     <string name="sftp_status_connecting">Connecting…</string>
     <string name="sftp_status_connect_failed">Connection failed: %1$s</string>
     <string name="sftp_status_empty_dir">(empty directory)</string>
-    <string name="sftp_button_upload">⬆ Upload</string>
     <string name="sftp_button_new_folder">＋ New folder</string>
     <string name="sftp_dialog_rename_title">Rename</string>
     <string name="sftp_dialog_rename_confirm">Rename</string>
@@ -610,10 +588,6 @@
     <string name="sshaccess_wifi_unavailable">Connect to Wi-Fi (no IP detected)</string>
     <string name="sshaccess_from_pc_header">\nFrom your PC:</string>
     <string name="sshaccess_note">`sshd` can also be launched from the terminal (port comes from sshd_config\'s Port, or `-p`).\nOpenSSH /usr/sbin/sshd breaks privsep under proot → we use dropbear.\nSee docs/SSH-INTO-Z2TERM.md for details</string>
-    <string name="storage_access_title">Storage access (cd /sdcard)</string>
-    <string name="storage_access_granted">✅ Granted. From the terminal you can `cd /sdcard` to the shared storage.\n   `/storage/app` is the app-private area and needs no permission.</string>
-    <string name="storage_access_denied">Not granted. `cd /sdcard` will look empty. Use the button below to grant all-files\naccess. (`/storage/app` works without permission.)</string>
-    <string name="storage_access_grant_button">Grant access to all storage</string>
 
     <!-- TerminalScreen residuals (D3 batch 5) -->
     <string name="gui_confirm_download_title">Download the GUI stack</string>
@@ -649,9 +623,6 @@
     <string name="resident_dialog_reset_session_desc">Return the terminal to a freshly opened state. Resident servers keep running.</string>
     <string name="resident_dialog_stop_all">Stop everything and quit</string>
     <string name="resident_dialog_stop_all_desc">Stop the resident servers, system event capture and the session, then close the app (like a task kill). Your settings are left alone, so capture resumes the next time you open the app.</string>
-    <string name="settings_section_servers">Resident servers</string>
-    <string name="settings_servers_desc">Keep any server (sshd/http/smb, …) running in the background — even without opening the app.</string>
-    <string name="settings_open_servers">Manage servers</string>
     <string name="servers_title">Resident servers</string>
     <string name="servers_new">+ New</string>
     <string name="servers_empty">No servers yet. Add one with a start command (e.g. python3 -m http.server 8080).</string>
@@ -678,9 +649,6 @@
     <string name="settings_notif_capture_desc">With notification access granted, detect notifications and their updates. Choose logging below. Content that never arrives as a notification, or is hidden by the sender or Android, cannot be retrieved. Fully local.</string>
     <string name="settings_notif_log">Save notification log</string>
     <string name="settings_notif_log_desc">Save received long text and new conversation or inbox entries to ~/.z2term/notifications.jsonl. Deduplicate reposts and past messages while retaining new messages with distinct times or senders. When off, nothing is saved.</string>
-    <string name="settings_notif_access_granted">Notification access: granted</string>
-    <string name="settings_notif_access_missing">Notification access: not granted (tap below to grant)</string>
-    <string name="settings_notif_grant">Grant notification access</string>
     <string name="settings_notif_fmt_title">Output format (empty = JSONL)</string>
     <string name="settings_notif_fmt_readable">Readable</string>
     <string name="settings_notif_fmt_line">One line</string>
@@ -697,12 +665,8 @@
     <string name="settings_section_sms">SMS detection</string>
     <string name="settings_sms_capture">Capture SMS</string>
     <string name="settings_sms_capture_desc">When on (and the SMS permission is granted), incoming SMS are written to ~/.z2term/sms.jsonl. Unlike notifications, SMS bodies are not redacted by Android\'s sensitive-notification protection and work even while locked — so one-time passwords come through reliably. A generic hook; you decide what to extract from the terminal. Fully local.</string>
-    <string name="settings_sms_perm_granted">SMS permission: granted</string>
-    <string name="settings_sms_perm_missing">SMS permission: not granted (tap below to grant)</string>
-    <string name="settings_sms_grant">Grant SMS permission</string>
     <string name="settings_sms_fmt_title">Output format (empty = JSONL)</string>
     <string name="settings_sms_help" tools:ignore="Typos">Placeholders: {time} {ts} {from} {body}. One-line: {body1}. Escapes: \\n \\t. Applies to new entries. Log: ~/.z2term/sms.jsonl</string>
-    <string name="settings_unlock_watch_admin_failed">Could not add a device admin on this device (it may be blocked by device policy)</string>
     <string name="event_channel_name">Z2Term system events</string>
     <string name="event_channel_desc">Detects screen/lock/power/battery/Wi-Fi events</string>
     <string name="event_notification_title">System event detection</string>
@@ -716,10 +680,6 @@
     <string name="settings_section_unlock_watch">Unlock-failure detection</string>
     <string name="settings_unlock_watch">Watch unlock failures</string>
     <string name="settings_unlock_watch_desc">When on (and device admin is active), failed and successful lock-screen unlocks are logged to ~/.z2term/events.jsonl as unlock_failed / unlock_succeeded ({level} = consecutive failure count). An anti-theft detection hook — you decide the action (notify, record location, sound an alarm) from a macro. No photo or upload is built in. Fully local.</string>
-    <string name="settings_unlock_watch_admin_active">Device admin: active</string>
-    <string name="settings_unlock_watch_admin_missing">Device admin: not active — activate it to receive unlock events</string>
-    <string name="settings_unlock_watch_admin_grant">Activate device admin</string>
-    <string name="settings_unlock_watch_admin_manage">Manage device admin (to deactivate)</string>
     <string name="settings_unlock_watch_admin_explain">Used only to detect lock-screen unlock failures for your anti-theft macros. This app does not lock, wipe, or reset your device.</string>
     <string name="settings_unlock_watch_help">Needs device admin (watch-login only; no remote lock/wipe). Events: unlock_failed with {level}=failure count, unlock_succeeded. Build your reaction as a macro on events.jsonl.</string>
     <plurals name="toast_copy_from_remote">
@@ -741,7 +701,6 @@
     <string name="banner_process_exited">[process exited exitCode=%1$d]</string>
     <!-- 0.8.378: killed by a signal we did not send (most often the system reclaiming memory). -->
     <string name="banner_process_killed">[process killed from outside %1$s exitCode=%2$d, %3$d MB free]</string>
-    <string name="action_got_it">Got it</string>
     <string name="keyboard_style_compact">Simple</string>
     <string name="keyboard_style_spacious">4-way flick</string>
 
@@ -983,18 +942,11 @@
     <string name="when_fired_title">Recent fires</string>
     <string name="when_fired_empty">Nothing has run yet.</string>
     <string name="when_hint">▶ = run once without waiting for the trigger / ▤ = that rule\'s run log / ✎ = edit / ✕ = delete. Rules made with z2-when in the terminal can be edited here too — the source of truth is the text under ~/.z2term/when/.</string>
-    <string name="settings_section_automation_rules">Automation rules (z2-when)</string>
-    <string name="settings_automation_rules_desc">Review your rules, toggle them, read their logs, try one, or pause them all at once.</string>
-    <string name="settings_open_when_rules">Manage rules</string>
     <!-- Built-in keyboard as an OS input method (Z2ImeService). -->
     <string name="ime_label">z2term keyboard</string>
     <string name="ime_subtype_ja">z2term (Japanese)</string>
     <string name="ime_subtype_en">z2term (English)</string>
-    <string name="settings_section_ime">Built-in keyboard elsewhere</string>
-    <string name="settings_ime_desc">Offer the built-in keyboard to the rest of the system, so the same keyboard and the same Japanese conversion work in the app\'s own text fields (snippets, SSH, SFTP, settings) and in other apps. Turn it on in the OS list first, then pick it with the keyboard switcher.</string>
-    <string name="settings_ime_enable">Turn it on in Android settings</string>
     <string name="settings_ime_pick">Switch keyboard</string>
-    <string name="settings_ime_note">The terminal itself is unaffected: it keeps using the keyboard drawn inside the app.</string>
     <string name="pad_clip_empty">Copied text shows up here.\nCopy first, then open the keyboard.</string>
     <string name="pad_emoji_empty">Emoji you use show up here.\nPick one from the tabs on the right.</string>
     <string name="tile_service_label_1">z2term 1</string>
@@ -1027,12 +979,6 @@
     <string name="tile_subtitle_pair_on">on — tap to turn off</string>
     <string name="tile_subtitle_pair_off">off — tap to turn on</string>
     <string name="tile_unassigned_toast" tools:ignore="PluralsCandidate">Tile %1$d has nothing on it. Assign one in the terminal, e.g. z2-tile set %1$d backup.sh</string>
-    <string name="settings_section_screen_timeout">Screen timeout (z2-screen)</string>
-    <string name="settings_screen_timeout_desc">Stop the screen turning off by itself, for as long as you say. This is the OS-wide setting, so it holds with the app in the background — unlike the toolbar\'s 🔅, which only lasts while the app is on screen. The original value is always written back at the deadline.</string>
-    <string name="settings_screen_timeout_granted">Modify system settings: allowed</string>
-    <string name="settings_screen_timeout_missing">Modify system settings: not allowed (tap below to allow)</string>
-    <string name="settings_screen_timeout_grant">Allow modifying system settings</string>
-    <string name="settings_screen_timeout_cmd_label">In the terminal (tap to copy). z2-screen keepon off puts it back early</string>
     <string name="intro_title">To start (tap to run it; ✕ drops the ones you do not want)</string>
     <string name="intro_footer">z2help for the full list / z2doctor when something does not work</string>
     <string name="intro_card_notify">Post a notification on your phone</string>
@@ -1083,7 +1029,7 @@
     <string name="guide_ask_feed_url">Feed URL to read (one at a time; you can add more later)</string>
     <string name="guide_ask_interval">How often to poll (30m / 1h …; do not go below 30 minutes)</string>
     <string name="guide_ask_daily_time">What time to read it out (HH:MM)</string>
-    <string name="guide_ask_battery_level">Warn me below what battery %</string>
+    <string name="guide_ask_battery_level" formatted="false">Warn me below what battery %</string>
     <string name="guide_ask_qr_text">Text or URL to turn into a QR code</string>
 
     <!-- Shown when no Linux OS is installed at all (the state every fresh install starts in). -->
@@ -1257,7 +1203,7 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <!-- 0.8.499: the ☰ application sheet on the GUI tab (contents come from `z2menu list`). -->
     <string name="gui_apps_title">Applications</string>
     <string name="gui_apps_loading">loading…</string>
-    <string name="gui_apps_count">%1$d found</string>
+    <string name="gui_apps_count">Found: %1$d</string>
     <string name="gui_apps_refresh">⟳ Refresh</string>
     <string name="gui_apps_search_hint">Filter</string>
     <string name="gui_apps_no_match">Nothing matches \"%1$s\"</string>
@@ -1271,7 +1217,6 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="settings_delete_os_failed">Could not delete all OS data. Some data may remain. Check the diagnostic log for details.</string>
 
     <!-- Generic macro forms in the edge panel -->
-    <string name="edge_type_macro">Macro with arguments</string>
     <string name="edge_type_argument">Argument box</string>
     <string name="edge_type_result">Result box</string>
     <string name="edge_macro_args">Values to pass (in order)</string>
@@ -1281,9 +1226,6 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="edge_argument_choices">Choices, separated by |</string>
     <string name="edge_argument_required">Required input</string>
     <string name="edge_form_rows">Visible rows (1–20)</string>
-    <string name="edge_argument_text">Free text</string>
-    <string name="edge_argument_choice">Choose a value</string>
-    <string name="edge_argument_fixed">Fixed value</string>
     <string name="edge_argument_optional">Optional</string>
     <string name="edge_argument_mandatory">Required</string>
     <string name="edge_pick_argument">Choose an input item</string>
@@ -1338,8 +1280,8 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="guide_step_edge_local">Run these steps in the local Linux environment used by panels, from a terminal showing a shell prompt.</string>
     <string name="guide_step_sample_create">Create one sample panel with three tabs (keep existing settings and items)</string>
     <string name="guide_step_sample_open">Enable panels and open the sample (swipe inward from its right-edge bar to reopen)</string>
-    <string name="guide_step_translation_cli">Install the trans translation command yourself in this same Linux environment if missing.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nThese commands are instructions; tapping this card does not install anything. Text is sent to an external translation service.</string>
+    <string name="guide_step_translation_cli" tools:ignore="TypographyDashes">Install the trans translation command yourself in this same Linux environment if missing.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nThese commands are instructions; tapping this card does not install anything. Text is sent to an external translation service.</string>
     <string name="guide_sample_translation_missing">Install the trans command and prepare the translation macro first, then run the sample creation step again.</string>
     <string name="guide_desc_edge_workspace">Create one panel with Notepad, Translation and Terminal tabs</string>
-    <string name="guide_step_sample_use">Switch between the three tabs. Double-tap the note to edit; it saves automatically. For translation, enter text, choose the target language and tap Translate. Switching tabs or closing clears translation input/results. The terminal keeps its shell, output and draft; use ↻ to reset manually. Sample handles start at 30% opacity.</string>
+    <string name="guide_step_sample_use" formatted="false">Switch between the three tabs. Double-tap the note to edit; it saves automatically. For translation, enter text, choose the target language and tap Translate. Switching tabs or closing clears translation input/results. The terminal keeps its shell, output and draft; use ↻ to reset manually. Sample handles start at 30% opacity.</string>
 </resources>

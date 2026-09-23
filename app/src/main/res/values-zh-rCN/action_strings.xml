@@ -3,7 +3,6 @@
     <string name="action_macro_title">Android操作宏</string>
     <string name="action_macro_running">正在运行：%1$s</string>
     <string name="action_macro_stop">停止宏</string>
-    <string name="action_edit_open">管理操作宏</string>
     <string name="action_edit_intro">创建、编辑和执行Android操作步骤。点“获取坐标”可选择屏幕上的位置。</string>
     <string name="action_edit_title">编辑操作宏</string>
     <string name="action_edit_close">关闭</string>
@@ -58,7 +57,6 @@
     <string name="action_edit_step">编辑步骤</string>
     <string name="action_edit_pick">获取坐标</string>
     <string name="action_pick_busy">请先结束坐标选择或当前宏。</string>
-    <string name="action_pick_target">选择元素前，请先添加应用启动或目标指定步骤。</string>
     <string name="action_pick_cancelled">坐标选择已取消（取消、屏幕变化、锁屏、断开或超过 2 分钟）。</string>
     <string name="action_pick_prepare">现在可以正常操作屏幕。进入所需画面后点“获取坐标”。</string>
     <string name="action_pick_swipe">请在 3 秒内滑动，然后点击“应用”。滑动时长会被记录。使用“浏览”操作屏幕。</string>

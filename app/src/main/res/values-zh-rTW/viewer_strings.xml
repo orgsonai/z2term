@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="viewer_missing">該頁面已不存在。</string>
-    <string name="viewer_too_large">檔案太大，無法在這裡開啟（最多 4 MB）。</string>
     <string name="viewer_no_browser">此手機上沒有可以開啟該連結的應用程式。</string>
     <string name="viewer_expand">展開</string>
     <string name="viewer_component">檢視（z2-view）</string>

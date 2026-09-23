@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.gui.rdp
 
+import android.annotation.SuppressLint
 import android.util.Log
 import java.io.File
 import java.io.RandomAccessFile
@@ -335,6 +336,8 @@ internal class RdpDrive(
 
     // --- ボリュームの情報 ---
 
+    // Windows is told the space a file write can use now; reclaimable cache is not ours to promise.
+    @SuppressLint("UsableSpace")
     private fun queryVolumeInformation(body: ByteArray): Response {
         if (body.size < 8) return Response(STATUS_UNSUCCESSFUL, RdpLe.bytes32(0))
         val label = RdpLe.utf16(shareName)

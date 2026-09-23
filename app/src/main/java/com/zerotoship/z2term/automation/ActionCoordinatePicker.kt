@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.automation
 
+import android.annotation.SuppressLint
 import android.app.KeyguardManager
 import android.content.Intent
 import android.graphics.Canvas
@@ -23,8 +24,13 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.edge.AndroidActions
 import com.zerotoship.z2term.edge.EdgeSettingsUi
 import com.zerotoship.z2term.edge.EdgeRuntime
+import androidx.core.view.isNotEmpty
+import com.zerotoship.z2term.edge.ScreenGravity
 
 /** A short-lived selection overlay. Coordinates and UI selectors return to the editor without executing actions. */
+// Holds only the application context and windows it adds itself; every one is removed and
+// cleared when it closes, so nothing outlives the overlay it belongs to.
+@SuppressLint("StaticFieldLeak")
 internal object ActionCoordinatePicker {
     data class Result(val request: String, val screen: ActionDefinition.Screen, val points: List<Float>?, val error: String?, val selector: ActionSelector? = null,
         val durationMs: Long? = null, val paths: List<List<ActionGesture.Point>>? = null, val recorded: String? = null)
@@ -181,7 +187,7 @@ internal object ActionCoordinatePicker {
                 EdgeSettingsUi.button(service, service.getString(label), kind, action).apply {
                     isEnabled = enabled
                     row.addView(this, LinearLayout.LayoutParams(0, -2, 1f).apply {
-                        if (row.childCount > 0) leftMargin = EdgeSettingsUi.dp(service, 8)
+                        if (row.isNotEmpty()) leftMargin = EdgeSettingsUi.dp(service, 8)
                     })
                 }
             val accept = button(if (recording) R.string.action_record_stop else if (elements) R.string.action_ui_read else if (capturing) R.string.action_edit_apply else R.string.action_edit_pick,
@@ -248,8 +254,9 @@ internal object ActionCoordinatePicker {
                     private var startedAt = 0L
                     private var ids = emptyList<Int>()
                     private var recordings = emptyList<ActionGesture.Recording>()
+                    private val origin = IntArray(2)
                     override fun onDraw(canvas: Canvas) {
-                        val origin = IntArray(2).also { getLocationOnScreen(it) }
+                        getLocationOnScreen(origin)
                         val traces = paths ?: return
                         traces.forEach { trace ->
                             val shown = if (recording || freehand || fingers == 2) trace else listOf(trace.first(), trace.last())
@@ -371,7 +378,7 @@ internal object ActionCoordinatePicker {
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT
             ).apply {
-                gravity = (if (bottom && !capturing) Gravity.BOTTOM else Gravity.TOP) or Gravity.LEFT
+                gravity = (if (bottom && !capturing) Gravity.BOTTOM else Gravity.TOP) or ScreenGravity.LEFT
                 if (!capturing) y = EdgeSettingsUi.dp(service, 36)
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }

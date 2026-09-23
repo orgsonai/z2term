@@ -40,7 +40,6 @@
     <string name="permissions_missing">비활성화됨 / 허용되지 않음</string>
     <string name="tools_automation_actions">동작 자동화</string>
     <string name="tools_automation_rules">자동화 규칙</string>
-    <string name="tools_automation_actions_desc">탭, 스와이프, 대기와 앱 동작을 순서로 구성합니다. 관리 화면에서 만들기, 편집, 실행, 중지와 기록 확인을 할 수 있습니다.</string>
     <string name="permissions_tab_access">권한</string>
     <string name="permissions_tab_logs">알림 및 로그</string>
     <string name="permissions_log_missing">권한 탭에서 다음을 허용하세요: %1$s</string>

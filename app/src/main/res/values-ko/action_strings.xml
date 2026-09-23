@@ -3,7 +3,6 @@
     <string name="action_macro_title">Android 동작 매크로</string>
     <string name="action_macro_running">실행 중: %1$s</string>
     <string name="action_macro_stop">매크로 중지</string>
-    <string name="action_edit_open">동작 매크로 관리</string>
     <string name="action_edit_intro">Android 작업 순서를 만들고 편집하고 실행합니다. 좌표 선택으로 화면의 위치를 고를 수 있습니다.</string>
     <string name="action_edit_title">동작 매크로 편집</string>
     <string name="action_edit_close">닫기</string>
@@ -58,7 +57,6 @@
     <string name="action_edit_step">단계 편집</string>
     <string name="action_edit_pick">좌표 선택</string>
     <string name="action_pick_busy">좌표 선택 또는 실행 중인 매크로를 먼저 끝내세요.</string>
-    <string name="action_pick_target">요소를 선택하려면 먼저 앱 실행 또는 대상 지정 단계를 추가하세요.</string>
     <string name="action_pick_cancelled">좌표 선택을 취소했습니다 (취소, 화면 변경, 잠금, 연결 해제 또는 2분 경과).</string>
     <string name="action_pick_prepare">화면을 평소처럼 조작할 수 있습니다. 원하는 화면으로 이동한 뒤 좌표 선택을 누르세요.</string>
     <string name="action_pick_swipe">3초 이내에 스와이프한 뒤 적용을 누르세요. 소요 시간을 기록합니다. 화면을 조작하려면 화면 조작을 사용하세요.</string>

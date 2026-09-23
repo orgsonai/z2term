@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.edge
 
+import android.annotation.SuppressLint
 import android.app.KeyguardManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -38,8 +39,18 @@ import com.zerotoship.z2term.service.TorchState
 import java.io.File
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
+import androidx.core.view.isNotEmpty
+import androidx.core.view.isEmpty
+import androidx.core.view.isVisible
+import androidx.core.graphics.drawable.toDrawable
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.set
+import androidx.core.graphics.withClip
 
 /** All views and live values belong to the main thread. The text definitions remain authoritative. */
+// Holds only the application context and windows it adds itself; every one is removed and
+// cleared when it closes, so nothing outlives the overlay it belongs to.
+@SuppressLint("StaticFieldLeak")
 object EdgeRuntime {
     private val main = Handler(Looper.getMainLooper())
     private var app: Context? = null
@@ -324,7 +335,7 @@ object EdgeRuntime {
         width, height, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
             (if (focus) 0 else WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE), PixelFormat.TRANSLUCENT
-    ).apply { gravity = Gravity.TOP or Gravity.LEFT }
+    ).apply { gravity = ScreenGravity.TOP_LEFT }
 
     private fun removeSnapPreview() {
         snapPreview?.let { runCatching { wm().removeView(it) } }
@@ -354,6 +365,9 @@ object EdgeRuntime {
         handles.clear()
     }
 
+    // Handles are gesture surfaces: tap, swipe and hold each run configured actions, and the panel
+    // also opens from the notification and z2-edge open, so there is no single click to report.
+    @SuppressLint("ClickableViewAccessibility")
     private fun showHandles() {
         if (!unlocked() || actionsSuspended) return
         removeHandles()
@@ -389,11 +403,12 @@ object EdgeRuntime {
                         barBackground.cornerRadius = minOf(visibleWidth, this.height) / 2f
                         barBackground.setBounds(left, 0, left + visibleWidth, this.height)
                         barBackground.draw(canvas)
-                        val save = canvas.save()
-                        canvas.clipRect(left, 0, left + visibleWidth, this.height)
-                        canvas.translate(left + (visibleWidth - this.width) / 2f, 0f)
-                        super.onDraw(canvas)
-                        canvas.restoreToCount(save)
+                        // Inside withClip `this` is the canvas; the offset needs the view's own width.
+                        val viewWidth = width
+                        canvas.withClip(left, 0, left + visibleWidth, height) {
+                            translate(left + (visibleWidth - viewWidth) / 2f, 0f)
+                            super.onDraw(canvas)
+                        }
                     } else super.onDraw(canvas)
                 }
             }.apply {
@@ -800,7 +815,7 @@ object EdgeRuntime {
                 }
             }.apply {
                 orientation = LinearLayout.VERTICAL; isClickable = true
-                background = if (settings) ColorDrawable(EdgeSettingsUi.canvas(ui())) else background()
+                background = if (settings) EdgeSettingsUi.canvas(ui()).toDrawable() else background()
                 minimumHeight = dp(48)
                 if (!settings) setOnLongClickListener {
                     runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }; true
@@ -873,7 +888,7 @@ object EdgeRuntime {
             }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8) })
             if (settings && (page == 0 || page == 3)) tabs.addView(EdgeSettingsUi.button(ui(),
                 app!!.getString(R.string.edge_add_tab)) {
-                tabEntry.visibility = if (tabEntry.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+                tabEntry.visibility = if (tabEntry.isVisible) View.GONE else View.VISIBLE
             }.apply {
                 textSize = 13f; minHeight = dp(36); minimumHeight = dp(36); setPadding(dp(12), 0, dp(12), 0)
             })
@@ -957,7 +972,7 @@ object EdgeRuntime {
                 tools.addView(EdgePanelControls.close(ui(), closeAction))
             // 上へ入れなければ、下の rows へ落ちる (この関数の末尾)。
             val toolsOnTop = toolsPlace == "top" || (toolsPlace != "bottom" && hasNavigation)
-            if (!settings && toolsOnTop && tools.childCount > 0)
+            if (!settings && toolsOnTop && tools.isNotEmpty())
                 navigation.addView(tools, (navigation.childCount - if (wantsClose) 1 else 0).coerceAtLeast(0))
             val terminalOnly = !settings && panel.items.size == 1 && panel.items[0].type in setOf("terminal", "view") &&
                 (EdgeRows.arranged(panel.items) || root.fields["flow"] != "free") &&
@@ -1006,8 +1021,9 @@ object EdgeRuntime {
                 try {
                     panels = original.map { if (it.id == root.id) it.copy(fields = fields) else it }
                     showHandles()
-                    // A preview must not persist position changes through handle dragging.
-                    handles.values.forEach { it.setOnTouchListener { _, _ -> true } }
+                    // A preview must not persist position changes through handle dragging. A disabled
+                    // view never reaches its touch listener; saving or cancelling rebuilds the handles.
+                    handles.values.forEach { it.isEnabled = false }
                 } finally { panels = original }
                 }, finish = { reload(app!!) }, session = session), LinearLayout.LayoutParams(-1, 0, 1f))
             }
@@ -1065,7 +1081,7 @@ object EdgeRuntime {
                     footnote(R.string.edge_items_help)
                 }
             } else if (terminalOnly) {
-                if (tools.parent == null && tools.childCount > 0) rows.addView(tools)
+                if (tools.parent == null && tools.isNotEmpty()) rows.addView(tools)
                 addItem(rows, panel.id, panel.items[0], fillSpace = true,
                     inlineClose = terminalClose(panel.items[0]))
             } else if (rowLines != null) {
@@ -1129,7 +1145,7 @@ object EdgeRuntime {
                 }
             } else panel.items.forEach { addItem(rows, panel.id, it, iconOnly, iconSize,
                 inlineClose = terminalClose(it)) }
-            if (!settings && tools.parent == null && tools.childCount > 0) rows.addView(tools)
+            if (!settings && tools.parent == null && tools.isNotEmpty()) rows.addView(tools)
             rows.setOnDragListener { _, event ->
                 val drag = event.localState as? ItemDrag
                 if (drag?.panel != panel.id) false else {
@@ -1164,7 +1180,7 @@ object EdgeRuntime {
             }
             overlay.addView(body, FrameLayout.LayoutParams(if (settings) -1 else panelWidth, if (stablePanelSize) -1 else -2).apply {
                 val position = if (settings) 0f to 0f else EdgePanelPosition.fractions(root.fields)
-                gravity = Gravity.TOP or Gravity.LEFT
+                gravity = ScreenGravity.TOP_LEFT
                 // Use measured content size, including changes when the keyboard appears.
                 val align = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
                     body.translationX = (overlay.width - body.width).coerceAtLeast(0) * position.first
@@ -1491,7 +1507,7 @@ object EdgeRuntime {
         }.apply { tag = "edge-delete-cancel:${item.id}" }, LinearLayout.LayoutParams(0, -2, 1f))
         confirmDelete.addView(choices)
         heading.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_delete), EdgeSettingsUi.Kind.DANGER) {
-            confirmDelete.visibility = if (confirmDelete.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            confirmDelete.visibility = if (confirmDelete.isVisible) View.GONE else View.VISIBLE
         }.apply {
             tag = "edge-delete:${item.id}"
             contentDescription = "${app!!.getString(R.string.edge_delete)}: $itemName"
@@ -1833,7 +1849,7 @@ object EdgeRuntime {
         }
         if (item.type == "text") macroForm?.registerInput(item.id) { values[target].orEmpty() }
         // An empty heading only wastes height; run items keep it as their tap target.
-        if (title.childCount == 0 && item.type != "run") row.removeView(title)
+        if (title.isEmpty() && item.type != "run") row.removeView(title)
         if (item.type !in setOf("toggle", "list", "note", "terminal", "macro", "argument", "result", "view")) {
             row.addView(result)
             if (result.text.isEmpty()) result.visibility = View.GONE
@@ -2001,6 +2017,8 @@ object EdgeRuntime {
         handles[id]?.text = value.ifBlank { if (panels.first { it.id == id }.handle == "button") "≡" else "" }
     }
 
+    // "/sdcard/" is recognised as the prefix a user writes in an icon path, not built from it.
+    @SuppressLint("SdCardPath")
     private fun addIcon(row: LinearLayout, value: String?, iconSize: Int = 40) {
         if (value.isNullOrBlank()) return
         if (!value.startsWith('@')) {
@@ -2025,16 +2043,16 @@ object EdgeRuntime {
                     require(opts.outWidth in 1..4096 && opts.outHeight in 1..4096) { "Invalid icon size" }
                     opts.inJustDecodeBounds = false
                     opts.inSampleSize = (maxOf(opts.outWidth, opts.outHeight) / 192).coerceAtLeast(1)
-                    android.graphics.BitmapFactory.decodeFile(file.path, opts)?.let { android.graphics.drawable.BitmapDrawable(app!!.resources, it) }
+                    android.graphics.BitmapFactory.decodeFile(file.path, opts)?.let { it.toDrawable(app!!.resources) }
                 }
                 value.startsWith("@z2:") -> {
                     val art = com.zerotoship.z2term.icon.IconStore.findSample(app!!, value.removePrefix("@z2:"))
                         ?: throw IllegalArgumentException("No such icon")
                     val mask = com.zerotoship.z2term.icon.IconStore.parse(art)
                     val size = com.zerotoship.z2term.icon.IconStore.gridOf(mask)
-                    val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
-                    mask.forEachIndexed { index, on -> if (on) bitmap.setPixel(index % size, index / size, colors().second) }
-                    android.graphics.drawable.BitmapDrawable(app!!.resources, bitmap).apply { isFilterBitmap = false }
+                    val bitmap = createBitmap(size, size)
+                    mask.forEachIndexed { index, on -> if (on) bitmap[index % size, index / size] = colors().second }
+                    bitmap.toDrawable(app!!.resources).apply { isFilterBitmap = false }
                 }
                 else -> null
             }

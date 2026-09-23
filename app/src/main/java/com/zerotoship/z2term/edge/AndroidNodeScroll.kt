@@ -136,7 +136,8 @@ internal class AndroidNodeScroll(private val service: AccessibilityService) {
         // 正の速度 = 指を下ろす = 前 (上) の内容が出てくる。スワイプ側と向きを合わせる。
         val action = if (speedDp > 0) AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
             else AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
-        val arguments = if (Build.VERSION.SDK_INT >= 34) Bundle().apply {
+        // The amount argument exists from API 35; earlier releases ignore it and scroll a whole page.
+        val arguments = if (Build.VERSION.SDK_INT >= 35) Bundle().apply {
             putFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT, fraction)
         } else null
         return runCatching { target.performAction(action, arguments) }.getOrDefault(false)

@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.gui.rfb
 
+import android.annotation.SuppressLint
 import java.io.IOException
 import javax.crypto.Cipher
 import javax.crypto.spec.SecretKeySpec
@@ -84,6 +85,8 @@ object VncAuth {
      * サーバから来た 16 バイトのチャレンジを [desKey] で暗号化して返す (DES-ECB・2 ブロック)。
      * これをそのまま送り返すのが VNC 認証 (security type 2)。
      */
+    // DES/ECB is what the VNC authentication protocol (RFB 3.8 §7.2.2) defines; the server expects exactly this.
+    @SuppressLint("GetInstance")
     fun challengeResponse(password: String, challenge: ByteArray): ByteArray {
         require(challenge.size == CHALLENGE_BYTES) {
             "challenge must be " + CHALLENGE_BYTES + " bytes (got " + challenge.size + ")"

@@ -10,6 +10,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.LinearLayout
 import com.zerotoship.z2term.R
+import androidx.core.graphics.drawable.toDrawable
 
 /**
  * The Layout page's drawing of a tab, at the real panel's proportions. Items are moved by
@@ -192,7 +193,7 @@ internal class EdgeRowSketch(
     private fun rule(horizontal: Boolean, active: Boolean, target: Boolean = false): android.graphics.drawable.Drawable {
         val color = if (active) EdgeSettingsUi.accent(context) else EdgeSettingsUi.line(context)
         val thickness = dp(if (target) 4 else 2).coerceAtLeast(1)
-        val line = ColorDrawable(color)
+        val line = color.toDrawable()
         return android.graphics.drawable.InsetDrawable(line,
             if (horizontal) dp(24) else (dp(12) - thickness) / 2,
             if (horizontal) (dp(16) - thickness) / 2 else dp(4),

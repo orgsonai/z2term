@@ -8,6 +8,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.provider.Settings
 import com.zerotoship.z2term.R
+import androidx.core.net.toUri
 
 /**
  * The sample app panel created by the edge-panel guide (0.8.601; a guide command from 0.8.603).
@@ -72,10 +73,10 @@ internal object EdgeDefaultPanel {
         val pm = context.packageManager
         val roles = listOf(
             null,
-            Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")).addCategory(Intent.CATEGORY_BROWSABLE),
+            Intent(Intent.ACTION_VIEW, "https://example.com".toUri()).addCategory(Intent.CATEGORY_BROWSABLE),
             Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA),
             Intent(Intent.ACTION_DIAL),
-            Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:")),
+            Intent(Intent.ACTION_SENDTO, "smsto:".toUri()),
             Intent(Settings.ACTION_SETTINGS),
         )
         return roles.mapNotNull { intent ->

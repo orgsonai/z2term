@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Z2Term</string>
     <string name="action_clear">지우기</string>
     <string name="settings_header">Z2Term 설정</string>
@@ -39,7 +39,7 @@
     <string name="tip_gui_clean_title">z2gui clean이라고 입력하면 GUI를 다시 설치합니다</string>
     <string name="tip_gui_clean_body">데스크톱이 더 이상 뜨지 않을 때 — 대개 설치가 도중에 실패한 경우입니다 — 터미널에서 z2gui clean을 실행하세요. 패키지 캐시를 지우고 GUI 한 벌을 다시 설치하며, 여러분의 파일에는 손대지 않습니다. 다시 설치하고 그대로 실행하려면 z2gui start clean을 쓰세요.</string>
     <string name="tip_z2_commands_title">z2term이라고 입력하면 전용 명령 목록이 나옵니다</string>
-    <string name="tip_z2_commands_body">Z2Term은 z2로 시작하는 전용 명령을 터미널에 더해 둡니다. z2term(또는 z2help)을 실행하면 전체 목록과 한 줄 설명이 나오고, 각각에 --help를 붙이면 쓰는 법이 나옵니다.</string>
+    <string name="tip_z2_commands_body" tools:ignore="TypographyDashes">Z2Term은 z2로 시작하는 전용 명령을 터미널에 더해 둡니다. z2term(또는 z2help)을 실행하면 전체 목록과 한 줄 설명이 나오고, 각각에 --help를 붙이면 쓰는 법이 나옵니다.</string>
     <string name="tip_macro_title">매크로는 AI에게 맡겨 보세요</string>
     <string name="tip_macro_body">알림, RSS 확인, 모르는 번호에서 온 전화 기록 — 이런 것들은 앱의 기능이 아니라 매크로입니다. 원하는 것을 설명하면 AI가 대신 써 줍니다.</string>
     <string name="settings_group_about">이 앱에 대하여</string>
@@ -51,9 +51,6 @@
     <string name="settings_section_distro">배포판 (바꾸면 지금 세션이 다시 시작됩니다)</string>
     <string name="settings_section_keyboard_style">키보드 동작</string>
     <string name="settings_keyboard_toggle_bar">키보드 토글 바</string>
-    <string name="settings_keyboard_number_face">숫자 면 보이기</string>
-    <string name="settings_keyboard_number_face_desc">내장 키보드에 숫자만 있는 면(숫자 키패드)을 더해, 전환 키가 12도 거치도록 합니다. 끄면 예전처럼 あ → A → あ 순서로 돕니다</string>
-    <string name="settings_keyboard_face_order">면 전환 순서</string>
     <string name="settings_section_key_layout">키 배열 (직접 만들기)</string>
     <string name="settings_key_layout_desc">쓸 면과 그 순서를 여기서 고릅니다. 아무 면이나 복제하면 자신만의 면이 되고, 직접 만든 면은 편집으로 이름과 키를 바꿀 수 있습니다.</string>
     <string name="settings_keyboard_faces_title">키보드가 쓰는 면</string>
@@ -63,19 +60,12 @@
     <string name="settings_keyboard_face_builtin_ascii">영문 — 사방 플릭 (내장)</string>
     <string name="settings_keyboard_face_builtin_ascii_simple">영문 — 단순 (내장, 처음에는 꺼짐)</string>
     <string name="settings_keyboard_face_builtin_number">숫자 (내장)</string>
-    <string name="settings_key_layout_default">직접 만든 배열 고르기</string>
-    <string name="settings_key_layout_duplicate">영문 배열 복제</string>
     <string name="settings_key_layout_new_name">내 영문</string>
-    <string name="settings_key_layout_duplicate_kana">일본어 배열 복제</string>
-    <string name="settings_key_layout_duplicate_number">숫자 배열 복제</string>
-    <string name="settings_key_layout_duplicate_active">고른 배열 복제</string>
     <string name="settings_key_layout_new_kana_name">내 일본어</string>
     <string name="settings_key_layout_new_number_name">내 숫자</string>
     <string name="settings_key_layout_copy_name">내 사본</string>
     <string name="settings_key_layout_name">이름</string>
-    <string name="settings_key_layout_edit">내용 편집</string>
     <string name="settings_key_layout_delete">이 배열 삭제</string>
-    <string name="settings_key_layout_target_note">ABC, あ, 12는 이 배열의 종류를 나타냅니다. 쓸지 말지와 순서는 위의 “키보드가 쓰는 면”에서 따로 정합니다.</string>
     <string name="settings_key_layout_duplicate_action">복제</string>
     <string name="settings_key_layout_edit_action">편집</string>
     <string name="settings_keyboard_test_title">키보드 입력 테스트</string>
@@ -100,7 +90,6 @@
     <string name="settings_key_layout_mode_json">JSON</string>
     <string name="settings_key_layout_visual_desc">설정을 스크롤해도 미리보기는 아래에 유지됩니다. 여러 키의 너비, 모양, 제스처를 바꾸려면 키 옆의 다중 선택을 켜세요.</string>
     <string name="settings_key_layout_preview_title">키를 누르면 편집합니다</string>
-    <string name="settings_key_layout_preview_desc">고른 키는 초록색으로 표시됩니다</string>
     <string name="settings_key_layout_child_letters">영문</string>
     <string name="settings_key_layout_child_symbols">기호 (?#)</string>
     <string name="settings_key_layout_restore_default">복제한 기본 상태로 되돌리기</string>
@@ -109,7 +98,6 @@
     <string name="settings_key_layout_delete_confirm_title">이 키보드 면을 삭제할까요?</string>
     <string name="settings_key_layout_delete_confirm_msg">“%1$s”이(가) 삭제되며 되돌릴 수 없습니다.</string>
     <string name="settings_key_layout_multi_select">여러 개 선택</string>
-    <string name="settings_key_layout_multi_select_desc">다른 키를 눌러도 고른 키를 그대로 둡니다</string>
     <string name="settings_key_layout_selected">%1$d번째 줄 / %2$d번째 칸%3$s</string>
     <string name="settings_key_layout_selected_count">%1$d개 키를 골랐습니다</string>
     <string name="settings_key_layout_label">키 라벨</string>
@@ -181,8 +169,6 @@
     <string name="settings_confirm_download">내려받기 전에 확인</string>
     <string name="settings_confirm_download_desc">켜짐: 배포판이나 GUI 패키지를 내려받기 전에 묻습니다. 꺼짐: 묻지 않고 내려받습니다.</string>
     <string name="settings_section_process_guard">백그라운드 프로세스 보호</string>
-    <string name="settings_battery_opt_toggle">배터리 최적화에서 제외</string>
-    <string name="settings_battery_opt_toggle_desc">켜짐: 백그라운드에서 세션과 실행 중인 프로세스가 OS에 종료될 가능성이 줄어듭니다. 끄면 시스템 설정이 열립니다(Android는 앱이 스스로 최적화를 다시 켜는 것을 허용하지 않습니다).</string>
     <string name="settings_phantom_title">그래도 프로세스가 죽는다면 (Android 12/13)</string>
     <string name="settings_phantom_desc">Android 12/13은 proot가 만드는 \"팬텀 프로세스\"를 종료할 수 있습니다. 앱 안에서는 바꿀 수 없으므로, PC에서 adb로 아래를 실행한 뒤 기기를 다시 켜세요. Android 14 이상은 대개 이미 느슨합니다.</string>
     <string name="settings_low_power">절전 모드</string>
@@ -295,7 +281,6 @@
     <string name="licenses_view_full_text">라이선스 전문</string>
     <string name="licenses_full_text_title">라이선스 전문</string>
     <string name="licenses_license_text_heading">라이선스 본문</string>
-    <string name="licenses_source_line">소스: %1$s</string>
     <string name="licenses_full_text_missing">(이 라이선스의 전문은 함께 싣지 않았습니다. SPDX: %1$s\n공식 본문은 https://spdx.org/licenses/%1$s.html 에서 보세요.)</string>
     <string name="confirm_clean_install_title">%1$s 클린 설치</string>
     <string name="confirm_download_title">%1$s 내려받기</string>
@@ -375,7 +360,6 @@
     <string name="ssh_new_profile_title">새 연결</string>
     <string name="ssh_edit_profile_title">연결 편집: %1$s</string>
     <string name="ssh_field_name">이름</string>
-    <string name="connection_protocol">연결 방식</string>
     <string name="connection_field_webdav_url">WebDAV URL</string>
     <string name="connection_field_smb_host">SMB 호스트</string>
     <string name="connection_field_smb_share">공유 이름</string>
@@ -412,10 +396,7 @@
     <string name="password_hide">숨기기</string>
     <string name="ssh_field_private_key">개인 키 (PEM)</string>
     <string name="ssh_field_passphrase">암호 문구 (키에 걸려 있다면)</string>
-    <string name="ssh_vnc_section">VNC (데스크톱)</string>
-    <string name="ssh_field_vnc_port">VNC 포트</string>
     <string name="ssh_field_vnc_password">VNC 비밀번호</string>
-    <string name="ssh_vnc_note">[VNC]는 이 호스트의 데스크톱을 새 탭에서 엽니다. 디스플레이 :N은 포트 5900+N입니다(:1 = 5901). 이 비밀번호는 SSH가 아니라 VNC의 것입니다(최대 8자). 서버가 127.0.0.1에서만 듣고 있다면 먼저 ssh -L 5901:localhost:5901로 포워딩한 뒤 이 항목을 127.0.0.1로 향하게 하세요.</string>
     <string name="vnc_connecting">%1$s:%2$d에 연결하는 중…</string>
     <string name="vnc_disconnected">서버가 연결을 끊었습니다.</string>
     <string name="vnc_error_password_required">이 VNC 서버는 비밀번호를 요구합니다. 도구(📜) › 연결에서 이 호스트의 "VNC 비밀번호"를 넣으세요.</string>
@@ -444,17 +425,14 @@
     <string name="hostkey_warning">믿을 수 있는 호스트인지 확인하세요.\n중간자 공격(MITM)일 수 있습니다.</string>
     <string name="hostkey_action_trust">신뢰하고 연결</string>
     <string name="sftp_toast_list_failed">목록을 가져오지 못했습니다: %1$s</string>
-    <string name="sftp_toast_save_target_unavailable">저장할 곳을 열 수 없습니다</string>
     <string name="sftp_toast_download_complete">내려받기 완료: %1$s</string>
     <string name="sftp_toast_download_failed">내려받기에 실패했습니다: %1$s</string>
-    <string name="sftp_toast_open_file_failed">파일을 열 수 없습니다</string>
     <string name="sftp_toast_upload_complete">올리기 완료: %1$s</string>
     <string name="sftp_toast_upload_failed">올리기에 실패했습니다: %1$s</string>
     <string name="sftp_button_up">↑ 위로</string>
     <string name="sftp_status_connecting">연결하는 중…</string>
     <string name="sftp_status_connect_failed">연결에 실패했습니다: %1$s</string>
     <string name="sftp_status_empty_dir">(빈 디렉터리)</string>
-    <string name="sftp_button_upload">⬆ 올리기</string>
     <string name="sftp_button_new_folder">＋ 새 폴더</string>
     <string name="sftp_dialog_rename_title">이름 바꾸기</string>
     <string name="sftp_dialog_rename_confirm">이름 바꾸기</string>
@@ -567,10 +545,6 @@
     <string name="sshaccess_wifi_unavailable">Wi-Fi에 연결하세요 (IP를 찾지 못했습니다)</string>
     <string name="sshaccess_from_pc_header">\nPC에서:</string>
     <string name="sshaccess_note">`sshd`는 터미널에서도 띄울 수 있습니다(포트는 sshd_config의 Port 또는 `-p`).\nOpenSSH /usr/sbin/sshd는 proot 아래에서 privsep이 깨지므로 dropbear를 씁니다.\n자세한 내용은 docs/SSH-INTO-Z2TERM.md를 보세요</string>
-    <string name="storage_access_title">저장소 접근 (cd /sdcard)</string>
-    <string name="storage_access_granted">✅ 허용되었습니다. 터미널에서 `cd /sdcard`로 공유 저장소에 갈 수 있습니다.\n   `/storage/app`은 앱 전용 영역이라 권한이 필요 없습니다.</string>
-    <string name="storage_access_denied">허용되지 않았습니다. `cd /sdcard`가 비어 보입니다. 아래 버튼으로 모든 파일에 대한\n접근을 허용하세요. (`/storage/app`은 권한 없이도 됩니다.)</string>
-    <string name="storage_access_grant_button">모든 저장소에 대한 접근 허용</string>
     <string name="gui_confirm_download_title">GUI 한 벌 내려받기</string>
     <string name="gui_confirm_download_msg">GUI(Linux 데스크톱)를 처음 켤 때는 표시용 패키지를 내려받아야 합니다(수십~수백 MB). Wi-Fi를 권합니다. 계속할까요?</string>
     <string name="gui_confirm_download_action">내려받고 실행</string>
@@ -598,9 +572,6 @@
     <string name="resident_dialog_reset_session_desc">터미널을 방금 연 상태로 되돌립니다. 상주 서버는 계속 돕니다.</string>
     <string name="resident_dialog_stop_all">전부 멈추고 종료</string>
     <string name="resident_dialog_stop_all_desc">상주 서버, 시스템 이벤트 감지, 세션을 멈춘 다음 앱을 닫습니다(작업 종료와 같습니다). 설정에는 손대지 않으므로, 다음에 앱을 열면 감지가 다시 시작됩니다.</string>
-    <string name="settings_section_servers">상주 서버</string>
-    <string name="settings_servers_desc">어떤 서버든(sshd/http/smb 등) 백그라운드에서 계속 돌립니다 — 앱을 열지 않아도 됩니다.</string>
-    <string name="settings_open_servers">서버 관리</string>
     <string name="servers_title">상주 서버</string>
     <string name="servers_new">+ 새로 만들기</string>
     <string name="servers_empty">아직 서버가 없습니다. 시작 명령을 적어 추가하세요 (예: python3 -m http.server 8080).</string>
@@ -627,9 +598,6 @@
     <string name="settings_notif_capture_desc">알림 접근을 허용하면 알림과 업데이트를 감지합니다. 저장 여부는 아래에서 정합니다. 알림으로 오지 않은 내용이나 발신 앱 또는 Android가 숨긴 본문은 가져올 수 없습니다. 모두 기기 안에서 처리합니다.</string>
     <string name="settings_notif_log">알림 로그 저장</string>
     <string name="settings_notif_log_desc">받은 긴 본문과 대화·모음 알림의 새 항목을 ~/.z2term/notifications.jsonl에 저장합니다. 재게시와 과거 메시지는 중복 제거하고, 수신 시각이나 발신자가 다른 새 메시지는 남깁니다. 끄면 저장하지 않습니다.</string>
-    <string name="settings_notif_access_granted">알림 접근: 허용됨</string>
-    <string name="settings_notif_access_missing">알림 접근: 허용되지 않음 (아래를 눌러 허용하세요)</string>
-    <string name="settings_notif_grant">알림 접근 허용</string>
     <string name="settings_notif_fmt_title">출력 형식 (비우면 JSONL)</string>
     <string name="settings_notif_fmt_readable">읽기 쉽게</string>
     <string name="settings_notif_fmt_line">한 줄로</string>
@@ -646,12 +614,8 @@
     <string name="settings_section_sms">SMS 감지</string>
     <string name="settings_sms_capture">SMS 모으기</string>
     <string name="settings_sms_capture_desc">켜고 SMS 권한을 허용하면 들어오는 SMS를 ~/.z2term/sms.jsonl에 씁니다. 알림과 달리 SMS 본문은 Android의 민감한 알림 보호로 가려지지 않고 잠긴 상태에서도 들어오므로, 일회용 비밀번호가 확실히 도착합니다. 범용 훅이므로 무엇을 뽑아낼지는 터미널에서 정하세요. 전부 기기 안에서만 돕니다.</string>
-    <string name="settings_sms_perm_granted">SMS 권한: 허용됨</string>
-    <string name="settings_sms_perm_missing">SMS 권한: 허용되지 않음 (아래를 눌러 허용하세요)</string>
-    <string name="settings_sms_grant">SMS 권한 허용</string>
     <string name="settings_sms_fmt_title">출력 형식 (비우면 JSONL)</string>
     <string name="settings_sms_help">자리표시자: {time} {ts} {from} {body}. 한 줄용: {body1}. 이스케이프: \\n \\t. 새로 쌓이는 항목부터 적용됩니다. 로그: ~/.z2term/sms.jsonl</string>
-    <string name="settings_unlock_watch_admin_failed">이 기기에서는 기기 관리자를 추가하지 못했습니다 (기기 정책으로 막혀 있을 수 있습니다)</string>
     <string name="event_channel_name">Z2Term 시스템 이벤트</string>
     <string name="event_channel_desc">화면/잠금/전원/배터리/Wi-Fi 이벤트를 감지합니다</string>
     <string name="event_notification_title">시스템 이벤트 감지</string>
@@ -665,10 +629,6 @@
     <string name="settings_section_unlock_watch">잠금 해제 실패 감지</string>
     <string name="settings_unlock_watch">잠금 해제 실패 지켜보기</string>
     <string name="settings_unlock_watch_desc">켜고 기기 관리자가 켜져 있으면, 잠금 화면의 해제 실패와 성공을 unlock_failed / unlock_succeeded로 ~/.z2term/events.jsonl에 기록합니다({level} = 연속 실패 횟수). 도난 대비용 감지 훅이며, 무엇을 할지(알림, 위치 기록, 경보음)는 매크로에서 정합니다. 사진 촬영이나 업로드는 들어 있지 않습니다. 전부 기기 안에서만 돕니다.</string>
-    <string name="settings_unlock_watch_admin_active">기기 관리자: 켜짐</string>
-    <string name="settings_unlock_watch_admin_missing">기기 관리자: 꺼짐 — 켜야 잠금 해제 이벤트를 받습니다</string>
-    <string name="settings_unlock_watch_admin_grant">기기 관리자 켜기</string>
-    <string name="settings_unlock_watch_admin_manage">기기 관리자 관리 (끄려면)</string>
     <string name="settings_unlock_watch_admin_explain">도난 대비 매크로를 위해 잠금 화면의 해제 실패를 감지하는 데만 씁니다. 이 앱은 기기를 잠그거나 지우거나 초기화하지 않습니다.</string>
     <string name="settings_unlock_watch_help">기기 관리자가 필요합니다(로그인 감시만 하며 원격 잠금・초기화는 없습니다). 이벤트: {level}=실패 횟수인 unlock_failed, 그리고 unlock_succeeded. 반응은 events.jsonl을 보는 매크로로 만드세요.</string>
     <plurals name="toast_copy_from_remote">
@@ -686,7 +646,6 @@
     </plurals>
     <string name="banner_process_exited">[프로세스 종료 exitCode=%1$d]</string>
     <string name="banner_process_killed">[바깥에서 프로세스가 종료됨 %1$s exitCode=%2$d, 남은 메모리 %3$d MB]</string>
-    <string name="action_got_it">알겠습니다</string>
     <string name="keyboard_style_compact">단순</string>
     <string name="keyboard_style_spacious">사방 플릭</string>
     <string name="saf_home_title">Z2Term 홈</string>
@@ -768,7 +727,7 @@
     <string name="log_raw">색과 제어 코드까지 그대로</string>
     <string name="log_raw_desc">버그 보고용 원본 로그입니다. 끄면 사람이 읽을 수 있는 텍스트로 바꿉니다</string>
     <string name="log_timestamp">줄마다 시각 붙이기</string>
-    <string name="log_timestamp_desc">줄마다 [2026-07-27 08:42:13]처럼 폭이 일정한 날짜와 시각을 앞에 붙입니다. 바이트 그대로여야 하는 원본 로그에는 적용하지 않습니다</string>
+    <string name="log_timestamp_desc" tools:ignore="TypographyDashes">줄마다 [2026-07-27 08:42:13]처럼 폭이 일정한 날짜와 시각을 앞에 붙입니다. 바이트 그대로여야 하는 원본 로그에는 적용하지 않습니다</string>
     <string name="log_mask">키와 토큰 가리기</string>
     <string name="log_mask_desc">TOKEN=… 같은 name=value 짝, 붙여넣은 개인 키, ghp_ / AKIA처럼 모양이 정해진 토큰을 [z2term:masked]로 바꿉니다</string>
     <string name="log_secret_warning">참고: 화면에 나오는 것은 그대로 들어갑니다(입력만 하고 화면에 나오지 않는 비밀번호는 기록되지 않습니다). 기록하는 동안 툴바 버튼이 켜져 있습니다.\n참고: 가리기는 확실히 알아볼 수 있는 모양만 다루므로 완전하지 않습니다 — 자기만의 형식으로 된 비밀은 그대로 지나갑니다. 로그를 남에게 건네기 전에는 반드시 읽어 보세요.</string>
@@ -901,17 +860,10 @@
     <string name="when_fired_title">최근 발생</string>
     <string name="when_fired_empty">아직 아무것도 실행되지 않았습니다.</string>
     <string name="when_hint">▶ = 트리거를 기다리지 않고 한 번 실행 / ▤ = 그 규칙의 실행 로그 / ✎ = 편집 / ✕ = 삭제. 터미널에서 z2-when으로 만든 규칙도 여기서 고칠 수 있습니다 — 정본은 ~/.z2term/when/ 아래의 텍스트입니다.</string>
-    <string name="settings_section_automation_rules">자동화 규칙 (z2-when)</string>
-    <string name="settings_automation_rules_desc">규칙을 살펴보고, 켜고 끄고, 로그를 읽고, 한 번 해 보고, 전부 한꺼번에 멈출 수 있습니다.</string>
-    <string name="settings_open_when_rules">규칙 관리</string>
     <string name="ime_label">z2term 키보드</string>
     <string name="ime_subtype_ja">z2term (일본어)</string>
     <string name="ime_subtype_en">z2term (영어)</string>
-    <string name="settings_section_ime">내장 키보드를 다른 곳에서도</string>
-    <string name="settings_ime_desc">내장 키보드를 시스템 전체에 내주어, 앱 자신의 입력란(스니펫, SSH, SFTP, 설정)과 다른 앱에서도 같은 키보드와 같은 일본어 변환을 쓸 수 있게 합니다. 먼저 OS 목록에서 켠 다음, 키보드 전환기에서 고르세요.</string>
-    <string name="settings_ime_enable">Android 설정에서 켜기</string>
     <string name="settings_ime_pick">키보드 전환</string>
-    <string name="settings_ime_note">터미널 자체에는 영향이 없습니다. 터미널은 앱 안에 그려지는 키보드를 그대로 씁니다.</string>
     <string name="pad_clip_empty">복사한 글이 여기에 나옵니다.\n먼저 복사한 다음 키보드를 여세요.</string>
     <string name="pad_emoji_empty">자주 쓰는 이모지가 여기에 나옵니다.\n오른쪽 탭에서 골라 보세요.</string>
     <string name="tile_service_label_1">z2term 1</string>
@@ -940,12 +892,6 @@
     <string name="tile_subtitle_pair_on">켜짐 — 누르면 끕니다</string>
     <string name="tile_subtitle_pair_off">꺼짐 — 누르면 켭니다</string>
     <string name="tile_unassigned_toast">%1$d번 타일에 아무것도 없습니다. 터미널에서 지정하세요, 예: z2-tile set %1$d backup.sh</string>
-    <string name="settings_section_screen_timeout">화면 꺼짐 시간 (z2-screen)</string>
-    <string name="settings_screen_timeout_desc">정한 시간 동안 화면이 저절로 꺼지지 않게 합니다. OS 전체의 설정이라 앱이 백그라운드에 있어도 유지됩니다 — 앱이 화면에 있는 동안에만 도는 툴바의 🔅와는 다릅니다. 정해진 때가 되면 원래 값을 반드시 되돌려 놓습니다.</string>
-    <string name="settings_screen_timeout_granted">시스템 설정 수정: 허용됨</string>
-    <string name="settings_screen_timeout_missing">시스템 설정 수정: 허용되지 않음 (아래를 눌러 허용하세요)</string>
-    <string name="settings_screen_timeout_grant">시스템 설정 수정 허용</string>
-    <string name="settings_screen_timeout_cmd_label">터미널에서 (누르면 복사). z2-screen keepon off로 미리 되돌릴 수 있습니다</string>
     <string name="intro_title">먼저 해 볼 것 (누르면 실행됩니다. ✕로 필요 없는 것을 지웁니다)</string>
     <string name="intro_footer">전체 목록은 z2help / 잘 안 될 때는 z2doctor</string>
     <string name="intro_card_notify">휴대전화에 알림 띄우기</string>
@@ -994,7 +940,7 @@
     <string name="guide_ask_feed_url">읽을 피드 URL (하나씩. 나중에 더 넣을 수 있습니다)</string>
     <string name="guide_ask_interval">얼마나 자주 볼지 (30m / 1h …. 30분보다 짧게는 하지 마세요)</string>
     <string name="guide_ask_daily_time">몇 시에 읽어 줄지 (HH:MM)</string>
-    <string name="guide_ask_battery_level">배터리 몇 % 밑에서 알릴지</string>
+    <string name="guide_ask_battery_level" formatted="false">배터리 몇 % 밑에서 알릴지</string>
     <string name="guide_ask_qr_text">QR 코드로 만들 글이나 URL</string>
     <string name="no_os_title">Android 셸을 사용할 수 있습니다</string>
     <string name="no_os_action">설정 -> Linux 환경: 원하는 OS를 골라 설치하세요</string>
@@ -1168,7 +1114,6 @@ SSH 연결: %3$d
     <string name="settings_delete_os_failed">OS 데이터를 모두 삭제하지 못했습니다. 일부 데이터가 남아 있을 수 있습니다. 진단 로그를 확인하세요.</string>
 
     <!-- Generic macro forms in the edge panel -->
-    <string name="edge_type_macro">인수 매크로</string>
     <string name="edge_type_argument">인수 입력란</string>
     <string name="edge_type_result">결과 표시란</string>
     <string name="edge_macro_args">명령에 전달할 값 (위에서부터 순서대로)</string>
@@ -1178,9 +1123,6 @@ SSH 연결: %3$d
     <string name="edge_argument_choices">선택지 (| 구분)</string>
     <string name="edge_argument_required">필수 입력</string>
     <string name="edge_form_rows">표시 줄 수 (1–20)</string>
-    <string name="edge_argument_text">자유 입력</string>
-    <string name="edge_argument_choice">선택</string>
-    <string name="edge_argument_fixed">고정값</string>
     <string name="edge_argument_optional">선택 사항</string>
     <string name="edge_argument_mandatory">필수</string>
     <string name="edge_pick_argument">값을 가져올 항목 선택</string>
@@ -1236,7 +1178,7 @@ SSH 연결: %3$d
     <string name="guide_step_edge_local">패널이 사용하는 로컬 Linux 환경의 터미널에서 셸 입력 대기 상태로 진행하세요.</string>
     <string name="guide_step_sample_create">탭 세 개가 있는 예제 패널 하나 만들기 (기존 설정과 항목 유지)</string>
     <string name="guide_step_sample_open">패널을 켜고 예제 열기 (오른쪽 막대를 안쪽으로 밀면 다시 열립니다)</string>
-    <string name="guide_step_sample_use">세 탭을 전환하며 사용하세요. 메모는 두 번 눌러 편집하며 자동 저장됩니다. 번역은 원문과 대상 언어를 지정한 뒤 번역을 누르세요. 탭 전환이나 닫기로 번역 입력과 결과는 지워집니다. 터미널의 셸, 출력, 입력 중인 내용은 유지되며 ↻로 직접 초기화합니다. 샘플 바의 불투명도는 30%입니다.</string>
-    <string name="guide_step_translation_cli">trans가 없다면 같은 Linux 환경에서 해당 명령을 직접 실행하세요.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\n이 카드는 안내용이며 눌러도 설치되지 않습니다. 번역할 텍스트는 외부 번역 서비스로 전송됩니다.</string>
+    <string name="guide_step_sample_use" formatted="false">세 탭을 전환하며 사용하세요. 메모는 두 번 눌러 편집하며 자동 저장됩니다. 번역은 원문과 대상 언어를 지정한 뒤 번역을 누르세요. 탭 전환이나 닫기로 번역 입력과 결과는 지워집니다. 터미널의 셸, 출력, 입력 중인 내용은 유지되며 ↻로 직접 초기화합니다. 샘플 바의 불투명도는 30%입니다.</string>
+    <string name="guide_step_translation_cli" tools:ignore="TypographyDashes">trans가 없다면 같은 Linux 환경에서 해당 명령을 직접 실행하세요.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\n이 카드는 안내용이며 눌러도 설치되지 않습니다. 번역할 텍스트는 외부 번역 서비스로 전송됩니다.</string>
     <string name="guide_sample_translation_missing">먼저 trans를 설치하고 번역 매크로를 준비한 다음 예제 만들기를 다시 실행하세요.</string>
 </resources>

@@ -3,7 +3,6 @@
     <string name="action_macro_title">Android操作巨集</string>
     <string name="action_macro_running">執行中：%1$s</string>
     <string name="action_macro_stop">停止巨集</string>
-    <string name="action_edit_open">管理操作巨集</string>
     <string name="action_edit_intro">建立、編輯和執行Android操作步驟。點「取得座標」可選擇螢幕上的位置。</string>
     <string name="action_edit_title">編輯操作巨集</string>
     <string name="action_edit_close">關閉</string>
@@ -58,7 +57,6 @@
     <string name="action_edit_step">編輯步驟</string>
     <string name="action_edit_pick">取得座標</string>
     <string name="action_pick_busy">請先結束座標選擇或目前的巨集。</string>
-    <string name="action_pick_target">選擇元素前，請先新增應用程式啟動或目標指定步驟。</string>
     <string name="action_pick_cancelled">座標選擇已取消（取消、螢幕變更、鎖定、中斷或超過 2 分鐘）。</string>
     <string name="action_pick_prepare">現在可以正常操作螢幕。進入所需畫面後點「取得座標」。</string>
     <string name="action_pick_swipe">請在 3 秒內滑動，然後點選「套用」。滑動時間會被記錄。使用「瀏覽」操作畫面。</string>

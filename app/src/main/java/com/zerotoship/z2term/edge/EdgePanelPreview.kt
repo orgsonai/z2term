@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.edge
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -7,6 +8,7 @@ import android.view.View
 import com.zerotoship.z2term.R
 
 /** A scaled display diagram shows the requested size/limit and placement without resizing the editor. */
+@SuppressLint("ViewConstructor") // Built in code only, never inflated from XML.
 internal class EdgePanelPreview(context: Context, private var fields: Map<String, String>,
     private val screenWidth: Int, private val screenHeight: Int) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)

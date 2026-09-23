@@ -40,6 +40,7 @@ import com.zerotoship.z2term.ui.settings.PillButton
 import com.zerotoship.z2term.ui.theme.*
 import java.text.DateFormat
 import java.util.Date
+import androidx.core.content.edit
 
 internal class DirectShareActivity : QrActivityBase() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,8 +68,9 @@ internal class DirectShareActivity : QrActivityBase() {
             runCatching { ShareRelayConfig.parse(profile?.id.orEmpty(), origin, port.toInt(), minutes) }.getOrNull()
         }
         fun saveSettings() {
-            preferences.edit().putString("profile", profileId).putString("origin", origin)
-                .putString("remotePort", port).apply()
+            preferences.edit {
+                putString("profile", profileId).putString("origin", origin).putString("remotePort", port)
+            }
             saved = true
         }
         fun select(uri: Uri?, folder: Boolean) {

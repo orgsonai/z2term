@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.edge
 
+import android.annotation.SuppressLint
 import android.accessibilityservice.AccessibilityService
 import android.content.ContentValues
 import android.content.Context
@@ -38,6 +39,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
+import androidx.core.view.isNotEmpty
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withClip
+import androidx.core.graphics.withScale
+import androidx.core.graphics.toColorInt
 
 /**
  * 撮りたいところだけを撮る。
@@ -56,6 +62,9 @@ import kotlin.math.abs
  * あるため、囲みは常に画像の画素座標で組み立て、表示するときだけ引き伸ばす。こうしないと
  * 「見えていた位置」と「保存された位置」がずれる。
  */
+// Holds only the application context and windows it adds itself; every one is removed and
+// cleared when it closes, so nothing outlives the overlay it belongs to.
+@SuppressLint("StaticFieldLeak")
 internal object RegionShot {
     /** 端末の画像フォルダ。ギャラリーから普通の画像として見える場所へ置く。 */
     private const val FOLDER = "Pictures/z2term"
@@ -188,7 +197,7 @@ internal object RegionShot {
             val area = Rect().also { bounds.roundOut(it) }
             if (!area.intersect(0, 0, src.width, src.height)) return null
             if (area.width() < 8 || area.height() < 8) return null
-            val out = Bitmap.createBitmap(area.width(), area.height(), Bitmap.Config.ARGB_8888)
+            val out = createBitmap(area.width(), area.height())
             val canvas = Canvas(out)
             val dx = -area.left.toFloat()
             val dy = -area.top.toFloat()
@@ -328,7 +337,7 @@ internal object RegionShot {
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT
             ).apply {
-                gravity = Gravity.TOP or Gravity.LEFT
+                gravity = ScreenGravity.TOP_LEFT
                 layoutInDisplayCutoutMode =
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
@@ -354,7 +363,7 @@ internal object RegionShot {
             fun button(label: String, kind: EdgeSettingsUi.Kind, action: () -> Unit) {
                 row.addView(EdgeSettingsUi.button(service, label, kind, action),
                     LinearLayout.LayoutParams(0, -2, 1f).apply {
-                        if (row.childCount > 0) leftMargin = EdgeSettingsUi.dp(service, 8)
+                        if (row.isNotEmpty()) leftMargin = EdgeSettingsUi.dp(service, 8)
                     })
             }
             if (preview) {
@@ -386,6 +395,7 @@ internal object RegionShot {
 
         /** 静止画の上で囲む。タッチは下のアプリへ渡さない。 */
         private inner class SelectView : View(service) {
+            private val whole = RectF()
             private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = EdgeSettingsUi.accent(service)
                 style = Paint.Style.STROKE
@@ -430,15 +440,14 @@ internal object RegionShot {
 
             override fun onDraw(canvas: Canvas) {
                 val image = shot ?: return
-                canvas.drawBitmap(image, null,
-                    RectF(0f, 0f, width.toFloat(), height.toFloat()), null)
+                whole.set(0f, 0f, width.toFloat(), height.toFloat())
+                canvas.drawBitmap(image, null, whole, null)
                 val path = (if (drawing) build() else null) ?: return
-                canvas.save()
-                canvas.scale(1f / scaleX(), 1f / scaleY())
-                // 引き伸ばしで線まで太らないよう、拡大率のぶんだけ細くしておく。
-                line.strokeWidth = 4f * scaleX()
-                canvas.drawPath(path, line)
-                canvas.restore()
+                canvas.withScale(1f / scaleX(), 1f / scaleY()) {
+                    // 引き伸ばしで線まで太らないよう、拡大率のぶんだけ細くしておく。
+                    line.strokeWidth = 4f * scaleX()
+                    drawPath(path, line)
+                }
             }
 
             override fun performClick(): Boolean { super.performClick(); return true }
@@ -478,9 +487,11 @@ internal object RegionShot {
 
         /** 切り出した結果を見せ、指で動かして位置を直せる。市松は表示だけで画像に焼き込まない。 */
         private inner class PreviewView : View(service) {
-            private val light = Paint().apply { color = Color.parseColor("#FF3A3A3A") }
-            private val dark = Paint().apply { color = Color.parseColor("#FF2A2A2A") }
-            private val shade = Paint().apply { color = Color.parseColor("#CC000000") }
+            private val room = RectF()
+            private val target = RectF()
+            private val light = Paint().apply { color = "#FF3A3A3A".toColorInt() }
+            private val dark = Paint().apply { color = "#FF2A2A2A".toColorInt() }
+            private val shade = Paint().apply { color = "#CC000000".toColorInt() }
             /** 直近の表示倍率。指の移動量を画像の画素へ直すのに使う。 */
             private var shown = 1f
             private var lastX = 0f
@@ -507,32 +518,31 @@ internal object RegionShot {
                 canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), shade)
                 val image = cropped ?: return
                 val margin = EdgeSettingsUi.dp(service, 24).toFloat()
-                val room = RectF(margin, margin, width - margin,
+                room.set(margin, margin, width - margin,
                     height - margin - EdgeSettingsUi.dp(service, 140))
                 if (room.width() <= 0 || room.height() <= 0) return
                 val scale = minOf(room.width() / image.width, room.height() / image.height, 1f)
                 shown = scale
                 val w = image.width * scale
                 val h = image.height * scale
-                val target = RectF(room.centerX() - w / 2, room.centerY() - h / 2,
+                target.set(room.centerX() - w / 2, room.centerY() - h / 2,
                     room.centerX() + w / 2, room.centerY() + h / 2)
                 if (transparent) {
                     val step = EdgeSettingsUi.dp(service, 8)
-                    canvas.save()
-                    canvas.clipRect(target)
-                    var row = 0
-                    var top = target.top
-                    while (top < target.bottom) {
-                        var column = 0
-                        var left = target.left
-                        while (left < target.right) {
-                            canvas.drawRect(left, top, left + step, top + step,
-                                if ((row + column) % 2 == 0) light else dark)
-                            left += step; column++
+                    canvas.withClip(target) {
+                        var row = 0
+                        var top = target.top
+                        while (top < target.bottom) {
+                            var column = 0
+                            var left = target.left
+                            while (left < target.right) {
+                                drawRect(left, top, left + step, top + step,
+                                    if ((row + column) % 2 == 0) light else dark)
+                                left += step; column++
+                            }
+                            top += step; row++
                         }
-                        top += step; row++
                     }
-                    canvas.restore()
                 }
                 canvas.drawBitmap(image, null, target, null)
             }

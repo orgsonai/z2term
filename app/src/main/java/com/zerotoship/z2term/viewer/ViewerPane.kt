@@ -22,6 +22,7 @@ import com.zerotoship.z2term.edge.EdgeRunner
 import com.zerotoship.z2term.edge.EdgeToolRow
 import com.zerotoship.z2term.service.HeadlessRun
 import com.zerotoship.z2term.ui.theme.AppColors
+import androidx.core.view.isEmpty
 
 /** Offline HTML and separately registered controls. HTML never supplies shell code. */
 @android.annotation.SuppressLint("ViewConstructor", "ClickableViewAccessibility") // Programmatic view; the listener defers clicks to WebView.
@@ -124,7 +125,7 @@ internal class ViewerPane(context: Context, private val key: String, private val
             })
         }
         if (expand != null && options.showExpand) tools.addView(button(R.string.viewer_expand) { expand.invoke() }.apply { isEnabled = !busy && !hasDraft })
-        tools.visibility = if (tools.childCount == 0) GONE else VISIBLE
+        tools.visibility = if (tools.isEmpty()) GONE else VISIBLE
     }
 
     private fun readSnapshot() = runCatching { ViewerStore.read(context, key) }.onSuccess {

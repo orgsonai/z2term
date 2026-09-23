@@ -15,6 +15,9 @@ import androidx.core.widget.doAfterTextChanged
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.icon.IconStore
 import com.zerotoship.z2term.widget.WidgetStore
+import androidx.core.graphics.drawable.toDrawable
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.set
 
 /** Pick into the draft; selecting a value never saves or executes it. */
 internal object EdgeItemPickers {
@@ -98,9 +101,9 @@ internal object EdgeItemPickers {
                 val drawable = if (icons && position > 0) runCatching {
                     val mask = IconStore.parse(IconStore.findSample(context, names[position - 1])!!)
                     val size = IconStore.gridOf(mask)
-                    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-                    mask.forEachIndexed { i, on -> if (on) bitmap.setPixel(i % size, i / size, text.currentTextColor) }
-                    BitmapDrawable(context.resources, bitmap).apply {
+                    val bitmap = createBitmap(size, size)
+                    mask.forEachIndexed { i, on -> if (on) bitmap[i % size, i / size] = text.currentTextColor }
+                    bitmap.toDrawable(context.resources).apply {
                         isFilterBitmap = false
                         val side = EdgeEditorUi.dp(context, 28)
                         setBounds(0, 0, side, side)

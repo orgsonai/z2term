@@ -12,8 +12,9 @@
     ここで押さえ、rootfs のダウンロードは [DistroDownloader] が URL の scheme を検証する
     (ホストを列挙しないので、配布元が増えても取りこぼさない)。
 -->
-<network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+    <!-- Deliberate: see the note at the top of this file. -->
+    <base-config cleartextTrafficPermitted="true" tools:ignore="InsecureBaseConfiguration">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>

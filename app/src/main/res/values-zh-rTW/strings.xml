@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Z2Term</string>
     <string name="action_clear">清除</string>
     <string name="settings_header">Z2Term 設定</string>
@@ -39,7 +39,7 @@
     <string name="tip_gui_clean_title">輸入 z2gui clean 可以重裝圖形環境</string>
     <string name="tip_gui_clean_body">桌面起不來的時候（多半是套件裝到一半失敗了），在終端機裡輸入 z2gui clean。它會清掉套件快取，把圖形環境整套重新裝一遍，你的檔案不會動。想裝完直接啟動就輸入 z2gui start clean。</string>
     <string name="tip_z2_commands_title">輸入 z2term 可以列出內建指令</string>
-    <string name="tip_z2_commands_body">Z2Term 給終端機新增了一批以 z2 開頭的自有指令。執行 z2term（或 z2help）會列出全部指令和一行說明，再給其中任何一個加上 --help 就能看到用法。</string>
+    <string name="tip_z2_commands_body" tools:ignore="TypographyDashes">Z2Term 給終端機新增了一批以 z2 開頭的自有指令。執行 z2term（或 z2help）會列出全部指令和一行說明，再給其中任何一個加上 --help 就能看到用法。</string>
     <string name="tip_macro_title">巨集可以讓 AI 幫你寫</string>
     <string name="tip_macro_body">提醒事項、定時查看 RSS、記錄陌生號碼來電 — 這些不是應用程式的功能，而是巨集。把你想要的東西描述出來，AI 就能替你寫好。</string>
     <string name="settings_group_about">關於本應用程式</string>
@@ -51,9 +51,6 @@
     <string name="settings_section_distro">發行版 (切換會重新啟動當前工作階段)</string>
     <string name="settings_section_keyboard_style">鍵盤操作</string>
     <string name="settings_keyboard_toggle_bar">鍵盤顯示欄</string>
-    <string name="settings_keyboard_number_face">顯示數字面</string>
-    <string name="settings_keyboard_number_face_desc">給內建鍵盤新增一個只有數字的面（小鍵盤），切換鍵的循環中會多出 12 這一檔。關掉後就還原成 あ → A → あ 的原樣</string>
-    <string name="settings_keyboard_face_order">面的切換順序</string>
     <string name="settings_section_key_layout">鍵位配置（自訂）</string>
     <string name="settings_key_layout_desc">在這裡統一設定要使用的面和它們的順序。用任意一個面的“複製”做出自訂面；自訂面可以從“編輯”改名字或改鍵位。</string>
     <string name="settings_keyboard_faces_title">鍵盤使用的面</string>
@@ -63,19 +60,12 @@
     <string name="settings_keyboard_face_builtin_ascii">字母 · 四向滑動（內建）</string>
     <string name="settings_keyboard_face_builtin_ascii_simple">字母 · 簡易（內建，預設關閉）</string>
     <string name="settings_keyboard_face_builtin_number">數字（內建）</string>
-    <string name="settings_key_layout_default">選擇要編輯的自訂配置</string>
-    <string name="settings_key_layout_duplicate">複製字母面</string>
     <string name="settings_key_layout_new_name">我的字母</string>
-    <string name="settings_key_layout_duplicate_kana">複製日文鍵盤</string>
-    <string name="settings_key_layout_duplicate_number">複製數字鍵盤</string>
-    <string name="settings_key_layout_duplicate_active">複製選中的自訂配置</string>
     <string name="settings_key_layout_new_kana_name">我的日文</string>
     <string name="settings_key_layout_new_number_name">我的數字</string>
     <string name="settings_key_layout_copy_name">我的副本</string>
     <string name="settings_key_layout_name">名稱</string>
-    <string name="settings_key_layout_edit">編輯內容</string>
     <string name="settings_key_layout_delete">刪除這個配置</string>
-    <string name="settings_key_layout_target_note">ABC、あ、12 表示這個自訂配置的類型。是否使用以及排在什麼位置，由上面的“鍵盤使用的面”單獨設定。</string>
     <string name="settings_key_layout_duplicate_action">複製</string>
     <string name="settings_key_layout_edit_action">編輯</string>
     <string name="settings_keyboard_test_title">鍵盤輸入測試</string>
@@ -100,7 +90,6 @@
     <string name="settings_key_layout_mode_json">JSON</string>
     <string name="settings_key_layout_visual_desc">捲動設定時，預覽仍固定在底部。若要批次修改寬度、外觀或手勢，請開啟按鍵旁的多選。</string>
     <string name="settings_key_layout_preview_title">點選鍵即可編輯</string>
-    <string name="settings_key_layout_preview_desc">選中的鍵以綠色顯示</string>
     <string name="settings_key_layout_child_letters">字母</string>
     <string name="settings_key_layout_child_symbols">符號（?#）</string>
     <string name="settings_key_layout_restore_default">還原成複製時的樣子</string>
@@ -109,7 +98,6 @@
     <string name="settings_key_layout_delete_confirm_title">要刪除這個鍵盤面嗎？</string>
     <string name="settings_key_layout_delete_confirm_msg">“%1$s”將被刪除，且無法還原。</string>
     <string name="settings_key_layout_multi_select">多選</string>
-    <string name="settings_key_layout_multi_select_desc">開啟期間保留已選的鍵，再點其他鍵會追加進來</string>
     <string name="settings_key_layout_selected">第 %1$d 行 / 第 %2$d 格%3$s</string>
     <string name="settings_key_layout_selected_count">已選中 %1$d 個鍵</string>
     <string name="settings_key_layout_label">鍵上顯示的文字</string>
@@ -181,8 +169,6 @@
     <string name="settings_confirm_download">下載前確認</string>
     <string name="settings_confirm_download_desc">開: 下載發行版 / 圖形套件前先詢問。關: 不詢問直接下載。</string>
     <string name="settings_section_process_guard">背景行程保護</string>
-    <string name="settings_battery_opt_toggle">從電池最佳化中排除</string>
-    <string name="settings_battery_opt_toggle_desc">開: 在背景時，工作階段和執行中的行程不容易被系統殺掉。關閉時會開啟系統設定 (因為應用程式無法直接把最佳化再開啟)。</string>
     <string name="settings_phantom_title">如果行程仍然會消失 (Android 12/13)</string>
     <string name="settings_phantom_desc">Android 12/13 有時會殺掉 proot 產生的“幻影行程”。這在應用程式內無法更改，請從電腦用 adb 執行下面的指令，然後重新啟動裝置。Android 14 以上通常預設已經放寬。</string>
     <string name="settings_low_power">省電模式</string>
@@ -296,7 +282,6 @@
     <string name="licenses_view_full_text">授權條款全文</string>
     <string name="licenses_full_text_title">授權條款全文</string>
     <string name="licenses_license_text_heading">授權條款原文</string>
-    <string name="licenses_source_line">原始碼: %1$s</string>
     <string name="licenses_full_text_missing">（本授權條款的全文未隨附。SPDX: %1$s\n官方原文請參見 https://spdx.org/licenses/%1$s.html。）</string>
     <string name="confirm_clean_install_title">全新安裝 %1$s</string>
     <string name="confirm_download_title">下載 %1$s</string>
@@ -376,7 +361,6 @@
     <string name="ssh_new_profile_title">新增連線</string>
     <string name="ssh_edit_profile_title">編輯連線: %1$s</string>
     <string name="ssh_field_name">名稱</string>
-    <string name="connection_protocol">連線類型</string>
     <string name="connection_field_webdav_url">WebDAV URL</string>
     <string name="connection_field_smb_host">SMB 主機</string>
     <string name="connection_field_smb_share">共享名稱</string>
@@ -413,10 +397,7 @@
     <string name="password_hide">隱藏</string>
     <string name="ssh_field_private_key">私鑰 (PEM)</string>
     <string name="ssh_field_passphrase">金鑰密語 (如果金鑰設定了的話)</string>
-    <string name="ssh_vnc_section">VNC (桌面)</string>
-    <string name="ssh_field_vnc_port">VNC 連接埠</string>
     <string name="ssh_field_vnc_password">VNC 密碼</string>
-    <string name="ssh_vnc_note">[VNC] 會在新分頁裡開啟這台主機的桌面。顯示 :N 對應連接埠 5900+N (:1 就是 5901)。這裡的密碼是 VNC 用的，和 SSH 的不是一回事 (最多 8 個字元有效)。如果伺服器只在 127.0.0.1 上監聽，請先用 ssh -L 5901:localhost:5901 做轉發，再把這裡填成 127.0.0.1。</string>
     <string name="vnc_connecting">正在連線 %1$s:%2$d…</string>
     <string name="vnc_disconnected">已被對端中斷連線。</string>
     <string name="vnc_error_password_required">這個 VNC 伺服器要求密碼。請在工具 (📜) › 連線目標中為這個連線目標設定“VNC 密碼”。</string>
@@ -445,17 +426,14 @@
     <string name="hostkey_warning">請務必確認這是一台可信的主機。\n有可能存在中間人攻擊 (MITM)。</string>
     <string name="hostkey_action_trust">信任並連線</string>
     <string name="sftp_toast_list_failed">取得列表失敗: %1$s</string>
-    <string name="sftp_toast_save_target_unavailable">無法開啟儲存位置</string>
     <string name="sftp_toast_download_complete">下載完成: %1$s</string>
     <string name="sftp_toast_download_failed">下載失敗: %1$s</string>
-    <string name="sftp_toast_open_file_failed">無法開啟檔案</string>
     <string name="sftp_toast_upload_complete">上傳完成: %1$s</string>
     <string name="sftp_toast_upload_failed">上傳失敗: %1$s</string>
     <string name="sftp_button_up">↑ 上一級</string>
     <string name="sftp_status_connecting">連線中…</string>
     <string name="sftp_status_connect_failed">連線失敗: %1$s</string>
     <string name="sftp_status_empty_dir">(空目錄)</string>
-    <string name="sftp_button_upload">⬆ 上傳</string>
     <string name="sftp_button_new_folder">＋ 新增資料夾</string>
     <string name="sftp_dialog_rename_title">重新命名</string>
     <string name="sftp_dialog_rename_confirm">更改</string>
@@ -568,10 +546,6 @@
     <string name="sshaccess_wifi_unavailable">請先連線 Wi-Fi (未偵測到 IP)</string>
     <string name="sshaccess_from_pc_header">\n在電腦上:</string>
     <string name="sshaccess_note">也可以在終端機裡用 `sshd` 啟動 (連接埠取自 sshd_config 的 Port，也可以用 `-p` 指定)。\nOpenSSH 的 /usr/sbin/sshd 在 proot 下會因為 privsep 而無法使用 → 改用 dropbear。\n詳情請參見 docs/SSH-INTO-Z2TERM.md</string>
-    <string name="storage_access_title">儲存存取 (cd /sdcard)</string>
-    <string name="storage_access_granted">✅ 已授權。可以在終端機裡用 `cd /sdcard` 進入共用儲存。\n   不需要權限的應用程式專屬區域是 `/storage/app`。</string>
-    <string name="storage_access_denied">未授權。`cd /sdcard` 裡看不到內容。請用下面的按鈕授予所有檔案\n存取權限。(`/storage/app` 不需要授權就能用)</string>
-    <string name="storage_access_grant_button">授予全部儲存權限</string>
     <string name="gui_confirm_download_title">下載整套圖形環境</string>
     <string name="gui_confirm_download_msg">首次啟動圖形介面 (Linux 桌面) 需要先下載顯示用的套件 (幾十到幾百 MB)。建議使用 Wi-Fi。要繼續嗎?</string>
     <string name="gui_confirm_download_action">下載並啟動</string>
@@ -599,9 +573,6 @@
     <string name="resident_dialog_reset_session_desc">把終端機還原成重新開啟時的狀態。常駐服務照常繼續執行。</string>
     <string name="resident_dialog_stop_all">全部停止並退出</string>
     <string name="resident_dialog_stop_all_desc">停止常駐服務、系統事件偵測和工作階段，然後關閉應用程式（相當於結束任務）。設定不會改動，所以下次開啟應用程式時偵測會還原。</string>
-    <string name="settings_section_servers">常駐服務</string>
-    <string name="settings_servers_desc">讓任意伺服器 (sshd/http/smb 等) 常駐背景執行 — 不開啟應用程式也能跑。</string>
-    <string name="settings_open_servers">管理伺服器</string>
     <string name="servers_title">常駐服務</string>
     <string name="servers_new">+ 新增</string>
     <string name="servers_empty">還沒有伺服器。請用啟動指令 (例: python3 -m http.server 8080) 新增一個。</string>
@@ -628,9 +599,6 @@
     <string name="settings_notif_capture_desc">取得通知使用權後，偵測通知及其更新。是否儲存由下方設定決定。未作為通知送達的內容，或傳送應用程式、Android隱藏的本文，無法取得。完全本機處理。</string>
     <string name="settings_notif_log">儲存通知日誌</string>
     <string name="settings_notif_log_desc">將收到的長文、對話歷史和彙總通知中的新訊息儲存到 ~/.z2term/notifications.jsonl。排除重複發布和舊訊息，保留接收時間或傳送者不同的新訊息。關閉時不儲存。</string>
-    <string name="settings_notif_access_granted">通知使用權: 已授予</string>
-    <string name="settings_notif_access_missing">通知使用權: 未授予（點選下方按鈕授予）</string>
-    <string name="settings_notif_grant">授予通知使用權</string>
     <string name="settings_notif_fmt_title">輸出格式（留空 = JSONL）</string>
     <string name="settings_notif_fmt_readable">易讀</string>
     <string name="settings_notif_fmt_line">單行</string>
@@ -647,12 +615,8 @@
     <string name="settings_section_sms">簡訊偵測</string>
     <string name="settings_sms_capture">偵測簡訊</string>
     <string name="settings_sms_capture_desc">開啟並且已授予簡訊權限時，收到的簡訊會追加寫入 ~/.z2term/sms.jsonl。和通知不同，簡訊正文不受 Android 敏感通知遮蔽和鎖屏狀態的影響，所以一次性密碼能可靠地取到。這是通用的偵測入口，要提取什麼可以在終端機一側自由決定。完全本機處理，不向外發送。</string>
-    <string name="settings_sms_perm_granted">簡訊權限: 已授予</string>
-    <string name="settings_sms_perm_missing">簡訊權限: 未授予（點選下方按鈕授予）</string>
-    <string name="settings_sms_grant">授予接收簡訊的權限</string>
     <string name="settings_sms_fmt_title">輸出格式（留空 = JSONL）</string>
     <string name="settings_sms_help">佔位符: {time} {ts} {from} {body}。單行化: {body1}。轉義: \\n \\t。從新的記錄開始生效。日誌: ~/.z2term/sms.jsonl</string>
-    <string name="settings_unlock_watch_admin_failed">在這台裝置上無法新增裝置管理器（可能被裝置策略禁止了）</string>
     <string name="event_channel_name">Z2Term 系統事件</string>
     <string name="event_channel_desc">偵測螢幕/鎖定/充電/電量/Wi-Fi 事件</string>
     <string name="event_notification_title">系統事件偵測</string>
@@ -666,10 +630,6 @@
     <string name="settings_section_unlock_watch">解鎖失敗監控</string>
     <string name="settings_unlock_watch">偵測解鎖失敗</string>
     <string name="settings_unlock_watch_desc">開啟並且裝置管理器已啟用時，會把鎖屏解鎖的失敗/成功以 unlock_failed / unlock_succeeded 記錄到 ~/.z2term/events.jsonl（{level} = 連續失敗次數）。這是防盜巨集的偵測入口，具體動作（通知、記錄位置、警報等）由巨集自行編排。不內建拍照和上傳功能。完全本機處理。</string>
-    <string name="settings_unlock_watch_admin_active">裝置管理器: 已啟用</string>
-    <string name="settings_unlock_watch_admin_missing">裝置管理器: 未啟用 — 啟用後才能收到解鎖事件</string>
-    <string name="settings_unlock_watch_admin_grant">啟用裝置管理器</string>
-    <string name="settings_unlock_watch_admin_manage">管理裝置管理器（停用請到這裡）</string>
     <string name="settings_unlock_watch_admin_explain">僅用於防盜巨集，偵測鎖屏解鎖失敗。本應用程式不會鎖定、清除或重設你的裝置。</string>
     <string name="settings_unlock_watch_help">需要裝置管理器（只用 watch-login，不做遠端鎖定/清除）。事件: unlock_failed（{level}=失敗次數）、unlock_succeeded。要怎麼反應，請用讀取 events.jsonl 的巨集來編排。</string>
     <plurals name="toast_copy_from_remote">
@@ -687,7 +647,6 @@
     </plurals>
     <string name="banner_process_exited">[行程結束 exitCode=%1$d]</string>
     <string name="banner_process_killed">[行程被外部終止 %1$s exitCode=%2$d, 剩餘 %3$d MB]</string>
-    <string name="action_got_it">知道了</string>
     <string name="keyboard_style_compact">簡易</string>
     <string name="keyboard_style_spacious">四向滑動</string>
     <string name="saf_home_title">Z2Term 主目錄</string>
@@ -769,7 +728,7 @@
     <string name="log_raw">保留顏色和控制字元</string>
     <string name="log_raw_desc">用於故障報告的原始日誌。關閉則轉換成人能讀的文字</string>
     <string name="log_timestamp">每行開頭加上時間</string>
-    <string name="log_timestamp_desc">像 [2026-07-27 08:42:13] 這樣，在行首加上位數對齊的日期時間。原始日誌不會加（要原樣保留位元組序列）</string>
+    <string name="log_timestamp_desc" tools:ignore="TypographyDashes">像 [2026-07-27 08:42:13] 這樣，在行首加上位數對齊的日期時間。原始日誌不會加（要原樣保留位元組序列）</string>
     <string name="log_mask">把金鑰和權杖打碼</string>
     <string name="log_mask_desc">把 TOKEN=… 這類“名稱＝值”、貼上進來的私鑰，以及 ghp_ / AKIA 等形狀固定的權杖替換成 [z2term:masked]</string>
     <string name="log_secret_warning">※ 螢幕上出現過的內容會原樣記進去（只是敲進去、不顯示在螢幕上的密碼不會被記錄）。記錄期間工具列的按鈕會一直亮著。\n※ 打碼只針對形狀明確的內容，並不完備 — 你自己格式的機密會直接漏過去。交給別人之前，請務必先看一遍日誌的內容。</string>
@@ -902,17 +861,10 @@
     <string name="when_fired_title">最近的觸發</string>
     <string name="when_fired_empty">還什麼都沒有執行過。</string>
     <string name="when_hint">▶ = 不等觸發條件，先試跑一次 ／ ▤ = 那條規則的執行日誌 ／ ✎ = 修改內容 ／ ✕ = 刪除。在終端機裡用 z2-when 建立的規則也能在這裡修改（正本是 ~/.z2term/when/ 下的文字）。</string>
-    <string name="settings_section_automation_rules">自動化規則（z2-when）</string>
-    <string name="settings_automation_rules_desc">查看已登記的規則、開關它們、查看執行日誌、試跑，以及一次性全部暫停。</string>
-    <string name="settings_open_when_rules">管理規則</string>
     <string name="ime_label">z2term 鍵盤</string>
     <string name="ime_subtype_ja">z2term（日文）</string>
     <string name="ime_subtype_en">z2term（英文）</string>
-    <string name="settings_section_ime">在別處也使用內建鍵盤</string>
-    <string name="settings_ime_desc">把內建鍵盤作為系統輸入法提供出去。這樣在應用程式自己的輸入框（程式碼片段、SSH、SFTP、設定）裡和其他應用程式裡，都能用同一套鍵盤和同一套日文轉換來打字。請先在系統的輸入法列表裡啟用它，再從鍵盤切換裡選中。</string>
-    <string name="settings_ime_enable">在 Android 設定裡啟用</string>
     <string name="settings_ime_pick">切換鍵盤</string>
-    <string name="settings_ime_note">終端機畫面不受影響: 它仍然使用應用程式內部繪製的那套鍵盤。</string>
     <string name="pad_clip_empty">複製過的文字會排列在這裡。\n先複製，再開啟鍵盤就能看到。</string>
     <string name="pad_emoji_empty">用過的表情符號會排列在這裡。\n請從右邊的標籤裡挑選。</string>
     <string name="tile_service_label_1">z2term 1</string>
@@ -941,12 +893,6 @@
     <string name="tile_subtitle_pair_on">開 — 按一下關閉</string>
     <string name="tile_subtitle_pair_off">關 — 按一下開啟</string>
     <string name="tile_unassigned_toast">圖塊 %1$d 上什麼都沒有分配。請在終端機裡像 z2-tile set %1$d backup.sh 這樣分配</string>
-    <string name="settings_section_screen_timeout">螢幕自動熄滅（z2-screen）</string>
-    <string name="settings_screen_timeout_desc">在你指定的時間內，讓螢幕不會自己熄滅。它改的是系統全域設定，所以把應用程式收到背景也仍然有效（工具列的🔅只在開啟應用程式期間有效，是另一回事）。到期時一定會把原來的值寫回去。</string>
-    <string name="settings_screen_timeout_granted">修改系統設定: 已授權</string>
-    <string name="settings_screen_timeout_missing">修改系統設定: 未授權（點選下方按鈕授權）</string>
-    <string name="settings_screen_timeout_grant">允許修改系統設定</string>
-    <string name="settings_screen_timeout_cmd_label">在終端機裡的用法（點選複製）。想提前還原就用 z2-screen keepon off</string>
     <string name="intro_title">開始之前（點選即可執行。不需要的行可以用 ✕ 去掉）</string>
     <string name="intro_footer">完整列表看 z2help ／ 有東西跑不起來就用 z2doctor</string>
     <string name="intro_card_notify">試著在手機上發一條通知</string>
@@ -995,7 +941,7 @@
     <string name="guide_ask_feed_url">想讀的訂閱源 URL（一次一個，之後想加多少都行）</string>
     <string name="guide_ask_interval">每隔多久去看一次（30m / 1h 等。不要短於 30 分鐘）</string>
     <string name="guide_ask_daily_time">在幾點播報（HH:MM）</string>
-    <string name="guide_ask_battery_level">電量低於百分之幾時通知</string>
+    <string name="guide_ask_battery_level" formatted="false">電量低於百分之幾時通知</string>
     <string name="guide_ask_qr_text">想做成二維條碼的文字或 URL</string>
     <string name="no_os_title">Android Shell已就緒</string>
     <string name="no_os_action">⚙設定 → Linux 環境，選一個想用的系統裝上</string>
@@ -1175,7 +1121,6 @@ SSH 連線目標 %3$d 個
     <string name="settings_delete_os_failed">無法刪除全部 OS 資料。可能仍有部分資料殘留。請查看診斷記錄。</string>
 
     <!-- Generic macro forms in the edge panel -->
-    <string name="edge_type_macro">含引數的巨集</string>
     <string name="edge_type_argument">引數欄</string>
     <string name="edge_type_result">結果欄</string>
     <string name="edge_macro_args">傳給命令的值（由上至下）</string>
@@ -1185,9 +1130,6 @@ SSH 連線目標 %3$d 個
     <string name="edge_argument_choices">選項（以 | 分隔）</string>
     <string name="edge_argument_required">必填</string>
     <string name="edge_form_rows">顯示行數（1–20）</string>
-    <string name="edge_argument_text">自由輸入</string>
-    <string name="edge_argument_choice">選擇</string>
-    <string name="edge_argument_fixed">固定值</string>
     <string name="edge_argument_optional">選填</string>
     <string name="edge_argument_mandatory">必填</string>
     <string name="edge_pick_argument">選擇提供值的項目</string>
@@ -1243,7 +1185,7 @@ SSH 連線目標 %3$d 個
     <string name="guide_step_edge_local">請在面板使用的本機 Linux 環境中開啟終端機，等候 shell 輸入提示後再繼續。</string>
     <string name="guide_step_sample_create">建立一個含三個分頁的範例面板（保留既有設定與項目）</string>
     <string name="guide_step_sample_open">啟用面板並開啟範例（從右側邊欄向內滑動可再次開啟）</string>
-    <string name="guide_step_sample_use">切換三個分頁使用。點兩下筆記正文即可編輯，內容自動儲存。翻譯時輸入原文、選擇目標語言並點選翻譯。切換分頁或關閉面板會清除翻譯輸入和結果。終端的 Shell、輸出和輸入草稿會保留，可用 ↻ 手動重新整理。範例列的不透明度為30%。</string>
-    <string name="guide_step_translation_cli">若尚未安裝 trans，請在同一 Linux 環境中手動執行對應命令。\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\n此卡片僅供閱讀，點選不會安裝。待翻譯文字會傳送至外部翻譯服務。</string>
+    <string name="guide_step_sample_use" formatted="false">切換三個分頁使用。點兩下筆記正文即可編輯，內容自動儲存。翻譯時輸入原文、選擇目標語言並點選翻譯。切換分頁或關閉面板會清除翻譯輸入和結果。終端的 Shell、輸出和輸入草稿會保留，可用 ↻ 手動重新整理。範例列的不透明度為30%。</string>
+    <string name="guide_step_translation_cli" tools:ignore="TypographyDashes">若尚未安裝 trans，請在同一 Linux 環境中手動執行對應命令。\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\n此卡片僅供閱讀，點選不會安裝。待翻譯文字會傳送至外部翻譯服務。</string>
     <string name="guide_sample_translation_missing">請先安裝 trans 並準備翻譯巨集，再重新執行範例建立步驟。</string>
 </resources>

@@ -260,7 +260,13 @@ fun z2doctorScript(lang: String = "ja"): String {
         |  *) if [ "${d}freem" -lt 500 ]; then bad "$lDisk: ${d}freem MB" "$fixDisk"; else ok "$lDisk: ${d}freem MB"; fi ;;
         |esac
         |# sshd は「動いていない」が正常な場合もあるので NG にしない (事実だけ出す)。
-        |if pgrep -x dropbear >/dev/null 2>&1 || pgrep -x sshd >/dev/null 2>&1; then
+        |# 常駐サーバーの sshd はアプリ側で動き、ここの /proc からは見えない (pgrep では
+        |# 動いていても not running になっていた)。z2-server の状態も見る。
+        |sshd_server=
+        |for id in ${d}(z2-server list 2>/dev/null | awk -F'\t' '${d}3=="running"{print ${d}2}'); do
+        |  z2-server status "${d}id" 2>/dev/null | grep -Eq "command=(sshd|dropbear)( |${d})" && sshd_server=1
+        |done
+        |if [ -n "${d}sshd_server" ] || pgrep -x dropbear >/dev/null 2>&1 || pgrep -x sshd >/dev/null 2>&1; then
         |  ok "$lSshd: running"
         |else
         |  none "$lSshd: not running"

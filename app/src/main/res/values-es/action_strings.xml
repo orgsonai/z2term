@@ -3,7 +3,6 @@
     <string name="action_macro_title">Macros de acciones Android</string>
     <string name="action_macro_running">En ejecución: %1$s</string>
     <string name="action_macro_stop">Detener macro</string>
-    <string name="action_edit_open">Gestionar macros de acciones</string>
     <string name="action_edit_intro">Crea, edita y ejecuta secuencias de acciones Android. Usa Elegir coordenadas para seleccionar posiciones en pantalla.</string>
     <string name="action_edit_title">Editar macro de acciones</string>
     <string name="action_edit_close">Cerrar</string>
@@ -58,7 +57,6 @@
     <string name="action_edit_step">Editar paso</string>
     <string name="action_edit_pick">Elegir coordenadas</string>
     <string name="action_pick_busy">Finaliza la selección o la macro actual primero.</string>
-    <string name="action_pick_target">Añade un paso de inicio o destino para elegir elementos de esa app.</string>
     <string name="action_pick_cancelled">Selección cancelada (cancelación, cambio de pantalla, bloqueo, desconexión o límite de 2 minutos).</string>
     <string name="action_pick_prepare">Puedes usar la pantalla normalmente. Ve a la pantalla deseada y pulsa Elegir coordenadas.</string>
     <string name="action_pick_swipe">Dibuja el deslizamiento en 3 segundos y pulsa Aplicar. Se graba su duración. Usa Navegar para controlar la pantalla.</string>

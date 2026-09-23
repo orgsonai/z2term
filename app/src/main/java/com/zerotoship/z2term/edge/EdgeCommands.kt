@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import org.json.JSONObject
+import androidx.core.net.toUri
 
 object EdgeCommands {
     fun command(context: Context, args: List<String>): String {
@@ -14,7 +15,7 @@ object EdgeCommands {
         return when (args.firstOrNull()) {
             "permission" -> {
                 count(1)
-                context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
+                context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:${context.packageName}".toUri())
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 context.getString(com.zerotoship.z2term.R.string.edge_overlay_help)
             }

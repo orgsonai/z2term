@@ -13,6 +13,7 @@ import android.widget.Toast
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.widget.WidgetStore
 import java.util.UUID
+import androidx.core.view.isNotEmpty
 
 /** One opening owns the input snapshots and result leases; closing cancels its commands. */
 internal class EdgeMacroUi(private val context: Context, private val panel: EdgeStore.Panel,
@@ -99,7 +100,7 @@ internal class EdgeMacroUi(private val context: Context, private val panel: Edge
             })
         }
         addClose(tools)
-        if (tools.childCount > 0) parent.addView(tools)
+        if (tools.isNotEmpty()) parent.addView(tools)
         parent.addView(state)
         val rows = item.fields["rows"]?.toIntOrNull() ?: 6
         parent.addView(scroll, LinearLayout.LayoutParams(-1, (output.lineHeight * rows + dp(16)).coerceAtLeast(dp(48))))

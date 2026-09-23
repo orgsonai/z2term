@@ -44,7 +44,7 @@
     <string name="direct_share_choose_folder_start">Choose a folder and start sharing</string>
     <string name="direct_share_folder_note">Folders keep their hierarchy. Recipients browse them in a browser and select individual files to receive.</string>
     <string name="direct_share_preparing_folder">Preparing the folder listing and files…</string>
-    <string name="direct_share_folder_summary">%1$d files · %2$s total</string>
+    <string name="direct_share_folder_summary">Files: %1$d · %2$s total</string>
     <string name="direct_share_relay_note">Requires your own SSH server and an HTTPS reverse proxy. Files pass through your server.</string>
     <string name="direct_share_relay_connecting">Connecting through the relay and checking the public link…</string>
     <string name="direct_share_relay_ready">The HTTPS link was checked through the relay. Waiting for a recipient.</string>

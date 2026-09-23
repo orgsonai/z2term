@@ -40,7 +40,6 @@
     <string name="permissions_missing">Not enabled / not allowed</string>
     <string name="tools_automation_actions">Action automation</string>
     <string name="tools_automation_rules">Automation rules</string>
-    <string name="tools_automation_actions_desc">Create sequences of taps, swipes, waits and app actions. Open the manager to create, edit, run or stop them and view history.</string>
     <string name="permissions_tab_access">Permissions</string>
     <string name="permissions_tab_logs">Notifications and logs</string>
     <string name="permissions_log_missing">Allow the following in the Permissions tab: %1$s</string>

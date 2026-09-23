@@ -15,6 +15,7 @@ import android.provider.ContactsContract.Intents.Insert
 import android.provider.ContactsContract.RawContacts
 import android.provider.Settings
 import androidx.annotation.RequiresApi
+import androidx.core.net.toUri
 
 /** Opens a [QrAction] in the app that owns it. Called only from the review screen's button. */
 internal object QrActionLauncher {
@@ -32,11 +33,11 @@ internal object QrActionLauncher {
 
     private fun intent(action: QrAction): Intent = when (action) {
         // App links, such as a LINE login URL, open in their app; other URLs fall back to a browser.
-        is QrAction.Web -> Intent(Intent.ACTION_VIEW, Uri.parse(action.uri)).addCategory(Intent.CATEGORY_BROWSABLE)
+        is QrAction.Web -> Intent(Intent.ACTION_VIEW, action.uri.toUri()).addCategory(Intent.CATEGORY_BROWSABLE)
         // BROWSABLE keeps other schemes to activities that accept links from web pages.
-        is QrAction.Link -> Intent(Intent.ACTION_VIEW, Uri.parse(action.uri)).addCategory(Intent.CATEGORY_BROWSABLE)
+        is QrAction.Link -> Intent(Intent.ACTION_VIEW, action.uri.toUri()).addCategory(Intent.CATEGORY_BROWSABLE)
         is QrAction.Dial -> Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", action.number, null))
-        is QrAction.Email -> Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:")).apply {
+        is QrAction.Email -> Intent(Intent.ACTION_SENDTO, "mailto:".toUri()).apply {
             val to = action.to.split(',').map { it.trim() }.filter { it.isNotEmpty() }
             if (to.isNotEmpty()) putExtra(Intent.EXTRA_EMAIL, to.toTypedArray())
             if (action.subject.isNotEmpty()) putExtra(Intent.EXTRA_SUBJECT, action.subject)

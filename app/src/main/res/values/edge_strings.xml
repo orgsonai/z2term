@@ -32,8 +32,6 @@
     <string name="edge_tab_name">Tab name</string>
     <string name="edge_add_tab">+ Tab</string>
     <string name="edge_add">Add</string>
-    <string name="edge_layout_list">Names and icons</string>
-    <string name="edge_layout_grid">Icons only</string>
     <string name="edge_edit">Edit</string>
     <string name="edge_done">Done</string>
     <string name="edge_delete">Delete</string>
@@ -51,22 +49,12 @@
     <string name="edge_new_panel_name">New panel name</string>
     <string name="edge_add_panel">Add panel</string>
     <string name="edge_other_panels">Open another panel</string>
-    <string name="edge_adjust">Adjust appearance</string>
     <string name="edge_adjust_size">Handle thickness / button size (dp)</string>
-    <string name="edge_adjust_length">Bar length (% of screen)</string>
-    <string name="edge_adjust_alpha">Handle opacity (0.05–1)</string>
-    <string name="edge_adjust_width">Panel width (dp or %)</string>
-    <string name="edge_adjust_height">Panel height (dp or %)</string>
+    <string name="edge_adjust_length" formatted="false">Bar length (% of screen)</string>
     <string name="edge_preview_help">Changes are a preview until saved. Cancel or close to restore. Width and height sliders use screen percentages.</string>
     <string name="edge_edit_conflict">Settings changed elsewhere. Reopen the editor before saving.</string>
     <string name="edge_add_item">Add custom slot (macro / command)</string>
     <string name="edge_edit_item">Edit item</string>
-    <string name="edge_item_type">Item type</string>
-    <string name="edge_type_run">Run button</string>
-    <string name="edge_type_text">Text display</string>
-    <string name="edge_type_toggle">Toggle</string>
-    <string name="edge_type_list">Selection list</string>
-    <string name="edge_type_input">Input field</string>
     <string name="edge_item_label">Label</string>
     <string name="edge_item_icon">Icon (text, image path, or @app:package)</string>
     <string name="edge_item_run">Command to run</string>
@@ -103,10 +91,6 @@
     <string name="edge_handle_bar">Bar</string>
     <string name="edge_handle_button">Button</string>
     <string name="edge_handle_side">Bar edge</string>
-    <string name="edge_handle_open">Handle activation</string>
-    <string name="edge_open_tap">Tap</string>
-    <string name="edge_open_swipe">Swipe inward</string>
-    <string name="edge_open_both">Tap or swipe</string>
     <string name="edge_handle_offset">Bar vertical position (%)</string>
     <string name="edge_handle_x">Button horizontal position (%)</string>
     <string name="edge_handle_y">Button vertical position (%)</string>
@@ -128,10 +112,6 @@
     <string name="edge_remove_panel">Remove panel or tab</string>
     <string name="edge_section_gestures">Gestures</string>
     <string name="edge_gestures_help">Add actions to each gesture and arrange their execution order. Remove all actions to leave a gesture unassigned. Hold to edit or move. Swipes can start auto-scroll with speed set by displacement. Tap anywhere on the screen to stop scrolling. Maximum speed is 40,000 dp/s; assign speed changes and reversal to swipes. Screen taps may also reach the app underneath. Target coordinates are percentages within the focused window. Android actions require Accessibility.</string>
-    <string name="edge_gesture_double_tap">Double-tap command</string>
-    <string name="edge_gesture_up">Swipe-up command</string>
-    <string name="edge_gesture_down">Swipe-down command</string>
-    <string name="edge_gesture_scroll">Auto-scroll with vertical slides</string>
     <string name="edge_scroll_variable">Speed follows displacement</string>
     <string name="edge_scroll_fixed">Fixed speed</string>
     <string name="edge_scroll_range">Slide distance to maximum speed (dp)</string>
@@ -172,10 +152,9 @@
     <string name="edge_trigger_down">Swipe down</string>
     <string name="edge_trigger_inward">Swipe inward</string>
     <string name="edge_trigger_outward">Swipe outward</string>
-    <string name="edge_scroll_x">Scroll position X (window %)</string>
-    <string name="edge_scroll_y">Scroll position Y (window %)</string>
+    <string name="edge_scroll_x" formatted="false">Scroll position X (window %)</string>
+    <string name="edge_scroll_y" formatted="false">Scroll position Y (window %)</string>
     <string name="edge_action_choose_app">Choose app</string>
-    <string name="edge_custom_slot">Custom slot</string>
     <string name="edge_pick_macro">Choose a macro</string>
     <string name="edge_pick_icon">Choose from z2-icon</string>
     <string name="tip_edge_edit_title">Edit a z2-edge bar</string>
@@ -212,7 +191,7 @@
     <string name="edge_group_binding">Connections</string>
     <string name="edge_binding_elsewhere">Values and results are connected from the button that runs the command. In that button’s editor, choose this item under “Values to pass (in order)” or “Where to show the result”.</string>
     <string name="edge_delete_select_help">Tick what to delete. Ticking a panel deletes all of its tabs too. The first tab is the panel itself, so it can only be deleted together with the panel.</string>
-    <string name="edge_delete_whole_panel">Whole panel (%1$d tabs)</string>
+    <string name="edge_delete_whole_panel">Whole panel (tabs: %1$d)</string>
     <string name="edge_delete_kind_panel">Panel</string>
     <string name="edge_delete_kind_tab">Tab</string>
     <string name="edge_delete_tab_of">Tab of %1$s</string>
@@ -236,7 +215,7 @@
     <string name="edge_page_panel">Panel</string>
     <string name="edge_page_actions">Gestures</string>
     <string name="edge_row_title">Row %1$d</string>
-    <string name="edge_row_side">%1$d side by side</string>
+    <string name="edge_row_side">Side by side: %1$d</string>
     <string name="edge_row_alone">1 item</string>
     <string name="edge_row_fills">fills the remaining height</string>
     <string name="edge_row_sketch">Preview of the rows, top to bottom</string>
@@ -248,7 +227,7 @@
     <string name="edge_row_reset">Reset size</string>
     <string name="edge_sketch_help">Long-press an item and drop it on a row, or on a line between rows to make a new row. Drag the line under a row up or down to set its height, and the line between items sideways to set their widths.</string>
     <string name="edge_sketch_new_row">New row here</string>
-    <string name="edge_sketch_height">Row %1$d height: %2$d%% of the panel</string>
-    <string name="edge_sketch_widths">Row %1$d widths: %2$s</string>
+    <string name="edge_sketch_height">Row %1$d · height %2$d%% (share of the panel)</string>
+    <string name="edge_sketch_widths">Row %1$d · widths %2$s</string>
     <string name="edge_rows_reset">Reset all sizes</string>
 </resources>

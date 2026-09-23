@@ -26,6 +26,8 @@ import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.ui.theme.AppColors
+import androidx.core.view.isNotEmpty
+import androidx.core.graphics.drawable.toDrawable
 
 /**
  * 操作自動化タブの View 部品 (0.8.603)。
@@ -80,7 +82,7 @@ internal object ActionUi {
     /** [parent] の末尾に全幅で置く。2 つ目以降は [gap] だけ離す。 */
     fun add(parent: LinearLayout, view: View, gap: Int = GAP) {
         val params = LinearLayout.LayoutParams(-1, -2)
-        if (parent.childCount > 0) params.topMargin = dp(parent.context, gap)
+        if (parent.isNotEmpty()) params.topMargin = dp(parent.context, gap)
         parent.addView(view, params)
     }
 
@@ -293,7 +295,7 @@ internal object ActionUi {
         root.addView(buttons, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(context, 16) })
         dialog.setContentView(root)
         dialog.window?.apply {
-            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
             setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
         return dialog

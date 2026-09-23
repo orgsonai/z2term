@@ -14,6 +14,7 @@ import android.view.accessibility.AccessibilityWindowInfo
 import android.view.accessibility.AccessibilityEvent
 import org.json.JSONObject
 import kotlinx.coroutines.*
+import androidx.core.net.toUri
 
 /** Global/coordinate actions use window metadata; explicit UI requests inspect non-editable nodes. */
 class AndroidActions : AccessibilityService() {
@@ -144,7 +145,7 @@ class AndroidActions : AccessibilityService() {
             }
             if (name == "app-info") {
                 context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    "package:${context.packageName}".toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 return ""
             }
             val action = actions[name] ?: throw IllegalArgumentException("Unknown action: $name")

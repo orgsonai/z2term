@@ -103,6 +103,8 @@ import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.core.net.toUri
+import androidx.core.content.edit
 
 /**
  * SFTP / FTP / WebDAV / SMB 共通ファイルブラウザ (全画面ページ)。
@@ -270,11 +272,11 @@ fun SftpSheet(
     }
 
     fun activateLocalRoot(option: LocalRootOption) {
-        localPrefs.edit()
-            .putString(LOCAL_TREE_PATH, option.path)
-            .putString(LOCAL_TREE_LABEL, option.label)
-            .remove(LOCAL_TREE_URI)
-            .apply()
+        localPrefs.edit {
+            putString(LOCAL_TREE_PATH, option.path)
+            putString(LOCAL_TREE_LABEL, option.label)
+            remove(LOCAL_TREE_URI)
+        }
         localTreeUri = null
         localTreePath = option.path
         localTreeLabel = option.label
@@ -313,7 +315,7 @@ fun SftpSheet(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             storageSettingsLauncher.launch(
                 Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = Uri.parse("package:${context.packageName}")
+                    data = "package:${context.packageName}".toUri()
                 }
             )
         } else {
@@ -336,11 +338,11 @@ fun SftpSheet(
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
                 )
             }
-            localPrefs.edit()
-                .putString(LOCAL_TREE_URI, uri.toString())
-                .remove(LOCAL_TREE_PATH)
-                .remove(LOCAL_TREE_LABEL)
-                .apply()
+            localPrefs.edit {
+                putString(LOCAL_TREE_URI, uri.toString())
+                remove(LOCAL_TREE_PATH)
+                remove(LOCAL_TREE_LABEL)
+            }
             localTreePath = null
             localTreeLabel = context.getString(R.string.sftp_local_root)
             localTreeUri = uri

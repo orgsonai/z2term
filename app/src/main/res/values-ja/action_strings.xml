@@ -3,7 +3,6 @@
     <string name="action_macro_title">Android操作マクロ</string>
     <string name="action_macro_running">実行中: %1$s</string>
     <string name="action_macro_stop">マクロを停止</string>
-    <string name="action_edit_open">操作マクロを管理</string>
     <string name="action_edit_intro">Androidの操作手順を作成・編集・実行します。「座標を取得」で画面上の位置を選べます。</string>
     <string name="action_edit_title">操作マクロを編集</string>
     <string name="action_edit_close">閉じる</string>
@@ -58,7 +57,6 @@
     <string name="action_edit_step">手順を編集</string>
     <string name="action_edit_pick">座標を取得</string>
     <string name="action_pick_busy">座標取得または実行中のマクロを先に終了してください。</string>
-    <string name="action_pick_target">先にアプリ起動または対象指定の手順を追加してください。要素はそのアプリから選びます。</string>
     <string name="action_pick_cancelled">座標取得を取り消しました（取消・画面変更・ロック・切断・2分経過）。</string>
     <string name="action_pick_prepare">画面を通常操作できます。目的の画面へ移動して「座標を取得」を押してください。</string>
     <string name="action_pick_swipe">スワイプして指を離し「反映」。始点・終点と実際の所要時間を取得します（3秒以内）。取得中のタッチは背後に送りません。</string>

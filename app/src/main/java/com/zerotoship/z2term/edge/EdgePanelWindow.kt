@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.edge
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.view.ActionMode
@@ -78,6 +79,8 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
         return super.onInterceptTouchEvent(event)
     }
 
+    // Outside touches and tab swipes are not clicks; every other event goes to super, which clicks.
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) { outside(); return true }
         if (!swiping) return super.onTouchEvent(event)

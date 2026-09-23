@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.ui.sftp
 
+import android.annotation.SuppressLint
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -83,6 +84,8 @@ internal class SafFileTree(
             ?: error("Could not create local folder: $name")
     }
 
+    // The stream is returned open on purpose; the caller writes and closes it.
+    @SuppressLint("Recycle")
     override suspend fun openOutput(
         parentId: String,
         name: String,

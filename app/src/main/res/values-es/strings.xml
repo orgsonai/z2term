@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Z2Term</string>
     <string name="action_clear">Borrar</string>
     <string name="settings_header">Ajustes de Z2Term</string>
@@ -39,7 +39,7 @@
     <string name="tip_gui_clean_title">Escribe z2gui clean para reinstalar el entorno gráfico</string>
     <string name="tip_gui_clean_body">Si el escritorio ya no arranca (casi siempre porque la instalación de un paquete se quedó a medias), escribe z2gui clean en la terminal. Borra la caché de paquetes y vuelve a instalar todo el entorno gráfico sin tocar tus archivos. Con z2gui start clean se reinstala y se abre de una vez.</string>
     <string name="tip_z2_commands_title">Escribe z2term para ver la lista de comandos propios</string>
-    <string name="tip_z2_commands_body">Z2Term añade a la terminal sus propios comandos, todos empezando por z2. Ejecuta z2term (o z2help) para ver la lista completa con una línea de descripción de cada uno, y añade --help a cualquiera de ellos para ver cómo se usa.</string>
+    <string name="tip_z2_commands_body" tools:ignore="TypographyDashes">Z2Term añade a la terminal sus propios comandos, todos empezando por z2. Ejecuta z2term (o z2help) para ver la lista completa con una línea de descripción de cada uno, y añade --help a cualquiera de ellos para ver cómo se usa.</string>
     <string name="tip_macro_title">Pide a una IA que escriba tus macros</string>
     <string name="tip_macro_body">Un recordatorio, revisar un RSS, anotar las llamadas de números desconocidos: no son funciones de la aplicación, son macros. Describe lo que quieres y una IA puede escribirla por ti.</string>
     <string name="settings_group_about">Acerca de esta aplicación</string>
@@ -51,9 +51,6 @@
     <string name="settings_section_distro">Distribución (cambiarla reinicia la sesión actual)</string>
     <string name="settings_section_keyboard_style">Comportamiento del teclado</string>
     <string name="settings_keyboard_toggle_bar">Barra para mostrar u ocultar el teclado</string>
-    <string name="settings_keyboard_number_face">Mostrar el plano numérico</string>
-    <string name="settings_keyboard_number_face_desc">Añade al teclado integrado un plano solo de números (un teclado numérico), de modo que la tecla de cambio también pase por 12. Si lo desactivas, el ciclo vuelve a ser あ → A → あ como antes</string>
-    <string name="settings_keyboard_face_order">Orden de cambio de plano</string>
     <string name="settings_section_key_layout">Distribución de teclas (propia)</string>
     <string name="settings_key_layout_desc">Elige aquí los planos que quieres usar y su orden. Duplica cualquier plano para crear el tuyo; usa Editar en un plano propio para renombrarlo o cambiar sus teclas.</string>
     <string name="settings_keyboard_faces_title">Planos que usa el teclado</string>
@@ -63,19 +60,12 @@
     <string name="settings_keyboard_face_builtin_ascii">Letras: deslizamiento en cuatro direcciones (integrado)</string>
     <string name="settings_keyboard_face_builtin_ascii_simple">Letras: sencillo (integrado, desactivado al principio)</string>
     <string name="settings_keyboard_face_builtin_number">Números (integrado)</string>
-    <string name="settings_key_layout_default">Selecciona una distribución propia</string>
-    <string name="settings_key_layout_duplicate">Duplicar la distribución de letras</string>
     <string name="settings_key_layout_new_name">Mis letras</string>
-    <string name="settings_key_layout_duplicate_kana">Duplicar la distribución japonesa</string>
-    <string name="settings_key_layout_duplicate_number">Duplicar el teclado numérico</string>
-    <string name="settings_key_layout_duplicate_active">Duplicar la distribución propia seleccionada</string>
     <string name="settings_key_layout_new_kana_name">Mi japonés</string>
     <string name="settings_key_layout_new_number_name">Mis números</string>
     <string name="settings_key_layout_copy_name">Mi copia</string>
     <string name="settings_key_layout_name">Nombre</string>
-    <string name="settings_key_layout_edit">Editar el contenido</string>
     <string name="settings_key_layout_delete">Eliminar esta distribución</string>
-    <string name="settings_key_layout_target_note">ABC, あ o 12 indica el tipo de esta distribución propia. Su uso y su posición se controlan por separado en “Planos que usa el teclado”, más arriba.</string>
     <string name="settings_key_layout_duplicate_action">Duplicar</string>
     <string name="settings_key_layout_edit_action">Editar</string>
     <string name="settings_keyboard_test_title">Prueba de escritura</string>
@@ -100,7 +90,6 @@
     <string name="settings_key_layout_mode_json">JSON</string>
     <string name="settings_key_layout_visual_desc">La vista previa permanece visible al desplazar los ajustes. Activa la selección múltiple junto a las teclas para cambiar el ancho, aspecto o gestos de varias teclas.</string>
     <string name="settings_key_layout_preview_title">Toca una tecla para editarla</string>
-    <string name="settings_key_layout_preview_desc">La tecla seleccionada se resalta en verde</string>
     <string name="settings_key_layout_child_letters">Letras</string>
     <string name="settings_key_layout_child_symbols">Símbolos (?#)</string>
     <string name="settings_key_layout_restore_default">Restaurar el duplicado original</string>
@@ -109,7 +98,6 @@
     <string name="settings_key_layout_delete_confirm_title">¿Eliminar este plano de teclado?</string>
     <string name="settings_key_layout_delete_confirm_msg">“%1$s” se eliminará y no se podrá restaurar.</string>
     <string name="settings_key_layout_multi_select">Selección múltiple</string>
-    <string name="settings_key_layout_multi_select_desc">Mantiene las teclas seleccionadas mientras tocas otras</string>
     <string name="settings_key_layout_selected">Fila %1$d / marco %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">%1$d tecla(s) seleccionada(s)</string>
     <string name="settings_key_layout_label">Etiqueta de la tecla</string>
@@ -181,8 +169,6 @@
     <string name="settings_confirm_download">Confirmar antes de descargar</string>
     <string name="settings_confirm_download_desc">Activado: pregunta antes de descargar una distribución o los paquetes gráficos. Desactivado: descarga sin confirmación.</string>
     <string name="settings_section_process_guard">Protección de los procesos en segundo plano</string>
-    <string name="settings_battery_opt_toggle">Excluir de la optimización de batería</string>
-    <string name="settings_battery_opt_toggle_desc">Activado: es menos probable que el sistema mate la sesión y sus procesos en segundo plano. Al desactivarlo se abren los ajustes del sistema (Android no permite que una aplicación vuelva a activar la optimización por su cuenta).</string>
     <string name="settings_phantom_title">Si aun así matan los procesos (Android 12/13)</string>
     <string name="settings_phantom_desc">Android 12/13 puede matar los \"procesos fantasma\" que crea proot. Esto no se puede cambiar desde la aplicación: ejecuta lo siguiente desde un PC con adb y reinicia el dispositivo. En Android 14 y posteriores esto suele estar ya relajado.</string>
     <string name="settings_low_power">Modo de bajo consumo</string>
@@ -261,6 +247,7 @@
     <plurals name="settings_root_unlock_countdown">
         <item quantity="one">%1$d toque más para mostrar u ocultar el selector de motor</item>
         <item quantity="other">%1$d toques más para mostrar u ocultar el selector de motor</item>
+        <item quantity="many">%1$d toques más para mostrar u ocultar el selector de motor</item>
     </plurals>
     <string name="banner_z2root_missing">⚠️ No se encontró el binario de z2root: ejecuta scripts/build-z2root.sh y vuelve a compilar. Se recurre al sh de Android.</string>
     <string name="banner_extracting_first">📦 Primera extracción de %1$s…</string>
@@ -296,7 +283,6 @@
     <string name="licenses_view_full_text">Licencia completa</string>
     <string name="licenses_full_text_title">Licencia completa</string>
     <string name="licenses_license_text_heading">Texto de la licencia</string>
-    <string name="licenses_source_line">Fuente: %1$s</string>
     <string name="licenses_full_text_missing">(El texto completo de esta licencia no viene incluido. SPDX: %1$s\nConsulta el texto oficial en https://spdx.org/licenses/%1$s.html.)</string>
     <string name="confirm_clean_install_title">Instalación limpia de %1$s</string>
     <string name="confirm_download_title">Descargar %1$s</string>
@@ -376,7 +362,6 @@
     <string name="ssh_new_profile_title">Nueva conexión</string>
     <string name="ssh_edit_profile_title">Editar la conexión: %1$s</string>
     <string name="ssh_field_name">Nombre</string>
-    <string name="connection_protocol">Tipo de conexión</string>
     <string name="connection_field_webdav_url">URL de WebDAV</string>
     <string name="connection_field_smb_host">Host SMB</string>
     <string name="connection_field_smb_share">Nombre del recurso compartido</string>
@@ -413,10 +398,7 @@
     <string name="password_hide">Ocultar</string>
     <string name="ssh_field_private_key">Clave privada (PEM)</string>
     <string name="ssh_field_passphrase">Frase de contraseña (si la clave tiene una)</string>
-    <string name="ssh_vnc_section">VNC (escritorio)</string>
-    <string name="ssh_field_vnc_port">Puerto VNC</string>
     <string name="ssh_field_vnc_password">Contraseña de VNC</string>
-    <string name="ssh_vnc_note">[VNC] abre el escritorio de este host en una pestaña nueva. La pantalla :N es el puerto 5900+N (:1 = 5901). Esta contraseña es la de VNC, no la de SSH (8 caracteres como máximo). Si el servidor solo escucha en 127.0.0.1, reenvíalo antes con ssh -L 5901:localhost:5901 y apunta esta entrada a 127.0.0.1.</string>
     <string name="vnc_connecting">Conectando con %1$s:%2$d…</string>
     <string name="vnc_disconnected">El servidor cerró la conexión.</string>
     <string name="vnc_error_password_required">Este servidor VNC pide una contraseña. Define la \"Contraseña de VNC\" de este host en Herramientas (📜) › Conexiones.</string>
@@ -445,17 +427,14 @@
     <string name="hostkey_warning">Confirma que es un host de confianza.\nEs posible un ataque de intermediario (MITM).</string>
     <string name="hostkey_action_trust">Confiar y conectar</string>
     <string name="sftp_toast_list_failed">Falló el listado: %1$s</string>
-    <string name="sftp_toast_save_target_unavailable">No se puede abrir el destino de guardado</string>
     <string name="sftp_toast_download_complete">Descarga completada: %1$s</string>
     <string name="sftp_toast_download_failed">Falló la descarga: %1$s</string>
-    <string name="sftp_toast_open_file_failed">No se puede abrir el archivo</string>
     <string name="sftp_toast_upload_complete">Subida completada: %1$s</string>
     <string name="sftp_toast_upload_failed">Falló la subida: %1$s</string>
     <string name="sftp_button_up">↑ Subir un nivel</string>
     <string name="sftp_status_connecting">Conectando…</string>
     <string name="sftp_status_connect_failed">Falló la conexión: %1$s</string>
     <string name="sftp_status_empty_dir">(carpeta vacía)</string>
-    <string name="sftp_button_upload">⬆ Subir</string>
     <string name="sftp_button_new_folder">＋ Nueva carpeta</string>
     <string name="sftp_dialog_rename_title">Cambiar el nombre</string>
     <string name="sftp_dialog_rename_confirm">Cambiar el nombre</string>
@@ -568,10 +547,6 @@
     <string name="sshaccess_wifi_unavailable">Conéctate a una red Wi-Fi (no se detectó ninguna IP)</string>
     <string name="sshaccess_from_pc_header">\nDesde tu PC:</string>
     <string name="sshaccess_note">`sshd` también se puede lanzar desde la terminal (el puerto sale de Port en sshd_config, o de `-p`).\nEl /usr/sbin/sshd de OpenSSH rompe la separación de privilegios bajo proot → usamos dropbear.\nMás detalles en docs/SSH-INTO-Z2TERM.md</string>
-    <string name="storage_access_title">Acceso al almacenamiento (cd /sdcard)</string>
-    <string name="storage_access_granted">✅ Concedido. Desde la terminal puedes hacer `cd /sdcard` para llegar al almacenamiento compartido.\n   `/storage/app` es el área privada de la aplicación y no necesita permiso.</string>
-    <string name="storage_access_denied">No concedido. `cd /sdcard` se verá vacío. Usa el botón de abajo para conceder el acceso a todos\nlos archivos. (`/storage/app` funciona sin permiso.)</string>
-    <string name="storage_access_grant_button">Conceder acceso a todo el almacenamiento</string>
     <string name="gui_confirm_download_title">Descargar el entorno gráfico</string>
     <string name="gui_confirm_download_msg">La primera vez que se abre el entorno gráfico (escritorio Linux) hay que descargar los paquetes de pantalla (de decenas a cientos de MB). Se recomienda usar Wi-Fi. ¿Continuar?</string>
     <string name="gui_confirm_download_action">Descargar y abrir</string>
@@ -585,6 +560,7 @@
     <plurals name="service_notification_attached">
         <item quantity="one">Conectado desde el shell (%1$d)</item>
         <item quantity="other">Conectado desde el shell (%1$d)</item>
+        <item quantity="many">Conectado desde el shell (%1$d)</item>
     </plurals>
     <string name="service_action_stop">Parar</string>
     <string name="server_channel_name">Servidores de Z2Term</string>
@@ -593,6 +569,7 @@
     <plurals name="server_notification_text">
         <item quantity="one">%1$d servidor en marcha</item>
         <item quantity="other">%1$d servidores en marcha</item>
+        <item quantity="many">%1$d servidores en marcha</item>
     </plurals>
     <string name="server_action_stop">Parar los servidores</string>
     <string name="resident_dialog_title">Hay servidores permanentes en marcha</string>
@@ -601,9 +578,6 @@
     <string name="resident_dialog_reset_session_desc">Devuelve la terminal al estado de recién abierta. Los servidores permanentes siguen en marcha.</string>
     <string name="resident_dialog_stop_all">Parar todo y salir</string>
     <string name="resident_dialog_stop_all_desc">Para los servidores permanentes, la captura de eventos del sistema y la sesión, y después cierra la aplicación (como al retirar la tarea). Tus ajustes no se tocan, así que la captura se reanuda la próxima vez que abras la aplicación.</string>
-    <string name="settings_section_servers">Servidores permanentes</string>
-    <string name="settings_servers_desc">Mantén cualquier servidor (sshd/http/smb, …) en marcha en segundo plano, incluso sin abrir la aplicación.</string>
-    <string name="settings_open_servers">Gestionar los servidores</string>
     <string name="servers_title">Servidores permanentes</string>
     <string name="servers_new">+ Nuevo</string>
     <string name="servers_empty">Todavía no hay servidores. Añade uno con su comando de inicio (por ejemplo, python3 -m http.server 8080).</string>
@@ -630,9 +604,6 @@
     <string name="settings_notif_capture_desc">Con acceso a notificaciones, detecta avisos y sus actualizaciones. El registro se configura abajo. No se puede obtener contenido que no llegue como notificación o que oculte la app emisora o Android. Todo es local.</string>
     <string name="settings_notif_log">Guardar el registro de notificaciones</string>
     <string name="settings_notif_log_desc">Guarda textos largos recibidos y nuevas entradas de conversaciones o avisos agrupados en ~/.z2term/notifications.jsonl. Elimina republicaciones y mensajes anteriores, conservando nuevos mensajes con horas o remitentes distintos. Desactivado, no guarda nada.</string>
-    <string name="settings_notif_access_granted">Acceso a las notificaciones: concedido</string>
-    <string name="settings_notif_access_missing">Acceso a las notificaciones: no concedido (toca abajo para concederlo)</string>
-    <string name="settings_notif_grant">Conceder el acceso a las notificaciones</string>
     <string name="settings_notif_fmt_title">Formato de salida (vacío = JSONL)</string>
     <string name="settings_notif_fmt_readable">Legible</string>
     <string name="settings_notif_fmt_line">Una línea</string>
@@ -649,12 +620,8 @@
     <string name="settings_section_sms">Detección de SMS</string>
     <string name="settings_sms_capture">Capturar SMS</string>
     <string name="settings_sms_capture_desc">Cuando está activado (y se ha concedido el permiso de SMS), los SMS que llegan se escriben en ~/.z2term/sms.jsonl. A diferencia de las notificaciones, Android no oculta el texto de los SMS con su protección de notificaciones sensibles, y funcionan incluso con el dispositivo bloqueado, así que las contraseñas de un solo uso llegan de forma fiable. Es un enganche genérico: tú decides qué extraer desde la terminal. Todo se queda en el dispositivo.</string>
-    <string name="settings_sms_perm_granted">Permiso de SMS: concedido</string>
-    <string name="settings_sms_perm_missing">Permiso de SMS: no concedido (toca abajo para concederlo)</string>
-    <string name="settings_sms_grant">Conceder el permiso de SMS</string>
     <string name="settings_sms_fmt_title">Formato de salida (vacío = JSONL)</string>
     <string name="settings_sms_help">Marcadores: {time} {ts} {from} {body}. En una línea: {body1}. Escapes: \\n \\t. Se aplica a las entradas nuevas. Registro: ~/.z2term/sms.jsonl</string>
-    <string name="settings_unlock_watch_admin_failed">No se pudo añadir un administrador de dispositivo aquí (puede estar bloqueado por la política del dispositivo)</string>
     <string name="event_channel_name">Eventos del sistema de Z2Term</string>
     <string name="event_channel_desc">Detecta eventos de pantalla, bloqueo, alimentación, batería y Wi-Fi</string>
     <string name="event_notification_title">Detección de eventos del sistema</string>
@@ -668,15 +635,12 @@
     <string name="settings_section_unlock_watch">Detección de desbloqueos fallidos</string>
     <string name="settings_unlock_watch">Vigilar los desbloqueos fallidos</string>
     <string name="settings_unlock_watch_desc">Cuando está activado (y el administrador de dispositivo está activo), los desbloqueos fallidos y correctos de la pantalla de bloqueo se anotan en ~/.z2term/events.jsonl como unlock_failed / unlock_succeeded ({level} = número de fallos seguidos). Es un enganche de detección antirrobo: la reacción (avisar, registrar la ubicación, hacer sonar una alarma) la decides tú desde una macro. No hay ninguna foto ni envío incorporado. Todo se queda en el dispositivo.</string>
-    <string name="settings_unlock_watch_admin_active">Administrador de dispositivo: activo</string>
-    <string name="settings_unlock_watch_admin_missing">Administrador de dispositivo: no activo; actívalo para recibir los eventos de desbloqueo</string>
-    <string name="settings_unlock_watch_admin_grant">Activar el administrador de dispositivo</string>
-    <string name="settings_unlock_watch_admin_manage">Gestionar el administrador de dispositivo (para desactivarlo)</string>
     <string name="settings_unlock_watch_admin_explain">Se usa únicamente para detectar los desbloqueos fallidos de la pantalla de bloqueo para tus macros antirrobo. Esta aplicación no bloquea, no borra ni restablece tu dispositivo.</string>
     <string name="settings_unlock_watch_help">Necesita el administrador de dispositivo (solo para vigilar el acceso; sin bloqueo ni borrado remotos). Eventos: unlock_failed con {level}=número de fallos, unlock_succeeded. Escribe tu reacción como una macro sobre events.jsonl.</string>
     <plurals name="toast_copy_from_remote">
         <item quantity="one">Copiado del remoto (%1$d carácter)</item>
         <item quantity="other">Copiado del remoto (%1$d caracteres)</item>
+        <item quantity="many">Copiado del remoto (%1$d caracteres)</item>
     </plurals>
     <string name="toast_selection_empty">La selección está vacía</string>
     <string name="toast_log_start_failed">No se pudo empezar a registrar (comprueba la carpeta de destino)</string>
@@ -688,10 +652,10 @@
     <plurals name="toast_copy">
         <item quantity="one">Copiado (%1$d carácter)</item>
         <item quantity="other">Copiado (%1$d caracteres)</item>
+        <item quantity="many">Copiado (%1$d caracteres)</item>
     </plurals>
     <string name="banner_process_exited">[el proceso terminó exitCode=%1$d]</string>
     <string name="banner_process_killed">[proceso matado desde fuera %1$s exitCode=%2$d, %3$d MB libres]</string>
-    <string name="action_got_it">Entendido</string>
     <string name="keyboard_style_compact">Sencillo</string>
     <string name="keyboard_style_spacious">Deslizamiento en cuatro direcciones</string>
     <string name="saf_home_title">Carpeta personal de Z2Term</string>
@@ -707,6 +671,7 @@
     <plurals name="scroll_offset_indicator">
         <item quantity="one">↑%1$d línea</item>
         <item quantity="other">↑%1$d líneas</item>
+        <item quantity="many">↑%1$d líneas</item>
     </plurals>
     <string name="default_custom_theme_name">Mi tema</string>
     <string name="snippet_sample_ls_label">listar (formato largo)</string>
@@ -717,6 +682,7 @@
     <plurals name="settings_ime_history_count">
         <item quantity="one">%1$d entrada aprendida</item>
         <item quantity="other">%1$d entradas aprendidas</item>
+        <item quantity="many">%1$d entradas aprendidas</item>
     </plurals>
     <string name="settings_ime_history_open">Gestionar el historial</string>
     <string name="ime_history_title">Historial de aprendizaje</string>
@@ -728,6 +694,7 @@
     <plurals name="ime_history_count_filtered">
         <item quantity="one">%1$d / %2$d entrada</item>
         <item quantity="other">%1$d / %2$d entradas</item>
+        <item quantity="many">%1$d / %2$d entradas</item>
     </plurals>
     <string name="api_channel_name">API de la terminal</string>
     <string name="api_channel_desc">Notificaciones publicadas por z2-notify desde la terminal.</string>
@@ -776,7 +743,7 @@
     <string name="log_raw">Conservar los colores y los códigos de control</string>
     <string name="log_raw_desc">Registro en bruto para informes de errores. Si lo desactivas, se convierte en texto legible</string>
     <string name="log_timestamp">Marca de tiempo en cada línea</string>
-    <string name="log_timestamp_desc">Antepone a cada línea una fecha y hora de ancho fijo, como [2026-07-27 08:42:13]. No se aplica a los registros en bruto, que deben quedar byte a byte</string>
+    <string name="log_timestamp_desc" tools:ignore="TypographyDashes">Antepone a cada línea una fecha y hora de ancho fijo, como [2026-07-27 08:42:13]. No se aplica a los registros en bruto, que deben quedar byte a byte</string>
     <string name="log_mask">Enmascarar claves y tokens</string>
     <string name="log_mask_desc">Sustituye por [z2term:masked] los pares nombre=valor como TOKEN=…, las claves privadas pegadas y los tokens de forma fija como ghp_ o AKIA</string>
     <string name="log_secret_warning">Nota: lo que aparece en pantalla entra tal cual (una contraseña que solo escribes nunca aparece en pantalla, así que no se registra). El botón de la barra se queda encendido mientras se registra.\nNota: el enmascarado solo cubre formas claramente reconocibles y no es completo: un secreto con un formato propio pasa de largo. Lee siempre un registro antes de entregárselo a alguien.</string>
@@ -909,17 +876,10 @@
     <string name="when_fired_title">Disparos recientes</string>
     <string name="when_fired_empty">Todavía no se ha ejecutado nada.</string>
     <string name="when_hint">▶ = ejecutar una vez sin esperar al disparador / ▤ = registro de ejecuciones de esa regla / ✎ = editar / ✕ = eliminar. Las reglas creadas con z2-when en la terminal también se pueden editar aquí; la fuente de verdad es el texto que hay en ~/.z2term/when/.</string>
-    <string name="settings_section_automation_rules">Reglas de automatización (z2-when)</string>
-    <string name="settings_automation_rules_desc">Revisa tus reglas, actívalas o desactívalas, lee sus registros, prueba una o ponlas todas en pausa de una vez.</string>
-    <string name="settings_open_when_rules">Gestionar las reglas</string>
     <string name="ime_label">Teclado de z2term</string>
     <string name="ime_subtype_ja">z2term (japonés)</string>
     <string name="ime_subtype_en">z2term (inglés)</string>
-    <string name="settings_section_ime">El teclado integrado en otras aplicaciones</string>
-    <string name="settings_ime_desc">Ofrece el teclado integrado al resto del sistema, de modo que el mismo teclado y la misma conversión japonesa funcionen en los campos de texto de la propia aplicación (fragmentos, SSH, SFTP, ajustes) y en otras aplicaciones. Actívalo primero en la lista del sistema y después elígelo con el selector de teclado.</string>
-    <string name="settings_ime_enable">Activarlo en los ajustes de Android</string>
     <string name="settings_ime_pick">Cambiar de teclado</string>
-    <string name="settings_ime_note">La terminal en sí no cambia: sigue usando el teclado que se dibuja dentro de la aplicación.</string>
     <string name="pad_clip_empty">Aquí aparece el texto que copias.\nCopia algo primero y luego abre el teclado.</string>
     <string name="pad_emoji_empty">Aquí aparecen los emojis que usas.\nElige uno en las pestañas de la derecha.</string>
     <string name="tile_service_label_1">z2term 1</string>
@@ -948,12 +908,6 @@
     <string name="tile_subtitle_pair_on">encendido: toca para apagar</string>
     <string name="tile_subtitle_pair_off">apagado: toca para encender</string>
     <string name="tile_unassigned_toast">El mosaico %1$d no tiene nada. Asígnale algo en la terminal, por ejemplo z2-tile set %1$d backup.sh</string>
-    <string name="settings_section_screen_timeout">Apagado de pantalla (z2-screen)</string>
-    <string name="settings_screen_timeout_desc">Impide que la pantalla se apague sola durante el tiempo que digas. Es el ajuste de todo el sistema, así que se mantiene con la aplicación en segundo plano, a diferencia del 🔅 de la barra de herramientas, que solo dura mientras la aplicación está en pantalla. El valor original siempre se vuelve a escribir al llegar el plazo.</string>
-    <string name="settings_screen_timeout_granted">Modificar los ajustes del sistema: permitido</string>
-    <string name="settings_screen_timeout_missing">Modificar los ajustes del sistema: no permitido (toca abajo para permitirlo)</string>
-    <string name="settings_screen_timeout_grant">Permitir modificar los ajustes del sistema</string>
-    <string name="settings_screen_timeout_cmd_label">En la terminal (toca para copiar). z2-screen keepon off lo devuelve antes de tiempo</string>
     <string name="intro_title">Para empezar (toca para ejecutarlo; ✕ descarta los que no quieras)</string>
     <string name="intro_footer">z2help para la lista completa / z2doctor cuando algo no funcione</string>
     <string name="intro_card_notify">Publicar una notificación en tu teléfono</string>
@@ -1002,7 +956,7 @@
     <string name="guide_ask_feed_url">URL del feed que leer (de uno en uno; puedes añadir más después)</string>
     <string name="guide_ask_interval">Cada cuánto consultarlo (30m / 1h …; no bajes de 30 minutos)</string>
     <string name="guide_ask_daily_time">A qué hora leerlo (HH:MM)</string>
-    <string name="guide_ask_battery_level">Avisarme por debajo de qué % de batería</string>
+    <string name="guide_ask_battery_level" formatted="false">Avisarme por debajo de qué % de batería</string>
     <string name="guide_ask_qr_text">Texto o URL que convertir en un código QR</string>
     <string name="no_os_title">El shell Android está listo</string>
     <string name="no_os_action">Ajustes -> Entorno Linux: elige el SO que quieras e instálalo</string>
@@ -1012,6 +966,7 @@
     <plurals name="paste_preview_lines">
         <item quantity="one">%1$d línea</item>
         <item quantity="other">%1$d líneas</item>
+        <item quantity="many">%1$d líneas</item>
     </plurals>
     <string name="paste_preview_do">Pegar</string>
     <string name="brightness_reset">Restablecer</string>
@@ -1177,7 +1132,6 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="settings_delete_os_failed">No se pudieron eliminar todos los datos del SO. Es posible que queden algunos datos. Consulta el registro de diagnóstico.</string>
 
     <!-- Generic macro forms in the edge panel -->
-    <string name="edge_type_macro">Macro con argumentos</string>
     <string name="edge_type_argument">Campo de argumento</string>
     <string name="edge_type_result">Campo de resultado</string>
     <string name="edge_macro_args">Valores para el comando (en orden)</string>
@@ -1187,9 +1141,6 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="edge_argument_choices">Opciones separadas por |</string>
     <string name="edge_argument_required">Entrada obligatoria</string>
     <string name="edge_form_rows">Filas visibles (1–20)</string>
-    <string name="edge_argument_text">Texto libre</string>
-    <string name="edge_argument_choice">Selección</string>
-    <string name="edge_argument_fixed">Valor fijo</string>
     <string name="edge_argument_optional">Opcional</string>
     <string name="edge_argument_mandatory">Obligatorio</string>
     <string name="edge_pick_argument">Elegir un elemento de entrada</string>
@@ -1245,7 +1196,7 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="guide_step_edge_local">Usa una terminal del entorno Linux local de los paneles y espera al indicador del shell.</string>
     <string name="guide_step_sample_create">Crear un panel de ejemplo con tres pestañas (conservar ajustes y elementos existentes)</string>
     <string name="guide_step_sample_open">Activar los paneles y abrir el ejemplo (desliza hacia dentro desde la barra derecha para reabrirlo)</string>
-    <string name="guide_step_sample_use">Cambia entre las tres pestañas. Toca dos veces la nota para editarla; se guarda automáticamente. Para traducir, introduce el texto, elige el idioma y pulsa Traducir. Cambiar de pestaña o cerrar borra la entrada y el resultado de traducción. La terminal conserva la shell, la salida y el borrador; usa ↻ para restablecerlos. Las barras de ejemplo tienen una opacidad del 30 %.</string>
-    <string name="guide_step_translation_cli">Si falta trans, instálalo manualmente en este mismo entorno Linux.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nEsta tarjeta solo informa; tocarla no instala nada. El texto se envía a un servicio externo de traducción.</string>
+    <string name="guide_step_sample_use" formatted="false">Cambia entre las tres pestañas. Toca dos veces la nota para editarla; se guarda automáticamente. Para traducir, introduce el texto, elige el idioma y pulsa Traducir. Cambiar de pestaña o cerrar borra la entrada y el resultado de traducción. La terminal conserva la shell, la salida y el borrador; usa ↻ para restablecerlos. Las barras de ejemplo tienen una opacidad del 30 %.</string>
+    <string name="guide_step_translation_cli" tools:ignore="TypographyDashes">Si falta trans, instálalo manualmente en este mismo entorno Linux.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nEsta tarjeta solo informa; tocarla no instala nada. El texto se envía a un servicio externo de traducción.</string>
     <string name="guide_sample_translation_missing">Instala trans y prepara la macro de traducción antes de volver a crear el ejemplo.</string>
 </resources>

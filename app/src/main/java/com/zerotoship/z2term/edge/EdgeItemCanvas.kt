@@ -1,10 +1,12 @@
 package com.zerotoship.z2term.edge
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.ViewGroup
 import android.widget.LinearLayout
 
 /** Free placement within a fixed canvas; items without coordinates retain a vertical order. */
+@SuppressLint("ViewConstructor") // Built in code only, never inflated from XML.
 internal class EdgeItemCanvas(context: Context, private val canvasHeight: Int) : ViewGroup(context) {
     private val items = mutableListOf<EdgeStore.Item>()
     private val positions = mutableListOf<Pair<Int, Int>>()

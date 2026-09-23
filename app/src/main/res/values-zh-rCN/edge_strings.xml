@@ -32,8 +32,6 @@
     <string name="edge_tab_name">标签页名称</string>
     <string name="edge_add_tab">+ 标签页</string>
     <string name="edge_add">添加</string>
-    <string name="edge_layout_list">名称和图标</string>
-    <string name="edge_layout_grid">仅图标</string>
     <string name="edge_edit">编辑</string>
     <string name="edge_done">完成</string>
     <string name="edge_delete">删除</string>
@@ -51,22 +49,12 @@
     <string name="edge_new_panel_name">新面板名称</string>
     <string name="edge_add_panel">添加面板</string>
     <string name="edge_other_panels">打开其他面板</string>
-    <string name="edge_adjust">调整外观</string>
     <string name="edge_adjust_size">把手厚度／按钮大小（dp）</string>
-    <string name="edge_adjust_length">边条长度（屏幕百分比）</string>
-    <string name="edge_adjust_alpha">把手不透明度（0.05–1）</string>
-    <string name="edge_adjust_width">面板宽度（dp或%）</string>
-    <string name="edge_adjust_height">面板高度（dp或%）</string>
+    <string name="edge_adjust_length" formatted="false">边条长度（屏幕百分比）</string>
     <string name="edge_preview_help">保存前仅为预览，取消或关闭可恢复。宽度和高度滑块使用屏幕百分比。</string>
     <string name="edge_edit_conflict">设置已在其他位置更改。请重新打开编辑器后保存。</string>
     <string name="edge_add_item">添加自定义槽位（宏／命令）</string>
     <string name="edge_edit_item">编辑项目</string>
-    <string name="edge_item_type">项目类型</string>
-    <string name="edge_type_run">运行按钮</string>
-    <string name="edge_type_text">文字显示</string>
-    <string name="edge_type_toggle">开关</string>
-    <string name="edge_type_list">选择列表</string>
-    <string name="edge_type_input">输入框</string>
     <string name="edge_item_label">标签</string>
     <string name="edge_item_icon">图标（文字、图片路径或@app:包名）</string>
     <string name="edge_item_run">要运行的命令</string>
@@ -103,10 +91,6 @@
     <string name="edge_handle_bar">边条</string>
     <string name="edge_handle_button">按钮</string>
     <string name="edge_handle_side">边条所在侧</string>
-    <string name="edge_handle_open">把手触发方式</string>
-    <string name="edge_open_tap">点按</string>
-    <string name="edge_open_swipe">向内滑动</string>
-    <string name="edge_open_both">点按或滑动</string>
     <string name="edge_handle_offset">边条纵向位置（%）</string>
     <string name="edge_handle_x">按钮横向位置（%）</string>
     <string name="edge_handle_y">按钮纵向位置（%）</string>
@@ -115,10 +99,6 @@
     <string name="edge_size_preview_limit">高度上限和位置（内容较少时缩小）</string>
     <string name="edge_section_gestures">手势</string>
     <string name="edge_gestures_help">为每个手势添加操作并排列执行顺序。删除全部操作可取消分配。长按以编辑或移动。滑动可启动按移动距离调速的自动滚动。点按屏幕任意位置停止。最高速度为40,000dp/秒；请将调速和反向分配给滑动。点按也可能传给下层应用。目标坐标为焦点窗口内的百分比。Android操作需要无障碍权限。</string>
-    <string name="edge_gesture_double_tap">双击命令</string>
-    <string name="edge_gesture_up">上滑命令</string>
-    <string name="edge_gesture_down">下滑命令</string>
-    <string name="edge_gesture_scroll">纵向滑动自动滚动</string>
     <string name="edge_scroll_variable">速度随移动距离变化</string>
     <string name="edge_scroll_fixed">固定速度</string>
     <string name="edge_scroll_range">达到最高速度的滑动距离（dp）</string>
@@ -159,10 +139,9 @@
     <string name="edge_trigger_down">向下滑动</string>
     <string name="edge_trigger_inward">向内滑动</string>
     <string name="edge_trigger_outward">向外滑动</string>
-    <string name="edge_scroll_x">滚动位置X（窗口%）</string>
-    <string name="edge_scroll_y">滚动位置Y（窗口%）</string>
+    <string name="edge_scroll_x" formatted="false">滚动位置X（窗口%）</string>
+    <string name="edge_scroll_y" formatted="false">滚动位置Y（窗口%）</string>
     <string name="edge_action_choose_app">选择应用</string>
-    <string name="edge_custom_slot">自定义槽位</string>
     <string name="edge_pick_macro">选择宏</string>
     <string name="edge_pick_icon">从z2-icon选择</string>
     <string name="tip_edge_edit_title">编辑z2-edge边条</string>

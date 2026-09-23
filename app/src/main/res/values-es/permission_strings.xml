@@ -40,7 +40,6 @@
     <string name="permissions_missing">Desactivado / no permitido</string>
     <string name="tools_automation_actions">Automatizar acciones</string>
     <string name="tools_automation_rules">Reglas de automatización</string>
-    <string name="tools_automation_actions_desc">Combina toques, deslizamientos, esperas y acciones de apps. Abre el gestor para crear, editar, ejecutar, detener y consultar el historial.</string>
     <string name="permissions_tab_access">Permisos</string>
     <string name="permissions_tab_logs">Notificaciones y registros</string>
     <string name="permissions_log_missing">Autoriza lo siguiente en la pestaña Permisos: %1$s</string>

@@ -41,7 +41,7 @@
     <string name="tip_gui_clean_title">z2gui clean と打つと GUI を入れ直せます</string>
     <string name="tip_gui_clean_body">GUI が立ち上がらなくなったとき（たいていは導入が途中で失敗しています）、端末で z2gui clean と打ちます。パッケージのキャッシュを消して GUI 一式を入れ直すだけで、あなたのファイルには触りません。入れ直してそのまま起動するなら z2gui start clean です。</string>
     <string name="tip_z2_commands_title">z2term と打つと、独自コマンドの一覧が出ます</string>
-    <string name="tip_z2_commands_body">Z2Term は z2 で始まる独自コマンドを端末に足しています。z2term（z2help でも同じ）と打つと、全部の一覧と一行の説明が出ます。それぞれ --help を付けると詳しい使い方が出ます。</string>
+    <string name="tip_z2_commands_body" tools:ignore="TypographyDashes">Z2Term は z2 で始まる独自コマンドを端末に足しています。z2term（z2help でも同じ）と打つと、全部の一覧と一行の説明が出ます。それぞれ --help を付けると詳しい使い方が出ます。</string>
     <string name="tip_macro_title">マクロは AI に作ってもらえます</string>
     <string name="tip_macro_body">リマインダー、RSS の巡回、知らない番号からの着信を控える — こうしたものはアプリの機能ではなく、マクロとして作れます。思いついたことを AI に頼めば形になります。</string>
     <string name="settings_group_about">このアプリについて</string>
@@ -53,9 +53,6 @@
     <string name="settings_section_distro">ディストロ (切替で現在のセッションを再起動)</string>
     <string name="settings_section_keyboard_style">キーボード操作</string>
     <string name="settings_keyboard_toggle_bar">キーボード表示バー</string>
-    <string name="settings_keyboard_number_face">数字の面を出す</string>
-    <string name="settings_keyboard_number_face_desc">内蔵キーボードに数字だけの面（テンキー）を足します。切りかえキーの行き先に 12 が挟まります。切ると あ → A → あ の従来どおりに戻ります</string>
-    <string name="settings_keyboard_face_order">面の切りかえ順</string>
     <!-- 自分で作るキー配列 (0.8.408〜0.8.411・段階 2〜4 + 既定サイズ) -->
     <string name="settings_section_key_layout">キー配列（自分で作る）</string>
     <string name="settings_key_layout_desc">使用する面と順番をここでまとめて設定します。各面の「複製」から自作面を作り、自作面は「編集」から名前やキーを変更できます。</string>
@@ -66,19 +63,12 @@
     <string name="settings_keyboard_face_builtin_ascii">英字・4方向フリック（内蔵）</string>
     <string name="settings_keyboard_face_builtin_ascii_simple">英字・シンプル（内蔵・初期OFF）</string>
     <string name="settings_keyboard_face_builtin_number">数字（内蔵）</string>
-    <string name="settings_key_layout_default">編集する自作配列を選択</string>
-    <string name="settings_key_layout_duplicate">英字の面を複製する</string>
     <string name="settings_key_layout_new_name">じぶんの英字</string>
-    <string name="settings_key_layout_duplicate_kana">日本語キーボードを複製する</string>
-    <string name="settings_key_layout_duplicate_number">数字ボードを複製する</string>
-    <string name="settings_key_layout_duplicate_active">選択中の自作配列を複製する</string>
     <string name="settings_key_layout_new_kana_name">じぶんの日本語</string>
     <string name="settings_key_layout_new_number_name">じぶんの数字</string>
     <string name="settings_key_layout_copy_name">じぶんの複製</string>
     <string name="settings_key_layout_name">名前</string>
-    <string name="settings_key_layout_edit">中身を編集</string>
     <string name="settings_key_layout_delete">この配列を削除</string>
-    <string name="settings_key_layout_target_note">ABC・あ・12 は自作配列の種類です。使用するかと順番は、上の「使用するキーボード面」で個別に設定します。</string>
     <string name="settings_key_layout_duplicate_action">複製</string>
     <string name="settings_key_layout_edit_action">編集</string>
     <string name="settings_keyboard_test_title">キーボード入力テスト</string>
@@ -103,7 +93,6 @@
     <string name="settings_key_layout_mode_json">JSON</string>
     <string name="settings_key_layout_visual_desc">設定欄をスクロールしてもプレビューは下に残ります。幅・見た目・ジェスチャをまとめて変える場合は、キーの隣の「複数選択」をONにします。</string>
     <string name="settings_key_layout_preview_title">タップして編集するキーボード</string>
-    <string name="settings_key_layout_preview_desc">選択中のキーは緑で表示されます</string>
     <string name="settings_key_layout_child_letters">英字</string>
     <string name="settings_key_layout_child_symbols">記号（?#）</string>
     <string name="settings_key_layout_restore_default">複製時のデフォルトに戻す</string>
@@ -112,7 +101,6 @@
     <string name="settings_key_layout_delete_confirm_title">このキーボード面を削除しますか？</string>
     <string name="settings_key_layout_delete_confirm_msg">「%1$s」は削除され、元に戻せません。</string>
     <string name="settings_key_layout_multi_select">複数選択</string>
-    <string name="settings_key_layout_multi_select_desc">ON の間は選択を残したまま別のキーを追加します</string>
     <string name="settings_key_layout_selected">段 %1$d / 枠 %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">%1$d キーを選択中</string>
     <string name="settings_key_layout_label">キーに出す文字</string>
@@ -184,8 +172,6 @@
     <string name="settings_confirm_download">ダウンロード前に確認</string>
     <string name="settings_confirm_download_desc">ON: distro / GUI のダウンロード前に確認を出す。OFF: 確認なしで取得。</string>
     <string name="settings_section_process_guard">バックグラウンドのプロセス保護</string>
-    <string name="settings_battery_opt_toggle">電池最適化から除外する</string>
-    <string name="settings_battery_opt_toggle_desc">ON: バックグラウンドでセッションや実行中プロセスが OS に kill されにくくなります。OFF にするとシステム設定を開きます (除外の解除はアプリから直接できないため)。</string>
     <string name="settings_phantom_title">それでも消える場合 (Android 12/13)</string>
     <string name="settings_phantom_desc">Android 12/13 は proot が生む「phantom process」を kill することがあります。アプリ内からは変更できないため、PC から adb で以下を実行し端末を再起動してください。Android 14+ は既定で緩和済みのことが多いです。</string>
     <string name="settings_low_power">省電力モード</string>
@@ -305,7 +291,6 @@
     <string name="licenses_view_full_text">ライセンス全文</string>
     <string name="licenses_full_text_title">ライセンス全文</string>
     <string name="licenses_license_text_heading">ライセンス原文</string>
-    <string name="licenses_source_line">ソース: %1$s</string>
     <string name="licenses_full_text_missing">（このライセンスの全文は同梱されていません。SPDX: %1$s\n公式テキスト: https://spdx.org/licenses/%1$s.html を参照してください。）</string>
     <string name="confirm_clean_install_title">%1$s をクリーンインストール</string>
     <string name="confirm_download_title">%1$s をダウンロード</string>
@@ -396,7 +381,6 @@
     <string name="ssh_new_profile_title">新規接続先</string>
     <string name="ssh_edit_profile_title">接続先を編集: %1$s</string>
     <string name="ssh_field_name">名前</string>
-    <string name="connection_protocol">接続方式</string>
     <string name="connection_field_webdav_url">WebDAV URL</string>
     <string name="connection_field_smb_host">SMB ホスト</string>
     <string name="connection_field_smb_share">共有名</string>
@@ -434,10 +418,7 @@
     <string name="ssh_field_private_key">秘密鍵 (PEM)</string>
     <string name="ssh_field_passphrase">パスフレーズ (鍵に設定されていれば)</string>
     <!-- リモート VNC (A1): 同じ接続先の画面を同じ入口から開く -->
-    <string name="ssh_vnc_section">VNC (画面)</string>
-    <string name="ssh_field_vnc_port">VNC ポート</string>
     <string name="ssh_field_vnc_password">VNC パスワード</string>
-    <string name="ssh_vnc_note">[VNC] でこのホストのデスクトップを新しいタブに開く。画面 :N はポート 5900+N (:1 なら 5901)。パスワードは VNC 用で SSH のものとは別 (8 文字まで有効)。相手が 127.0.0.1 でしか待っていないときは、先に端末で ssh -L 5901:localhost:5901 を張り、ここを 127.0.0.1 にする。</string>
     <string name="vnc_connecting">%1$s:%2$d へ接続中…</string>
     <string name="vnc_disconnected">相手から切断されました。</string>
     <string name="vnc_error_password_required">この VNC サーバはパスワードを要求しています。ツール (📜) › 接続先 でこの接続先の「VNC パスワード」を設定してください。</string>
@@ -470,17 +451,14 @@
 
     <!-- SFTP シート (D3 バッチ 3) -->
     <string name="sftp_toast_list_failed">一覧取得に失敗: %1$s</string>
-    <string name="sftp_toast_save_target_unavailable">保存先を開けません</string>
     <string name="sftp_toast_download_complete">ダウンロード完了: %1$s</string>
     <string name="sftp_toast_download_failed">ダウンロード失敗: %1$s</string>
-    <string name="sftp_toast_open_file_failed">ファイルを開けません</string>
     <string name="sftp_toast_upload_complete">アップロード完了: %1$s</string>
     <string name="sftp_toast_upload_failed">アップロード失敗: %1$s</string>
     <string name="sftp_button_up">↑上へ</string>
     <string name="sftp_status_connecting">接続中…</string>
     <string name="sftp_status_connect_failed">接続失敗: %1$s</string>
     <string name="sftp_status_empty_dir">(空のディレクトリ)</string>
-    <string name="sftp_button_upload">⬆ アップロード</string>
     <string name="sftp_button_new_folder">＋ 新規フォルダ</string>
     <string name="sftp_dialog_rename_title">名前変更</string>
     <string name="sftp_dialog_rename_confirm">変更</string>
@@ -605,10 +583,6 @@
     <string name="sshaccess_wifi_unavailable">Wi-Fi に接続して下さい (IP 未検出)</string>
     <string name="sshaccess_from_pc_header">\nPC から:</string>
     <string name="sshaccess_note">端末で `sshd` でも起動可 (ポートは sshd_config の Port、`-p` 指定も可)。\nOpenSSH の /usr/sbin/sshd は proot で privsep 破綻のため使えません → dropbear。\n詳細は docs/SSH-INTO-Z2TERM.md を参照</string>
-    <string name="storage_access_title">ストレージアクセス (cd /sdcard)</string>
-    <string name="storage_access_granted">✅ 許可済み。端末から `cd /sdcard` で共有ストレージへ移動できます。\n   権限不要のアプリ専用領域は `/storage/app` です。</string>
-    <string name="storage_access_denied">未許可。`cd /sdcard` の中身は見えません。下のボタンで全ファイル\nアクセスを許可してください。(`/storage/app` は許可不要で使えます)</string>
-    <string name="storage_access_grant_button">ストレージ全体を許可</string>
 
     <!-- TerminalScreen 残置文字列 (D3 バッチ 5) -->
     <string name="gui_confirm_download_title">GUI 一式をダウンロード</string>
@@ -642,9 +616,6 @@
     <string name="resident_dialog_reset_session_desc">端末を開き直した状態に戻す。常駐サーバーはそのまま動かし続けます。</string>
     <string name="resident_dialog_stop_all">全部停止して終了</string>
     <string name="resident_dialog_stop_all_desc">常駐サーバー・システムイベント検知・セッションをすべて止めてアプリを閉じます（タスクキル相当）。設定は変えないので、次にアプリを開くと検知は再開します。</string>
-    <string name="settings_section_servers">常駐サーバー</string>
-    <string name="settings_servers_desc">任意のサーバー (sshd/http/smb 等) をバックグラウンドで常駐。アプリを開かなくても動かせます。</string>
-    <string name="settings_open_servers">サーバーを管理</string>
     <string name="servers_title">常駐サーバー</string>
     <string name="servers_new">+ 新規</string>
     <string name="servers_empty">まだサーバーがありません。起動コマンド (例: python3 -m http.server 8080) で追加してください。</string>
@@ -671,9 +642,6 @@
     <string name="settings_notif_capture_desc">ON かつ「通知アクセス」許可があるとき、通知とその更新を検知します。保存は下の設定で選べます。通知自体が届かない内容や、送信元・Androidが伏せた本文は取得できません。完全ローカル。</string>
     <string name="settings_notif_log">通知ログを保存する</string>
     <string name="settings_notif_log_desc">受け取った長文・会話履歴・まとめ通知の新着分を ~/.z2term/notifications.jsonl へ保存します。同じ通知の再送や過去メッセージは重複除外し、別の受信時刻・送信者の新着は残します。OFFでは保存しません。</string>
-    <string name="settings_notif_access_granted">通知アクセス: 許可済み</string>
-    <string name="settings_notif_access_missing">通知アクセス: 未許可（下のボタンから許可）</string>
-    <string name="settings_notif_grant">通知アクセスを許可</string>
     <string name="settings_notif_fmt_title">出力フォーマット（空 = JSONL）</string>
     <string name="settings_notif_fmt_readable">読みやすい</string>
     <string name="settings_notif_fmt_line">1行</string>
@@ -690,12 +658,8 @@
     <string name="settings_section_sms">SMS 検知</string>
     <string name="settings_sms_capture">SMS を検知</string>
     <string name="settings_sms_capture_desc">ON かつ SMS 許可があるとき、受信 SMS を ~/.z2term/sms.jsonl へ追記します。通知と違い SMS 本文は Android 15+ の機微通知の伏せ字やロック状態の影響を受けないため、ワンタイムパスワードを確実に取れます。検知の汎用入口で、何を抽出するかはターミナル側で自由に。完全ローカル・外部送信なし。</string>
-    <string name="settings_sms_perm_granted">SMS 許可: あり</string>
-    <string name="settings_sms_perm_missing">SMS 許可: なし（下のボタンで許可）</string>
-    <string name="settings_sms_grant">SMS 受信を許可する</string>
     <string name="settings_sms_fmt_title">出力フォーマット（空 = JSONL）</string>
     <string name="settings_sms_help" tools:ignore="Typos">プレースホルダ: {time} {ts} {from} {body}。1 行化: {body1}。エスケープ: \\n \\t。新規の記録から反映。ログ: ~/.z2term/sms.jsonl</string>
-    <string name="settings_unlock_watch_admin_failed">この端末では端末管理者を追加できませんでした（端末のポリシーで禁止されている可能性があります）</string>
     <string name="event_channel_name">Z2Term システムイベント</string>
     <string name="event_channel_desc">画面/ロック/充電/電池/Wi-Fi のイベントを検知します</string>
     <string name="event_notification_title">システムイベント検知</string>
@@ -709,10 +673,6 @@
     <string name="settings_section_unlock_watch">ロック解除の失敗監視</string>
     <string name="settings_unlock_watch">解除失敗を検知</string>
     <string name="settings_unlock_watch_desc">ON かつ端末管理者が有効なとき、ロック画面の解除の失敗/成功を ~/.z2term/events.jsonl へ unlock_failed / unlock_succeeded として記録します（{level} = 連続失敗回数）。盗難対策マクロの検知入口で、アクション（通知・位置記録・警報など）はマクロ側で自由に組みます。撮影や送信は組み込みません。完全ローカル。</string>
-    <string name="settings_unlock_watch_admin_active">端末管理者: 有効</string>
-    <string name="settings_unlock_watch_admin_missing">端末管理者: 未有効 — 有効化すると解除イベントを受け取れます</string>
-    <string name="settings_unlock_watch_admin_grant">端末管理者を有効化</string>
-    <string name="settings_unlock_watch_admin_manage">端末管理者を管理（無効化はこちら）</string>
     <string name="settings_unlock_watch_admin_explain">盗難対策マクロ用に、ロック解除の失敗を検知するためだけに使います。このアプリが端末をロック・初期化・パスワード変更することはありません。</string>
     <string name="settings_unlock_watch_help">端末管理者が必要です（watch-login のみ・遠隔ロック/ワイプはしません）。イベント: unlock_failed（{level}=失敗回数）, unlock_succeeded。反応は events.jsonl を見るマクロで組みます。</string>
     <plurals name="toast_copy_from_remote">
@@ -732,7 +692,6 @@
     <string name="banner_process_exited">[プロセス終了 exitCode=%1$d]</string>
     <!-- 0.8.378: こちらが送っていないシグナルで終了した (多くは OS のメモリ回収)。 -->
     <string name="banner_process_killed">[プロセスが外から止められました %1$s exitCode=%2$d 空き %3$d MB]</string>
-    <string name="action_got_it">わかった</string>
     <string name="keyboard_style_compact">シンプル</string>
     <string name="keyboard_style_spacious">4 方向フリック</string>
 
@@ -966,18 +925,11 @@
     <string name="when_fired_title">直近の発火</string>
     <string name="when_fired_empty">まだ何も動いていません。</string>
     <string name="when_hint">▶ = きっかけを待たずに 1 回試す ／ ▤ = そのルールの実行ログ ／ ✎ = 中身を直す ／ ✕ = 削除。端末の z2-when で作ったものもここで直せます（正本は ~/.z2term/when/ のテキストです）。</string>
-    <string name="settings_section_automation_rules">自動化ルール（z2-when）</string>
-    <string name="settings_automation_rules_desc">登録したルールの確認・ON/OFF・実行ログ・お試し実行と、全部まとめての一時停止。</string>
-    <string name="settings_open_when_rules">ルールを管理</string>
     <!-- 内蔵キーボードを OS の入力メソッドとして出す (Z2ImeService)。 -->
     <string name="ime_label">z2term キーボード</string>
     <string name="ime_subtype_ja">z2term（日本語）</string>
     <string name="ime_subtype_en">z2term（英語）</string>
-    <string name="settings_section_ime">内蔵キーボードを他でも使う</string>
-    <string name="settings_ime_desc">内蔵キーボードを OS の入力方法として出します。アプリ内の入力欄（スニペット・SSH・SFTP・設定）でも他のアプリでも、同じキーボードと同じかな漢字変換で打てます。まず OS の一覧で有効にし、キーボード切替から選んでください。</string>
-    <string name="settings_ime_enable">Android の設定で有効にする</string>
     <string name="settings_ime_pick">キーボードを切り替える</string>
-    <string name="settings_ime_note">端末画面はこれまでどおり、アプリの中に描くキーボードを使います。</string>
     <string name="pad_clip_empty">コピーしたテキストがここに並びます。\nコピーしてからキーボードを開くと入ります。</string>
     <string name="pad_emoji_empty">使った絵文字がここに並びます。\n右のタブから選んでください。</string>
     <string name="tile_service_label_1">z2term 1</string>
@@ -1010,12 +962,6 @@
     <string name="tile_subtitle_pair_on">入 — 押すと切</string>
     <string name="tile_subtitle_pair_off">切 — 押すと入</string>
     <string name="tile_unassigned_toast">タイル %1$d には何も割り当てられていません。端末で z2-tile set %1$d backup.sh のように割り当ててください</string>
-    <string name="settings_section_screen_timeout">画面の自動消灯（z2-screen）</string>
-    <string name="settings_screen_timeout_desc">指定した時間だけ、画面が自分で消えないようにします。OS 全体の設定を変えるので、アプリを畳んでいても効きます（ツールバーの🔅はアプリを開いている間だけで、別物です）。元の値は期限が来たら必ず書き戻します。</string>
-    <string name="settings_screen_timeout_granted">システム設定の変更: 許可済み</string>
-    <string name="settings_screen_timeout_missing">システム設定の変更: 未許可（下のボタンから許可）</string>
-    <string name="settings_screen_timeout_grant">システム設定の変更を許可</string>
-    <string name="settings_screen_timeout_cmd_label">端末での使い方（タップでコピー）。期限前に戻すなら z2-screen keepon off</string>
     <string name="intro_title">はじめに（タップすると実行します。要らない行は ✕ で消せます）</string>
     <string name="intro_footer">一覧は z2help ／ 動かないときは z2doctor</string>
     <string name="intro_card_notify">スマホに通知を出してみる</string>
@@ -1066,7 +1012,7 @@
     <string name="guide_ask_feed_url">読みたいフィードの URL（1 本ずつ。あとから何本でも足せます）</string>
     <string name="guide_ask_interval">どれくらいの間隔で見に行くか（30m / 1h など。30 分より短くしない）</string>
     <string name="guide_ask_daily_time">何時に読み上げるか（HH:MM）</string>
-    <string name="guide_ask_battery_level">電池が何 % を切ったら知らせるか</string>
+    <string name="guide_ask_battery_level" formatted="false">電池が何 % を切ったら知らせるか</string>
     <string name="guide_ask_qr_text">QR にしたい文字列や URL</string>
 
     <!-- OS が 1 つも入っていないときの案内 (新規インストール直後は全員この状態)。 -->
@@ -1253,7 +1199,6 @@ SSH 接続先 %3$d 件
     <string name="settings_delete_os_failed">OS データをすべて削除できませんでした。一部が残っている可能性があります。詳細は診断ログを確認してください。</string>
 
     <!-- Generic macro forms in the edge panel -->
-    <string name="edge_type_macro">引数付きマクロ</string>
     <string name="edge_type_argument">引数欄</string>
     <string name="edge_type_result">結果欄</string>
     <string name="edge_macro_args">コマンドに渡す値（上から順番）</string>
@@ -1263,9 +1208,6 @@ SSH 接続先 %3$d 件
     <string name="edge_argument_choices">選択肢（| 区切り）</string>
     <string name="edge_argument_required">入力必須</string>
     <string name="edge_form_rows">表示行数（1〜20）</string>
-    <string name="edge_argument_text">自由入力</string>
-    <string name="edge_argument_choice">選択式</string>
-    <string name="edge_argument_fixed">固定値</string>
     <string name="edge_argument_optional">任意</string>
     <string name="edge_argument_mandatory">必須</string>
     <string name="edge_pick_argument">値を受け取る項目を選ぶ</string>
@@ -1320,8 +1262,8 @@ SSH 接続先 %3$d 件
     <string name="guide_step_edge_local">パネルが使うローカルLinux環境のターミナルで、シェルの入力待ちにしてから進めてください。</string>
     <string name="guide_step_sample_create">3タブ入りのサンプルパネルを1つ作る（既存の設定・項目は上書きしません）</string>
     <string name="guide_step_sample_open">パネルを有効にしてサンプルを開く（右端のバーを内側へスワイプすると再び開けます）</string>
-    <string name="guide_step_translation_cli">翻訳コマンド trans が未導入なら、同じLinux環境で次を手動実行してください。\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nこのカードは読むだけです。タップしてもインストールしません。翻訳する文章は外部の翻訳サービスへ送られます。</string>
+    <string name="guide_step_translation_cli" tools:ignore="TypographyDashes">翻訳コマンド trans が未導入なら、同じLinux環境で次を手動実行してください。\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nこのカードは読むだけです。タップしてもインストールしません。翻訳する文章は外部の翻訳サービスへ送られます。</string>
     <string name="guide_sample_translation_missing">先に翻訳コマンド trans の導入と翻訳マクロの準備を済ませてから、サンプル作成を再実行してください。</string>
     <string name="guide_desc_edge_workspace">メモ帳・翻訳・ターミナルをタブで使うパネルを作る</string>
-    <string name="guide_step_sample_use">3つのタブを切り替えて使います。メモは本文をダブルタップで編集し、自動保存されます。翻訳は原文と翻訳先を指定して「翻訳する」を押します。タブ切替・閉じる操作で翻訳の入力と結果は消えます。ターミナルのシェル・出力・入力途中の文字は継続し、↻で手動リフレッシュできます。サンプルバーの不透明度は30％です。</string>
+    <string name="guide_step_sample_use" formatted="false">3つのタブを切り替えて使います。メモは本文をダブルタップで編集し、自動保存されます。翻訳は原文と翻訳先を指定して「翻訳する」を押します。タブ切替・閉じる操作で翻訳の入力と結果は消えます。ターミナルのシェル・出力・入力途中の文字は継続し、↻で手動リフレッシュできます。サンプルバーの不透明度は30％です。</string>
 </resources>

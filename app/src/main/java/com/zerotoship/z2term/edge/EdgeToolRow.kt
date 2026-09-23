@@ -1,10 +1,13 @@
 package com.zerotoship.z2term.edge
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.View
 import android.widget.LinearLayout
+import androidx.core.view.isGone
 
 /** Keep every enabled tool visible; narrow panels stack controls instead of clipping siblings. */
+@SuppressLint("ViewConstructor") // Built in code only, never inflated from XML.
 internal class EdgeToolRow(context: Context, private val compact: Boolean = false) : LinearLayout(context) {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val available = MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight
@@ -17,7 +20,7 @@ internal class EdgeToolRow(context: Context, private val compact: Boolean = fals
         var required = 0
         for (i in 0 until childCount) {
             val child = getChildAt(i)
-            if (child.visibility == View.GONE) continue
+            if (child.isGone) continue
             child.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
                 MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
             val lp = child.layoutParams as? LayoutParams

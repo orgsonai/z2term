@@ -32,8 +32,6 @@
     <string name="edge_tab_name">탭 이름</string>
     <string name="edge_add_tab">+ 탭</string>
     <string name="edge_add">추가</string>
-    <string name="edge_layout_list">이름과 아이콘</string>
-    <string name="edge_layout_grid">아이콘만</string>
     <string name="edge_edit">편집</string>
     <string name="edge_done">완료</string>
     <string name="edge_delete">삭제</string>
@@ -51,22 +49,12 @@
     <string name="edge_new_panel_name">새 패널 이름</string>
     <string name="edge_add_panel">패널 추가</string>
     <string name="edge_other_panels">다른 패널 열기</string>
-    <string name="edge_adjust">모양 조정</string>
     <string name="edge_adjust_size">핸들 두께 / 버튼 크기 (dp)</string>
-    <string name="edge_adjust_length">바 길이 (화면 %)</string>
-    <string name="edge_adjust_alpha">핸들 불투명도 (0.05–1)</string>
-    <string name="edge_adjust_width">패널 너비 (dp 또는 %)</string>
-    <string name="edge_adjust_height">패널 높이 (dp 또는 %)</string>
+    <string name="edge_adjust_length" formatted="false">바 길이 (화면 %)</string>
     <string name="edge_preview_help">저장 전까지 변경은 미리보기입니다. 취소하거나 닫으면 복원됩니다. 너비와 높이 슬라이더는 화면 비율을 사용합니다.</string>
     <string name="edge_edit_conflict">다른 곳에서 설정이 바뀌었습니다. 편집기를 다시 열고 저장하세요.</string>
     <string name="edge_add_item">사용자 슬롯 추가 (매크로 / 명령)</string>
     <string name="edge_edit_item">항목 편집</string>
-    <string name="edge_item_type">항목 유형</string>
-    <string name="edge_type_run">실행 버튼</string>
-    <string name="edge_type_text">텍스트 표시</string>
-    <string name="edge_type_toggle">토글</string>
-    <string name="edge_type_list">선택 목록</string>
-    <string name="edge_type_input">입력란</string>
     <string name="edge_item_label">라벨</string>
     <string name="edge_item_icon">아이콘 (문자, 이미지 경로 또는 @app:패키지)</string>
     <string name="edge_item_run">실행할 명령</string>
@@ -103,10 +91,6 @@
     <string name="edge_handle_bar">바</string>
     <string name="edge_handle_button">버튼</string>
     <string name="edge_handle_side">바 가장자리</string>
-    <string name="edge_handle_open">핸들 작동 방식</string>
-    <string name="edge_open_tap">탭</string>
-    <string name="edge_open_swipe">안쪽으로 스와이프</string>
-    <string name="edge_open_both">탭 또는 스와이프</string>
     <string name="edge_handle_offset">바 세로 위치 (%)</string>
     <string name="edge_handle_x">버튼 가로 위치 (%)</string>
     <string name="edge_handle_y">버튼 세로 위치 (%)</string>
@@ -115,10 +99,6 @@
     <string name="edge_size_preview_limit">높이 상한과 위치 (내용이 짧으면 줄어듦)</string>
     <string name="edge_section_gestures">제스처</string>
     <string name="edge_gestures_help">제스처마다 동작을 추가하고 순서를 정하세요. 모두 지우면 할당이 해제됩니다. 길게 누르면 편집하거나 이동합니다. 스와이프로 이동량에 따른 자동 스크롤을 시작할 수 있습니다. 화면 아무 곳이나 누르면 멈춥니다. 최대 속도는 40,000dp/초이며 속도 변경과 반전은 스와이프에 할당하세요. 탭은 뒤의 앱에도 전달될 수 있습니다. 대상 좌표는 포커스된 창 안의 백분율입니다. Android 동작에는 접근성이 필요합니다.</string>
-    <string name="edge_gesture_double_tap">두 번 탭 명령</string>
-    <string name="edge_gesture_up">위로 스와이프 명령</string>
-    <string name="edge_gesture_down">아래로 스와이프 명령</string>
-    <string name="edge_gesture_scroll">세로 스와이프로 자동 스크롤</string>
     <string name="edge_scroll_variable">이동량에 따른 속도</string>
     <string name="edge_scroll_fixed">고정 속도</string>
     <string name="edge_scroll_range">최대 속도까지의 이동 거리 (dp)</string>
@@ -159,10 +139,9 @@
     <string name="edge_trigger_down">아래로 스와이프</string>
     <string name="edge_trigger_inward">안쪽으로 스와이프</string>
     <string name="edge_trigger_outward">바깥쪽으로 스와이프</string>
-    <string name="edge_scroll_x">스크롤 X 위치 (창 %)</string>
-    <string name="edge_scroll_y">스크롤 Y 위치 (창 %)</string>
+    <string name="edge_scroll_x" formatted="false">스크롤 X 위치 (창 %)</string>
+    <string name="edge_scroll_y" formatted="false">스크롤 Y 위치 (창 %)</string>
     <string name="edge_action_choose_app">앱 선택</string>
-    <string name="edge_custom_slot">사용자 슬롯</string>
     <string name="edge_pick_macro">매크로 선택</string>
     <string name="edge_pick_icon">z2-icon에서 선택</string>
     <string name="tip_edge_edit_title">z2-edge 바 편집</string>

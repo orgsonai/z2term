@@ -23,6 +23,7 @@ import java.io.File
 import java.io.InputStream
 import java.net.InetAddress
 import javax.net.ServerSocketFactory
+import androidx.core.net.toUri
 
 /** Explicitly started sharing only; never restarts or publishes files after process death. */
 internal class DirectShareService : Service() {
@@ -93,7 +94,7 @@ internal class DirectShareService : Service() {
                 }.also { networkWatcher = it }
                 watcher.prepare()
                 val bindAddress = InetAddress.getByName("127.0.0.1")
-                val uri = Uri.parse(intent.getStringExtra("file"))
+                val uri = requireNotNull(intent.getStringExtra("file")) { "No file to share" }.toUri()
                 require(uri.scheme == "content")
                 preparingSelection = true
                 val (ready, name) = withContext(Dispatchers.IO) {

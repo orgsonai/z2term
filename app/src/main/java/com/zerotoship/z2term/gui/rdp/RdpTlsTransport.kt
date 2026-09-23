@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.gui.rdp
 
+import android.annotation.SuppressLint
 import android.util.Log
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
@@ -261,6 +262,9 @@ internal class RdpTlsTransport private constructor(
     }
 
     /** 証明書の信頼判断は TLS 後に [certificateVerifier] で行うため、ここでは chain を記録する。 */
+    // Accepting here is deliberate: the chain is recorded and trusted only after the TLS handshake,
+    // by the fingerprint check the user confirmed on first connection (certificateVerifier).
+    @SuppressLint("CustomX509TrustManager")
     private class RecordingTrustManager : X509TrustManager {
         var serverChain: Array<out X509Certificate>? = null
             private set

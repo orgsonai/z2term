@@ -11,6 +11,7 @@ import android.util.Log
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import androidx.core.net.toUri
 
 /**
  * 新しい版の APK を**取ってきて入れ替える**ところまでを受け持つ (0.8.371)。
@@ -51,7 +52,7 @@ object UpdateInstaller {
     /** 「不明なアプリのインストール」の設定画面 (z2term のページを直接開く)。 */
     fun unknownSourcesIntent(context: Context): Intent =
         Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
-            .setData(Uri.parse("package:${context.packageName}"))
+            .setData("package:${context.packageName}".toUri())
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     /**

@@ -14,6 +14,7 @@ import androidx.core.view.children
 import androidx.core.widget.doAfterTextChanged
 import com.zerotoship.z2term.R
 import java.util.UUID
+import androidx.core.view.isVisible
 
 /**
  * A local draft; closing or cancelling the editor never updates the definition.
@@ -297,7 +298,7 @@ object EdgeItemEditor {
             }
             blocks.forEach { content ->
                 (content.parent as View).visibility =
-                    if (content.children.any { it.visibility == View.VISIBLE }) View.VISIBLE else View.GONE
+                    if (content.children.any { it.isVisible }) View.VISIBLE else View.GONE
             }
         }
         component.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -359,7 +360,7 @@ object EdgeItemEditor {
         }
         toggle?.let { button ->
             button.setOnClickListener {
-                if (draft.visibility == View.VISIBLE) session.discard(outer) { close() }
+                if (draft.isVisible) session.discard(outer) { close() }
                 else {
                     draft.visibility = View.VISIBLE
                     button.text = context.getString(R.string.edge_close)
@@ -389,7 +390,7 @@ object EdgeItemEditor {
                 }
                 entries.forEach { (key, entry) ->
                     // Preserve hidden values; only visible fields are edited.
-                    if (groups.getValue(key).visibility == View.VISIBLE) {
+                    if (groups.getValue(key).isVisible) {
                         val value = if (key in setOf("note-background", "note-color")) entry.text.toString().trim() else entry.text.toString()
                         if (key == "label") values[key] = value.trim()
                         else if (value.isEmpty()) values.remove(key) else values[key] = value
@@ -400,7 +401,7 @@ object EdgeItemEditor {
                     values["run"] = if (launchMode == "freeform")
                         AppLaunchCommand.withFreeformScale(modeCommand, scaleFreeform) else modeCommand
                 }
-                if (resultControls.visibility == View.VISIBLE) values["result-controls"] = if (resultControls.isChecked) "on" else "off"
+                if (resultControls.isVisible) values["result-controls"] = if (resultControls.isChecked) "on" else "off"
                 if (values["type"] == "run" && values["label"].isNullOrBlank() && values["icon"].isNullOrBlank() &&
                     AppLaunchCommand.packageFrom(values["run"].orEmpty()) == null) {
                     values["label"] = context.getString(R.string.edge_run)

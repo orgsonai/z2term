@@ -22,6 +22,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.TimeZone
+import androidx.core.net.toUri
 
 /**
  * 定期バックアップ (0.8.386)。決まった日時に [BackupManager] を回して、選んだフォルダへ
@@ -202,7 +203,7 @@ object AutoBackup {
         val app = context.applicationContext
         val s = AppSettings(app).flow.first()
         if (s.autoBackupFolder.isEmpty()) return Result(false, ERR_NO_FOLDER)
-        val tree = runCatching { Uri.parse(s.autoBackupFolder) }.getOrNull()
+        val tree = runCatching { s.autoBackupFolder.toUri() }.getOrNull()
             ?: return Result(false, ERR_NO_FOLDER)
         if (!hasWriteAccess(app, tree)) return Result(false, ERR_NO_ACCESS)
 

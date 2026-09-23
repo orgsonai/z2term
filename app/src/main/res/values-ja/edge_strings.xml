@@ -32,8 +32,6 @@
     <string name="edge_tab_name">タブ名</string>
     <string name="edge_add_tab">＋タブ</string>
     <string name="edge_add">追加</string>
-    <string name="edge_layout_list">名前とアイコン</string>
-    <string name="edge_layout_grid">アイコンのみ</string>
     <string name="edge_edit">編集</string>
     <string name="edge_done">完了</string>
     <string name="edge_delete">削除</string>
@@ -51,22 +49,12 @@
     <string name="edge_new_panel_name">新しいパネルの名前</string>
     <string name="edge_add_panel">＋パネル</string>
     <string name="edge_other_panels">別のパネルを開く</string>
-    <string name="edge_adjust">見た目を調整</string>
     <string name="edge_adjust_size">取っ手の太さ・ボタンサイズ（dp）</string>
-    <string name="edge_adjust_length">バーの長さ（画面の%）</string>
-    <string name="edge_adjust_alpha">取っ手の不透明度（0.05〜1）</string>
-    <string name="edge_adjust_width">パネルの幅（dp または %）</string>
-    <string name="edge_adjust_height">パネルの高さ（dp または %）</string>
+    <string name="edge_adjust_length" formatted="false">バーの長さ（画面の%）</string>
     <string name="edge_preview_help">保存するまで仮表示です。取消・閉じるで元に戻ります。幅・高さのスライダーは画面の割合です。</string>
     <string name="edge_edit_conflict">別の場所で設定が変更されました。開き直してから保存してください。</string>
     <string name="edge_add_item">自由な枠を追加（マクロ・コマンド）</string>
     <string name="edge_edit_item">項目を編集</string>
-    <string name="edge_item_type">項目の種類</string>
-    <string name="edge_type_run">実行ボタン</string>
-    <string name="edge_type_text">テキスト表示</string>
-    <string name="edge_type_toggle">切り替え</string>
-    <string name="edge_type_list">選択リスト</string>
-    <string name="edge_type_input">入力欄</string>
     <string name="edge_item_label">表示名</string>
     <string name="edge_item_icon">アイコン（文字・画像パス・@app:パッケージ名）</string>
     <string name="edge_item_run">実行するコマンド</string>
@@ -103,10 +91,6 @@
     <string name="edge_handle_bar">バー</string>
     <string name="edge_handle_button">ボタン</string>
     <string name="edge_handle_side">バーを置く辺</string>
-    <string name="edge_handle_open">取っ手の開き方</string>
-    <string name="edge_open_tap">タップ</string>
-    <string name="edge_open_swipe">内側へスワイプ</string>
-    <string name="edge_open_both">タップとスワイプ</string>
     <string name="edge_handle_offset">バーの縦位置（%）</string>
     <string name="edge_handle_x">ボタンの横位置（%）</string>
     <string name="edge_handle_y">ボタンの縦位置（%）</string>
@@ -128,10 +112,6 @@
     <string name="edge_remove_panel">パネル・タブを削除</string>
     <string name="edge_section_gestures">ジェスチャー</string>
     <string name="edge_gestures_help">各ジェスチャーに動作を追加し、上から実行する順番を決めます。動作をすべて削除すると割り当てなしになります。長押しは設定・移動です。スワイプでオートスクロールを開始し、指の移動量で速度を指定できます。スクロール中は画面のどこをタップしても停止します。最高速度は40,000dp/秒まで設定できます。速度変更・反転はスワイプへ割り当ててください。画面タップは背後のアプリにも届く場合があります。対象位置は入力フォーカスのあるウィンドウ内の割合です。Android操作にはユーザー補助が必要です。</string>
-    <string name="edge_gesture_double_tap">ダブルタップのコマンド</string>
-    <string name="edge_gesture_up">上スワイプのコマンド</string>
-    <string name="edge_gesture_down">下スワイプのコマンド</string>
-    <string name="edge_gesture_scroll">上下スライドでオートスクロール</string>
     <string name="edge_scroll_variable">移動量で速度を変更</string>
     <string name="edge_scroll_fixed">固定速度</string>
     <string name="edge_scroll_range">最高速度に達するスライド距離（dp）</string>
@@ -172,10 +152,9 @@
     <string name="edge_trigger_down">下スワイプ</string>
     <string name="edge_trigger_inward">内側スワイプ</string>
     <string name="edge_trigger_outward">外側スワイプ</string>
-    <string name="edge_scroll_x">スクロール位置・横（ウィンドウ内％）</string>
-    <string name="edge_scroll_y">スクロール位置・縦（ウィンドウ内％）</string>
+    <string name="edge_scroll_x" formatted="false">スクロール位置・横（ウィンドウ内％）</string>
+    <string name="edge_scroll_y" formatted="false">スクロール位置・縦（ウィンドウ内％）</string>
     <string name="edge_action_choose_app">アプリを選択</string>
-    <string name="edge_custom_slot">自由な枠</string>
     <string name="edge_pick_macro">マクロから選ぶ</string>
     <string name="edge_pick_icon">z2-iconから選ぶ</string>
     <string name="tip_edge_edit_title">z2-edgeのバーを編集する</string>

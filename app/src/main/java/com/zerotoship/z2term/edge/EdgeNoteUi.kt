@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.edge
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Canvas
@@ -16,6 +17,8 @@ import androidx.core.graphics.ColorUtils
 
 /** Per-note paper and ink, retaining theme defaults and actual line positions. */
 internal object EdgeNoteUi {
+    // The double tap calls performClick(); single taps are withheld on purpose (see onTouchEvent).
+    @SuppressLint("ClickableViewAccessibility")
     fun preview(context: Context, ruled: Boolean, ink: Int? = null, paper: Int? = null): TextView = object : TextView(context) {
         private val rules = Rules(this, ruled, ink != null || paper != null)
         private val taps = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
@@ -50,6 +53,7 @@ internal object EdgeNoteUi {
      * ここで選択の変化を知らせる。⚠ システムの選択メニューは**殺さない** — 出る端末では
      * そちらの方が手数が少ないので、こちらは常に使える控えとして足すだけにする。
      */
+    @SuppressLint("ViewConstructor") // Built in code only, never inflated from XML.
     internal class NoteEditor(context: Context, ruled: Boolean, custom: Boolean) : EditText(context) {
         private val rules = Rules(this, ruled, custom)
         var onSelectionChange: (() -> Unit)? = null

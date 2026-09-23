@@ -57,6 +57,8 @@ internal class DirectFileServer(
         }
     }
     internal val localPort get() = listener.localPort
+    /** False once closed: the listening socket is gone and nothing further is accepted. */
+    internal val listening get() = running.get() && !listener.isClosed
     // The private listener uses its actual port until the HTTPS relay is ready.
     @Volatile private var origin: String = origin ?: DirectShareAddress.httpOrigin(requireNotNull(bindAddress), localPort)
     val url get() = this.origin + path
@@ -79,7 +81,8 @@ internal class DirectFileServer(
         { task -> Thread(task, "direct-share-http").apply { isDaemon = true } })
 
     init {
-        timer.scheduleAtFixedRate({
+        // Fixed delay: a process thawed from the cached state must not run every missed check at once.
+        timer.scheduleWithFixedDelay({
             if (nanoTime() >= deadline) close()
             else sockets.forEach { (socket, progress) ->
                 if (nanoTime() - progress >= 30_000_000_000L) runCatching { socket.close() }

@@ -15,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.icon.setZ2SmallIcon
+import androidx.core.net.toUri
 
 /** Foreground only during a requested macro. Interrupted runs never resume automatically. */
 class ActionService : Service() {
@@ -34,7 +35,7 @@ class ActionService : Service() {
             NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
         val stop = PendingIntent.getService(this, 7811,
             Intent(this, ActionService::class.java).setAction(STOP)
-                .setData(android.net.Uri.parse("z2term-action:${runId.orEmpty()}"))
+                .setData("z2term-action:${runId.orEmpty()}".toUri())
                 .putExtra("run_id", runId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(this, CHANNEL)

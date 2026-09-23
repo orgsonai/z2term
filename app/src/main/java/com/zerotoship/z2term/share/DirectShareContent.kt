@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.share
 
+import android.annotation.SuppressLint
 import java.io.File
 import java.io.InputStream
 
@@ -50,6 +51,8 @@ internal object DirectShareSnapshot {
     const val MAX_DEPTH = 64
 
     /** Prepare the complete selection before any listener starts. The caller owns the empty cache directory. */
+    // A floor checked on every read while copying; getAllocatableBytes is an IPC too slow for that loop.
+    @SuppressLint("UsableSpace")
     fun prepare(root: DirectShareSource, cache: File, checkActive: () -> Unit,
                 onInput: (InputStream?) -> Unit = {}, maxBytes: Long = MAX_BYTES): DirectShareContent {
         require(cache.isDirectory && cache.listFiles()?.isEmpty() == true && maxBytes >= 0)

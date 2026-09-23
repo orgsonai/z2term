@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- canTakeScreenshot is read from Android 11; on 10 the region shot reports that it is unavailable. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:canRetrieveWindowContent="true"
     android:accessibilityFlags="flagRetrieveInteractiveWindows|flagReportViewIds"
     android:canPerformGestures="true"
     android:canTakeScreenshot="true"
+    tools:ignore="UnusedAttribute"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
     android:description="@string/edge_accessibility_description"
     android:notificationTimeout="100" />

@@ -151,13 +151,14 @@ class DirectFileServerTest {
         val clock = AtomicLong(0)
         val first = server(clock = clock::get)
         val token = first.token
-        val port = first.localPort
         try {
             val cookie = consent(first)
             clock.set(60_000_000_000L)
             assertEquals(410, request(first, first.path + "file", headers = mapOf("Cookie" to cookie)).code)
         } finally { first.close() }
-        assertTrue(runCatching { Socket("127.0.0.1", port).close() }.isFailure)
+        // Asked of the share itself: probing the old port number can meet another listener that
+        // the system has since given the same number to, which made this test fail at random.
+        assertFalse(first.listening)
         server().use { assertNotEquals(token, it.token) }
     }
 

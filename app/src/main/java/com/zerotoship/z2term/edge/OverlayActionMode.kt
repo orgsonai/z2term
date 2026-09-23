@@ -2,7 +2,6 @@ package com.zerotoship.z2term.edge
 
 import android.graphics.Rect
 import android.view.ActionMode
-import android.view.Gravity
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.View
@@ -12,6 +11,9 @@ import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
+import androidx.core.view.isEmpty
+import androidx.core.view.size
+import androidx.core.view.get
 
 /**
  * The text selection toolbar (cut / copy / paste / select all) for a window added directly
@@ -46,22 +48,22 @@ internal class OverlayActionMode(
         type = TYPE_FLOATING
         callback.onPrepareActionMode(this, items)
         fill()
-        host.addView(toolbar, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.LEFT))
+        host.addView(toolbar, FrameLayout.LayoutParams(-2, -2, ScreenGravity.TOP_LEFT))
         host.viewTreeObserver.addOnPreDrawListener(follow)
         return true
     }
 
     private fun fill() {
         bar.removeAllViews()
-        for (i in 0 until items.size()) {
-            val item = items.getItem(i)
+        for (i in 0 until items.size) {
+            val item = items[i]
             if (!item.isVisible) continue
             val label = item.title?.toString()?.takeIf { it.isNotBlank() } ?: continue
             bar.addView(EdgeSettingsUi.button(host.context, label, EdgeSettingsUi.Kind.QUIET) {
                 if (!finished) callback.onActionItemClicked(this, item)
             }.apply { isFocusable = false; isEnabled = item.isEnabled })
         }
-        toolbar.visibility = if (bar.childCount == 0) View.GONE else toolbar.visibility
+        toolbar.visibility = if (bar.isEmpty()) View.GONE else toolbar.visibility
     }
 
     /** Above the selection when it fits, otherwise below it; always inside the window. */

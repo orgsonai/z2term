@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.edge
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.View
 import android.widget.CheckBox
@@ -99,6 +100,8 @@ object EdgePanelEditor {
      * panel takes its tabs with it (they show as ticked and locked); a tab ticked on its own leaves
      * the rest of its panel alone. The first tab is the panel itself, so it only goes with the panel.
      */
+    // The warning lists translated lines, one per panel; only the line breaks are joined here.
+    @SuppressLint("SetTextI18n")
     private fun addRemoval(context: Context, section: LinearLayout, current: EdgeStore.Panel,
         all: List<EdgeStore.Panel>, session: EdgeEditorSession, attempt: (() -> Unit) -> Unit,
         remove: (Collection<String>) -> Unit) {

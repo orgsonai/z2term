@@ -32,8 +32,6 @@
     <string name="edge_tab_name">Nombre de pestaña</string>
     <string name="edge_add_tab">+ Pestaña</string>
     <string name="edge_add">Añadir</string>
-    <string name="edge_layout_list">Nombres e iconos</string>
-    <string name="edge_layout_grid">Solo iconos</string>
     <string name="edge_edit">Editar</string>
     <string name="edge_done">Listo</string>
     <string name="edge_delete">Eliminar</string>
@@ -51,22 +49,12 @@
     <string name="edge_new_panel_name">Nombre del nuevo panel</string>
     <string name="edge_add_panel">Añadir panel</string>
     <string name="edge_other_panels">Abrir otro panel</string>
-    <string name="edge_adjust">Ajustar apariencia</string>
     <string name="edge_adjust_size">Grosor del tirador / tamaño del botón (dp)</string>
-    <string name="edge_adjust_length">Longitud de barra (% de pantalla)</string>
-    <string name="edge_adjust_alpha">Opacidad del tirador (0.05–1)</string>
-    <string name="edge_adjust_width">Ancho del panel (dp o %)</string>
-    <string name="edge_adjust_height">Alto del panel (dp o %)</string>
+    <string name="edge_adjust_length" formatted="false">Longitud de barra (% de pantalla)</string>
     <string name="edge_preview_help">Los cambios son una vista previa hasta guardarlos. Cancela o cierra para restaurar. Los controles de ancho y alto usan porcentajes de pantalla.</string>
     <string name="edge_edit_conflict">Los ajustes han cambiado en otro lugar. Vuelve a abrir el editor antes de guardar.</string>
     <string name="edge_add_item">Añadir espacio personalizado (macro / comando)</string>
     <string name="edge_edit_item">Editar elemento</string>
-    <string name="edge_item_type">Tipo de elemento</string>
-    <string name="edge_type_run">Botón de ejecución</string>
-    <string name="edge_type_text">Texto</string>
-    <string name="edge_type_toggle">Interruptor</string>
-    <string name="edge_type_list">Lista de selección</string>
-    <string name="edge_type_input">Campo de entrada</string>
     <string name="edge_item_label">Etiqueta</string>
     <string name="edge_item_icon">Icono (texto, ruta de imagen o @app:paquete)</string>
     <string name="edge_item_run">Comando a ejecutar</string>
@@ -103,10 +91,6 @@
     <string name="edge_handle_bar">Barra</string>
     <string name="edge_handle_button">Botón</string>
     <string name="edge_handle_side">Borde de la barra</string>
-    <string name="edge_handle_open">Activación del tirador</string>
-    <string name="edge_open_tap">Tocar</string>
-    <string name="edge_open_swipe">Deslizar hacia dentro</string>
-    <string name="edge_open_both">Tocar o deslizar</string>
     <string name="edge_handle_offset">Posición vertical de barra (%)</string>
     <string name="edge_handle_x">Posición horizontal del botón (%)</string>
     <string name="edge_handle_y">Posición vertical del botón (%)</string>
@@ -115,10 +99,6 @@
     <string name="edge_size_preview_limit">Límite de alto y posición (se reduce con poco contenido)</string>
     <string name="edge_section_gestures">Gestos</string>
     <string name="edge_gestures_help">Añade acciones a cada gesto y ordena su ejecución. Elimínalas todas para dejarlo sin asignar. Mantén pulsado para editar o mover. Los deslizamientos pueden iniciar el desplazamiento automático con velocidad según la distancia. Toca cualquier punto de la pantalla para detenerlo. Velocidad máxima: 40.000 dp/s; asigna los cambios de velocidad y sentido a deslizamientos. Los toques también pueden llegar a la aplicación de debajo. Las coordenadas son porcentajes de la ventana enfocada. Las acciones Android requieren Accesibilidad.</string>
-    <string name="edge_gesture_double_tap">Comando de doble toque</string>
-    <string name="edge_gesture_up">Comando al deslizar arriba</string>
-    <string name="edge_gesture_down">Comando al deslizar abajo</string>
-    <string name="edge_gesture_scroll">Desplazamiento automático con deslizamientos verticales</string>
     <string name="edge_scroll_variable">Velocidad según la distancia</string>
     <string name="edge_scroll_fixed">Velocidad fija</string>
     <string name="edge_scroll_range">Distancia hasta la velocidad máxima (dp)</string>
@@ -159,10 +139,9 @@
     <string name="edge_trigger_down">Deslizar abajo</string>
     <string name="edge_trigger_inward">Deslizar hacia dentro</string>
     <string name="edge_trigger_outward">Deslizar hacia fuera</string>
-    <string name="edge_scroll_x">Posición X del desplazamiento (% de ventana)</string>
-    <string name="edge_scroll_y">Posición Y del desplazamiento (% de ventana)</string>
+    <string name="edge_scroll_x" formatted="false">Posición X del desplazamiento (% de ventana)</string>
+    <string name="edge_scroll_y" formatted="false">Posición Y del desplazamiento (% de ventana)</string>
     <string name="edge_action_choose_app">Elegir aplicación</string>
-    <string name="edge_custom_slot">Espacio personalizado</string>
     <string name="edge_pick_macro">Elegir macro</string>
     <string name="edge_pick_icon">Elegir de z2-icon</string>
     <string name="tip_edge_edit_title">Editar una barra z2-edge</string>

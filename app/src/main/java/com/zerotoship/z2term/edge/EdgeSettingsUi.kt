@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.core.graphics.ColorUtils
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.ui.theme.AppColors
+import androidx.core.view.isVisible
+import androidx.core.graphics.drawable.toDrawable
 
 /**
  * Every surface of the hand-built editors is declared here - the panel editor and the action-macro
@@ -58,7 +60,7 @@ internal object EdgeSettingsUi {
         setColor(fill); setStroke(width, stroke); cornerRadius = radius.toFloat()
     }
 
-    fun ripple(context: Context, content: Drawable?, mask: Drawable? = ColorDrawable(Color.WHITE)): Drawable =
+    fun ripple(context: Context, content: Drawable?, mask: Drawable? = Color.WHITE.toDrawable()): Drawable =
         RippleDrawable(ColorStateList.valueOf(tint(accent(context), 0x38)), content, mask)
 
     /** A bordered block for content that must be read as one unit (a warning, a step, a draft). */
@@ -203,9 +205,9 @@ internal object EdgeSettingsUi {
             addView(heading, LinearLayout.LayoutParams(0, -2, 1f))
             addView(mark)
         }
-        fun sync() { mark.text = if (container.visibility == View.VISIBLE) "▾" else "▸" }
+        fun sync() { mark.text = if (container.isVisible) "▾" else "▸" }
         header.setOnClickListener {
-            container.visibility = if (container.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            container.visibility = if (container.isVisible) View.GONE else View.VISIBLE
             sync()
         }
         sync()
@@ -256,9 +258,9 @@ internal object EdgeSettingsUi {
             }, LinearLayout.LayoutParams(0, -2, 1f))
             addView(mark)
         }
-        fun sync() { mark.text = if (content.visibility == View.VISIBLE) "▾" else "▸" }
+        fun sync() { mark.text = if (content.isVisible) "▾" else "▸" }
         header.setOnClickListener {
-            content.visibility = if (content.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            content.visibility = if (content.isVisible) View.GONE else View.VISIBLE
             sync()
         }
         sync()
@@ -270,13 +272,13 @@ internal object EdgeSettingsUi {
 
     /** An open editor hangs off the row it edits: a filled ground with an accent rule down its start edge. */
     fun attached(context: Context): Drawable =
-        LayerDrawable(arrayOf<Drawable>(ColorDrawable(surface(context)), ColorDrawable(accent(context)))).apply {
+        LayerDrawable(arrayOf<Drawable>(surface(context).toDrawable(), accent(context).toDrawable())).apply {
             setLayerGravity(1, Gravity.START or Gravity.FILL_VERTICAL)
             setLayerWidth(1, dp(context, 3))
         }
 
     /** The row whose editor is open is tinted, so the editor below is read as belonging to it. */
-    fun opened(context: Context): Drawable = ripple(context, ColorDrawable(tint(accent(context), 0x1A)))
+    fun opened(context: Context): Drawable = ripple(context, tint(accent(context), 0x1A).toDrawable())
 
     // ---- controls ------------------------------------------------------------------------------
 
@@ -300,7 +302,7 @@ internal object EdgeSettingsUi {
         minWidth = 0; minimumWidth = 0; minHeight = 0; minimumHeight = 0
         setPadding(0, 0, 0, 0)
         setTextColor(labelColor(context, Kind.QUIET))
-        background = ripple(context, null, ColorDrawable(Color.WHITE))
+        background = ripple(context, null, Color.WHITE.toDrawable())
         setOnClickListener { action() }
     }
 
