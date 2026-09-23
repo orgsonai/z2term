@@ -27,6 +27,8 @@ internal class EdgeRowSketch(
     weights: List<List<Float>>,
     private val panelWidth: Int,
     private val panelHeight: Int,
+    /** The menu keeps its full height (fixed, or holding a terminal): space under the rows is drawn empty. */
+    private val bounded: Boolean,
     private val fill: (LinearLayout, String, Boolean) -> Unit,
     private val listener: Listener,
 ) : LinearLayout(context) {
@@ -77,17 +79,22 @@ internal class EdgeRowSketch(
             board.addView(strip, LayoutParams(-1, dp(24)))
             board.addView(gap(r + 1))
         }
+        board.addView(View(context), LayoutParams(-1, 0, 1f))
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         // Keep the real proportions: as wide as the page allows, but never taller than a phone's third.
         val room = MeasureSpec.getSize(widthMeasureSpec) - paddingLeft - paddingRight
-        val tall = heights.sum().coerceAtLeast(1f)
+        val tall = (if (bounded) maxOf(heights.sum(), panelHeight.toFloat()) else heights.sum()).coerceAtLeast(1f)
         scale = minOf(room.toFloat() / panelWidth.coerceAtLeast(1), dp(280) / tall)
         board.layoutParams.width = (panelWidth * scale).toInt().coerceAtLeast(dp(120)).coerceAtMost(room)
+        var drawn = board.paddingTop + board.paddingBottom + dp(16) * (strips.size + 1)
         strips.forEachIndexed { r, strip ->
             strip.layoutParams.height = (heights[r] * scale).toInt().coerceAtLeast(dp(28))
+            drawn += strip.layoutParams.height
         }
+        // The rules between rows take room of their own; the frame grows by them, never squeezes the rows.
+        board.layoutParams.height = if (bounded) maxOf(drawn, (tall * scale).toInt() + drawn - (heights.sum() * scale).toInt()) else -2
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
     }
 

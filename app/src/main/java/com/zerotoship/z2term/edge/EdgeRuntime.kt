@@ -966,6 +966,8 @@ object EdgeRuntime {
             // take the height the others leave, once the panel height is decided.
             val rowLines = if (!settings && !terminalOnly && EdgeRows.arranged(panel.items)) EdgeRows.saved(panel.items) else null
             val heightBounded = stablePanelSize || root.fields["fit"] == "fixed"
+            // Settings never fix their own height, so the Layout page asks what the menu will do.
+            val menuBounded = EdgePanelLayout.bounded(root, panels) || root.fields["fit"] == "fixed"
             val growing = rowLines != null && heightBounded && rowLines.any { line -> line.any(EdgeRows::grows) }
             val direct = terminalOnly || growing
             val closeTerminal = panel.items.firstOrNull { it.type == "terminal" }?.id
@@ -1033,7 +1035,7 @@ object EdgeRuntime {
             if (settings) {
                 if (page == 0) {
                     val lines = EdgeRows.of(panel.items, root.fields["flow"], panel.fields["layout"], legacyColumns(root))
-                    if (lines.isNotEmpty()) rows.addView(rowSketch(panel.id, lines, root, heightBounded, labels),
+                    if (lines.isNotEmpty()) rows.addView(rowSketch(panel.id, lines, root, menuBounded, labels),
                         LinearLayout.LayoutParams(-1, -2).apply {
                             setMargins(dp(EdgeSettingsUi.GUTTER), dp(4), dp(EdgeSettingsUi.GUTTER), dp(8))
                         })
@@ -1050,7 +1052,7 @@ object EdgeRuntime {
                     })
                     val ids = lines.map { line -> line.map { it.id } }
                     lines.forEachIndexed { index, line ->
-                        rows.addView(rowHeading(panel.id, index, line, heightBounded))
+                        rows.addView(rowHeading(panel.id, index, line, menuBounded))
                         line.forEach { addSettingsItem(rows, panel.id, it, ids) }
                     }
                     rows.addView(EdgeSettingsUi.hairline(ui()))
@@ -1324,7 +1326,8 @@ object EdgeRuntime {
         val grows = lines.mapIndexed { r, line -> bounded && fixed[r] == null && line.any(EdgeRows::grows) }
         val natural = lines.mapIndexed { r, line -> fixed[r] ?: when {
             grows[r] -> 0
-            line.all { it.type == "run" } -> dp(maxOf(iconSize, if (line.size == 1 && labels != "off") 48 else 0) + 12)
+            // As addItem draws it: a 48dp minimum under 4 + 8dp padding, and a rule under named items.
+            line.all { it.type == "run" } -> dp(maxOf(iconSize, 48) + 12 + if (line.size == 1 && labels != "off") 1 else 0)
             else -> dp(72)
         } }
         val share = grows.count { it }.takeIf { it > 0 }?.let { count ->
@@ -1345,7 +1348,7 @@ object EdgeRuntime {
         val ids = lines.map { line -> line.map { it.id } }
         return EdgeRowSketch(ui(), ids, rowHeights(lines, panelHeight, bounded, iconSize, labels),
             lines.map { line -> EdgeRows.weights(line.map { it.fields["width"] }, panelWidth / density) },
-            panelWidth, panelHeight, fill = { cell, id, alone ->
+            panelWidth, panelHeight, bounded, fill = { cell, id, alone ->
                 val item = byId.getValue(id)
                 val name = item.fields["label"]?.takeIf { it.isNotBlank() }
                     ?: app!!.getString(EdgeComponentLabels.component(EdgeItemComponent.from(item).component))

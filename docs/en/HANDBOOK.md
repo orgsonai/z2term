@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.648-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.649-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -912,6 +912,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.8.649-alpha (versionCode 657)**: The edge panel Layout preview now matches the panel when sizes are automatic. In panels with a terminal and similar, note and terminal rows fill the remaining height in the preview too, and dragging starts from the real percentage. Icon rows have their real height, and empty space under the rows is drawn.
 
 **0.8.648-alpha (versionCode 656)**: The edge panel Layout page has Reset all sizes under the preview. It returns every row height and item width of the tab to automatic at once; the rows stay as they are.
 

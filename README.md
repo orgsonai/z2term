@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.649-alpha (versionCode 657)**: The edge panel Layout preview now matches the panel when sizes are automatic. In panels with a terminal and similar, note and terminal rows fill the remaining height in the preview too, and dragging starts from the real percentage. Icon rows have their real height, and empty space under the rows is drawn.
+
 **0.8.648-alpha (versionCode 656)**: The edge panel Layout page has Reset all sizes under the preview. It returns every row height and item width of the tab to automatic at once; the rows stay as they are.
 
 **0.8.647-alpha (versionCode 655)**: Edge panel icons now grow or shrink with the row height and item width. A row with a height fills it, and a narrow item fits its icon instead of letting it spill out.
