@@ -2,6 +2,7 @@ package com.zerotoship.z2term.edge
 
 import android.content.Context
 import android.os.Build
+import android.view.ActionMode
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -32,6 +33,12 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
     private var swipeHorizontal = true
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     private val swipeDistance = maxOf(touchSlop, 32 * resources.displayMetrics.density)
+
+    override fun startActionModeForChild(originalView: View, callback: ActionMode.Callback, type: Int): ActionMode? {
+        // WindowManager windows have no DecorView to show text commands; draw them here instead.
+        val mode = OverlayActionMode(this, originalView, callback)
+        return if (mode.start()) mode else null
+    }
 
     override fun requestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {
         // Nested scroll views claim the stream at their smaller touch slop. Keep observing

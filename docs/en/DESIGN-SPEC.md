@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-22 / Target version: 0.8.643-alpha (versionCode 651)
+Last updated: 2026-09-23 / Target version: 0.8.644-alpha (versionCode 652)
+
+**0.8.644-alpha (versionCode 652)**: Selecting text in edge panel fields and selectable text (including the settings page) now shows the Cut / Copy / Paste / Select all toolbar. Edge panels are overlay windows where Android shows no toolbar, so the app draws it above the selection (below when it does not fit).
 
 **0.8.643-alpha (versionCode 651)**: Split panes omit the GUI-only outer frame and padding and retain their dimensions when focus moves between GUI and terminal. Keyboard visibility and reserved space are shared. The separate Layout button is removed, restoring the original tab-strip dimensions. Long-press the GUI (🖥) button next to + to arrange sessions; a short press still opens GUI. Settings Tips explains this gesture. Desktop release build, 73 related unit tests and lint (zero errors) passed. Fourteen related device tests passed, including per-frame pane measurements across 12 orientation, split and keyboard combinations, keyboard visibility retention and a touch long-press on GUI.
 

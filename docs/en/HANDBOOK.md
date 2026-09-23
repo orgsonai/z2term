@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.643-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.644-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -912,6 +912,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.8.644-alpha (versionCode 652)**: Selecting text in edge panel fields and selectable text (including the settings page) now shows the Cut / Copy / Paste / Select all toolbar. Edge panels are overlay windows where Android shows no toolbar, so the app draws it above the selection (below when it does not fit).
 
 **0.8.643-alpha (versionCode 651)**: Split panes omit the GUI-only outer frame and padding and retain their dimensions when focus moves between GUI and terminal. Keyboard visibility and reserved space are shared. The separate Layout button is removed, restoring the original tab-strip dimensions. Long-press the GUI (🖥) button next to + to arrange sessions; a short press still opens GUI. Settings Tips explains this gesture. Desktop release build, 73 related unit tests and lint (zero errors) passed. Fourteen related device tests passed, including per-frame pane measurements across 12 orientation, split and keyboard combinations, keyboard visibility retention and a touch long-press on GUI.
 
