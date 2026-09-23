@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.650-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.651-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -137,7 +137,7 @@ Pressing the **bottom-left key** swaps the whole set of keys. We call each set a
 
 ⚠ **The key shows where it takes you, not where you are.** If it reads `12`, pressing it gives you the number face.
 
-The **number face (0.8.305)** is for typing **runs of digits** — port numbers, IP addresses, `chmod 755`. The Latin face has a row of digits along the top, but ten keys side by side is fiddly; on the number face they are as big as kana keys. `.` `:` `-` `/` sit there too, so something like `192.168.10.20:2222` can be typed without leaving the face.
+The **number face (0.8.305)** is for typing **runs of digits** — port numbers, IP addresses, `chmod 755`. The Latin face has a row of digits along the top, but ten keys side by side is fiddly; on the number face they are as big as kana keys. `.` `:` `-` `/` sit there too, so something like `192.168.0.20:2222` can be typed without leaving the face.
 
 Under Settings › **Keyboard style**:
 
@@ -196,7 +196,7 @@ Under Settings › **Keyboard style**:
 | What you want | How |
 |---|---|
 | Copy text | **Long-press** the screen → drag with your finger to select → "Copy" button (trailing blanks are trimmed and each row gets a **line break**) |
-| Select just one word | **Double-tap** the screen (0.8.420). `/usr/local/bin/z2attach`, `root@192.168.10.20` and `~/.bashrc` come out **whole** (even when the line wrapped in the middle of them). `src/main.kt:42:` stops at the `:`, so you get the file name alone. Japanese is cut at word boundaries. Drag the ends afterwards to widen the selection. ⚠ On top of an app that reads the mouse (one you can operate by tapping), the double-tap goes to that app instead — while you are scrolled back through history it selects as usual |
+| Select just one word | **Double-tap** the screen (0.8.420). `/usr/local/bin/z2attach`, `root@192.168.0.20` and `~/.bashrc` come out **whole** (even when the line wrapped in the middle of them). `src/main.kt:42:` stops at the `:`, so you get the file name alone. Japanese is cut at word boundaries. Drag the ends afterwards to widen the selection. ⚠ On top of an app that reads the mouse (one you can operate by tapping), the double-tap goes to that app instead — while you are scrolled back through history it selects as usual |
 | Magnify while selecting | While selecting, a **magnifier** appears above your finger |
 | Select beyond the screen | While selecting, move your **finger to the top/bottom edge** → it auto-scrolls so you can keep selecting |
 | Paste | The **📋** button in the toolbar. **When the text has line breaks**, a bar shows "3 lines …" first so you can look before pressing Paste (a single line still goes straight in). **Double-tap** it to open the **clipboard history** and pick a past copy to paste (pasting never rewrites the system clipboard, so it won't "copy what you just pasted"). **Picks from the history that contain line breaks get the same confirmation bar** (0.8.250). **Sensitive copies (the ones shown as dots), e.g. from a password manager, now land in the history too** (0.8.314). ⚠ Those rows alone are marked **🔒 and clear themselves after 30 seconds** — if the phone's clipboard still holds the same value at that point, it is emptied too (if you have copied something else since, it is left alone) |
@@ -290,6 +290,15 @@ Give the **public** key to whoever runs the server you connect to (the private k
 The field for pasting your own private key is still there. Its contents are masked by default and can be toggled with Show/Hide.
 
 The host field accepts DNS names, IPv4 and IPv6 literals (with or without surrounding brackets); IPv6 is displayed as `[address]:port` so the port is unambiguous.
+
+#### Use the home address while at home (0.8.651)
+
+From home Wi-Fi, connecting to your home's **public address** (for example 203.0.113.10) fails with `ConnectException` on routers that cannot loop traffic back inside. Put the address inside your home (for example 192.168.0.10) and its port in **"Address at home (optional)"** on the connection editor, and z2term connects there directly **only when this device is on that same network and the address answers**. Away from home, or when it does not answer, the address above is used as before.
+
+- It applies to the SSH shell, SFTP, every FTP / SMB / WebDAV / VNC / RDP service attached to the destination, and resident tunnels.
+- The home address is reached **without jump hosts**.
+- Host keys are confirmed per address, so the first connection at home asks. Resident tunnels cannot ask, so they keep using the address above until you have connected to the home address once from the SSH tab.
+- An empty port means the same port as above.
 
 #### Reach a server through jump hosts (0.8.494)
 
@@ -912,6 +921,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.8.651-alpha (versionCode 659)**: SSH destinations have an optional "Address at home". From home Wi-Fi, connecting to your home's public address failed with `ConnectException` for VNC, RDP and the shell on some routers. With a home address set, z2term connects there directly, without jump hosts, only when on the same network and it answers; away from home the public address is used as before.
 
 **0.8.650-alpha (versionCode 658)**: Fixes and cleanup. `z2doctor` no longer reports an sshd running as a resident server as "not running". The edge panel scroll amount is only passed on Android 15 and later, where it exists (Android 14 ignored it). The share server's periodic check no longer runs many times at once when the app returns from the cached state. English text no longer pairs a number with a noun that may not agree (such as "1 files"), and Spanish plurals are complete. Unused strings are removed, and lint warnings are down from 251 to 0.
 

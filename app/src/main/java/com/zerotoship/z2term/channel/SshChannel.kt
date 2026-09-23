@@ -75,7 +75,7 @@ class SshChannel private constructor(
                 channel.connect(CONNECT_TIMEOUT_MS)
                 Log.i(
                     TAG,
-                    "SSH connected to ${profile.user}@${HostAddress.hostPort(profile.host, profile.port)}" +
+                    "SSH connected to ${profile.user}@${HostAddress.hostPort(link.session.host, link.session.port)}" +
                         if (link.jumpCount > 0) " via ${link.jumpCount} jump host(s)" else "",
                 )
                 return SshChannel(link, channel, summary)

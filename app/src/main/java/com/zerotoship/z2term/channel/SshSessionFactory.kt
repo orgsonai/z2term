@@ -47,9 +47,14 @@ object SshSessionFactory {
      * ⚠ 名前解決を伴うので、**IO スレッドから呼ぶ**という元々の約束がここでも要る。
      */
     fun create(profile: SshProfile, context: Context, strictHostKeys: Boolean = false,
+               lanKnownOnly: Boolean = strictHostKeys,
                onOpening: (Session) -> Unit = {}): SshLink {
-        val target = HostAddress.normalize(profile.host)
-        val hops = profile.jumpHosts
+        // 家の中にいて家の中の宛先が応答するなら、そこへ踏み台なしで直接繋ぐ ([LanRoute])。
+        // 鍵の確認画面を出せない呼び元は [lanKnownOnly] で、確認済みの宛先だけに絞る。
+        val lan = LanRoute.choose(context, profile, knownOnly = lanKnownOnly)
+        val target = lan?.host ?: HostAddress.normalize(profile.host)
+        val targetPort = lan?.port ?: profile.port
+        val hops = if (lan != null) emptyList() else profile.jumpHosts
             .filter { it.host.isNotBlank() }
             .map { it.copy(host = HostAddress.normalize(it.host)) }
         NetGuard.ensureAllowed(context, hops.firstOrNull()?.host ?: target)
@@ -66,7 +71,7 @@ object SshSessionFactory {
                 Log.i(TAG, "jump host reached: ${hop.describe()}")
                 proxy = JumpProxy(session)
             }
-            val session = open(context, profile.user, target, profile.port, profile.credentials(), strictHostKeys)
+            val session = open(context, profile.user, target, targetPort, profile.credentials(), strictHostKeys)
             onOpening(session)
             proxy?.let { session.setProxy(it) }
             return SshLink(session, opened)

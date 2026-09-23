@@ -379,6 +379,8 @@ private fun EditForm(
     var protocol by remember(initial.id) { mutableStateOf(initial.protocol) }
     var host by remember(initial.id) { mutableStateOf(initial.host) }
     var port by remember(initial.id) { mutableStateOf(initial.port.toString()) }
+    var lanHost by remember(initial.id) { mutableStateOf(initial.lanHost) }
+    var lanPort by remember(initial.id) { mutableStateOf(if (initial.lanPort > 0) initial.lanPort.toString() else "") }
     var user by remember(initial.id) { mutableStateOf(initial.user) }
     var remotePath by remember(initial.id) { mutableStateOf(initial.remotePath) }
     var domain by remember(initial.id) { mutableStateOf(initial.domain) }
@@ -438,6 +440,31 @@ private fun EditForm(
                     Field(label = stringResource(R.string.ssh_field_user), value = user, onChange = { user = it }, placeholder = "ubuntu")
                 }
             }
+            // 外向きの宛先を家の中から使うとルーターの折り返しに頼るため、家の中での宛先を併記できる。
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(modifier = Modifier.weight(2f)) {
+                    Field(
+                        label = stringResource(R.string.ssh_field_lan_host),
+                        value = lanHost,
+                        onChange = { lanHost = it },
+                        placeholder = "192.168.0.10",
+                    )
+                }
+                Box(modifier = Modifier.weight(1f)) {
+                    Field(
+                        label = stringResource(R.string.ssh_field_port),
+                        value = lanPort,
+                        onChange = { lanPort = it.filter { ch -> ch.isDigit() } },
+                        placeholder = port.ifBlank { "22" },
+                    )
+                }
+            }
+            Text(
+                text = stringResource(R.string.ssh_lan_note),
+                color = ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+            )
 
             Text(
                 text = stringResource(R.string.ssh_auth_method),
@@ -617,6 +644,8 @@ private fun EditForm(
                         HostAddress.normalize(host)
                     },
                     port = portNum,
+                    lanHost = if (ssh) HostAddress.normalize(lanHost) else "",
+                    lanPort = if (ssh) lanPort.toIntOrNull()?.takeIf { it in 1..65535 } ?: 0 else 0,
                     user = user,
                     remotePath = if (protocol == ConnectionProtocol.SMB) remotePath.trim('/') else "",
                     domain = if (protocol == ConnectionProtocol.SMB) domain else "",

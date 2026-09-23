@@ -244,6 +244,13 @@ data class SshProfile(
     val port: Int = 22,
     val user: String,
     val authType: AuthType = AuthType.PASSWORD,
+    /**
+     * **家の中での宛先** (任意)。同じネットワークにいて応答したときだけ、[host] の代わりに踏み台を
+     * 通さず直接繋ぐ ([LanRoute])。外向きの [host] をルーターの折り返しに頼らず使うためのもの。
+     */
+    val lanHost: String = "",
+    /** [lanHost] のポート。0 なら [port] と同じ。 */
+    val lanPort: Int = 0,
     /** PASSWORD 認証時のパスワード (平文。永続化時に暗号化) */
     val password: String = "",
     /** PUBLIC_KEY 認証時の秘密鍵 PEM (平文。永続化時に暗号化) */
@@ -333,6 +340,8 @@ data class SshProfile(
         put("user", user)
         put("protocol", protocol.name)
         put("authType", authType.name)
+        put("lanHost", lanHost)
+        put("lanPort", lanPort)
         put("residentTunnel", residentTunnel)
         put("vncPort", vncPort)
         put("vncPassword", KeystoreCrypt.encrypt(vncPassword))
@@ -369,6 +378,8 @@ data class SshProfile(
         put("port", port)
         put("user", user)
         put("authType", authType.name)
+        put("lanHost", lanHost)
+        put("lanPort", lanPort)
         put("residentTunnel", residentTunnel)
         put("vncPort", vncPort)
         put("vncPassword", vncPassword)
@@ -416,6 +427,8 @@ data class SshProfile(
             }.getOrDefault(emptyList()),
             residentTunnel = o.optBoolean("residentTunnel", false),
             jumpHosts = jumpHostsFromJson(o, encryptedSecrets = false),
+            lanHost = o.optString("lanHost"),
+            lanPort = o.optInt("lanPort", 0),
         )
 
         fun fromJson(o: JSONObject): SshProfile = SshProfile(
@@ -445,6 +458,8 @@ data class SshProfile(
             }.getOrDefault(emptyList()),
             residentTunnel = o.optBoolean("residentTunnel", false),
             jumpHosts = jumpHostsFromJson(o, encryptedSecrets = true),
+            lanHost = o.optString("lanHost"),
+            lanPort = o.optInt("lanPort", 0),
         )
 
         /** 踏み台の配列。旧データには無いので、無ければ「踏み台なし」。 */

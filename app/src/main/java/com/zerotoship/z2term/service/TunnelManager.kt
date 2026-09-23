@@ -198,7 +198,7 @@ object TunnelManager {
             var retries = 0
             while (!worker.stop) {
                 try {
-                    val link = SshSessionFactory.create(profile, context)
+                    val link = SshSessionFactory.create(profile, context, lanKnownOnly = true)
                     // ⭐ keepalive。**繋ぐ前に**入れること (JSch は接続の最後にこの値をソケットの
                     // 読み取りタイムアウトへ写し、時間切れのたびに keepalive を 1 本送る)。
                     // 省電力モードは接続のたびに読み直す (常駐中に切り替えられても次で効く)。

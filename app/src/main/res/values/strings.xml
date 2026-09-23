@@ -413,6 +413,8 @@
     <string name="remote_direct_warning_confirm">Connect directly</string>
     <string name="ssh_field_host">Host</string>
     <string name="ssh_field_port">Port</string>
+    <string name="ssh_field_lan_host">Address at home (optional)</string>
+    <string name="ssh_lan_note">Used instead of the host above when this device is on the same network and it answers, directly and without jump hosts. Use it when your home router cannot reach its own public address from inside. Empty port = same as above.</string>
     <string name="ssh_field_user">User</string>
     <string name="ssh_auth_method">Auth method</string>
     <string name="ssh_auth_password">Password</string>

@@ -388,6 +388,8 @@
     <string name="remote_direct_warning_confirm">直接连接</string>
     <string name="ssh_field_host">主机</string>
     <string name="ssh_field_port">端口</string>
+    <string name="ssh_field_lan_host">家中的地址（可选）</string>
+    <string name="ssh_lan_note">仅当本机处于同一网络且该地址有响应时，才代替上面的主机直接连接，不经过跳板。适用于家中路由器无法从内部访问自身公网地址的情况。端口留空则与上面相同。</string>
     <string name="ssh_field_user">用户</string>
     <string name="ssh_auth_method">认证方式</string>
     <string name="ssh_auth_password">密码</string>

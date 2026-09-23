@@ -387,6 +387,8 @@
     <string name="remote_direct_warning_confirm">바로 연결</string>
     <string name="ssh_field_host">호스트</string>
     <string name="ssh_field_port">포트</string>
+    <string name="ssh_field_lan_host">집 안에서의 주소 (선택)</string>
+    <string name="ssh_lan_note">이 기기가 같은 네트워크에 있고 응답할 때만 위의 주소 대신 점프 호스트 없이 직접 연결합니다. 집 안에서 자기 공인 주소로 연결되지 않는 라우터일 때 사용하세요. 포트가 비어 있으면 위와 같습니다.</string>
     <string name="ssh_field_user">사용자</string>
     <string name="ssh_auth_method">인증 방식</string>
     <string name="ssh_auth_password">비밀번호</string>

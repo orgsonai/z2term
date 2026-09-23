@@ -408,6 +408,8 @@
     <string name="remote_direct_warning_confirm">直通にする</string>
     <string name="ssh_field_host">ホスト</string>
     <string name="ssh_field_port">ポート</string>
+    <string name="ssh_field_lan_host">家の中での宛先（任意）</string>
+    <string name="ssh_lan_note">この端末が同じネットワークにいて応答したときだけ、上の宛先の代わりに踏み台を通さず直接繋ぎます。家の中から自宅の外向きアドレスへ繋がらないルーターのときに使います。ポートが空なら上と同じです。</string>
     <string name="ssh_field_user">ユーザー</string>
     <string name="ssh_auth_method">認証方式</string>
     <string name="ssh_auth_password">パスワード</string>

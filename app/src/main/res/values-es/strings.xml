@@ -389,6 +389,8 @@
     <string name="remote_direct_warning_confirm">Conectar directamente</string>
     <string name="ssh_field_host">Host</string>
     <string name="ssh_field_port">Puerto</string>
+    <string name="ssh_field_lan_host">Dirección en casa (opcional)</string>
+    <string name="ssh_lan_note">Se usa en lugar del host de arriba cuando este dispositivo está en la misma red y responde, directamente y sin saltos. Úsala si el router de casa no alcanza su propia dirección pública desde dentro. Puerto vacío = el mismo de arriba.</string>
     <string name="ssh_field_user">Usuario</string>
     <string name="ssh_auth_method">Método de autenticación</string>
     <string name="ssh_auth_password">Contraseña</string>

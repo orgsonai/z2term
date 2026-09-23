@@ -103,7 +103,7 @@ class SftpClient private constructor(
                     link.connect(SshSessionFactory.CONNECT_TIMEOUT_MS)
                     val channel = link.session.openChannel("sftp") as ChannelSftp
                     channel.connect(SshSessionFactory.CONNECT_TIMEOUT_MS)
-                    Log.i(TAG, "SFTP connected to ${profile.user}@${HostAddress.hostPort(profile.host, profile.port)}")
+                    Log.i(TAG, "SFTP connected to ${profile.user}@${HostAddress.hostPort(link.session.host, link.session.port)}")
                     SftpClient(link, channel)
                 } catch (e: Throwable) {
                     // ⚠ 踏み台まで開いた後で折れることがある。畳まないと経由先だけ残る。

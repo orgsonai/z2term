@@ -388,6 +388,8 @@
     <string name="remote_direct_warning_confirm">直接連線</string>
     <string name="ssh_field_host">主機</string>
     <string name="ssh_field_port">連接埠</string>
+    <string name="ssh_field_lan_host">家中的位址（選填）</string>
+    <string name="ssh_lan_note">僅當本機處於同一網路且該位址有回應時，才代替上面的主機直接連線，不經過跳板。適用於家中路由器無法從內部連到自身公網位址的情況。連接埠留空則與上面相同。</string>
     <string name="ssh_field_user">使用者</string>
     <string name="ssh_auth_method">認證方式</string>
     <string name="ssh_auth_password">密碼</string>

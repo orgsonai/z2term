@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-23 / Target version: 0.8.650-alpha (versionCode 658)
+Last updated: 2026-09-23 / Target version: 0.8.651-alpha (versionCode 659)
+
+**0.8.651-alpha (versionCode 659)**: SSH destinations have an optional "Address at home". From home Wi-Fi, connecting to your home's public address failed with `ConnectException` for VNC, RDP and the shell on some routers. With a home address set, z2term connects there directly, without jump hosts, only when on the same network and it answers; away from home the public address is used as before.
 
 **0.8.650-alpha (versionCode 658)**: Fixes and cleanup. `z2doctor` no longer reports an sshd running as a resident server as "not running". The edge panel scroll amount is only passed on Android 15 and later, where it exists (Android 14 ignored it). The share server's periodic check no longer runs many times at once when the app returns from the cached state. English text no longer pairs a number with a noun that may not agree (such as "1 files"), and Spanish plurals are complete. Unused strings are removed, and lint warnings are down from 251 to 0.
 
@@ -1015,6 +1017,16 @@ Both are merged **newest first**, deduplicated (the timestamped zsh entry wins).
 > ⚠ **zsh's history file is "metafied".** zsh writes every byte >= 0x80 as `0x83` followed by `(byte xor 0x20)`, so **reading it as UTF-8 directly always mangles Japanese** (it did, in 0.8.222). 0.8.223 runs it through `ShellHistory.unmetafy` first. The real `.zsh_history` on the test device is invalid UTF-8 as stored and decodes cleanly after the conversion (868 occurrences of 0x83). `.bash_history` is plain UTF-8 and is left alone.
 
 **Only 50 rows are drawn**: the History tab lives inside the sheet's own `verticalScroll`, so a `LazyColumn` **cannot be nested** (same scroll direction). Composing 300 rows at once makes opening the tab sluggish, so 300 are kept in memory but only the first 50 are rendered, with the remaining count shown at the bottom — narrow the filter to reach them. The real `.zsh_history` on the test device held 3912 lines / 3380 commands, so this cap matters in practice.
+
+#### Home address (`channel/LanRoute`, 0.8.651)
+
+**Why**: using the public address from inside the home relies on the router looping traffic back (NAT loopback). With routers that never or only sometimes do, VNC, RDP and the shell all fail on home Wi-Fi with `ConnectException: failed to connect to /<public address>` (reported by the user; the PC failing to reach the same address confirmed it is the route, not the app).
+**What it does**: `SshProfile.lanHost` / `lanPort` (0 = same as `port`). At the entry of `SshSessionFactory.create`, `LanRoute.choose` connects directly to the home address, **without jump hosts**, only when all of these hold. With one entry point, it covers the shell, SFTP, services (`ServiceRoute`), resident tunnels and the relay (`ShareRelay`).
+1. The home address resolves.
+2. It lies inside one of the current non-cellular networks (address and prefix from `LinkProperties.linkAddresses`). ⚠ A public address never lies inside the home network, so it is never picked away from home; a different home with the same LAN numbers falls out at step 3.
+3. It answers a TCP connection within 1.5 seconds.
+4. Callers that cannot show a host key prompt (resident tunnels and the relay, `lanKnownOnly`) require its key in known_hosts.
+Otherwise the public address (and jump hosts) are used as before. known_hosts records each address separately.
 
 #### Jump hosts (`channel/JumpProxy`, 0.8.494)
 

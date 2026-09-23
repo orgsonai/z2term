@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.651-alpha (versionCode 659)**: SSH destinations have an optional "Address at home". From home Wi-Fi, connecting to your home's public address failed with `ConnectException` for VNC, RDP and the shell on some routers. With a home address set, z2term connects there directly, without jump hosts, only when on the same network and it answers; away from home the public address is used as before.
+
 **0.8.650-alpha (versionCode 658)**: Fixes and cleanup. `z2doctor` no longer reports an sshd running as a resident server as "not running". The edge panel scroll amount is only passed on Android 15 and later, where it exists (Android 14 ignored it). The share server's periodic check no longer runs many times at once when the app returns from the cached state. English text no longer pairs a number with a noun that may not agree (such as "1 files"), and Spanish plurals are complete. Unused strings are removed, and lint warnings are down from 251 to 0.
 
 **0.8.649-alpha (versionCode 657)**: The edge panel Layout preview now matches the panel when sizes are automatic. In panels with a terminal and similar, note and terminal rows fill the remaining height in the preview too, and dragging starts from the real percentage. Icon rows have their real height, and empty space under the rows is drawn.
