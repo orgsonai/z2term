@@ -237,4 +237,5 @@
     <string name="edge_sketch_new_row">在此新增一列</string>
     <string name="edge_sketch_height">第 %1$d 列高度：面板的 %2$d%%</string>
     <string name="edge_sketch_widths">第 %1$d 列寬度：%2$s</string>
+    <string name="edge_rows_reset">全部大小恢復為自動</string>
 </resources>

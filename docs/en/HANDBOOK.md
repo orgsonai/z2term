@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.647-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.648-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -913,6 +913,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
 
+**0.8.648-alpha (versionCode 656)**: The edge panel Layout page has Reset all sizes under the preview. It returns every row height and item width of the tab to automatic at once; the rows stay as they are.
+
 **0.8.647-alpha (versionCode 655)**: Edge panel icons now grow or shrink with the row height and item width. A row with a height fills it, and a narrow item fits its icon instead of letting it spill out.
 
 **0.8.646-alpha (versionCode 654)**: The edge panel Layout page is easier to use. The preview now has the real panel's proportions; long-press an item to drag it to another row or onto a line between rows for a new row. Dragging the line under a row changes its height, and the line between items changes their widths (Reset size returns to automatic). The list's up/down buttons are replaced by ←→ for the order inside a row and a "Row N ▾" menu that moves an item to another row in one step, and the list keeps its scroll position.
@@ -1042,7 +1044,7 @@ Example: five app icons side by side with a note below them.
 1. Long-press empty space on the panel to open settings, then open Layout.
 2. Add five apps with + App and one note with Add custom slot.
 3. On the preview at the top, long-press an item and drag it. Drop it on a row to place it there, or on the line between rows to make a new row. Put the five apps in one row and the note in the row below. In the list under the preview, "Row N ▾" also moves an item to another row and ←→ change the order inside a row.
-4. To change heights or widths, drag the line under a row up or down, or the line between two items sideways. The size is saved when you let go and shown under the preview (as a percentage of the panel). Icons grow or shrink to fit the row height and item width. Reset size on the row heading returns to automatic.
+4. To change heights or widths, drag the line under a row up or down, or the line between two items sideways. The size is saved when you let go and shown under the preview (as a percentage of the panel). Icons grow or shrink to fit the row height and item width. Reset size on the row heading returns to automatic; Reset all sizes under the preview does it for the whole tab (the rows stay as they are).
 5. To let the note fill the remaining height, set Panel height to Fixed height under Panel → Size and position and save (a panel with a terminal is fixed already). A note row with its own height does not grow.
 A row of one item shows its name; a shared row shows icons only (Panel → Icons and names can always show or hide names). Existing panels keep their look and switch to rows the first time you move an item in Layout.
 

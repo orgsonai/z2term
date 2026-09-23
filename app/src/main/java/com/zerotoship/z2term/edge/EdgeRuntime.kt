@@ -1035,8 +1035,19 @@ object EdgeRuntime {
                     val lines = EdgeRows.of(panel.items, root.fields["flow"], panel.fields["layout"], legacyColumns(root))
                     if (lines.isNotEmpty()) rows.addView(rowSketch(panel.id, lines, root, heightBounded, labels),
                         LinearLayout.LayoutParams(-1, -2).apply {
-                            setMargins(dp(EdgeSettingsUi.GUTTER), dp(4), dp(EdgeSettingsUi.GUTTER), dp(14))
+                            setMargins(dp(EdgeSettingsUi.GUTTER), dp(4), dp(EdgeSettingsUi.GUTTER), dp(8))
                         })
+                    // Sizes only come from the preview once the tab is in rows; one tap returns them all.
+                    if (EdgeRows.arranged(panel.items)) rows.addView(EdgeSettingsUi.button(ui(),
+                        app!!.getString(R.string.edge_rows_reset)) {
+                        editRows { panel.items.forEach { item ->
+                            store(app!!).setItem("${panel.id}:${item.id}", mapOf("width" to "", "height" to ""))
+                        } }
+                    }.apply {
+                        isEnabled = panel.items.any { !it.fields["width"].isNullOrBlank() || !it.fields["height"].isNullOrBlank() }
+                    }, LinearLayout.LayoutParams(-2, -2).apply {
+                        gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(14)
+                    })
                     val ids = lines.map { line -> line.map { it.id } }
                     lines.forEachIndexed { index, line ->
                         rows.addView(rowHeading(panel.id, index, line, heightBounded))

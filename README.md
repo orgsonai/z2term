@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.648-alpha (versionCode 656)**: The edge panel Layout page has Reset all sizes under the preview. It returns every row height and item width of the tab to automatic at once; the rows stay as they are.
+
 **0.8.647-alpha (versionCode 655)**: Edge panel icons now grow or shrink with the row height and item width. A row with a height fills it, and a narrow item fits its icon instead of letting it spill out.
 
 **0.8.646-alpha (versionCode 654)**: The edge panel Layout page is easier to use. The preview now has the real panel's proportions; long-press an item to drag it to another row or onto a line between rows for a new row. Dragging the line under a row changes its height, and the line between items changes their widths (Reset size returns to automatic). The list's up/down buttons are replaced by ←→ for the order inside a row and a "Row N ▾" menu that moves an item to another row in one step, and the list keeps its scroll position.

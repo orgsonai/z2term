@@ -250,4 +250,5 @@
     <string name="edge_sketch_new_row">ここに新しい段を作る</string>
     <string name="edge_sketch_height">段 %1$d の高さ: パネルの %2$d%%</string>
     <string name="edge_sketch_widths">段 %1$d の横幅: %2$s</string>
+    <string name="edge_rows_reset">すべての大きさを自動に戻す</string>
 </resources>

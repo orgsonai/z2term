@@ -250,4 +250,5 @@
     <string name="edge_sketch_new_row">New row here</string>
     <string name="edge_sketch_height">Row %1$d height: %2$d%% of the panel</string>
     <string name="edge_sketch_widths">Row %1$d widths: %2$s</string>
+    <string name="edge_rows_reset">Reset all sizes</string>
 </resources>

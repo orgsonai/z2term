@@ -237,4 +237,5 @@
     <string name="edge_sketch_new_row">여기에 새 줄 만들기</string>
     <string name="edge_sketch_height">%1$d줄 높이: 패널의 %2$d%%</string>
     <string name="edge_sketch_widths">%1$d줄 너비: %2$s</string>
+    <string name="edge_rows_reset">모든 크기를 자동으로 되돌리기</string>
 </resources>
