@@ -1305,7 +1305,6 @@ SSH 接続先 %3$d 件
     <string name="edge_out_panel" formatted="false">この項目の下</string>
     <string name="edge_out_toast" formatted="false">短いメッセージ</string>
     <string name="edge_out_notify" formatted="false">通知</string>
-    <string name="edge_flow_free" formatted="false">自由配置（項目ごとの座標）</string>
     <string name="edge_item_layout_help" formatted="false">幅の % は行・列、高さの % はパネルが基準です。パネルの並べ方を「自由配置」にすると座標を使えます。0% が左端・上端、100% が右端・下端です。座標を空欄にした項目は順番に並びます。</string>
     <string name="edge_binding_none">接続なし</string>
     <string name="edge_binding_missing">削除済み・利用できない項目</string>

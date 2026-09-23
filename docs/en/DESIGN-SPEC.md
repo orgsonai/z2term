@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-23 / Target version: 0.8.644-alpha (versionCode 652)
+Last updated: 2026-09-23 / Target version: 0.8.645-alpha (versionCode 653)
+
+**0.8.645-alpha (versionCode 653)**: Edge panels are now arranged in rows. Items in one row sit side by side and rows stack from the top, so app icons can sit in a row with a note below them. The arrangement belongs to each tab and no longer affects other tabs. Rows with a terminal, note or view fill the remaining height when the panel height is set. Settings are split into Layout, Panel, Gestures and Manage; Layout lists items row by row under a preview and moves them with the arrows. Existing panels keep their look and switch to rows on the first move. From the CLI, `z2-edge set ID:item row=N` sets the row.
 
 **0.8.644-alpha (versionCode 652)**: Selecting text in edge panel fields and selectable text (including the settings page) now shows the Cut / Copy / Paste / Select all toolbar. Edge panels are overlay windows where Android shows no toolbar, so the app draws it above the selection (below when it does not fit).
 
@@ -2384,7 +2386,7 @@ A rememberSaveableStateHolder outside the lock branch retains the terminal subtr
 - ⚠ **A platform dialog keeps its frame, but its content takes our ground.** With a light theme under a dark system (or the reverse), text coloured for one lands on the other and **stops being readable**. Applied to the step editor, the app picker, the history and the header dialogs alike.
 - **The coordinate overlay** takes the same ground and border, inset from both edges so it reads as floating over someone else's app, and the stroke it draws follows the accent instead of a hard-coded orange.
 
-**Shared actions and gestures (unreleased)**: Appearance → Gestures assigns an ordered action list to tap, double tap, swipe up/down/inward/outward. Add, remove and move actions in the GUI; an empty list disables a gesture. Hold remains reserved for editing/relocation. Assigned directions take precedence over immediate button dragging; hold to relocate instead. Appearance previews never execute actions.
+**Shared actions and gestures (unreleased)**: Gestures → Gestures assigns an ordered action list to tap, double tap, swipe up/down/inward/outward. Add, remove and move actions in the GUI; an empty list disables a gesture. Hold remains reserved for editing/relocation. Assigned directions take precedence over immediate button dragging; hold to relocate instead. Appearance previews never execute actions.
 
 Actions include toggling this panel, Back, Home, Recents, notifications, launching an installed app selected from a list, waiting, commands, single up/down swipes, variable/fixed auto-scroll, stop, faster, slower and reverse. For example, compose “Launch app → Wait → Swipe up once”. Commands wait for exit and single swipes wait for Android completion before advancing. Failure/cancellation stops the remaining actions. Launch completion means the launch request was accepted; add an explicit delay for screen readiness. Use wait-ui in named action macros to wait for UI elements.
 
@@ -2437,12 +2439,21 @@ Appearance groups size/position, icons/layout, title/controls and handles into c
   - The CLI `z2-edge delete ID` keeps its behaviour: deleting a parent keeps its tabs.
   - After deletion Manage stays open on the edited panel if it survived, otherwise on the first remaining panel. When nothing is left, edge is switched off as before.
 
-Enable “Show + app button” under Appearance → Title, tabs and buttons to add apps directly from the normal menu. Cancelling app selection returns to that menu.
+Enable “Show + app button” under Panel → Title, tabs and buttons to add apps directly from the normal menu. Cancelling app selection returns to that menu.
 ⛔ **From 0.8.562 to 0.8.576 the + button opened the Items page of settings instead (fixed in 0.8.577).** It landed on the same screen as the gear beside it, so two adjacent buttons did the same thing and neither said which was which (reported from the device), and it contradicted the sentence above. + now opens `AppPickerActivity` directly; `editPanel` is true only when pressed from settings, which is what decides where selection or cancellation returns to. ⚠ **The glyphs alone cannot carry the difference** - both are a single character in 32dp - so + is accented and bold while the gear stays quiet. ⚠ Adding a custom slot still lives under settings → Items: what + lost is a detour, not a feature. Hold and drag a run item to reorder it; drop into the first/second half of a target to place it before/after (vertical halves in a column, horizontal halves in a row or grid). Targets are outlined and dragging at an edge scrolls. Dropping outside leaves order unchanged. Whitespace long-press still opens settings (0.8.567).
 
 Menus with child tabs allow direct selection in normal use. When the tab strip is hidden, tap the current tab name at the top to choose a tab (0.8.567).
 
-Presentation fields belong to the parent panel and apply to all its tabs. Settings have no separate persistent state.
+**Rows (0.8.645)**: A response to the user's report that layout was too rigid: horizontal flow put apps and notes in the same line, and only the automatic flow let a terminal tab fill the panel. `flow` belonged to the parent and applied one arrangement to every item of every tab.
+- **A tab is a stack of rows**: item `row=N` is the row. Items in one row sit side by side (equal widths, or the item's `width`); rows stack in number order. The parent `flow` is not read, so changing an app tab never affects a terminal tab.
+- **Rows with a terminal, note or view fill the remaining height**, only when the panel height is decided (`fit=fixed`, or an interactive part such as a terminal). An item with `height` does not grow. A growing note scrolls its text inside the row.
+- **Labels**: with `labels` unset, a row of one item shows the name; a shared row shows icons only.
+- **Existing panels keep their look**: a tab without any `row` is still drawn by `flow`. Layout settings derive rows from it (vertical = one per row, horizontal = one row, grid = per column count, unset grid = apps in a grid and the rest one per row, free = one per row) and write `row` and `order` for the whole tab on the first move (`EdgeStore.arrange`). ⚠ A former horizontal row no longer scrolls sideways; free coordinates (`at`) are not used by rows.
+- **Two arrows reach every arrangement** (`EdgeRows.move`): swap within a row; at a row end the item gets its own row; from a row of its own, one more step joins the neighbouring row. Dragging joins the row of the item it is dropped on (in settings and in the menu).
+- **Adding apps**: in a tab with rows, a new app joins the last row when that row holds only apps, otherwise it starts a new row. Items added from the CLI without `row` appear at the end, one per row.
+- **Settings pages are Layout / Panel / Gestures / Manage**: Layout lists items row by row under a small preview of the rows; Panel holds size, placement, icons, title and buttons, and the handle; Gestures holds gestures and scrolling; Manage is unchanged. Tabs can be added from Layout and Manage. The Arrangement and Grid columns pickers are gone (`flow` / `columns` remain in the CLI for tabs without rows).
+
+Presentation fields belong to the parent panel and apply to all its tabs (except `row`, which is per item and so per tab). Settings have no separate persistent state.
 Every presentation setting below is also writable with `z2-edge panel ID key=value ...`; `z2-edge get ID` reads saved fields.
 
 | Setting | Field / command |
@@ -2455,7 +2466,8 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Height sizing | `fit=content\|fixed` (default content; an empty panel keeps a 48dp touch area within its height limit) |
 | Placement | `place=handle\|left\|right\|top\|bottom\|center` (default handle) |
 | Custom position | `at=X%,Y%` (0–100, overrides place; empty clears it; percentage of space remaining after panel size) |
-| Arrangement | `flow=vertical\|horizontal\|grid\|free` (omitted/empty follows tab layout) |
+| Arrangement | `flow=vertical\|horizontal\|grid\|free` (omitted/empty follows tab layout; tabs without rows only) |
+| Rows | Item `row=1..64` (0.8.645). Items with the same number sit side by side; rows stack top to bottom in number order. Kept **per tab**; a tab where any item has a row ignores `flow` and `columns` |
 | Grid columns and icon size | `columns=auto` or 1–16; `icon-size=16..192` dp (default 40) |
 | Handle shape, position, activation | `handle` / `side` / `offset` / `x` / `y` / `size` / `length` / `alpha` / `open` (also via `z2-edge handle`) |
 | Add, name and order tabs | `z2-edge tab PARENT ID LABEL`, `panel ID label=Name`, `panel PARENT tabs=a,b` |

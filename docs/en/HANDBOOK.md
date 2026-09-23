@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.644-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.645-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -906,12 +906,14 @@ when a `z2-when` rule fired **without opening the app**.
 **Add a view from the editor**
 
 1. Tap ⚙ in the edge panel. If it is hidden, leave the panel open and long-press the space outside it.
-2. Open Items → Add custom slot (macro / command).
+2. Open Layout → Add custom slot (macro / command).
 3. Choose Display, then View (z2-view). In 0.8.640, the component is called Text display.
 4. Enter a label and a command that produces HTML and calls `z2-view`. With the updated macros installed, use `rss.sh view` or `remind.sh view`. For your own prepared HTML, use `z2-view "$HOME/page.html"`.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.8.645-alpha (versionCode 653)**: Edge panels are now arranged in rows. Items in one row sit side by side and rows stack from the top, so app icons can sit in a row with a note below them. The arrangement belongs to each tab and no longer affects other tabs. Rows with a terminal, note or view fill the remaining height when the panel height is set. Settings are split into Layout, Panel, Gestures and Manage; Layout lists items row by row under a preview and moves them with the arrows. Existing panels keep their look and switch to rows on the first move. From the CLI, `z2-edge set ID:item row=N` sets the row.
 
 **0.8.644-alpha (versionCode 652)**: Selecting text in edge panel fields and selectable text (including the settings page) now shows the Cut / Copy / Paste / Select all toolbar. Edge panels are overlay windows where Android shows no toolbar, so the app draws it above the selection (below when it does not fit).
 
@@ -997,7 +999,7 @@ Use Delete on each item row and confirm there; opening the item editor is unnece
 
 **UI elements and block editing (0.8.574)**: Click/long-click by visible text, description or resource ID, and wait for elements with deadlines. Choose selectors over the target app or inspect through the CLI. Explicit element requests read only the target window, excluding editable/password fields. The hierarchical GUI adds children, moves across groups, duplicates/removes complete blocks and manages else branches. Text, comments and line endings are retained, with shared cancellation and deadlines. See [usage](ACTION-MACROS.md). Build and device behavior not verified; added tests not run.
 
-**Shared actions and gestures (unreleased)**: Appearance → Gestures assigns an ordered action list to tap, double tap, swipe up/down/inward/outward. Add, remove and move actions in the GUI; an empty list disables a gesture. Hold remains reserved for editing/relocation. Assigned directions take precedence over immediate button dragging; hold to relocate instead. Appearance previews never execute actions.
+**Shared actions and gestures (unreleased)**: Gestures → Gestures assigns an ordered action list to tap, double tap, swipe up/down/inward/outward. Add, remove and move actions in the GUI; an empty list disables a gesture. Hold remains reserved for editing/relocation. Assigned directions take precedence over immediate button dragging; hold to relocate instead. Appearance previews never execute actions.
 
 Actions include toggling this panel, Back, Home, Recents, notifications, launching an installed app selected from a list, waiting, commands, single up/down swipes, variable/fixed auto-scroll, stop, faster, slower and reverse. For example, compose “Launch app → Wait → Swipe up once”. Commands wait for exit and single swipes wait for Android completion before advancing. Failure/cancellation stops the remaining actions. Launch completion means the launch request was accepted; add an explicit delay for screen readiness. Use wait-ui in named action macros to wait for UI elements.
 
@@ -1027,11 +1029,19 @@ From 0.8.620 the item editor is **split into blocks** (Component and behavior, D
 
 **Save panel settings as commands (0.8.595)**: The edge panel Manage page now displays recreation commands with a Copy commands button. It exports saved settings and items as `z2-edge` commands. Selecting a parent includes its tabs and their order; selecting a child preserves existing parent settings and other tabs. Note contents, referenced scripts and images need separate backups. Select the panel/tab on Manage, then use Copy commands to save the text. A missing parent is created with its saved appearance; a child is appended to an existing parent. An already registered tab keeps its position. Reusing an ID adds or updates the specified settings; existing items and unspecified settings remain. Unsaved edits, note history, ON/OFF state and transient display values are excluded. Displaying or copying commands does not run them or enable panels.
 
-Enable “Show + app button” under Appearance → Title, tabs and buttons to add apps directly from the normal menu. Cancelling app selection returns to that menu. Hold and drag a run item to reorder it; drop into the first/second half of a target to place it before/after (vertical halves in a column, horizontal halves in a row or grid). Targets are outlined and dragging at an edge scrolls. Dropping outside leaves order unchanged. Whitespace long-press still opens settings (0.8.567).
+Enable “Show + app button” under Panel → Title, tabs and buttons to add apps directly from the normal menu. Cancelling app selection returns to that menu. Hold and drag a run item to reorder it; drop into the first/second half of a target to place it before/after (vertical halves in a column, horizontal halves in a row or grid). Targets are outlined and dragging at an edge scrolls. Dropping outside leaves order unchanged. Whitespace long-press still opens settings (0.8.567).
 
 Menus with child tabs allow direct selection in normal use. When the tab strip is hidden, tap the current tab name at the top to choose a tab (0.8.567).
 
-Presentation fields belong to the parent panel and apply to all its tabs. Settings have no separate persistent state.
+**Arranging in rows (0.8.645)**: A panel is a stack of rows. Items in one row sit side by side, and rows stack from the top. The arrangement belongs to each tab, so changing an app tab never affects a terminal tab.
+Example: five app icons side by side with a note below them.
+1. Long-press empty space on the panel to open settings, then open Layout.
+2. Add five apps with + App and one note with Add custom slot.
+3. The list is split into Row 1, Row 2 and so on. Move an item with its arrows: at the end of a row it gets a row of its own, and one more step joins the next row. Put the five apps in one row and the note in the row below (the preview at the top shows the shape).
+4. To let the note fill the remaining height, set Panel height to Fixed height under Panel → Size and position and save (a panel with a terminal is fixed already).
+A row of one item shows its name; a shared row shows icons only (Panel → Icons and names can always show or hide names). Existing panels keep their look and switch to rows the first time you move an item in Layout.
+
+Presentation fields belong to the parent panel and apply to all its tabs (rows are kept per tab). Settings have no separate persistent state.
 Every presentation setting below is also writable with `z2-edge panel ID key=value ...`; `z2-edge get ID` reads saved fields.
 
 | Setting | Field / command |
@@ -1044,7 +1054,8 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Height sizing | `fit=content\|fixed` (default content; an empty panel keeps a 48dp touch area within its height limit) |
 | Placement | `place=handle\|left\|right\|top\|bottom\|center` (default handle) |
 | Custom position | `at=X%,Y%` (0–100, overrides place; empty clears it; percentage of space remaining after panel size) |
-| Arrangement | `flow=vertical\|horizontal\|grid\|free` (omitted/empty follows tab layout) |
+| Arrangement | `flow=vertical\|horizontal\|grid\|free` (omitted/empty follows tab layout; tabs without rows only) |
+| Rows | Item `row=1..64` (0.8.645). Items with the same number sit side by side; rows stack top to bottom in number order. Kept **per tab**; a tab where any item has a row ignores `flow` and `columns` |
 | Grid columns and icon size | `columns=auto` or 1–16; `icon-size=16..192` dp (default 40) |
 | Handle shape, position, activation | `handle` / `side` / `offset` / `x` / `y` / `size` / `length` / `alpha` / `open` (also via `z2-edge handle`) |
 | How to scroll | `scroll-how=auto\|node\|swipe` (default auto: ask the scrollable view, swipe only where the app offers nothing. node never touches the screen; swipe always sends one. 0.8.627) |

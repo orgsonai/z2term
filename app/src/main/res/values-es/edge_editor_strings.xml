@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="edge_edit_panel">Editar: %1$s</string>
-    <string name="edge_page_items">Elementos</string>
-    <string name="edge_page_appearance">Aspecto</string>
     <string name="edge_page_manage">Gestionar</string>
-    <string name="edge_items_help">Toca un elemento para editarlo. Usa las flechas para cambiar su posición.</string>
+    <string name="edge_items_help">Los elementos se colocan en filas: los de una misma fila van uno al lado del otro y las filas se apilan desde arriba. Usa las flechas para mover un elemento. Al final de una fila pasa a una fila propia; un paso más lo une a la fila siguiente. También puedes mantener pulsado un elemento y arrastrarlo sobre otro. Una fila con terminal, nota o vista ocupa el alto restante cuando la altura del panel está fijada (Fija en la página Panel, o cuando el panel contiene una terminal o similar).</string>
     <string name="edge_move_up">Subir %1$s</string>
     <string name="edge_move_down">Bajar %1$s</string>
     <string name="edge_advanced">Ajustes avanzados</string>
     <string name="edge_section_size">Tamaño y posición</string>
-    <string name="edge_section_items">Iconos y distribución</string>
+    <string name="edge_section_items">Iconos y nombres</string>
     <string name="edge_section_controls">Título, pestañas y botones</string>
     <string name="edge_section_handle">Asa</string>
     <string name="edge_delete_item_warning">¿Quitar «%1$s» de este panel? Se conservan los archivos de notas.</string>

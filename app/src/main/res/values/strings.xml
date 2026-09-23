@@ -1324,7 +1324,6 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="edge_out_panel" formatted="false">Below this item</string>
     <string name="edge_out_toast" formatted="false">Toast</string>
     <string name="edge_out_notify" formatted="false">Notification</string>
-    <string name="edge_flow_free" formatted="false">Free (per-item coordinates)</string>
     <string name="edge_binding_none">Not connected</string>
     <string name="edge_binding_missing">Deleted or unavailable item</string>
     <string name="edge_binding_remove">Disconnect %1$s</string>

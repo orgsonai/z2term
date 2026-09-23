@@ -1228,7 +1228,6 @@ SSH 连接目标 %3$d 个
     <string name="edge_out_panel" formatted="false">此项目下方</string>
     <string name="edge_out_toast" formatted="false">短消息</string>
     <string name="edge_out_notify" formatted="false">通知</string>
-    <string name="edge_flow_free" formatted="false">自由（各项目坐标）</string>
     <string name="edge_binding_none">未连接</string>
     <string name="edge_binding_missing">项目已删除或不可用</string>
     <string name="edge_binding_remove">断开 %1$s 的连接</string>

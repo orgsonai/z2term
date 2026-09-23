@@ -148,6 +148,20 @@ class EdgeStore(val root: File) {
         ordered.forEachIndexed { index, item -> setItem("$panelId:${item.id}", mapOf("order" to index.toString())) }
     }
 
+    /** Saves a whole arrangement: every item of the tab, row by row, numbered from 1 in reading order. */
+    @Synchronized fun arrange(panelId: String, rows: List<List<String>>) {
+        val items = panel(panelId).items
+        val ids = rows.flatten()
+        require(ids.size == ids.toSet().size && ids.toSet() == items.map { it.id }.toSet()) {
+            "Arrangement must list every item once"
+        }
+        require(rows.size <= 64 && rows.none { it.isEmpty() }) { "row: 1–64" }
+        var order = 0
+        rows.forEachIndexed { index, line -> line.forEach { id ->
+            setItem("$panelId:$id", mapOf("order" to (order++).toString(), "row" to (index + 1).toString()))
+        } }
+    }
+
     @Synchronized fun addTab(parentId: String, id: String, label: String) {
         val parent = panel(parentId)
         require(!directory(id).exists()) { "Panel already exists: $id" }
@@ -240,7 +254,7 @@ class EdgeStore(val root: File) {
         }
 
         fun validateItem(values: Map<String, String>) {
-            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color", "args", "result", "result-controls", "argument-kind", "default", "choices", "required", "rows", "stdin", "width", "height", "align", "at", "view-refresh", "view-refresh-button", "view-expand-button")
+            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color", "args", "result", "result-controls", "argument-kind", "default", "choices", "required", "rows", "stdin", "width", "height", "align", "at", "view-refresh", "view-refresh-button", "view-expand-button", "row")
             require(values.keys.all { it in allowed }) { "Unknown item field: ${values.keys - allowed}" }
             val type = values["type"] ?: "run"
             require(type in setOf("run", "text", "toggle", "list", "input", "note", "terminal", "macro", "argument", "result", "view")) { "Unsupported type: $type" }
@@ -259,6 +273,7 @@ class EdgeStore(val root: File) {
             values["timeout"]?.let { require(it.toLongOrNull()?.let { n -> n in 1L..300L } == true) { "timeout: 1–300 seconds" } }
             values["order"]?.let { require(it.toIntOrNull() != null) { "order must be an integer" } }
             EdgeItemLayout.validate(values)
+            EdgeRows.validate(values)
             EdgeMacroForm.validate(values)
             com.zerotoship.z2term.viewer.ViewerOptions.from(values)
             encode(values)

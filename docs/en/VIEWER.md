@@ -7,7 +7,7 @@ Validation (0.8.641): desktop `assembleRelease`, 133 related unit tests and `lin
 ## Display a page in an edge panel
 
 1. Tap ⚙ in the edge panel. If it is hidden, leave the panel open and long-press the space outside it.
-2. Open Items → Add custom slot (macro / command).
+2. Open Layout → Add custom slot (macro / command).
 3. Choose Display, then View (z2-view). In 0.8.640, the component is called Text display.
 4. Enter a label and a command that produces HTML and calls `z2-view`. With the updated macros installed, use `rss.sh view` or `remind.sh view`. For your own prepared HTML, use `z2-view "$HOME/page.html"`.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.

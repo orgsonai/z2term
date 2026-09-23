@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="edge_edit_panel">%1$s 편집</string>
-    <string name="edge_page_items">항목</string>
-    <string name="edge_page_appearance">모양</string>
     <string name="edge_page_manage">관리</string>
-    <string name="edge_items_help">항목을 눌러 편집하세요. 화살표로 순서를 바꿀 수 있습니다.</string>
+    <string name="edge_items_help">항목은 줄 단위로 놓입니다. 같은 줄의 항목은 가로로 나란히, 줄은 위에서부터 쌓입니다. 화살표로 항목을 옮기면 줄 끝에서는 그 항목만의 줄로 나뉘고, 한 번 더 누르면 옆 줄에 들어갑니다. 길게 눌러 다른 항목 위치로 끌어 옮길 수도 있습니다. 터미널·메모·뷰가 있는 줄은 패널 높이가 정해져 있을 때(패널 페이지에서 높이를 고정했거나 터미널 등을 놓았을 때) 남은 높이를 채웁니다.</string>
     <string name="edge_move_up">%1$s 위로 이동</string>
     <string name="edge_move_down">%1$s 아래로 이동</string>
     <string name="edge_advanced">고급 설정</string>
     <string name="edge_section_size">크기와 위치</string>
-    <string name="edge_section_items">아이콘과 배치</string>
+    <string name="edge_section_items">아이콘과 이름</string>
     <string name="edge_section_controls">제목, 탭과 버튼</string>
     <string name="edge_section_handle">핸들</string>
     <string name="edge_delete_item_warning">패널에서 “%1$s”을(를) 삭제할까요? 메모 파일은 유지됩니다.</string>

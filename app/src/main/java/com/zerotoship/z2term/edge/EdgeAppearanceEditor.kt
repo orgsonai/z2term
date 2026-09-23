@@ -11,9 +11,13 @@ import android.widget.TextView
 import android.widget.Toast
 import com.zerotoship.z2term.R
 
-/** The draft is local to this view; only Save writes definitions. */
+/**
+ * The draft is local to this view; only Save writes definitions. The Panel page and the Actions
+ * page are two halves of the same editor: [gestures] picks which fields are built and saved.
+ */
 object EdgeAppearanceEditor {
     fun create(context: Context, panel: EdgeStore.Panel, store: EdgeStore, screenWidth: Int, screenHeight: Int,
+        gestures: Boolean = false,
         preview: (Map<String, String>) -> Unit, finish: () -> Unit, session: EdgeEditorSession): View {
         val outer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -142,6 +146,8 @@ object EdgeAppearanceEditor {
                 })
         }
         val onOff = listOf(R.string.edge_option_off, R.string.edge_option_on)
+        var barExplanation: View = content
+        if (!gestures) {
         content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_size), expanded = true)
         help(R.string.edge_appearance_intro)
         content.addView(diagram, LinearLayout.LayoutParams(-1, EdgeEditorUi.dp(context, 160)))
@@ -156,10 +162,6 @@ object EdgeAppearanceEditor {
         entry("at", R.string.edge_at)
         content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_items))
         choice("labels", R.string.edge_show_labels, listOf("", "on", "off"), listOf(R.string.edge_option_auto, R.string.edge_option_on, R.string.edge_option_off))
-        choice("flow", R.string.edge_flow, listOf("", "vertical", "horizontal", "grid", "free"),
-            listOf(R.string.edge_option_auto, R.string.edge_flow_vertical, R.string.edge_flow_horizontal, R.string.edge_flow_grid, R.string.edge_flow_free))
-        choice("columns", R.string.edge_columns, listOf("auto") + (1..16).map { it.toString() },
-            listOf(R.string.edge_option_auto) + (1..16).map { R.string.edge_column_count })
         control("icon-size", R.string.edge_icon_size, 16, 192)
         content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_handle))
         choice("handle", R.string.edge_handle_kind, listOf("off", "bar", "button"),
@@ -169,7 +171,7 @@ object EdgeAppearanceEditor {
             listOf(R.string.edge_option_auto, R.string.theme_color_white, R.string.theme_color_black))
         val barHelp = content
         content = EdgeSettingsUi.column(context)
-        val barExplanation = content
+        barExplanation = content
         barHelp.addView(content)
         help(R.string.edge_bar_color_help)
         content = barHelp
@@ -187,7 +189,8 @@ object EdgeAppearanceEditor {
         choice("settings", R.string.edge_show_settings, listOf("off", "on"), onOff)
         choice("tools-place", R.string.edge_tools_place, listOf("", "top", "bottom"),
             listOf(R.string.edge_option_auto, R.string.edge_place_top, R.string.edge_place_bottom))
-        content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_gestures))
+        } else {
+        content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_gestures), expanded = true)
         help(R.string.edge_gestures_help)
         val gestures = content
         EdgeActions.Trigger.entries.forEach { trigger ->
@@ -224,7 +227,8 @@ object EdgeAppearanceEditor {
             runCatching { AndroidActions.command(context, listOf("permission")) }
                 .onFailure { Toast.makeText(context, it.message, Toast.LENGTH_LONG).show() }
         }, LinearLayout.LayoutParams(-1, -2))
-        refreshVisibility = {
+        }
+        if (!gestures) refreshVisibility = {
             fun show(key: String, visible: Boolean) {
                 fields[key]?.visibility = if (visible) View.VISIBLE else View.GONE
             }
@@ -237,16 +241,13 @@ object EdgeAppearanceEditor {
             ((fields["size"] as? LinearLayout)?.getChildAt(0) as? TextView)?.text = context.getString(sizeLabel)
             inputs["size"]?.contentDescription = context.getString(sizeLabel)
             labels["size"] = sizeLabel
-            val flow = entries.getValue("flow").text.toString()
-            val grid = flow == "grid" || flow.isEmpty()
-            show("columns", grid)
             val tools = entries.getValue("add").text.toString() == "on" || entries.getValue("settings").text.toString() == "on"
             show("tools-place", tools)
             // Explicit coordinates take precedence over the placement picker; retain that choice.
             show("place", entries.getValue("at").text.isBlank())
         }
         sections.addView(EdgeSettingsUi.hairline(context))
-        sections.addView(EdgeSettingsUi.note(context, context.getString(R.string.edge_preview_help)),
+        if (!gestures) sections.addView(EdgeSettingsUi.note(context, context.getString(R.string.edge_preview_help)),
             LinearLayout.LayoutParams(-1, -2).apply {
                 setMargins(EdgeEditorUi.dp(context, EdgeSettingsUi.GUTTER), EdgeEditorUi.dp(context, 14),
                     EdgeEditorUi.dp(context, EdgeSettingsUi.GUTTER), EdgeEditorUi.dp(context, 16))

@@ -108,9 +108,14 @@ class AppPickerActivity : Activity() {
                     if (panel != null) {
                         val store = EdgeRuntime.store(this)
                         val id = "app_" + UUID.randomUUID().toString().replace("-", "")
+                        // In a tab arranged in rows, the app joins the last row of apps, after its items.
+                        val existing = store.panel(panel).items
+                        val placement = EdgeRows.rowForNewApp(existing)?.let { row ->
+                            mapOf("row" to row.toString(), "order" to ((existing.maxOfOrNull { it.order } ?: -1) + 1).toString())
+                        }.orEmpty()
                         store.setItem("$panel:$id", mapOf("type" to "run", "run" to "z2-intent -p $pkg --window $windowMode",
                             "label" to entry.loadLabel(packageManager).toString().replace('\n', ' ').replace('\r', ' '),
-                            "icon" to "@app:$pkg"))
+                            "icon" to "@app:$pkg") + placement)
                         EdgeRuntime.reload(this)
                         if (store.enabled()) EdgeRuntime.open(panel, settings = intent.getBooleanExtra("editPanel", false), page = 0)
                     }

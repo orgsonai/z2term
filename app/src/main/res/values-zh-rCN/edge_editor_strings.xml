@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="edge_edit_panel">编辑：%1$s</string>
-    <string name="edge_page_items">项目</string>
-    <string name="edge_page_appearance">外观</string>
     <string name="edge_page_manage">管理</string>
-    <string name="edge_items_help">点按项目进行编辑。使用上下箭头调整顺序。</string>
+    <string name="edge_items_help">项目按行排列：同一行的项目横向并排，各行从上往下堆叠。用箭头移动项目；到达行尾时会单独成为一行，再按一次则并入相邻的行。也可以长按项目并拖到其他项目的位置。含终端、便笺或视图的行，在面板高度已确定时（在“面板”页设为固定高度，或放置了终端等）会占满剩余高度。</string>
     <string name="edge_move_up">上移%1$s</string>
     <string name="edge_move_down">下移%1$s</string>
     <string name="edge_advanced">高级设置</string>
     <string name="edge_section_size">大小与位置</string>
-    <string name="edge_section_items">图标与排列</string>
+    <string name="edge_section_items">图标与名称</string>
     <string name="edge_section_controls">标题、标签页与按钮</string>
     <string name="edge_section_handle">把手</string>
     <string name="edge_delete_item_warning">从面板移除“%1$s”？笔记文件将保留。</string>

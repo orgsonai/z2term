@@ -98,11 +98,6 @@
     <string name="edge_place_bottom">Abajo</string>
     <string name="edge_place_center">Centro</string>
     <string name="edge_at" formatted="false">Posición personalizada X%,Y% (vacío para borrar)</string>
-    <string name="edge_flow">Distribución de elementos</string>
-    <string name="edge_flow_vertical">Vertical</string>
-    <string name="edge_flow_horizontal">Horizontal</string>
-    <string name="edge_flow_grid">Cuadrícula</string>
-    <string name="edge_columns">Columnas de la cuadrícula</string>
     <string name="edge_icon_size">Tamaño de icono (dp)</string>
     <string name="edge_handle_kind">Tipo de tirador</string>
     <string name="edge_handle_bar">Barra</string>
@@ -219,10 +214,17 @@
     <string name="edge_handle_opacity" formatted="false">Opacidad del tirador (5–100%)</string>
     <string name="edge_bar_thickness">Grosor de la barra (dp)</string>
     <string name="edge_button_diameter">Tamaño del botón (dp)</string>
-    <string name="edge_column_count">%1$d columnas</string>
     <string name="edge_position_advanced">Posición por coordenadas</string>
     <string name="edge_value_invalid">Comprueba el valor y el rango permitido.</string>
     <string name="edge_field_invalid">Revisa «%1$s» antes de guardar.</string>
     <string name="edge_appearance_intro">Ajusta aquí el tamaño y la posición. Toca los títulos para abrir otros ajustes. Los cambios se confirman al guardar.</string>
     <string name="edge_position_help" formatted="false">Introduce X%,Y% (50%,50% para centrar). Las coordenadas tienen prioridad sobre la posición del panel. Vacía el campo para volver a usarla.</string>
+    <string name="edge_page_layout">Disposición</string>
+    <string name="edge_page_panel">Panel</string>
+    <string name="edge_page_actions">Gestos</string>
+    <string name="edge_row_title">Fila %1$d</string>
+    <string name="edge_row_side">%1$d en fila</string>
+    <string name="edge_row_alone">1 elemento</string>
+    <string name="edge_row_fills">ocupa el alto restante</string>
+    <string name="edge_row_sketch">Vista previa de las filas, de arriba abajo</string>
 </resources>

@@ -25,6 +25,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# title=on|off close=on|off tabbar=off|on|auto add=on|off settings=on|off tools-place=top|bottom
         |# labels=on|off flow=vertical|horizontal|grid columns=auto|1..16 icon-size=16..192
         |# place=handle|left|right|top|bottom|center at=X%,Y%
+        |# z2-edge set ID:項目 row=1..64    段。同じ段は横に並び、段は上から積む（タブごと。flowより優先）
         |# z2-edge panel ID 'actions-double-tap=launch:org.example.app|wait:500|swipe-up'
         |# actions-tap / actions-up / actions-down / actions-inward / actions-outward
         |# actions-up=scroll-variable  scroll-x=50 scroll-y=50
@@ -103,6 +104,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# title=on|off close=on|off tabbar=off|on|auto add=on|off settings=on|off tools-place=top|bottom
         |# labels=on|off flow=vertical|horizontal|grid columns=auto|1..16 icon-size=16..192
         |# place=handle|left|right|top|bottom|center at=X%,Y%
+        |# z2-edge set ID:item row=1..64    Row: one row sits side by side, rows stack (per tab, overrides flow)
         |# z2-edge panel ID label=Name
         |# z2-edge set ID:item type=text 'run=date' label=Clock every=30
         |# z2-edge get ID                        Read saved panel fields (key=value)

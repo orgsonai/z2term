@@ -1221,7 +1221,6 @@ SSH 연결: %3$d
     <string name="edge_out_panel" formatted="false">이 항목 아래</string>
     <string name="edge_out_toast" formatted="false">짧은 메시지</string>
     <string name="edge_out_notify" formatted="false">알림</string>
-    <string name="edge_flow_free" formatted="false">자유 (항목별 좌표)</string>
     <string name="edge_binding_none">연결 없음</string>
     <string name="edge_binding_missing">삭제되었거나 사용할 수 없는 항목</string>
     <string name="edge_binding_remove">%1$s 연결 해제</string>

@@ -1230,7 +1230,6 @@ Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="edge_out_panel" formatted="false">Debajo de este elemento</string>
     <string name="edge_out_toast" formatted="false">Mensaje breve</string>
     <string name="edge_out_notify" formatted="false">Notificación</string>
-    <string name="edge_flow_free" formatted="false">Libre (coordenadas por elemento)</string>
     <string name="edge_binding_none">Sin conexión</string>
     <string name="edge_binding_missing">Elemento eliminado o no disponible</string>
     <string name="edge_binding_remove">Desconectar %1$s</string>
