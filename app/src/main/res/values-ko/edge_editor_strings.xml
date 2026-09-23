@@ -2,7 +2,7 @@
 <resources>
     <string name="edge_edit_panel">%1$s 편집</string>
     <string name="edge_page_manage">관리</string>
-    <string name="edge_items_help">항목은 줄 단위로 놓입니다. 같은 줄의 항목은 가로로 나란히, 줄은 위에서부터 쌓입니다. 화살표로 항목을 옮기면 줄 끝에서는 그 항목만의 줄로 나뉘고, 한 번 더 누르면 옆 줄에 들어갑니다. 길게 눌러 다른 항목 위치로 끌어 옮길 수도 있습니다. 터미널·메모·뷰가 있는 줄은 패널 높이가 정해져 있을 때(패널 페이지에서 높이를 고정했거나 터미널 등을 놓았을 때) 남은 높이를 채웁니다.</string>
+    <string name="edge_items_help">항목은 줄 단위로 놓입니다. 같은 줄은 가로로, 줄은 위에서부터 쌓입니다. 위 미리보기에서 끌어 옮기거나 크기를 바꿀 수 있고, 여기서도 ←→로 줄 안의 순서를, 줄 ▾로 줄을 바꿀 수 있습니다. 터미널·메모·뷰가 있는 줄은 패널 높이가 정해져 있고 줄에 높이를 지정하지 않았으면 남은 높이를 채웁니다. 크기 되돌리기로 자동으로 돌아갑니다.</string>
     <string name="edge_move_up">%1$s 위로 이동</string>
     <string name="edge_move_down">%1$s 아래로 이동</string>
     <string name="edge_advanced">고급 설정</string>

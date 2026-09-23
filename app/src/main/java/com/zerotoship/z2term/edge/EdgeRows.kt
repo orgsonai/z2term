@@ -42,24 +42,26 @@ internal object EdgeRows {
     fun of(items: List<EdgeStore.Item>, rootFlow: String?, tabLayout: String?, columns: Int): List<List<EdgeStore.Item>> =
         if (arranged(items)) saved(items) else derived(items, rootFlow, tabLayout, columns)
 
-    /**
-     * Moves [id] one step through the rows as they read top to bottom. Stepping past the start or
-     * end of a shared row gives the item a row of its own just above or below; a step from a row
-     * of its own joins the neighbouring row. Every arrangement is reachable with the two arrows.
-     */
-    fun move(rows: List<List<String>>, id: String, delta: Int): List<List<String>> {
-        val lines = rows.map { it.toMutableList() }.toMutableList()
-        val r = lines.indexOfFirst { id in it }
-        require(r >= 0) { "No item to move" }
-        val line = lines[r]
+    /** Moves [id] one place left or right inside its own row; it never leaves the row. */
+    fun shift(rows: List<List<String>>, id: String, delta: Int): List<List<String>> = rows.map { line ->
         val i = line.indexOf(id)
-        val j = i + delta
-        when {
-            j in line.indices -> { line.removeAt(i); line.add(j, id) }
-            line.size > 1 -> { line.removeAt(i); lines.add(if (delta < 0) r else r + 1, mutableListOf(id)) }
-            delta < 0 && r > 0 -> { line.removeAt(i); lines[r - 1].add(id) }
-            delta > 0 && r < lines.lastIndex -> { line.removeAt(i); lines[r + 1].add(0, id) }
-        }
+        if (i < 0 || i + delta !in line.indices) line
+        else line.toMutableList().apply { removeAt(i); add(i + delta, id) }
+    }
+
+    fun canShift(rows: List<List<String>>, id: String, delta: Int): Boolean = shift(rows, id, delta) != rows
+
+    /** Puts [id] into row [row] at [position], counted among that row's other items. */
+    fun insert(rows: List<List<String>>, id: String, row: Int, position: Int): List<List<String>> {
+        val lines = rows.map { line -> line.filter { it != id }.toMutableList() }
+        lines[row].add(position.coerceIn(0, lines[row].size), id)
+        return lines.filter { it.isNotEmpty() }
+    }
+
+    /** Gives [id] a row of its own at gap [index] (0 = above the first row, rows.size = below the last). */
+    fun newRow(rows: List<List<String>>, id: String, index: Int): List<List<String>> {
+        val lines = rows.map { line -> line.filter { it != id } }.toMutableList()
+        lines.add(index.coerceIn(0, lines.size), listOf(id))
         return lines.filter { it.isNotEmpty() }
     }
 
@@ -72,8 +74,33 @@ internal object EdgeRows {
         return lines.filter { it.isNotEmpty() }
     }
 
-    /** Whether [id] can move by [delta]; an item alone in the first or last row has nowhere to go. */
-    fun canMove(rows: List<List<String>>, id: String, delta: Int): Boolean = move(rows, id, delta) != rows
+    /** The other items [id] shares a row with; a changed set means it moved to another row. */
+    fun companions(rows: List<List<String>>, id: String): Set<String>? =
+        rows.firstOrNull { id in it }?.let { it.toSet() - id }
+
+    /**
+     * Relative widths for one row. `N%` is a share of the panel width and dp is converted to one;
+     * items without a width split what is left, or take the average share once nothing is left.
+     */
+    fun weights(widths: List<String?>, panelWidthDp: Float): List<Float> {
+        val given = widths.map { raw ->
+            raw?.takeIf { it.isNotBlank() }?.let { runCatching { EdgeStore.dimension(it) }.getOrNull() }
+                ?.let { (value, percent) -> if (percent) value else value / panelWidthDp.coerceAtLeast(1f) * 100f }
+        }
+        val known = given.filterNotNull()
+        val open = given.count { it == null }
+        val rest = if (open == 0) 0f else (100f - known.sum()).takeIf { it >= 5f * open }?.div(open)
+            ?: (known.takeIf { it.isNotEmpty() }?.average()?.toFloat() ?: (100f / widths.size))
+        return given.map { (it ?: rest).coerceAtLeast(1f) }
+    }
+
+    /** Whole percentages that keep [weights] in proportion and add up to exactly 100. */
+    fun percents(weights: List<Float>): List<Int> {
+        val total = weights.sum().coerceAtLeast(0.001f)
+        val shares = weights.map { (it / total * 100f).toInt().coerceAtLeast(1) }.toMutableList()
+        shares[shares.indices.maxBy { shares[it] }] += 100 - shares.sum()
+        return shares
+    }
 
     /** The row a newly picked app joins: the last row when it holds only apps, otherwise a new one. */
     fun rowForNewApp(items: List<EdgeStore.Item>): Int? {

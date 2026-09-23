@@ -2,7 +2,7 @@
 <resources>
     <string name="edge_edit_panel">Editar: %1$s</string>
     <string name="edge_page_manage">Gestionar</string>
-    <string name="edge_items_help">Los elementos se colocan en filas: los de una misma fila van uno al lado del otro y las filas se apilan desde arriba. Usa las flechas para mover un elemento. Al final de una fila pasa a una fila propia; un paso más lo une a la fila siguiente. También puedes mantener pulsado un elemento y arrastrarlo sobre otro. Una fila con terminal, nota o vista ocupa el alto restante cuando la altura del panel está fijada (Fija en la página Panel, o cuando el panel contiene una terminal o similar).</string>
+    <string name="edge_items_help">Los elementos se colocan en filas: los de una misma fila van uno al lado del otro y las filas se apilan desde arriba. Muévelos y ajusta su tamaño en la vista previa, o aquí: las flechas cambian el orden dentro de la fila y el botón Fila la cambia. Una fila con terminal, nota o vista ocupa el alto restante cuando la altura del panel está fijada y la fila no tiene altura propia. Restablecer tamaño vuelve a lo automático.</string>
     <string name="edge_move_up">Subir %1$s</string>
     <string name="edge_move_down">Bajar %1$s</string>
     <string name="edge_advanced">Ajustes avanzados</string>

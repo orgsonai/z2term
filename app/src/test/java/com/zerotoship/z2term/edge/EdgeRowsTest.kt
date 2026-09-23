@@ -27,20 +27,30 @@ class EdgeRowsTest {
         assertEquals(ids(EdgeRows.saved(items)), ids(EdgeRows.of(items, "horizontal", null, 4)))
     }
 
-    @Test fun arrowsSplitAndJoinRowsSoEveryArrangementIsReachable() {
+    @Test fun arrowsStayInTheRowAndThePickerOrDragChangesRows() {
         val start = listOf(listOf("a", "b", "c"), listOf("n"))
-        // Apps in one row with a note below: step the last app out into a row of its own…
-        val split = EdgeRows.move(start, "c", 1)
-        assertEquals(listOf(listOf("a", "b"), listOf("c"), listOf("n")), split)
-        // …then into the note's row, and back up again.
-        assertEquals(listOf(listOf("a", "b"), listOf("c", "n")), EdgeRows.move(split, "c", 1))
-        assertEquals(start, EdgeRows.move(split, "c", -1))
-        assertEquals(listOf(listOf("b", "a", "c"), listOf("n")), EdgeRows.move(start, "a", 1))
-        assertEquals(listOf(listOf("a"), listOf("b", "c"), listOf("n")), EdgeRows.move(start, "a", -1))
-        // Alone at either end, there is nowhere further to go.
-        assertFalse(EdgeRows.canMove(start, "n", 1))
-        assertFalse(EdgeRows.canMove(listOf(listOf("a"), listOf("b")), "a", -1))
-        assertTrue(EdgeRows.canMove(start, "n", -1))
+        assertEquals(listOf(listOf("b", "a", "c"), listOf("n")), EdgeRows.shift(start, "a", 1))
+        assertFalse(EdgeRows.canShift(start, "a", -1))
+        assertFalse(EdgeRows.canShift(start, "n", 1))
+        // Moving to another row takes one step, wherever it lands.
+        assertEquals(listOf(listOf("a", "b"), listOf("n", "c")), EdgeRows.insert(start, "c", 1, 9))
+        assertEquals(listOf(listOf("b", "c"), listOf("a", "n")), EdgeRows.insert(start, "a", 1, 0))
+        // Reordering within a row counts positions among the other items.
+        assertEquals(listOf(listOf("b", "c", "a"), listOf("n")), EdgeRows.insert(start, "a", 0, 2))
+        // A gap between rows makes a new row there; an emptied row disappears.
+        assertEquals(listOf(listOf("a", "b"), listOf("c"), listOf("n")), EdgeRows.newRow(start, "c", 1))
+        assertEquals(listOf(listOf("n"), listOf("a", "b", "c")), EdgeRows.newRow(start, "n", 0))
+        assertEquals(setOf("a", "b"), EdgeRows.companions(start, "c"))
+        assertEquals(emptySet<String>(), EdgeRows.companions(start, "n"))
+    }
+
+    @Test fun widthsBecomeProportionsThatAddUpToTheRow() {
+        assertEquals(listOf(50f, 50f), EdgeRows.weights(listOf(null, null), 360f))
+        assertEquals(listOf(20f, 40f, 40f), EdgeRows.weights(listOf("20%", null, ""), 360f))
+        // dp is a share of the panel width; when the given widths fill the row, the rest take the average.
+        assertEquals(listOf(50f, 50f, 50f), EdgeRows.weights(listOf("180", "50%", null), 360f))
+        assertEquals(listOf(25, 25, 50), EdgeRows.percents(listOf(1f, 1f, 2f)))
+        assertEquals(100, EdgeRows.percents(listOf(1f, 1f, 1f)).sum())
     }
 
     @Test fun droppingJoinsTheTargetRow() {

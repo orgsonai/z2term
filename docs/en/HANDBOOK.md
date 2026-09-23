@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.645-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.646-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -913,6 +913,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
 
+**0.8.646-alpha (versionCode 654)**: The edge panel Layout page is easier to use. The preview now has the real panel's proportions; long-press an item to drag it to another row or onto a line between rows for a new row. Dragging the line under a row changes its height, and the line between items changes their widths (Reset size returns to automatic). The list's up/down buttons are replaced by ←→ for the order inside a row and a "Row N ▾" menu that moves an item to another row in one step, and the list keeps its scroll position.
+
 **0.8.645-alpha (versionCode 653)**: Edge panels are now arranged in rows. Items in one row sit side by side and rows stack from the top, so app icons can sit in a row with a note below them. The arrangement belongs to each tab and no longer affects other tabs. Rows with a terminal, note or view fill the remaining height when the panel height is set. Settings are split into Layout, Panel, Gestures and Manage; Layout lists items row by row under a preview and moves them with the arrows. Existing panels keep their look and switch to rows on the first move. From the CLI, `z2-edge set ID:item row=N` sets the row.
 
 **0.8.644-alpha (versionCode 652)**: Selecting text in edge panel fields and selectable text (including the settings page) now shows the Cut / Copy / Paste / Select all toolbar. Edge panels are overlay windows where Android shows no toolbar, so the app draws it above the selection (below when it does not fit).
@@ -1037,8 +1039,9 @@ Menus with child tabs allow direct selection in normal use. When the tab strip i
 Example: five app icons side by side with a note below them.
 1. Long-press empty space on the panel to open settings, then open Layout.
 2. Add five apps with + App and one note with Add custom slot.
-3. The list is split into Row 1, Row 2 and so on. Move an item with its arrows: at the end of a row it gets a row of its own, and one more step joins the next row. Put the five apps in one row and the note in the row below (the preview at the top shows the shape).
-4. To let the note fill the remaining height, set Panel height to Fixed height under Panel → Size and position and save (a panel with a terminal is fixed already).
+3. On the preview at the top, long-press an item and drag it. Drop it on a row to place it there, or on the line between rows to make a new row. Put the five apps in one row and the note in the row below. In the list under the preview, "Row N ▾" also moves an item to another row and ←→ change the order inside a row.
+4. To change heights or widths, drag the line under a row up or down, or the line between two items sideways. The size is saved when you let go and shown under the preview (as a percentage of the panel). Reset size on the row heading returns to automatic.
+5. To let the note fill the remaining height, set Panel height to Fixed height under Panel → Size and position and save (a panel with a terminal is fixed already). A note row with its own height does not grow.
 A row of one item shows its name; a shared row shows icons only (Panel → Icons and names can always show or hide names). Existing panels keep their look and switch to rows the first time you move an item in Layout.
 
 Presentation fields belong to the parent panel and apply to all its tabs (rows are kept per tab). Settings have no separate persistent state.

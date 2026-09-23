@@ -1033,13 +1033,13 @@ object EdgeRuntime {
             if (settings) {
                 if (page == 0) {
                     val lines = EdgeRows.of(panel.items, root.fields["flow"], panel.fields["layout"], legacyColumns(root))
-                    if (lines.isNotEmpty()) rows.addView(rowSketch(lines, heightBounded, iconOnly = labels == "off"),
+                    if (lines.isNotEmpty()) rows.addView(rowSketch(panel.id, lines, root, heightBounded, labels),
                         LinearLayout.LayoutParams(-1, -2).apply {
                             setMargins(dp(EdgeSettingsUi.GUTTER), dp(4), dp(EdgeSettingsUi.GUTTER), dp(14))
                         })
                     val ids = lines.map { line -> line.map { it.id } }
                     lines.forEachIndexed { index, line ->
-                        rows.addView(rowHeading(index, line, heightBounded))
+                        rows.addView(rowHeading(panel.id, index, line, heightBounded))
                         line.forEach { addSettingsItem(rows, panel.id, it, ids) }
                     }
                     rows.addView(EdgeSettingsUi.hairline(ui()))
@@ -1060,17 +1060,19 @@ object EdgeRuntime {
                     val grow = growing && line.any(EdgeRows::grows)
                     val strip = LinearLayout(ui())
                     rows.addView(strip, if (grow) LinearLayout.LayoutParams(-1, 0, 1f) else LinearLayout.LayoutParams(-1, -2))
-                    line.forEach { item ->
+                    // Widths are shares of the row, so the items always fill it exactly.
+                    val shares = EdgeRows.weights(line.map { it.fields["width"] }, panelWidth / density)
+                    line.forEachIndexed { index, item ->
                         val cell = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
-                        val cellWidth = item.fields["width"]?.takeIf { it.isNotBlank() }
-                            ?.let { EdgeStore.dimensionPixels(it, panelWidth, density) }
-                        strip.addView(cell, if (cellWidth != null) LinearLayout.LayoutParams(cellWidth, if (grow) -1 else -2)
-                            else LinearLayout.LayoutParams(0, if (grow) -1 else -2, 1f))
+                        strip.addView(cell, LinearLayout.LayoutParams(0, if (grow) -1 else -2, shares[index]))
                         // Unset labels: a row of its own has room for the name, a shared row shows icons.
                         val bare = labels == "off" || (labels.isEmpty() && line.size > 1)
                         addItem(cell, panel.id, item, bare, iconSize, horizontalOrder = line.size > 1,
                             fillSpace = grow && EdgeRows.grows(item), inlineClose = terminalClose(item), sizedCell = true)
                     }
+                    // A lone item narrower than the panel leaves the rest of its row empty.
+                    val spare = 100f - shares.sum()
+                    if (spare > 0.5f) strip.addView(View(ui()), LinearLayout.LayoutParams(0, 1, spare))
                 }
             } else if (flow == "free") {
                 val canvas = EdgeItemCanvas(ui(), panelHeight)
@@ -1243,58 +1245,98 @@ object EdgeRuntime {
         return (root.fields["columns"]?.toIntOrNull() ?: (panelWidth / dp(iconSize + 24).coerceAtLeast(1))).coerceIn(1, 16)
     }
 
-    /** Applies [change] to the tab's rows and saves them; the first change converts a legacy tab. */
-    private fun rearrange(panelId: String, change: (List<List<String>>) -> List<List<String>>) {
+    /**
+     * Applies [change] to the tab's rows and saves them; the first change converts a legacy tab.
+     * An item that lands among different neighbours drops its own size and takes the row's.
+     */
+    private fun rearrange(panelId: String, moved: String? = null, force: Boolean = false,
+        change: (List<List<String>>) -> List<List<String>>) {
         val store = store(app!!)
         val panel = store.panel(panelId)
         val root = panels.firstOrNull { panelId in it.tabs } ?: panels.firstOrNull { it.id == panelId } ?: panel
         val rows = EdgeRows.of(panel.items, root.fields["flow"], panel.fields["layout"], legacyColumns(root))
             .map { line -> line.map { it.id } }
         val next = change(rows)
-        if (next != rows) store.arrange(panelId, next)
+        if (next == rows && !(force && !EdgeRows.arranged(panel.items))) return
+        store.arrange(panelId, next)
+        if (moved != null && EdgeRows.companions(rows, moved) != EdgeRows.companions(next, moved))
+            store.setItem("$panelId:$moved", mapOf("width" to "", "height" to ""))
     }
 
-    private fun rowHeading(index: Int, line: List<EdgeStore.Item>, bounded: Boolean): View {
+    /** Reloads the settings page where it was, instead of jumping back to the top of the list. */
+    private fun reloadKeepingScroll() {
+        val scrollY = panelView?.findViewWithTag<ScrollView>("edge-items-scroll")?.scrollY ?: 0
+        reload(app!!)
+        panelView?.findViewWithTag<ScrollView>("edge-items-scroll")?.let { scroll -> scroll.post { scroll.scrollTo(0, scrollY) } }
+    }
+
+    private fun editRows(action: () -> Unit) {
+        editorSession?.leave { runCatching { action(); reloadKeepingScroll() }.onFailure { fail(it) } }
+    }
+
+    private fun rowHeading(panelId: String, index: Int, line: List<EdgeStore.Item>, bounded: Boolean): View {
         val parts = mutableListOf(if (line.size > 1) app!!.getString(R.string.edge_row_side, line.size)
             else app!!.getString(R.string.edge_row_alone))
+        val sized = line.any { !it.fields["width"].isNullOrBlank() || !it.fields["height"].isNullOrBlank() }
         if (bounded && line.any(EdgeRows::grows)) parts += app!!.getString(R.string.edge_row_fills)
         return LinearLayout(ui()).apply {
-            gravity = Gravity.BOTTOM
-            setPadding(dp(EdgeSettingsUi.GUTTER), dp(if (index == 0) 4 else 18), dp(EdgeSettingsUi.GUTTER), dp(6))
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(EdgeSettingsUi.GUTTER), dp(if (index == 0) 4 else 14), dp(6), dp(2))
             addView(EdgeSettingsUi.body(ui(), app!!.getString(R.string.edge_row_title, index + 1)).apply {
                 setTypeface(null, Typeface.BOLD)
             })
-            addView(EdgeSettingsUi.caption(ui(), parts.joinToString(" · ")).apply { setPadding(dp(10), 0, 0, dp(1)) })
+            addView(EdgeSettingsUi.caption(ui(), parts.joinToString(" · ")).apply { setPadding(dp(10), 0, dp(8), 0) },
+                LinearLayout.LayoutParams(0, -2, 1f))
+            // Sizes are set by dragging on the preview; this is the way back to automatic.
+            if (sized) addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_row_reset), EdgeSettingsUi.Kind.QUIET) {
+                editRows {
+                    rearrange(panelId, force = true) { it }
+                    line.forEach { store(app!!).setItem("$panelId:${it.id}", mapOf("width" to "", "height" to "")) }
+                }
+            }.apply { textSize = 13f; minHeight = dp(36); minimumHeight = dp(36); setPadding(dp(8), 0, dp(8), 0) })
         }
     }
 
-    /** A small drawing of the rows as the panel will show them: apps as icons, other parts as named boxes. */
-    private fun rowSketch(lines: List<List<EdgeStore.Item>>, bounded: Boolean, iconOnly: Boolean): View {
-        val sketch = LinearLayout(ui()).apply {
-            orientation = LinearLayout.VERTICAL
-            background = EdgeSettingsUi.frame(ui())
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-            contentDescription = app!!.getString(R.string.edge_row_sketch)
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
-        }
-        lines.forEachIndexed { index, line ->
-            val grow = bounded && line.any(EdgeRows::grows)
-            val strip = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL }
-            sketch.addView(strip, LinearLayout.LayoutParams(-1, dp(if (grow) 64 else 36)).apply {
-                if (index > 0) topMargin = dp(4)
-            })
-            line.forEach { item ->
-                val cell = LinearLayout(ui()).apply {
-                    gravity = Gravity.CENTER
-                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-                }
-                strip.addView(cell, LinearLayout.LayoutParams(0, -1, 1f).apply { marginStart = dp(2); marginEnd = dp(2) })
+    /** Estimated height of each row on the real panel, as the preview draws it. */
+    private fun rowHeights(lines: List<List<EdgeStore.Item>>, panelHeight: Int, bounded: Boolean,
+        iconSize: Int, labels: String): List<Int> {
+        val density = windowContext!!.resources.displayMetrics.density
+        val fixed = lines.map { line -> line.mapNotNull { item ->
+            item.fields["height"]?.takeIf { it.isNotBlank() }?.let { EdgeStore.dimensionPixels(it, panelHeight, density) }
+        }.maxOrNull() }
+        val grows = lines.mapIndexed { r, line -> bounded && fixed[r] == null && line.any(EdgeRows::grows) }
+        val natural = lines.mapIndexed { r, line -> fixed[r] ?: when {
+            grows[r] -> 0
+            line.all { it.type == "run" } -> dp(maxOf(iconSize, if (line.size == 1 && labels != "off") 48 else 0) + 12)
+            else -> dp(72)
+        } }
+        val share = grows.count { it }.takeIf { it > 0 }?.let { count ->
+            ((panelHeight - natural.sum()) / count).coerceAtLeast(dp(48))
+        } ?: 0
+        return natural.mapIndexed { r, height -> if (grows[r]) share else height }
+    }
+
+    /** The Layout page's preview: drag items between rows, drag the rules to size rows and items. */
+    private fun rowSketch(panelId: String, lines: List<List<EdgeStore.Item>>, root: EdgeStore.Panel,
+        bounded: Boolean, labels: String): View {
+        val (width, height) = screenSize()
+        val density = windowContext!!.resources.displayMetrics.density
+        val panelWidth = EdgeStore.dimensionPixels(root.fields["width"] ?: "360", width, density)
+        val panelHeight = EdgeStore.dimensionPixels(root.fields["height"] ?: "72%", height, density)
+        val iconSize = root.fields["icon-size"]?.toIntOrNull() ?: 40
+        val byId = lines.flatten().associateBy { it.id }
+        val ids = lines.map { line -> line.map { it.id } }
+        return EdgeRowSketch(ui(), ids, rowHeights(lines, panelHeight, bounded, iconSize, labels),
+            lines.map { line -> EdgeRows.weights(line.map { it.fields["width"] }, panelWidth / density) },
+            panelWidth, panelHeight, fill = { cell, id, alone ->
+                val item = byId.getValue(id)
                 val name = item.fields["label"]?.takeIf { it.isNotBlank() }
                     ?: app!!.getString(EdgeComponentLabels.component(EdgeItemComponent.from(item).component))
+                cell.contentDescription = name
                 if (item.type == "run") {
                     addIcon(cell, item.fields["icon"]?.takeIf { it.isNotBlank() }
                         ?: packageFrom(item.command)?.let { "@app:$it" } ?: name.take(1), 24)
-                    if (!iconOnly && line.size == 1) cell.addView(EdgeSettingsUi.caption(ui(), name).apply {
+                    if (labels != "off" && alone) cell.addView(EdgeSettingsUi.caption(ui(), name).apply {
                         maxLines = 1; setPadding(dp(8), 0, 0, 0)
                     })
                 } else {
@@ -1304,9 +1346,20 @@ object EdgeRuntime {
                         setPadding(dp(6), 0, dp(6), 0)
                     })
                 }
-            }
-        }
-        return sketch
+            }, listener = object : EdgeRowSketch.Listener {
+                override fun move(id: String, change: (List<List<String>>) -> List<List<String>>) =
+                    editRows { rearrange(panelId, moved = id, change = change) }
+                override fun height(row: Int, percent: Int) = editRows {
+                    rearrange(panelId, force = true) { it }
+                    ids[row].forEach { store(app!!).setItem("$panelId:$it", mapOf("height" to "$percent%")) }
+                }
+                override fun widths(row: Int, percents: List<Int>) = editRows {
+                    rearrange(panelId, force = true) { it }
+                    ids[row].zip(percents).forEach { (id, percent) ->
+                        store(app!!).setItem("$panelId:$id", mapOf("width" to "$percent%"))
+                    }
+                }
+            }).apply { contentDescription = app!!.getString(R.string.edge_row_sketch) }
     }
 
     private fun addSettingsItem(rows: LinearLayout, panelId: String, item: EdgeStore.Item, lines: List<List<String>>) {
@@ -1340,10 +1393,8 @@ object EdgeRuntime {
         row.setOnDragListener { _, event ->
             val drag = event.localState as? ItemDrag
             if (drag?.panel != panelId) false else {
-                if (event.action == android.view.DragEvent.ACTION_DROP) editorSession?.leave { runCatching {
-                    rearrange(panelId) { EdgeRows.drop(it, drag.item, item.id, event.y >= row.height / 2) }
-                    reload(app!!)
-                }.onFailure { fail(it) } }
+                if (event.action == android.view.DragEvent.ACTION_DROP)
+                    editRows { rearrange(panelId, moved = drag.item) { EdgeRows.drop(it, drag.item, item.id, event.y >= row.height / 2) } }
                 true
             }
         }
@@ -1426,18 +1477,38 @@ object EdgeRuntime {
             contentDescription = "${app!!.getString(R.string.edge_delete)}: $itemName"
             setPadding(dp(8), dp(6), dp(8), dp(6))
         })
-        listOf(-1 to R.string.edge_move_up, 1 to R.string.edge_move_down).forEach { (delta, label) ->
-            heading.addView(EdgeSettingsUi.iconButton(ui(), if (delta < 0) "↑" else "↓") {
-                editorSession?.leave { runCatching {
-                    rearrange(panelId) { EdgeRows.move(it, item.id, delta) }
-                    reload(app!!)
-                }.onFailure { fail(it) } }
+        // Order inside the row reads left to right, so the arrows point that way. Changing rows is
+        // one choice from the row menu (or a drag on the preview), not a walk through every row.
+        listOf(-1 to R.string.edge_move_left, 1 to R.string.edge_move_right).forEach { (delta, label) ->
+            heading.addView(EdgeSettingsUi.iconButton(ui(), if (delta < 0) "←" else "→") {
+                editRows { rearrange(panelId) { EdgeRows.shift(it, item.id, delta) } }
             }.apply {
-                contentDescription = app!!.getString(label, item.fields["label"] ?: item.id)
-                isEnabled = EdgeRows.canMove(lines, item.id, delta)
+                contentDescription = app!!.getString(label, itemName)
+                isEnabled = EdgeRows.canShift(lines, item.id, delta)
                 alpha = if (isEnabled) 1f else 0.3f
-            }, LinearLayout.LayoutParams(dp(40), dp(40)))
+            }, LinearLayout.LayoutParams(dp(36), dp(40)))
         }
+        val rowIndex = lines.indexOfFirst { item.id in it }
+        heading.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_row_pick, rowIndex + 1)) {}.apply {
+            contentDescription = app!!.getString(R.string.edge_row_pick_for, itemName)
+            textSize = 13f; minHeight = dp(36); minimumHeight = dp(36); setPadding(dp(8), 0, dp(8), 0)
+            setOnClickListener { anchor ->
+                android.widget.PopupMenu(ui(), anchor).apply {
+                    lines.indices.forEach { r ->
+                        menu.add(0, r, r, app!!.getString(R.string.edge_row_title, r + 1)).isEnabled = r != rowIndex
+                    }
+                    menu.add(0, lines.size, lines.size, app!!.getString(R.string.edge_row_new))
+                        .isEnabled = lines[rowIndex].size > 1 || rowIndex != lines.lastIndex
+                    setOnMenuItemClickListener { choice ->
+                        editRows { rearrange(panelId, moved = item.id) {
+                            if (choice.itemId == lines.size) EdgeRows.newRow(it, item.id, it.size)
+                            else EdgeRows.insert(it, item.id, choice.itemId, Int.MAX_VALUE)
+                        } }
+                        true
+                    }
+                }.show()
+            }
+        }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(4) })
         row.addView(confirmDelete)
         row.addView(details)
         heading.setOnClickListener { toggleEditor() }
@@ -1477,7 +1548,7 @@ object EdgeRuntime {
                     android.view.DragEvent.ACTION_DROP -> if (drag.item != itemId) runCatching {
                         val after = if (horizontal) event.x >= row.width / 2 else event.y >= row.height / 2
                         if (EdgeRows.arranged(store(app!!).panel(panelId).items))
-                            rearrange(panelId) { EdgeRows.drop(it, drag.item, itemId, after) }
+                            rearrange(panelId, moved = drag.item) { EdgeRows.drop(it, drag.item, itemId, after) }
                         else store(app!!).moveItem(panelId, drag.item, itemId, after)
                         reload(app!!)
                     }.onFailure { fail(it) }

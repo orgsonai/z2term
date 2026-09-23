@@ -227,4 +227,14 @@
     <string name="edge_row_alone">1 个</string>
     <string name="edge_row_fills">占满剩余高度</string>
     <string name="edge_row_sketch">由上到下各行的预览</string>
+    <string name="edge_move_left">将 %1$s 左移</string>
+    <string name="edge_move_right">将 %1$s 右移</string>
+    <string name="edge_row_pick">第 %1$d 行 ▾</string>
+    <string name="edge_row_pick_for">选择 %1$s 所在的行</string>
+    <string name="edge_row_new">新行（最下方）</string>
+    <string name="edge_row_reset">恢复大小</string>
+    <string name="edge_sketch_help">长按项目并放到某一行即可移到该位置，放到行与行之间的线上则成为新行。上下拖动行下方的线可改变高度，左右拖动项目之间的线可改变宽度。</string>
+    <string name="edge_sketch_new_row">在此新建一行</string>
+    <string name="edge_sketch_height">第 %1$d 行高度：面板的 %2$d%%</string>
+    <string name="edge_sketch_widths">第 %1$d 行宽度：%2$s</string>
 </resources>

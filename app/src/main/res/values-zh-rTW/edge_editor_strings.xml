@@ -2,7 +2,7 @@
 <resources>
     <string name="edge_edit_panel">編輯：%1$s</string>
     <string name="edge_page_manage">管理</string>
-    <string name="edge_items_help">項目按列排列：同一列的項目橫向並排，各列由上往下堆疊。用箭頭移動項目；到達列尾時會單獨成為一列，再按一次則併入相鄰的列。也可以長按項目並拖到其他項目的位置。含終端機、便條或檢視的列，在面板高度已確定時（在「面板」頁設為固定高度，或放置了終端機等）會填滿剩餘高度。</string>
+    <string name="edge_items_help">項目按列排列：同一列橫向並排，各列由上往下堆疊。可在上方預覽中拖曳移動或調整大小，也可在這裡用 ←→ 調整列內順序，用「第 N 列 ▾」換列。含終端機、便條或檢視的列，在面板高度已確定且該列未設高度時會填滿剩餘高度。「恢復大小」可恢復為自動。</string>
     <string name="edge_move_up">上移%1$s</string>
     <string name="edge_move_down">下移%1$s</string>
     <string name="edge_advanced">進階設定</string>

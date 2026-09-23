@@ -2,7 +2,7 @@
 <resources>
     <string name="edge_edit_panel">编辑：%1$s</string>
     <string name="edge_page_manage">管理</string>
-    <string name="edge_items_help">项目按行排列：同一行的项目横向并排，各行从上往下堆叠。用箭头移动项目；到达行尾时会单独成为一行，再按一次则并入相邻的行。也可以长按项目并拖到其他项目的位置。含终端、便笺或视图的行，在面板高度已确定时（在“面板”页设为固定高度，或放置了终端等）会占满剩余高度。</string>
+    <string name="edge_items_help">项目按行排列：同一行横向并排，各行从上往下堆叠。可在上方预览中拖动移动或调整大小，也可在这里用 ←→ 调整行内顺序，用“第 N 行 ▾”换行。含终端、便笺或视图的行，在面板高度已确定且该行未设高度时会占满剩余高度。“恢复大小”可恢复为自动。</string>
     <string name="edge_move_up">上移%1$s</string>
     <string name="edge_move_down">下移%1$s</string>
     <string name="edge_advanced">高级设置</string>

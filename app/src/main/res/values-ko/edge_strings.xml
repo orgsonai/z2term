@@ -227,4 +227,14 @@
     <string name="edge_row_alone">1개</string>
     <string name="edge_row_fills">남은 높이를 채움</string>
     <string name="edge_row_sketch">위에서부터 줄을 나타낸 미리보기</string>
+    <string name="edge_move_left">%1$s 왼쪽으로 이동</string>
+    <string name="edge_move_right">%1$s 오른쪽으로 이동</string>
+    <string name="edge_row_pick">%1$d줄 ▾</string>
+    <string name="edge_row_pick_for">%1$s을(를) 놓을 줄 선택</string>
+    <string name="edge_row_new">새 줄 (맨 아래)</string>
+    <string name="edge_row_reset">크기 되돌리기</string>
+    <string name="edge_sketch_help">항목을 길게 눌러 줄에 놓으면 그 위치로, 줄 사이 선에 놓으면 새 줄이 됩니다. 줄 아래 선을 위아래로 끌면 높이, 항목 사이 선을 좌우로 끌면 너비가 바뀝니다.</string>
+    <string name="edge_sketch_new_row">여기에 새 줄 만들기</string>
+    <string name="edge_sketch_height">%1$d줄 높이: 패널의 %2$d%%</string>
+    <string name="edge_sketch_widths">%1$d줄 너비: %2$s</string>
 </resources>

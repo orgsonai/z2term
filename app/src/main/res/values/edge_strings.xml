@@ -115,7 +115,7 @@
     <string name="edge_size_preview_limit">Height limit and placement (short content shrinks)</string>
     <string name="edge_edit_panel">Edit: %1$s</string>
     <string name="edge_page_manage">Manage</string>
-    <string name="edge_items_help">Items sit in rows: items in the same row sit side by side, and rows stack from the top. Use the arrows to move an item. At the end of a row it gets a row of its own; one more step joins the next row. You can also long-press an item and drag it onto another. A row with a terminal, note or view fills the remaining height when the panel height is set (Fixed on the Panel page, or when the panel holds a terminal or similar).</string>
+    <string name="edge_items_help">Items sit in rows: items in the same row sit side by side, and rows stack from the top. Move and size them on the preview above, or here: the arrows change the order inside a row and the Row button moves the item to another row. A row with a terminal, note or view fills the remaining height when the panel height is set (Fixed on the Panel page, or when the panel holds a terminal or similar) and the row has no height of its own. Reset size returns a row to automatic.</string>
     <string name="edge_move_up">Move %1$s up</string>
     <string name="edge_move_down">Move %1$s down</string>
     <string name="edge_advanced">Advanced settings</string>
@@ -240,4 +240,14 @@
     <string name="edge_row_alone">1 item</string>
     <string name="edge_row_fills">fills the remaining height</string>
     <string name="edge_row_sketch">Preview of the rows, top to bottom</string>
+    <string name="edge_move_left">Move %1$s left</string>
+    <string name="edge_move_right">Move %1$s right</string>
+    <string name="edge_row_pick">Row %1$d ▾</string>
+    <string name="edge_row_pick_for">Choose the row for %1$s</string>
+    <string name="edge_row_new">New row (at the bottom)</string>
+    <string name="edge_row_reset">Reset size</string>
+    <string name="edge_sketch_help">Long-press an item and drop it on a row, or on a line between rows to make a new row. Drag the line under a row up or down to set its height, and the line between items sideways to set their widths.</string>
+    <string name="edge_sketch_new_row">New row here</string>
+    <string name="edge_sketch_height">Row %1$d height: %2$d%% of the panel</string>
+    <string name="edge_sketch_widths">Row %1$d widths: %2$s</string>
 </resources>

@@ -227,4 +227,14 @@
     <string name="edge_row_alone">1 elemento</string>
     <string name="edge_row_fills">ocupa el alto restante</string>
     <string name="edge_row_sketch">Vista previa de las filas, de arriba abajo</string>
+    <string name="edge_move_left">Mover %1$s a la izquierda</string>
+    <string name="edge_move_right">Mover %1$s a la derecha</string>
+    <string name="edge_row_pick">Fila %1$d ▾</string>
+    <string name="edge_row_pick_for">Elegir la fila de %1$s</string>
+    <string name="edge_row_new">Fila nueva (al final)</string>
+    <string name="edge_row_reset">Restablecer tamaño</string>
+    <string name="edge_sketch_help">Mantén pulsado un elemento y suéltalo en una fila, o en una línea entre filas para crear una fila nueva. Arrastra la línea bajo una fila arriba o abajo para su altura, y la línea entre elementos a los lados para sus anchos.</string>
+    <string name="edge_sketch_new_row">Fila nueva aquí</string>
+    <string name="edge_sketch_height">Altura de la fila %1$d: %2$d%% del panel</string>
+    <string name="edge_sketch_widths">Anchos de la fila %1$d: %2$s</string>
 </resources>

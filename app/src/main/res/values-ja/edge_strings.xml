@@ -115,7 +115,7 @@
     <string name="edge_size_preview_limit">高さ上限と配置（内容が少なければ縮みます）</string>
     <string name="edge_edit_panel">%1$s を編集</string>
     <string name="edge_page_manage">管理</string>
-    <string name="edge_items_help">項目は段ごとに並びます。同じ段の項目は横に並び、段は上から積み重なります。矢印で項目を動かすと、段の端ではその項目だけの段に分かれ、もう一度押すと隣の段に入ります。長押しでドラッグして、ほかの項目の位置へ移すこともできます。ターミナル・メモ・ビューのある段は、パネルの高さが決まっているとき（「パネル」で高さを固定にしたとき、またはターミナル等を置いたとき）残りの高さいっぱいに広がります。</string>
+    <string name="edge_items_help">項目は段ごとに並びます。同じ段の項目は横に並び、段は上から積み重なります。上の見本でドラッグして動かしたり大きさを変えたりできるほか、ここでも←→で段の中の順番を、「段 ▾」で置く段を変えられます。ターミナル・メモ・ビューのある段は、パネルの高さが決まっていて（「パネル」で高さを固定にしたとき、またはターミナル等を置いたとき）段に高さを付けていなければ、残りの高さいっぱいに広がります。「大きさを戻す」で段の高さと横幅を自動に戻せます。</string>
     <string name="edge_move_up">%1$s を上へ移動</string>
     <string name="edge_move_down">%1$s を下へ移動</string>
     <string name="edge_advanced">詳細設定</string>
@@ -240,4 +240,14 @@
     <string name="edge_row_alone">1 個</string>
     <string name="edge_row_fills">残りの高さに広げる</string>
     <string name="edge_row_sketch">見本: 上から順に段を並べた形</string>
+    <string name="edge_move_left">%1$s を左へ移動</string>
+    <string name="edge_move_right">%1$s を右へ移動</string>
+    <string name="edge_row_pick">段 %1$d ▾</string>
+    <string name="edge_row_pick_for">%1$s を置く段を選ぶ</string>
+    <string name="edge_row_new">新しい段（一番下）</string>
+    <string name="edge_row_reset">大きさを戻す</string>
+    <string name="edge_sketch_help">項目を長押しでつかみ、段へ落とすとその位置に、段と段の間の線へ落とすと新しい段になります。段の下の線を上下にドラッグすると高さ、項目の間の線を左右にドラッグすると横幅が変わります。</string>
+    <string name="edge_sketch_new_row">ここに新しい段を作る</string>
+    <string name="edge_sketch_height">段 %1$d の高さ: パネルの %2$d%%</string>
+    <string name="edge_sketch_widths">段 %1$d の横幅: %2$s</string>
 </resources>
