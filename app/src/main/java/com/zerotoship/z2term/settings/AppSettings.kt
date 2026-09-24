@@ -92,13 +92,13 @@ class AppSettings(private val context: Context) {
          * null に戻るので、保存していても**モードは増えない** (触らなければ OS 任せのまま)。
          */
         val screenBrightness: Float? = null,
-        /** キーボード表示/非表示トグルバーをキーボードの上に出すか (OFF なら ⌨ ボタンのダブルタップで切替) */
-        val keyboardToggleBar: Boolean = DEFAULT_KEYBOARD_TOGGLE_BAR,
         /**
          * OS のキーボードを使っているときに補助キーバー (ESC/TAB/CTRL/矢印…) を出すか。
          * 内蔵キーボードのときは元々出ないので影響しない。
          */
         val specialKeyBar: Boolean = DEFAULT_SPECIAL_KEY_BAR,
+        /** 補助キーバーの編集済み配列。空なら従来のキー配置。 */
+        val specialKeyLayoutJson: String = "",
         /** 通信を伴うダウンロード (distro / GUI パッケージ) の前に確認ダイアログを出すか */
         val confirmBeforeDownload: Boolean = DEFAULT_CONFIRM_DOWNLOAD,
         /**
@@ -564,8 +564,8 @@ class AppSettings(private val context: Context) {
             keepScreenOn = p[KEY_KEEP_SCREEN_ON] ?: DEFAULT_KEEP_SCREEN_ON,
             // キーが無い = 一度も触っていない or 「戻す」を押した = OS に任せる。
             screenBrightness = p[KEY_SCREEN_BRIGHTNESS],
-            keyboardToggleBar = p[KEY_KEYBOARD_TOGGLE_BAR] ?: DEFAULT_KEYBOARD_TOGGLE_BAR,
             specialKeyBar = p[KEY_SPECIAL_KEY_BAR] ?: DEFAULT_SPECIAL_KEY_BAR,
+            specialKeyLayoutJson = p[KEY_SPECIAL_KEY_LAYOUT] ?: "",
             confirmBeforeDownload = p[KEY_CONFIRM_DOWNLOAD] ?: DEFAULT_CONFIRM_DOWNLOAD,
             guiAudioEnabled = p[KEY_GUI_AUDIO] ?: DEFAULT_GUI_AUDIO,
             guiDirect = p[KEY_GUI_DIRECT] ?: false,
@@ -947,8 +947,8 @@ class AppSettings(private val context: Context) {
         }
     }
 
-    suspend fun setKeyboardToggleBar(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_KEYBOARD_TOGGLE_BAR] = enabled }
+    suspend fun setSpecialKeyLayoutJson(json: String) {
+        context.dataStore.edit { it[KEY_SPECIAL_KEY_LAYOUT] = json }
     }
 
     suspend fun setSpecialKeyBar(enabled: Boolean) {
@@ -1038,7 +1038,6 @@ class AppSettings(private val context: Context) {
         /** 画面消灯ロックは既定 OFF (放置でのバッテリ消費を避ける)。トグル状態は永続化して復元。 */
         const val DEFAULT_KEEP_SCREEN_ON = false
         /** キーボードトグルバーは既定 ON (従来どおりキーボードの上に表示)。OFF で ⌨ ダブルタップ切替。 */
-        const val DEFAULT_KEYBOARD_TOGGLE_BAR = true
         /** 補助キーバーは既定 ON (従来どおり OS キーボードの上に表示)。 */
         const val DEFAULT_SPECIAL_KEY_BAR = true
 
@@ -1082,7 +1081,7 @@ class AppSettings(private val context: Context) {
         private val KEY_KEEP_ALIVE = booleanPreferencesKey("keep_alive_service")
         private val KEY_KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         private val KEY_SCREEN_BRIGHTNESS = floatPreferencesKey("screen_brightness")
-        private val KEY_KEYBOARD_TOGGLE_BAR = booleanPreferencesKey("keyboard_toggle_bar")
+        private val KEY_SPECIAL_KEY_LAYOUT = stringPreferencesKey("special_key_layout")
         private val KEY_SPECIAL_KEY_BAR = booleanPreferencesKey("special_key_bar")
         private val KEY_CONFIRM_DOWNLOAD = booleanPreferencesKey("confirm_before_download")
         private val KEY_GUI_DIRECT = booleanPreferencesKey("gui_direct")

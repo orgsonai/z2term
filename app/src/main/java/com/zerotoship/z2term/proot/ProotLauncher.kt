@@ -477,8 +477,10 @@ class ProotLauncher(private val context: Context) {
             File(rootfs, "sdcard_ext").mkdirs()
             for (vol in externalVolumes) File(rootfs, vol.trimStart('/')).mkdirs()
         }
-        // Android ホスト bind (実験的): ON のとき rootfs 内に /system /apex のマウント先を作る。
-        // OFF (既定) は何もしない。
+        // GUI のフォントは Android ホスト bind の設定に関係なく参照できるようにする。
+        val androidFontBinds = runCatching { AndroidGuiFonts.prepare(rootfs) }
+            .onFailure { Log.w(TAG, "Could not prepare Android GUI fonts", it) }
+            .getOrDefault(emptyList())
         val androidHostBind = isAndroidHostBindEnabled()
         if (androidHostBind) {
             File(rootfs, "system").mkdirs()
@@ -512,6 +514,9 @@ class ProotLauncher(private val context: Context) {
             // 全ファイルアクセス権が無い場合は中身が読めないが、設定画面から許可できる。
             for ((src, dst) in externalStorageBinds(externalVolumes)) {
                 add("-b"); add("$src:$dst")
+            }
+            for ((source, target) in androidFontBinds) {
+                add("-b"); add("${source.absolutePath}:$target")
             }
             // Android ホスト bind (実験的): /system /apex を proot 内へ晒す。Android のリンカ
             // (/system/bin/linker64) と ART ライブラリが見えるようになり、`lzhiyong/termux-ndk`
@@ -681,6 +686,9 @@ class ProotLauncher(private val context: Context) {
             File(rootfs, "sdcard_ext").mkdirs()
             for (vol in externalVolumes) File(rootfs, vol.trimStart('/')).mkdirs()
         }
+        val androidFontBinds = runCatching { AndroidGuiFonts.prepare(rootfs) }
+            .onFailure { Log.w(TAG, "Could not prepare Android GUI fonts", it) }
+            .getOrDefault(emptyList())
         val androidHostBind = isAndroidHostBindEnabled()
         if (androidHostBind) {
             File(rootfs, "system").mkdirs()
@@ -690,7 +698,8 @@ class ProotLauncher(private val context: Context) {
         val resolvedShell = resolveShell(rootfs, command, fallbackShell)
         val script = chrootBootstrap(
             rootfs.absolutePath, sharedHomeDir.absolutePath, resolvedShell,
-            display, externalVolumes, androidHostBind, isolatedHomeBinds(distroId), sessionId
+            display, externalVolumes, androidHostBind, isolatedHomeBinds(distroId), sessionId,
+            androidFontBinds,
         )
 
         Log.i(TAG, "Launching chroot: distro=$distroId, su=$su, shell=$resolvedShell")
@@ -763,7 +772,8 @@ class ProotLauncher(private val context: Context) {
         externalVolumes: List<String> = emptyList(),
         androidHostBind: Boolean = false,
         homeOverlayBinds: List<Pair<File, String>> = emptyList(),
-        sessionId: String = ""
+        sessionId: String = "",
+        androidFontBinds: List<Pair<File, String>> = emptyList(),
     ): String {
         val rfs = shq(rootfs)
         val home = shq(sharedHome)
@@ -783,6 +793,7 @@ class ProotLauncher(private val context: Context) {
             append("for m in dev/pts dev/shm dev proc sys")
             // HOME 隔離オーバーレイは root より先に剥がす (root の lazy umount で取り残されないよう)。
             for ((_, dst) in homeOverlayBinds) append(' ').append(shq(dst.trimStart('/')))
+            for (target in AndroidGuiFonts.guestDirectories) append(' ').append(shq(target.trimStart('/')))
             append(" root sdcard sdcard_ext storage/app system apex")
             for (vol in externalVolumes) {
                 append(' ').append(shq(vol.trimStart('/')))
@@ -836,6 +847,12 @@ class ProotLauncher(private val context: Context) {
                     append("mkdir -p \"\$RFS/sdcard_ext\" 2>/dev/null\n")
                     append("mount -o bind ").append(srcQ).append(" \"\$RFS/sdcard_ext\" 2>/dev/null\n")
                 }
+            }
+            for ((source, target) in androidFontBinds) {
+                val destination = "\"\$RFS${target}\""
+                append("mount -o bind ").append(shq(source.absolutePath)).append(' ')
+                    .append(destination).append(" 2>/dev/null && ")
+                append("mount -o remount,bind,ro ").append(destination).append(" 2>/dev/null\n")
             }
             // Android ホスト bind (実験的): /system /apex を chroot 内に晒す。proot 経路と同じ目的で、
             // Android リンカ + ART ライブラリを使う ARM aarch64 ELF (aapt2 等) を chroot 内で実行可能にする。

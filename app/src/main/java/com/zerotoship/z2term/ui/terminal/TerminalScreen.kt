@@ -65,6 +65,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -299,7 +300,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         AppColors.applyFrom(resolveTheme(settings.themeName, customTheme))
     }
 
-    var ctrlSticky by remember { mutableStateOf(false) }
+    val ctrlState = remember { mutableStateOf(false) }
+    var ctrlSticky by ctrlState
     var keyboardMode by remember { mutableStateOf(if (settings.keyboardMode == "system") KeyboardMode.SYSTEM else KeyboardMode.CUSTOM) }
     var inputViewRef by remember { mutableStateOf<TerminalInputView?>(null) }
     // つまずきの言い換え (0.8.237)。当たったヒントを数秒だけ出す。
@@ -883,18 +885,6 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             )
         }
 
-        // キーボード表示/非表示バー。設定 (keyboardToggleBar) が ON のときだけ、従来どおり
-        // キーボードの「上」に置く。OFF の人は ⌨ ボタンのダブルタップで表示/非表示する。
-        if (settings.keyboardToggleBar) {
-            KeyboardToggleBar(
-                collapsed = keyboardCollapsed,
-                onToggle = {
-                    if (!keyboardCollapsed) keyboardSizeBarOpen = false
-                    keyboardCollapsed = !keyboardCollapsed
-                }
-            )
-        }
-
         if (!keyboardCollapsed) {
             when (keyboardMode) {
                 KeyboardMode.CUSTOM -> {
@@ -930,9 +920,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     // 設定 (specialKeyBar) が OFF なら補助キーごと出さない。
                     if (settings.specialKeyBar) {
                         SpecialKeyBar(
-                            session = active,
-                            ctrlSticky = ctrlSticky,
-                            onCtrlToggle = { ctrlSticky = !ctrlSticky }
+                            layoutJson = settings.specialKeyLayoutJson,
+                            composing = composing,
+                            ctrlState = ctrlState,
+                            onBytes = onKeyboardBytes,
+                            onKey = onKeyboardKey,
                         )
                     }
                 }
@@ -1181,7 +1173,8 @@ private fun GuiTabScreen(
     var keyboardMode by remember { mutableStateOf(if (settings.keyboardMode == "system") KeyboardMode.SYSTEM else KeyboardMode.CUSTOM) }
     var keyboardCollapsed by keyboardUi.collapsed
     var keyboardSizeBarOpen by keyboardUi.sizeBarOpen
-    var ctrlSticky by remember { mutableStateOf(false) }
+    val ctrlState = remember { mutableStateOf(false) }
+    var ctrlSticky by ctrlState
     // 画面消灯ロックは設定 (keepScreenOn) に永続化した端末タブ共通の状態 (画面跨ぎで維持・再起動で復元)。
     val keepScreenOn = settings.keepScreenOn
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -1510,19 +1503,14 @@ private fun GuiTabScreen(
                         GuiKeyboardPanel(
                             keyboardMode = keyboardMode,
                             keyboardCollapsed = keyboardCollapsed,
-                            onToggleCollapsed = {
-                                if (!keyboardCollapsed) keyboardSizeBarOpen = false
-                                keyboardCollapsed = !keyboardCollapsed
-                            },
-                            keyboardToggleBar = settings.keyboardToggleBar,
                             specialKeyBar = settings.specialKeyBar,
+                            specialKeyLayoutJson = settings.specialKeyLayoutJson,
                             isSideKeyboard = isSideKBGui,
                             style = kbStyleGui,
                             composing = composing,
                             faceEntries = faceEntries,
                             client = gui.desktopClient,
-                            ctrlSticky = ctrlSticky,
-                            onCtrlToggle = { ctrlSticky = !ctrlSticky },
+                            ctrlState = ctrlState,
                             bottomWidthPercent = guiBottomKbWidthPercent,
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
@@ -1534,19 +1522,14 @@ private fun GuiTabScreen(
                     GuiKeyboardPanel(
                         keyboardMode = keyboardMode,
                         keyboardCollapsed = keyboardCollapsed,
-                        onToggleCollapsed = {
-                            if (!keyboardCollapsed) keyboardSizeBarOpen = false
-                            keyboardCollapsed = !keyboardCollapsed
-                        },
-                        keyboardToggleBar = settings.keyboardToggleBar,
                         specialKeyBar = settings.specialKeyBar,
+                        specialKeyLayoutJson = settings.specialKeyLayoutJson,
                         isSideKeyboard = false,
                         style = kbStyleGui,
                         composing = composing,
                         faceEntries = faceEntries,
                         client = gui.desktopClient,
-                        ctrlSticky = ctrlSticky,
-                        onCtrlToggle = { ctrlSticky = !ctrlSticky },
+                        ctrlState = ctrlState,
                         bottomWidthPercent = guiBottomKbWidthPercent
                     )
                 }
@@ -1594,19 +1577,14 @@ private fun GuiTabScreen(
             GuiKeyboardPanel(
                 keyboardMode = keyboardMode,
                 keyboardCollapsed = keyboardCollapsed,
-                onToggleCollapsed = {
-                    if (!keyboardCollapsed) keyboardSizeBarOpen = false
-                    keyboardCollapsed = !keyboardCollapsed
-                },
-                keyboardToggleBar = settings.keyboardToggleBar,
                 specialKeyBar = settings.specialKeyBar,
+                specialKeyLayoutJson = settings.specialKeyLayoutJson,
                 isSideKeyboard = isSideKBGui,
                 style = kbStyleGui,
                 composing = composing,
                 faceEntries = faceEntries,
                 client = gui.desktopClient,
-                ctrlSticky = ctrlSticky,
-                onCtrlToggle = { ctrlSticky = !ctrlSticky },
+                ctrlState = ctrlState,
                 bottomWidthPercent = guiBottomKbWidthPercent,
                 showCandidates = false,
             )
@@ -1716,16 +1694,14 @@ private fun GuiTabScreen(
 private fun GuiKeyboardPanel(
     keyboardMode: KeyboardMode,
     keyboardCollapsed: Boolean,
-    onToggleCollapsed: () -> Unit,
-    keyboardToggleBar: Boolean,
     specialKeyBar: Boolean,
+    specialKeyLayoutJson: String,
     isSideKeyboard: Boolean,
     style: KeyboardStyle,
     composing: ComposingState,
     faceEntries: List<KeyboardFaceEntry>,
     client: RemoteDesktopClient,
-    ctrlSticky: Boolean,
-    onCtrlToggle: () -> Unit,
+    ctrlState: MutableState<Boolean>,
     /** 下配置キーボードの幅 (画面幅に対する %)。サイド配置では使わない。 */
     bottomWidthPercent: Float,
     modifier: Modifier = Modifier,
@@ -1736,9 +1712,6 @@ private fun GuiKeyboardPanel(
     // スライダー自身の幅まで動いて操作できなかった。呼び出し側の画面幅いっぱいの場所へ出す。
     Column(modifier = modifier.fillMaxWidth()) {
         if (showCandidates) CandidateBar(composing = composing)
-        if (keyboardToggleBar) {
-            KeyboardToggleBar(collapsed = keyboardCollapsed, onToggle = onToggleCollapsed)
-        }
         if (!keyboardCollapsed) {
             when (keyboardMode) {
                 KeyboardMode.CUSTOM -> if (!isSideKeyboard) {
@@ -1759,10 +1732,13 @@ private fun GuiKeyboardPanel(
                     }
                 }
                 KeyboardMode.SYSTEM -> if (specialKeyBar) {
-                    GuiSpecialKeyBar(
-                        client = client,
-                        ctrlSticky = ctrlSticky,
-                        onCtrlToggle = onCtrlToggle
+                    SpecialKeyBar(
+                        layoutJson = specialKeyLayoutJson,
+                        composing = composing,
+                        ctrlState = ctrlState,
+                        onBytes = { GuiKeyMapper.sendBytes(client, it) },
+                        onKey = { key, mods -> GuiKeyMapper.sendNamedKey(client, key, mods) },
+                        onNamedKey = { key -> client.tapKey(GuiKeyMapper.keysymForNamed(key)) },
                     )
                 }
             }
@@ -1983,72 +1959,6 @@ private fun guiToolbarItems(
         onTripleClick = onOpenKeyboardSize
     )
 )
-
-/**
- * GUI 用の特殊キーバー (端末 [com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar] の keysym 版)。
- * SYSTEM キーボードモードで OS IME と一緒に出す。送出はバイトでなく X keysym。
- */
-@Composable
-private fun GuiSpecialKeyBar(
-    client: RemoteDesktopClient,
-    ctrlSticky: Boolean,
-    onCtrlToggle: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    fun sendKey(key: NamedKey) {
-        GuiKeyMapper.sendNamedKey(client, key, KeyModifiers(ctrl = ctrlSticky))
-        if (ctrlSticky) onCtrlToggle()
-    }
-    fun sendControl(ch: Char) {
-        GuiKeyMapper.sendCtrlCombo(client, ch.code)
-        if (ctrlSticky) onCtrlToggle()
-    }
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(ZtsBgSecondary)
-            .padding(horizontal = 4.dp, vertical = 6.dp)
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        GuiSpecialKey("ESC") { sendKey(NamedKey.ESC) }
-        GuiSpecialKey("TAB") { sendKey(NamedKey.TAB) }
-        GuiSpecialKey("CTRL", active = ctrlSticky, onClick = onCtrlToggle)
-        GuiSpecialKey("←") { sendKey(NamedKey.LEFT) }
-        GuiSpecialKey("↓") { sendKey(NamedKey.DOWN) }
-        GuiSpecialKey("↑") { sendKey(NamedKey.UP) }
-        GuiSpecialKey("→") { sendKey(NamedKey.RIGHT) }
-        GuiSpecialKey("⏎") { sendKey(NamedKey.ENTER) }
-        GuiSpecialKey("^C") { sendControl('c') }
-        GuiSpecialKey("^D") { sendControl('d') }
-        GuiSpecialKey("^L") { sendControl('l') }
-    }
-}
-
-@Composable
-private fun GuiSpecialKey(label: String, active: Boolean = false, onClick: () -> Unit) {
-    val bg = if (active) ZtsGreen else ZtsBgCard
-    val fg = if (active) Color.Black else ZtsTextPrimary
-    val border = if (active) ZtsGreen else ZtsBorder
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            color = fg,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
-        )
-    }
-}
 
 @Composable
 private fun TopBar(
@@ -3483,59 +3393,6 @@ private fun TabInfoPopup(name: String, engine: String) {
                 maxLines = 1
             )
         }
-    }
-}
-
-/**
- * ターミナル / キーボード間のトグルバー。
- *
- * タップ (移動量 24dp 未満) でキーボードの表示/非表示を切り替える。
- * フリック入力中に指がバーに掠めても誤動作しないよう、24dp 超のドラッグは無視する。
- * 折り畳み中はハンドルを緑にして「タップで開く」ことを示す。
- */
-@Composable
-private fun KeyboardToggleBar(
-    collapsed: Boolean,
-    onToggle: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(22.dp)
-            .background(ZtsBgSecondary)
-            .border(width = 1.dp, color = ZtsBorder)
-            .pointerInput(Unit) {
-                val slopPx = 24.dp.toPx()
-                awaitPointerEventScope {
-                    while (true) {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val startPos = down.position
-                        var dragged = false
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            val dx = change.position.x - startPos.x
-                            val dy = change.position.y - startPos.y
-                            if (kotlin.math.hypot(dx.toDouble(), dy.toDouble()) > slopPx) {
-                                dragged = true
-                            }
-                            if (!change.pressed) {
-                                if (!dragged) onToggle()
-                                break
-                            }
-                        }
-                    }
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = if (collapsed) stringResource(R.string.keyboard_show_button)
-                   else stringResource(R.string.keyboard_hide_button),
-            color = if (collapsed) ZtsGreen else ZtsBorder,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace
-        )
     }
 }
 

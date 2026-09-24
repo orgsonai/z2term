@@ -512,7 +512,7 @@ class TerminalSession(
     fun setTerminalHintsEnabled(enabled: Boolean) { scope.launch { settings.setTerminalHintsEnabled(enabled) } }
     fun setKeepScreenOn(enabled: Boolean) { scope.launch { settings.setKeepScreenOn(enabled) } }
     fun setScreenBrightness(level: Float?) { scope.launch { settings.setScreenBrightness(level) } }
-    fun setKeyboardToggleBar(enabled: Boolean) { scope.launch { settings.setKeyboardToggleBar(enabled) } }
+    fun setSpecialKeyLayoutJson(json: String) { scope.launch { settings.setSpecialKeyLayoutJson(json) } }
     fun setSpecialKeyBar(enabled: Boolean) { scope.launch { settings.setSpecialKeyBar(enabled) } }
     fun setToolbarOrder(csv: String) { scope.launch { settings.setToolbarOrder(csv) } }
     fun setToolbarHidden(csv: String) { scope.launch { settings.setToolbarHidden(csv) } }

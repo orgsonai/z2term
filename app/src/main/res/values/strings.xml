@@ -53,8 +53,6 @@
     <string name="settings_section_font_size">Font size</string>
     <string name="settings_section_scrollback">Scrollback lines</string>
     <string name="settings_section_distro">Distro (switching restarts the current session)</string>
-    <string name="settings_section_keyboard_style">Keyboard behavior</string>
-    <string name="settings_keyboard_toggle_bar">Keyboard toggle bar</string>
     <!-- Custom key layouts (0.8.408–0.8.411, stages 2–4 + default sizing) -->
     <string name="settings_section_key_layout">Key layout (your own)</string>
     <string name="settings_key_layout_desc">Choose the faces to use and their order here. Duplicate any face to make your own; use Edit on a custom face to rename it or change its keys.</string>
@@ -134,7 +132,6 @@
     <string name="settings_key_layout_action_type">Action type</string>
     <string name="settings_key_layout_invalid_hex">Hex uses two digits per byte (example: 1b5b41)</string>
     <string name="settings_key_layout_layers_preserved">Layers (%1$s) are preserved. Switch to JSON to edit the layers themselves.</string>
-    <string name="settings_keyboard_toggle_bar_desc">Show a show/hide bar above the keyboard. When off, double-tap the ⌨ button to toggle.</string>
     <string name="settings_section_user_dict">User dictionary</string>
     <!-- "candidate1" is part of the SKK dictionary format, not a typo for "candidate!". -->
     <string name="settings_user_dict_desc">Register words here or import a dictionary file. SKK and tab-separated files are supported in UTF-8 or EUC-JP.</string>
@@ -595,8 +592,6 @@
     <string name="gui_confirm_download_title">Download the GUI stack</string>
     <string name="gui_confirm_download_msg">The first GUI (Linux desktop) launch requires display packages to be downloaded (tens to hundreds of MB). Wi-Fi recommended. Continue?</string>
     <string name="gui_confirm_download_action">Download and launch</string>
-    <string name="keyboard_show_button">▴ Keyboard</string>
-    <string name="keyboard_hide_button">▾ Keyboard</string>
     <string name="terminal_action_copy">Copy</string>
 
     <!-- Foreground service notification / toasts (D3 batch 6) -->

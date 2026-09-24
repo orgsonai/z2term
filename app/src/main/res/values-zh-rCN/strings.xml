@@ -49,8 +49,6 @@
     <string name="settings_section_font_size">字号</string>
     <string name="settings_section_scrollback">回滚行数</string>
     <string name="settings_section_distro">发行版 (切换会重启当前会话)</string>
-    <string name="settings_section_keyboard_style">键盘操作</string>
-    <string name="settings_keyboard_toggle_bar">键盘显示栏</string>
     <string name="settings_section_key_layout">键位布局（自制）</string>
     <string name="settings_key_layout_desc">在这里统一设置要使用的面和它们的顺序。用任意一个面的“复制”做出自制面；自制面可以从“编辑”改名字或改键位。</string>
     <string name="settings_keyboard_faces_title">键盘使用的面</string>
@@ -129,7 +127,6 @@
     <string name="settings_key_layout_action_type">动作类型</string>
     <string name="settings_key_layout_invalid_hex">十六进制每 2 位表示 1 个字节（例: 1b5b41）</string>
     <string name="settings_key_layout_layers_preserved">层（%1$s）已保留。要编辑层本身请切换到 JSON。</string>
-    <string name="settings_keyboard_toggle_bar_desc">在键盘上方显示一条显示/隐藏栏。关闭时，双击 ⌨ 按钮来切换。</string>
     <string name="settings_section_user_dict">用户词典</string>
     <string name="settings_user_dict_desc">可以在这个界面登记词语，也可以导入手头的词典文件。文件支持 SKK 格式和制表符分隔，编码支持 UTF-8 / EUC-JP。</string>
     <string name="settings_user_dict_count">已登记 %1$d 词 / %2$d 个文件</string>
@@ -551,8 +548,6 @@
     <string name="gui_confirm_download_title">下载整套图形环境</string>
     <string name="gui_confirm_download_msg">首次启动图形界面 (Linux 桌面) 需要先下载显示用的软件包 (几十到几百 MB)。建议使用 Wi-Fi。要继续吗?</string>
     <string name="gui_confirm_download_action">下载并启动</string>
-    <string name="keyboard_show_button">▴ 键盘</string>
-    <string name="keyboard_hide_button">▾ 键盘</string>
     <string name="terminal_action_copy">复制</string>
     <string name="service_channel_name">Z2Term 会话</string>
     <string name="service_channel_desc">在后台维持终端会话</string>

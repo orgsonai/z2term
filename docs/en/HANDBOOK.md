@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.652-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.653-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -91,6 +91,8 @@ The downloaded APK is **deleted once the update goes through** (and on the next 
 
 Z2Term comes with its **own in-app keyboard**.
 
+Show or hide the keyboard by **double-tapping ⌨ in the toolbar**. The keyboard toggle strip has been removed.
+
 ### Latin (ASCII) keyboard
 - Tap letter keys normally.
 - **⇧ (shift)**: tap once = Shift for the next key (uppercase for letters) / tap again = keep Shift held / tap again = release.
@@ -123,7 +125,7 @@ terminal / GUI**.
   **Long-press a tab to read its full name and engine.**
 - **Reordering is unchanged** — long-press and drag (up and down now).
 
-> To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. **Two sliders — height and width** — let you resize while watching the keyboard (0.8.431; before that only one of them was offered, and a side-docked landscape keyboard could only change its width). This works even when the keyboard toggle bar is hidden (0.8.428). It is also listed under ⚙ Settings → **Tips** (0.8.430).
+> To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. **Two sliders — height and width** — let you resize while watching the keyboard (0.8.431; before that only one of them was offered, and a side-docked landscape keyboard could only change its width). It is also listed under ⚙ Settings → **Tips** (0.8.430).
 
 ### Switching keyboard "faces" (0.8.305)
 
@@ -139,10 +141,7 @@ Pressing the **bottom-left key** swaps the whole set of keys. We call each set a
 
 The **number face (0.8.305)** is for typing **runs of digits** — port numbers, IP addresses, `chmod 755`. The Latin face has a row of digits along the top, but ten keys side by side is fiddly; on the number face they are as big as kana keys. `.` `:` `-` `/` sit there too, so something like `192.168.0.20:2222` can be typed without leaving the face.
 
-Under Settings › **Keyboard style**:
-
-- Turn **"Show the number face"** off and you are back to two faces, **あ → A → あ**, looking exactly as it did before.
-- **"Face switching order"** offers **あ → A → 12** and **あ → 12 → A**. ⚠ **Those two are all there is.** The faces cycle round, so `A → 12 → あ` is the very same rotation as the first one. (The setting only appears when the number face is on and the app language is Japanese — with two faces there is no order to speak of.)
+Use **Settings › Key layout (your own)** to enable faces and change their order. The accessory bar toggle and editor are in the same section.
 
 ### Japanese / kana-kanji conversion
 - When the bottom-left key reads **"あ"**, press it to switch to the built-in **Japanese flick keyboard**.
@@ -180,7 +179,7 @@ Under Settings › **Keyboard style**:
 ### When an external keyboard is connected (0.8.523)
 - Plug in a Bluetooth or USB keyboard and **the in-app keyboard folds away by itself**, giving the screen back to the terminal.
 - **You never lose the ability to type.** Keys from the attached keyboard go straight to the terminal (or to the GUI on a GUI tab).
-- **To bring it back, double-tap ⌨** (or use the toggle bar above the keyboard). It stays out until the next time a keyboard is plugged in or unplugged.
+- **To bring it back, double-tap ⌨**. It stays out until the next time a keyboard is plugged in or unplugged.
 - **Unplug the keyboard and it comes back on its own.**
 - **Japanese works too** (0.8.529): type romaji on the external keyboard and it converts, using the same dictionary and the same learning as the on-screen keyboard.
   - **Toggle**: the **half/full-width** key (or **Shift + Space** if your keyboard has none). The kana, henkan and muhenkan keys work as well. ⚠ It **starts in ascii** — the first thing you type in a terminal is usually a command.
@@ -356,7 +355,7 @@ Before using it, fill in two fields under **✎ (Edit)** for the host:
 Once it is up, it behaves like the app's own GUI tab: two fingers to zoom and pan, three fingers to
 scroll, and the same keyboard.
 
-Two-finger GUI gestures only zoom and pan, without sending wheel input when zooming back to fit. Use three fingers to scroll inside applications. To switch local GUI desktops, right-click the background (place the pointer there and long-press), then choose Virtual desktops → Previous desktop / Next desktop. The new menu appears after restarting the GUI.
+Two-finger GUI gestures only zoom and pan, without sending wheel input when zooming back to fit. Use three fingers to scroll inside applications. To switch local GUI desktops, right-click the background (place the pointer there and long-press), then choose Virtual desktops → Previous desktop / Next desktop. The new menu appears after restarting the GUI. GUI menus also use existing Android fonts for Japanese text. Close and reopen GUI after updating to apply the font setup.
 
 ### Open a Windows desktop (RDP, 0.8.459)
 
@@ -719,7 +718,7 @@ Notification, SMS, event and unlock-failure detection and log formats remain in 
 | Keyboard faces | Built-in **Japanese, letters and numbers**, plus every saved custom layout, each have their own ON/OFF switch (0.8.413). Move any face up or down to freely choose the order used by the next-face key. At least one face always remains enabled. |
 | Key layout (your own) | Duplicate the built-in **letter, Japanese or number face**, or any selected custom layout, then edit the copy. The editor is a dedicated Settings page. The heading and settings scroll; the keyboard preview, Multiple selection, Cancel and Save stay at the bottom (0.8.634). Select keys below while editing their settings above. A tap selects one key; turn on Multiple selection only when applying width, appearance or gestures to several keys. Width accepts intermediate decimals such as `1.` and uses the same ticked 0.1-step slider as Settings. Each custom layout is an independent face whose use and next-face position are set above. Invalid structures cannot be saved, a missing escape action is warned, and layouts **travel with settings export/import**. |
 | User dictionary | **Add your own words from a file** (0.8.280). "Choose a dictionary file" picks a text file on the phone and its words start appearing in conversion straight away. One word per line, in **either of two layouts** (0.8.282): `reading /candidate1/candidate2/` (the SKK dictionary format, e.g. `ずぃーとぅーたーむ /Z2Term/z2term/`) or `reading<TAB>word<TAB>part-of-speech` (what dictionary tools export, e.g. `あいぎょう→愛楽→名詞`; a fourth note column is fine). Lines starting with `;` or `#` are treated as notes and skipped. ⚠ **Write readings in hiragana.** UTF-8 and EUC-JP files are both read. Imported files are listed so you can remove one when you no longer want it. ⚠ Up to 8MB per file. If no words could be read you are told immediately, so a format mistake is not silent |
-| Special key bar (with the OS keyboard) | Whether the **ESC, TAB, CTRL and arrow keys** appear above your phone's own keyboard while it is selected (0.8.279). Turn it off and they are not shown. The built-in keyboard never had them, so it is unaffected |
+| Special key bar (with the OS keyboard) | Use the toggle in **Key layout (your own)** and **Edit** below it to change positions, widths, splits and gesture bindings. The same layout is used on terminal and GUI tabs, independently of the regular face cycle. Existing on/off preferences are retained; Restore default returns to the original keys |
 | Japanese IME learning history | The phrases the converter has learned. Search and delete them one by one, or clear them all |
 | Built-in keyboard elsewhere | Settings → Permissions and notifications → Permissions → Enable the keyboard opens Android input-method settings. Use Switch keyboard to select it. Layouts, size and dictionaries remain under Keyboard settings. |
 | Overlap with the 3-button bar | When used as an OS input method, the bottom row of the keyboard **overlapped the 3-button navigation bar (back / home / recents) and could not be pressed**; fixed in 0.8.279. The keyboard is now lifted by the height of the bar. Devices on gesture navigation get no extra gap |
@@ -923,6 +922,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.8.653-alpha (versionCode 661)**: Local GUI menus can use existing Android fonts for Japanese text. The keyboard toggle strip is removed; double-tap ⌨ in the toolbar to show or hide the keyboard. The accessory bar toggle and editor are now in Key layout (your own), with shared positions, widths, splits and gesture bindings for terminal and GUI tabs. Existing on/off preferences are retained. Close and reopen GUI after updating. Desktop release build, 168 related unit tests and lint (zero errors/warnings) passed. GUI rendering and touch interaction remain unverified on device.
 
 **0.8.652-alpha (versionCode 660) — build unverified**: RSS views can add, change and remove subscriptions. GUI pinch-to-fit no longer emits wheel input that could switch virtual desktops; explicit desktop switching is available in the background context menu.
 

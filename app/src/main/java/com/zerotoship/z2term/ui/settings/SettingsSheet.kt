@@ -126,6 +126,8 @@ import com.zerotoship.z2term.ui.terminal.ToolbarButtons
 import com.zerotoship.z2term.ui.terminal.guideDesc
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyLayoutJson
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyLayout
+import com.zerotoship.z2term.ui.terminal.keyboard.SPECIAL_KEY_LAYOUT_ID
+import com.zerotoship.z2term.ui.terminal.keyboard.specialKeyLayoutFromJson
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceConfig
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceEntry
@@ -318,16 +320,25 @@ fun SettingsSheet(
         color = ZtsBgPrimary,
         contentColor = ZtsTextPrimary
     ) {
-        val editingLayout = remember(settings.keyboardLayoutsJson, keyLayoutEditingId) {
-            KeyLayoutJson.listFromJsonString(settings.keyboardLayoutsJson)
+        val specialKeyLabel = stringResource(R.string.settings_special_key_bar)
+        val editingSpecialKeys = keyLayoutEditingId == SPECIAL_KEY_LAYOUT_ID
+        val editingLayout = remember(settings.keyboardLayoutsJson, settings.specialKeyLayoutJson, keyLayoutEditingId, specialKeyLabel) {
+            if (editingSpecialKeys) specialKeyLayoutFromJson(settings.specialKeyLayoutJson, specialKeyLabel)
+            else KeyLayoutJson.listFromJsonString(settings.keyboardLayoutsJson)
                 .firstOrNull { it.id == keyLayoutEditingId }
         }
         if (editingLayout != null) {
             KeyLayoutEditorSheet(
                 initial = editingLayout,
+                requireEscapeHatch = !editingSpecialKeys,
+                allowDelete = !editingSpecialKeys,
                 onSave = { saved ->
-                    val latest = KeyLayoutJson.listFromJsonString(settings.keyboardLayoutsJson)
-                    session.setKeyboardLayoutsJson(KeyLayoutJson.toJsonString(latest.upsertLayout(saved)))
+                    if (editingSpecialKeys) {
+                        session.setSpecialKeyLayoutJson(KeyLayoutJson.toPrettyJsonString(saved))
+                    } else {
+                        val latest = KeyLayoutJson.listFromJsonString(settings.keyboardLayoutsJson)
+                        session.setKeyboardLayoutsJson(KeyLayoutJson.toJsonString(latest.upsertLayout(saved)))
+                    }
                     keyLayoutEditingId = null
                 },
                 onDelete = { deleted ->
@@ -599,24 +610,6 @@ fun SettingsSheet(
                             onChange = { session.setLandscapeKeyboardWidthDp(it) }
                         )
                     }
-                }
-
-                // シンプル / 4方向は「使用するキーボード面」へ統合したため、ここでは共通操作だけ。
-                Section(title = stringResource(R.string.settings_section_keyboard_style)) {
-                    ToggleField(
-                        title = stringResource(R.string.settings_keyboard_toggle_bar),
-                        description = stringResource(R.string.settings_keyboard_toggle_bar_desc),
-                        checked = settings.keyboardToggleBar,
-                        onChange = { session.setKeyboardToggleBar(it) }
-                    )
-                    // OS のキーボードに切り替えたときだけ出る補助キー (ESC/TAB/CTRL/矢印…) の表示。
-                    // OS の IME が自前で同じキーを持っている場合は二重になるので消せるようにする (要望)。
-                    ToggleField(
-                        title = stringResource(R.string.settings_special_key_bar),
-                        description = stringResource(R.string.settings_special_key_bar_desc),
-                        checked = settings.specialKeyBar,
-                        onChange = { session.setSpecialKeyBar(it) }
-                    )
                 }
 
                 // 自分で作るキー配列 (0.8.408・段階 2)。⚠ キーボードスタイル (高さ・字の
@@ -2849,6 +2842,16 @@ private fun KeyLayoutSection(
             color = ZtsGreen,
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace,
+        )
+        ToggleField(
+            title = stringResource(R.string.settings_special_key_bar),
+            description = stringResource(R.string.settings_special_key_bar_desc),
+            checked = settings.specialKeyBar,
+            onChange = { session.setSpecialKeyBar(it) },
+        )
+        ActionButton(
+            label = stringResource(R.string.settings_key_layout_edit_action),
+            onClick = { onEditLayout(SPECIAL_KEY_LAYOUT_ID) },
         )
         TextField(
             title = stringResource(R.string.settings_keyboard_test_title),

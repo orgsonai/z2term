@@ -49,8 +49,6 @@
     <string name="settings_section_font_size">Tamaño del texto</string>
     <string name="settings_section_scrollback">Líneas de historial</string>
     <string name="settings_section_distro">Distribución (cambiarla reinicia la sesión actual)</string>
-    <string name="settings_section_keyboard_style">Comportamiento del teclado</string>
-    <string name="settings_keyboard_toggle_bar">Barra para mostrar u ocultar el teclado</string>
     <string name="settings_section_key_layout">Distribución de teclas (propia)</string>
     <string name="settings_key_layout_desc">Elige aquí los planos que quieres usar y su orden. Duplica cualquier plano para crear el tuyo; usa Editar en un plano propio para renombrarlo o cambiar sus teclas.</string>
     <string name="settings_keyboard_faces_title">Planos que usa el teclado</string>
@@ -129,7 +127,6 @@
     <string name="settings_key_layout_action_type">Tipo de acción</string>
     <string name="settings_key_layout_invalid_hex">El hexadecimal usa dos dígitos por byte (ejemplo: 1b5b41)</string>
     <string name="settings_key_layout_layers_preserved">Las capas (%1$s) se conservan. Cambia a JSON para editarlas.</string>
-    <string name="settings_keyboard_toggle_bar_desc">Muestra sobre el teclado una barra para mostrarlo u ocultarlo. Si está desactivada, toca dos veces el botón ⌨ para alternarlo.</string>
     <string name="settings_section_user_dict">Diccionario del usuario</string>
     <string name="settings_user_dict_desc">Registra palabras aquí o importa un archivo de diccionario. Se admiten archivos SKK y separados por tabuladores, en UTF-8 o EUC-JP.</string>
     <string name="settings_user_dict_count">%1$d palabras / %2$d archivos</string>
@@ -552,8 +549,6 @@
     <string name="gui_confirm_download_title">Descargar el entorno gráfico</string>
     <string name="gui_confirm_download_msg">La primera vez que se abre el entorno gráfico (escritorio Linux) hay que descargar los paquetes de pantalla (de decenas a cientos de MB). Se recomienda usar Wi-Fi. ¿Continuar?</string>
     <string name="gui_confirm_download_action">Descargar y abrir</string>
-    <string name="keyboard_show_button">▴ Teclado</string>
-    <string name="keyboard_hide_button">▾ Teclado</string>
     <string name="terminal_action_copy">Copiar</string>
     <string name="service_channel_name">Sesión de Z2Term</string>
     <string name="service_channel_desc">Mantiene la sesión de la terminal en marcha en segundo plano</string>

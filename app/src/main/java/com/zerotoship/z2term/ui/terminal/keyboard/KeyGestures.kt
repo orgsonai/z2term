@@ -4,9 +4,104 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+
+/** 補助バーでは、割り当て済みフリックを優先し、未割り当て方向のドラッグはスクロールへ渡す。 */
+internal suspend fun PointerInputScope.detectAccessoryKeyGestures(
+    scope: CoroutineScope,
+    key: KeyDef,
+    onPressedChange: (Boolean) -> Unit,
+    onFlickChange: (KeyGesture?) -> Unit,
+    onGesture: (KeyGesture) -> Unit,
+) {
+    var pendingTap: Job? = null
+    var hold: Job? = null
+    var lastUp = 0L
+    val hasDouble = key.actionsFor(KeyGesture.DOUBLE_TAP).isNotEmpty()
+    val hasLong = key.actionsFor(KeyGesture.LONG_PRESS).isNotEmpty()
+    val doubleTimeout = viewConfiguration.doubleTapTimeoutMillis
+    val longTimeout = viewConfiguration.longPressTimeoutMillis
+    val slop = viewConfiguration.touchSlop
+    try {
+        awaitPointerEventScope {
+            while (true) {
+                val down = awaitFirstDown(requireUnconsumed = true, pass = PointerEventPass.Initial)
+                val secondTap = pendingTap?.isActive == true && down.uptimeMillis - lastUp <= doubleTimeout
+                pendingTap?.cancel()
+                onPressedChange(true)
+                onFlickChange(null)
+                var flick: KeyGesture? = null
+                var fired = false
+                var cancelled = false
+                if (hasLong || key.repeatable) {
+                    hold = scope.launch {
+                        delay(if (hasLong) longTimeout else key.repeatInitialMs)
+                        fired = true
+                        if (hasLong) onGesture(KeyGesture.LONG_PRESS)
+                        else while (isActive) {
+                            onGesture(KeyGesture.TAP)
+                            delay(key.repeatIntervalMs)
+                        }
+                    }
+                }
+                while (true) {
+                    // Initial で方向を決め、フリックは親の横スクロールが始まる前に消費する。
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    val dx = change.position.x - down.position.x
+                    val dy = change.position.y - down.position.y
+                    if (change.isConsumed) cancelled = true
+                    if (!cancelled && !fired && maxOf(abs(dx), abs(dy)) > slop) {
+                        hold?.cancel()
+                        val direction = if (abs(dx) > abs(dy)) {
+                            if (dx < 0) KeyGesture.LEFT else KeyGesture.RIGHT
+                        } else if (dy < 0) KeyGesture.UP else KeyGesture.DOWN
+                        if (key.actionsFor(direction).isNotEmpty()) {
+                            flick = direction
+                            onFlickChange(direction)
+                            change.consume()
+                            if (!key.flickOnRelease) {
+                                fired = true
+                                onGesture(direction)
+                            }
+                        } else if (flick == null) cancelled = true
+                    }
+                    if (cancelled) {
+                        hold?.cancel()
+                        onPressedChange(false)
+                    } else if (flick != null || fired) change.consume()
+                    if (!change.pressed) {
+                        hold?.cancel()
+                        if (!cancelled && !fired) {
+                            when {
+                                flick != null -> onGesture(flick)
+                                secondTap -> onGesture(KeyGesture.DOUBLE_TAP)
+                                hasDouble -> {
+                                    lastUp = change.uptimeMillis
+                                    pendingTap = scope.launch { delay(doubleTimeout); onGesture(KeyGesture.TAP) }
+                                }
+                                else -> onGesture(KeyGesture.TAP)
+                            }
+                        }
+                        break
+                    }
+                }
+                hold?.cancel()
+                onPressedChange(false)
+                onFlickChange(null)
+            }
+        }
+    } finally {
+        hold?.cancel()
+        pendingTap?.cancel()
+        onPressedChange(false)
+        onFlickChange(null)
+    }
+}
 
 /** 連打 (キーリピート) のタイミング既定値。 */
 internal const val KEY_REPEAT_INITIAL_MS = 400L

@@ -72,6 +72,8 @@ fun KeyLayoutEditorSheet(
     onSave: (KeyLayout) -> Unit,
     onDelete: (KeyLayout) -> Unit,
     onDismiss: () -> Unit,
+    requireEscapeHatch: Boolean = true,
+    allowDelete: Boolean = true,
 ) {
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -111,7 +113,7 @@ fun KeyLayoutEditorSheet(
 
     fun requestSave() {
         val value = candidate ?: return
-        if (value.hasEscapeHatch()) onSave(value) else escapeWarningPending = true
+        if (!requireEscapeHatch || value.hasEscapeHatch()) onSave(value) else escapeWarningPending = true
     }
 
     Surface(
@@ -193,7 +195,7 @@ fun KeyLayoutEditorSheet(
                                     ),
                                     color = ZtsGreen,
                                 )
-                                if (!decoded.hasEscapeHatch()) {
+                                if (requireEscapeHatch && !decoded.hasEscapeHatch()) {
                                     EditorStatus(
                                         text = stringResource(R.string.settings_key_layout_editor_no_escape_inline),
                                         color = ZtsWarning,
@@ -266,7 +268,7 @@ fun KeyLayoutEditorSheet(
                         onClick = { resetPending = true },
                     )
 
-                    EditorButton(
+                    if (allowDelete) EditorButton(
                         label = stringResource(R.string.settings_key_layout_delete),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                         danger = true,

@@ -380,7 +380,7 @@ data class KeyLayout(
     fun withEditorDefaults(): KeyLayout {
         val inferredStyle = if (styleId in KeyboardStyle.ALL.map { it.id }) styleId
             else if (rows.size >= 6) KeyboardStyle.COMPACT.id else KeyboardStyle.SPACIOUS.id
-        val symbols = if (faceId == KeyboardFace.ASCII.id) {
+        val symbols = if (id == SPECIAL_KEY_LAYOUT_ID) symbolRows else if (faceId == KeyboardFace.ASCII.id) {
             symbolRows ?: asciiKeyLayout(
                 compact = inferredStyle == KeyboardStyle.COMPACT.id,
                 hasFaceKey = true,

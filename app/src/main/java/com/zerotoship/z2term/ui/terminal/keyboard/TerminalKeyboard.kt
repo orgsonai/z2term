@@ -1,6 +1,9 @@
 package com.zerotoship.z2term.ui.terminal.keyboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -17,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -103,10 +107,15 @@ fun TerminalKeyboard(
     initialFaceId: String = KeyboardFaceEntry.BUILTIN_ASCII_ID,
     /** 切替キーで面が変わったときの通知。面を永続化する呼出し側だけが受ける。 */
     onFaceChange: (String) -> Unit = {},
+    /** 補助バーは行ごとの高さを保ち、収まらないキーを横スクロールする。 */
+    accessoryBar: Boolean = false,
+    /** OS IME / 外付けキー入力と共有する Ctrl 状態。 */
+    ctrlState: MutableState<Boolean>? = null,
     modifier: Modifier = Modifier
 ) {
     var shift by remember { mutableStateOf(ShiftState.OFF) }
-    var ctrl by remember { mutableStateOf(false) }
+    val localCtrl = remember { mutableStateOf(false) }
+    var ctrl by (ctrlState ?: localCtrl)
     var alt by remember { mutableStateOf(false) }
     var sym by remember { mutableStateOf(false) }
     val faces = faceEntries.ifEmpty { listOf(KeyboardFaceEntry.builtin(KeyboardFace.ASCII)) }
@@ -258,6 +267,11 @@ fun TerminalKeyboard(
 
     fun emitFaceText(text: String, isFlick: Boolean) {
         if (text.isEmpty()) return
+        if (accessoryBar) {
+            composing.commitRaw()
+            emitText(text, currentMods(), applyShift = !isFlick && !sym)
+            return
+        }
         // カスタムかな／数字面に置いた Ctrl / Alt も文字入力へ落とさない。
         if (ctrl || alt) {
             composing.commitRaw()
@@ -339,7 +353,7 @@ fun TerminalKeyboard(
         // ⚠ 日本語面 ([JapaneseFlickKeyboard]) は両端の列を残せるが、こちらは 10 列あって
         Column(
             modifier = modifier
-                .fillMaxSize()
+                .then(if (accessoryBar) Modifier.fillMaxWidth().height(240.dp) else Modifier.fillMaxSize())
                 .background(ZtsBgSecondary)
                 .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(rowSpacing)
@@ -390,6 +404,7 @@ fun TerminalKeyboard(
             customForFace != null && !sym -> customForFace
             customForFace != null && sym && customForFace.symbolRows != null ->
                 customForFace.copy(rows = customForFace.symbolRows)
+            accessoryBar && customForFace != null -> customForFace
             else -> asciiKeyLayout(
                 compact = isCompact,
                 hasFaceKey = hasFaceKey,
@@ -408,7 +423,8 @@ fun TerminalKeyboard(
     // **席からはみ出して端末の画面にかぶる**。プリセットは段の数が一致するので何も変わらない。
     val presetRowCount = if (isCompact) 6 else 5
     val rowHeight =
-        if (layout.rows.size == presetRowCount) renderStyle.keyHeight
+        if (accessoryBar) 40.dp
+        else if (layout.rows.size == presetRowCount) renderStyle.keyHeight
         else renderStyle.keyHeight * presetRowCount / layout.rows.size
 
     Column(
@@ -420,12 +436,19 @@ fun TerminalKeyboard(
     ) {
         layout.rows.forEach { keyRow ->
             val weights = keyRow.weights()
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
+            Row(
+                Modifier.fillMaxWidth().then(
+                    if (accessoryBar) Modifier.horizontalScroll(rememberScrollState()) else Modifier,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(rowSpacing),
+            ) {
                 keyRow.slots.forEachIndexed { index, keySlot ->
                     LayoutSlot(
                         content = keySlot.content,
+                        accessoryBar = accessoryBar,
                         // ⚠ 段の高さはここで決める。枠を割ったときは中で分け合う。
-                        modifier = Modifier.weight(weights[index]).height(rowHeight),
+                        modifier = (if (accessoryBar) Modifier.width(52.dp * weights[index])
+                            else Modifier.weight(weights[index])).height(rowHeight),
                         activeLayer = activeLayer,
                         style = renderStyle,
                         smallFont = smallFont,
@@ -453,6 +476,7 @@ fun TerminalKeyboard(
 @Composable
 private fun LayoutSlot(
     content: SlotContent,
+    accessoryBar: Boolean = false,
     modifier: Modifier,
     activeLayer: String?,
     style: KeyboardStyle,
@@ -469,6 +493,7 @@ private fun LayoutSlot(
             val key = content.key.onLayer(activeLayer)
             KeyCell(
                 key = key,
+                accessoryBar = accessoryBar,
                 modifier = modifier,
                 style = style,
                 smallFont = smallFont,
@@ -488,6 +513,7 @@ private fun LayoutSlot(
                     content.parts.forEach { part ->
                         LayoutSlot(
                             content = part.content,
+                            accessoryBar = accessoryBar,
                             modifier = Modifier.weight(part.ratio).fillMaxWidth(),
                             activeLayer = activeLayer,
                             style = style,
@@ -506,6 +532,7 @@ private fun LayoutSlot(
                     content.parts.forEach { part ->
                         LayoutSlot(
                             content = part.content,
+                            accessoryBar = accessoryBar,
                             modifier = Modifier.weight(part.ratio).fillMaxHeight(),
                             activeLayer = activeLayer,
                             style = style,
@@ -547,6 +574,7 @@ private fun LayoutSlot(
 @Composable
 private fun KeyCell(
     key: KeyDef,
+    accessoryBar: Boolean,
     modifier: Modifier,
     style: KeyboardStyle,
     smallFont: Float,
@@ -610,7 +638,17 @@ private fun KeyCell(
             .zIndex(if (pressed) 1f else 0f)
             .background(bg, RoundedCornerShape(6.dp))
             .border(1.dp, border, RoundedCornerShape(6.dp))
-            .pointerInput(key) {
+            .pointerInput(key, accessoryBar) {
+                if (accessoryBar) {
+                    detectAccessoryKeyGestures(
+                        scope = scope,
+                        key = key,
+                        onPressedChange = { pressed = it },
+                        onFlickChange = { flickTo = it },
+                        onGesture = { currentOnGesture(it) },
+                    )
+                    return@pointerInput
+                }
                 val threshold = viewConfiguration.touchSlop * 1.4f
                 awaitPointerEventScope {
                     while (true) {

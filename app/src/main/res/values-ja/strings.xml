@@ -51,8 +51,6 @@
     <string name="settings_section_font_size">フォントサイズ</string>
     <string name="settings_section_scrollback">スクロールバック行数</string>
     <string name="settings_section_distro">ディストロ (切替で現在のセッションを再起動)</string>
-    <string name="settings_section_keyboard_style">キーボード操作</string>
-    <string name="settings_keyboard_toggle_bar">キーボード表示バー</string>
     <!-- 自分で作るキー配列 (0.8.408〜0.8.411・段階 2〜4 + 既定サイズ) -->
     <string name="settings_section_key_layout">キー配列（自分で作る）</string>
     <string name="settings_key_layout_desc">使用する面と順番をここでまとめて設定します。各面の「複製」から自作面を作り、自作面は「編集」から名前やキーを変更できます。</string>
@@ -132,7 +130,6 @@
     <string name="settings_key_layout_action_type">動作の種類</string>
     <string name="settings_key_layout_invalid_hex">16 進は 2 桁で 1 バイトです（例: 1b5b41）</string>
     <string name="settings_key_layout_layers_preserved">レイヤー（%1$s）は保持されています。レイヤー自体の編集は JSON を使います。</string>
-    <string name="settings_keyboard_toggle_bar_desc">キーボードの上に表示/非表示バーを出す。OFF のときは ⌨ ボタンのダブルタップで切り替え。</string>
     <string name="settings_section_user_dict">ユーザー辞書</string>
     <string name="settings_user_dict_desc">この画面で単語を登録するか、手元の辞書ファイルを取り込めます。ファイルは SKK 形式とタブ区切り、UTF-8 / EUC-JP に対応します。</string>
     <string name="settings_user_dict_count">登録 %1$d 語 / %2$d ファイル</string>
@@ -590,8 +587,6 @@
     <string name="gui_confirm_download_title">GUI 一式をダウンロード</string>
     <string name="gui_confirm_download_msg">GUI (Linux デスクトップ) の初回起動には表示用パッケージの取得が必要です (数十〜数百MB)。Wi-Fi 推奨。続けますか?</string>
     <string name="gui_confirm_download_action">ダウンロードして起動</string>
-    <string name="keyboard_show_button">▴ キーボード</string>
-    <string name="keyboard_hide_button">▾ キーボード</string>
     <string name="terminal_action_copy">コピー</string>
 
     <!-- フォアグラウンドサービス通知 / Toast (D3 バッチ 6) -->

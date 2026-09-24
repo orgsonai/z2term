@@ -37,7 +37,7 @@ class WorkspaceUiTest {
     @Test fun focusKeepsPaneGeometryAndGuiLongPressOpensPlacement() {
         val settings = AppSettings(context)
         val saved = runBlocking { settings.flow.first() }
-        runBlocking { settings.setKeyboardMode("custom"); settings.setKeyboardToggleBar(true); settings.setLandscapeKeyboardHeightDp(200f) }
+        runBlocking { settings.setKeyboardMode("custom"); settings.setLandscapeKeyboardHeightDp(200f) }
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             var terminalId = ""
             var guiId = ""
@@ -93,7 +93,10 @@ class WorkspaceUiTest {
                 scenario.onActivity { it.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
                 SystemClock.sleep(700)
                 val expanded = bounds(scenario, gui = false)
-                tap(findText(activityText(scenario, R.string.keyboard_hide_button)))
+                val keyboardButton = findText("⌨")
+                tap(keyboardButton)
+                SystemClock.sleep(80)
+                tap(keyboardButton)
                 val folded = bounds(scenario, gui = false)
                 assertTrue("Keyboard should fold", folded.height() > expanded.height())
                 switchAndRecord(scenario, guiId, gui = true).forEach {
@@ -115,7 +118,6 @@ class WorkspaceUiTest {
                 }
                 runBlocking {
                     settings.setKeyboardMode(saved.keyboardMode)
-                    settings.setKeyboardToggleBar(saved.keyboardToggleBar)
                     settings.setLandscapeKeyboardPosition(saved.landscapeKeyboardPosition)
                     settings.setLandscapeKeyboardHeightDp(saved.landscapeKeyboardHeightDp)
                 }

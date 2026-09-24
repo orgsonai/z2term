@@ -47,6 +47,8 @@ phone, and everything came in one APK?**
 Both are GPL-3.0 and neither collects telemetry. If you already have a Termux setup you are
 happy with, Z2Term's reason to exist is the second, third and fourth rows of that table.
 
+Double-tap **⌨** in the toolbar to show or hide the keyboard. **Settings → Key layout (your own)** includes the OS-keyboard accessory bar toggle and an editor for its keys, shared by terminal and GUI tabs. Local GUI menus can use the Android device’s existing Japanese fonts; reopen GUI after updating.
+
 ## Download
 
 **You can download the latest APK directly from GitHub Releases** (no build needed):
@@ -83,6 +85,8 @@ Pick whichever fits:
   with one tap when a new version appears — no app store involved. The Linux OS is not downloaded again.
 
 ## Current version
+
+**0.8.653-alpha (versionCode 661)**: Local GUI menus can use existing Android fonts for Japanese text. The keyboard toggle strip is removed; double-tap ⌨ in the toolbar to show or hide the keyboard. The accessory bar toggle and editor are now in Key layout (your own), with shared positions, widths, splits and gesture bindings for terminal and GUI tabs. Existing on/off preferences are retained. Close and reopen GUI after updating. Desktop release build, 168 related unit tests and lint (zero errors/warnings) passed. GUI rendering and touch interaction remain unverified on device.
 
 **0.8.652-alpha (versionCode 660) — build unverified**: RSS views can add, change and remove subscriptions. GUI pinch-to-fit no longer emits wheel input that could switch virtual desktops; explicit desktop switching is available in the background context menu.
 

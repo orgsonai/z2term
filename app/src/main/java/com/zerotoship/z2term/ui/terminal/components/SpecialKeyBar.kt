@@ -1,132 +1,38 @@
 package com.zerotoship.z2term.ui.terminal.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.zerotoship.z2term.core.TerminalSession
-import com.zerotoship.z2term.ui.terminal.input.AndroidKeyMapper
 import com.zerotoship.z2term.ui.terminal.input.KeyModifiers
+import com.zerotoship.z2term.ui.terminal.keyboard.ComposingState
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceEntry
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.NamedKey
-import com.zerotoship.z2term.ui.terminal.keyboard.detectTapWithRepeat
-import com.zerotoship.z2term.ui.theme.ZtsBgCard
-import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
-import com.zerotoship.z2term.ui.theme.ZtsBorder
-import com.zerotoship.z2term.ui.theme.ZtsGreen
-import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
+import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
+import com.zerotoship.z2term.ui.terminal.keyboard.specialKeyLayoutFromJson
 
-/**
- * 画面下端の特殊キーバー (Phase 1 最小構成)。
- *
- * 含むキー:
- *  - ESC / TAB
- *  - CTRL (sticky toggle)
- *  - 矢印 4 つ
- *  - Enter
- *  - Ctrl+C / Ctrl+D / Ctrl+L (頻出ショートカット)
- *
- * 横スクロール対応。F1-F12 / Home/End/PgUp/PgDn / 折り畳み式は後続フェーズ。
- */
+/** 端末と GUI で、同じ編集済み配列・ジェスチャ・修飾キー処理を使う。 */
 @Composable
 fun SpecialKeyBar(
-    session: TerminalSession,
-    ctrlSticky: Boolean,
-    onCtrlToggle: () -> Unit,
-    modifier: Modifier = Modifier
+    layoutJson: String,
+    composing: ComposingState,
+    ctrlState: MutableState<Boolean>,
+    onBytes: (ByteArray) -> Unit,
+    onKey: (NamedKey, KeyModifiers) -> Unit,
+    onNamedKey: ((NamedKey) -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
-    fun sendKey(key: NamedKey) {
-        AndroidKeyMapper.namedKeyBytes(key, KeyModifiers(ctrl = ctrlSticky), session.emulator::cursorKeyBytes)
-            ?.let { session.writeBytes(it) }
-        if (ctrlSticky) onCtrlToggle()
-    }
-    fun sendControl(byte: Byte) {
-        session.writeBytes(byteArrayOf(byte))
-        if (ctrlSticky) onCtrlToggle()
-    }
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(ZtsBgSecondary)
-            .padding(horizontal = 4.dp, vertical = 6.dp)
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Key("ESC") { sendKey(NamedKey.ESC) }
-        Key("TAB") { sendKey(NamedKey.TAB) }
-        Key("CTRL", active = ctrlSticky, onClick = onCtrlToggle)
-        Key("←") { sendKey(NamedKey.LEFT) }
-        Key("↓") { sendKey(NamedKey.DOWN) }
-        Key("↑") { sendKey(NamedKey.UP) }
-        Key("→") { sendKey(NamedKey.RIGHT) }
-        Key("⏎", repeatable = true) { sendKey(NamedKey.ENTER) }
-        Key("^C") { sendControl(0x03) }
-        Key("^D") { sendControl(0x04) }
-        Key("^L") { sendControl(0x0C) }
-    }
+    val layout = remember(layoutJson) { specialKeyLayoutFromJson(layoutJson) }
+    TerminalKeyboard(
+        onBytes = onBytes,
+        onKey = onKey,
+        onNamedKey = onNamedKey,
+        composing = composing,
+        style = KeyboardStyle.COMPACT,
+        faceEntries = listOf(KeyboardFaceEntry.custom(layout)),
+        accessoryBar = true,
+        ctrlState = ctrlState,
+        modifier = modifier,
+    )
 }
-
-@Composable
-private fun Key(
-    label: String,
-    active: Boolean = false,
-    repeatable: Boolean = false,
-    onClick: () -> Unit
-) {
-    var pressed by remember { mutableStateOf(false) }
-    val bg = if (active || pressed) ZtsGreen else ZtsBgCard
-    val fg = if (active || pressed) Color.Black else ZtsTextPrimary
-    val border = if (active || pressed) ZtsGreen else ZtsBorder
-    val scope = rememberCoroutineScope()
-    val currentOnClick by rememberUpdatedState(onClick)
-    // 連打キーは内蔵キーボードと同じジェスチャ (長押しで一定間隔リピート) を使う。
-    val tapModifier = if (repeatable) {
-        Modifier.pointerInput(Unit) {
-            detectTapWithRepeat(scope, onPressedChange = { pressed = it }) { currentOnClick() }
-        }
-    } else {
-        Modifier.clickable(onClick = onClick)
-    }
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(8.dp))
-            .then(tapModifier)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            color = fg,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
-        )
-    }
-}
-

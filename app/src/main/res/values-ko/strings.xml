@@ -49,8 +49,6 @@
     <string name="settings_section_font_size">글자 크기</string>
     <string name="settings_section_scrollback">스크롤백 줄 수</string>
     <string name="settings_section_distro">배포판 (바꾸면 지금 세션이 다시 시작됩니다)</string>
-    <string name="settings_section_keyboard_style">키보드 동작</string>
-    <string name="settings_keyboard_toggle_bar">키보드 토글 바</string>
     <string name="settings_section_key_layout">키 배열 (직접 만들기)</string>
     <string name="settings_key_layout_desc">쓸 면과 그 순서를 여기서 고릅니다. 아무 면이나 복제하면 자신만의 면이 되고, 직접 만든 면은 편집으로 이름과 키를 바꿀 수 있습니다.</string>
     <string name="settings_keyboard_faces_title">키보드가 쓰는 면</string>
@@ -129,7 +127,6 @@
     <string name="settings_key_layout_action_type">동작 종류</string>
     <string name="settings_key_layout_invalid_hex">16진수는 1바이트에 두 자리입니다 (예: 1b5b41)</string>
     <string name="settings_key_layout_layers_preserved">레이어(%1$s)는 그대로 유지됩니다. 레이어 자체를 편집하려면 JSON으로 바꾸세요.</string>
-    <string name="settings_keyboard_toggle_bar_desc">키보드 위에 보이기/숨기기 바를 냅니다. 끄면 ⌨ 버튼을 두 번 눌러 전환합니다.</string>
     <string name="settings_section_user_dict">사용자 사전</string>
     <string name="settings_user_dict_desc">여기에 단어를 등록하거나 사전 파일을 가져옵니다. SKK 형식과 탭으로 나뉜 파일을 UTF-8 또는 EUC-JP로 읽을 수 있습니다.</string>
     <string name="settings_user_dict_count">%1$d개 단어 / %2$d개 파일</string>
@@ -550,8 +547,6 @@
     <string name="gui_confirm_download_title">GUI 한 벌 내려받기</string>
     <string name="gui_confirm_download_msg">GUI(Linux 데스크톱)를 처음 켤 때는 표시용 패키지를 내려받아야 합니다(수십~수백 MB). Wi-Fi를 권합니다. 계속할까요?</string>
     <string name="gui_confirm_download_action">내려받고 실행</string>
-    <string name="keyboard_show_button">▴ 키보드</string>
-    <string name="keyboard_hide_button">▾ 키보드</string>
     <string name="terminal_action_copy">복사</string>
     <string name="service_channel_name">Z2Term 세션</string>
     <string name="service_channel_desc">터미널 세션을 백그라운드에서 계속 돌립니다</string>
