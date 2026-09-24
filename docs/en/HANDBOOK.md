@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.651-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.652-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -355,6 +355,8 @@ Before using it, fill in two fields under **✎ (Edit)** for the host:
 
 Once it is up, it behaves like the app's own GUI tab: two fingers to zoom and pan, three fingers to
 scroll, and the same keyboard.
+
+Two-finger GUI gestures only zoom and pan, without sending wheel input when zooming back to fit. Use three fingers to scroll inside applications. To switch local GUI desktops, right-click the background (place the pointer there and long-press), then choose Virtual desktops → Previous desktop / Next desktop. The new menu appears after restarting the GUI.
 
 ### Open a Windows desktop (RDP, 0.8.459)
 
@@ -922,6 +924,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
 
+**0.8.652-alpha (versionCode 660) — build unverified**: RSS views can add, change and remove subscriptions. GUI pinch-to-fit no longer emits wheel input that could switch virtual desktops; explicit desktop switching is available in the background context menu.
+
 **0.8.651-alpha (versionCode 659)**: SSH destinations have an optional "Address at home". From home Wi-Fi, connecting to your home's public address failed with `ConnectException` for VNC, RDP and the shell on some routers. With a home address set, z2term connects there directly, without jump hosts, only when on the same network and it answers; away from home the public address is used as before.
 
 **0.8.650-alpha (versionCode 658)**: Fixes and cleanup. `z2doctor` no longer reports an sshd running as a resident server as "not running". The edge panel scroll amount is only passed on Android 15 and later, where it exists (Android 14 ignored it). The share server's periodic check no longer runs many times at once when the app returns from the cached state. English text no longer pairs a number with a noun that may not agree (such as "1 files"), and Spanish plurals are complete. Unused strings are removed, and lint warnings are down from 251 to 0.
@@ -1433,7 +1437,7 @@ z2-macro install rss
 python3 -V || apk add python3        # Debian: apt-get install -y python3 / Arch: pacman -S python
 ```
 
-**2. List the feeds you want** — one URL per line in `~/.z2term/rss/feeds.txt` (lines starting with `#` are ignored).
+**2. Add subscriptions** — open `sh ~/.z2term/macros/rss.sh view` and choose Subscriptions → Add to enter an RSS / Atom URL. Each row also offers Change and Remove. Direct editing of `~/.z2term/rss/feeds.txt` remains supported (one URL per line; `#` starts a comment). Changes apply on the next poll, and collected articles are kept.
 
 **3. Register polling in Automation**
 

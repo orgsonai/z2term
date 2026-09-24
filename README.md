@@ -84,6 +84,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.652-alpha (versionCode 660) — build unverified**: RSS views can add, change and remove subscriptions. GUI pinch-to-fit no longer emits wheel input that could switch virtual desktops; explicit desktop switching is available in the background context menu.
+
 **0.8.651-alpha (versionCode 659)**: SSH destinations have an optional "Address at home". From home Wi-Fi, connecting to your home's public address failed with `ConnectException` for VNC, RDP and the shell on some routers. With a home address set, z2term connects there directly, without jump hosts, only when on the same network and it answers; away from home the public address is used as before.
 
 **0.8.650-alpha (versionCode 658)**: Fixes and cleanup. `z2doctor` no longer reports an sshd running as a resident server as "not running". The edge panel scroll amount is only passed on Android 15 and later, where it exists (Android 14 ignored it). The share server's periodic check no longer runs many times at once when the app returns from the cached state. English text no longer pairs a number with a noun that may not agree (such as "1 files"), and Spanish plurals are complete. Unused strings are removed, and lint warnings are down from 251 to 0.

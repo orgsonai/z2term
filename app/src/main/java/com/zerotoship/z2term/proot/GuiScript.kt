@@ -73,6 +73,9 @@ data class GuiScriptStrings(
     // ⚠ ここは**画面に出るラベル**なので、必ず全言語を埋めること (英語落ちだと和文の中に英語が混じる)。
     val menuApps: String,             // 「アプリ」(z2menu の pipe menu を開く)
     val menuWindows: String,          // 「窓」(openbox 内蔵の client-list-menu)
+    val menuDesktops: String,
+    val menuPreviousDesktop: String,
+    val menuNextDesktop: String,
     val menuReload: String            // 「メニューを読み直す」(openbox の Reconfigure)
 ) {
     companion object {
@@ -99,6 +102,9 @@ data class GuiScriptStrings(
             audioReady = "🔊 GUI 音声: z2sink.monitor →",
             menuApps = "アプリ",
             menuWindows = "窓",
+            menuDesktops = "仮想デスクトップ",
+            menuPreviousDesktop = "前のデスクトップ",
+            menuNextDesktop = "次のデスクトップ",
             menuReload = "メニューを読み直す"
         )
         fun en(): GuiScriptStrings = GuiScriptStrings(
@@ -124,6 +130,9 @@ data class GuiScriptStrings(
             audioReady = "🔊 GUI audio: z2sink.monitor →",
             menuApps = "Applications",
             menuWindows = "Windows",
+            menuDesktops = "Virtual desktops",
+            menuPreviousDesktop = "Previous desktop",
+            menuNextDesktop = "Next desktop",
             menuReload = "Reload menu"
         )
         fun zhCN(): GuiScriptStrings = GuiScriptStrings(
@@ -149,6 +158,9 @@ data class GuiScriptStrings(
             audioReady = "🔊 图形界面声音: z2sink.monitor →",
             menuApps = "应用",
             menuWindows = "窗口",
+            menuDesktops = "虚拟桌面",
+            menuPreviousDesktop = "上一个桌面",
+            menuNextDesktop = "下一个桌面",
             menuReload = "重新载入菜单"
         )
         fun zhTW(): GuiScriptStrings = GuiScriptStrings(
@@ -174,6 +186,9 @@ data class GuiScriptStrings(
             audioReady = "🔊 圖形介面聲音: z2sink.monitor →",
             menuApps = "應用程式",
             menuWindows = "視窗",
+            menuDesktops = "虛擬桌面",
+            menuPreviousDesktop = "上一個桌面",
+            menuNextDesktop = "下一個桌面",
             menuReload = "重新載入選單"
         )
         fun es(): GuiScriptStrings = GuiScriptStrings(
@@ -199,6 +214,9 @@ data class GuiScriptStrings(
             audioReady = "🔊 Audio del entorno gráfico: z2sink.monitor →",
             menuApps = "Aplicaciones",
             menuWindows = "Ventanas",
+            menuDesktops = "Escritorios virtuales",
+            menuPreviousDesktop = "Escritorio anterior",
+            menuNextDesktop = "Escritorio siguiente",
             menuReload = "Recargar el menú"
         )
         fun ko(): GuiScriptStrings = GuiScriptStrings(
@@ -224,6 +242,9 @@ data class GuiScriptStrings(
             audioReady = "🔊 GUI 소리: z2sink.monitor →",
             menuApps = "애플리케이션",
             menuWindows = "창",
+            menuDesktops = "가상 데스크톱",
+            menuPreviousDesktop = "이전 데스크톱",
+            menuNextDesktop = "다음 데스크톱",
             menuReload = "메뉴 다시 읽기"
         )
         /**
@@ -763,6 +784,10 @@ fun z2guiScript(
         |  <menu id="root-menu" label="z2term">
         |    <menu id="z2-apps" label="${strings.menuApps}" execute="/usr/local/bin/z2menu"/>
         |    <menu id="client-list-menu" label="${strings.menuWindows}"/>
+        |    <menu id="z2-desktops" label="${strings.menuDesktops}">
+        |      <item label="${strings.menuPreviousDesktop}"><action name="GoToDesktop"><to>previous</to></action></item>
+        |      <item label="${strings.menuNextDesktop}"><action name="GoToDesktop"><to>next</to></action></item>
+        |    </menu>
         |    <separator/>
         |    <item label="${strings.menuReload}"><action name="Reconfigure"/></item>
         |  </menu>

@@ -30,7 +30,8 @@ import android.view.inputmethod.InputMethodManager
  *                        **時間制限は無い** — 押したまま狙いを定めてから動かしてよい
  *  - ダブルタップして離す: 左クリック（1 回目のタップと合わせてダブルクリック）
  *  - ピンチ            : ズーム（[GuiViewport] を更新、[GuiScreen] と共有）
- *  - 2 本指移動        : ズーム中はパン / 等倍時はホイールスクロール
+ *  - 2 本指移動        : パン（等倍でもホイール入力にはしない）
+ *  - 3 本指縦移動      : ホイールスクロール
  *
  * ※ 単タップ長押しの右クリックは M8-6 T3/T4/T5 で一度**廃止**した。長押しタイマーがピンチや
  *   ダブルタップドラッグと干渉して誤右クリック・ドラッグ解除を起こしていたため。
@@ -121,7 +122,7 @@ class GuiInputView(context: Context) : View(context) {
     private var holdDownX = 0f
     private var holdDownY = 0f
 
-    // --- 2 本指ジェスチャ（ピンチ=ズーム / ドラッグ=パン or ホイール）---
+    // --- 2 本指ジェスチャ（ピンチ=ズーム / ドラッグ=パン）---
     private var twoFinger = false        // 2 本指中フラグ (1 本に戻った後のクリック抑止)
     private var twoFingerActive = false  // span/centroid 追跡中
     private var prevSpan = 0f
@@ -304,11 +305,12 @@ class GuiInputView(context: Context) : View(context) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val action = event.actionMasked
 
-        // 2 本指: ピンチ=ズーム / ドラッグ=ズーム中はパン・等倍時はホイール
+        // 2 本指: ピンチ=ズーム / ドラッグ=パン
         // 3 本指: アプリ内スクロール (縦移動をホイールへ。ズーム/パンはしない)
         if (event.pointerCount >= 2) {
             if (dragHeld) releaseDrag() // 1→2 本指に増えたらドラッグ保持を解除
             dtHolding = false           // 2 本指へ移行 → ダブルタップの判定は破棄 (T3)
+            cancelPendingClick()       // ピンチ中に前のタップのクリックを送らない
             cancelHoldClick()           // 2 本指はズーム/パン。長押し右クリックにはしない
             holdFired = false
             // 一度でも 3 本指になったら、指が 2 本に減っても全部離すまでスクロール扱い。
@@ -440,7 +442,7 @@ class GuiInputView(context: Context) : View(context) {
         return true
     }
 
-    /** 2 本指の移動 1 フレーム分を処理: ピンチでズーム、並進はズーム中=パン / 等倍=ホイール。 */
+    /** 2 本指の移動 1 フレーム分を処理: ピンチでズーム、並進でパン。ホイールは3本指だけ。 */
     private fun handleTwoFingerTransform(event: MotionEvent) {
         val vp = viewport ?: return
         val c = centroidOf(event)
@@ -452,10 +454,11 @@ class GuiInputView(context: Context) : View(context) {
             val newScale = (vp.scale * (span / prevSpan)).coerceIn(1f, MAX_ZOOM)
             if (newScale != vp.scale) zoomAround(vp, newScale, cx, cy)
         }
-        // 2) 並進: ズーム中はパン / 等倍はホイール
+        // 縮小して等倍へ戻ってもホイールへ切り替えない。
+        // 背景上のホイールは接続先でデスクトップ切替に割り当てられることがある。
         val dx = cx - prevCx
         val dy = cy - prevCy
-        if (vp.scale > 1f + 1e-3f) panBy(vp, dx, dy) else accumulateWheel(dy, cx, cy)
+        panBy(vp, dx, dy)
 
         prevSpan = span
         prevCx = cx
@@ -526,7 +529,7 @@ class GuiInputView(context: Context) : View(context) {
         return panX.coerceIn(-maxX, maxX) to panY.coerceIn(-maxY, maxY)
     }
 
-    /** 等倍時の 2 本指縦移動 (画面 px) を貯めて一定量ごとにホイール 1 ノッチを送る。 */
+    /** 3 本指の縦移動 (画面 px) を貯めて一定量ごとにホイール 1 ノッチを送る。 */
     private fun accumulateWheel(dyScreen: Float, cx: Float, cy: Float) {
         val (fx, fy) = toFb(cx, cy) ?: return
         val c = desktopClient ?: return

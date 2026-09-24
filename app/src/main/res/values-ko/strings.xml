@@ -34,8 +34,8 @@
     <string name="tip_esc_flick_body">위로 플릭하면 붙여넣기, 아래로 플릭하면 이모지입니다. ESC를 누르고 있으면 키 위에 \"▲📋 ▼😀\"가 떠오르므로 거기서 플릭하세요.</string>
     <string name="tip_backspace_flick_title">⌫를 좌우로 플릭하면 한 번에 더 많이 지웁니다</string>
     <string name="tip_backspace_flick_body">왼쪽으로 플릭하면 한 단어, 오른쪽으로 플릭하면 줄 앞까지 지웁니다. 백스페이스를 누르고 있는 것보다 훨씬 빠릅니다.</string>
-    <string name="tip_gui_scroll_title">GUI 안의 앱은 두 손가락으로 스크롤합니다</string>
-    <string name="tip_gui_scroll_body">두 손가락을 위아래로 움직이세요. 확대하고 있을 때는 두 손가락이 화면 이동이 되므로, 그때는 세 손가락으로 스크롤하세요.</string>
+    <string name="tip_gui_scroll_title">GUI 안의 앱은 세 손가락으로 스크롤합니다</string>
+    <string name="tip_gui_scroll_body">세 손가락을 위아래로 움직여 스크롤하세요. 두 손가락은 확대·축소와 화면 이동에 사용하며 화면에 맞게 축소해도 스크롤로 바뀌지 않습니다.</string>
     <string name="tip_gui_clean_title">z2gui clean이라고 입력하면 GUI를 다시 설치합니다</string>
     <string name="tip_gui_clean_body">데스크톱이 더 이상 뜨지 않을 때 — 대개 설치가 도중에 실패한 경우입니다 — 터미널에서 z2gui clean을 실행하세요. 패키지 캐시를 지우고 GUI 한 벌을 다시 설치하며, 여러분의 파일에는 손대지 않습니다. 다시 설치하고 그대로 실행하려면 z2gui start clean을 쓰세요.</string>
     <string name="tip_z2_commands_title">z2term이라고 입력하면 전용 명령 목록이 나옵니다</string>

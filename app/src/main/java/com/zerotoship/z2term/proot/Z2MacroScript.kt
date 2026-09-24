@@ -714,6 +714,8 @@ internal val rssNotificationAction = """case "${'$'}Z2_WHEN_EVENT_NAME" in rss:*
  * まま端末側だけが進んでいたため、`z2-macro list` が「差分あり」と言い続ける状態だった。
  */
 private fun rssBody(d: String, t: CliText): String {
+    val feedManager = rssFeedsScript(d, t)
+    val cSubscriptions = rssFeedsLabel(t)
     val head = t(
         en = """
 #
@@ -1072,6 +1074,8 @@ PAGE="${d}DIR/latest.html"
 KEEP=500                                  # $cKeep
 HITMAX=5                                  # $cHitMax
 
+$feedManager
+
 $cPageDoc
 build_page() {
   # 0.8.628 より前から使っている人のぶんは latest.txt から起こす (時刻は分からないので 0)。
@@ -1152,11 +1156,18 @@ finally:
 Z2RSS_HTML
 }
 
+case "${d}1" in
+  feeds|feed-add|feed-edit|feed-remove)
+    command -v python3 >/dev/null 2>&1 || { echo "$cNoPy" >&2; exit 1; }
+    manage_feeds "${d}@"
+    exit ${d}? ;;
+esac
+
 if [ "${d}1" = view ]; then
   build_page || exit 1
   controls=${d}(mktemp "${d}DIR/.controls-XXXXXXXX") || exit 1
   trap 'rm -f "${d}controls"' 0
-  printf '%s\n' '{"handler":"rss.sh","refresh":["refresh-view"]}' > "${d}controls"
+  printf '%s\n' '{"handler":"rss.sh","refresh":["refresh-view"],"actions":[{"id":"feeds","label":"$cSubscriptions","args":["feeds"],"toolbar":true}]}' > "${d}controls"
   z2-view --controls "${d}controls" "${d}PAGE" "$cPageTitle"
   exit ${d}?
 fi

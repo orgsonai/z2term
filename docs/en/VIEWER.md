@@ -125,4 +125,6 @@ z2-edge on
 
 RSS displays saved articles immediately and fetches feeds on manual refresh. Article links open the external browser. Its existing Python 3 standard-library prerequisite remains unchanged.
 
+Use Subscriptions in the article view to add, change or remove feed URLs. Changes apply on the next poll; collected articles are kept. Return with Articles and refresh to fetch the new subscriptions. `rss.sh feeds` also opens the subscription list.
+
 The reminder macro generates HTML and form JSON with `sh` and `awk`. Add specifies content, date/time and repetition, with optional text scheduling that overrides the date and repetition fields. Weekly repetition uses the selected date's weekday. Scheduled, repeating and notified entries are distinct; notified does not mean completed. Row deletion uses a stable ID and cancels pending alarms, repeating rules and snoozes before removing data. Failed cancellation retains the data. Adding registers the necessary event hooks but does not place tiles. `remind.sh view` provides the same controls in the standalone viewer.

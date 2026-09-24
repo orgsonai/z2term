@@ -130,6 +130,22 @@ class ViewerMacroTest {
         assertTrue(File(f.home, "page.html").readText().contains("</html>"))
     }
 
+    @Test fun rssSubscriptionsAreReachableAndEditableInEveryLanguage() {
+        for (lang in listOf("ja", "en", "zh-CN", "zh-TW", "es", "ko")) Fixture(lang).use { f ->
+            f.macro.writeText(z2MacroSamples(lang).getValue("rss.sh"))
+            assertEquals(0, f.run("view").first)
+            f.jsonCheck("a=next(a for a in d['actions'] if a['id']=='feeds'); assert a['toolbar']; assert a['args']==['feeds']")
+            val added = f.run("feed-add", "https://example.test/rss?a=1&b=2")
+            assertEquals(added.second, 0, added.first)
+            val rss = File(f.home, ".z2term/rss")
+            assertEquals("https://example.test/rss?a=1&b=2\n", File(rss, "feeds.txt").readText())
+            f.jsonCheck("assert d['refresh']==['feeds','0']; a=next(a for a in d['actions'] if a['id']=='edit-0'); assert a['fields'][0]['default']=='https://example.test/rss?a=1&b=2'")
+            assertEquals(0, f.run("feeds").first)
+            assertTrue(File(f.home, "page.html").readText().contains("https://example.test/rss?a=1&amp;b=2"))
+            assertFalse(File(f.home, "calls").exists())
+        }
+    }
+
     @Test fun independentExampleMacroUsesTheSameFormProtocolAndKeepsInputLiteral() = Fixture().use { f ->
         var root = File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
         while (!File(root, "settings.gradle.kts").isFile) root = root.parentFile ?: error("Repository not found")

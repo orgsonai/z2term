@@ -1126,6 +1126,7 @@ Android 15+ では **SMS の OTP は通知経由だと伏せ字**になり、通
 | 通知の操作 | `event:notify_action` で `Z2_WHEN_ACTION` を見て、記事と一覧を振り分ける |
 | 記事を開く | `z2-open <URL>`。URL は通知名の `rss:` より後ろ |
 | 一覧を読む | `sh ~/.z2term/macros/rss.sh view` がサイトごとの一覧を `z2-view` で開く |
+| 購読先を変える | ビューの「購読先」で URL を追加・変更・削除。次の巡回から反映し、取得済みの記事は保持 |
 
 通知操作の登録例:
 

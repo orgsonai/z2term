@@ -1151,6 +1151,7 @@ The macro installed by `z2-macro install rss` combines polling, keeping new item
 | Notification actions | `event:notify_action` routes `Z2_WHEN_ACTION` to the article or list |
 | Opening an article | `z2-open <URL>`, using the URL after `rss:` in the notification name |
 | Reading the list | `sh ~/.z2term/macros/rss.sh view` opens articles grouped by site through `z2-view` |
+| Managing subscriptions | Use Subscriptions in the view to add, change or remove URLs; the next poll uses the changes and collected articles are kept |
 
 Register notification actions with:
 

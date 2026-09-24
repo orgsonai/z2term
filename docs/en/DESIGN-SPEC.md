@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-23 / Target version: 0.8.651-alpha (versionCode 659)
+Last updated: 2026-09-24 / Target version: 0.8.652-alpha (versionCode 660)
+
+**0.8.652-alpha (versionCode 660) — build unverified**: RSS views can add, change and remove subscriptions. GUI pinch-to-fit no longer emits wheel input that could switch virtual desktops; explicit desktop switching is available in the background context menu.
 
 **0.8.651-alpha (versionCode 659)**: SSH destinations have an optional "Address at home". From home Wi-Fi, connecting to your home's public address failed with `ConnectException` for VNC, RDP and the shell on some routers. With a home address set, z2term connects there directly, without jump hosts, only when on the same network and it answers; away from home the public address is used as before.
 
@@ -1330,6 +1332,9 @@ to be compared against `qrencode` module by module).
   sections are separated by blank lines, so a stopping version prints only the first two lines — the
   same hole `remind.sh` fell into in 0.8.288.
 
+**RSS subscription management**: Use Subscriptions in the article view to add, change or remove feed URLs. Changes apply on the next poll; collected articles are kept. Return with Articles and refresh to fetch the new subscriptions. `rss.sh feeds` also opens the subscription list.
+Subscriptions are paged in groups of 20 and identified by URL hashes. Duplicate or invalid URLs and stale edits are rejected; writes use locking and atomic replacement. This uses generic forms with no new dependencies.
+
 **Reminders are deliberately not an app feature** (`remind.sh`, 0.8.275): the request was "remind me with a notification, repeating and one-shot, and it has to work with the app closed", and **no reminder screen and no reminder storage were added to the app**. Every part existed: one-shots are `z2-alarm`, repeats are `z2-when time:`, firing is `z2-notify -b`, the reply comes back through `event:notify_action`, and adding one without opening the app is `z2-tile` + `z2-ask`. Only the worked example was missing, which puts it in the same position as `rss.sh`.
 
 - **One-shot and repeating live in different places.** ⚠ Making one-shots rules too would pile up dead entries: `time:at=` disables itself after firing, but **the rule itself stays**. So a one-shot is a `z2-alarm` booking (gone once it rings) with a **single permanent** `event:alarm` rule to catch it. Repeats go the other way — doing them with `z2-alarm` would need one catcher per reminder — so they become `z2-when time:` rules and get the automation tab's toggles and ▶ dry-run for free.
@@ -1988,7 +1993,7 @@ been told, they do not exist. In the user's words: "**nobody can tell**".
 - The eight entries were picked one by one by the user: toolbar double-tap (**without enumerating
   each button** — "there is a second function" is enough, because one example is all anyone needs
   before trying the rest), closing a tab, reordering tabs, the ESC flicks, the ⌫ flicks, scrolling
-  inside a GUI app (two fingers; three while zoomed in, because two fingers pan there),
+  inside a GUI app (three fingers; two fingers zoom and pan),
   `z2term` for the command list plus `--help` (0.8.401 — it first said "type `z2` and press Tab", but ⚠ **completion depends on the shell and its completion setup**, so it now points at the existing command that always prints the list; `z2term` is a thin alias for `z2help`, placed by `ProotLauncher.ensureZ2HelpScript` on every launch), and that an AI can write macros (with reminders,
   RSS and logging unknown callers as examples of **things that are macros rather than app features**).
 - ⭐ **0.8.519 adds "reinstall the GUI with `z2gui clean`".** Since 0.8.507 took the clean-install
@@ -2183,6 +2188,7 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
   - ⚠ **Intermediate values are truncated to 16 bits**, exactly as the reference does. Keeping them in 32 bits diverges wherever a value overflows.
   - ⚠ Composition for an unscaled mapping is a **row-wise copy**. The output is walked every frame at 2400x1080, so dividing per pixel by the scale factor is far too slow there.
 - **Input**: `GuiInputView` gestures — **2 fingers = pinch (zoom/pan)**, **3-finger vertical move = wheel up/down scroll** (once it becomes 3 fingers, it's treated as scroll until all fingers lift). The old scroll buttons and `RfbClient.scrollWheel` were removed.
+  Two-finger GUI gestures only zoom and pan, without sending wheel input when zooming back to fit. Use three fingers to scroll inside applications. To switch local GUI desktops, right-click the background (place the pointer there and long-press), then choose Virtual desktops → Previous desktop / Next desktop. The new menu appears after restarting the GUI.
 - **Video**: because `gpu` output fails on GPU-less devices, mpv plays correctly with **`vo=x11` default + `LIBGL_ALWAYS_SOFTWARE`** software rendering.
 - **Audio (`service/AudioBridge.kt`)**: **opt-in** (the GUI uses the "GUI audio" setting `guiAudioEnabled`; terminals use an explicit `z2-audio run`). In-distro PulseAudio (started with the `-n` method) → TCP → bridged to Android `AudioTrack`.
 
