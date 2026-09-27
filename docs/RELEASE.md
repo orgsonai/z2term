@@ -1,6 +1,6 @@
 # Z2Term リリース手順
 
-最終更新: 2026-08-26
+最終更新: 2026-09-27
 
 F-Droid への提出手順は別紙 `docs/FDROID.md`（F-Droid は APK ではなくソースから自分で
 ビルドするので、ここに書く GitHub Releases 向けの手順とは別物）。
@@ -61,7 +61,7 @@ APKSIGNER=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1)
 `v*` タグを push すると、GitHub Actions (`.github/workflows/build.yml` の `release` ジョブ) が
 **署名済み release APK** をビルドして GitHub Release に添付する。認証は Actions 組み込みの
 `GITHUB_TOKEN`(自動発行)なので **PAT を手元に置く必要がない**。
-添付名はタグから作る (`v0.8.359-alpha` → `z2term-0.8.359-alpha.apk`)。
+添付名はタグから作る (`v0.9.0` → `z2term-0.9.0.apk`)。
 
 ### 一度だけ: リポジトリ Secrets を登録
 
@@ -86,9 +86,19 @@ Secret が未登録だと debug 署名事故を防ぐためジョブは**明示�
 
 ```bash
 # 版数を上げてコミット済みの状態で、そのコミットにタグを打って push (SSH。PAT 不要)
-git tag v0.8.xxx-alpha
-git push origin v0.8.xxx-alpha
+git tag v0.9.x
+git push origin v0.9.x
+git push github v0.9.x
 ```
+
+### 版数の付け方 (0.9.0 から)
+
+- **0.9.0 = 安定版 1.0 の候補。** 0.8 系の `-alpha` はここで終わり。
+- 1.0 までは**不具合の修正だけ**を `0.9.1`, `0.9.2`, … として出す。機能追加は 1.0 の後に回す。
+- 問題が出なくなったら `1.0.0` にする。
+- タグは `v` + 数字だけにする。F-Droid はこの形のタグだけを追う (`docs/FDROID.md` §6)。
+  GitHub だけに出す試験版は `-rc` などを付ければ F-Droid には流れない。
+- versionCode は版数と関係なく、今まで通り 1 ずつ上げる。
 
 - `build` ジョブ(lint/テスト/debug ビルド)を通過後に `release` ジョブが走る。
 - リリースが未作成なら **新規作成して Latest** に、既にあれば **APK を差し替え** (`--clobber`)。

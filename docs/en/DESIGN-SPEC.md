@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-27 / Target version: 0.8.654-alpha (versionCode 662)
+Last updated: 2026-09-27 / Target version: 0.9.0 (versionCode 663)
+
+**0.9.0 (versionCode 663), release candidate, build unverified**: This ends the 0.8 alpha series and is the candidate for the 1.0 stable release. Features are unchanged from 0.8.654. Until 1.0, only bug fixes ship, as 0.9.x. F-Droid submission starts with this version.
 
 **0.8.654-alpha (versionCode 662), build unverified**: Settings gains an “Edge panels” group whose “Open edge panel settings” goes straight to the panel settings screen. It works while the panels are off: the edge bar stays hidden and they stay off after you close it. With no panel yet it opens the edge-panel guide, and without the display-over-other-apps permission it opens that permission screen.
 

@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.654-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.0.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -924,6 +924,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.0 (versionCode 663), release candidate, build unverified**: This ends the 0.8 alpha series and is the candidate for the 1.0 stable release. Features are unchanged from 0.8.654. Until 1.0, only bug fixes ship, as 0.9.x. F-Droid submission starts with this version.
 
 **0.8.654-alpha (versionCode 662), build unverified**: Settings gains an “Edge panels” group whose “Open edge panel settings” goes straight to the panel settings screen. It works while the panels are off: the edge bar stays hidden and they stay off after you close it. With no panel yet it opens the edge-panel guide, and without the display-over-other-apps permission it opens that permission screen.
 

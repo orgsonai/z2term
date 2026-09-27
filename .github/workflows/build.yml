@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'リリースするタグ (例: v0.8.190-alpha)'
+        description: 'リリースするタグ (例: v0.9.0)'
         required: true
 
 jobs:
@@ -187,7 +187,7 @@ jobs:
           else
             echo "::warning::apksigner not found — skipped the signature check."
           fi
-          # 配布名はタグから作る (v0.8.359-alpha → z2term-0.8.359-alpha.apk)。
+          # 配布名はタグから作る (v0.9.0 → z2term-0.9.0.apk)。
           # ビルド成果物名 (app-release.apk) のままだと、どの版か落としてから分からない。
           ASSET="z2term-${TAG#v}.apk"
           cp "$APK" "$ASSET"

@@ -1,0 +1,9 @@
+0.9.0 — release candidate
+
+- First release on F-Droid.
+- Edge panels are arranged in rows; settings split into Layout, Panel,
+  Actions and Manage. Drag the preview to reorder and resize rows.
+- Settings › Edge panels opens panel settings even while panels are off.
+- SSH hosts gain an address to use at home.
+- Fixed GUI pinch gestures and Japanese menu text.
+- Cleared every lint warning and fixed the bugs it found.
