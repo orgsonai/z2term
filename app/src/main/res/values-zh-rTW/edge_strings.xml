@@ -217,4 +217,8 @@
     <string name="edge_sketch_height">第 %1$d 列高度：面板的 %2$d%%</string>
     <string name="edge_sketch_widths">第 %1$d 列寬度：%2$s</string>
     <string name="edge_rows_reset">全部大小恢復為自動</string>
+    <string name="settings_group_edge_desc">開啟面板設定、建立面板</string>
+    <string name="settings_edge_open">開啟邊緣面板設定</string>
+    <string name="settings_edge_hint">邊緣面板關閉時也能開啟：此時不顯示邊緣條，關閉設定後仍保持關閉。還沒有面板時會開啟建立指南。</string>
+    <string name="settings_edge_overlay">請允許 z2term 顯示於其他應用程式上層，然後再點一次。</string>
 </resources>

@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.653-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.654-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -895,6 +895,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 ## 9.6. Floating edge panels
 
+**Opening from Settings (0.8.654)**: Settings › Edge panels › “Open edge panel settings” also opens the settings screen. It works while the panels are off: the edge bar stays hidden and they stay off after you close it. With no panel yet the edge-panel guide opens instead, and without the overlay permission its permission screen opens.
+
 **Sample panel and guide (0.8.601, 0.8.603)**: Turning panels on does not create a panel. Settings › Maintenance › Show a guide › “edge-panel” lets you tap through the overlay permission, the accessibility service, creating the sample panel and turning the panel on. The sample is an app list opened from a bar on the right edge, listing the z2term, browser, camera, phone, messages and settings apps found on this device. Its guide card shows the exact `z2-edge panel` and `z2-edge set` line it sends. Swipe the bar inward to open it. Add apps with the panel's “+”. Scrolling by swiping the bar up and down requires the “z2term Android actions” accessibility service. With the panel open, long-press outside the menu to open settings. 0.8.601–0.8.602 created the sample automatically when panels were turned on with none defined.
 
 **ON/OFF buttons (0.8.589)**: In the panel editor, edit an application, macro or run item and enable **Show ON/OFF**. ON uses a thicker coloured border and background; OFF uses a subtle border. No ON/OFF text or check marks are added to the menu, including icon-only layouts. The optional OFF command defaults to the same command. A state query should return `on/off`, `true/false` or `1/0`. Without a query, successful toggles are remembered; external changes and application exits are not detected. Failed or timed-out commands do not flip the state. State survives reopening and app restart, and command-definition changes invalidate it. Queries run on opening, after successful actions and at the configured refresh interval. Macros can also report state with `z2-edge state PANEL:ITEM on` / `off`.
@@ -922,6 +924,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.8.654-alpha (versionCode 662), build unverified**: Settings gains an “Edge panels” group whose “Open edge panel settings” goes straight to the panel settings screen. It works while the panels are off: the edge bar stays hidden and they stay off after you close it. With no panel yet it opens the edge-panel guide, and without the display-over-other-apps permission it opens that permission screen.
 
 **0.8.653-alpha (versionCode 661)**: Local GUI menus can use existing Android fonts for Japanese text. The keyboard toggle strip is removed; double-tap ⌨ in the toolbar to show or hide the keyboard. The accessory bar toggle and editor are now in Key layout (your own), with shared positions, widths, splits and gesture bindings for terminal and GUI tabs. Existing on/off preferences are retained. Close and reopen GUI after updating. Desktop release build, 168 related unit tests and lint (zero errors/warnings) passed. GUI rendering and touch interaction remain unverified on device.
 

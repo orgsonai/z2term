@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.8.654-alpha (versionCode 662), build unverified**: Settings gains an “Edge panels” group whose “Open edge panel settings” goes straight to the panel settings screen. It works while the panels are off: the edge bar stays hidden and they stay off after you close it. With no panel yet it opens the edge-panel guide, and without the display-over-other-apps permission it opens that permission screen.
+
 **0.8.653-alpha (versionCode 661)**: Local GUI menus can use existing Android fonts for Japanese text. The keyboard toggle strip is removed; double-tap ⌨ in the toolbar to show or hide the keyboard. The accessory bar toggle and editor are now in Key layout (your own), with shared positions, widths, splits and gesture bindings for terminal and GUI tabs. Existing on/off preferences are retained. Close and reopen GUI after updating. Desktop release build, 168 related unit tests and lint (zero errors/warnings) passed. GUI rendering and touch interaction remain unverified on device.
 
 **0.8.652-alpha (versionCode 660) — build unverified**: RSS views can add, change and remove subscriptions. GUI pinch-to-fit no longer emits wheel input that could switch virtual desktops; explicit desktop switching is available in the background context menu.

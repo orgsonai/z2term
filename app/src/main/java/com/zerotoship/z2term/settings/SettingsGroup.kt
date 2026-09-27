@@ -82,6 +82,17 @@ enum class SettingsGroup(
      * (0.8.597) や接続先・スニペットの見出し (0.8.601) に置いたが、どちらもその場所の機能に見えて
      * 違和感があった (利用者の指摘)。どこからでも呼べる入口は `z2-qr` (タイル・エッジパネル)。
      */
+    /**
+     * エッジパネルの設定への入口 (0.8.654)。それまでは端のバーからパネルを開き、メニューの外を
+     * 長押しするしか入る道が無く、オフのままでは設定を触れなかった (利用者の指摘)。
+     */
+    EDGE_PANEL(
+        "edge_panel",
+        R.string.edge_title,
+        R.string.settings_group_edge_desc,
+        false
+    ),
+
     QR_TOOLS(
         "qr_tools",
         R.string.settings_group_qr_tools,

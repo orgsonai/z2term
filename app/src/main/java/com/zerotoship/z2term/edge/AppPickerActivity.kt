@@ -117,7 +117,7 @@ class AppPickerActivity : Activity() {
                             "label" to entry.loadLabel(packageManager).toString().replace('\n', ' ').replace('\r', ' '),
                             "icon" to "@app:$pkg") + placement)
                         EdgeRuntime.reload(this)
-                        if (store.enabled()) EdgeRuntime.open(panel, settings = intent.getBooleanExtra("editPanel", false), page = 0)
+                        reopen(panel)
                     }
                     request?.let { pending[it]?.complete(pkg) }
                     selected = true
@@ -131,6 +131,13 @@ class AppPickerActivity : Activity() {
         main.postDelayed(expire, (deadline - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(0))
     }
 
+    /** Back to the panel the pick came from, including settings opened from the app while the panels are off. */
+    private fun reopen(panel: String) {
+        val settings = intent.getBooleanExtra("editPanel", false)
+        if (EdgeRuntime.store(this).enabled()) EdgeRuntime.open(panel, settings = settings, page = 0)
+        else if (settings) EdgeRuntime.openSettings(this, panel)
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         if (::search.isInitialized) outState.putString("query", search.text.toString())
         super.onSaveInstanceState(outState)
@@ -140,10 +147,7 @@ class AppPickerActivity : Activity() {
         main.removeCallbacks(expire)
         if (isFinishing && !isChangingConfigurations && !selected && intent.hasExtra("panel")) {
             intent.getStringExtra("panel")?.let { panel ->
-                runCatching {
-                    if (EdgeRuntime.store(this).enabled()) EdgeRuntime.open(panel,
-                        settings = intent.getBooleanExtra("editPanel", false), page = 0)
-                }
+                runCatching { reopen(panel) }
             }
         }
         if (!isChangingConfigurations && !selected) intent.getStringExtra("request")?.let {

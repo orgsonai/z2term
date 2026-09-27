@@ -1354,6 +1354,55 @@ fun SettingsSheet(
                 }
             }
 
+            SettingsGroupSection(SettingsGroup.EDGE_PANEL) {
+                // エッジパネルの設定の入口 (0.8.654)。オフのままでも設定だけを開く
+                // (端のバーは出さず、閉じてもオフのまま・利用者の選択)。重ねて表示の許可が
+                // 無ければ許可の画面へ、パネルがまだ無ければ作り方の案内へ回す。
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable {
+                            val edge = com.zerotoship.z2term.edge.EdgeRuntime
+                            if (!android.provider.Settings.canDrawOverlays(context)) {
+                                runCatching { com.zerotoship.z2term.edge.EdgeCommands.command(context, listOf("permission")) }
+                                Toast.makeText(context, R.string.settings_edge_overlay, Toast.LENGTH_LONG).show()
+                            } else if (runCatching { edge.store(context).panels().isEmpty() }.getOrDefault(true)) {
+                                onShowGuide(Guide.EDGE_PANEL)
+                            } else {
+                                runCatching { edge.openSettings(context) }.onFailure {
+                                    Toast.makeText(context, it.message ?: it.toString(), Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                        .background(ZtsBgCard)
+                        .border(width = 1.dp, color = ZtsBorder, shape = RoundedCornerShape(4.dp))
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_edge_open),
+                        color = ZtsTextPrimary,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                    Box(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "›",
+                        color = ZtsTextSecondary,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.settings_edge_hint),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
             SettingsGroupSection(SettingsGroup.QR_TOOLS) {
                 // QR ツールの入口 (0.8.602)。行ごと押せると分かるよう、ライセンスの行と同じ「枠 + ›」にする。
                 Row(

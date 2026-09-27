@@ -217,4 +217,8 @@
     <string name="edge_sketch_height">Altura de la fila %1$d: %2$d%% del panel</string>
     <string name="edge_sketch_widths">Anchos de la fila %1$d: %2$s</string>
     <string name="edge_rows_reset">Restablecer todos los tamaños</string>
+    <string name="settings_group_edge_desc">Abrir los ajustes de los paneles y crear paneles</string>
+    <string name="settings_edge_open">Abrir los ajustes de los paneles laterales</string>
+    <string name="settings_edge_hint">Funciona con los paneles apagados: la barra del borde no aparece y siguen apagados al cerrar. Si aún no hay ningún panel, se abre la guía de creación.</string>
+    <string name="settings_edge_overlay">Permite que z2term se muestre sobre otras aplicaciones y vuelve a tocar.</string>
 </resources>

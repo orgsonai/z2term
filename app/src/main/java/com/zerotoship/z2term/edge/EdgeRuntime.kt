@@ -104,6 +104,8 @@ object EdgeRuntime {
     private var generation = 0
     private var serviceRequested = false
     private var actionsSuspended = false
+    /** Settings opened from the app while the panels are off: no edge bar and no service. */
+    private var borrowed = false
     private val iconCache = android.util.LruCache<String, android.graphics.drawable.Drawable>(128)
 
     fun store(context: Context) = EdgeStore(File(context.filesDir, "shared_home/.z2term/edge"))
@@ -114,7 +116,7 @@ object EdgeRuntime {
         actionsSuspended = suspended
         if (suspended) { close(); stopHandleScroll() }
         handles.values.forEach { it.visibility = if (suspended || !unlocked()) View.GONE else View.VISIBLE }
-        if (!suspended && app != null && unlocked() && handles.isEmpty()) showHandles()
+        if (!suspended && app != null && !borrowed && unlocked() && handles.isEmpty()) showHandles()
     }
 
     fun <T> onMain(block: () -> T): T {
@@ -244,7 +246,7 @@ object EdgeRuntime {
             val previous = openRootId
             val wasEditing = editingItems
             close(); removeHandles(); iconCache.evictAll()
-            if (unlocked()) { showHandles(); if (previous != null) open(previous, settings = wasEditing) }
+            if (unlocked()) { if (!borrowed) showHandles(); if (previous != null) open(previous, settings = wasEditing) }
         }.onFailure { fail(it) }
     }
 
@@ -254,6 +256,7 @@ object EdgeRuntime {
         // No panel is created here (0.8.603, the user's decision): the edge-panel guide creates the sample.
         initialize(context)
         store(context).enable(true)
+        borrowed = false
         try { reload(context); startService() } catch (e: Exception) {
             store(context).enable(false); destroy(); throw e
         }
@@ -289,12 +292,12 @@ object EdgeRuntime {
         panels = emptyList(); values.clear(); badges.clear(); revisions.clear(); iconCache.evictAll()
         configurationCallback?.let { windowContext?.unregisterComponentCallbacks(it) }
         configurationCallback = null; windowContext = null
-        app = null; serviceRequested = false
+        app = null; serviceRequested = false; borrowed = false
     }
 
     fun reload(context: Context): Unit = onMain {
         val loaded = store(context).panels() // Reject invalid definitions before disturbing visible state.
-        if (!store(context).enabled()) {
+        if (!store(context).enabled() && !borrowed) {
             com.zerotoship.z2term.viewer.ViewerStore.prune(context, loaded)
             return@onMain
         }
@@ -312,7 +315,7 @@ object EdgeRuntime {
         values.keys.retainAll(targets); revisions.keys.retainAll(targets)
         badges.keys.retainAll(panels.map { it.id }.toSet())
         if (unlocked()) {
-            showHandles()
+            if (!borrowed) showHandles()
             if (panels.any { it.id == previous }) open(previous!!, settings = wasEditing)
         }
     }
@@ -758,7 +761,7 @@ object EdgeRuntime {
             if (panelView?.finishInput() != true) editorSession?.leave { close() } ?: close()
             return@onMain
         }
-        require(app != null && store(app!!).enabled()) { "Enable the panel first: z2-edge on" }
+        require(app != null && (store(app!!).enabled() || borrowed)) { "Enable the panel first: z2-edge on" }
         require(unlocked()) { "Unlock the screen before opening the panel" }
         stopHandleScroll()
         val requested = panels.firstOrNull { it.id == id } ?: throw IllegalArgumentException("No panel: $id")
@@ -1245,7 +1248,37 @@ object EdgeRuntime {
         }
     }
 
-    fun close() = onMain { clearPanel(keepWindow = false) }
+    fun close(): Unit = onMain {
+        clearPanel(keepWindow = false)
+        // Borrowed settings end when nothing reopens them. The editor often closes and reopens
+        // in one step (rename, remove, reload), so decide after the current work has run.
+        if (borrowed) main.post { if (borrowed && panelView == null) destroy() }
+        Unit
+    }
+
+    /**
+     * Opens panel settings from the app's settings screen. While the panels are off, only the
+     * settings window appears (no edge bar and no service), and closing it leaves them off.
+     */
+    fun openSettings(context: Context, panelId: String? = null): Unit = onMain {
+        require(Settings.canDrawOverlays(context)) { context.getString(R.string.edge_overlay_help) }
+        require(unlockedContext(context)) { "Unlock the screen before opening the panel" }
+        if (store(context).enabled()) restore(context)
+        else {
+            if (app == null) initialize(context)
+            borrowed = true
+            try { reload(context) } catch (e: Exception) { destroy(); throw e }
+        }
+        val roots = panels.filter { candidate -> panels.none { candidate.id in it.tabs } }
+        val target = panelId?.takeIf { id -> panels.any { it.id == id } } ?: roots.firstOrNull()?.id
+        try {
+            requireNotNull(target) { "No panel: z2-edge panel" }
+            open(target, settings = true, page = 0)
+        } catch (e: Exception) {
+            if (borrowed && panelView == null) destroy()
+            throw e
+        }
+    }
 
     private fun clearPanel(keepWindow: Boolean) {
         editorSession?.dispose()
