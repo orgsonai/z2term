@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.2.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.3.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -926,6 +926,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.3 (versionCode 666), release candidate**: Fixes background-server start-time checks still failing when the Linux root directory is not writable. Compatibility snapshots are created in `/tmp` and removed after opening for reading. Connections through absolute symlinks to Unix sockets also work. Open a new terminal tab after updating.
 
 **0.9.2 (versionCode 665), release candidate**: Improves background-server startup compatibility. Adds a boot-time fallback when Android denies system statistics, and supports Unix socket paths that become too long after rootfs translation. Open a new terminal tab after updating.
 

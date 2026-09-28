@@ -149,7 +149,7 @@ struct pid_state {
     int pending_open_kind;  // fakeroot: openat entry で偽装対象 proc パスを検出した種別(exit で fd を採取)
     int status_fds[STATUS_FD_MAX];      // fakeroot: 偽装対象 proc を指す fd 群, -1=空
     int status_fd_kind[STATUS_FD_MAX];  // 上記 fd の種別(PROC_FD_*), status_fds と添字対応
-    int subst_active;       // readfree: openat で /proc を temp 差し替え中(exit で temp を unlink)
+    char *subst_path;      // /proc 差し替え用 temp の実パス。openat-exit / tracee 終了時に解放
     int link_pending;       // link2symlink: linkat を実ハードリンクで試行中(exit で失敗ならコピーfallback)
     int link_follow;        // 上記 linkat の AT_SYMLINK_FOLLOW(コピー時に symlink を辿るか)
     char link_oldhost[PATH_MAX_Z];  // 同 old のホスト実パス(コピー元)
@@ -218,6 +218,14 @@ static void rootfs_select(pid_t pid) {
 #define EFF_ROOTFS(cfg)     (g_rootfs_cur ? g_rootfs_cur : (cfg)->rootfs)
 #define EFF_ROOTFS_LEN(cfg) (g_rootfs_cur ? g_rootfs_cur_len : (cfg)->rootfs_len)
 
+// openat が完了する前に tracee が終了した場合も一時ファイルを残さない。
+static void subst_cleanup(struct pid_state *st) {
+    if (!st->subst_path) return;
+    unlink(st->subst_path);
+    free(st->subst_path);
+    st->subst_path = NULL;
+}
+
 static struct pid_state *state_for(pid_t pid) {
     int free_slot = -1;
     for (int i = 0; i < MAP_CAP; i++) {
@@ -231,7 +239,7 @@ static struct pid_state *state_for(pid_t pid) {
     g_map[free_slot].started = 0;
     g_map[free_slot].pending_open_kind = PROC_FD_NONE;
     g_map[free_slot].aux_kind = PROC_FD_NONE;
-    g_map[free_slot].subst_active = 0;
+    g_map[free_slot].subst_path = NULL;
     g_map[free_slot].link_pending = 0;
     g_map[free_slot].exe_guest[0] = '\0';
     g_map[free_slot].aux_is_self_exe = 0;
@@ -258,7 +266,11 @@ static struct pid_state *state_lookup(pid_t pid) {
 
 static void state_drop(pid_t pid) {
     for (int i = 0; i < MAP_CAP; i++) {
-        if (g_map[i].used && g_map[i].pid == pid) { g_map[i].used = 0; return; }
+        if (g_map[i].used && g_map[i].pid == pid) {
+            subst_cleanup(&g_map[i]);
+            g_map[i].used = 0;
+            return;
+        }
     }
 }
 
@@ -2143,38 +2155,35 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
         }
     }
 
-    // rootfs 内 temp(tid 名)へ書き出す。同 tid の openat entry→exit は直列なので
-    // 同名の衝突は起きない(超える前に exit で unlink される)。
-    char tmp[PATH_MAX_Z];
-    snprintf(tmp, sizeof(tmp), "%s/.z2subst.%d", cfg->rootfs, (int)pid);
-    int wfd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+    // rootfs の / は 0555 の場合がある。実効 rootfs / bind を解決した
+    // /tmp へ排他的に作り、固定名や既存 symlink を上書きしない。
+    char dir[PATH_MAX_Z], tmp[PATH_MAX_Z];
+    if (host_path_for(cfg, pid, "/tmp", 1, AT_FDCWD, dir, sizeof(dir)) != 0)
+        return 0;
+    int n = snprintf(tmp, sizeof(tmp), "%s/.z2subst.XXXXXX", dir);
+    if (n < 0 || (size_t)n >= sizeof(tmp)) return 0;
+    int wfd = mkstemp(tmp);
     if (wfd < 0) return 0;
-    if (total > 0 && write(wfd, buf, total) != (ssize_t)total) { close(wfd); unlink(tmp); return 0; }
+    if (fcntl(wfd, F_SETFD, FD_CLOEXEC) != 0 ||
+        (total > 0 && write(wfd, buf, total) != (ssize_t)total)) {
+        close(wfd); unlink(tmp); return 0;
+    }
     close(wfd);
+    st->subst_path = strdup(tmp);
+    if (!st->subst_path) { unlink(tmp); return 0; }
 
     // openat のパス引数を temp のホスト実パスへ差し替える(スタック下スクラッチ)。
-    // tmp は cfg->rootfs 配下=host_path_for の二重変換ガードに掛かるが、呼び出し側で
-    // maybe_rewrite_path 自体をスキップするので確実に素通しになる。
+    // /tmp の bind 先も含めた実パスなので、呼び出し側は追加のパス変換を行わない。
     size_t len = strlen(tmp) + 1;
     unsigned long base = scratch_base(regs->sp, (len + 7) & ~7UL);
-    if (write_tracee_mem(pid, base, tmp, len) != 0) { unlink(tmp); return 0; }
+    if (write_tracee_mem(pid, base, tmp, len) != 0) { subst_cleanup(st); return 0; }
     struct user_pt_regs original = *regs;
     regs->regs[1] = base;
     // 元が dirfd 相対の場合は dirfd を AT_FDCWD に倒す(tmp は絶対パスなので dirfd 無関係。
     // 残しておくと procfd 経由の openat と認識され続けて意図しない挙動になり得る)。
     if (from_dirfd) regs->regs[0] = (unsigned long)(unsigned int)AT_FDCWD;
-    if (set_regs(pid, regs) != 0) { *regs = original; unlink(tmp); return 0; }
-    st->subst_active = 1;
+    if (set_regs(pid, regs) != 0) { *regs = original; subst_cleanup(st); return 0; }
     return 1;
-}
-
-// openat-exit: readfree の temp 差し替えで作った temp を消す(ゲストは fd 保持済み)。
-static void subst_on_exit(const struct config *cfg, pid_t pid, struct pid_state *st) {
-    if (!st->subst_active) return;
-    char tmp[PATH_MAX_Z];
-    snprintf(tmp, sizeof(tmp), "%s/.z2subst.%d", cfg->rootfs, (int)pid);
-    unlink(tmp);
-    st->subst_active = 0;
 }
 
 // --link2symlink: ハードリンク linkat(37) のエミュレート。
@@ -2404,8 +2413,9 @@ static void maybe_rewrite_sockaddr(const struct config *cfg, pid_t pid, struct u
     if (guest[0] != '/') { socklog("sock nr=%ld skip: relative '%s'", nr, guest); return; }
 
     char host[PATH_MAX_Z];
-    // ソケット自体 (最終要素) は symlink を辿らない。deref=0。
-    if (host_path_for(cfg, pid, guest, 0, AT_FDCWD, host, sizeof(host)) != 0) { socklog("sock nr=%ld skip: no host path for '%s'", nr, guest); return; }
+    // connect は最終 symlink もゲストの / を基準に解決する。
+    // bind は既存名の衝突を保つため、最終要素を辿らない。
+    if (host_path_for(cfg, pid, guest, nr == 203, AT_FDCWD, host, sizeof(host)) != 0) { socklog("sock nr=%ld skip: no host path for '%s'", nr, guest); return; }
     char shortened[sizeof(un.sun_path)];
     const char *target = host;
     size_t hl = strlen(host);
@@ -3126,8 +3136,8 @@ static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_
     } else if (st->entry_nr == 78 && st->aux_addr) {
         rewrite_readlink_result(cfg, pid, st);
     } else if (cfg->fake_root) {
-        if (st->entry_nr == 56 && st->subst_active) {
-            subst_on_exit(cfg, pid, st);  // readfree: 差し替えた temp を unlink
+        if (st->entry_nr == 56 && st->subst_path) {
+            subst_cleanup(st);  // readfree: 差し替えた temp を unlink
         } else if (st->entry_nr == 56 && st->pending_open_kind != PROC_FD_NONE) {
             struct user_pt_regs r;  // openat 成功なら戻り fd を種別付きで追跡
             if (get_regs(pid, &r) == 0 && (long)r.regs[0] >= 0)

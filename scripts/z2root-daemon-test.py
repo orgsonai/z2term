@@ -22,15 +22,34 @@ def boot_time():
             values = dict(line.split(maxsplit=1) for line in stream if line.strip())
         return int(values["btime"])
 
-    first = read_btime(os.open("/proc/stat", os.O_RDONLY))
-    directory = os.open("/proc", os.O_RDONLY | os.O_DIRECTORY)
+    # Keep both descriptors open across another substitution, then read twice.
+    first_fd = os.open("/proc/stat", os.O_RDONLY)
     try:
-        second = read_btime(os.open("stat", os.O_RDONLY, dir_fd=directory))
+        directory = os.open("/proc", os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            second_fd = os.open("stat", os.O_RDONLY, dir_fd=directory)
+        finally:
+            os.close(directory)
+        second = read_btime(second_fd)
+        snapshot = os.fstat(first_fd)
+        if snapshot.st_dev != os.stat("/proc").st_dev:
+            assert snapshot.st_nlink == 0, "temporary snapshot was not unlinked"
+        first = read_btime(os.dup(first_fd))
+        os.lseek(first_fd, 0, os.SEEK_SET)
+        assert read_btime(os.dup(first_fd)) == first
     finally:
-        os.close(directory)
+        os.close(first_fd)
     expected = (time.time_ns() - time.clock_gettime_ns(time.CLOCK_BOOTTIME)) // 10**9
     assert abs(first - expected) <= 1, (first, expected)
     assert abs(second - first) <= 1, (first, second)
+
+
+def process_identity():
+    values = dict(line.split(":", 1) for line in Path("/proc/self/status").read_text().splitlines())
+    uids = [int(x) for x in values["Uid"].split()]
+    gids = [int(x) for x in values["Gid"].split()]
+    assert uids[:2] == [os.getuid(), os.geteuid()], uids
+    assert gids[:2] == [os.getgid(), os.getegid()], gids
 
 
 def process_start():
@@ -73,6 +92,35 @@ def stream():
                 assert peer.recv(7) == b"request"
                 peer.sendall(b"reply")
                 assert client.recv(5) == b"reply"
+
+
+def socket_symlinks():
+    with tempfile.TemporaryDirectory(prefix="z2d-", dir="/tmp") as directory:
+        path = Path(directory) / ("f" * 64)
+        alias = Path(directory) / "endpoint.sock"
+        with socket.socket(socket.AF_UNIX) as server:
+            server.settimeout(3)
+            server.bind(str(path))
+            server.listen(1)
+            for target in (str(path), path.name):
+                alias.symlink_to(target)
+                # bind must preserve an existing link; only connect follows it.
+                with socket.socket(socket.AF_UNIX) as occupied:
+                    try:
+                        occupied.bind(str(alias))
+                    except OSError as error:
+                        assert error.errno == errno.EADDRINUSE, error
+                    else:
+                        raise AssertionError("bound over an existing symlink")
+                assert os.readlink(alias) == target
+                with socket.socket(socket.AF_UNIX) as client:
+                    client.settimeout(3)
+                    client.connect(str(alias))
+                    with server.accept()[0] as peer:
+                        peer.settimeout(3)
+                        peer.sendall(b"linked")
+                        assert client.recv(6) == b"linked"
+                alias.unlink()
 
 
 def datagram():
@@ -128,7 +176,7 @@ def ordinary_socket_errors():
 
 if __name__ == "__main__":
     failed = 0
-    for check in (boot_time, process_start, stream, datagram,
+    for check in (boot_time, process_identity, process_start, stream, socket_symlinks, datagram,
                   reuse_directory, ordinary_socket_errors):
         try:
             check()

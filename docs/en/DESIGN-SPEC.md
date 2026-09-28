@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-28 / Target version: 0.9.2 (versionCode 665)
+Last updated: 2026-09-28 / Target version: 0.9.3 (versionCode 666)
+
+**0.9.3 (versionCode 666), release candidate**: Fixes background-server start-time checks still failing when the Linux root directory is not writable. Compatibility snapshots are created in `/tmp` and removed after opening for reading. Connections through absolute symlinks to Unix sockets also work. Open a new terminal tab after updating.
 
 **0.9.2 (versionCode 665), release candidate**: Improves background-server startup compatibility. Adds a boot-time fallback when Android denies system statistics, and supports Unix socket paths that become too long after rootfs translation. Open a new terminal tab after updating.
 
@@ -1655,7 +1657,9 @@ Hardened to proot parity.
 
 **Boot times and long socket paths (0.9.2)**: Only when reading `/proc/stat` fails with `EACCES` / `EPERM`, reconstruct `btime` using `CLOCK_REALTIME - CLOCK_BOOTTIME`. This includes suspend time and enables child-process identity checks using `ps -o lstart`. Readable native files and explicit bind overrides take precedence; write, create and directory opens are not substituted. Both read-free modes use open-then-unlink. CPU counters are unavailable; the parser's required `cpu` header contains zero placeholders, not measured usage.
 
-If rootfs translation exceeds AF_UNIX `sun_path`, open the parent directory and reach the same socket through `/proc/<tracer>/fd/<fd>/<basename>`. Location, basename and existing-file collisions are preserved. Directory fds remain open for the tracer's lifetime so returned socket addresses remain usable; identical inodes share an fd, with a maximum of 64 directories. Names that remain too long and requests exceeding this limit are not supported. Run `scripts/z2root-daemon-test.py` in a fresh terminal after updating to check boot times, stream/datagram traffic, directory reuse and existing-file protection without building.
+**Snapshot location (0.9.3)**: Create files with `mkstemp` under `/tmp`, resolving the effective rootfs and binds, so a `0555` root directory is supported. Track the exact path per process and unlink it after open, on substitution failure, or when the process exits. Existing files and symlinks are not overwritten. Other `/proc` substitutions use the same path.
+
+If rootfs translation exceeds AF_UNIX `sun_path`, open the parent directory and reach the same socket through `/proc/<tracer>/fd/<fd>/<basename>`. Location, basename and existing-file collisions are preserved. Directory fds remain open for the tracer's lifetime so returned socket addresses remain usable; identical inodes share an fd, with a maximum of 64 directories. Since 0.9.3, `connect` resolves a final symlink relative to the guest root; `bind` keeps existing links intact and returns `EADDRINUSE`. Names that remain too long and requests exceeding this limit are not supported. Run `scripts/z2root-daemon-test.py` in a fresh terminal after updating to check boot times, snapshot fd lifetime, UID/GID consistency, stream/datagram traffic, absolute/relative symlink connections, directory reuse and existing-file protection without building.
 
 ##### Spoofing and bridging for compatibility
 
