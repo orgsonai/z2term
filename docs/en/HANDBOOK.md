@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.1.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.2.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -926,6 +926,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.2 (versionCode 665), release candidate**: Improves background-server startup compatibility. Adds a boot-time fallback when Android denies system statistics, and supports Unix socket paths that become too long after rootfs translation. Open a new terminal tab after updating.
 
 **0.9.1 (versionCode 664), release candidate, build unverified**: In split view, long-press a pane title and drag it toward the other pane to swap them; double-tap a title to show only that tab. The ⌨ triple-tap size bar now overlays the terminal (or GUI), so opening it no longer resizes the session. With the bottom in-app keyboard narrower than 100%, the keyboard floats over the terminal and moves freely by dragging the grip on its top edge (position remembered per orientation; terminal tabs only). 0.9.0 was not published; this is the release candidate.
 

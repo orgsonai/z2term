@@ -34,6 +34,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <signal.h>      // siginfo_t / SIGTSTP 等 (ジョブ制御の group-stop 判定)
 #include <sys/ptrace.h>
@@ -2025,7 +2026,22 @@ static void resolve_proc_self(const char *g, pid_t pid, char *out, size_t cap) {
         snprintf(out, cap, "%s", g);
 }
 
-// readfree モードの temp 差し替え本体。戻り値 1=差し替えた(呼び出し側は
+// Android が全体統計を拒否する場合、プロセス開始日時の計算に必要な btime
+// だけを時計から補完する。CPU 統計は取得できないため 0 の構文用ヘッダのみ。
+// CLOCK_MONOTONIC は端末の suspend を含まないので使わない。
+static size_t proc_boot_stat(char *buf, size_t cap) {
+    struct timespec wall, boot;
+    if (clock_gettime(CLOCK_REALTIME, &wall) != 0 ||
+        clock_gettime(CLOCK_BOOTTIME, &boot) != 0) return 0;
+    long long epoch = (long long)wall.tv_sec - (long long)boot.tv_sec;
+    if (wall.tv_nsec < boot.tv_nsec) epoch--;
+    if (epoch <= 0) return 0;
+    int n = snprintf(buf, cap, "cpu 0 0 0 0 0 0 0 0 0 0\nbtime %lld\n", epoch);
+    return n > 0 && (size_t)n < cap ? (size_t)n : 0;
+}
+
+// /proc の temp 差し替え本体。起動日時補完は readfree の OFF 時にも行う。
+// 戻り値 1=差し替えた(呼び出し側は
 // maybe_rewrite_path をスキップし openat-exit で temp を unlink)、0=非対象/失敗
 // (通常 openat にフォールバック)。失敗時に uid 露出する可能性はあるが稀。
 static int try_subst_proc_open(const struct config *cfg, pid_t pid,
@@ -2046,9 +2062,11 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
     int from_dirfd = 0;
     if (raw[0] != '/') {
         long dirfd = (long)(int)regs->regs[0];
-        if (dirfd == AT_FDCWD) return 0;  // cwd 相対は対象外
         char fdlink[64];
-        snprintf(fdlink, sizeof(fdlink), "/proc/%d/fd/%d", (int)pid, (int)dirfd);
+        if (dirfd == AT_FDCWD)
+            snprintf(fdlink, sizeof(fdlink), "/proc/%d/cwd", (int)pid);
+        else
+            snprintf(fdlink, sizeof(fdlink), "/proc/%d/fd/%d", (int)pid, (int)dirfd);
         char dirpath[PATH_MAX_Z];
         ssize_t ll = readlink(fdlink, dirpath, sizeof(dirpath) - 1);
         if (ll <= 0) return 0;
@@ -2062,8 +2080,9 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
         from_dirfd = 1;
     }
 
+    int boot_stat = strcmp(g, "/proc/stat") == 0;
     int kind = proc_open_kind(g);
-    if (kind == PROC_FD_NONE) return 0;
+    if (!boot_stat && (!cfg->readfree || kind == PROC_FD_NONE)) return 0;
 
     // 対象 pid のトレース状態(cmdline/comm 偽装の元データ用)。非トレース pid は
     // 通常 /proc 経由で素通しさせる(ホスト Android プロセスの cmdline/comm はそのまま=
@@ -2074,7 +2093,20 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
     char buf[STATUS_BUF_MAX];
     size_t total = 0;
 
-    if (kind == PROC_FD_CMDLINE) {
+    if (boot_stat) {
+        unsigned long flags = regs->regs[2];
+        if ((flags & O_ACCMODE) != O_RDONLY ||
+            (flags & (O_PATH | O_DIRECTORY | O_CREAT | O_TRUNC | O_EXCL))) return 0;
+        // 明示 bind による差し替えや読める実 /proc/stat はそのまま通す。
+        char real[PATH_MAX_Z];
+        if (host_path_for(cfg, pid, g, 1, AT_FDCWD, real, sizeof(real)) != 0 ||
+            strcmp(real, "/proc/stat") != 0) return 0;
+        int fd = open(real, O_RDONLY | O_CLOEXEC);
+        if (fd >= 0) { close(fd); return 0; }
+        if (errno != EACCES && errno != EPERM) return 0;
+        total = proc_boot_stat(buf, sizeof(buf));
+        if (!total) return 0;
+    } else if (kind == PROC_FD_CMDLINE) {
         if (!tst || tst->proc_cmdline_len == 0) return 0;          // 控え無し=実 /proc
         if (tst->proc_cmdline_len > sizeof(buf)) return 0;          // 上限超(まず起きない)
         memcpy(buf, tst->proc_cmdline, tst->proc_cmdline_len);
@@ -2126,11 +2158,12 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
     size_t len = strlen(tmp) + 1;
     unsigned long base = scratch_base(regs->sp, (len + 7) & ~7UL);
     if (write_tracee_mem(pid, base, tmp, len) != 0) { unlink(tmp); return 0; }
+    struct user_pt_regs original = *regs;
     regs->regs[1] = base;
     // 元が dirfd 相対の場合は dirfd を AT_FDCWD に倒す(tmp は絶対パスなので dirfd 無関係。
     // 残しておくと procfd 経由の openat と認識され続けて意図しない挙動になり得る)。
     if (from_dirfd) regs->regs[0] = (unsigned long)(unsigned int)AT_FDCWD;
-    set_regs(pid, regs);
+    if (set_regs(pid, regs) != 0) { *regs = original; unlink(tmp); return 0; }
     st->subst_active = 1;
     return 1;
 }
@@ -2287,6 +2320,43 @@ static void socklog(const char *fmt, ...) {
     fclose(f);
 }
 
+// rootfs を前置すると sun_path の上限を超える名前は、親ディレクトリの
+// fd を介して同じファイルへ到達する。ファイル名のハッシュ化・付け替えはしない。
+// getsockname/getpeername が返す別名も有効であるよう、親 fd はトレーサの
+// 生存中保持する。同じ inode は共用し、保持数を制限して fd の無制限増加を防ぐ。
+#define SOCKET_DIR_MAX 64
+static int short_socket_path(const char *host, char *out, size_t cap) {
+    static struct { dev_t dev; ino_t ino; int fd; } dirs[SOCKET_DIR_MAX];
+    static size_t used;
+    const char *base = strrchr(host, '/');
+    if (!base || !base[1]) return 0;
+    char parent[PATH_MAX_Z];
+    size_t plen = (size_t)(base - host);
+    if (plen == 0) plen = 1;
+    if (plen >= sizeof(parent)) return 0;
+    memcpy(parent, host, plen);
+    parent[plen] = 0;
+    int fd = open(parent, O_PATH | O_DIRECTORY | O_CLOEXEC);
+    if (fd < 0) return 0;
+    struct stat sb;
+    if (fstat(fd, &sb) != 0) { close(fd); return 0; }
+    size_t index = 0;
+    while (index < used && (dirs[index].dev != sb.st_dev || dirs[index].ino != sb.st_ino)) index++;
+    int path_fd = index < used ? dirs[index].fd : fd;
+    int n = snprintf(out, cap, "/proc/%d/fd/%d/%s", (int)getpid(), path_fd, base + 1);
+    if (n < 0 || (size_t)n >= cap || (index == used && used == SOCKET_DIR_MAX)) {
+        close(fd);
+        return 0;
+    }
+    if (index < used) close(fd);
+    else {
+        dirs[used].dev = sb.st_dev;
+        dirs[used].ino = sb.st_ino;
+        dirs[used++].fd = fd;
+    }
+    return 1;
+}
+
 // AF_UNIX の pathname ソケット (bind/connect) の sun_path をホスト実パスへ書き換える。
 // proot は connect/bind の sockaddr を翻訳するが z2root は未対応だった = Xvnc が作る
 // /tmp/.X11-unix/X1 や dbus/pulseaudio の unix ソケットが「ホストの実 /tmp」を指して
@@ -2336,20 +2406,29 @@ static void maybe_rewrite_sockaddr(const struct config *cfg, pid_t pid, struct u
     char host[PATH_MAX_Z];
     // ソケット自体 (最終要素) は symlink を辿らない。deref=0。
     if (host_path_for(cfg, pid, guest, 0, AT_FDCWD, host, sizeof(host)) != 0) { socklog("sock nr=%ld skip: no host path for '%s'", nr, guest); return; }
+    char shortened[sizeof(un.sun_path)];
+    const char *target = host;
     size_t hl = strlen(host);
-    if (hl >= sizeof(un.sun_path)) { socklog("sock nr=%ld skip: host too long (%zu) '%s'", nr, hl, host); return; }  // 108B に収まらなければ据え置き (安全側)
+    if (hl >= sizeof(un.sun_path)) {
+        if (!short_socket_path(host, shortened, sizeof(shortened))) {
+            socklog("sock nr=%ld skip: cannot shorten host (%zu) '%s'", nr, hl, host);
+            return;
+        }
+        target = shortened;
+        hl = strlen(target);
+    }
 
     struct sockaddr_un nun;
     memset(&nun, 0, sizeof(nun));
     nun.sun_family = AF_UNIX;
-    memcpy(nun.sun_path, host, hl);  // null 終端は memset 済み
+    memcpy(nun.sun_path, target, hl);  // null 終端は memset 済み
     socklen_t nlen = (socklen_t)(path_off + hl + 1);
     unsigned long base = scratch_base(regs->sp, sizeof(nun));
     if (write_tracee_mem(pid, base, &nun, nlen) != 0) { socklog("sock nr=%ld skip: write_tracee_mem failed base=0x%lx", nr, base); return; }
     regs->regs[1] = base;
     regs->regs[2] = nlen;
     if (set_regs(pid, regs) != 0) { socklog("sock nr=%ld skip: set_regs failed", nr); return; }
-    socklog("sock nr=%ld ok: '%s' -> '%s'", nr, guest, host);
+    socklog("sock nr=%ld ok: '%s' -> '%s'", nr, guest, target);
 }
 
 static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_pt_regs *regs) {
@@ -2989,7 +3068,7 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
             break;
         case 56:  // openat: /proc status・loginuid 検出
             // readfree: temp 差し替えに成功したらパスは確定済み=以降のパス変換は不要。
-            if (cfg->readfree && try_subst_proc_open(cfg, pid, &regs, st))
+            if (try_subst_proc_open(cfg, pid, &regs, st))
                 return 1;  // exit で temp を unlink するため need_exit
             note_proc_open(pid, &regs, st);
             break;

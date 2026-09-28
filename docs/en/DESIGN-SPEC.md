@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-28 / Target version: 0.9.1 (versionCode 664)
+Last updated: 2026-09-28 / Target version: 0.9.2 (versionCode 665)
+
+**0.9.2 (versionCode 665), release candidate**: Improves background-server startup compatibility. Adds a boot-time fallback when Android denies system statistics, and supports Unix socket paths that become too long after rootfs translation. Open a new terminal tab after updating.
 
 **0.9.1 (versionCode 664), release candidate, build unverified**: In split view, long-press a pane title and drag it toward the other pane to swap them; double-tap a title to show only that tab. The ⌨ triple-tap size bar now overlays the terminal (or GUI), so opening it no longer resizes the session. With the bottom in-app keyboard narrower than 100%, the keyboard floats over the terminal and moves freely by dragging the grip on its top edge (position remembered per orientation; terminal tabs only). 0.9.0 was not published; this is the release candidate.
 
@@ -1650,6 +1652,10 @@ Hardened to proot parity.
 **seccomp-bpf (0.8.32)**: instead of trapping every syscall twice with `PTRACE_SYSCALL`, only the syscalls needed for path translation, fakeroot spoofing, getcwd reverse translation and `/proc` spoofing are caught with `SECCOMP_RET_TRACE`; the rest run natively (the same approach as proot). On-device benchmarks: fork/exec ~2.3×, read ~3×, real IO within ~2× of proot, and FS traversal faster than proot.
 
 **Read-free mode (0.8.34, default ON in 0.8.35)**: even after seccomp, `read`/`close` still had to be caught to spoof `/proc/<pid>/status` and `loginuid`, leaving tight small-read loops (`dd bs=1` etc.) about 9× slower than proot. Read-free performs the spoofing at the moment of `openat` instead: the spoofed content is written to a throwaway temp file inside the rootfs and the `openat` path is redirected there (then immediately unlinked — open-then-unlink). Subsequent reads are ordinary file reads, so `read`/`close` leave the seccomp set entirely (native speed). Verified on-device (run-as): `dd bs=1 ×300000` went from ~8.1s to ~0.28s (marginally beating proot's ~0.32s), with status/loginuid spoofing intact and no leftover temp files. `Z2ROOT_NO_READFREE=1` falls back to the old read-tracing path.
+
+**Boot times and long socket paths (0.9.2)**: Only when reading `/proc/stat` fails with `EACCES` / `EPERM`, reconstruct `btime` using `CLOCK_REALTIME - CLOCK_BOOTTIME`. This includes suspend time and enables child-process identity checks using `ps -o lstart`. Readable native files and explicit bind overrides take precedence; write, create and directory opens are not substituted. Both read-free modes use open-then-unlink. CPU counters are unavailable; the parser's required `cpu` header contains zero placeholders, not measured usage.
+
+If rootfs translation exceeds AF_UNIX `sun_path`, open the parent directory and reach the same socket through `/proc/<tracer>/fd/<fd>/<basename>`. Location, basename and existing-file collisions are preserved. Directory fds remain open for the tracer's lifetime so returned socket addresses remain usable; identical inodes share an fd, with a maximum of 64 directories. Names that remain too long and requests exceeding this limit are not supported. Run `scripts/z2root-daemon-test.py` in a fresh terminal after updating to check boot times, stream/datagram traffic, directory reuse and existing-file protection without building.
 
 ##### Spoofing and bridging for compatibility
 
