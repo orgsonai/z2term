@@ -8,7 +8,7 @@
     <string name="process_text_replace">取代所選文字</string>
     <string name="process_text_too_large">支援不含NUL、最大64 KiB的文字。</string>
     <string name="workspace_title">工作階段配置</string>
-    <string name="workspace_hint">選取並排顯示的分頁。點按窗格選擇輸入目標，拖曳分隔線調整大小。</string>
+    <string name="workspace_hint">選取並排顯示的分頁。點按窗格選擇輸入目標，拖曳分隔線調整大小。長按窗格標題並拖向另一個窗格即可互換，點兩下標題則只顯示該分頁。</string>
     <string name="workspace_vertical">上下</string>
     <string name="workspace_horizontal">左右</string>
     <string name="workspace_need_two">請先再開啟一個終端或GUI分頁。</string>

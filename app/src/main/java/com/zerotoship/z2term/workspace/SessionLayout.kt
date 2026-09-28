@@ -17,4 +17,8 @@ internal data class SessionLayout(
         }
     }
     fun resize(value: Float) = copy(ratio = if (value.isFinite()) value.coerceIn(0.2f, 0.8f) else 0.5f)
+    /** Exchange the panes; the focus follows its session and the divider keeps each session's share. */
+    fun swap() = if (second == null) this else copy(first = second, second = first, focused = 1 - focused, ratio = 1 - ratio)
+    /** One pane showing [id], leaving split mode. */
+    fun single(id: String) = SessionLayout(first = id)
 }

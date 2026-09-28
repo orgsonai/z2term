@@ -8,7 +8,7 @@
     <string name="process_text_replace">Replace selection</string>
     <string name="process_text_too_large">Text must be valid text without NUL, up to 64 KiB.</string>
     <string name="workspace_title">Session layout</string>
-    <string name="workspace_hint">Choose a second tab. Tap a pane to focus it; drag the divider to resize. The keyboard controls the focused pane.</string>
+    <string name="workspace_hint">Choose a second tab. Tap a pane to focus it; drag the divider to resize. The keyboard controls the focused pane. Long-press a pane title and drag it toward the other pane to swap them; double-tap a title to show only that tab.</string>
     <string name="workspace_vertical">Top / bottom</string>
     <string name="workspace_horizontal">Left / right</string>
     <string name="workspace_need_two">Open another terminal or GUI tab first.</string>

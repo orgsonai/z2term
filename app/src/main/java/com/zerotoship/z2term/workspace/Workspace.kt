@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
@@ -14,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -91,13 +94,53 @@ internal object Workspace {
     LaunchedEffect(state) { Workspace.layout = state }
     if (state.second == null) { Box(modifier) { content() }; return }
     var size by remember { mutableStateOf(IntSize.Zero) }
+    // Long-press a title and drag it toward the other pane to exchange them. Nothing moves while
+    // dragging: the other pane's frame thickens once letting go would swap.
+    var swapArmed by remember { mutableStateOf(false) }
+    val currentState by rememberUpdatedState(state)
+    val currentSize by rememberUpdatedState(size)
     val pane: @Composable (String?, Modifier) -> Unit = { id, childModifier ->
         val session = sessions.firstOrNull { it.id == id }
         if (session != null) key(id) {
             val label by session.label.collectAsState()
-            Column(childModifier.border(1.dp, if (id == active.id) ZtsGreen else ZtsBorder)) {
-                Text(label, color = if (id == active.id) ZtsGreen else ZtsTextSecondary,
-                    maxLines = 1, modifier = Modifier.fillMaxWidth().clickable { SessionManager.setActive(session.id) }.padding(6.dp))
+            var dragged by remember { mutableStateOf(false) }
+            val target = swapArmed && !dragged
+            Column(childModifier.border(if (target) 3.dp else 1.dp,
+                if (id == active.id || target || dragged) ZtsGreen else ZtsBorder)) {
+                Text((if (dragged) "⇅ " else "") + label, color = if (id == active.id) ZtsGreen else ZtsTextSecondary,
+                    maxLines = 1, modifier = Modifier.fillMaxWidth()
+                        .pointerInput(session.id) {
+                            detectTapGestures(
+                                onTap = { SessionManager.setActive(session.id) },
+                                // Double-tap a title to show only that tab.
+                                onDoubleTap = {
+                                    Workspace.layout = Workspace.layout.single(session.id)
+                                    SessionManager.setActive(session.id)
+                                },
+                            )
+                        }
+                        .pointerInput(session.id) {
+                            var offset = 0f
+                            fun reset() { offset = 0f; dragged = false; swapArmed = false }
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { offset = 0f; dragged = true },
+                                onDrag = { change, amount ->
+                                    change.consume()
+                                    val layout = currentState
+                                    offset += if (layout.horizontal) amount.x else amount.y
+                                    val extent = if (layout.horizontal) currentSize.width else currentSize.height
+                                    // Toward the other pane: down/right from the first, up/left from the second.
+                                    val toward = if (session.id == layout.first) offset else -offset
+                                    swapArmed = extent > 0 && toward > extent * SWAP_DISTANCE
+                                },
+                                onDragEnd = {
+                                    if (swapArmed) Workspace.layout = Workspace.layout.swap()
+                                    reset()
+                                },
+                                onDragCancel = { reset() },
+                            )
+                        }
+                        .padding(6.dp))
                 Box(Modifier.fillMaxWidth().weight(1f)) {
                     if (id == active.id) content()
                     else {
@@ -124,6 +167,9 @@ internal object Workspace {
         pane(state.second, Modifier.weight(1 - state.ratio).fillMaxWidth())
     }
 }
+
+/** Share of the split extent a title must be dragged toward the other pane before letting go swaps them. */
+private const val SWAP_DISTANCE = 0.15f
 
 @Composable private fun PassiveSession(session: AppSession) {
     if (Workspace.projected(session.id)) Text(stringResource(R.string.workspace_projected), Modifier.padding(16.dp))

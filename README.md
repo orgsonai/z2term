@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.1 (versionCode 664), release candidate, build unverified**: In split view, long-press a pane title and drag it toward the other pane to swap them; double-tap a title to show only that tab. The ⌨ triple-tap size bar now overlays the terminal (or GUI), so opening it no longer resizes the session. With the bottom in-app keyboard narrower than 100%, the keyboard floats over the terminal and moves freely by dragging the grip on its top edge (position remembered per orientation; terminal tabs only). 0.9.0 was not published; this is the release candidate.
+
 **0.9.0 (versionCode 663), release candidate, build unverified**: This ends the 0.8 alpha series and is the candidate for the 1.0 stable release. Features are unchanged from 0.8.654. Until 1.0, only bug fixes ship, as 0.9.x. F-Droid submission starts with this version.
 
 **0.8.654-alpha (versionCode 662), build unverified**: Settings gains an “Edge panels” group whose “Open edge panel settings” goes straight to the panel settings screen. It works while the panels are off: the edge bar stays hidden and they stay off after you close it. With no panel yet it opens the edge-panel guide, and without the display-over-other-apps permission it opens that permission screen.

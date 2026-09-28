@@ -25,6 +25,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -715,10 +716,17 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             )
         }
 
-        Row(modifier = Modifier
+        // 下に置いた独自キーボードの幅を 100% 未満にすると、キーボードを浮かせて自由に動かせる
+        // (0.9.1・利用者の選択)。そのとき端末は画面の下まで使い、キーボードはその上に重なる。
+        val bottomKbWidthPercent = if (isLandscape) settings.landscapeBottomKeyboardWidthPercent
+            else settings.portraitKeyboardWidthPercent
+        val floatingKeyboard = !keyboardCollapsed && keyboardMode == KeyboardMode.CUSTOM && !isSideKB &&
+            bottomKbWidthPercent < AppSettings.MAX_KB_WIDTH_PERCENT - 0.5f
+        Box(modifier = Modifier
             .fillMaxWidth()
             .weight(1f)
         ) {
+        Row(modifier = Modifier.fillMaxSize()) {
             if (isSideKB && landscapePos == AppSettings.LANDSCAPE_KB_LEFT) {
                 key(active.id) {
                     SideKeyboardColumn(
@@ -786,8 +794,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         modifier = Modifier.align(Alignment.BottomStart)
                     )
                 }
-                // 変換候補バー: キーボードの上に浮かせて表示 (キーボード本体の高さは変えない)
-                CandidateBar(
+                // 変換候補バー: キーボードの上に浮かせて表示 (キーボード本体の高さは変えない)。
+                // 浮かせたキーボードでは、キーボードに付いて動く側で出す。
+                if (!floatingKeyboard) CandidateBar(
                     composing = composing,
                     modifier = Modifier.align(Alignment.BottomStart)
                 )
@@ -863,32 +872,58 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        if (keyboardSizeBarOpen) {
-            // ⚠ 帯は**キーボードの外・画面幅いっぱい**に置く。キーボード側に置くと、
-            // 幅を動かすたびに帯自身が伸び縮みして狙いが定まらない。
-            KeyboardSizeBar(
-                axes = keyboardSizeAxes(
-                    settings = settings,
-                    isLandscape = isLandscape,
-                    isSideKeyboard = isSideKB,
-                    onHeightChange = { value ->
-                        if (isLandscape) active.setLandscapeKeyboardHeightDp(value)
-                        else active.setPortraitKeyboardHeightDp(value)
-                    },
-                    onWidthChange = { value ->
-                        if (isSideKB) active.setLandscapeKeyboardWidthDp(value)
-                        else if (isLandscape) active.setLandscapeBottomKeyboardWidthPercent(value)
-                        else active.setPortraitKeyboardWidthPercent(value)
-                    },
-                ),
-                onClose = { keyboardSizeBarOpen = false }
-            )
+            if (floatingKeyboard) {
+                FloatingKeyboard(
+                    widthPercent = bottomKbWidthPercent,
+                    x = if (isLandscape) settings.landscapeFloatingKeyboardX else settings.portraitFloatingKeyboardX,
+                    y = if (isLandscape) settings.landscapeFloatingKeyboardY else settings.portraitFloatingKeyboardY,
+                    onMoved = { x, y -> active.setFloatingKeyboardPosition(isLandscape, x, y) },
+                    composing = composing,
+                ) {
+                    Box(modifier = Modifier.fillMaxWidth().height(kbStyle.naturalHeight)) {
+                        key(active.id) {
+                            TerminalKeyboard(
+                                onBytes = onKeyboardBytes,
+                                onKey = onKeyboardKey,
+                                composing = composing,
+                                style = kbStyle,
+                                faceEntries = faceEntries,
+                            )
+                        }
+                    }
+                }
+            }
+            if (keyboardSizeBarOpen) {
+                // ⭐ 帯は**端末の上に重ねる** (0.9.1・利用者の指摘)。列に挟むと開いた瞬間に端末の
+                // 行数が変わり、横画面では特に狭くなった。幅は画面いっぱいのまま (キーボード側に
+                // 置くと幅を動かすたびに帯自身が伸び縮みして狙いが定まらない)。浮かせたキーボードは
+                // 下端に居ることが多いので、そのときは上端に出す。
+                Box(modifier = Modifier.align(if (floatingKeyboard) Alignment.TopCenter else Alignment.BottomCenter)) {
+                    KeyboardSizeBar(
+                        axes = keyboardSizeAxes(
+                            settings = settings,
+                            isLandscape = isLandscape,
+                            isSideKeyboard = isSideKB,
+                            onHeightChange = { value ->
+                                if (isLandscape) active.setLandscapeKeyboardHeightDp(value)
+                                else active.setPortraitKeyboardHeightDp(value)
+                            },
+                            onWidthChange = { value ->
+                                if (isSideKB) active.setLandscapeKeyboardWidthDp(value)
+                                else if (isLandscape) active.setLandscapeBottomKeyboardWidthPercent(value)
+                                else active.setPortraitKeyboardWidthPercent(value)
+                            },
+                        ),
+                        onClose = { keyboardSizeBarOpen = false }
+                    )
+                }
+            }
         }
 
         if (!keyboardCollapsed) {
             when (keyboardMode) {
                 KeyboardMode.CUSTOM -> {
-                    if (!isSideKB) {
+                    if (!isSideKB && !floatingKeyboard) {
                         // 高さはスタイルの naturalHeight 固定。これでキーサイズと領域高さが
                         // 常に一致する (旧: 高さ可変でキーサイズが追従せずズレていた)。
                         // 幅は設定の % で中央寄せ (0.8.431。100% なら従来どおり画面いっぱい)。
@@ -1438,10 +1473,11 @@ private fun GuiTabScreen(
             else settings.portraitKeyboardWidthPercent
         val keyboardOutsideGui = split || (!isLandscapeGui && keyboardMode == KeyboardMode.CUSTOM)
 
-        Row(modifier = Modifier
+        Box(modifier = Modifier
             .fillMaxWidth()
             .weight(1f)
         ) {
+        Row(modifier = Modifier.fillMaxSize()) {
             if (isSideKBGui && landscapePosGui == AppSettings.LANDSCAPE_KB_LEFT) {
                 SideKeyboardColumn(
                     style = kbStyleGui,
@@ -1546,11 +1582,11 @@ private fun GuiTabScreen(
                 )
             }
         }
-
-        // ⭐ サイズ調整帯は**緑枠の外**、画面のいちばん下に画面幅いっぱいで出す (0.8.431)。
+        // ⭐ サイズ調整帯は**緑枠の外**、画面幅いっぱいで出す (0.8.431)。
         // 枠の中に置くと、キーボードの大きさを変えた瞬間に枠が伸び縮みし、
         // その中に居るスライダーの幅まで変わって掴み直しになる (利用者の指摘)。
-        if (keyboardSizeBarOpen) {
+        // 0.9.1 からは画面の上に**重ねる** — 列に挟むと GUI の領域が縮み、解像度が変わってしまう。
+        if (keyboardSizeBarOpen) Box(modifier = Modifier.align(Alignment.BottomCenter)) {
             KeyboardSizeBar(
                 axes = keyboardSizeAxes(
                     settings = settings,
@@ -1573,6 +1609,8 @@ private fun GuiTabScreen(
                 onClose = { keyboardSizeBarOpen = false }
             )
         }
+        }
+
         if (split) {
             GuiKeyboardPanel(
                 keyboardMode = keyboardMode,
@@ -3541,6 +3579,81 @@ private fun keyboardSizeAxes(
         )
     }
     return listOf(height, width)
+}
+
+/**
+ * 幅を 100% 未満にした独自キーボードを、端末の上に浮かせて自由に動かす (0.9.1)。
+ *
+ * 上端のつまみを掴んで動かす (キーの長押しに割り当てた操作とぶつけないため・利用者の選択)。
+ * 位置は空いている範囲に対する割合 ([x], [y]) で持つので、大きさや向きが変わっても画面から
+ * はみ出さない。離したときだけ [onMoved] で保存する。変換候補はキーボードに付いて動く。
+ */
+@Composable
+private fun BoxScope.FloatingKeyboard(
+    widthPercent: Float,
+    x: Float,
+    y: Float,
+    onMoved: (Float, Float) -> Unit,
+    composing: ComposingState,
+    keyboard: @Composable () -> Unit,
+) {
+    BoxWithConstraints(modifier = Modifier.matchParentSize()) {
+        val areaWidth = constraints.maxWidth
+        val areaHeight = constraints.maxHeight
+        var own by remember { mutableStateOf(IntSize.Zero) }
+        var position by remember(x, y) { mutableStateOf(Offset(x, y)) }
+        val save by rememberUpdatedState(onMoved)
+        val free by rememberUpdatedState(
+            IntSize((areaWidth - own.width).coerceAtLeast(0), (areaHeight - own.height).coerceAtLeast(0))
+        )
+        val fraction = (widthPercent / 100f).coerceIn(
+            AppSettings.MIN_KB_WIDTH_PERCENT / 100f,
+            AppSettings.MAX_KB_WIDTH_PERCENT / 100f,
+        )
+        Column(
+            modifier = Modifier
+                .offset {
+                    IntOffset(
+                        (position.x.coerceIn(0f, 1f) * free.width).roundToInt(),
+                        (position.y.coerceIn(0f, 1f) * free.height).roundToInt(),
+                    )
+                }
+                .width(maxWidth * fraction)
+                .onSizeChanged { own = it }
+        ) {
+            CandidateBar(composing = composing, modifier = Modifier.fillMaxWidth())
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(20.dp)
+                    .background(ZtsBgSecondary)
+                    .border(width = 1.dp, color = ZtsBorder)
+                    // 保存した位置が戻ってくると position は作り直されるので、それを鍵に掴み直す。
+                    .pointerInput(x, y) {
+                        detectDragGestures(
+                            onDragEnd = { save(position.x, position.y) },
+                        ) { change, amount ->
+                            change.consume()
+                            val space = free
+                            position = Offset(
+                                if (space.width > 0) (position.x + amount.x / space.width).coerceIn(0f, 1f) else position.x,
+                                if (space.height > 0) (position.y + amount.y / space.height).coerceIn(0f, 1f) else position.y,
+                            )
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(ZtsTextSecondary)
+                )
+            }
+            keyboard()
+        }
+    }
 }
 
 /**

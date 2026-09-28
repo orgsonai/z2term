@@ -1,0 +1,10 @@
+0.9.1 — release candidate
+
+- First release on F-Droid.
+- Split view: drag a title to swap panes, double-tap for one pane.
+- A narrowed keyboard floats and can be moved freely.
+- Edge panels are arranged in rows, with settings split into Layout,
+  Panel, Actions and Manage.
+- Settings › Edge panels opens panel settings even while panels are off.
+- SSH hosts gain an address to use at home.
+- Fixed GUI pinch gestures and Japanese menu text.

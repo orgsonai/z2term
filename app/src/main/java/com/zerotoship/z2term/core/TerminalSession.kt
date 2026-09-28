@@ -575,6 +575,9 @@ class TerminalSession(
     fun setPortraitKeyboardHeightDp(value: Float) { scope.launch { settings.setPortraitKeyboardHeightDp(value) } }
     fun setPortraitKeyboardWidthPercent(value: Float) { scope.launch { settings.setPortraitKeyboardWidthPercent(value) } }
     fun setLandscapeBottomKeyboardWidthPercent(value: Float) { scope.launch { settings.setLandscapeBottomKeyboardWidthPercent(value) } }
+    fun setFloatingKeyboardPosition(landscape: Boolean, x: Float, y: Float) {
+        scope.launch { settings.setFloatingKeyboardPosition(landscape, x, y) }
+    }
     fun setEngineSelectorUnlocked(value: Boolean) { scope.launch { settings.setEngineSelectorUnlocked(value) } }
     fun setRootChrootUnlocked(value: Boolean) { scope.launch { settings.setRootChrootUnlocked(value) } }
     fun setExecutionEngine(value: String) { scope.launch { settings.setExecutionEngine(value) } }

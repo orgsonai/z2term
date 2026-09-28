@@ -8,7 +8,7 @@
     <string name="process_text_replace">Sustituir selección</string>
     <string name="process_text_too_large">Texto sin NUL, hasta 64 KiB.</string>
     <string name="workspace_title">Distribución de sesiones</string>
-    <string name="workspace_hint">Elige otra pestaña. Toca un panel para activarlo y arrastra el separador para cambiar su tamaño.</string>
+    <string name="workspace_hint">Elige otra pestaña. Toca un panel para activarlo y arrastra el separador para cambiar su tamaño. Mantén pulsado el título de un panel y arrástralo hacia el otro para intercambiarlos; toca dos veces un título para ver solo esa pestaña.</string>
     <string name="workspace_vertical">Arriba / abajo</string>
     <string name="workspace_horizontal">Izquierda / derecha</string>
     <string name="workspace_need_two">Abre otra pestaña de terminal o GUI.</string>

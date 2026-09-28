@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.0.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.1.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -125,7 +125,9 @@ terminal / GUI**.
   **Long-press a tab to read its full name and engine.**
 - **Reordering is unchanged** — long-press and drag (up and down now).
 
-> To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. **Two sliders — height and width** — let you resize while watching the keyboard (0.8.431; before that only one of them was offered, and a side-docked landscape keyboard could only change its width). It is also listed under ⚙ Settings → **Tips** (0.8.430).
+> To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. **Two sliders — height and width** — let you resize while watching the keyboard (0.8.431; before that only one of them was offered, and a side-docked landscape keyboard could only change its width). It is also listed under ⚙ Settings → **Tips** (0.8.430). The sliders overlay the terminal, so opening them does not resize it (0.9.1).
+>
+> **Floating keyboard (0.9.1)**: make the bottom in-app keyboard **narrower than 100%** and it floats over the terminal. **Drag the grip on its top edge** to move it anywhere (portrait and landscape positions are remembered separately). The terminal extends to the bottom of the screen and the part under the keyboard is hidden. Back at 100% it is docked at the bottom again. GUI tabs keep it docked.
 
 ### Switching keyboard "faces" (0.8.305)
 
@@ -924,6 +926,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.1 (versionCode 664), release candidate, build unverified**: In split view, long-press a pane title and drag it toward the other pane to swap them; double-tap a title to show only that tab. The ⌨ triple-tap size bar now overlays the terminal (or GUI), so opening it no longer resizes the session. With the bottom in-app keyboard narrower than 100%, the keyboard floats over the terminal and moves freely by dragging the grip on its top edge (position remembered per orientation; terminal tabs only). 0.9.0 was not published; this is the release candidate.
 
 **0.9.0 (versionCode 663), release candidate, build unverified**: This ends the 0.8 alpha series and is the candidate for the 1.0 stable release. Features are unchanged from 0.8.654. Until 1.0, only bug fixes ship, as 0.9.x. F-Droid submission starts with this version.
 

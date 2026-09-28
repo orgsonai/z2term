@@ -27,4 +27,16 @@ class SessionLayoutTest {
         assertEquals(.5f, SessionLayout().resize(Float.NaN).ratio)
         assertEquals(.5f, SessionLayout().resize(Float.POSITIVE_INFINITY).ratio)
     }
+    @Test fun swapExchangesPanesAndKeepsFocusAndShareWithTheirSessions() {
+        val layout = SessionLayout("shell", "desktop", focused = 0, horizontal = true, ratio = .7f)
+        val swapped = layout.swap()
+        assertEquals(SessionLayout("desktop", "shell", focused = 1, horizontal = true, ratio = .3f), swapped.copy(ratio = .3f))
+        assertEquals(.3f, swapped.ratio, 1e-6f)
+        assertEquals("shell", swapped.select("shell", sessions).let { if (it.focused == 0) it.first else it.second })
+        assertEquals(layout.first, swapped.swap().first)
+        assertEquals(SessionLayout("shell"), SessionLayout("shell").swap())
+    }
+    @Test fun doubleTappedPaneBecomesTheOnlyPane() {
+        assertEquals(SessionLayout("desktop"), SessionLayout("shell", "desktop", horizontal = true, ratio = .7f).single("desktop"))
+    }
 }

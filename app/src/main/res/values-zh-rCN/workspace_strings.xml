@@ -8,7 +8,7 @@
     <string name="process_text_replace">替换所选文本</string>
     <string name="process_text_too_large">支持不含NUL、最大64 KiB的文本。</string>
     <string name="workspace_title">会话布局</string>
-    <string name="workspace_hint">选择并排显示的标签。点按窗格选择输入目标，拖动分隔线调整大小。</string>
+    <string name="workspace_hint">选择并排显示的标签。点按窗格选择输入目标，拖动分隔线调整大小。长按窗格标题并拖向另一个窗格即可互换，双击标题则只显示该标签。</string>
     <string name="workspace_vertical">上下</string>
     <string name="workspace_horizontal">左右</string>
     <string name="workspace_need_two">请先再打开一个终端或GUI标签。</string>

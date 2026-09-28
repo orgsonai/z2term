@@ -151,6 +151,14 @@ class AppSettings(private val context: Context) {
          */
         val landscapeBottomKeyboardWidthPercent: Float = DEFAULT_KEYBOARD_WIDTH_PERCENT,
         /**
+         * 幅を 100% 未満にして浮かせたキーボードの位置 (0.9.1)。空いている範囲に対する割合で、
+         * x は 0 = 左端 / 1 = 右端、y は 0 = 上端 / 1 = 下端。向きごとに別に持つ。
+         */
+        val portraitFloatingKeyboardX: Float = DEFAULT_FLOATING_KEYBOARD_X,
+        val portraitFloatingKeyboardY: Float = DEFAULT_FLOATING_KEYBOARD_Y,
+        val landscapeFloatingKeyboardX: Float = DEFAULT_FLOATING_KEYBOARD_X,
+        val landscapeFloatingKeyboardY: Float = DEFAULT_FLOATING_KEYBOARD_Y,
+        /**
          * 裏機能「エンジン選択」の解放フラグ。設定のバージョンを7回タップで true になる
          * (Android 開発者モードと同作法)。false の間はエンジン選択 UI を出さない。
          * これ自体は root 不要。chroot を選べるかは
@@ -578,6 +586,10 @@ class AppSettings(private val context: Context) {
             portraitKeyboardWidthPercent = p[KEY_PORTRAIT_KB_WIDTH_PCT] ?: DEFAULT_KEYBOARD_WIDTH_PERCENT,
             landscapeBottomKeyboardWidthPercent =
                 p[KEY_LANDSCAPE_BOTTOM_KB_WIDTH_PCT] ?: DEFAULT_KEYBOARD_WIDTH_PERCENT,
+            portraitFloatingKeyboardX = p[KEY_PORTRAIT_FLOAT_KB_X] ?: DEFAULT_FLOATING_KEYBOARD_X,
+            portraitFloatingKeyboardY = p[KEY_PORTRAIT_FLOAT_KB_Y] ?: DEFAULT_FLOATING_KEYBOARD_Y,
+            landscapeFloatingKeyboardX = p[KEY_LANDSCAPE_FLOAT_KB_X] ?: DEFAULT_FLOATING_KEYBOARD_X,
+            landscapeFloatingKeyboardY = p[KEY_LANDSCAPE_FLOAT_KB_Y] ?: DEFAULT_FLOATING_KEYBOARD_Y,
             engineSelectorUnlocked = p[KEY_ENGINE_UNLOCKED] ?: false,
             rootChrootUnlocked = p[KEY_ROOT_UNLOCKED] ?: false,
             executionEngine = p[KEY_ENGINE] ?: ENGINE_Z2ROOT,
@@ -875,6 +887,17 @@ class AppSettings(private val context: Context) {
         }
     }
 
+    /** 浮かせたキーボードの位置 (0..1 の割合)。向きごとに保存する。 */
+    suspend fun setFloatingKeyboardPosition(landscape: Boolean, x: Float, y: Float) {
+        fun fraction(v: Float, default: Float) = if (v.isFinite()) v.coerceIn(0f, 1f) else default
+        context.dataStore.edit {
+            it[if (landscape) KEY_LANDSCAPE_FLOAT_KB_X else KEY_PORTRAIT_FLOAT_KB_X] =
+                fraction(x, DEFAULT_FLOATING_KEYBOARD_X)
+            it[if (landscape) KEY_LANDSCAPE_FLOAT_KB_Y else KEY_PORTRAIT_FLOAT_KB_Y] =
+                fraction(y, DEFAULT_FLOATING_KEYBOARD_Y)
+        }
+    }
+
     suspend fun setLandscapeKeyboardWidthDp(value: Float) {
         context.dataStore.edit {
             it[KEY_LANDSCAPE_KB_WIDTH] = value.coerceIn(MIN_LANDSCAPE_KB_WIDTH_DP, MAX_LANDSCAPE_KB_WIDTH_DP)
@@ -1095,6 +1118,10 @@ class AppSettings(private val context: Context) {
         private val KEY_PORTRAIT_KB_WIDTH_PCT = floatPreferencesKey("portrait_kb_width_pct")
         private val KEY_LANDSCAPE_BOTTOM_KB_WIDTH_PCT =
             floatPreferencesKey("landscape_bottom_kb_width_pct")
+        private val KEY_PORTRAIT_FLOAT_KB_X = floatPreferencesKey("portrait_float_kb_x")
+        private val KEY_PORTRAIT_FLOAT_KB_Y = floatPreferencesKey("portrait_float_kb_y")
+        private val KEY_LANDSCAPE_FLOAT_KB_X = floatPreferencesKey("landscape_float_kb_x")
+        private val KEY_LANDSCAPE_FLOAT_KB_Y = floatPreferencesKey("landscape_float_kb_y")
         private val KEY_ENGINE_UNLOCKED = booleanPreferencesKey("engine_selector_unlocked")
         private val KEY_ROOT_UNLOCKED = booleanPreferencesKey("root_chroot_unlocked")
         private val KEY_ENGINE = stringPreferencesKey("execution_engine")
@@ -1306,5 +1333,8 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_KEYBOARD_WIDTH_PERCENT = 100f
         const val MIN_KB_WIDTH_PERCENT = 40f
         const val MAX_KB_WIDTH_PERCENT = 100f
+        /** 浮かせたキーボードの初期位置 = 下端の中央 (浮かせる前と同じ場所から始まる)。 */
+        const val DEFAULT_FLOATING_KEYBOARD_X = 0.5f
+        const val DEFAULT_FLOATING_KEYBOARD_Y = 1f
     }
 }
