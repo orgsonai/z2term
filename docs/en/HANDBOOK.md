@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.3.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.4.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -458,7 +458,7 @@ not reach the clipboard — Android only lets the foreground app write to it.
 
 A **group bar** sits at the top of the **snippet tab in 📜**.
 
-- **`+ Group`** makes a shelf ("daily", "git", …); tapping it lists only the snippets on that shelf. **"All"** brings everything back.
+- **`+ Group`** makes a shelf ("daily", "git", …); tapping it lists only the snippets on that shelf. **"All"** brings everything back. The group you picked last is selected again the next time you open the tab (0.9.4).
 - Which shelf a snippet sits on is chosen in the **Group field inside ✎ (edit)**. With a group open, "+ New" creates the snippet **already on that shelf**.
 - **Tap the name of the open shelf again** (it carries a `✎`) to rename or delete it. ⚠ **Deleting a shelf never deletes the snippets on it** — they go back to "Ungrouped" and stay listed under "All".
 - You can still **reorder with ≡** while a shelf is open. ⚠ Doing so leaves the order of snippets on other shelves untouched.
@@ -926,6 +926,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.4 (versionCode 667), release candidate**: Fixes background servers failing to start when the process ID recorded from an earlier run is now used by another Android app. Such processes are reported as not existing, so the server starts again. The snippet tab now reopens the group you selected last. Open a new terminal tab after updating.
 
 **0.9.3 (versionCode 666), release candidate**: Fixes background-server start-time checks still failing when the Linux root directory is not writable. Compatibility snapshots are created in `/tmp` and removed after opening for reading. Connections through absolute symlinks to Unix sockets also work. Open a new terminal tab after updating.
 

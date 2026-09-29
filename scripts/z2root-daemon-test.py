@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guest checks for process start times and long Unix socket paths.
+"""Guest checks for process start times, foreign processes and long Unix socket paths.
 
 Run in a fresh terminal after installing the updated engine. No build, network
 service, package changes or external Python dependencies are required.
@@ -174,10 +174,27 @@ def ordinary_socket_errors():
         assert occupied.read_text() == "keep"
 
 
+def foreign_processes():
+    # Processes outside the guest must look absent, as their /proc entries are unreadable.
+    os.kill(os.getpid(), 0)
+    try:
+        limit = int(Path("/proc/sys/kernel/pid_max").read_text())
+    except (OSError, ValueError):
+        limit = 32768
+    for pid in range(2, min(limit, 65536)):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            raise AssertionError(f"pid {pid} reported EPERM instead of ESRCH")
+        Path(f"/proc/{pid}/stat").read_bytes()
+
+
 if __name__ == "__main__":
     failed = 0
     for check in (boot_time, process_identity, process_start, stream, socket_symlinks, datagram,
-                  reuse_directory, ordinary_socket_errors):
+                  reuse_directory, ordinary_socket_errors, foreign_processes):
         try:
             check()
         except Exception as error:

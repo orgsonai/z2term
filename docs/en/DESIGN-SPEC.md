@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-28 / Target version: 0.9.3 (versionCode 666)
+Last updated: 2026-09-30 / Target version: 0.9.4 (versionCode 667)
+
+**0.9.4 (versionCode 667), release candidate**: Fixes background servers failing to start when the process ID recorded from an earlier run is now used by another Android app. Such processes are reported as not existing, so the server starts again. The snippet tab now reopens the group you selected last. Open a new terminal tab after updating.
 
 **0.9.3 (versionCode 666), release candidate**: Fixes background-server start-time checks still failing when the Linux root directory is not writable. Compatibility snapshots are created in `/tmp` and removed after opening for reading. Connections through absolute symlinks to Unix sockets also work. Open a new terminal tab after updating.
 
@@ -1011,6 +1013,7 @@ An Android app UID cannot directly `open` `/dev/bus/usb/...`, while `UsbManager.
 - ⚠ **A reorder made while filtered must not go to `replaceAll`** (`SnippetStore.replaceVisible` / `reorderWithin`): that would **wipe every group that is not on screen**. The new order is poured only into the slots the visible rows occupy, so **reordering inside a group leaves the relative order of everything else untouched**. `SnippetGroupTest` pins this down.
 - **Renaming and deleting live behind the `✎` on the open group's chip.** Not a long-press: an invisible gesture is the same as no gesture.
 - **A new snippet lands in the open group.** That is what someone who just opened a group expects, and dropping it into "ungrouped" would mean moving it every time. Editing one into a different group **opens that group** — vanishing from the list on save reads as deletion, not as a move.
+- **The last selected group is remembered** (0.9.4, `snippet_selected_group` in the same DataStore). Reopening the tab starts on that group; if it has been deleted, "All" is shown. The saved value is not overwritten until it has been read, so the initial "All" never erases it.
 - **The group field stays out of the editor until at least one group exists.** A picker whose only choice is "ungrouped" pretends to offer a decision it cannot make.
 - **Backups carry groups as their own entry** (`snippet_groups.json`). ⚠ Mixing them into the snippet array would make 0.8.386 and earlier unable to read the file. Older backups have no such entry, and everything comes back ungrouped. ⚠ Import only happens **when the entry is present** — writing an empty array would delete the shelves and scatter their contents into ungrouped.
 
@@ -1659,7 +1662,9 @@ Hardened to proot parity.
 
 **Snapshot location (0.9.3)**: Create files with `mkstemp` under `/tmp`, resolving the effective rootfs and binds, so a `0555` root directory is supported. Track the exact path per process and unlink it after open, on substitution failure, or when the process exits. Existing files and symlinks are not overwritten. Other `/proc` substitutions use the same path.
 
-If rootfs translation exceeds AF_UNIX `sun_path`, open the parent directory and reach the same socket through `/proc/<tracer>/fd/<fd>/<basename>`. Location, basename and existing-file collisions are preserved. Directory fds remain open for the tracer's lifetime so returned socket addresses remain usable; identical inodes share an fd, with a maximum of 64 directories. Since 0.9.3, `connect` resolves a final symlink relative to the guest root; `bind` keeps existing links intact and returns `EADDRINUSE`. Names that remain too long and requests exceeding this limit are not supported. Run `scripts/z2root-daemon-test.py` in a fresh terminal after updating to check boot times, snapshot fd lifetime, UID/GID consistency, stream/datagram traffic, absolute/relative symlink connections, directory reuse and existing-file protection without building.
+**Processes outside the guest (0.9.4)**: Under fakeroot, `kill` is traced and `EPERM` is returned as `ESRCH`. Real root never gets `EPERM`; here it only means a process of another Android app (another UID) whose `/proc/<pid>/stat` is unreadable anyway. Background servers that treat `kill(pid, 0) == EPERM` as alive would otherwise stop with a stat read error when a stale PID record is reused by another app. The seccomp program size is derived from the syscall lists.
+
+If rootfs translation exceeds AF_UNIX `sun_path`, open the parent directory and reach the same socket through `/proc/<tracer>/fd/<fd>/<basename>`. Location, basename and existing-file collisions are preserved. Directory fds remain open for the tracer's lifetime so returned socket addresses remain usable; identical inodes share an fd, with a maximum of 64 directories. Since 0.9.3, `connect` resolves a final symlink relative to the guest root; `bind` keeps existing links intact and returns `EADDRINUSE`. Names that remain too long and requests exceeding this limit are not supported. Run `scripts/z2root-daemon-test.py` in a fresh terminal after updating to check boot times, snapshot fd lifetime, UID/GID consistency, stream/datagram traffic, absolute/relative symlink connections, directory reuse and existing-file protection without building. Since 0.9.4 it also checks that no PID reports `EPERM` to `kill(pid, 0)`.
 
 ##### Spoofing and bridging for compatibility
 

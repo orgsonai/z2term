@@ -85,6 +85,7 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -333,6 +334,17 @@ private fun SnippetsBody(
     val groups by groupsFlow.collectAsState()
     var selectedGroup by remember { mutableStateOf("") }
     var groupEditing by remember { mutableStateOf<SnippetGroup?>(null) }
+    // 最後に開いていたグループから始める。読み終わるまでは保存しない
+    // (初期値の「すべて」で記憶を上書きしないため)。
+    var selectionLoaded by remember { mutableStateOf(false) }
+    LaunchedEffect(store) {
+        val saved = store.selectedGroup.first()
+        if (saved.isNotEmpty() && store.groups.first().any { it.id == saved }) selectedGroup = saved
+        selectionLoaded = true
+    }
+    LaunchedEffect(selectedGroup, selectionLoaded) {
+        if (selectionLoaded) store.setSelectedGroup(selectedGroup)
+    }
     // 開いていたグループが消えたら「すべて」へ戻す (**空の棚を開いたまま固まらせない**)。
     LaunchedEffect(groups) {
         if (selectedGroup.isNotEmpty() && groups.none { it.id == selectedGroup }) selectedGroup = ""

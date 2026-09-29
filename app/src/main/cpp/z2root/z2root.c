@@ -1596,6 +1596,13 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf, int lc_idx)
                 regs.regs[0] = 0; set_regs(pid, &regs);
             }
             return;
+        // kill: root なら EPERM は起きない。起きるのは chroot 外の別アプリ(別 uid)のプロセス
+        // だけで、その /proc/<pid>/stat も読めない。ゲストからは「存在しない」に揃える。
+        // kill(pid,0) の EPERM を生存とみなす常駐サーバーが、古い PID 記録の番号を別アプリが
+        // 再利用したときに stat を読めず起動不能になるのを防ぐ。
+        case 129:
+            if (ret == -EPERM) { regs.regs[0] = (unsigned long long)-ESRCH; set_regs(pid, &regs); }
+            return;
         case 79: case 80: {  // newfstatat / fstat: struct stat の st_uid(off24)/st_gid(off28)
             unsigned int zero = 0;
             if (ret != 0 || buf == 0) return;
@@ -2632,6 +2639,7 @@ static const int kTraceSyscallsFakeroot[] = {
     148, 150,                 // getresuid / getresgid
     209,                      // getsockopt(SO_PEERCRED): peer uid/gidを0へ
     211, 212,                 // sendmsg / recvmsg (AF_UNIX SCM_CREDENTIALS の uid/gid 偽装)
+    129,                      // kill: 別アプリのプロセスへの EPERM を ESRCH(存在しない)へ
 };
 
 // トレースではなく ENOSYS で明示拒否する syscall。io_uring は submission ring 経由で
@@ -2650,7 +2658,7 @@ static const int kDenySyscalls[] = {
 // プロセスへ seccomp フィルタを導入する。成功 0 / 失敗 -1。
 static int install_seccomp_filter(const struct config *cfg) {
     int nrs[sizeof(kTraceSyscallsBase)/sizeof(int) +
-            sizeof(kTraceSyscallsFakeroot)/sizeof(int) + 1];
+            sizeof(kTraceSyscallsFakeroot)/sizeof(int) + 1];  // +1 = epoll_ctl(21)
     int n = 0;
     for (size_t i = 0; i < sizeof(kTraceSyscallsBase)/sizeof(int); i++) {
         int s = kTraceSyscallsBase[i];
@@ -2687,7 +2695,8 @@ static int install_seccomp_filter(const struct config *cfg) {
     //   [5+D+C] DENY (RET_ERRNO ENOSYS)
     int C = n;
     int D = d;
-    struct sock_filter prog[8 + 64];
+    // 固定 6 命令 + deny D 個 + trace C 個。一覧を増やしても溢れないよう要素数から決める。
+    struct sock_filter prog[6 + sizeof(dnrs)/sizeof(int) + sizeof(nrs)/sizeof(int)];
     int p = 0;
     prog[p++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, arch));
     prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AUDIT_ARCH_AARCH64, 0, (__u8)(1 + D + C));
@@ -2788,6 +2797,7 @@ static int syscall_needs_exit(const struct config *cfg, const struct pid_state *
         case 52: case 53: return 1;  // 戻り値を 0(成功)へ(chmod/chown/set*id の EPERM 偽装)
         case 148: case 150: return 1;  // getresuid/getresgid: 出力先の 3 つを 0 に書き換える
         case 209: return st->aux_addr != 0;  // getsockopt(SO_PEERCRED): struct ucredを0へ
+        case 129: return 1;  // kill: EPERM を ESRCH へ
         case 212: return !cfg->no_recvmsg;  // recvmsg: 受信 SCM_CREDENTIALS の uid/gid を 0 へ([DEBUG] スイッチで介入なし)
         default: return 0;                            // パス変換のみ(execve/unlinkat/sendmsg 等)
     }

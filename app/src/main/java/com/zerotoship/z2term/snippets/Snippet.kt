@@ -227,6 +227,15 @@ class SnippetStore(private val context: Context) {
         }
     }
 
+    /** 最後に開いていたグループ ("" = すべて)。次に開いたとき同じ棚から始める。 */
+    val selectedGroup: Flow<String> = context.snippetDataStore.data.map { p ->
+        p[KEY_SELECTED_GROUP] ?: ""
+    }
+
+    suspend fun setSelectedGroup(id: String) {
+        context.snippetDataStore.edit { p -> p[KEY_SELECTED_GROUP] = id }
+    }
+
     /** グループを作る / 名前を直す。 */
     suspend fun upsertGroup(group: SnippetGroup) {
         context.snippetDataStore.edit { p ->
@@ -310,6 +319,7 @@ class SnippetStore(private val context: Context) {
     companion object {
         private val KEY = stringPreferencesKey("snippets")
         private val KEY_GROUPS = stringPreferencesKey("snippet_groups")
+        private val KEY_SELECTED_GROUP = stringPreferencesKey("snippet_selected_group")
 
         /**
          * [all] のうち [visible] に含まれる行の位置だけを、[visible] の並びで置き換える

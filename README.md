@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.4 (versionCode 667), release candidate**: Fixes background servers failing to start when the process ID recorded from an earlier run is now used by another Android app. Such processes are reported as not existing, so the server starts again. The snippet tab now reopens the group you selected last. Open a new terminal tab after updating.
+
 **0.9.3 (versionCode 666), release candidate**: Fixes background-server start-time checks still failing when the Linux root directory is not writable. Compatibility snapshots are created in `/tmp` and removed after opening for reading. Connections through absolute symlinks to Unix sockets also work. Open a new terminal tab after updating.
 
 **0.9.2 (versionCode 665), release candidate**: Improves background-server startup compatibility. Adds a boot-time fallback when Android denies system statistics, and supports Unix socket paths that become too long after rootfs translation. Open a new terminal tab after updating.
