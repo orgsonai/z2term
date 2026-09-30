@@ -54,7 +54,7 @@ internal object EdgeNoteUi {
      * そちらの方が手数が少ないので、こちらは常に使える控えとして足すだけにする。
      */
     @SuppressLint("ViewConstructor") // Built in code only, never inflated from XML.
-    internal class NoteEditor(context: Context, ruled: Boolean, custom: Boolean) : EditText(context) {
+    internal class NoteEditor(context: Context, ruled: Boolean, custom: Boolean) : EdgeInputField(context) {
         private val rules = Rules(this, ruled, custom)
         var onSelectionChange: (() -> Unit)? = null
 

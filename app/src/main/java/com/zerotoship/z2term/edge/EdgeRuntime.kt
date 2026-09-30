@@ -1867,7 +1867,7 @@ object EdgeRuntime {
                 }.onFailure { row.addView(text(it.message ?: "Cannot open note")) }
             }
             "input" -> {
-                val entry = EditText(ui()).apply {
+                val entry = EdgeInputField(ui()).apply {
                     hint = label; contentDescription = label; minLines = 2; maxLines = 5
                     filters = arrayOf(android.text.InputFilter.LengthFilter(65536))
                     inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE

@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.4.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.5.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -909,7 +909,7 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Note colours (0.8.587)**: **Items → Edit note** provides Note background colour and Note text colour. Choose a swatch or enter #RRGGBB, then save to apply to both viewing and editing. Automatic clears the override. A custom background with automatic text chooses contrasting white or black. Ruled lines and the cursor follow the text colour. Changes use the existing Save, Cancel and unsaved-change confirmation, preserving the note text and undo/redo history. Build and device behavior not yet verified.
 
-**Adding items and switching tabs (unreleased)**: “+” opens item editing with choices to add an app or a custom macro/command slot. Custom slots can select saved macros like tiles or accept commands directly. The icon field offers a preview list of bundled and saved z2-icon images. Add and settings controls remain 48dp tall and adapt to 24–32dp widths so both fit side by side in narrow panels. Swipe across a normal menu to switch tabs: left/right for vertical and grid layouts, up/down for horizontal layouts (left/up advances, right/down goes back). No initial tab tap is required; the first and last tabs do not wrap. Input editing, long presses and scrolling along the item layout retain their behavior. Tap the bar to open its menu, then **long-press outside the menu** to open bar editing; Settings → Tips also describes this shortcut.
+**Adding items and switching tabs (unreleased)**: “+” opens item editing with choices to add an app or a custom macro/command slot. Custom slots can select saved macros like tiles or accept commands directly. The icon field offers a preview list of bundled and saved z2-icon images. Add and settings controls remain 48dp tall and adapt to 24–32dp widths so both fit side by side in narrow panels. Swipe across a normal menu to switch tabs: left/right for vertical and grid layouts, up/down for horizontal layouts (left/up advances, right/down goes back). No initial tab tap is required; the first and last tabs do not wrap. The same swipe switches tabs when started over a text input (0.9.5). An unfocused field waits for a completed tap before editing, so a swipe does not open the keyboard. Tab-direction swipes take priority while editing too; long-press text selection, scrolling along the item layout, choice lists and sliders retain their behavior. Tap the bar to open its menu, then **long-press outside the menu** to open bar editing; Settings → Tips also describes this shortcut.
 
 **Named Android action macros (0.8.571)**: Save text definitions through the CLI and run coordinate taps, holds, swipes, waits, app launches, shell commands and timed scrolling through one runtime. Execution provides one active run, completion tracking, cancellation, deadlines and history. Panels, tiles, existing macros and z2-when call the same definitions. See [Android action macros](ACTION-MACROS.md) for syntax, limits and examples. Build and device behavior not yet verified.
 
@@ -926,6 +926,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.5 (versionCode 668), release candidate**: Swiping over an edge-panel text input now switches to the neighbouring tab. An unfocused input starts editing only after a completed tap; swiping does not focus it. Tab-direction swipes also take priority while editing, while long-press selection and scrolling along the item layout retain their behavior.
 
 **0.9.4 (versionCode 667), release candidate**: Fixes background servers failing to start when the process ID recorded from an earlier run is now used by another Android app. Such processes are reported as not existing, so the server starts again. The snippet tab now reopens the group you selected last. Open a new terminal tab after updating.
 

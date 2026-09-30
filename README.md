@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.5 (versionCode 668), release candidate**: Swiping over an edge-panel text input now switches to the neighbouring tab. An unfocused input starts editing only after a completed tap; swiping does not focus it. Tab-direction swipes also take priority while editing, while long-press selection and scrolling along the item layout retain their behavior.
+
 **0.9.4 (versionCode 667), release candidate**: Fixes background servers failing to start when the process ID recorded from an earlier run is now used by another Android app. Such processes are reported as not existing, so the server starts again. The snippet tab now reopens the group you selected last. Open a new terminal tab after updating.
 
 **0.9.3 (versionCode 666), release candidate**: Fixes background-server start-time checks still failing when the Linux root directory is not writable. Compatibility snapshots are created in `/tmp` and removed after opening for reading. Connections through absolute symlinks to Unix sockets also work. Open a new terminal tab after updating.

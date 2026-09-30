@@ -57,7 +57,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
                 swipeOnResult = swipeArea?.let { resultAt(it, event) } == true
                 swipeHorizontal = swipeOnResult || horizontalTabSwipe
                 swipeCandidate = tabStrip?.let { contains(it, event) } != true &&
-                    swipeArea?.let { contains(it, event) && !editingAt(it, event) } == true
+                    swipeArea?.let { contains(it, event) && !controlAt(it, event) } == true
             }
             MotionEvent.ACTION_POINTER_DOWN -> swipeCandidate = false
             MotionEvent.ACTION_MOVE -> if (swipeCandidate) {
@@ -105,12 +105,12 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
         return bounds.contains(event.rawX.toInt(), event.rawY.toInt())
     }
 
-    private fun editingAt(view: View, event: MotionEvent): Boolean {
+    private fun controlAt(view: View, event: MotionEvent): Boolean {
         if (!contains(view, event)) return false
-        if (view is android.widget.EditText || view is android.widget.SeekBar || view is android.widget.Spinner)
+        if (view is android.widget.SeekBar || view is android.widget.Spinner)
             return true
         if (view is ViewGroup) for (i in view.childCount - 1 downTo 0) {
-            if (editingAt(view.getChildAt(i), event)) return true
+            if (controlAt(view.getChildAt(i), event)) return true
         }
         return false
     }

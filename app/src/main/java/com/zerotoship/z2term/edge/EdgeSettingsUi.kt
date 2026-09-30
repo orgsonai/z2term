@@ -337,7 +337,7 @@ internal object EdgeSettingsUi {
             intArrayOf(tint(muted(context), 0x80), enabled))
     }
 
-    fun field(context: Context, lines: Int = 1): EditText = EditText(context).apply {
+    fun field(context: Context, lines: Int = 1): EditText = EdgeInputField(context).apply {
         // A single-line field is the norm; a source editor asks for a floor, not a ceiling.
         if (lines <= 1) setSingleLine(true) else {
             minLines = lines; gravity = Gravity.TOP or Gravity.START
