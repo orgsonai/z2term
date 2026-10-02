@@ -986,7 +986,7 @@ SSH 連線目標 %3$d 個
 圖塊 %7$d 個、圖示 %8$d 張
 主題 %9$d 個、詞典 %10$d 個、學習 %11$d 詞</string>
     <string name="backup_import_merge_note">現在已有的東西不會被刪除。相同的會被替換，沒有的會被新增。</string>
-    <string name="backup_import_failed">無法匯入（金鑰密語不對，或者檔案已損壞）。</string>
+    <string name="backup_import_failed">無法匯入。請檢查金鑰密語、檔案是否損壞及目標位置的存取權限。</string>
     <string name="backup_import_do">還原</string>
     <string name="settings_auto_backup">在指定的日期時間自動進行</string>
     <string name="settings_auto_backup_desc">會在你選定的時間自動寫出備份，並保留最新的若干份。清理的對象只有自動建立的備份，手動建立的不會被刪除。</string>

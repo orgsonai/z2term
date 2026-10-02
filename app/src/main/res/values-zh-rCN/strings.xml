@@ -986,7 +986,7 @@ SSH 连接目标 %3$d 个
 磁贴 %7$d 个、图标 %8$d 张
 主题 %9$d 个、词典 %10$d 个、学习 %11$d 词</string>
     <string name="backup_import_merge_note">现在已有的东西不会被删除。相同的会被替换，没有的会被添加。</string>
-    <string name="backup_import_failed">无法导入（口令不对，或者文件已损坏）。</string>
+    <string name="backup_import_failed">无法导入。请检查口令、文件是否损坏以及目标位置的访问权限。</string>
     <string name="backup_import_do">恢复</string>
     <string name="settings_auto_backup">在指定的日期时间自动进行</string>
     <string name="settings_auto_backup_desc">会在你选定的时间自动写出备份，并保留最新的若干份。清理的对象只有自动创建的备份，手动创建的不会被删除。</string>

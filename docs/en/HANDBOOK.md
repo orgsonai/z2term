@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.5.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.6.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -265,6 +265,8 @@ Command list > Servers > **"Data limit"** stops **z2term's traffic** once **the 
 - Reaching the limit notifies you **once per period**. Counting restarts on the day you chose.
 
 ### Taking your setup with you (for a new phone or a reinstall)
+
+If real-root chroot use has changed shared HOME permissions, export and restore prepare the access they need (0.9.6). This also applies to backups without a passphrase. Existing root authorization may be required on a rooted device.
 
 Settings > Maintenance > **"Take it with you"** writes your current setup to a single file.
 
@@ -926,6 +928,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.6 (versionCode 669), release candidate**: Fixes backup restoration failing after real-root chroot use leaves shared HOME inaccessible to the Android app. Both plain and encrypted backups prepare destination access before importing. Failure messages now also mention destination access.
 
 **0.9.5 (versionCode 668), release candidate**: Swiping over an edge-panel text input now switches to the neighbouring tab. An unfocused input starts editing only after a completed tap; swiping does not focus it. Tab-direction swipes also take priority while editing, while long-press selection and scrolling along the item layout retain their behavior.
 

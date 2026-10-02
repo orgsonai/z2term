@@ -17,6 +17,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
 import com.zerotoship.z2term.widget.WidgetStore
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -138,6 +139,7 @@ object BackupManager {
             "includeSecrets requires a passphrase"
         }
         val app = context.applicationContext
+        BackupHomeAccess.prepare(app)
         val settingsJson = AppSettings(app).exportRaw()
         val snippetsJson = SnippetStore(app).exportRaw()
         val snippetGroupsJson = SnippetStore(app).exportGroups()
@@ -253,6 +255,10 @@ object BackupManager {
             else -> entries[SSH_PLAIN]
         }
 
+        // Check file access before changing any settings. Real-root chroot sessions may leave
+        // shared HOME owned by root (0700), even though restoration runs as the Android app UID.
+        BackupHomeAccess.prepare(app)
+
         entries[SETTINGS]?.let { AppSettings(app).importRaw(it.toString(Charsets.UTF_8)) }
         entries[SNIPPETS]?.let { SnippetStore(app).importRaw(it.toString(Charsets.UTF_8)) }
         // ⚠ **グループはスニペットより先でも後でもよいが、無いときは何もしない**。
@@ -311,11 +317,15 @@ object BackupManager {
      */
     private fun safeChild(dir: File, name: String): File? {
         if (name.isEmpty() || name.contains('/') || name.contains('\\') || name == "." || name == "..") return null
-        return File(dir, name)
+        return File(dir, name).takeIf { it.canonicalFile.parentFile == dir.canonicalFile }
     }
 
-    private fun filesIn(dir: File, suffix: String): List<File> =
-        dir.listFiles { f -> f.isFile && f.name.endsWith(suffix) }?.sortedBy { it.name } ?: emptyList()
+    private fun filesIn(dir: File, suffix: String): List<File> {
+        if (!dir.exists()) return emptyList()
+        return (dir.listFiles { f ->
+            f.isFile && f.name.endsWith(suffix) && f.canonicalFile.parentFile == dir.canonicalFile
+        } ?: throw IOException("Cannot read backup directory: ${dir.name}")).sortedBy { it.name }
+    }
 
     private fun countJsonArray(json: String): Int =
         runCatching { org.json.JSONArray(json).length() }.getOrDefault(0)

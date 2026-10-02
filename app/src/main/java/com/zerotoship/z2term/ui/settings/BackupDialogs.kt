@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.ui.settings
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -119,7 +120,7 @@ fun BackupExportDialog(onDismiss: () -> Unit, onDone: () -> Unit) {
                             context.contentResolver.openOutputStream(uri)?.use { out ->
                                 BackupManager.export(context, out, BackupManager.Options(includeSecrets, passphrase))
                             } ?: error("cannot open output")
-                        }.isSuccess
+                        }.onFailure { Log.e("BackupManager", "Backup export failed", it) }.isSuccess
                     }
                     busy = false
                     if (ok) onDone() else onDismiss()
@@ -248,6 +249,7 @@ fun BackupImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: () -> Unit) {
                     scope.launch {
                         val ok = withContext(Dispatchers.IO) {
                             runCatching { BackupManager.import(context, uri, passphrase) }
+                                .onFailure { Log.e("BackupManager", "Backup restore failed", it) }
                                 .getOrDefault(false)
                         }
                         busy = false

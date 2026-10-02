@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-01 / Target version: 0.9.5 (versionCode 668)
+Last updated: 2026-10-02 / Target version: 0.9.6 (versionCode 669)
+
+**0.9.6 (versionCode 669), release candidate**: Fixes backup restoration failing after real-root chroot use leaves shared HOME inaccessible to the Android app. Both plain and encrypted backups prepare destination access before importing. Failure messages now also mention destination access.
 
 **0.9.5 (versionCode 668), release candidate**: Swiping over an edge-panel text input now switches to the neighbouring tab. An unfocused input starts editing only after a completed tap; swiping does not focus it. Tab-direction swipes also take priority while editing, while long-press selection and scrolling along the item layout retain their behavior.
 
@@ -968,6 +970,8 @@ An Android app UID cannot directly `open` `/dev/bus/usb/...`, while `UsbManager.
 
 #### Taking it with you (`backup/BackupManager`, 0.8.239)
 
+**Access after root chroot use (0.9.6)**: Backup runs as the Android app UID. A root-owned shared HOME with mode 0700 can block restoring macros and rules even with a correct passphrase. Before export and after decryption but before applying settings, check destination access. Only when needed, use the existing root authorization to grant the app group read/traversal on shared HOME and restore owner access to `.z2term` and its macro/rule directories. Do not recursively change ownership of the entire home or grant write access to other users. Reject symlink directories and fail instead of exporting an unreadable directory as empty. Record export/restore exceptions in the diagnostic log.
+
 **What it does**: writes settings, SSH connections, snippets, `z2-when` rules, macros and — since 0.8.380 — **your theme, tile assignments, icon drawings, dictionaries and what the keyboard has learned** into **one zip**, and restores them on another device. Until now a new phone, a factory reset or a reinstall meant **losing everything**; only once it can be carried does building a real setup feel worth it.
 
 **What is in and what is out**: the rootfs (hundreds of MB), logs and `events.jsonl` are **excluded**. Separating "what a reinstall restores" from "what is lost forever" *is* the design here — mixing them produces a several-hundred-megabyte file that nobody ever makes twice.
@@ -1784,6 +1788,7 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 
 when `executionEngine = "chroot"`, `launchChroot()` is used.
 
+- **Privileged commands and service management**: This path has real UID 0 and capabilities, allowing ownership changes and real mounts. Android `init` remains PID 1; systemd is not booted. `systemctl status/start` can detect chroot and skip the request, so exit code 0 alone does not prove that a service started. Distinguish offline operations such as `systemctl list-unit-files` from controlling running services; individual daemons can be started directly. PID namespace support depends on the device kernel. The rootfs retains `nodev` / `nosuid`, so created device nodes and setuid files do not automatically become effective. [systemd container requirements](https://systemd.io/CONTAINER_INTERFACE/).
 - **Toggling the selector**: tap the version 7 times to toggle `engineSelectorUnlocked` (works without root). Unlocking sets it `true` (proot / z2root become selectable); if `probeRootChroot()` then passes, `rootChrootUnlocked=true` is also set and chroot joins the options. Tapping 7 more times while unlocked sets it back to `false` and resets `executionEngine` to the default proot, returning to the pre-unlock state (two-way toggle as of 0.8.33).
 - `probeRootChroot()`: a self-test of `su -c id` (uid=0) + `su -c "chroot <rootfs> /bin/sh -c echo"`. The result is `RootProbe` (Ok/NoRoot/ChrootBlocked).
 - `launchChroot()`: via `su -c`, bind mount (/dev, /dev/pts, /proc, /sys, /root, /sdcard) → `chroot` → login shell. The `ensure*` helpers (z2-*/OSC7/history/sshd/gui/z2run) are shared with the proot path.

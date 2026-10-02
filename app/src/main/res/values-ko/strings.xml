@@ -985,7 +985,7 @@ SSH 연결: %3$d
 타일: %7$d, 아이콘: %8$d
 테마: %9$d, 사전: %10$d, 학습한 단어: %11$d</string>
     <string name="backup_import_merge_note">지금 있는 것은 아무것도 지우지 않습니다. 같은 항목은 덮어쓰고, 새 항목은 더합니다.</string>
-    <string name="backup_import_failed">복원하지 못했습니다 (암호 문구가 다르거나 파일이 상했습니다).</string>
+    <string name="backup_import_failed">복원하지 못했습니다. 암호 문구, 파일 손상 여부, 저장 위치의 접근 권한을 확인하세요.</string>
     <string name="backup_import_do">복원</string>
     <string name="settings_auto_backup">정해진 때에</string>
     <string name="settings_auto_backup_desc">정한 시각에 스스로 백업을 쓰고 새것 몇 개를 남깁니다. 스스로 만든 파일만 정리하며, 손으로 만든 백업은 절대 지우지 않습니다.</string>

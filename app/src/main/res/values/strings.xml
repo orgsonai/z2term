@@ -1077,7 +1077,7 @@ Macros: %6$d
 Tiles: %7$d, icons: %8$d
 Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="backup_import_merge_note">Nothing you have now is deleted. Matching items are replaced, new ones are added.</string>
-    <string name="backup_import_failed">Could not restore (wrong passphrase, or the file is damaged).</string>
+    <string name="backup_import_failed">Could not restore. Check the passphrase, file integrity, and access to the destination.</string>
     <string name="backup_import_do">Restore</string>
     <!-- 定期バックアップ (0.8.386) -->
     <string name="settings_auto_backup">On a schedule</string>

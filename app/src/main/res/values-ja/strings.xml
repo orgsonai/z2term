@@ -1059,7 +1059,7 @@ SSH 接続先 %3$d 件
 タイル %7$d 枠・アイコン %8$d 枚
 テーマ %9$d 件・辞書 %10$d 件・学習 %11$d 語</string>
     <string name="backup_import_merge_note">いま入っているものは消えません。同じものは置き換え、無いものは追加します。</string>
-    <string name="backup_import_failed">取り込めませんでした（合言葉が違うか、ファイルが壊れています）。</string>
+    <string name="backup_import_failed">取り込めませんでした。合言葉、ファイルの破損、保存先へのアクセス権を確認してください。</string>
     <string name="backup_import_do">戻す</string>
     <!-- 定期バックアップ (0.8.386) -->
     <string name="settings_auto_backup">決まった日時に自動で</string>

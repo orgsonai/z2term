@@ -1003,7 +1003,7 @@ Macros: %6$d
 Mosaicos: %7$d, iconos: %8$d
 Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
     <string name="backup_import_merge_note">No se elimina nada de lo que tienes ahora. Los elementos que coinciden se sustituyen y los nuevos se añaden.</string>
-    <string name="backup_import_failed">No se pudo restaurar (frase de contraseña incorrecta, o el archivo está dañado).</string>
+    <string name="backup_import_failed">No se pudo restaurar. Comprueba la frase de contraseña, la integridad del archivo y el acceso al destino.</string>
     <string name="backup_import_do">Restaurar</string>
     <string name="settings_auto_backup">De forma programada</string>
     <string name="settings_auto_backup_desc">Escribe una copia por su cuenta a la hora que elijas y conserva las últimas. Solo se limpian los archivos que ha creado ella: una copia que hayas hecho a mano nunca se elimina.</string>
