@@ -970,7 +970,7 @@
     <string name="settings_backup_export">创建备份</string>
     <string name="settings_backup_import">从备份恢复</string>
     <string name="backup_export_title">创建备份</string>
-    <string name="backup_export_body">把设置、SSH 连接目标、代码片段、自动化规则、宏、自制主题、磁贴分配、图标、用户词典和键盘的学习记录写到一个文件里。保存位置稍后可以选。</string>
+    <string name="backup_export_body">把设置、SSH 连接目标、代码片段、自动化规则、宏、自制主题、磁贴分配、图标、用户词典、边缘面板、笔记和键盘的学习记录写到一个文件里。保存位置稍后可以选。</string>
     <string name="backup_include_secrets">同时包含 SSH 的密码和密钥</string>
     <string name="backup_secrets_warning">⚠ 这会把机密带出设备。除清单外，整个备份都会用口令加密（没有口令就无法恢复）。</string>
     <string name="backup_passphrase">口令</string>
@@ -984,7 +984,8 @@ SSH 连接目标 %3$d 个
 自动化规则 %5$d 条
 宏 %6$d 个
 磁贴 %7$d 个、图标 %8$d 张
-主题 %9$d 个、词典 %10$d 个、学习 %11$d 词</string>
+主题 %9$d 个、词典 %10$d 个、学习 %11$d 词
+边缘面板：%12$d，笔记：%13$d</string>
     <string name="backup_import_merge_note">现在已有的东西不会被删除。相同的会被替换，没有的会被添加。</string>
     <string name="backup_import_failed">无法导入。请检查口令、文件是否损坏以及目标位置的访问权限。</string>
     <string name="backup_import_do">恢复</string>

@@ -987,7 +987,7 @@
     <string name="settings_backup_export">Crear una copia de seguridad</string>
     <string name="settings_backup_import">Restaurar desde una copia</string>
     <string name="backup_export_title">Crear una copia de seguridad</string>
-    <string name="backup_export_body">Escribe en un solo archivo los ajustes, las conexiones SSH, los fragmentos, las reglas de automatización, las macros, tu tema, las asignaciones de los mosaicos, los iconos, los diccionarios y lo que ha aprendido el teclado. A continuación eliges dónde guardarlo.</string>
+    <string name="backup_export_body">Escribe en un solo archivo los ajustes, las conexiones SSH, los fragmentos, las reglas de automatización, las macros, tu tema, las asignaciones de los mosaicos, los iconos, los diccionarios, paneles laterales y notas y lo que ha aprendido el teclado. A continuación eliges dónde guardarlo.</string>
     <string name="backup_include_secrets">Incluir las contraseñas y claves SSH</string>
     <string name="backup_secrets_warning">⚠ Esto saca secretos del dispositivo. Toda la copia, salvo su manifiesto, se cifra con una frase de contraseña (sin ella, la copia no se puede restaurar).</string>
     <string name="backup_passphrase">Frase de contraseña</string>
@@ -1001,7 +1001,8 @@ Fragmentos: %4$d
 Reglas de automatización: %5$d
 Macros: %6$d
 Mosaicos: %7$d, iconos: %8$d
-Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d</string>
+Tema: %9$d, diccionarios: %10$d, palabras aprendidas: %11$d
+Paneles laterales: %12$d, notas: %13$d</string>
     <string name="backup_import_merge_note">No se elimina nada de lo que tienes ahora. Los elementos que coinciden se sustituyen y los nuevos se añaden.</string>
     <string name="backup_import_failed">No se pudo restaurar. Comprueba la frase de contraseña, la integridad del archivo y el acceso al destino.</string>
     <string name="backup_import_do">Restaurar</string>

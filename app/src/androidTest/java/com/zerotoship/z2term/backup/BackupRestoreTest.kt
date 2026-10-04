@@ -3,6 +3,7 @@ package com.zerotoship.z2term.backup
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.zerotoship.z2term.edge.EdgeRuntime
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.SshProfileStore
 import com.zerotoship.z2term.service.WhenManager
@@ -61,10 +62,17 @@ class BackupRestoreTest {
         val profiles = SshProfileStore(app)
         val settings = AppSettings(app)
         val previousFontSize = settings.flow.first().fontSizeSp
+        val edge = EdgeRuntime.store(app)
+        val previousEnabled = edge.enabled()
+        val externalNote = File(app.cacheDir, "$id-note.txt")
         val includeSecrets = passphrase.isNotEmpty()
         val original = "#!/bin/sh\nprintf 'backup test 日本語\\n'\n"
         try {
             settings.setFontSize(17f)
+            edge.setPanel(id, mapOf("handle" to "bar", "side" to "left", "scroll-how" to "node"))
+            edge.setItem("$id:memo", mapOf("type" to "note", "file" to externalNote.path))
+            externalNote.writeText("backup note 日本語")
+            edge.enable(false)
             macro.writeText(original)
             rule.writeText("enabled=false\n")
             snippets.upsert(Snippet(id = id, label = "Backup test", command = "printf original"))
@@ -78,7 +86,11 @@ class BackupRestoreTest {
             val summary = checkNotNull(BackupManager.peek(app, uri))
             assertEquals(includeSecrets, summary.encrypted)
             assertTrue(summary.macroCount > 0)
+            assertTrue(summary.edgePanelCount > 0)
+            assertTrue(summary.edgeNoteCount > 0)
             settings.setFontSize(21f)
+            edge.setPanel(id, mapOf("scroll-how" to "swipe"))
+            externalNote.writeText("changed note")
             macro.writeText("changed")
             rule.delete()
             snippets.upsert(Snippet(id = id, label = "Changed", command = "printf changed"))
@@ -88,10 +100,16 @@ class BackupRestoreTest {
                 assertEquals(21f, settings.flow.first().fontSizeSp, 0f)
                 assertEquals("changed", macro.readText())
                 assertFalse(rule.exists())
+                assertEquals("swipe", edge.panel(id).fields["scroll-how"])
+                assertEquals("changed note", externalNote.readText())
             }
             assertTrue(BackupManager.import(app, uri, passphrase))
             assertEquals(17f, settings.flow.first().fontSizeSp, 0f)
             assertEquals(original, macro.readText())
+            assertEquals("node", edge.panel(id).fields["scroll-how"])
+            assertEquals("backup note 日本語", edge.noteFile(id, edge.item("$id:memo")).readText())
+            assertEquals("changed note", externalNote.readText())
+            assertFalse(edge.enabled())
             assertTrue(macro.canExecute())
             assertEquals("enabled=false\n", rule.readText())
             assertEquals("printf original", snippets.snippets.first().single { it.id == id }.command)
@@ -99,6 +117,7 @@ class BackupRestoreTest {
             assertEquals(if (includeSecrets) "test-only-secret" else "", restored.password)
         } finally {
             settings.setFontSize(previousFontSize)
+            edge.directory(id).deleteRecursively(); edge.enable(previousEnabled); externalNote.delete()
             macro.delete(); rule.delete(); archive.delete()
             snippets.delete(id); profiles.delete(id)
         }

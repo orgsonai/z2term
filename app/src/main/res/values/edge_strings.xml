@@ -123,7 +123,7 @@
     <string name="edge_scroll_how">How to scroll</string>
     <string name="edge_scroll_how_node">Do not touch the screen</string>
     <string name="edge_scroll_how_swipe">Send a swipe</string>
-    <string name="edge_scroll_how_help">Automatic asks the scrollable view itself and only sends a swipe where the app offers nothing scrollable. A swipe cannot be told apart from your finger, so on screens where swiping does something (swipe to reply, glide typing) it triggers that instead. Asking the view never touches the screen, but the app decides how far one step goes.</string>
+    <string name="edge_scroll_how_help">Automatic scrolls the terminal directly and uses continuous vertical swipes on other screens. Do not touch the screen uses only the app’s scroll actions, so movement depends on the app. Send a swipe uses vertical swipes on every screen.</string>
     <string name="edge_scroll_no_scrollable">Nothing scrollable in this window. Set How to scroll to Send a swipe if it still needs to move.</string>
     <string name="edge_action_step">Action %1$d</string>
     <string name="edge_action_add">Add action</string>

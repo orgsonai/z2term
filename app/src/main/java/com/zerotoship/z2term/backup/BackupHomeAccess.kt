@@ -13,7 +13,7 @@ internal object BackupHomeAccess {
     fun prepare(context: Context) {
         val home = File(context.filesDir.canonicalFile, "shared_home")
         val state = File(home, ".z2term")
-        val dirs = listOf(File(state, "when"), File(state, "macros"))
+        val dirs = listOf(File(state, "when"), File(state, "macros"), File(state, "edge"))
         val parents = listOf(home, state) + dirs
         // These paths belong to the app. Never repair a symlink into some other directory.
         parents.forEach { rejectSymlink(it) }

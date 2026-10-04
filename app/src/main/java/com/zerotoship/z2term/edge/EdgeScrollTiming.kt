@@ -10,11 +10,12 @@ internal object EdgeScrollTiming {
         require(speedDp.isFinite() && speedDp > 0 && heightDp.isFinite() && heightDp >= 96)
         require(sampleMs in 1..1000)
         val minimumDuration = sampleMs * 3L + 1L
-        val distance = (speedDp * 0.12f).coerceAtLeast(32f).coerceAtMost(heightDp * 0.8f)
+        val distance = (speedDp * 0.48f).coerceAtLeast(32f).coerceAtMost(heightDp * 0.8f)
         val period = ceil(distance.toDouble() / speedDp.toDouble() * 1000.0).toLong().coerceAtLeast(1)
         // Three intermediate MOVE samples, with the final one just before UP at high speed.
         // A short path whose duration is below sampleMs produces only DOWN/UP on Android.
-        val duration = period.coerceIn(minimumDuration, maxOf(120L, minimumDuration))
+        // Use longer strokes to avoid spending most of a slow scroll in DOWN/UP and pauses.
+        val duration = period.coerceIn(minimumDuration, maxOf(480L, minimumDuration))
         return Timing(distance, duration, (period - duration).coerceAtLeast(0))
     }
 }

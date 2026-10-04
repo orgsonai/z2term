@@ -86,6 +86,10 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.8 (versionCode 671), release candidate**: Continuous auto scrolling uses direct terminal actions and continued vertical swipes elsewhere. It accounts for touch slop, callback delays and pointer resets, and releases without an unwanted fling.
+
+**0.9.7 (versionCode 670), release candidate**: Edge-panel scrolling now includes the app’s own windows, and the terminal exposes touch-free vertical scroll actions. Vertical actions keep horizontal pagers out of the target selection. Scroll timing checks whether fractional amounts are supported and uses reported travel to adjust page-sized actions. Swipe mode uses longer strokes to reduce repeated starts and stops. Manual and scheduled backups now include edge-panel settings, items, notes and note history.
+
 **0.9.6 (versionCode 669), release candidate**: Fixes backup restoration failing after real-root chroot use leaves shared HOME inaccessible to the Android app. Both plain and encrypted backups prepare destination access before importing. Failure messages now also mention destination access.
 
 **0.9.5 (versionCode 668), release candidate**: Swiping over an edge-panel text input now switches to the neighbouring tab. An unfocused input starts editing only after a completed tap; swiping does not focus it. Tab-direction swipes also take priority while editing, while long-press selection and scrolling along the item layout retain their behavior.

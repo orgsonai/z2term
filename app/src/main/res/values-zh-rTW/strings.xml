@@ -970,7 +970,7 @@
     <string name="settings_backup_export">建立備份</string>
     <string name="settings_backup_import">從備份還原</string>
     <string name="backup_export_title">建立備份</string>
-    <string name="backup_export_body">把設定、SSH 連線目標、程式碼片段、自動化規則、巨集、自訂主題、圖塊分配、圖示、使用者詞典和鍵盤的學習記錄寫到一個檔案裡。儲存位置稍後可以選。</string>
+    <string name="backup_export_body">把設定、SSH 連線目標、程式碼片段、自動化規則、巨集、自訂主題、圖塊分配、圖示、使用者詞典、邊緣面板、筆記和鍵盤的學習記錄寫到一個檔案裡。儲存位置稍後可以選。</string>
     <string name="backup_include_secrets">同時包含 SSH 的密碼和金鑰</string>
     <string name="backup_secrets_warning">⚠ 這會把機密帶出裝置。除資訊清單外，整個備份都會用金鑰密語加密（沒有金鑰密語就無法還原）。</string>
     <string name="backup_passphrase">金鑰密語</string>
@@ -984,7 +984,8 @@ SSH 連線目標 %3$d 個
 自動化規則 %5$d 條
 巨集 %6$d 個
 圖塊 %7$d 個、圖示 %8$d 張
-主題 %9$d 個、詞典 %10$d 個、學習 %11$d 詞</string>
+主題 %9$d 個、詞典 %10$d 個、學習 %11$d 詞
+邊緣面板：%12$d，筆記：%13$d</string>
     <string name="backup_import_merge_note">現在已有的東西不會被刪除。相同的會被替換，沒有的會被新增。</string>
     <string name="backup_import_failed">無法匯入。請檢查金鑰密語、檔案是否損壞及目標位置的存取權限。</string>
     <string name="backup_import_do">還原</string>

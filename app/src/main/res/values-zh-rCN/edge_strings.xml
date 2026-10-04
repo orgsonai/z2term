@@ -110,7 +110,7 @@
     <string name="edge_scroll_how">滚动方式</string>
     <string name="edge_scroll_how_node">不触碰屏幕</string>
     <string name="edge_scroll_how_swipe">发送滑动</string>
-    <string name="edge_scroll_how_help">自动会直接请求可滚动的控件，只有应用没有可滚动控件时才发送滑动。发送的滑动与手指无法区分，因此在滑动有功能的界面（滑动回复、滑行输入等）会触发这些功能。请求控件不会触碰屏幕，但每次滚动的距离由应用决定。</string>
+    <string name="edge_scroll_how_help">自动会直接滚动终端，在其他界面使用连续的垂直滑动。不触碰屏幕只使用应用的滚动操作，因此移动距离和方式取决于应用。发送滑动在所有界面都使用垂直滑动。</string>
     <string name="edge_scroll_no_scrollable">此窗口没有可滚动的控件。若仍要滚动，请把“滚动方式”设为“发送滑动”。</string>
     <string name="edge_action_step">操作%1$d</string>
     <string name="edge_action_add">添加操作</string>

@@ -110,7 +110,7 @@
     <string name="edge_scroll_how">스크롤 방식</string>
     <string name="edge_scroll_how_node">화면을 건드리지 않음</string>
     <string name="edge_scroll_how_swipe">스와이프 보내기</string>
-    <string name="edge_scroll_how_help">자동은 스크롤할 수 있는 요소에 직접 요청하고, 그런 요소가 없는 앱에서만 스와이프를 보냅니다. 보낸 스와이프는 손가락과 구별되지 않으므로 스와이프에 기능이 있는 화면(스와이프 답장, 글라이드 입력 등)에서는 그 기능이 실행됩니다. 요소에 요청하는 방식은 화면을 건드리지 않는 대신 한 번에 움직이는 양을 앱이 정합니다.</string>
+    <string name="edge_scroll_how_help">자동은 터미널을 직접 스크롤하고 다른 화면에서는 연속 세로 스와이프를 사용합니다. 화면을 건드리지 않음은 앱의 스크롤 동작만 사용하므로 이동량과 움직임은 앱에 따라 달라집니다. 스와이프 보내기는 모든 화면에서 세로 스와이프를 사용합니다.</string>
     <string name="edge_scroll_no_scrollable">이 창에는 스크롤할 수 있는 요소가 없습니다. 그래도 움직여야 한다면 스크롤 방식을 스와이프 보내기로 바꾸세요.</string>
     <string name="edge_action_step">동작 %1$d</string>
     <string name="edge_action_add">동작 추가</string>

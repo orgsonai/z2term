@@ -123,7 +123,7 @@
     <string name="edge_scroll_how">スクロールのしかた</string>
     <string name="edge_scroll_how_node">画面に触らない</string>
     <string name="edge_scroll_how_swipe">スワイプを送る</string>
-    <string name="edge_scroll_how_help">自動はスクロールできる部品に直接頼み、それが無いアプリでだけスワイプを送ります。送ったスワイプは指と区別が付かないため、払う操作に機能が割り当たっている画面（スワイプ返信・グライド入力など）ではその機能が動いてしまいます。部品に頼む方は画面に触らない代わりに、1回で動く量がアプリ任せになります。</string>
+    <string name="edge_scroll_how_help">自動はターミナル本文を直接スクロールし、ほかの画面では連続した縦スワイプで送ります。「画面に触らない」はアプリのスクロール操作だけを使うため、移動量と動き方は相手のアプリにより変わります。「スワイプを送る」はすべての画面で縦スワイプを使います。</string>
     <string name="edge_scroll_no_scrollable">この画面にはスクロールできる部品がありません。それでも動かすなら「スクロールのしかた」を「スワイプを送る」にしてください。</string>
     <string name="edge_action_step">動作 %1$d</string>
     <string name="edge_action_add">動作を追加</string>

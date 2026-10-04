@@ -8,6 +8,6 @@
     android:canPerformGestures="true"
     android:canTakeScreenshot="true"
     tools:ignore="UnusedAttribute"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged|typeViewScrolled"
     android:description="@string/edge_accessibility_description"
     android:notificationTimeout="100" />

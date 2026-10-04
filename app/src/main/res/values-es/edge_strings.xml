@@ -110,7 +110,7 @@
     <string name="edge_scroll_how">Cómo desplazar</string>
     <string name="edge_scroll_how_node">No tocar la pantalla</string>
     <string name="edge_scroll_how_swipe">Enviar un deslizamiento</string>
-    <string name="edge_scroll_how_help">Automático pide el desplazamiento a la propia vista y solo envía un deslizamiento cuando la aplicación no ofrece nada desplazable. Un deslizamiento enviado no se distingue de tu dedo, así que en pantallas donde deslizar hace algo (responder deslizando, escritura por deslizamiento) activa esa función. Pedirlo a la vista no toca la pantalla, pero la aplicación decide cuánto avanza cada paso.</string>
+    <string name="edge_scroll_how_help">Automático desplaza directamente el terminal y usa deslizamientos verticales continuos en las demás pantallas. No tocar la pantalla usa solo las acciones de desplazamiento de la aplicación, por lo que el movimiento depende de ella. Enviar un deslizamiento usa deslizamientos verticales en todas las pantallas.</string>
     <string name="edge_scroll_no_scrollable">No hay nada desplazable en esta ventana. Si aun así debe moverse, pon Cómo desplazar en Enviar un deslizamiento.</string>
     <string name="edge_action_step">Acción %1$d</string>
     <string name="edge_action_add">Añadir acción</string>

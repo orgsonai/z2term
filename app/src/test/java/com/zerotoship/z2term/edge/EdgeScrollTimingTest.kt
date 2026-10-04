@@ -33,12 +33,21 @@ class EdgeScrollTimingTest {
     @Test fun slowSpeedStillClearsTouchSlopWithoutBusyLooping() {
         val timing = EdgeScrollTiming.plan(2.5f, 800f)
         assertEquals(32f, timing.distanceDp, 0f)
-        assertEquals(120L, timing.durationMs)
-        assertEquals(12680L, timing.pauseMs)
+        assertEquals(480L, timing.durationMs)
+        assertEquals(12320L, timing.pauseMs)
     }
 
     @Test fun displacementCanReachTheNewMaximum() {
         assertEquals(40000f, EdgeHandleGesture.scrollSpeed(160f, 0f, 40000, true), 0f)
         assertEquals(-40000f, EdgeHandleGesture.scrollSpeed(-160f, 0f, 40000, true), 0f)
+    }
+
+    @Test fun normalReadingSpeedsKeepMovingAtTheRequestedSpeed() {
+        for (speed in listOf(100f, 200f, 600f, 1000f)) {
+            val timing = EdgeScrollTiming.plan(speed, 800f)
+            assertEquals(0L, timing.pauseMs)
+            assertTrue(timing.durationMs >= 450L)
+            assertEquals(speed, timing.distanceDp * 1000 / timing.durationMs, 3f)
+        }
     }
 }

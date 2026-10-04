@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.6.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.8.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -267,6 +267,8 @@ Command list > Servers > **"Data limit"** stops **z2term's traffic** once **the 
 ### Taking your setup with you (for a new phone or a reinstall)
 
 If real-root chroot use has changed shared HOME permissions, export and restore prepare the access they need (0.9.6). This also applies to backups without a passphrase. Existing root authorization may be required on a rooted device.
+
+**Edge panels are included (0.9.7)** in manual and scheduled backups: enabled state, panel settings, placement, items, gesture bindings, note text and history, and files stored inside the panels. Notes referencing external files are restored as copies inside the panel; their original external files are left unchanged. Save external images and referenced scripts separately (the existing `.sh` macro-folder backup still applies). Grant Android overlay and accessibility permissions on the destination device. Older backups without edge data leave the current panels unchanged.
 
 Settings > Maintenance > **"Take it with you"** writes your current setup to a single file.
 
@@ -929,6 +931,10 @@ when a `z2-when` rule fired **without opening the app**.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
 
+**0.9.8 (versionCode 671), release candidate**: Continuous auto scrolling retains direct terminal actions and uses continued vertical gestures for other surfaces. Travel accounts for touch slop, callback time and pointer resets. A slow release tail suppresses unwanted flings at resets and stops.
+
+**0.9.7 (versionCode 670), release candidate**: Edge-panel scrolling now includes the app’s own windows, and the terminal exposes touch-free vertical scroll actions. Vertical actions keep horizontal pagers out of the target selection. Scroll timing checks whether fractional amounts are supported and uses reported travel to adjust page-sized actions. Swipe mode uses longer strokes to reduce repeated starts and stops. Manual and scheduled backups now include edge-panel settings, items, notes and note history.
+
 **0.9.6 (versionCode 669), release candidate**: Fixes backup restoration failing after real-root chroot use leaves shared HOME inaccessible to the Android app. Both plain and encrypted backups prepare destination access before importing. Failure messages now also mention destination access.
 
 **0.9.5 (versionCode 668), release candidate**: Swiping over an edge-panel text input now switches to the neighbouring tab. An unfocused input starts editing only after a completed tap; swiping does not focus it. Tab-direction swipes also take priority while editing, while long-press selection and scrolling along the item layout retain their behavior.
@@ -1059,7 +1065,7 @@ Scroll X/Y positions are percentages within the focused app window (10–90, def
 
 With a keyboard open, scrolling is restricted to the terminal viewport excluding the built-in keyboard, and to window bounds above the Android IME. A change in that area stops playback. `z2-key permission` opens the service details or falls back to general Accessibility settings if the device denies that screen.
 
-A stop tap does not open the handle. Touches outside the handle stop scrolling both during and between strokes. Only synthetic gesture events are ignored; physical touch notifications are processed immediately. Outside taps may reach the underlying app. A dispatched stroke (normally up to 120ms; up to 301ms with legacy 100ms sampling) and target-app inertia may remain. Higher speeds shorten strokes but retain at least three intermediate MOVE samples based on Android’s sampling interval, avoiding DOWN/UP-only gestures that behave like taps. Configured speed is a target; actual speed is constrained by viewport height, display refresh and the target app.
+A stop tap does not open the handle. Physical touches outside also stop scrolling; synthetic input is excluded. Continuous swipes connect normally 80ms segments (at least three MOVE sampling intervals on slower displays) with `continueStroke`, keeping the pointer down even for tiny amounts. Add touch slop to the initial movement and account for callback and pointer-reset time using elapsed-time travel debt. At viewport ends and stops, send a one-pixel return over 160ms before lifting to suppress unwanted flings. Speed changes and reversals release the previous pointer before starting a new one. Single swipes retain the usual 480ms maximum. Speed is a target, with limits from viewport height, display refresh and app processing. See [Android continued gestures](https://developer.android.com/reference/android/accessibilityservice/GestureDescription.StrokeDescription#continueStroke(android.graphics.Path,%20long,%20long,%20boolean)).
 
 Fields: `actions-tap`, `actions-double-tap`, `actions-up`, `actions-down`, `actions-inward`, `actions-outward`. Separate actions with `|`; arguments use `type:UTF-8-form-encoded-value`. Examples: `actions-double-tap=launch:org.example.app|wait:500|swipe-up`, `actions-up=scroll-variable`. Encoding preserves pipes, plus signs and newlines in commands. The GUI handles encoding automatically; each list is limited to 16KiB. Unknown actions and invalid arguments are rejected. Empty explicitly disables a binding; absent keys inherit legacy `open`/`run`/`gesture-*` behavior. `gesture-speed` remains the speed setting and `scroll-x`/`scroll-y` set position. CLI and GUI share `panel.conf`.
 
@@ -1107,7 +1113,7 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Rows | Item `row=1..64` (0.8.645). Items with the same number sit side by side; rows stack top to bottom in number order. Kept **per tab**; a tab where any item has a row ignores `flow` and `columns` |
 | Grid columns and icon size | `columns=auto` or 1–16; `icon-size=16..192` dp (default 40) |
 | Handle shape, position, activation | `handle` / `side` / `offset` / `x` / `y` / `size` / `length` / `alpha` / `open` (also via `z2-edge handle`) |
-| How to scroll | `scroll-how=auto\|node\|swipe` (default auto: ask the scrollable view, swipe only where the app offers nothing. node never touches the screen; swipe always sends one. 0.8.627) |
+| How to scroll | `scroll-how=auto\|node\|swipe` (default auto: direct terminal actions, continued vertical swipes for other continuous scrolling. node never touches the screen; swipe always sends a vertical stroke. In node mode, apps without fractional support move in page-sized steps. 0.9.8) |
 | Bar colour | `bar-color=auto\|white\|black` (default auto; also `z2-edge handle ID bar --bar-color white`) |
 | Add, name and order tabs | `z2-edge tab PARENT ID LABEL`, `panel ID label=Name`, `panel PARENT tabs=a,b` |
 | Add/delete panels | `panel ID label=Name handle=bar side=right` / `delete ID` |

@@ -1237,6 +1237,15 @@ object EdgeRuntime {
         } catch (e: Exception) { destroy(); throw e }
     }
 
+    /** Flush active note edits before an archive reads their files. A conflict aborts export. */
+    fun prepareBackup(): Unit = onMain { notes.values.filter { it.needsSave }.forEach { it.save() } }
+
+    fun prepareBackupRestore(): Unit = onMain {
+        check(editorSession?.hasUnsavedChanges() != true) { "Save or cancel panel edits before restoring" }
+        prepareBackup()
+        if (app != null) destroy()
+    }
+
     private fun saveNotes() {
         notes.values.forEach { note ->
             if (note.needsSave) runCatching { note.save() }.onFailure { error ->

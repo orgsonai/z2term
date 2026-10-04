@@ -7,30 +7,15 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction as ScrollAction
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+import com.zerotoship.z2term.R
+import com.zerotoship.z2term.ui.terminal.input.TerminalInputView
 import kotlin.math.abs
 
-/**
- * スクロールを**スクロールできる部品そのものに頼む** ([AccessibilityNodeInfo.ACTION_SCROLL_FORWARD] /
- * `ACTION_SCROLL_BACKWARD`)。[AndroidAutoScroll] の代わりに使う。
- *
- * **なぜ要るか**: [AndroidAutoScroll] は本物のスワイプを画面へ注入するので、**アプリから見ると
- * 指で触ったのと区別が付かない**。スワイプに機能が割り当たっている画面 (一覧を横に払うと返信・
- * 削除が走るもの) では**その機能が動いてしまい**、グライド入力のキーボードに線が当たれば文字になる
- * (利用者の報告:「ジェスチャーすると文字が勝手入力されたりかなり危険です」)。⇒ 画面に**一切触らず**
- * 部品へ直接頼めば、誤入力・誤送信・払う操作の誤爆が**原理的に起こらない**。
- *
- * ⚠ **座標ではなく部品を見る**ので、自由な大きさの窓 (フリーフォーム) でも当たる。スワイプ側は
- * 窓の矩形の中央へ線を引くため、キャプションや余白に当たって滑らないことがあった。
- *
- * ⚠ **送り量はアプリ持ち**。1 回で動くのは部品が決める量 (おおむね 1 画面) で、Android 14 以降だけ
- * [AccessibilityNodeInfo.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT] で端数を頼める。⇒ **速度は
- * 「送る間隔」で作る** (1 回ぶんの距離 ÷ 速度)。指で速さを変える滑らかさはスワイプに劣るので、
- * どちらを使うかは `scroll-how` で選べるようにしてある。
- *
- * ⚠ **スクロールできる部品を公開していないアプリでは何も起きない** (キャンバス系・一部のゲーム)。
- * [start] は**そのとき false を返す**ので、呼び出し側が `auto` ならスワイプへ落とせる。
- */
+/** Ask a vertical scrollable view directly, without injecting touches or paging horizontally. */
 @Suppress("DEPRECATION")
 internal class AndroidNodeScroll(private val service: AccessibilityService) {
     private val main = Handler(Looper.getMainLooper())
@@ -42,10 +27,17 @@ internal class AndroidNodeScroll(private val service: AccessibilityService) {
     private var stoppedAt: Long? = null
     private var singleShot = false
     private var node: AccessibilityNodeInfo? = null
-    /** ⚠ 古くなったノードから窓の番号は読めない。探し直すために別に持つ。 */
     private var nodeWindow = -1
+    private val visibleArea = Rect()
+    private val selectedBounds = Rect()
+    private var pointX = 0
+    private var pointY = 0
+    private var speed = 0f
+    private var granular = false
+    private var sentAt = 0L
+    private var observedDistancePx = 0f
+    private var previousScrollY: Int? = null
 
-    /** 直前まで動いていたか ([AndroidAutoScroll.recentlyRunning] と同じ 500ms の猶予)。 */
     fun recentlyRunning(): Boolean = running || stoppedAt?.let {
         SystemClock.uptimeMillis() - it < 500
     } == true
@@ -60,60 +52,93 @@ internal class AndroidNodeScroll(private val service: AccessibilityService) {
         node = null
         val callback = finished
         finished = null
-        val result = error ?: if (singleShot && !completed)
-            service.getString(com.zerotoship.z2term.R.string.edge_scroll_failed) else null
+        val result = error ?: if (singleShot && !completed) service.getString(R.string.edge_scroll_failed) else null
         singleShot = false
         callback?.invoke(result)
     }
 
-    /**
-     * 指で触ったら止める。⚠ **注入した操作と本物の指を取り違えない** — こちらは画面へ何も注入しないが、
-     * 同じ画面に [AndroidAutoScroll] が出した合成イベントが来ることがある ([AndroidAutoScroll.outsideTouch]
-     * と同じ判定を使う)。
-     */
     fun outsideTouch(event: android.view.MotionEvent) {
         val synthetic = event.deviceId == android.view.KeyCharacterMap.VIRTUAL_KEYBOARD &&
             event.getToolType(0) == android.view.MotionEvent.TOOL_TYPE_UNKNOWN
         if (!synthetic) stop()
     }
 
-    /**
-     * [windowId] の中でスクロールできる部品を探して送り始める。
-     *
-     * @param speedDp 正で下へ (指を下ろすのと同じ = 前の内容へ戻る)、負で上へ
-     * @param area 窓のうち実際に見えている範囲 (キーボードのぶんを除いてある)
-     * @return 始められたら true。⚠ **スクロールできる部品が無ければ false** (呼び出し側の判断で
-     *   スワイプへ落とす)。ここで例外にすると `auto` の落とし先が書けない
-     */
+    /** Keep the actual distance of page-sized actions, including views that scroll less than a page. */
+    fun onScrolled(event: AccessibilityEvent) {
+        if (!running || granular || singleShot || event.windowId != nodeWindow) return
+        val source = event.source ?: return
+        val matches = try { source == node } finally { source.recycle() }
+        if (!matches) return
+        val delta = if (event.scrollDeltaY != -1) abs(event.scrollDeltaY.toFloat())
+            else previousScrollY?.let { abs(event.scrollY.toFloat() - it) } ?: 0f
+        previousScrollY = event.scrollY.takeIf { it >= 0 }
+        if (delta <= 0) return
+        observedDistancePx += delta
+        val period = EdgeNodeScrollPolicy.periodMs(speed,
+            observedDistancePx / service.resources.displayMetrics.density, false)
+        // Do not start another page while the preceding animation is still reporting movement.
+        val deadline = maxOf(sentAt + period, SystemClock.uptimeMillis() + 100L)
+        next?.let { main.removeCallbacks(it); main.postAtTime(it, deadline) }
+    }
+
+    /** False means no suitable vertical view; auto may then use its explicit swipe fallback. */
     fun start(speedDp: Float, windowId: Int, area: Rect, xPercent: Float, yPercent: Float,
-        once: Boolean, stillTarget: () -> Boolean, done: (String?) -> Unit): Boolean {
+        once: Boolean, stillTarget: () -> Boolean, done: (String?) -> Unit, terminalOnly: Boolean = false): Boolean {
         require(speedDp.isFinite() && speedDp != 0f && !area.isEmpty)
         stop()
-        val x = area.left + area.width() * xPercent.coerceIn(0f, 100f) / 100f
-        val y = area.top + area.height() * yPercent.coerceIn(0f, 100f) / 100f
-        val found = find(windowId, x.toInt(), y.toInt()) ?: return false
+        speed = speedDp
+        visibleArea.set(area)
+        pointX = (area.left + area.width() * xPercent.coerceIn(0f, 100f) / 100f).toInt()
+        pointY = (area.top + area.height() * yPercent.coerceIn(0f, 100f) / 100f).toInt()
+        val found = find(windowId) ?: return false
+        // General scroll actions may start their own fixed-duration animations, even with an
+        // amount flag. The terminal implements immediate fractional movement under our control.
+        if (terminalOnly && (!supportsAmount(found) || found.className?.toString() != TerminalInputView::class.java.name)) {
+            found.recycle(); return false
+        }
         node = found
         nodeWindow = windowId
+        found.getBoundsInScreen(selectedBounds)
         running = true
         singleShot = once
         stoppedAt = null
         finished = done
+        sentAt = 0L
+        previousScrollY = null
         val token = generation
         val density = service.resources.displayMetrics.density
-        // 1 回で動く量。端数を頼めない Android では部品任せ (ほぼ 1 画面) になるので、
-        // 見えている高さをそのまま 1 回ぶんとみなして間隔を決める。
-        val fraction = if (Build.VERSION.SDK_INT >= 34) 0.25f else 1f
-        val stepDp = (bounds(found).height() / density).coerceAtLeast(48f) * fraction
-        val period = (stepDp / abs(speedDp) * 1000f).toLong().coerceIn(40L, 3000L)
         val tick = object : Runnable {
             override fun run() {
                 if (!running || token != generation) return
                 if (!runCatching(stillTarget).getOrDefault(false)) { stop(); return }
-                if (!send(speedDp, fraction)) {
-                    stop(service.getString(com.zerotoship.z2term.R.string.edge_scroll_failed)); return
+                var target = node ?: return
+                if (!runCatching { target.refresh() }.getOrDefault(false)) {
+                    // Preserve the point and region; never retarget a stale list to another pane/pager.
+                    val again = find(nodeWindow, selectedBounds) ?: run { stop(completed = true); return }
+                    target.recycle(); node = again; target = again
                 }
+                val action = action(target) ?: run { stop(completed = true); return }
+                val box = Rect().also { target.getBoundsInScreen(it) }
+                if (!box.intersect(visibleArea) || box.isEmpty) { stop(); return }
+                granular = supportsAmount(target)
+                val heightDp = box.height() / density
+                val period = EdgeNodeScrollPolicy.periodMs(speed, heightDp, granular)
+                val now = SystemClock.uptimeMillis()
+                val elapsed = if (sentAt == 0L) period else (now - sentAt).coerceIn(1L, 200L)
+                val fraction = if (once) 0.25f else (abs(speed) * elapsed / 1000f / heightDp).coerceAtMost(1f)
+                val arguments = if (granular) Bundle().apply {
+                    putFloat(AccessibilityNodeInfoCompat.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT, fraction)
+                    if (Build.VERSION.SDK_INT >= 35)
+                        putFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT, fraction)
+                    putInt(TerminalInputView.ACCESSIBILITY_SCROLL_X, pointX)
+                    putInt(TerminalInputView.ACCESSIBILITY_SCROLL_Y, pointY)
+                } else null
+                sentAt = now
+                observedDistancePx = 0f
+                val accepted = runCatching { target.performAction(action, arguments) }.getOrDefault(false)
+                if (!accepted) { stop(); return }
                 if (once) { stop(completed = true); return }
-                next?.let { main.postDelayed(it, period) }
+                next?.let { main.postAtTime(it, maxOf(now + period, SystemClock.uptimeMillis() + 1L)) }
             }
         }
         next = tick
@@ -121,44 +146,34 @@ internal class AndroidNodeScroll(private val service: AccessibilityService) {
         return true
     }
 
-    private fun bounds(target: AccessibilityNodeInfo) = Rect().also { target.getBoundsInScreen(it) }
+    private fun supportsAmount(target: AccessibilityNodeInfo): Boolean =
+        (Build.VERSION.SDK_INT >= 35 && target.isGranularScrollingSupported) ||
+            AccessibilityNodeInfoCompat.wrap(target).isGranularScrollingSupported
 
-    /**
-     * 1 回ぶん送る。⚠ **ノードは古くなる** — 一覧は送るたびに作り直されるので、[AccessibilityNodeInfo.refresh]
-     * が false を返したら探し直す (探し直さないと 1 回動いたきり止まって見える)。
-     */
-    private fun send(speedDp: Float, fraction: Float): Boolean {
-        var target = node ?: return false
-        if (!runCatching { target.refresh() }.getOrDefault(false)) {
-            val again = find(nodeWindow, null, null) ?: return false
-            target.recycle(); node = again; target = again
+    private fun action(target: AccessibilityNodeInfo, speedDp: Float = speed): Int? {
+        val ids = target.actionList.map { it.id }.toSet()
+        val actions = EdgeNodeScrollPolicy.Actions(ScrollAction.ACTION_SCROLL_UP.id in ids, ScrollAction.ACTION_SCROLL_DOWN.id in ids,
+            ScrollAction.ACTION_SCROLL_LEFT.id in ids, ScrollAction.ACTION_SCROLL_RIGHT.id in ids,
+            listOf(ScrollAction.ACTION_PAGE_UP, ScrollAction.ACTION_PAGE_DOWN,
+                ScrollAction.ACTION_PAGE_LEFT, ScrollAction.ACTION_PAGE_RIGHT).any { it.id in ids },
+            AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD in ids, AccessibilityNodeInfo.ACTION_SCROLL_FORWARD in ids)
+        val collection = target.collectionInfo
+        return when (EdgeNodeScrollPolicy.action(actions, target.className?.toString().orEmpty(),
+            collection?.rowCount, collection?.columnCount, speedDp)) {
+            EdgeNodeScrollPolicy.Action.UP -> ScrollAction.ACTION_SCROLL_UP.id
+            EdgeNodeScrollPolicy.Action.DOWN -> ScrollAction.ACTION_SCROLL_DOWN.id
+            EdgeNodeScrollPolicy.Action.BACKWARD -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+            EdgeNodeScrollPolicy.Action.FORWARD -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+            null -> null
         }
-        // 正の速度 = 指を下ろす = 前 (上) の内容が出てくる。スワイプ側と向きを合わせる。
-        val action = if (speedDp > 0) AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
-            else AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
-        // The amount argument exists from API 35; earlier releases ignore it and scroll a whole page.
-        val arguments = if (Build.VERSION.SDK_INT >= 35) Bundle().apply {
-            putFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT, fraction)
-        } else null
-        return runCatching { target.performAction(action, arguments) }.getOrDefault(false)
     }
 
-    /**
-     * [windowId] の中でスクロールできる部品を探す。
-     *
-     * ⚠ **点 ([x], [y]) を含むもののうち、いちばん内側**を採る。外側から採ると、入れ子になった一覧
-     * (画面全体のスクロールビューの中にリストがある形) で**外側だけが動いて中身が動かない**。
-     * 点を含むものが無ければ、窓の中でいちばん広いものへ落とす (`scroll-x` / `scroll-y` が
-     * たまたま余白を指しているだけのことがある)。
-     */
-    private fun find(windowId: Int, x: Int?, y: Int?): AccessibilityNodeInfo? {
+    private fun find(windowId: Int, previousBounds: Rect? = null): AccessibilityNodeInfo? {
         val windows = service.windows
-        val root = try {
-            windows.firstOrNull { it.id == windowId }?.root
-        } catch (_: Exception) { null } finally { windows.forEach { it.recycle() } }
+        val root = try { windows.firstOrNull { it.id == windowId }?.root }
+            catch (_: Exception) { null } finally { windows.forEach { it.recycle() } }
         if (root == null) return null
-        val queue = ArrayList<AccessibilityNodeInfo>()
-        queue += root
+        val queue = arrayListOf(root)
         var inner: AccessibilityNodeInfo? = null
         var innerArea = Long.MAX_VALUE
         var widest: AccessibilityNodeInfo? = null
@@ -166,22 +181,24 @@ internal class AndroidNodeScroll(private val service: AccessibilityService) {
         var index = 0
         val started = SystemClock.uptimeMillis()
         try {
-            while (index < queue.size) {
-                if (SystemClock.uptimeMillis() - started > 400 || queue.size > 1024) break
+            while (index < queue.size && queue.size <= 1024 && SystemClock.uptimeMillis() - started <= 400) {
                 val current = queue[index++]
-                if (current.isScrollable && current.isVisibleToUser) {
-                    val box = bounds(current)
-                    val size = box.width().toLong() * box.height().toLong()
-                    if (size > 0) {
-                        if (x != null && y != null && box.contains(x, y) && size < innerArea) {
-                            inner = current; innerArea = size
+                if (current.isVisibleToUser && current.isEnabled &&
+                    (action(current) != null || action(current, -speed) != null)) {
+                    val box = Rect().also { current.getBoundsInScreen(it) }
+                    if ((previousBounds == null || box == previousBounds) && box.intersect(visibleArea)) {
+                        val size = box.width().toLong() * box.height()
+                        if (size > 0) {
+                            if (box.contains(pointX, pointY) && size <= innerArea) { inner = current; innerArea = size }
+                            if (size > widestArea) { widest = current; widestArea = size }
                         }
-                        if (size > widestArea) { widest = current; widestArea = size }
                     }
                 }
-                repeat(current.childCount) { child -> current.getChild(child)?.let { queue += it } }
+                repeat(current.childCount) { child ->
+                    if (queue.size < 1024) current.getChild(child)?.let { queue += it }
+                }
             }
-        } catch (_: Exception) { /* 木は途中で作り直される。拾えたところまでで決める。 */ }
+        } catch (_: Exception) { /* The tree may be rebuilt during traversal. */ }
         val chosen = inner ?: widest
         queue.forEach { if (it !== chosen) it.recycle() }
         return chosen

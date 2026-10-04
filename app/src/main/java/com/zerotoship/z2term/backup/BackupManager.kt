@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.channel.SshProfileStore
+import com.zerotoship.z2term.edge.EdgeRuntime
+import com.zerotoship.z2term.edge.EdgeService
 import com.zerotoship.z2term.icon.IconStore
 import com.zerotoship.z2term.icon.refreshActiveNotifications
 import com.zerotoship.z2term.service.WhenManager
@@ -30,7 +32,8 @@ import java.util.Locale
  *
  * **含めるもの**（= 二度と戻らないもの）: 設定 / SSH 接続先 / スニペット /
  * `~/.z2term/when/<id>.rule` / `~/.z2term/macros/<名前>.sh` /
- * **自作テーマ・タイルの割り当て・アイコンのドット絵・ユーザー辞書・IME の学習履歴**（0.8.379）。
+ * **自作テーマ・タイルの割り当て・アイコンのドット絵・ユーザー辞書・IME の学習履歴**（0.8.379）、
+ * **エッジパネルの設定・項目・メモ・メモ履歴・有効状態**（0.9.7）。
  * (Kotlin のブロックコメントはネストするので、KDoc 内で `/` + `*` を書かない)
  *
  * ⚠ **後から足した 5 つは、どれも「マクロは戻ったのに手で積み上げたものが消えている」を
@@ -82,6 +85,8 @@ object BackupManager {
         val dictCount: Int = 0,
         /** IME が覚えている語数 (0.8.379)。 */
         val learnedCount: Int = 0,
+        val edgePanelCount: Int = 0,
+        val edgeNoteCount: Int = 0,
     )
 
     /** 書き出しの選択。 */
@@ -140,6 +145,8 @@ object BackupManager {
         }
         val app = context.applicationContext
         BackupHomeAccess.prepare(app)
+        EdgeRuntime.prepareBackup()
+        val edge = EdgeBackup.snapshot(EdgeRuntime.store(app))
         val settingsJson = AppSettings(app).exportRaw()
         val snippetsJson = SnippetStore(app).exportRaw()
         val snippetGroupsJson = SnippetStore(app).exportGroups()
@@ -156,6 +163,7 @@ object BackupManager {
         ImeHistoryStore.ensureLoaded(app)
 
         val payload = linkedMapOf<String, ByteArray>().apply {
+            putAll(edge.entries)
             put(SETTINGS, settingsJson.toByteArray())
             put(SNIPPETS, snippetsJson.toByteArray())
             put(SNIPPET_GROUPS, snippetGroupsJson.toByteArray())
@@ -190,6 +198,8 @@ object BackupManager {
             put("themeCount", if (themeJson.isNotEmpty()) 1 else 0)
             put("dictCount", dicts.size)
             put("learnedCount", ImeHistoryStore.approximateCount())
+            put("edgePanelCount", edge.panelCount)
+            put("edgeNoteCount", edge.noteCount)
         }
         BackupArchive.write(
             out = out,
@@ -220,6 +230,8 @@ object BackupManager {
             themeCount = o.optInt("themeCount"),
             dictCount = o.optInt("dictCount"),
             learnedCount = o.optInt("learnedCount"),
+            edgePanelCount = o.optInt("edgePanelCount"),
+            edgeNoteCount = o.optInt("edgeNoteCount"),
         )
     }
 
@@ -259,6 +271,10 @@ object BackupManager {
         // shared HOME owned by root (0700), even though restoration runs as the Android app UID.
         BackupHomeAccess.prepare(app)
 
+        val edge = runCatching { EdgeBackup.prepareRestore(EdgeRuntime.store(app), entries, app.cacheDir) }
+            .getOrElse { return false }
+        if (edge != null) EdgeRuntime.prepareBackupRestore()
+
         entries[SETTINGS]?.let { AppSettings(app).importRaw(it.toString(Charsets.UTF_8)) }
         entries[SNIPPETS]?.let { SnippetStore(app).importRaw(it.toString(Charsets.UTF_8)) }
         // ⚠ **グループはスニペットより先でも後でもよいが、無いときは何もしない**。
@@ -296,6 +312,12 @@ object BackupManager {
             }
         }
         entries[IME_HISTORY]?.let { File(app.filesDir, IME_HISTORY).writeBytes(it) }
+
+        edge?.let {
+            EdgeBackup.apply(EdgeRuntime.store(app), it)
+            app.stopService(android.content.Intent(app, EdgeService::class.java))
+            runCatching { EdgeRuntime.restore(app) }
+        }
 
         // 時刻トリガーを貼り直す (取り込んだルールをその場で効かせる)。
         runCatching { WhenManager.reload(app) }

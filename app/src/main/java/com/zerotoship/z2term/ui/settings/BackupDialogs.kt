@@ -207,7 +207,7 @@ fun BackupImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: () -> Unit) {
                                 s.createdAt, s.appVersion,
                                 s.sshCount, s.snippetCount, s.ruleCount, s.macroCount,
                                 s.tileCount, s.iconCount,
-                                s.themeCount, s.dictCount, s.learnedCount
+                                s.themeCount, s.dictCount, s.learnedCount, s.edgePanelCount, s.edgeNoteCount
                             ),
                             color = ZtsTextPrimary,
                             fontSize = 12.sp,

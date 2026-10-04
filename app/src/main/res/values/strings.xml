@@ -1061,7 +1061,7 @@
     <string name="settings_backup_export">Create a backup</string>
     <string name="settings_backup_import">Restore from a backup</string>
     <string name="backup_export_title">Create a backup</string>
-    <string name="backup_export_body">Writes settings, SSH connections, snippets, automation rules, macros, your theme, tile assignments, icons, dictionaries and what the keyboard has learned to a single file. You choose where to save it next.</string>
+    <string name="backup_export_body">Writes settings, SSH connections, snippets, automation rules, macros, your theme, tile assignments, icons, dictionaries, edge panels and notes, and what the keyboard has learned to a single file. You choose where to save it next.</string>
     <string name="backup_include_secrets">Include SSH passwords and keys</string>
     <string name="backup_secrets_warning">⚠ This takes secrets off the device. The whole backup except its manifest is encrypted with a passphrase (without it, the backup cannot be restored).</string>
     <string name="backup_passphrase">Passphrase</string>
@@ -1075,7 +1075,8 @@ Snippets: %4$d
 Automation rules: %5$d
 Macros: %6$d
 Tiles: %7$d, icons: %8$d
-Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
+Theme: %9$d, dictionaries: %10$d, learned words: %11$d
+Edge panels: %12$d, notes: %13$d</string>
     <string name="backup_import_merge_note">Nothing you have now is deleted. Matching items are replaced, new ones are added.</string>
     <string name="backup_import_failed">Could not restore. Check the passphrase, file integrity, and access to the destination.</string>
     <string name="backup_import_do">Restore</string>

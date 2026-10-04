@@ -2,17 +2,22 @@ package com.zerotoship.z2term.ui.terminal.input
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
+import android.os.Bundle
 import android.text.InputType
 import android.view.GestureDetector
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import androidx.core.net.toUri
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import com.zerotoship.z2term.core.TerminalSelection
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.settings.AppSettings
@@ -58,6 +63,8 @@ class TerminalInputView(context: Context) : View(context) {
         const val TERMINAL_IME_OPTION = "com.zerotoship.z2term.terminal"
         /** IME のキー入力専用。確定文字や貼り付けは従来の commitText を使う。 */
         const val TERMINAL_KEY_BYTES_ACTION = "com.zerotoship.z2term.KEY_BYTES"
+        const val ACCESSIBILITY_SCROLL_X = "com.zerotoship.z2term.SCROLL_X"
+        const val ACCESSIBILITY_SCROLL_Y = "com.zerotoship.z2term.SCROLL_Y"
     }
 
     var session: TerminalSession? = null
@@ -293,49 +300,7 @@ class TerminalInputView(context: Context) : View(context) {
                     sendSgrMouseDrag(e2.x, e2.y, sess)
                     return true
                 }
-                // マウスレポーティング有効時のスワイプ処理:
-                //  - **alt screen** (`primaryActive == false`) は scrollback が存在しないので
-                //    **両方向**を PTY へ wheel として送る。
-                //  - **primary 画面** は **前景に子プロセスが居る** (= PTY の tcgetpgrp が
-                //    シェル PID 以外を返す) ときだけ、上方向 (`distanceY > 0`) かつ scrollback
-                //    の最下端 (`scrollOffset == 0`) で wheel-down を送る。前景が対話シェル
-                //    自身に戻っている (子プロセス exit 済み) ときに `mouseEnabled` が stale で
-                //    残っていても wheel を送らず scrollback に倒し、`\e[<…M` がプロンプトに
-                //    流出するのを防ぐ。scrollback > 0 のときは上方向も scrollback で「最新側
-                //    へ戻る」操作として吸収する (writeBytes が scrollback リセットを含むため、
-                //    scrollback 表示中に wheel を流すと最下端へジャンプする違和感の原因になる)。
-                //    下方向 (`distanceY < 0`) は常に scrollback フォールバック (多くの読み物
-                //    TUI が wheel-up を端末 scrollback に任せる設計のため)。
-                val isAltScreen = !sess.emulator.buffer.primaryActive
-                val atBottom = sess.scrollOffset.value == 0
-                if (sess.emulator.mouseEnabled) {
-                    if (isAltScreen) {
-                        sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
-                        return true
-                    }
-                    if (distanceY > 0f && atBottom && sess.hasForegroundChild) {
-                        sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
-                        return true
-                    }
-                }
-                // マウスレポートを使わない alt screen TUI (全画面の pager / エディタ /
-                // 全文表示など) は scrollback が無いためスワイプが完全に無反応になる。
-                // alternate scroll (DECSET 1007) が有効ならカーソルキー上下へ読み替える。
-                if (isAlternateScrollActive(sess)) {
-                    sendArrowScrollFromSwipe(distanceY, sess)
-                    return true
-                }
-                // 通常のドラッグ / scrollback で過去を見ている間 / マウスモードでも下方向は
-                // ターミナルをスクロール。
-                scrollAccumDy += distanceY
-                val rowDelta = (scrollAccumDy / m.lineHeight).toInt()
-                if (rowDelta != 0) {
-                    // distanceY > 0 (指が上に動いた = 最新へ) → scrollOffset 減少
-                    // distanceY < 0 (指が下に動いた = 過去へ) → scrollOffset 増加
-                    sess.scrollBy(-rowDelta)
-                    scrollAccumDy -= rowDelta * m.lineHeight
-                }
-                return true
+                return scrollByDistance(e2.x, e2.y, distanceY)
             }
 
             override fun onSingleTapUp(e: MotionEvent): Boolean {
@@ -412,6 +377,7 @@ class TerminalInputView(context: Context) : View(context) {
     init {
         isFocusable = true
         isFocusableInTouchMode = true
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
         // quick scale (1本指ダブルタップ+ドラッグでズーム) は OFF。有効だと
         // ScaleGestureDetector が単指 DOWN を内部の double-tap 監視に取り込み、
         // GestureDetector.onLongPress が間欠的に発火しなくなる (2本指ピンチ後に
@@ -743,6 +709,122 @@ class TerminalInputView(context: Context) : View(context) {
         removeCallbacks(flingRunnable)
         magnifier?.dismiss()
         magnifier = null
+    }
+
+    /** Share scrollback / wheel / alternate-scroll routing with accessibility; never send a drag. */
+    private fun scrollByDistance(x: Float, y: Float, distanceY: Float): Boolean {
+        val sess = session ?: return false
+        val m = sess.cellMetrics.value
+        if (m.lineHeight <= 0f || touchMode != TouchMode.NONE) return false
+        // マウスレポーティング有効時のスワイプ処理:
+        //  - **alt screen** (`primaryActive == false`) は scrollback が存在しないので
+        //    **両方向**を PTY へ wheel として送る。
+        //  - **primary 画面** は **前景に子プロセスが居る** (= PTY の tcgetpgrp が
+        //    シェル PID 以外を返す) ときだけ、上方向 (`distanceY > 0`) かつ scrollback
+        //    の最下端 (`scrollOffset == 0`) で wheel-down を送る。前景が対話シェル
+        //    自身に戻っている (子プロセス exit 済み) ときに `mouseEnabled` が stale で
+        //    残っていても wheel を送らず scrollback に倒し、`\e[<…M` がプロンプトに
+        //    流出するのを防ぐ。scrollback > 0 のときは上方向も scrollback で「最新側
+        //    へ戻る」操作として吸収する (writeBytes が scrollback リセットを含むため、
+        //    scrollback 表示中に wheel を流すと最下端へジャンプする違和感の原因になる)。
+        //    下方向 (`distanceY < 0`) は常に scrollback フォールバック (多くの読み物
+        //    TUI が wheel-up を端末 scrollback に任せる設計のため)。
+        val isAltScreen = !sess.emulator.buffer.primaryActive
+        val atBottom = sess.scrollOffset.value == 0
+        if (sess.emulator.mouseEnabled) {
+            if (isAltScreen) {
+                sendMouseWheelFromSwipe(x, y, distanceY, sess)
+                return true
+            }
+            if (distanceY > 0f && atBottom && sess.hasForegroundChild) {
+                sendMouseWheelFromSwipe(x, y, distanceY, sess)
+                return true
+            }
+        }
+        // マウスレポートを使わない alt screen TUI (全画面の pager / エディタ /
+        // 全文表示など) は scrollback が無いためスワイプが完全に無反応になる。
+        // alternate scroll (DECSET 1007) が有効ならカーソルキー上下へ読み替える。
+        if (isAlternateScrollActive(sess)) {
+            sendArrowScrollFromSwipe(distanceY, sess)
+            return true
+        }
+        // 通常のドラッグ / scrollback で過去を見ている間 / マウスモードでも下方向は
+        // ターミナルをスクロール。
+        scrollAccumDy += distanceY
+        val rowDelta = (scrollAccumDy / m.lineHeight).toInt()
+        if (rowDelta != 0) {
+            // distanceY > 0 (指が上に動いた = 最新へ) → scrollOffset 減少
+            // distanceY < 0 (指が下に動いた = 過去へ) → scrollOffset 増加
+            sess.scrollBy(-rowDelta)
+            scrollAccumDy -= rowDelta * m.lineHeight
+        }
+        return true
+    }
+
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        info.className = TerminalInputView::class.java.name
+        val sess = session ?: return
+        if (sess.cellMetrics.value.lineHeight <= 0f) return
+        val interactive = (sess.emulator.mouseEnabled &&
+            (!sess.emulator.buffer.primaryActive || sess.hasForegroundChild)) || isAlternateScrollActive(sess)
+        val backward = sess.scrollOffset.value < sess.emulator.buffer.scrollbackSize || interactive
+        val forward = sess.scrollOffset.value > 0 || interactive
+        info.isScrollable = backward || forward
+        if (backward) {
+            info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP)
+            info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
+        }
+        if (forward) {
+            info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN)
+            info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
+        }
+        // The compat flag/argument supports older Android; publish the framework flag on API 35 too.
+        AccessibilityNodeInfoCompat.wrap(info).isGranularScrollingSupported = true
+        if (Build.VERSION.SDK_INT >= 35) info.isGranularScrollingSupported = true
+    }
+
+    override fun performAccessibilityAction(action: Int, arguments: Bundle?): Boolean {
+        val direction = when (action) {
+            AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id,
+            AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD -> -1f
+            AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_DOWN.id,
+            AccessibilityNodeInfo.ACTION_SCROLL_FORWARD -> 1f
+            else -> return super.performAccessibilityAction(action, arguments)
+        }
+        val amount = when {
+            Build.VERSION.SDK_INT >= 35 && arguments?.containsKey(AccessibilityNodeInfo.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT) == true ->
+                arguments.getFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT)
+            else -> arguments?.getFloat(AccessibilityNodeInfoCompat.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT, 1f) ?: 1f
+        }
+        if (!amount.isFinite() || amount <= 0f || height <= 0) return false
+        val sess = session ?: return false
+        if (sess.emulator.buffer.primaryActive) {
+            if (direction < 0 && sess.scrollOffset.value >= sess.emulator.buffer.scrollbackSize) return false
+            if (direction > 0 && sess.scrollOffset.value == 0 &&
+                !(sess.emulator.mouseEnabled && sess.hasForegroundChild)) return false
+        }
+        flingVelocityRows = 0f
+        removeCallbacks(flingRunnable)
+        val location = IntArray(2).also(::getLocationOnScreen)
+        val x = arguments?.getInt(ACCESSIBILITY_SCROLL_X, location[0] + width / 2) ?: location[0] + width / 2
+        val y = arguments?.getInt(ACCESSIBILITY_SCROLL_Y, location[1] + height / 2) ?: location[1] + height / 2
+        val before = sess.scrollOffset.value
+        val accepted = scrollByDistance((x - location[0]).toFloat(), (y - location[1]).toFloat(),
+            direction * height * amount.coerceAtMost(4f))
+        if (accepted && before != sess.scrollOffset.value && parent != null) {
+            @Suppress("DEPRECATION")
+            val event = AccessibilityEvent.obtain(AccessibilityEvent.TYPE_VIEW_SCROLLED)
+            event.setSource(this)
+            event.className = javaClass.name
+            event.packageName = context.packageName
+            val lineHeight = sess.cellMetrics.value.lineHeight
+            event.scrollY = ((sess.emulator.buffer.scrollbackSize - sess.scrollOffset.value) * lineHeight).toInt()
+            event.maxScrollY = (sess.emulator.buffer.scrollbackSize * lineHeight).toInt()
+            event.scrollDeltaY = ((before - sess.scrollOffset.value) * lineHeight).toInt()
+            parent?.requestSendAccessibilityEvent(this, event)
+        }
+        return accepted
     }
 
     override fun performClick(): Boolean {

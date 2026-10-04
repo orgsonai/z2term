@@ -31,8 +31,8 @@ class AndroidActions : AccessibilityService() {
      * ⚠ **いま触っている窓 (`isActive`) を先に見る** (0.8.627)。入力欄を持たない窓や自由な大きさの窓
      * (フリーフォーム) は**入力フォーカスを持たないことがあり**、`isFocused` だけで選ぶと「前面に
      * 出ているのにスクロールできない」になる (利用者の指摘:「フリーフォームウィンドウとかだと
-     * 上手くスクロールもしません」)。⚠ **自分の窓は相手にしない** — パネルを触った拍子に
-     * 自分自身へスクロールを送っても何も起きないうえ、相手の取り違えに気付けない。
+     * 上手くスクロールもしません」)。重ね表示は TYPE_APPLICATION ではないため除外する。
+     * アプリの通常の窓は自分のものも含める (端末本文や設定画面もスクロール対象)。
      */
     @Suppress("DEPRECATION")
     private fun focusedTarget(): ScrollTarget? {
@@ -40,8 +40,7 @@ class AndroidActions : AccessibilityService() {
         return try {
             val applications = currentWindows.filter {
                 it.type == AccessibilityWindowInfo.TYPE_APPLICATION &&
-                    (Build.VERSION.SDK_INT < 30 || it.displayId == android.view.Display.DEFAULT_DISPLAY) &&
-                    windowPackages[it.id] != packageName
+                    (Build.VERSION.SDK_INT < 30 || it.displayId == android.view.Display.DEFAULT_DISPLAY)
             }
             val target = applications.firstOrNull { it.isActive }
                 ?: applications.firstOrNull { it.isFocused }
@@ -57,7 +56,7 @@ class AndroidActions : AccessibilityService() {
                 bounds.bottom = ScrollArea(bounds.left, bounds.top, bounds.right, bounds.bottom)
                     .aboveKeyboard(ScrollArea(keyboard.left, keyboard.top, keyboard.right, keyboard.bottom)).bottom
             }
-            com.zerotoship.z2term.core.TerminalScrollViewport.current()?.let { viewport ->
+            com.zerotoship.z2term.core.TerminalScrollViewport.current(target.id)?.let { viewport ->
                 if (!bounds.intersect(viewport)) return null
             }
             if (bounds.isEmpty) return null
@@ -75,7 +74,8 @@ class AndroidActions : AccessibilityService() {
             event.packageName?.toString()?.let { windowPackages[event.windowId] = it }
             while (windowPackages.size > 64) windowPackages.remove(windowPackages.keys.first())
         }
-        if (autoScroll.running && (event?.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
+        if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) nodeScroll.onScrolled(event)
+        if ((autoScroll.running || nodeScroll.running) && (event?.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
                 event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)) {
             if (runCatching { focusedTarget() }.getOrNull() != scrollTarget) { autoScroll.stop(); nodeScroll.stop() }
         }
@@ -166,10 +166,9 @@ class AndroidActions : AccessibilityService() {
         /**
          * スクロールを始める。
          *
-         * [how] は `auto` / `node` / `swipe` (空欄は `auto`)。⚠ **既定でスワイプを注入しない**
-         * (0.8.627) — 注入したスワイプはアプリから見て指と区別が付かず、払う操作に機能が
-         * 割り当たっている画面では**その機能が動いてしまう** ([AndroidNodeScroll] の解説)。
-         * `auto` は部品へ頼み、スクロールできる部品が無いときだけスワイプへ落とす。
+         * [how] は `auto` / `node` / `swipe` (空欄は `auto`)。
+         * `node` は縦方向の部品操作のみ。`swipe` は常に縦スワイプ。
+         * `auto` の連続スクロールは端末本文へ直接頼み、その他の画面では連続縦スワイプで速度を制御する。
          */
         fun startAutoScroll(speedDp: Float, bounds: android.graphics.Rect, xPercent: Float = 50f,
             yPercent: Float = 50f, once: Boolean = false, requirePreviousTarget: Boolean = false,
@@ -193,7 +192,7 @@ class AndroidActions : AccessibilityService() {
             service.scrollTarget = target
             if (how != "swipe") {
                 service.autoScroll.stop()
-                if (service.nodeScroll.start(speedDp, target.id, area, xPercent, yPercent, once, stillTarget, done)) return
+                if (service.nodeScroll.start(speedDp, target.id, area, xPercent, yPercent, once, stillTarget, done, terminalOnly = how == "auto" && !once)) return
                 check(how != "node") { service.getString(com.zerotoship.z2term.R.string.edge_scroll_no_scrollable) }
             }
             service.nodeScroll.stop()
