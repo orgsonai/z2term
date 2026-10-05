@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-05 / Target version: 0.9.10 (versionCode 673)
+Last updated: 2026-10-06 / Target version: 0.9.11 (versionCode 674)
+
+**0.9.11 (versionCode 674), release candidate**: Fixed a gap between the 3-button navigation bar (back / home / recents) and the keyboard when it is used as an OS input method on some devices. The lift for the bar also applied on devices whose input-method window already sits above the bar (Android 14 and earlier, for example), so the keyboard was lifted twice. The keyboard is now lifted only by the height that actually overlaps the bar, so it sits right on top of the buttons on every device.
 
 **0.9.10 (versionCode 673), release candidate**: Fixed jerky continuous edge-panel scrolling. Each continuation used to be sent only after the previous one reported completion, so the finger paused at every joint. Three continuations are now queued ahead, and Android schedules each one right after the previous movement without a gap. Every segment moves the same distance, with no catch-up bursts. At the end of the range the finger lifts while still moving, and the next stroke lands while the view is still flinging.
 
@@ -3595,7 +3597,15 @@ The terminal does not expose its current line as editable field text, so word/li
   `ViewCompat.setOnApplyWindowInsetsListener`, becomes bottom padding on the input view and lifts the
   keyboard clear. ⚠ It reads `tappableElement` rather than `navigationBars` because **gesture-navigation
   devices report 0 there** — no wasted gap on devices without a bar. Some paths recreate the window
-  without delivering the listener, so `onStartInputView` re-reads it from `rootWindowInsets`.
+  without delivering the listener, so `onStartInputView` re-reads it.
+  ⚠ **The padding is the height the input view actually overlaps the bar, not the bar height** (0.9.11).
+  Only Android 15 and later extend the input-method window behind the bar; on earlier devices the
+  window frame already avoids it. Adding the raw bar height from `rootWindowInsets` (window-relative,
+  unconsumed) **lifted the keyboard twice and left a gap above the 3-button bar** (user report on
+  another device). `navBarOverlap` subtracts the distance from the view's bottom to the window's
+  bottom from the bar height and returns only the overflow. Because it needs the view position, it
+  also re-measures in `addOnLayoutChangeListener` (the padding sits inside the ComposeView, so its
+  bottom does not move and the value settles).
 - ⚠ **The candidate-bar seat is always reserved so the input-view height never moves; the seat is
   transparent and is subtracted from the insets** (0.8.292). [CandidateBar] is 0-height when idle and
   grows to `CandidateBarHeight` (76dp) when conversion starts. In the IME this changes the input-view

@@ -143,16 +143,24 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         // ⚠ Android 15 (targetSdk 35) は**入力メソッドの窓も画面の端まで**広げる。何もしないと
         // キーボードの最下段が 3 ボタンナビゲーションバーの裏に潜り、← ↓ ↑ → や ⏎ が押せない
         // (バーの側が反応して「戻る」等になる)。バーのぶんだけ下に余白を作って持ち上げる。
-        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
-            navBarInsetPx.intValue = insets.tappableBottom()
+        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+            navBarInsetPx.intValue = navBarOverlap(v)
             insets
         }
+        // 位置が決まってからでないと重なりは測れない。並びが変わるたびに測り直す
+        // (余白は ComposeView の内側に入るので、下端の位置は動かず測り直しても値は変わらない)。
+        view.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            navBarInsetPx.intValue = navBarOverlap(v)
+        }
+        inputView = view
         view.setContent { KeyboardContent() }
         return view
     }
 
+    private var inputView: View? = null
+
     /**
-     * 下端に空けるナビゲーションバーぶんの余白 (px)。
+     * 下端に空けるナビゲーションバーぶんの余白 (px)。値は [navBarOverlap] で測る。
      *
      * ⚠ [WindowInsetsCompat.Type.navigationBars] ではなく **tappableElement** を見る —
      * ジェスチャー操作の端末では「バー」は細いハンドルだけでタップを奪わないので 0 が返り、
@@ -160,8 +168,25 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
      */
     private val navBarInsetPx = mutableIntStateOf(0)
 
-    private fun WindowInsetsCompat.tappableBottom(): Int =
-        getInsets(WindowInsetsCompat.Type.tappableElement()).bottom
+    /**
+     * 入力ビューの下端が三ボタンのバーと**実際に重なっている**高さ (px)。
+     *
+     * ⚠ バーの高さをそのまま余白にしてはいけない。入力メソッドの窓がバーの裏まで広がるのは
+     * Android 15 以降 (targetSdk 35) だけで、それより前の端末では窓の枠がバーのぶんを先に
+     * 避けている。バーの高さを足すと**二重に持ち上がり、三ボタンとキーボードの間に隙間**が
+     * できていた (別の端末での利用者報告)。窓の下端からバーの上端までと、ビューの下端の
+     * 位置を比べ、はみ出しているぶんだけを返す — どの版でも、どの置き方でも同じ式で合う。
+     */
+    private fun navBarOverlap(view: View): Int {
+        val raw = view.rootWindowInsets ?: return 0
+        val bar = WindowInsetsCompat.toWindowInsetsCompat(raw)
+            .getInsets(WindowInsetsCompat.Type.tappableElement()).bottom
+        if (bar <= 0 || !view.isLaidOut) return 0
+        val loc = IntArray(2)
+        view.getLocationInWindow(loc)
+        val belowView = view.rootView.height - (loc[1] + view.height)
+        return (bar - belowView).coerceAtLeast(0)
+    }
 
     /**
      * キーボードを何回目に出したか。⚠ **数そのものに意味は無い** — キーボードのサブツリーを
@@ -191,8 +216,8 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
      * 操作方法の変更直後) の取りこぼしを埋める。
      */
     private fun refreshNavBarInset() {
-        val raw = window?.window?.decorView?.rootWindowInsets ?: return
-        navBarInsetPx.intValue = WindowInsetsCompat.toWindowInsetsCompat(raw).tappableBottom()
+        val view = inputView ?: return
+        navBarInsetPx.intValue = navBarOverlap(view)
     }
 
     /**

@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.10.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.11.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -727,7 +727,7 @@ Notification, SMS, event and unlock-failure detection and log formats remain in 
 | Special key bar (with the OS keyboard) | Use the toggle in **Key layout (your own)** and **Edit** below it to change positions, widths, splits and gesture bindings. The same layout is used on terminal and GUI tabs, independently of the regular face cycle. Existing on/off preferences are retained; Restore default returns to the original keys |
 | Japanese IME learning history | The phrases the converter has learned. Search and delete them one by one, or clear them all |
 | Built-in keyboard elsewhere | Settings → Permissions and notifications → Permissions → Enable the keyboard opens Android input-method settings. Use Switch keyboard to select it. Layouts, size and dictionaries remain under Keyboard settings. |
-| Overlap with the 3-button bar | When used as an OS input method, the bottom row of the keyboard **overlapped the 3-button navigation bar (back / home / recents) and could not be pressed**; fixed in 0.8.279. The keyboard is now lifted by the height of the bar. Devices on gesture navigation get no extra gap |
+| Overlap with the 3-button bar | When used as an OS input method, the bottom row of the keyboard **overlapped the 3-button navigation bar (back / home / recents) and could not be pressed**; fixed in 0.8.279. The keyboard is now lifted by the height of the bar. Devices on gesture navigation get no extra gap. Since 0.9.11 the keyboard is lifted only by the height that actually overlaps the bar, so devices whose keyboard already sits above the bar no longer show a gap |
 | Which face it opens on (ASCII / Japanese) | **Only when used as an OS input method does it reopen on the face you last used** (0.8.295). Switch to the Japanese flick face with 「あ」 and close it, and the next time it opens in another app it is still on the Japanese face (press ABC and the next one is ASCII again). ⚠ **The built-in keyboard on the terminal screen always starts on ASCII, as before** — people start typing ASCII in a terminal and Japanese in other apps, so only the other-apps side remembers. There is no setting to turn this on (each switch is remembered automatically) |
 | Keyboard position (landscape) | Left / bottom / right — effective only in landscape |
 | Side keyboard width (landscape) | Slider 280–700 dp |
@@ -930,6 +930,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.11 (versionCode 674), release candidate**: Fixed a gap between the 3-button navigation bar (back / home / recents) and the keyboard when it is used as an OS input method on some devices. The lift for the bar also applied on devices whose input-method window already sits above the bar (Android 14 and earlier, for example), so the keyboard was lifted twice. The keyboard is now lifted only by the height that actually overlaps the bar, so it sits right on top of the buttons on every device.
 
 **0.9.10 (versionCode 673), release candidate**: Fixed jerky continuous edge-panel scrolling. Each continuation used to be sent only after the previous one reported completion, so the finger paused at every joint. Three continuations are now queued ahead, and Android schedules each one right after the previous movement without a gap. Every segment moves the same distance, with no catch-up bursts. At the end of the range the finger lifts while still moving, and the next stroke lands while the view is still flinging.
 

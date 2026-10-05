@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.11 (versionCode 674), release candidate**: As an OS input method, the keyboard no longer leaves a gap above the 3-button navigation bar on devices whose input window already sits above the bar. It is lifted only by the height that actually overlaps the bar.
+
 **0.9.10 (versionCode 673), release candidate**: Continuous edge-panel scrolling no longer pauses between gesture segments. Continuations are queued ahead so Android joins them without a gap, and range ends hand off through a fling instead of stopping.
 
 **0.9.9 (versionCode 672), release candidate**: Continuous edge-panel scrolling can move a browser back up again, and strokes stay away from the top and bottom bars. Longer continued segments and gradual catch-up after pointer resets reduce jerky movement.
