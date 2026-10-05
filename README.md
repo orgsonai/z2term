@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.10 (versionCode 673), release candidate**: Continuous edge-panel scrolling no longer pauses between gesture segments. Continuations are queued ahead so Android joins them without a gap, and range ends hand off through a fling instead of stopping.
+
 **0.9.9 (versionCode 672), release candidate**: Continuous edge-panel scrolling can move a browser back up again, and strokes stay away from the top and bottom bars. Longer continued segments and gradual catch-up after pointer resets reduce jerky movement.
 
 **0.9.8 (versionCode 671), release candidate**: Continuous auto scrolling uses direct terminal actions and continued vertical swipes elsewhere. It accounts for touch slop, callback delays and pointer resets, and releases without an unwanted fling.

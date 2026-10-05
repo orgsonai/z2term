@@ -11,25 +11,34 @@ import android.view.ViewConfiguration
 import kotlin.math.abs
 import kotlin.math.sign
 
-/** Serial continuations keep the pointer down; page resets and stops release it without a fling. */
+/**
+ * Continuations are queued ahead of the pointer. Android schedules a continuation dispatched before
+ * the previous one finishes right after its last event, so the finger never pauses between segments.
+ * Range ends hand off by a fling; stops release without one.
+ */
 internal class AndroidAutoScroll(private val service: AccessibilityService) {
     private val main = Handler(Looper.getMainLooper())
     private var generation = 0
-    private var flightSequence = 0L
-    private var flight: Long? = null
-    val inFlight get() = flight != null
+    private var sequence = 0L
+    /** Dispatched sequences not yet reported, oldest first. */
+    private val pending = ArrayDeque<Long>()
+    val inFlight get() = pending.isNotEmpty()
     var running = false
         private set
-    private var next: Runnable? = null
+    private var next: (() -> Boolean)? = null
     private var finished: ((String?) -> Unit)? = null
     private var stoppedAt: Long? = null
     private var singleShot = false
+    /** The last dispatched stroke when it keeps the pointer down, and where it ends. */
     private var pointer: GestureDescription.StrokeDescription? = null
-    private var pointerOwner = -1
     private var pointerX = 0f
     private var pointerY = 0f
     private var pointerReleaseOffset = 1f
+    private var scheduledUntil = 0L
     private var releaseAllowed = true
+    private var touchSlopPx = 0f
+    /** x, y and direction of a lift whose fling no later touch has caught yet. */
+    private var handOffAt: FloatArray? = null
 
     fun recentlyRunning(): Boolean = running || stoppedAt?.let {
         SystemClock.uptimeMillis() - it < 500
@@ -39,15 +48,15 @@ internal class AndroidAutoScroll(private val service: AccessibilityService) {
         if (running) stoppedAt = SystemClock.uptimeMillis()
         generation++
         running = false
-        next?.let(main::removeCallbacks); next = null
+        next = null
         releaseAllowed = releasePointer
         val callback = finished; finished = null
         val result = error ?: if (singleShot && !completed)
             service.getString(com.zerotoship.z2term.R.string.edge_scroll_failed) else null
         singleShot = false
-        if (!inFlight) {
-            if (releasePointer) release() else pointer = null
-        }
+        if (!releasePointer) { pointer = null; handOffAt = null }
+        else if (pointer != null) release()
+        else if (!inFlight) catchFling()
         callback?.invoke(result)
     }
 
@@ -65,6 +74,7 @@ internal class AndroidAutoScroll(private val service: AccessibilityService) {
         running = true; singleShot = once; stoppedAt = null; finished = done; releaseAllowed = true
         val token = generation
         val density = service.resources.displayMetrics.density
+        touchSlopPx = ViewConfiguration.get(service).scaledTouchSlop.toFloat()
         val display = service.getSystemService(android.hardware.display.DisplayManager::class.java)
             .getDisplay(android.view.Display.DEFAULT_DISPLAY)
         val refreshRate = display?.refreshRate
@@ -79,91 +89,121 @@ internal class AndroidAutoScroll(private val service: AccessibilityService) {
         val low = (centerY - span / 2).coerceIn(bounds.top + margin, bounds.bottom - margin - span)
         val high = low + span
         val direction = sign(speedDp)
-        var motion: EdgeSwipeMotion? = null
-        val tick = object : Runnable {
-            override fun run() {
-                if (!running || token != generation || inFlight) return
-                if (!runCatching(stillTarget).getOrDefault(false)) { stop(); return }
-                if (once) {
-                    val timing = EdgeScrollTiming.plan(abs(speedDp), bounds.height() / density, sampleMs)
-                    val distance = timing.distanceDp * density
-                    val start = (centerY - distance / 2).coerceIn(bounds.top + 1f, bounds.bottom - distance - 1f)
-                    val from = if (direction > 0) start else start + distance
-                    val to = from + direction * distance
-                    send(Path().apply { moveTo(x, from); lineTo(x, to) }, timing.durationMs, false, token, x, to)
-                    return
-                }
-                val fresh = pointer == null
-                val from = if (fresh) { if (direction > 0) low else high } else pointerY
-                val available = if (direction > 0) high - from else from - low
-                if (!fresh && available < 1f) { release(); return }
-                val now = SystemClock.uptimeMillis()
-                val clock = motion ?: EdgeSwipeMotion(abs(speedDp), now, sampleMs,
-                    ViewConfiguration.get(service).scaledTouchSlop / density).also { motion = it }
-                val distance = clock.distanceDp(now, available / density, fresh) * density
-                val to = (from + direction * distance).coerceIn(low, high)
-                send(Path().apply { moveTo(x, from); lineTo(x, to) }, clock.durationMs, true, token, x, to,
-                    releaseOffset = -direction)
+        val segmentMs = maxOf(80L, sampleMs * 3L + 1L)
+        // The injector keeps the queued timing exactly, so a constant step is a constant speed.
+        val stepPx = abs(speedDp) * density * segmentMs / 1000f
+        var onceSent = false
+        // Returns whether another segment may be queued behind this one now.
+        next = next@{
+            if (!running || token != generation) return@next false
+            if (!runCatching(stillTarget).getOrDefault(false)) { stop(); return@next false }
+            if (once) {
+                if (onceSent || inFlight) return@next false
+                onceSent = true
+                val timing = EdgeScrollTiming.plan(abs(speedDp), bounds.height() / density, sampleMs)
+                val distance = timing.distanceDp * density
+                val start = (centerY - distance / 2).coerceIn(bounds.top + 1f, bounds.bottom - distance - 1f)
+                val from = if (direction > 0) start else start + distance
+                val to = from + direction * distance
+                send(Path().apply { moveTo(x, from); lineTo(x, to) }, timing.durationMs, false, token, x, to)
+                return@next false
             }
+            val fresh = pointer == null
+            // A new stroke cancels anything still queued: wait for the previous lift to finish.
+            if (fresh && inFlight) return@next false
+            val from = if (fresh) { if (direction > 0) low else high } else pointerY
+            val end = if (direction > 0) high else low
+            val distance = (stepPx + if (fresh) touchSlopPx else 0f).coerceAtMost(abs(end - from))
+            val to = from + direction * distance
+            // Lift at the end of the range while still moving. The view keeps scrolling by its
+            // own fling until the next stroke's DOWN catches it, so the reset does not pause.
+            val handOff = abs(end - to) < 1f
+            send(Path().apply { moveTo(x, from); lineTo(x, to) }, segmentMs, !handOff, token, x, to,
+                releaseOffset = -direction, handOff = handOff)
+            !handOff
         }
-        next = tick
-        resume()
+        pump()
     }
 
-    private fun resume() {
-        if (inFlight) return
-        if (pointer != null && (!running || pointerOwner != generation)) {
-            if (releaseAllowed) release() else { pointer = null; if (running) next?.let(main::post) }
-        } else if (running) next?.let(main::post)
+    /** Keep a few segments queued so a late callback does not leave the pointer still. */
+    private fun pump() {
+        if (!running) {
+            if (!inFlight && releaseAllowed) catchFling()
+            return
+        }
+        while (running && pending.size < AHEAD) {
+            val more = next?.invoke() ?: return
+            if (!more) return
+        }
     }
 
     /** Identical coordinates produce no MOVE events. A one-pixel return clears recent velocity. */
     private fun release() {
-        if (inFlight) return
         val held = pointer ?: return
         send(Path().apply {
             moveTo(pointerX, pointerY)
             lineTo(pointerX, pointerY + pointerReleaseOffset)
             lineTo(pointerX, pointerY)
-        }, 160L, false, pointerOwner, pointerX, pointerY, held)
+        }, 160L, false, NO_OWNER, pointerX, pointerY, held)
     }
 
+    /** A stop just after a hand-off leaves the view flinging. A short drag, never a tap, catches it. */
+    private fun catchFling() {
+        val (x, y, direction) = handOffAt ?: return
+        val to = y + direction * (touchSlopPx + 2f)
+        send(Path().apply { moveTo(x, y); lineTo(x, to) }, 50L, true, NO_OWNER, x, to, null, -direction)
+        // Stopped: release the catching pointer right behind it.
+        release()
+    }
+
+    /** [x], [y]: the exact end of [path]. A continuation must start at the injector's last point. */
     private fun send(path: Path, durationMs: Long, keepDown: Boolean, token: Int, x: Float, y: Float,
-        previous: GestureDescription.StrokeDescription? = pointer, releaseOffset: Float = pointerReleaseOffset) {
+        previous: GestureDescription.StrokeDescription? = pointer, releaseOffset: Float = pointerReleaseOffset,
+        handOff: Boolean = false) {
         val stroke = previous?.continueStroke(path, 0, durationMs, keepDown)
             ?: GestureDescription.StrokeDescription(path, 0, durationMs, keepDown)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
-        val id = ++flightSequence
-        flight = id
+        val id = ++sequence
+        pending.addLast(id)
+        handOffAt = null
+        pointer = if (keepDown) stroke else null
+        pointerX = x; pointerY = y; pointerReleaseOffset = releaseOffset
+        val now = SystemClock.uptimeMillis()
+        scheduledUntil = maxOf(scheduledUntil, now) + durationMs
         val watchdog = Runnable {
-            if (flight != id) return@Runnable
-            flight = null; pointer = if (keepDown) stroke else null
-            pointerOwner = token; pointerX = x; pointerY = y
-            pointerReleaseOffset = releaseOffset
-            stop(service.getString(com.zerotoship.z2term.R.string.edge_scroll_failed))
+            if (id !in pending) return@Runnable
+            pending.clear(); pointer = null; handOffAt = null
+            stop(service.getString(com.zerotoship.z2term.R.string.edge_scroll_failed), releasePointer = false)
         }
-        main.postDelayed(watchdog, durationMs + 1000L)
+        main.postDelayed(watchdog, scheduledUntil - now + 1000L)
         val callback = object : AccessibilityService.GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
-                if (flight != id) return
-                flight = null; main.removeCallbacks(watchdog)
-                pointer = if (keepDown) stroke else null
-                pointerOwner = token; pointerX = x; pointerY = y
-                pointerReleaseOffset = releaseOffset
+                if (!pending.remove(id)) return
+                main.removeCallbacks(watchdog)
+                if (handOff && !inFlight && pointer == null) handOffAt = floatArrayOf(x, y, -releaseOffset)
                 if (running && token == generation && singleShot) stop(completed = true)
-                else resume()
+                else pump()
             }
             override fun onCancelled(gestureDescription: GestureDescription?) {
-                if (flight != id) return
-                flight = null; pointer = null; main.removeCallbacks(watchdog)
+                if (!pending.remove(id)) return
+                main.removeCallbacks(watchdog)
+                // Android cancels everything queued with it; nothing is held down any more.
+                pointer = null; handOffAt = null
                 if (running && token == generation) stop(service.getString(com.zerotoship.z2term.R.string.edge_scroll_failed), releasePointer = false)
-                else resume()
+                else pump()
             }
         }
         try {
             if (service.dispatchGesture(gesture, callback, main)) return
         } catch (_: Exception) { /* Report through the same completion path. */ }
-        flight = null; pointer = null; main.removeCallbacks(watchdog)
+        pending.remove(id); main.removeCallbacks(watchdog); pointer = null
         stop(service.getString(com.zerotoship.z2term.R.string.edge_scroll_failed), releasePointer = false)
+    }
+
+    private companion object {
+        /** Segments queued ahead: a callback may arrive this many segments late without a pause. */
+        const val AHEAD = 3
+        /** Releases and catches belong to no scroll session; their results never stop a new one. */
+        const val NO_OWNER = -1
     }
 }
