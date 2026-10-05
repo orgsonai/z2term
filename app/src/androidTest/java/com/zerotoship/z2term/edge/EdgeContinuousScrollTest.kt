@@ -18,8 +18,10 @@ class EdgeContinuousScrollTest {
     @Test fun nativeListKeepsSpeedAndVerticalDirection() = measure(false, 600f)
     @Test fun browserKeepsSpeedAndVerticalDirection() = measure(true, 600f)
     @Test fun browserSlowScrollKeepsMoving() = measure(true, 100f)
+    @Test fun nativeListScrollsBackUp() = measure(false, 600f, up = true)
+    @Test fun browserScrollsBackUp() = measure(true, 600f, up = true)
 
-    private fun measure(web: Boolean, speed: Float) {
+    private fun measure(web: Boolean, speed: Float, up: Boolean = false) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val app = instrumentation.targetContext
         check(app.packageName.endsWith(".debug2"))
@@ -54,7 +56,11 @@ class EdgeContinuousScrollTest {
                 assertTrue(activity.pageReady)
                 assertTrue("The test surface must have vertical overflow", activity.surface.canScrollVertically(1))
                 activity.surface.getGlobalVisibleRect(bounds)
-                AndroidActions.startAutoScroll(-speed, bounds, how = "auto") { error.set(it) }
+                if (up) activity.surface.scrollTo(0, (bounds.height() * 20f).toInt())
+            }
+            if (up) SystemClock.sleep(300)
+            instrumentation.runOnMainSync {
+                AndroidActions.startAutoScroll(if (up) speed else -speed, bounds, how = "auto") { error.set(it) }
             }
             val samples = mutableListOf<Pair<Long, Int>>()
             repeat(45) {
@@ -78,12 +84,12 @@ class EdgeContinuousScrollTest {
             assertNull(error.get())
             val density = app.resources.displayMetrics.density
             val first = samples[5]; val last = samples.last()
-            val actual = (last.second - first.second) / density * 1000 / (last.first - first.first)
-            android.util.Log.i("EdgeScrollProbe", "web=$web requested=$speed actual=$actual downs=$downs horizontal=$horizontal")
+            val actual = (last.second - first.second) / density * 1000 / (last.first - first.first) * if (up) -1 else 1
+            android.util.Log.i("EdgeScrollProbe", "web=$web up=$up requested=$speed actual=$actual downs=$downs horizontal=$horizontal")
             assertTrue("Requested $speed dp/s, actual $actual", abs(actual - speed) <= speed * 0.22f)
             assertEquals("Vertical reading must leave the horizontal pager in place", 0, horizontal)
             assertTrue("Auto must use continuous gestures on these surfaces", downs > 0)
-            assertTrue("A continuous scroll must not lift every small movement", downs <= 6)
+            assertTrue("A continuous scroll must not lift every small movement", downs <= 8)
             var gap = 0L
             var previous = first
             for (sample in samples.drop(6)) {

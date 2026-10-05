@@ -72,8 +72,11 @@ internal class AndroidAutoScroll(private val service: AccessibilityService) {
             refreshRate.isFinite() && refreshRate > 0f) (1000 / refreshRate).toInt().coerceIn(1, 1000) else 100
         val x = bounds.left + bounds.width() * xPercent.coerceIn(10f, 90f) / 100f
         val centerY = bounds.top + bounds.height() * yPercent.coerceIn(10f, 90f) / 100f
-        val span = bounds.height() * 0.8f
-        val low = (centerY - span / 2).coerceIn(bounds.top + 1f, bounds.bottom - span - 1f)
+        // Keep the pointer off the top and bottom bars. A browser shows its toolbar again while
+        // scrolling up, and a downward stroke starting on that toolbar does not scroll the page.
+        val span = bounds.height() * 0.6f
+        val margin = bounds.height() * 0.15f
+        val low = (centerY - span / 2).coerceIn(bounds.top + margin, bounds.bottom - margin - span)
         val high = low + span
         val direction = sign(speedDp)
         var motion: EdgeSwipeMotion? = null

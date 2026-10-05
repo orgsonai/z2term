@@ -6,9 +6,9 @@ import org.junit.Test
 class EdgeSwipeMotionTest {
     @Test fun callbackDelayIsIncludedInTheNextMovement() {
         val clock = EdgeSwipeMotion(600f, 1000L, 8, 8f)
-        assertEquals(56f, clock.distanceDp(1000L, 800f, true), 0.01f)
-        // Previous 80ms movement plus 20ms of dispatch/callback overhead.
-        assertEquals(60f, clock.distanceDp(1100L, 800f, false), 0.01f)
+        assertEquals(104f, clock.distanceDp(1000L, 800f, true), 0.01f)
+        // Previous 160ms movement plus 20ms of dispatch/callback overhead.
+        assertEquals(108f, clock.distanceDp(1180L, 800f, false), 0.01f)
     }
 
     @Test fun pointerResetTimeAndTouchSlopDoNotLowerTheAverageSpeed() {
@@ -17,7 +17,7 @@ class EdgeSwipeMotionTest {
         var now = 0L
         repeat(100) { i ->
             val fresh = i % 5 == 0
-            if (i > 0 && fresh) now += 120L
+            if (i > 0 && fresh) now += 180L
             val distance = clock.distanceDp(now, 800f, fresh)
             useful += distance - if (fresh) 8f else 0f
             now += clock.durationMs + 15L
@@ -27,13 +27,15 @@ class EdgeSwipeMotionTest {
 
     @Test fun lowSpeedsRemainFractionalInsteadOfWaitingBetweenShortSwipes() {
         val clock = EdgeSwipeMotion(2.5f, 0, 8, 8f)
-        assertEquals(8.2f, clock.distanceDp(0, 800f, true), 0.001f)
-        repeat(20) { i -> assertEquals(0.2f, clock.distanceDp((i + 1) * 80L, 800f, false), 0.001f) }
+        assertEquals(8.4f, clock.distanceDp(0, 800f, true), 0.001f)
+        repeat(20) { i -> assertEquals(0.4f, clock.distanceDp((i + 1) * 160L, 800f, false), 0.001f) }
     }
 
-    @Test fun boundedStrokeKeepsUndeliveredTravelForTheNextPointer() {
+    @Test fun owedTravelAfterAPointerResetIsSpreadOverSeveralMovements() {
         val clock = EdgeSwipeMotion(1000f, 0, 8, 8f)
         assertEquals(40f, clock.distanceDp(0, 40f, true), 0f)
-        assertEquals(176f, clock.distanceDp(120, 800f, true), 0.01f)
+        // 248dp is owed; one movement repays 240dp (1.5x its own share) plus the touch slop.
+        assertEquals(248f, clock.distanceDp(120, 800f, true), 0.01f)
+        assertEquals(188f, clock.distanceDp(300, 800f, false), 0.01f)
     }
 }

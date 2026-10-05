@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.8.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.9.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -931,6 +931,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
 
+**0.9.9 (versionCode 672), release candidate**: Continuous edge-panel scrolling can now move a browser back up with a downward swipe. Scrolling up shows the browser’s top bar again, and strokes that started on that bar did not scroll the page. Strokes now cover 60% of the viewport and stay at least 15% away from its top and bottom. To reduce jerky movement, each continued segment lasts 160ms, and travel owed after a pointer reset is repaid at no more than 1.5 times one segment’s normal share.
+
 **0.9.8 (versionCode 671), release candidate**: Continuous auto scrolling retains direct terminal actions and uses continued vertical gestures for other surfaces. Travel accounts for touch slop, callback time and pointer resets. A slow release tail suppresses unwanted flings at resets and stops.
 
 **0.9.7 (versionCode 670), release candidate**: Edge-panel scrolling now includes the app’s own windows, and the terminal exposes touch-free vertical scroll actions. Vertical actions keep horizontal pagers out of the target selection. Scroll timing checks whether fractional amounts are supported and uses reported travel to adjust page-sized actions. Swipe mode uses longer strokes to reduce repeated starts and stops. Manual and scheduled backups now include edge-panel settings, items, notes and note history.
@@ -1065,7 +1067,7 @@ Scroll X/Y positions are percentages within the focused app window (10–90, def
 
 With a keyboard open, scrolling is restricted to the terminal viewport excluding the built-in keyboard, and to window bounds above the Android IME. A change in that area stops playback. `z2-key permission` opens the service details or falls back to general Accessibility settings if the device denies that screen.
 
-A stop tap does not open the handle. Physical touches outside also stop scrolling; synthetic input is excluded. Continuous swipes connect normally 80ms segments (at least three MOVE sampling intervals on slower displays) with `continueStroke`, keeping the pointer down even for tiny amounts. Add touch slop to the initial movement and account for callback and pointer-reset time using elapsed-time travel debt. At viewport ends and stops, send a one-pixel return over 160ms before lifting to suppress unwanted flings. Speed changes and reversals release the previous pointer before starting a new one. Single swipes retain the usual 480ms maximum. Speed is a target, with limits from viewport height, display refresh and app processing. See [Android continued gestures](https://developer.android.com/reference/android/accessibilityservice/GestureDescription.StrokeDescription#continueStroke(android.graphics.Path,%20long,%20long,%20boolean)).
+A stop tap does not open the handle. Physical touches outside also stop scrolling; synthetic input is excluded. Continuous swipes connect normally 160ms segments (at least three MOVE sampling intervals on slower displays) with `continueStroke`, keeping the pointer down even for tiny amounts. Strokes cover 60% of the target height and stay at least 15% away from its top and bottom, so they never start on a bar that reappears, such as a browser’s top bar (0.9.9). Add touch slop to the initial movement and account for callback and pointer-reset time using elapsed-time travel debt. Each segment repays at most 1.5 times its normal share of that debt, avoiding sudden bursts (0.9.9). At viewport ends and stops, send a one-pixel return over 160ms before lifting to suppress unwanted flings. Speed changes and reversals release the previous pointer before starting a new one. Single swipes retain the usual 480ms maximum. Speed is a target, with limits from viewport height, display refresh and app processing. See [Android continued gestures](https://developer.android.com/reference/android/accessibilityservice/GestureDescription.StrokeDescription#continueStroke(android.graphics.Path,%20long,%20long,%20boolean)).
 
 Fields: `actions-tap`, `actions-double-tap`, `actions-up`, `actions-down`, `actions-inward`, `actions-outward`. Separate actions with `|`; arguments use `type:UTF-8-form-encoded-value`. Examples: `actions-double-tap=launch:org.example.app|wait:500|swipe-up`, `actions-up=scroll-variable`. Encoding preserves pipes, plus signs and newlines in commands. The GUI handles encoding automatically; each list is limited to 16KiB. Unknown actions and invalid arguments are rejected. Empty explicitly disables a binding; absent keys inherit legacy `open`/`run`/`gesture-*` behavior. `gesture-speed` remains the speed setting and `scroll-x`/`scroll-y` set position. CLI and GUI share `panel.conf`.
 

@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.9 (versionCode 672), release candidate**: Continuous edge-panel scrolling can move a browser back up again, and strokes stay away from the top and bottom bars. Longer continued segments and gradual catch-up after pointer resets reduce jerky movement.
+
 **0.9.8 (versionCode 671), release candidate**: Continuous auto scrolling uses direct terminal actions and continued vertical swipes elsewhere. It accounts for touch slop, callback delays and pointer resets, and releases without an unwanted fling.
 
 **0.9.7 (versionCode 670), release candidate**: Edge-panel scrolling now includes the app’s own windows, and the terminal exposes touch-free vertical scroll actions. Vertical actions keep horizontal pagers out of the target selection. Scroll timing checks whether fractional amounts are supported and uses reported travel to adjust page-sized actions. Swipe mode uses longer strokes to reduce repeated starts and stops. Manual and scheduled backups now include edge-panel settings, items, notes and note history.
