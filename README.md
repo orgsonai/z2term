@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.12 (versionCode 675), release candidate**: Continuous edge-panel scrolling keeps getting faster at high speed settings. A step cut short at the end of the range no longer takes a full segment.
+
 **0.9.11 (versionCode 674), release candidate**: As an OS input method, the keyboard no longer leaves a gap above the 3-button navigation bar on devices whose input window already sits above the bar. It is lifted only by the height that actually overlaps the bar.
 
 **0.9.10 (versionCode 673), release candidate**: Continuous edge-panel scrolling no longer pauses between gesture segments. Continuations are queued ahead so Android joins them without a gap, and range ends hand off through a fling instead of stopping.

@@ -89,9 +89,11 @@ internal class AndroidAutoScroll(private val service: AccessibilityService) {
         val low = (centerY - span / 2).coerceIn(bounds.top + margin, bounds.bottom - margin - span)
         val high = low + span
         val direction = sign(speedDp)
-        val segmentMs = maxOf(80L, sampleMs * 3L + 1L)
+        val minimumMs = sampleMs * 3L + 1L
+        val segmentMs = maxOf(80L, minimumMs)
         // The injector keeps the queued timing exactly, so a constant step is a constant speed.
-        val stepPx = abs(speedDp) * density * segmentMs / 1000f
+        val speedPx = abs(speedDp) * density
+        val stepPx = speedPx * segmentMs / 1000f
         var onceSent = false
         // Returns whether another segment may be queued behind this one now.
         next = next@{
@@ -113,12 +115,18 @@ internal class AndroidAutoScroll(private val service: AccessibilityService) {
             if (fresh && inFlight) return@next false
             val from = if (fresh) { if (direction > 0) low else high } else pointerY
             val end = if (direction > 0) high else low
-            val distance = (stepPx + if (fresh) touchSlopPx else 0f).coerceAtMost(abs(end - from))
+            val slop = if (fresh) touchSlopPx else 0f
+            val distance = (stepPx + slop).coerceAtMost(abs(end - from))
+            // A step cut short by the range end keeps the speed, not the duration. A fixed duration
+            // capped the speed at range / segment once one step covered the whole range.
+            val durationMs = if (distance >= stepPx + slop) segmentMs else
+                kotlin.math.ceil((distance - slop).coerceAtLeast(0f) / speedPx * 1000f).toLong()
+                    .coerceIn(minimumMs, segmentMs)
             val to = from + direction * distance
             // Lift at the end of the range while still moving. The view keeps scrolling by its
             // own fling until the next stroke's DOWN catches it, so the reset does not pause.
             val handOff = abs(end - to) < 1f
-            send(Path().apply { moveTo(x, from); lineTo(x, to) }, segmentMs, !handOff, token, x, to,
+            send(Path().apply { moveTo(x, from); lineTo(x, to) }, durationMs, !handOff, token, x, to,
                 releaseOffset = -direction, handOff = handOff)
             !handOff
         }
