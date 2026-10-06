@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.14.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.15.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -930,6 +930,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.15 (versionCode 678), release candidate**: The speed toast shown when an edge-panel scroll starts is now short, and a new one replaces the previous one instead of queuing behind it, so repeated scrolls no longer pile up toasts and slow the screen.
 
 **0.9.14 (versionCode 677), release candidate**: The special key bar now ends with F1–F12 by default. Scroll the bar sideways to reach them. If you have saved an edited layout, use Restore default in the editor to get them.
 

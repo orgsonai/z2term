@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-06 / Target version: 0.9.14 (versionCode 677)
+Last updated: 2026-10-07 / Target version: 0.9.15 (versionCode 678)
+
+**0.9.15 (versionCode 678), release candidate**: The speed toast shown when an edge-panel scroll starts is now short, and a new one replaces the previous one instead of queuing behind it, so repeated scrolls no longer pile up toasts and slow the screen.
 
 **0.9.14 (versionCode 677), release candidate**: The special key bar now ends with F1–F12 by default. Scroll the bar sideways to reach them. If you have saved an edited layout, use Restore default in the editor to get them.
 

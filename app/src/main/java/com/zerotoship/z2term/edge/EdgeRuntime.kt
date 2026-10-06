@@ -718,6 +718,8 @@ object EdgeRuntime {
         return AndroidActions.stopAutoScroll() || pending
     }
 
+    private var scrollToast: Toast? = null
+
     private fun startHandleScroll(view: View, speed: Float, fields: Map<String, String> = emptyMap(),
         once: Boolean = false, requirePreviousTarget: Boolean = false, completed: (String?) -> Unit = {}) {
         stopHandleScroll()
@@ -745,8 +747,12 @@ object EdgeRuntime {
                 lastScrollSpeed = speed
                 scrollSessionAvailable = !once
                 if (!once) completed(null)
-                if (!once) Toast.makeText(ui(), app!!.getString(R.string.edge_scroll_started,
-                    kotlin.math.abs(speed).toInt()), Toast.LENGTH_LONG).show()
+                if (!once) {
+                    // Replace the previous one: queued toasts would keep showing stale speeds.
+                    scrollToast?.cancel()
+                    scrollToast = Toast.makeText(ui(), app!!.getString(R.string.edge_scroll_started,
+                        kotlin.math.abs(speed).toInt()), Toast.LENGTH_SHORT).also { it.show() }
+                }
             }.onFailure { completed(it.message ?: "Scroll failed") }
         }
         pendingScrollStart = task
