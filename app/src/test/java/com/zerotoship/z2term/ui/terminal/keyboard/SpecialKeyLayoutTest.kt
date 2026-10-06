@@ -9,11 +9,13 @@ class SpecialKeyLayoutTest {
     @Test fun defaultBarKeepsExistingKeysAndControlShortcuts() {
         val layout = specialKeyLayout()
         assertTrue(layout.validate().isEmpty())
-        assertEquals(listOf("ESC", "TAB", "CTRL", "←", "↓", "↑", "→", "⏎", "^C", "^D", "^L"),
+        assertEquals(listOf("ESC", "TAB", "CTRL", "←", "↓", "↑", "→", "⏎", "^C", "^D", "^L") +
+            (1..12).map { "F$it" },
             layout.allKeys().map { it.label })
         assertEquals(listOf(KeyAction.Chord(setOf(ModKey.CTRL), text = "c")),
             layout.allKeys()[8].actionsFor(KeyGesture.TAP))
         assertTrue(layout.allKeys()[7].repeatable)
+        assertEquals(listOf(KeyAction.Named(NamedKey.F12)), layout.allKeys().last().actionsFor(KeyGesture.TAP))
     }
 
     @Test fun editingAndSerializationKeepTheBarIndependentOfFullKeyboardFaces() {

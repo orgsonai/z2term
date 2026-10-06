@@ -18,7 +18,7 @@ fun specialKeyLayout(name: String = "ESC / TAB / CTRL"): KeyLayout {
         KeyDef.named("→", NamedKey.RIGHT),
         KeyDef.named("⏎", NamedKey.ENTER, repeatable = true),
         control("^C", "c"), control("^D", "d"), control("^L", "l"),
-    )
+    ) + (1..12).map { KeyDef.named("F$it", NamedKey.valueOf("F$it")) }
     val rows = listOf(KeyRow(keys.map { KeySlot(SlotContent.Single(it)) }))
     return KeyLayout(
         id = SPECIAL_KEY_LAYOUT_ID,

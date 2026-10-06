@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.14 (versionCode 677), release candidate**: The special key bar ends with F1–F12 by default.
+
 **0.9.13 (versionCode 676), release candidate**: Continuous edge-panel scrolling no longer hitches at the end of each stroke range and keeps getting faster at high speeds. A second pointer takes over before the first lifts, so the touch never breaks.
 
 **0.9.12 (versionCode 675), release candidate**: Continuous edge-panel scrolling keeps getting faster at high speed settings. A step cut short at the end of the range no longer takes a full segment.

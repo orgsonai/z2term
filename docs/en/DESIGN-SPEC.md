@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-06 / Target version: 0.9.13 (versionCode 676)
+Last updated: 2026-10-06 / Target version: 0.9.14 (versionCode 677)
+
+**0.9.14 (versionCode 677), release candidate**: The special key bar now ends with F1–F12 by default. Scroll the bar sideways to reach them. If you have saved an edited layout, use Restore default in the editor to get them.
 
 **0.9.13 (versionCode 676), release candidate**: Fixed continuous edge-panel scrolling that hitched every time the pointer was set down again at the end of its range, and that stopped getting faster above a certain speed. When the pointer reaches the end, a second pointer lands at the start before the first one lifts, so the view sees one unbroken touch and keeps moving. The range length no longer caps the speed.
 
@@ -3682,7 +3684,7 @@ built-in keyboard**".
 | Keep-alive service | keepAliveService | true | true/false (toggled from the toolbar 🔒 lock; **a switch also appears under Settings › Toolbar while the button is hidden** (0.8.194). **While resident servers run, 🔒 is dimmed and locked** and tapping it opens the quit dialog (0.8.204)) |
 | Screen-on lock | keepScreenOn | false | true/false (toggled from the toolbar 💡; **persisted and restored on next launch** (0.8.144); from Settings › Toolbar while hidden (0.8.194)) |
 | Special key bar | specialKeyBar | true | Toggle within key-layout settings. Shown with the OS keyboard; existing on/off preferences are retained. Shared by terminal and GUI |
-| Special key layout | specialKeyLayoutJson | empty | Empty or invalid data uses ESC/TAB/CTRL/arrows/Enter/^C/^D/^L. The layout editor supports position, width, splits, tap, flick and long-press bindings. Stored independently of the regular keyboard face cycle |
+| Special key layout | specialKeyLayoutJson | empty | Empty or invalid data uses ESC/TAB/CTRL/arrows/Enter/^C/^D/^L/F1–F12 (F1–F12 since 0.9.14). The layout editor supports position, width, splits, tap, flick and long-press bindings. Stored independently of the regular keyboard face cycle |
 | Toolbar order | toolbarOrder | "" (default order) | comma-separated ids; updated by long-press drag; keeps hidden ids too |
 | Toolbar hidden | toolbarHidden | "" (all shown) | comma-separated ids; tapped under Settings › Toolbar. ⚙ cannot be listed (0.8.194) |
 | Terminal log destination | sessionLogDir | "z2term-log" | relative to home (~) (0.8.195) |
