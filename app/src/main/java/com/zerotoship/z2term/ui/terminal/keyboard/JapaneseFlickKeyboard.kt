@@ -89,14 +89,6 @@ import kotlinx.coroutines.launch
 // 両端 (機能キー) 列の幅。中央のかな列 (1f) より狭くする。
 internal const val JP_EDGE_WEIGHT = 0.7f
 
-/** ESC の上フリック先 (貼り付けパッド) を表す印。キー上のヒントと長押しポップアップで共用。 */
-private const val PAD_HINT = "📋"
-
-/** ESC の下フリック先 (絵文字パッド) を表す印。[PAD_HINT] と同じくヒントとポップアップで共用。 */
-private const val EMOJI_HINT = "😀"
-
-/** ESC を押しっぱなしにしてからフリック先のポップアップを出すまでの時間。 */
-private const val LONG_PRESS_HINT_MS = 300L
 
 @Composable
 fun JapaneseFlickKeyboard(
@@ -582,11 +574,8 @@ internal fun JpBackspaceKeyBody(
  * ⚠ フリックにしたのは**キーを増やす隙間が無い**から。⌫ の左右フリック
  * ([JpBackspaceKeyBody]) と同じ指の動きなので、この配列の中では一貫している。
  *
- * ⚠ ただし**指の動きは見えない** — フリックできること自体を知らないと辿り着けなかったので、
- * かなキー ([JpFlickKey]) が上下左右のフリック先を常時出しているのと同じように、
- * キーの上端に [PAD_HINT]、下端に [EMOJI_HINT] を薄く出す。さらに**押しっぱなし**にすると
- * ([LONG_PRESS_HINT_MS] 後) キーの真上にポップアップが浮いて上下どちらに何があるか分かる
- * ([JpEscHintPopup])。ポップアップは指を離すかフリックが決まった時点で消える。
+ * キーには「ESC」だけを出す。上下フリックの行き先 (📋 / 😀) をキー上やポップアップで
+ * 示していたが、利用者の判断で表示をやめ、案内は Tips だけに置く (0.9.18)。
  */
 @Composable
 internal fun RowScope.JpEscKey(
@@ -597,8 +586,6 @@ internal fun RowScope.JpEscKey(
     onFlickDown: () -> Unit
 ) {
     var pressed by remember { mutableStateOf(false) }
-    var showHint by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val currentOnTap by rememberUpdatedState(onTap)
     val currentOnFlickUp by rememberUpdatedState(onFlickUp)
     val currentOnFlickDown by rememberUpdatedState(onFlickDown)
@@ -609,7 +596,6 @@ internal fun RowScope.JpEscKey(
         modifier = Modifier
             .weight(weight)
             .fillMaxHeight()
-            .zIndex(if (showHint) 1f else 0f)
             .background(bg, RoundedCornerShape(6.dp))
             .border(1.dp, border, RoundedCornerShape(6.dp))
             .pointerInput(Unit) {
@@ -621,11 +607,6 @@ internal fun RowScope.JpEscKey(
                         val startX = down.position.x
                         val startY = down.position.y
                         var resolved = false
-                        // 押しっぱなしなら「上へ払うと貼り付けパッド」をポップアップで教える。
-                        val hintJob = scope.launch {
-                            delay(LONG_PRESS_HINT_MS)
-                            if (!resolved) showHint = true
-                        }
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Main)
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
@@ -633,8 +614,6 @@ internal fun RowScope.JpEscKey(
                             val dy = change.position.y - startY
                             if (!resolved && abs(dy) > flickThreshold && abs(dy) > abs(dx)) {
                                 resolved = true
-                                hintJob.cancel()
-                                showHint = false
                                 if (dy < 0) currentOnFlickUp() else currentOnFlickDown()
                                 change.consume()
                             }
@@ -643,8 +622,6 @@ internal fun RowScope.JpEscKey(
                                 break
                             }
                         }
-                        hintJob.cancel()
-                        showHint = false
                         pressed = false
                     }
                 }
@@ -659,59 +636,6 @@ internal fun RowScope.JpEscKey(
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.align(Alignment.Center)
         )
-        // 上下フリック先のヒント (かなキーの上下段ヒントと同じ置き方・同じ薄さ)。
-        Text(
-            text = PAD_HINT,
-            color = fg.copy(alpha = 0.6f),
-            fontSize = style.flickHintFontSp.sp,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
-        Text(
-            text = EMOJI_HINT,
-            color = fg.copy(alpha = 0.6f),
-            fontSize = style.flickHintFontSp.sp,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
-        if (showHint) JpEscHintPopup(style = style)
-    }
-}
-
-/**
- * ESC を押しっぱなしにしたときのヒント。
- *
- * ⚠ [FlickCommitPopup] (1 文字) を使い回せない — 行き先が**上下 2 つ**あるので、
- * 「どちらへ払うと何が出るか」を上下の並びそのもので示す必要がある。
- * フリックはしきい値を越えた時点で発火するので、ここに出るのは常に**両方**
- * (指が動く前 = まだどちらへ行くか決まっていない状態でしか出ない)。
- */
-@Composable
-private fun BoxScope.JpEscHintPopup(style: KeyboardStyle) {
-    val lineHeight = style.keyFontSp * 1.35f
-    // 同一レイアウト内へ描くので別 Window が周囲のキーのタッチを奪わない。
-    val popupHeight = (lineHeight * 2f + 12f).dp
-    val gap = 6.dp
-    Column(
-        modifier = Modifier
-            .align(Alignment.TopCenter)
-            .offset(y = -(popupHeight + gap))
-            .zIndex(10f)
-            .background(ZtsGreen, RoundedCornerShape(10.dp))
-            .border(2.dp, ZtsGreenBright, RoundedCornerShape(10.dp))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        listOf("▲$PAD_HINT", "▼$EMOJI_HINT").forEach {
-            Text(
-                text = it,
-                color = Color.Black,
-                fontSize = style.keyFontSp.sp,
-                lineHeight = lineHeight.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-            )
-        }
     }
 }
 
@@ -829,8 +753,7 @@ private fun RowScope.JpFlickKey(
  * フリック方向を変えると [text] が差し替わり、何が確定するか一目で分かる。
  * キー本体のクリップ外へ同一レイアウト内で描くため、見た目が重なっても周囲のキー操作を遮らない。
  *
- * ⚠ 文字列を受けるのは絵文字 ([PAD_HINT]) がサロゲートペアで `Char` に収まらないため
- * (ESC キーの長押しヒントでも同じポップアップを使う)。
+ * ⚠ 文字列を受けるのは絵文字がサロゲートペアで `Char` に収まらないため。
  *
  * ⚠ **英字面 ([TerminalKeyboard] の `FlickKey`) からも使う** (0.8.405)。面が違うだけで
  * 同じ「フリック中の見え方」を出すためのもので、**片方だけ直さないこと**。

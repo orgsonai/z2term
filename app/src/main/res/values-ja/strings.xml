@@ -33,7 +33,7 @@
     <string name="tip_tab_reorder_title">タブは長押ししたまま動かすと並べ替えられます</string>
     <string name="tip_tab_reorder_body">動かしたいタブを長押しして、指を離さずに左右へ滑らせてください。</string>
     <string name="tip_esc_flick_title">ESC を上下にはらうとパッドが出ます</string>
-    <string name="tip_esc_flick_body">上へはらうと貼り付け、下へはらうと絵文字です。ESC を押したままにすると「▲📋 ▼😀」がキーの上に浮かぶので、そこから上下へはらえます。</string>
+    <string name="tip_esc_flick_body">ESC を上へはらうと貼り付け、下へはらうと絵文字です。パッドの (^^) タブには顔文字と AA があります。</string>
     <string name="tip_backspace_flick_title">⌫ を左右にはらうとまとめて消せます</string>
     <string name="tip_backspace_flick_body">左へはらうと単語ごと、右へはらうと行の先頭まで消えます。⌫ を押し続けるより速く戻せます。</string>
     <string name="tip_gui_scroll_title">GUI の中のアプリは 3 本指で上下にスクロール</string>
@@ -929,6 +929,8 @@
     <string name="settings_ime_pick">キーボードを切り替える</string>
     <string name="pad_clip_empty">コピーしたテキストがここに並びます。\nコピーしてからキーボードを開くと入ります。</string>
     <string name="pad_emoji_empty">使った絵文字がここに並びます。\n右のタブから選んでください。</string>
+    <string name="pad_kaomoji_empty">使った顔文字・AA がここに並びます。
+右のタブから選んでください。</string>
     <string name="tile_service_label_1">z2term 1</string>
     <string name="tile_service_label_2">z2term 2</string>
     <string name="tile_service_label_3">z2term 3</string>

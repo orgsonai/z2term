@@ -35,7 +35,7 @@
     <string name="tip_tab_reorder_title">Long-press a tab and slide it to reorder</string>
     <string name="tip_tab_reorder_body">Hold the tab you want to move, then drag it left or right into place without lifting your finger.</string>
     <string name="tip_esc_flick_title">Flick ESC up or down for the pads</string>
-    <string name="tip_esc_flick_body">Flick up to paste, flick down for emoji. Hold ESC down and \"▲📋 ▼😀\" floats above the key — flick from there.</string>
+    <string name="tip_esc_flick_body">Flick ESC up to paste, or down for emoji. In the pad, the (^^) tab holds emoticons and ASCII art.</string>
     <string name="tip_backspace_flick_title">Flick ⌫ left or right to delete more at once</string>
     <string name="tip_backspace_flick_body">Flick left to delete a word, flick right to delete back to the start of the line. Much faster than holding backspace down.</string>
     <string name="tip_gui_scroll_title">Scroll inside a GUI app with three fingers</string>
@@ -946,6 +946,8 @@
     <string name="settings_ime_pick">Switch keyboard</string>
     <string name="pad_clip_empty">Copied text shows up here.\nCopy first, then open the keyboard.</string>
     <string name="pad_emoji_empty">Emoji you use show up here.\nPick one from the tabs on the right.</string>
+    <string name="pad_kaomoji_empty">Emoticons and ASCII art you use show up here.
+Pick one from the tabs on the right.</string>
     <string name="tile_service_label_1">z2term 1</string>
     <string name="tile_service_label_2">z2term 2</string>
     <string name="tile_service_label_3">z2term 3</string>

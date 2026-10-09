@@ -422,13 +422,22 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // ただし検索バーを開いて独自キーボード使用中は、確定文字を PTY ではなく検索クエリへ流す
     // (システムキーボードとの二重入力を避ける。詳細は onKeyboardBytes 付近)。
     val composing = remember(active.id) {
-        ComposingState(onCommit = { text ->
-            if (searchOpen && keyboardMode == KeyboardMode.CUSTOM) {
-                searchInsert(text)
-            } else {
-                active.writeBytes(text.toByteArray(Charsets.UTF_8))
-            }
-        })
+        ComposingState(
+            onCommit = { text ->
+                if (searchOpen && keyboardMode == KeyboardMode.CUSTOM) {
+                    searchInsert(text)
+                } else {
+                    active.writeBytes(text.toByteArray(Charsets.UTF_8))
+                }
+            },
+            onPaste = { text ->
+                if (searchOpen && keyboardMode == KeyboardMode.CUSTOM) {
+                    searchInsert(text)
+                } else {
+                    active.pasteText(text, syncClipboard = false)
+                }
+            },
+        )
     }
     // システム(OS)キーボードの変換中(確定前)テキスト。OS IME は InputConnection.setComposingText で
     // 確定前の文字列を送ってくるので、それを内蔵キーボードの composing.text と同じ描画経路

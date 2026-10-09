@@ -236,13 +236,19 @@ internal object EmojiCatalog {
  * 絵文字は探すのに時間が掛かる一方、実際に使うのは 20 字ほどに偏る。⚠ カテゴリを
  * 最初のタブにすると毎回そこから探すことになるので、**最近使った順を先頭タブ**にする。
  */
+internal object RecentEmojiStore : RecentPadStore(tag = "RecentEmoji", fileName = "emoji_recent.json")
+
+/** 顔文字・AA パッドの「最近使った順」。保存場所: `filesDir/kaomoji_recent.json`。 */
+internal object RecentKaomojiStore : RecentPadStore(tag = "RecentKaomoji", fileName = "kaomoji_recent.json")
+
+/** パッドの「最近使った順」の共通部分。保存先のファイルだけを変えて使い分ける。 */
 // 保持するのは applicationContext のみ ([ImeHistoryStore] と同じ方針)。
 @Suppress("StaticFieldLeak")
-internal object RecentEmojiStore {
-    private const val TAG = "RecentEmoji"
-    private const val FILE_NAME = "emoji_recent.json"
-    private const val MAX_ENTRIES = 48
-    private const val SAVE_DEBOUNCE_MS = 500L
+internal abstract class RecentPadStore(private val tag: String, private val fileName: String) {
+    private companion object {
+        const val MAX_ENTRIES = 48
+        const val SAVE_DEBOUNCE_MS = 500L
+    }
 
     private val _items = MutableStateFlow<List<String>>(emptyList())
     val items: StateFlow<List<String>> = _items.asStateFlow()
@@ -258,15 +264,15 @@ internal object RecentEmojiStore {
         contextRef = context.applicationContext
         withContext(Dispatchers.IO) {
             runCatching {
-                val f = File(context.applicationContext.filesDir, FILE_NAME)
+                val f = File(context.applicationContext.filesDir, fileName)
                 if (!f.exists()) return@runCatching
                 val arr = JSONObject(f.readText(Charsets.UTF_8)).optJSONArray("items") ?: return@runCatching
                 _items.value = (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotEmpty() } }
-            }.onFailure { Log.w(TAG, "load failed: ${it.message}") }
+            }.onFailure { Log.w(tag, "load failed: ${it.message}") }
         }
     }
 
-    /** 使った絵文字を先頭へ (同じ字が既にあれば引き上げるだけ)。 */
+    /** 使ったものを先頭へ (同じものが既にあれば引き上げるだけ)。 */
     fun record(emoji: String) {
         if (emoji.isEmpty()) return
         _items.value = (listOf(emoji) + _items.value.filterNot { it == emoji }).take(MAX_ENTRIES)
@@ -278,11 +284,11 @@ internal object RecentEmojiStore {
                 val arr = JSONArray()
                 _items.value.forEach { arr.put(it) }
                 val obj = JSONObject().put("items", arr)
-                val tmp = File(ctx.filesDir, "$FILE_NAME.tmp")
+                val tmp = File(ctx.filesDir, "$fileName.tmp")
                 tmp.writeText(obj.toString(), Charsets.UTF_8)
-                val dst = File(ctx.filesDir, FILE_NAME)
+                val dst = File(ctx.filesDir, fileName)
                 if (!tmp.renameTo(dst)) { dst.writeText(obj.toString(), Charsets.UTF_8); tmp.delete() }
-            }.onFailure { Log.w(TAG, "save failed: ${it.message}") }
+            }.onFailure { Log.w(tag, "save failed: ${it.message}") }
         }
     }
 }

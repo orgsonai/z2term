@@ -1234,7 +1234,12 @@ internal val CYCLE_INDEX: Map<Char, Pair<List<Char>, Int>> = buildMap {
  *   [convert] で再度変換を始める想定。
  */
 class ComposingState(
-    private val onCommit: (String) -> Unit
+    private val onCommit: (String) -> Unit,
+    /**
+     * 改行を含む外部テキスト ([commitExternalText]) の出口。端末ではペーストとして送り、
+     * シェルが 1 行ずつコマンドとして実行しないようにする。null なら [onCommit] を使う。
+     */
+    private val onPaste: ((String) -> Unit)? = null,
 ) {
     var text by mutableStateOf("")
         private set
@@ -1516,11 +1521,15 @@ class ComposingState(
      * 打ちかけのかなが残っていれば**先に確定**してから出す (打ちかけが後ろへ回らない)。
      * ⚠ 学習も再変換の対象にもしない — 読みが無いので次の変換の材料にならず、
      * 「変換」キーで絵文字を呼び戻せても意味が無い。
+     *
+     * ⚠ 改行を含む (複数行の AA・クリップボード) ときは [onPaste] を通す。素のまま PTY へ
+     * 流すと、シェルは改行のたびにその行をコマンドとして実行してしまう。
      */
     fun commitExternalText(s: String) {
         if (s.isEmpty()) return
         commitRaw()
-        onCommit(s)
+        val paste = onPaste
+        if (paste != null && '\n' in s) paste(s) else onCommit(s)
         lastCommittedReading = null
         lastCommittedOutput = null
     }

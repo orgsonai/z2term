@@ -31,7 +31,7 @@
     <string name="tip_tab_reorder_title">Mantén pulsada una pestaña y deslízala para reordenarla</string>
     <string name="tip_tab_reorder_body">Mantén pulsada la pestaña que quieras mover y arrástrala a izquierda o derecha hasta su sitio sin levantar el dedo.</string>
     <string name="tip_esc_flick_title">Desliza ESC hacia arriba o abajo para abrir los paneles</string>
-    <string name="tip_esc_flick_body">Desliza hacia arriba para pegar y hacia abajo para los emojis. Mantén pulsado ESC y aparece \"▲📋 ▼😀\" sobre la tecla: desliza desde ahí.</string>
+    <string name="tip_esc_flick_body">Desliza ESC hacia arriba para pegar y hacia abajo para los emojis. En el panel, la pestaña (^^) tiene emoticonos y arte ASCII.</string>
     <string name="tip_backspace_flick_title">Desliza ⌫ a izquierda o derecha para borrar más de golpe</string>
     <string name="tip_backspace_flick_body">Desliza a la izquierda para borrar una palabra y a la derecha para borrar hasta el principio de la línea. Mucho más rápido que mantener pulsado el retroceso.</string>
     <string name="tip_gui_scroll_title">Desplázate dentro de una aplicación gráfica con tres dedos</string>
@@ -879,6 +879,8 @@
     <string name="settings_ime_pick">Cambiar de teclado</string>
     <string name="pad_clip_empty">Aquí aparece el texto que copias.\nCopia algo primero y luego abre el teclado.</string>
     <string name="pad_emoji_empty">Aquí aparecen los emojis que usas.\nElige uno en las pestañas de la derecha.</string>
+    <string name="pad_kaomoji_empty">Aquí aparecen los emoticonos y el arte ASCII que usas.
+Elige uno en las pestañas de la derecha.</string>
     <string name="tile_service_label_1">z2term 1</string>
     <string name="tile_service_label_2">z2term 2</string>
     <string name="tile_service_label_3">z2term 3</string>

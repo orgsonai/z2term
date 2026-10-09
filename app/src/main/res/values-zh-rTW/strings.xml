@@ -31,7 +31,7 @@
     <string name="tip_tab_reorder_title">長按分頁並拖曳可以重新排序</string>
     <string name="tip_tab_reorder_body">按住想移動的分頁，手指不要抬起，直接向左或向右拖到位置上。</string>
     <string name="tip_esc_flick_title">上下滑動 ESC 可以調出面板</string>
-    <string name="tip_esc_flick_body">向上滑動是貼上，向下滑動是表情符號。按住 ESC 不放，鍵上方會浮出“▲📋 ▼😀” — 從那裡向上下滑動即可。</string>
+    <string name="tip_esc_flick_body">向上滑動 ESC 是貼上，向下滑動是表情符號。面板中的 (^^) 分頁裡有顏文字和字元畫。</string>
     <string name="tip_backspace_flick_title">左右滑動 ⌫ 可以一次刪掉更多</string>
     <string name="tip_backspace_flick_body">向左滑動刪掉一個詞，向右滑動一直刪到行首。比一直按著退格鍵快得多。</string>
     <string name="tip_gui_scroll_title">圖形應用程式裡用三指上下捲動</string>
@@ -864,6 +864,8 @@
     <string name="settings_ime_pick">切換鍵盤</string>
     <string name="pad_clip_empty">複製過的文字會排列在這裡。\n先複製，再開啟鍵盤就能看到。</string>
     <string name="pad_emoji_empty">用過的表情符號會排列在這裡。\n請從右邊的標籤裡挑選。</string>
+    <string name="pad_kaomoji_empty">用過的顏文字和字元畫會排列在這裡。
+請從右邊的標籤裡挑選。</string>
     <string name="tile_service_label_1">z2term 1</string>
     <string name="tile_service_label_2">z2term 2</string>
     <string name="tile_service_label_3">z2term 3</string>

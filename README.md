@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.18 (versionCode 681), release candidate**: Emoticon / ASCII art tab in the pad; multi-line text is sent as a paste; no hint marks on ESC.
+
 **0.9.17 (versionCode 680), release candidate**: More symbols from conversion (きごう lists them all; ①②, ♡, ✓, αβ, ㎝ and more by reading).
 
 **0.9.16 (versionCode 679), release candidate**: The special key bar editor preview scrolls sideways like the real bar.

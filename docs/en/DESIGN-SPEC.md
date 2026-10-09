@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-09 / Target version: 0.9.17 (versionCode 680)
+Last updated: 2026-10-09 / Target version: 0.9.18 (versionCode 681)
+
+**0.9.18 (versionCode 681), release candidate**: The pad has a new (^^) tab with emoticons, ASCII-only emoticons, one-line ASCII art and multi-line ASCII art. Multi-line art and multi-line clipboard entries are sent as a paste, so a shell does not run them line by line. The 📋 / 😀 marks on the ESC key and its hold popup are gone (the flick directions are in Tips).
 
 **0.9.17 (versionCode 680), release candidate**: More symbols are available from conversion. Typing きごう now lists every symbol in the dictionary instead of stopping partway, and adds symbols the dictionary lacked, such as ①②, ♡, ✓, αβ and ㎝. They can also be reached by reading: まる → ①②…, はーと → ♡, ちぇっく → ✓, ぎりしゃ → αβγ…, たんい → ㎝㎏…. Dictionary words that exactly match the reading are always listed in full, however many candidates there are.
 
@@ -3202,14 +3204,10 @@ into "close" — you would not be able to delete while the pad is open.
   count and the size of `␣` are back to what they were before 0.8.278, and both entries sit together.
   The pad keeps its 😀 / 📋 tabs, so **either entry reaches both**. Closing is the × at the top left
   (ESC is not on screen while the pad is open, so "press the key you entered with" cannot work here).
-- **Making the flicks discoverable** (0.8.279 / 0.8.306): the finger movement is invisible, so —
-  exactly like the kana keys (`JpFlickKey`), which always show where each flick goes —
-  **a dim 📋 sits at the top edge of the ESC key and a dim 😀 at the bottom edge**. On top of that,
-  **holding ESC for 300ms** floats `JpEscHintPopup` with "▲📋 / ▼😀" right above the key.
-  ⚠ The one-glyph `FlickCommitPopup` cannot be reused: with two destinations the hint has to show
-  **the up/down arrangement itself**. ⚠ A plain tap shows nothing — ESC is one of the most-pressed
-  keys in a terminal, and popping something up on every press would be in the way. The popup
-  disappears as soon as the flick resolves.
+- **The ESC key shows only "ESC"** (0.9.18, the user's call): from 0.8.279 to 0.9.17 a dim 📋 sat at
+  its top edge and a dim 😀 at its bottom edge, and holding it for 300ms floated `JpEscHintPopup`
+  with "▲📋 / ▼😀". Both are gone; the up/down flicks are explained **only in Tips
+  (`tip_esc_flick_*`)**. The flicks themselves are unchanged.
 - **Emoji** (`EmojiCatalog`): 8 categories, built from **a hand-picked table plus whole code-point
   blocks** (no attempt at full coverage — thousands of glyphs cannot be browsed).
   ⚠ **A table copied one glyph at a time always has holes in it.** 13 of the 80 characters in
@@ -3236,11 +3234,25 @@ into "close" — you would not be able to delete while the pad is open.
   (`android.content.extra.IS_SENSITIVE`) are stored too since 0.8.314, prefixed with 🔒 and
   **cleared automatically after 30 seconds** (§4.6 `ClipboardHistoryStore`).
   ✕ deletes one entry, 🗑 clears all.
+- **Emoticons and ASCII art** (`KaomojiCatalog`, 0.9.18): a third tab, "(^^)", at the top of the pad.
+  ⚠ **No entry point of its own** (no extra ESC flick, the user's call) — enter through 😀 or 📋 and
+  switch tabs. Four categories: emoticons / emoticons made only of ASCII letters and symbols (safe in
+  any font or over SSH) / one-line ASCII art / multi-line ASCII art. The first tab is most recently
+  used (`RecentKaomojiStore` -> `filesDir/kaomoji_recent.json`, 48 entries; the same `RecentPadStore`
+  as `RecentEmojiStore` with a different file). Items vary in length, so they are **packed as chips
+  sized to their text** (`FlowRow`) rather than a grid, and multi-line art is drawn monospaced. Like the
+  emoji pad it stays open. ⚠ Only widely used short emoticons and art made for z2term are included
+  (no signed art and nothing copied from other software).
 - **Pasting closes the pad** (0.8.395): tapping a row inserts the text and returns to `PadMode.NONE`, i.e. back to the keys. ⚠ Before this the pad stayed open and **the × in the top-left had to be pressed after every paste** (the user's report). ⚠ **The emoji pad does not close** — typing several emoji in a row is normal. The line between closing and staying open is **"is this something you keep doing?"**, not entry-point or visual symmetry. ⚠ The behaviour lives in one place inside the pad (`ClipboardPane` -> `onMode(PadMode.NONE)`): there are three call sites (kana / latin / number faces) and per-face copies would leave one behind.
 - **Exit** (`ComposingState.commitExternalText`): emoji and pasted text go out through **the same
   path as a confirmation**. ⚠ Sent as bytes (`onBytes`) they would be re-read by the input method,
   turning newlines into `performEditorAction` (= running the search in a single-line field, §6.9).
   Pending kana is confirmed first, and neither is learned or reconvertible (there is no reading).
+  ⚠ **Text containing a newline goes out as a paste** (0.9.18, `onPaste` on `ComposingState`): in the
+  terminal it goes through `TerminalSession.pasteText`, wrapped in `ESC[200~ … ESC[201~` when
+  bracketed paste is on. Written raw to the PTY, the shell would run every line as a command
+  (multi-line art, multi-line clipboard entries). Text without a newline is unchanged. The input
+  method (`Z2ImeService`) passes no `onPaste`, so it is unaffected.
 
 ### 6.3 Connections (terminal → outside)
 

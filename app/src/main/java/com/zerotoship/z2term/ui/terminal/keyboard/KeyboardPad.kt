@@ -1,6 +1,12 @@
 package com.zerotoship.z2term.ui.terminal.keyboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -48,10 +54,10 @@ import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 
 /** キーボード中央に出すパッドの種類。[NONE] = かなキーがそのまま出ている通常状態。 */
-internal enum class PadMode { NONE, EMOJI, CLIPBOARD }
+internal enum class PadMode { NONE, EMOJI, CLIPBOARD, KAOMOJI }
 
 /**
- * 日本語キーボードの**中央 3 列を差し替える**パッド (絵文字 / 貼り付け)。
+ * 日本語キーボードの**中央 3 列を差し替える**パッド (絵文字 / 貼り付け / 顔文字・AA)。
  *
  * ⚠ **キーを増やさない**ための作り。絵文字も貼り付けも「置く隙間が無い」ので、`あ` で
  * かな面へ、`?#` で記号面へ切り替えるのと同じ **面の差し替え**として実装する。両端の列
@@ -59,6 +65,7 @@ internal enum class PadMode { NONE, EMOJI, CLIPBOARD }
  *
  * 絵文字と貼り付けを**同じパッドの 2 タブ**にしているのは、入口が別々 (かな面なら ESC の
  * 下フリック / 上フリック) だから — 片方に入れれば、もう片方は見えるタブから辿れる。
+ * 顔文字・AA は専用の入口を持たず、このタブからだけ開く。
  */
 @Composable
 internal fun KeyboardPad(
@@ -82,6 +89,7 @@ internal fun KeyboardPad(
                 ClipboardHistoryStore.captureCurrent(context)
             }
             PadMode.EMOJI -> RecentEmojiStore.ensureLoaded(context)
+            PadMode.KAOMOJI -> RecentKaomojiStore.ensureLoaded(context)
             PadMode.NONE -> Unit
         }
     }
@@ -97,6 +105,7 @@ internal fun KeyboardPad(
         ) {
             PadTab("😀", selected = mode == PadMode.EMOJI, style = style) { onMode(PadMode.EMOJI) }
             PadTab("📋", selected = mode == PadMode.CLIPBOARD, style = style) { onMode(PadMode.CLIPBOARD) }
+            PadTab("(^^)", selected = mode == PadMode.KAOMOJI, style = style) { onMode(PadMode.KAOMOJI) }
             Box(Modifier.weight(1f))
             if (mode == PadMode.CLIPBOARD) {
                 PadTab("🗑", selected = false, style = style) { ClipboardHistoryStore.clearAll() }
@@ -104,6 +113,7 @@ internal fun KeyboardPad(
         }
         when (mode) {
             PadMode.EMOJI -> EmojiPane(style = style, onInsert = onInsert)
+            PadMode.KAOMOJI -> KaomojiPane(style = style, onInsert = onInsert)
             PadMode.CLIPBOARD -> ClipboardPane(
                 style = style,
                 onInsert = onInsert,
@@ -114,22 +124,28 @@ internal fun KeyboardPad(
     }
 }
 
-/** パッド上部のタブ (絵文字 / 貼り付け / 全消去)。 */
+/**
+ * パッド上部のタブ (絵文字 / 貼り付け / 顔文字・AA / 全消去)。
+ * 幅は 40dp を下限に文字に合わせて広げる — 「(^^)」「(´ω`)」は 1 字の絵文字より長い。
+ */
 @Composable
 private fun PadTab(label: String, selected: Boolean, style: KeyboardStyle, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(width = 40.dp, height = 26.dp)
+            .height(26.dp)
+            .widthIn(min = 40.dp)
             .clip(RoundedCornerShape(6.dp))
             .background(if (selected) ZtsGreen else ZtsBgCard)
             .border(1.dp, if (selected) ZtsGreen else ZtsBorder, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
             color = if (selected) Color.Black else ZtsTextPrimary,
-            fontSize = (style.keyFontSp * 0.85f).sp
+            fontSize = (style.keyFontSp * 0.85f).sp,
+            maxLines = 1
         )
     }
 }
@@ -172,6 +188,67 @@ private fun ColumnScope.EmojiPane(style: KeyboardStyle, onInsert: (String) -> Un
                 contentAlignment = Alignment.Center
             ) {
                 Text(text = e, fontSize = (style.mainKeyFontSp * 0.95f).sp)
+            }
+        }
+    }
+}
+
+/**
+ * 顔文字・AA パッド: カテゴリ (横スクロール) + 中身 (縦スクロール)。
+ *
+ * 長さがまちまちなので、絵文字のような升目ではなく**文字の幅に合わせた札**を詰めて並べる。
+ * 複数行の AA は行がそろうよう等幅で描く。絵文字と同じく続けて打てるようパッドは閉じない。
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ColumnScope.KaomojiPane(style: KeyboardStyle, onInsert: (String) -> Unit) {
+    val recent by RecentKaomojiStore.items.collectAsState()
+    val categories = KaomojiCatalog.ALL
+    // 0 = 最近使った順 (絵文字パッドと同じ並び)。
+    var tab by remember { mutableIntStateOf(0) }
+    val items = if (tab == 0) recent else categories.getOrNull(tab - 1)?.items.orEmpty()
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        PadTab("🕘", selected = tab == 0, style = style) { tab = 0 }
+        categories.forEachIndexed { i, c ->
+            PadTab(c.label, selected = tab == i + 1, style = style) { tab = i + 1 }
+        }
+    }
+    if (items.isEmpty()) {
+        PadEmptyText(stringResource(R.string.pad_kaomoji_empty), style, Modifier.weight(1f))
+        return
+    }
+    // タブを替えたら先頭から見せる (前のタブの位置が残ると途中から始まる)。
+    val scroll = remember(tab) { ScrollState(0) }
+    FlowRow(
+        modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(scroll).padding(bottom = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        items.forEach { k ->
+            val multiLine = '\n' in k
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(ZtsBgCard)
+                    .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                    .clickable {
+                        RecentKaomojiStore.record(k)
+                        onInsert(k)
+                    }
+                    .padding(horizontal = 6.dp, vertical = 5.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = k,
+                    color = ZtsTextPrimary,
+                    fontSize = (style.keyFontSp * (if (multiLine) 0.6f else 0.8f)).sp,
+                    fontFamily = if (multiLine) FontFamily.Monospace else FontFamily.Default,
+                    lineHeight = (style.keyFontSp * (if (multiLine) 0.75f else 1f)).sp,
+                    softWrap = false
+                )
             }
         }
     }

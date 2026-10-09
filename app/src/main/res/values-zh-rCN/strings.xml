@@ -31,7 +31,7 @@
     <string name="tip_tab_reorder_title">长按标签页并拖动可以重新排序</string>
     <string name="tip_tab_reorder_body">按住想移动的标签页，手指不要抬起，直接向左或向右拖到位置上。</string>
     <string name="tip_esc_flick_title">上下滑动 ESC 可以调出面板</string>
-    <string name="tip_esc_flick_body">向上滑动是粘贴，向下滑动是表情符号。按住 ESC 不放，键上方会浮出“▲📋 ▼😀” — 从那里向上下滑动即可。</string>
+    <string name="tip_esc_flick_body">向上滑动 ESC 是粘贴，向下滑动是表情符号。面板中的 (^^) 标签页里有颜文字和字符画。</string>
     <string name="tip_backspace_flick_title">左右滑动 ⌫ 可以一次删掉更多</string>
     <string name="tip_backspace_flick_body">向左滑动删掉一个词，向右滑动一直删到行首。比一直按着退格键快得多。</string>
     <string name="tip_gui_scroll_title">图形应用里用三指上下滚动</string>
@@ -864,6 +864,8 @@
     <string name="settings_ime_pick">切换键盘</string>
     <string name="pad_clip_empty">复制过的文本会排列在这里。\n先复制，再打开键盘就能看到。</string>
     <string name="pad_emoji_empty">用过的表情符号会排列在这里。\n请从右边的标签里挑选。</string>
+    <string name="pad_kaomoji_empty">用过的颜文字和字符画会排列在这里。
+请从右边的标签里挑选。</string>
     <string name="tile_service_label_1">z2term 1</string>
     <string name="tile_service_label_2">z2term 2</string>
     <string name="tile_service_label_3">z2term 3</string>

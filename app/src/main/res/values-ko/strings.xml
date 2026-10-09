@@ -31,7 +31,7 @@
     <string name="tip_tab_reorder_title">탭을 길게 눌러 끌면 순서를 바꿀 수 있습니다</string>
     <string name="tip_tab_reorder_body">옮기고 싶은 탭을 누른 채로, 손가락을 떼지 말고 좌우로 끌어 자리에 놓으세요.</string>
     <string name="tip_esc_flick_title">ESC를 위아래로 플릭하면 패드가 나옵니다</string>
-    <string name="tip_esc_flick_body">위로 플릭하면 붙여넣기, 아래로 플릭하면 이모지입니다. ESC를 누르고 있으면 키 위에 \"▲📋 ▼😀\"가 떠오르므로 거기서 플릭하세요.</string>
+    <string name="tip_esc_flick_body">ESC를 위로 플릭하면 붙여넣기, 아래로 플릭하면 이모지입니다. 패드의 (^^) 탭에는 이모티콘과 AA가 있습니다.</string>
     <string name="tip_backspace_flick_title">⌫를 좌우로 플릭하면 한 번에 더 많이 지웁니다</string>
     <string name="tip_backspace_flick_body">왼쪽으로 플릭하면 한 단어, 오른쪽으로 플릭하면 줄 앞까지 지웁니다. 백스페이스를 누르고 있는 것보다 훨씬 빠릅니다.</string>
     <string name="tip_gui_scroll_title">GUI 안의 앱은 세 손가락으로 스크롤합니다</string>
@@ -863,6 +863,8 @@
     <string name="settings_ime_pick">키보드 전환</string>
     <string name="pad_clip_empty">복사한 글이 여기에 나옵니다.\n먼저 복사한 다음 키보드를 여세요.</string>
     <string name="pad_emoji_empty">자주 쓰는 이모지가 여기에 나옵니다.\n오른쪽 탭에서 골라 보세요.</string>
+    <string name="pad_kaomoji_empty">사용한 이모티콘과 AA가 여기에 나옵니다.
+오른쪽 탭에서 골라 보세요.</string>
     <string name="tile_service_label_1">z2term 1</string>
     <string name="tile_service_label_2">z2term 2</string>
     <string name="tile_service_label_3">z2term 3</string>
