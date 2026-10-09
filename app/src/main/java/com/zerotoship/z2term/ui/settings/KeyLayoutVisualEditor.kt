@@ -18,9 +18,11 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
@@ -58,6 +60,8 @@ import com.zerotoship.z2term.ui.terminal.keyboard.KeyWidth
 import com.zerotoship.z2term.ui.terminal.keyboard.LabelTone
 import com.zerotoship.z2term.ui.terminal.keyboard.ModKey
 import com.zerotoship.z2term.ui.terminal.keyboard.NamedKey
+import com.zerotoship.z2term.ui.terminal.keyboard.SPECIAL_KEY_LAYOUT_ID
+import com.zerotoship.z2term.ui.terminal.keyboard.ACCESSORY_KEY_WIDTH
 import com.zerotoship.z2term.ui.terminal.keyboard.SlotContent
 import com.zerotoship.z2term.ui.terminal.keyboard.SplitDir
 import com.zerotoship.z2term.ui.terminal.keyboard.appendKey
@@ -285,6 +289,8 @@ private fun LayoutPreview(
     onSelect: (KeyCellPath) -> Unit,
 ) {
     // Rows adapt to the preview budget; large layouts scroll rather than shrinking below 28dp.
+    // The accessory bar scrolls sideways with the same fixed key width as the real bar.
+    val accessoryBar = layout.id == SPECIAL_KEY_LAYOUT_ID
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -296,16 +302,20 @@ private fun LayoutPreview(
         layout.rows.forEachIndexed { rowIndex, row ->
             val weights = row.weights()
             Row(
-                modifier = Modifier.fillMaxWidth().height(rowHeight),
+                modifier = Modifier.fillMaxWidth().height(rowHeight).then(
+                    if (accessoryBar) Modifier.horizontalScroll(rememberScrollState()) else Modifier,
+                ),
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 row.slots.forEachIndexed { slotIndex, slot ->
+                    val weight = weights.getOrElse(slotIndex) { 1f }
                     PreviewContent(
                         content = slot.content,
                         path = KeyCellPath(rowIndex, slotIndex),
                         selected = selected,
                         onSelect = onSelect,
-                        modifier = Modifier.weight(weights.getOrElse(slotIndex) { 1f }).fillMaxHeight(),
+                        modifier = (if (accessoryBar) Modifier.width(ACCESSORY_KEY_WIDTH * weight)
+                            else Modifier.weight(weight)).fillMaxHeight(),
                     )
                 }
             }

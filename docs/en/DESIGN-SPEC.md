@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-07 / Target version: 0.9.15 (versionCode 678)
+Last updated: 2026-10-09 / Target version: 0.9.16 (versionCode 679)
+
+**0.9.16 (versionCode 679), release candidate**: The preview in the special key bar layout editor now scrolls sideways with the same key width as the real bar, instead of squeezing every key onto one screen.
 
 **0.9.15 (versionCode 678), release candidate**: The speed toast shown when an edge-panel scroll starts is now short, and a new one replaces the previous one instead of queuing behind it, so repeated scrolls no longer pile up toasts and slow the screen.
 

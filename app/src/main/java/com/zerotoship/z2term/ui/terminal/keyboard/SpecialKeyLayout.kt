@@ -1,7 +1,12 @@
 package com.zerotoship.z2term.ui.terminal.keyboard
 
+import androidx.compose.ui.unit.dp
+
 /** OS キーボードの補助バー。通常の面巡回とは独立して保存・編集する。 */
 const val SPECIAL_KEY_LAYOUT_ID = "special_key_bar"
+
+/** 補助バーの幅 1 のキー幅。本番の横スクロールと設定のサンプル表示で共通。 */
+val ACCESSORY_KEY_WIDTH = 52.dp
 
 fun specialKeyLayout(name: String = "ESC / TAB / CTRL"): KeyLayout {
     fun control(label: String, text: String) = KeyDef(

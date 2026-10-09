@@ -447,7 +447,7 @@ fun TerminalKeyboard(
                         content = keySlot.content,
                         accessoryBar = accessoryBar,
                         // ⚠ 段の高さはここで決める。枠を割ったときは中で分け合う。
-                        modifier = (if (accessoryBar) Modifier.width(52.dp * weights[index])
+                        modifier = (if (accessoryBar) Modifier.width(ACCESSORY_KEY_WIDTH * weights[index])
                             else Modifier.weight(weights[index])).height(rowHeight),
                         activeLayer = activeLayer,
                         style = renderStyle,

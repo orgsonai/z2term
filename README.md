@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.16 (versionCode 679), release candidate**: The special key bar editor preview scrolls sideways like the real bar.
+
 **0.9.15 (versionCode 678), release candidate**: The edge-panel scroll speed toast is short and replaces the previous one.
 
 **0.9.14 (versionCode 677), release candidate**: The special key bar ends with F1–F12 by default.
