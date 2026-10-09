@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-09 / Target version: 0.9.16 (versionCode 679)
+Last updated: 2026-10-09 / Target version: 0.9.17 (versionCode 680)
+
+**0.9.17 (versionCode 680), release candidate**: More symbols are available from conversion. Typing きごう now lists every symbol in the dictionary instead of stopping partway, and adds symbols the dictionary lacked, such as ①②, ♡, ✓, αβ and ㎝. They can also be reached by reading: まる → ①②…, はーと → ♡, ちぇっく → ✓, ぎりしゃ → αβγ…, たんい → ㎝㎏…. Dictionary words that exactly match the reading are always listed in full, however many candidates there are.
 
 **0.9.16 (versionCode 679), release candidate**: The preview in the special key bar layout editor now scrolls sideways with the same key width as the real bar, instead of squeezing every key onto one screen.
 

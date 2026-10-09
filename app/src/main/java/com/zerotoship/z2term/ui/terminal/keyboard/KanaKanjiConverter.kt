@@ -70,7 +70,14 @@ object KanaKanjiConverter {
         // さらに、SKK 辞書はカタカナ外来語の読みを英単語綴りへ落とすエントリ (こみっと→commit
         // など) を持たないため、プログラミング/シェルでよく使う ~200 語を内蔵 [buildLoanwords]
         // で追加する (英語小文字のみ。すべてカタカナ語の hiragana 読み)。
-        lines = mergeDict(mergeDict(result, buildSupplement()), buildLoanwords())
+        //
+        // 記号は [SYMBOL_ENTRIES] で補う。辞書が同じ読みに持つ語 (まる → 丸/円) を押し下げない
+        // よう、こちらだけは辞書候補の後ろへ足す。
+        lines = mergeDict(
+            mergeDict(mergeDict(result, buildSupplement()), buildLoanwords()),
+            buildSymbols(),
+            extraFirst = false,
+        )
         loaded = true
     }
 
@@ -226,7 +233,9 @@ object KanaKanjiConverter {
      *  2. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 打った読みで始まる学習済み語句の予測変換
      *  3. 文まるごと最尤変換 ([KkcConverter.convert]) — 読み全体を Viterbi で一発変換
      *  3.5 読み完全一致の 1 語候補 ([KkcConverter.wordsFor]) — 辞書が持つ同音語。⚠ **[limit] の枠外**
-     *  4. 完全一致 ([convert]) / 送り仮名活用 ([okuriForms]) — 単語の別表記候補
+     *  4. 完全一致 ([convert]) / 送り仮名活用 ([okuriForms]) — 単語の別表記候補。
+     *     ⚠ 完全一致のうち [limit] に入りきらなかった分は**末尾へ全部足す**
+     *     (きごう は 130 以上の記号を持ち、48 枠では後ろの大半が出なかった)。
      *  5. 前方一致の予測 ([predict]) で補完
      *
      * ⚠ **3.5 だけは [limit] を取り合わせない。** 1〜5 が同じ枠を先着で食い合う作りだと、
@@ -247,12 +256,14 @@ object KanaKanjiConverter {
         // 差し込み位置は「文まるごと変換 (3) の直後」= [spliceAt]。既に上の段へ出ている表層は
         // 合成時に重複が落ちるので、実際に増えるのは「まだ出ていない同音語」だけになる。
         val exactWords = KkcConverter.wordsFor(reading)
+        // 同梱辞書の完全一致。枠内の並びは下の段で決め、枠からあふれた分だけ末尾へ足す。
+        val dictWords = convert(reading)
         val out = LinkedHashSet<String>()
         var spliceAt = -1
         fun assemble(): List<String> {
             val ordered = out.toList().take(limit)
             val at = if (spliceAt in 0..ordered.size) spliceAt else ordered.size
-            return (ordered.take(at) + exactWords + ordered.drop(at)).distinct()
+            return (ordered.take(at) + exactWords + ordered.drop(at) + dictWords).distinct()
         }
         // 1. 学習履歴 (完全一致) は最優先で上位表示。loaded 前は空。
         for (h in ImeHistoryStore.historyFor(reading, limit = 4)) {
@@ -309,7 +320,7 @@ object KanaKanjiConverter {
             }
             return assemble()
         }
-        out.addAll(convert(reading))
+        out.addAll(dictWords)
         out.addAll(okuriForms(reading))
         // 5. 辞書の前方一致予測 (読みより長い補完) で補う。後続ブロックがある分割の先頭ブロックでは
         //   抑止する: 補完が tail と重なって「して下さい + 下さい」のような被り長文予測を生むため。
@@ -858,6 +869,23 @@ object KanaKanjiConverter {
             .map { (r, ws) -> "$r /" + ws.joinToString("/") + "/" }
     }
 
+    /**
+     * [SYMBOL_ENTRIES] を辞書行へ変換する。どの記号も「きごう」からも引けるよう、
+     * 全記号を「きごう」の行にも入れる。
+     */
+    private fun buildSymbols(): List<String> {
+        val map = LinkedHashMap<String, LinkedHashSet<String>>()
+        val all = map.getOrPut("きごう") { LinkedHashSet() }
+        for ((r, text) in SYMBOL_ENTRIES) {
+            val syms = text.split(' ').filter { it.isNotEmpty() && '/' !in it }
+            map.getOrPut(r) { LinkedHashSet() }.addAll(syms)
+            all.addAll(syms)
+        }
+        return map.entries
+            .sortedBy { it.key }
+            .map { (r, ss) -> "$r /" + ss.joinToString("/") + "/" }
+    }
+
     /** 常用語テーブルを活用展開し、見出し順にソートした辞書行 ("よみ /漢字/…") を返す。 */
     private fun buildSupplement(): List<String> {
         val map = LinkedHashMap<String, LinkedHashSet<String>>()
@@ -874,10 +902,10 @@ object KanaKanjiConverter {
 
     /**
      * 見出し順ソート済みの [base] (元辞書) と [extra] (補完辞書) を、見出しでマージする。
-     * 同じ見出しは候補を結合し、補完候補を先頭に置く (補完語を優先表示)。結果も見出し順を保つので
-     * 二分探索 ([searchIndex]) がそのまま使える。
+     * 同じ見出しは候補を結合し、補完候補を先頭に置く (補完語を優先表示)。[extraFirst] = false なら
+     * 元辞書の候補の後ろに置く。結果も見出し順を保つので二分探索 ([searchIndex]) がそのまま使える。
      */
-    private fun mergeDict(base: List<String>, extra: List<String>): List<String> {
+    private fun mergeDict(base: List<String>, extra: List<String>, extraFirst: Boolean = true): List<String> {
         if (extra.isEmpty()) return base
         val out = ArrayList<String>(base.size + extra.size)
         var i = 0
@@ -891,8 +919,9 @@ object KanaKanjiConverter {
                 c > 0 -> { out.add(extra[j]); j++ }
                 else -> {
                     val combined = LinkedHashSet<String>()
-                    combined.addAll(candidatesOf(extra[j]))   // 補完候補を優先
+                    if (extraFirst) combined.addAll(candidatesOf(extra[j]))   // 補完候補を優先
                     combined.addAll(candidatesOf(base[i]))
+                    combined.addAll(candidatesOf(extra[j]))
                     out.add("$he /" + combined.joinToString("/") + "/")
                     i++; j++
                 }
