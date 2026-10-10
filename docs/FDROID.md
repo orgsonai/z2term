@@ -178,7 +178,21 @@ git push origin com.zerotoship.z2term
 
 そのあと https://gitlab.com/fdroid/fdroiddata/-/merge_requests で
 `com.zerotoship.z2term` ブランチを元にマージリクエストを出す。
-ブランチ名もコミットメッセージも上の形が F-Droid の慣例。
+ブランチ名もコミットメッセージも上の形が F-Droid の慣例。題名は `New app: Z2Term`、
+テンプレートは `App inclusion` を選ぶ。
+
+⚠ **申請用テンプレートが求める形** (2026-10-11 に 1.0.1 を提出したときに合わせた):
+
+- **`commit:` はタグ名ではなくコミットの完全なハッシュで書く。** 以後の版は F-Droid が自動で足す。
+- **`Summary` / `Description` はレシピに書かない。** 店頭の説明はこのリポジトリの
+  `metadata/<locale>/` から読まれるので、重ねて書くと外すよう求められる。
+- 提出するのは `fdroid rewritemeta` で整えた形 (コメント無し)。控えのコメントは提出物に入らない。
+- fork は公開のままにし、ブランチを保護しない。
+- **再現可能ビルド (Reproducible Builds) は有効にしていない。** F-Droid が自分の鍵で署名する形になり、
+  後から切り替えることはできない (GitHub 版とは署名が違うままになる)。
+- GitLab の新しいアカウントは、本人確認をするまで fork 先の自動検査 (pipeline) が動かない。
+  電話番号やカードは入れず、申請の説明欄にその旨を書けば F-Droid 側が検査を起動する。
+- fork 先のプロジェクト名は何でもよい (2026-10-11 の提出では `orgsonai/z-2-term` になった)。
 
 マージされてから実際に配信に載るまで **24〜48 時間**かかる。
 
