@@ -6,6 +6,41 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ---
 
+## How to read this — let an AI read it and ask
+
+This handbook and the design spec are long. Rather than reading from the top, **we recommend loading them into an AI and asking questions.**
+Ask for what you want to do, and it will find the relevant parts and turn them into steps.
+
+Three ways, in order of preference:
+
+1. **For the most detail — give it the whole repository**
+   Clone it and let an AI that can read files and code load the whole folder.
+   It can answer from the source code as well as the docs, including fine behaviour and why something works the way it does.
+
+   ```sh
+   git clone https://github.com/orgsonai/z2term.git
+   ```
+
+2. **When the docs are enough — give it the design spec and the handbook**
+   Hand these two to the AI (attach them or paste their contents). This is enough for how-to questions.
+   - `docs/en/HANDBOOK.md` (this handbook: how to use it)
+   - `docs/en/DESIGN-SPEC.md` (the design spec: how it works and the detailed behaviour)
+
+3. **For a quick question — give it the GitHub URL**
+   An AI that can read URLs can answer from `https://github.com/orgsonai/z2term` alone.
+
+Example questions:
+
+- "I want a notification when the battery goes above 80%. How do I write that with `z2-when`?"
+- "What is the shortest way to SSH in from my PC?"
+- "I want to add a button to an edge panel that runs my own script."
+
+> Tips: mention the version you are using and the answers fit better (run `z2version` in the terminal).
+> An AI can be wrong, so read a command once before you run it.
+> To look things up inside the terminal there is `z2help`; when something does not work, try `z2doctor`.
+
+---
+
 ## 1. What is Z2Term?
 
 **A terminal app that runs real Linux inside your Android phone.**
