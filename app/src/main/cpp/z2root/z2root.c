@@ -3240,6 +3240,79 @@ static int install_seccomp_filter(const struct config *cfg) {
 //   'S' = PTRACE_SEIZE 済み(子は何もせず進む) / それ以外・EOF = 従来の TRACEME 方式で握手。
 static int g_hs_fd[2] = { -1, -1 };
 
+// ---- exec 直後のシグナル設定の控えと復元 ---------------------------------------
+//
+// 本バイナリは bionic を静的リンクしており、libc の初期化が一部のリアルタイムシグナル
+// (実機では 36 / 38) を「無視」に変える。無視は exec を越えて引き継がれるので、何もしないと
+//   - トレーサから fork した最初のゲスト
+//   - ゲストが exec するたびに挟まる自前ローダ (--loader) の先のプログラム
+// の全部で、そのシグナルが無視のまま始まる (ゲスト側で既定値へ戻しても次の exec で元へ戻る)。
+//
+// カーネルが exec 直後に渡した設定を libc の初期化より**前**に控え、ゲストへ移る直前に
+// その状態へ戻す。exec 前から無視だったもの (親が意図して無視にしたもの) は無視のまま残す。
+//
+// 控えは ELF のエントリ (z2_entry。リンク時に -e で指定) から呼ぶ。この時点では libc が
+// 未初期化なので、libc の関数も TLS も使わず生の svc だけで済ませる。
+// エントリが差し替わっていないビルドでは g_entry_sig_valid が 0 のままで、何も戻さない。
+#define Z2_SIG_FIRST 32
+#define Z2_SIG_LAST  64
+#define Z2_NR_RT_SIGACTION 134
+struct z2_ksigaction {           // カーネルの struct sigaction (aarch64)
+    unsigned long handler;       // SIG_DFL=0 / SIG_IGN=1 / ハンドラのアドレス
+    unsigned long flags;
+    unsigned long restorer;
+    unsigned long mask;
+};
+static volatile unsigned long g_entry_sigign;   // bit (sig-1): exec 直後に無視だった
+static volatile int g_entry_sig_valid;
+
+static inline long z2_raw_rt_sigaction(long sig, const struct z2_ksigaction *act,
+                                       struct z2_ksigaction *old) {
+    register long x8 __asm__("x8") = Z2_NR_RT_SIGACTION;
+    register long x0 __asm__("x0") = sig;
+    register long x1 __asm__("x1") = (long)act;
+    register long x2 __asm__("x2") = (long)old;
+    register long x3 __asm__("x3") = 8;          // sizeof(kernel sigset_t)
+    __asm__ volatile("svc #0" : "+r"(x0) : "r"(x8), "r"(x1), "r"(x2), "r"(x3) : "memory", "cc");
+    return x0;
+}
+
+__attribute__((used, noinline, no_stack_protector))
+void z2_entry_snapshot(void) {
+    unsigned long ign = 0;
+    for (long sig = Z2_SIG_FIRST; sig <= Z2_SIG_LAST; sig++) {
+        struct z2_ksigaction old;
+        if (z2_raw_rt_sigaction(sig, 0, &old) == 0 && old.handler == 1)
+            ign |= 1UL << (sig - 1);
+    }
+    g_entry_sigign = ign;
+    g_entry_sig_valid = 1;
+}
+
+// カーネルは sp = 初期スタック (argc の位置) でここへ入る。sp を動かさずに控えを取り、
+// 本来のエントリ (_start) へ渡す。_start は sp しか見ない。
+__asm__(
+    ".text\n"
+    ".globl z2_entry\n"
+    ".type z2_entry, %function\n"
+    "z2_entry:\n"
+    "    mov x29, #0\n"
+    "    bl z2_entry_snapshot\n"
+    "    mov x30, #0\n"
+    "    b _start\n"
+    ".size z2_entry, .-z2_entry\n"
+);
+
+// libc の初期化が変えた分を exec 直後の状態へ戻す。ゲストへ制御を渡す直前に呼ぶ。
+static void restore_entry_signals(void) {
+    if (!g_entry_sig_valid) return;
+    unsigned long ign = g_entry_sigign;
+    for (long sig = Z2_SIG_FIRST; sig <= Z2_SIG_LAST; sig++) {
+        struct z2_ksigaction act = { (ign >> (sig - 1)) & 1UL, 0, 0, 0 };
+        z2_raw_rt_sigaction(sig, &act, 0);
+    }
+}
+
 static int run_child(const struct config *cfg) {
     // トレーサと握手する。トレーサが PTRACE_O_TRACESECCOMP を立ててから seccomp フィルタを
     // 入れて execve する。これをしないと「フィルタ導入済みだがトレーサが TRACESECCOMP
@@ -3302,6 +3375,9 @@ static int run_child(const struct config *cfg) {
     // PTRACE_SYSCALL で見る旧挙動になるだけ。Z2ROOT_NO_SECCOMP=1 で明示無効化も可)。
     // この後は execve 以外の syscall を呼ばない(ブートストラップ execve を最初の
     // PTRACE_EVENT_SECCOMP にして、トレーサ側のブートストラップ判定を成立させる)。
+    // libc の初期化が無視に変えたリアルタイムシグナルを、ゲストへ引き継がせない。
+    restore_entry_signals();
+
     if (!getenv("Z2ROOT_NO_SECCOMP")) install_seccomp_filter(cfg);
 
     if (primary_target) execve(primary_target, primary_argv, environ);
@@ -4201,6 +4277,27 @@ static int run_tracer(const struct config *cfg, pid_t child) {
 #define AT_EXECFN_Z 31
 #define AT_SYSINFO_EHDR_Z 33
 
+// Android のプログラムへ渡す端末を /dev/tty 経由のものへ差し替える。
+//
+// cmd / pm / am などは自分の標準入出力を binder でシステム側へ渡して結果を書かせる。
+// ところが Android は、アプリが作った PTY (/dev/pts/N) をシステム側へ渡すことを認めない
+// (binder の転送が EPERM になり "Failure calling service ...: Failed transaction" で終わる)。
+// 同じ端末でも /dev/tty として開いたものは渡せるので、標準入出力のうち**自分の制御端末を
+// 指しているもの**だけを /dev/tty の開き直しへ差し替える。行き先の端末は変わらない。
+// 制御端末でない端末・パイプ・ファイルには触れない。
+static void retarget_stdio_to_dev_tty(void) {
+    for (int fd = 0; fd <= 2; fd++) {
+        // tcgetpgrp は「その端末が呼び出し側の制御端末のとき」だけ成功する (他は ENOTTY)。
+        if (tcgetpgrp(fd) < 0) continue;
+        int fl = fcntl(fd, F_GETFL);
+        if (fl < 0) continue;
+        int t = open("/dev/tty", (fl & O_ACCMODE) | O_NOCTTY | O_CLOEXEC);
+        if (t < 0) return;                       // 開けない環境では元のまま起動する
+        if (t != fd) { dup2(t, fd); close(t); }  // dup2 の先は CLOEXEC が外れる
+        else fcntl(fd, F_SETFD, 0);
+    }
+}
+
 __attribute__((noreturn))
 static void loader_fail(const char *msg, const char *path) {
     fprintf(stderr, "z2root loader: %s(%s): %s\n", msg, path, strerror(errno));
@@ -4331,6 +4428,11 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     }
     // skip_reloc(case 2 の ld.so) でなく、かつ bionic ELF のときだけ肩代わりする。
     int apply_loader_reloc = (!skip_reloc && is_bionic);
+
+    // Android のプログラムには、システム側へ渡せる形の端末を持たせる。
+    // 静的 bionic は上の PT_NOTE で、動的プログラムは今マップしている bionic linker
+    // (PT_NOTE に Android の印を持たない) の名前で見分ける。
+    if (is_bionic || interp_is_bionic(path)) retarget_stdio_to_dev_tty();
 
     // ET_DYN(PIE)は連続領域を予約してから各セグメントを MAP_FIXED で埋める。
     // ET_EXEC は p_vaddr をそのまま使う(base=0)。
@@ -4756,6 +4858,8 @@ static void load_exec_via_interp(const char *interp_path, const char *prog_path,
 // RELATIVE/RELR 肩代わりを抑止する(二重 relocation 防止)。戻らない(失敗時のみ _exit)。
 __attribute__((noreturn))
 static void loader_main(int argc, char **argv) {
+    // このローダ自身の libc 初期化が無視に変えたシグナルを、exec 直後の状態へ戻す。
+    restore_entry_signals();
     if (getenv("Z2ROOT_LOADER_DEBUG")) {
         char b[256];
         int l = snprintf(b, sizeof(b), "z2root loader_main: argc=%d a1=%s a2=%s a3=%s\n",

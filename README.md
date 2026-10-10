@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.26 (versionCode 689), release candidate**: Android commands (`/system/bin/cmd`, `pm`, `am`) now return their result when called from a tab as they are, including through a pipe; realtime signals 36 / 38 no longer start out ignored.
+
 **0.9.25 (versionCode 688), release candidate**: Long command-line arguments are no longer cut at 4095 bytes; scripts without a `#!` line run; root can write read-only files and delete read-only folders (fixes package installs that stopped half-way); walking a folder tree by name no longer misses mounted-in folders or follows links out of the OS; `chroot` works (OpenSSH `sshd` accepts connections).
 
 **0.9.24 (versionCode 687), release candidate**: `uptime` / `w` work on Arch and Ubuntu; Android commands under `/system/bin` (`ls`, `getprop`, `pm`, `am`) run correctly.

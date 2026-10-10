@@ -113,12 +113,16 @@ echo "[info] building z2root (aarch64, API ${API}) ..."
 # ld.so 経由の大型 musl 本体。ベース ~0x200000・数百 MB)で必ず衝突する。ローダを 4GB へ
 # 逃がすと低位ゲスト全域(数百 MB)と重ならず、ゲストの brk もローダ手前まで伸ばせる。
 IMAGE_BASE=0x100000000
+#
+# -e z2_entry: エントリを z2root.c の z2_entry にする。libc の初期化より前に、exec 直後の
+# シグナル設定を控えるため (libc が無視に変えた分をゲストへ引き継がせない)。控えた後は
+# 本来の _start へ進む。
 if [[ "${FALLBACK}" == "1" ]]; then
     # rootfs clang でオブジェクトのみ生成(clang ドライバの自動リンクは lld 専用フラグ
     # --use-android-relr-tags 等を渡し GNU ld が拒否するため使わない)→ GNU ld で手動リンク。
     "${SYS_CC}" --target=aarch64-linux-android${API} --sysroot="${SYSROOT}" \
         -std=c11 -O2 -Wall -Wextra -c "${SRC}" -o "${OUT}.o"
-    "${SYS_LD}" -EL -static -no-pie --image-base="${IMAGE_BASE}" \
+    "${SYS_LD}" -EL -static -no-pie --image-base="${IMAGE_BASE}" -e z2_entry \
         --hash-style=gnu -z noexecstack -z max-page-size=4096 \
         -o "${OUT}" \
         "${LIBDIR}/${API}/crtbegin_static.o" \
@@ -132,7 +136,7 @@ if [[ "${FALLBACK}" == "1" ]]; then
 else
     "${CC}" \
         -std=c11 -O2 -Wall -Wextra \
-        -static -Wl,--image-base="${IMAGE_BASE}" \
+        -static -Wl,--image-base="${IMAGE_BASE}" -Wl,-e,z2_entry \
         -o "${OUT}" \
         "${SRC}"
 fi

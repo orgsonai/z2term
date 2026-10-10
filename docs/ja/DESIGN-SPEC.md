@@ -1,6 +1,8 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-10 / 対象バージョン: 0.9.25 (versionCode 688)
+最終更新: 2026-10-10 / 対象バージョン: 0.9.26 (versionCode 689)
+
+**0.9.26（versionCode 689）・安定版の候補**: 0.9.25 を実機で確かめて残っていた 2 件を直しました。Android 側のコマンド（`/system/bin/cmd`・`pm`・`am`）がタブからそのまま呼ぶと「Failed transaction」で終わる問題と、一部のリアルタイムシグナル（36 / 38）が無視のまま始まる問題です。
 
 **0.9.25（versionCode 688）・安定版の候補**: 各 OS に追加のコマンドを入れて確かめ、見つかった不具合を直しました。4095 バイトを超える長い引数が途中で切れる問題、先頭行（`#!`）の無いスクリプトが「Permission denied」で実行できない問題、root なのに読み取り専用のファイルへ書けない・読み取り専用のフォルダを消せない問題（Ubuntu でパッケージの導入が途中で止まる原因でした）、フォルダを名前で辿ると差し込まれたフォルダ（`/proc` やホームの一部）の中身を取り違える問題、`chroot` が使えない問題（OpenSSH の `sshd` に接続できない原因でした）です。
 
@@ -1788,6 +1790,11 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 **0.8.84 大きい argv を渡す exec が `ENOENT` で失敗**: `rewrite_execve` が (1) argv 連結バッファが固定長 `char blob[8192]` で `blob_sz>8192` のとき `if (blob_sz<=sizeof(blob))` が偽になり**書き換えを丸ごとスキップ**→path レジスタにゲストパスが残ったまま execve され ENOENT、(2) argv 読み取り上限 `MAX_ARGS 256` で 256 個目以降を切り捨て、の二重制限を持っていた。クロスディストロ cmdtest e2e で Kali の `apt-get install python3` が dpkg の byte-compile (`python3.13 -E -S py_compile.py <287ファイル＝~11KB argv>`) で踏んで `cannot execute: required file not found` 失敗するのを発見 (二分で「argv 総バイト ~7.5KB 超・カーネル ARG_MAX 2MB 以下＝z2root 内部バッファ起因」と確定)。修正＝argv 読み取りを上限なしの動的確保 (`realloc`) に、`blob`/`parts`/`ptrs` を argv サイズ依存の `malloc` にして `MAX_ARGS` を撤去 (scratch は従来どおり `sp` 直下＝growsdown stack を `process_vm_writev` が伸長するため大 argv でも mapped)。Alpine/Ubuntu の cmdtest は非ゼロ 0 件。⚠️**Kali での python 導入完走＋大 argv exec の実機 e2e は本修正入り APK 導入後に確認が必要**。
 
 **0.8.95 → 0.8.96 → 0.8.97 OS 15→16 アップグレード後に起動不能**: 0.8.95 で (1) `host_to_guest` のホットパスに `realpath()` を足し全パス変換に lstat walk を発生させ全体が激重・入力遅延化、(2) 起動毎に `find <rootfs> -type l` で rootfs 全走査＋symlink 再作成、の 2 変更で起動が不定・キーボード異常・symlink 破壊と自爆したため **0.8.96 で撤回**。0.8.97 でホットパス非依存の安全版で再修正＝原因は、proot `--link2symlink` が残す `.l2s` symlink がホスト絶対パスを抱えるところ、OS メジャーアップで data ディレクトリの絶対 prefix 正規化 (`/data/data` ↔ `/data/user/0` 等) が変わり、`host_to_guest` の rootfs/bind 直接照合が外れ stale 絶対パスを素通し→`translate_abs` が rootfs を二重前置→ENOENT となり `zsh` 等が `cannot open shared object file` で起動不能になっていた。修正＝rootfs マーカーからの純粋文字列 fallback (上記「パス変換」)。⚠️**実機 OS ダウングレード不可のため当該 OS アップ退行そのものの e2e 再現は不可。論理上 prefix 非依存で救済される設計。**
+
+**0.9.26 0.9.25 の実機確認で残っていた 2 件**: 0.9.24 / 0.9.25 の修正項目を実機 (Android 16) の端末で 1 つずつ確かめて見つけた。
+- **Android 側のコマンドがタブからそのまま呼ぶと "Failure calling service …: Failed transaction" で終わる (`/system/bin/cmd`・`pm`・`am`)**: 0.9.24 で起動はするようになったが、結果が返らなかった。これらは自分の標準入出力を binder でシステム側へ渡して書かせる。Android は**アプリが作った PTY (`/dev/pts/N`) をシステム側へ渡すことを認めない** (binder の転送が `EPERM`)。標準入出力のどれか 1 つでもタブの端末なら失敗し、`| grep` を付けても入力が端末のままなので同じだった (`</dev/null` を付けると動く、という見え方になる)。同じ端末でも `/dev/tty` として開いたものは渡せる。⇒ 自前ローダが Android のプログラム (静的 bionic、または bionic linker 経由) へ移る直前に、標準入出力のうち**自分の制御端末を指しているもの**だけを `/dev/tty` の開き直しへ差し替える (`retarget_stdio_to_dev_tty`)。行き先の端末は変わらない。制御端末でない端末・パイプ・ファイルには触れない。⚠ Android のプログラムから見た端末名は `/dev/tty` になる (`/system/bin/tty` の表示)。
+- **リアルタイムシグナルの一部 (36 / 38) が無視のまま始まる**: 0.9.24 で PTY の子側を直したが残っていた。残っていた分の原因は z2root 自身で、静的リンクした bionic の初期化がこれらを「無視」に変える。無視は exec を越えて引き継がれ、しかもゲストが exec するたびに自前ローダ (= z2root) が挟まるので、ゲスト側で既定値へ戻しても次の exec で元へ戻っていた。⇒ ELF のエントリを `z2_entry` に差し替え (`scripts/build-z2root.sh` の `-e z2_entry`)、libc の初期化より**前**に exec 直後の設定を控える。最初のゲストを起動する直前とローダがゲストへ移る直前に、その状態へ戻す (`restore_entry_signals`。32〜64)。exec 前から無視だったもの (親が意図して無視にしたもの) は無視のまま残る。
+- **直していないもの (Android の制限)**: Android 側のコマンドの出力を共有ストレージ (`/sdcard`) のファイルへ直接向けると同じエラーになる。システム側がそのファイルへ書けないためで、OS の中のファイル (`/tmp` など) へ出すか、パイプで受けてから書く。
 
 **0.9.25 追加コマンドの導入と特殊な呼び出しで見つけた 10 件 (実機の横断確認)**: 0.9.24 の確認に続けて、4 つの OS へ追跡・サーバー・データベース・鍵・権限まわりのコマンドを入れ、OS に入っている全コマンドを `--version` / `--help` で起動し、OS の機能を 1 つずつ呼ぶ確認を足した。全コマンドの起動で引っかかったのは画面や機器を直接触るものだけだった。以下はすべて全 OS で再現した。
 - **4095 バイトを超える引数が黙って切り詰められる**: execve の argv を固定長 (`PATH_MAX_Z`) のバッファへ読んでいた。長い `sh -c '…'` や `python -c '…'` の後ろが欠けたまま起動する。⇒ `read_tracee_str_alloc` で長さを決めずに読む。1 引数が 1MB を超えたら空のパスへ差し替えて失敗させ、exit で `E2BIG` に付け替える (それ以下の上限判定は、書き換え後の execve を受けるカーネルに任せる)。
