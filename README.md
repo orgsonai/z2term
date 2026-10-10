@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.32 (versionCode 695), release candidate**: Fixes the action-macro problem that 0.9.31 did not actually fix: "tap → wait for the next screen with `wait-ui`" still stopped (the part that stopped it was the watchdog that runs during a macro).
+
 **0.9.31 (versionCode 694), release candidate**: In action macros, tapping an element and then waiting for the next screen of the same app with `wait-ui` stopped every time with "Target application changed".
 
 **0.9.30 (versionCode 693), release candidate**: The emoticon / ASCII art pad on the keyboard has a new ✎ tab for your own entries. Add them from ⚙ Settings › Keyboard, input › "Your own emoticons and ASCII art" (multi-line art is fine). They are included in backups. The built-in multi-line ASCII art grew from 16 to 40 pieces.

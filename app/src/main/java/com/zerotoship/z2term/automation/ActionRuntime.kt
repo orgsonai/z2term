@@ -147,7 +147,15 @@ internal object ActionRuntime {
             !run.context.getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "Screen is off or locked" }
         check(AndroidActions.connected()) { "Accessibility disconnected" }
         check(screen(run.context) == run.screen) { "Screen size/orientation changed" }
-        run.target?.let { check(AndroidActions.targetMatches(it)) { "Target application changed" } }
+        // ⚠ 「別アプリだと分かっている」ときだけ止める。前面の窓のパッケージ名が**まだ分からない**間
+        // (null) は切り替わりと扱わない: タップで開いた同じアプリの次の画面は、フォーカスを得てから
+        // 窓の状態変化イベントが届くまで名前が引けない。ここは実行中 100ms ごとの見張りからも
+        // 呼ばれるので、その隙間を「切り替わった」と読むと click → wait-ui が必ず止まる (0.9.32)。
+        // 操作そのもの (タップ・要素の操作) は送る直前に対象の一致を別に確かめている。
+        run.target?.let { target ->
+            val focused = AndroidActions.focusedPackage()
+            check(focused == null || focused == target) { "Target application changed" }
+        }
     }
     private fun execute(run: Run, step: ActionDefinition.Step, completed: (String?) -> Unit): (() -> Unit)? {
         checkDevice(run)
@@ -163,14 +171,10 @@ internal object ActionRuntime {
                 if (step.operation == "wait-ui") return ActionUiWait(::schedule).start(step.timeoutMs,
                     { callback ->
                         // Launch returns before its window is focused. Wait for that first arrival too.
-                        // After the target was seen once, a tap may open the next screen of the same app:
-                        // the new window is focused before its package is known here (it arrives with the
-                        // window-state event). "Not known yet" is not "the app changed" — treating it as a
-                        // change made every click → wait-ui pair fail. A window known to belong to another
-                        // app still stops the run at once.
-                        val focused = AndroidActions.focusedPackage()
-                        if (focused != resolved.target) {
-                            if (focused != null) checkDevice(run) else { run.target = null; checkDevice(run) }
+                        // The same gap exists after a tap opens the next screen of the same app; checkDevice
+                        // only stops the run when the focused window is known to belong to another app.
+                        if (!AndroidActions.targetMatches(resolved.target)) {
+                            checkDevice(run)
                             val noWork: () -> Unit = {}
                             callback(false, null)
                             noWork
