@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.26.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.27.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -921,6 +921,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.27 (versionCode 690), release candidate**: `/system/bin/pm` and `am` ended with "cmd: inaccessible or not found" on Alpine, Ubuntu and Kali.
 
 **0.9.26 (versionCode 689), release candidate**: Two problems that remained when 0.9.25 was checked on a real device. Android commands (`/system/bin/cmd`, `pm`, `am`) ended with "Failed transaction" when called from a tab as they are, and some realtime signals (36 / 38) started out ignored.
 

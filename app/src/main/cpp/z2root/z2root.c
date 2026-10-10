@@ -4298,6 +4298,52 @@ static void retarget_stdio_to_dev_tty(void) {
     }
 }
 
+// Android のプログラムへ渡す環境変数の PATH に /system/bin を足す。
+//
+// /system/bin/pm・am などは `#!/system/bin/sh` のスクリプトで、中から `cmd` を**名前だけ**で
+// 呼ぶ (Android のシェルは PATH に /system/bin がある前提)。OS 側の PATH にはそれが無いので
+// "cmd: inaccessible or not found" で終わっていた。PATH の**末尾**へ足すので、OS のコマンドが
+// 先に見つかる順番は変わらない。既に含まれていれば元の envp をそのまま返す。
+static char **envp_with_system_bin(char **envp) {
+    static const char add[] = "/system/bin";
+    int n = 0, pi = -1;
+    for (; envp[n]; n++)
+        if (pi < 0 && strncmp(envp[n], "PATH=", 5) == 0) pi = n;
+    if (pi >= 0) {
+        // ':' 区切りの要素として既にあるか。
+        const char *v = envp[pi] + 5;
+        size_t al = sizeof(add) - 1;
+        for (const char *q = v; *q; ) {
+            const char *e = strchr(q, ':');
+            size_t l = e ? (size_t)(e - q) : strlen(q);
+            if (l == al && memcmp(q, add, al) == 0) return envp;
+            if (!e) break;
+            q = e + 1;
+        }
+    }
+    char **nv = malloc((size_t)(n + 2) * sizeof(char *));
+    if (!nv) return envp;
+    char *np;
+    if (pi >= 0 && envp[pi][5] != '\0') {
+        size_t l = strlen(envp[pi]);
+        np = malloc(l + 1 + sizeof(add));
+        if (!np) { free(nv); return envp; }
+        memcpy(np, envp[pi], l);
+        np[l] = ':';
+        memcpy(np + l + 1, add, sizeof(add));
+    } else {
+        np = malloc(5 + sizeof(add));
+        if (!np) { free(nv); return envp; }
+        memcpy(np, "PATH=", 5);
+        memcpy(np + 5, add, sizeof(add));
+    }
+    int k = 0;
+    for (int i = 0; i < n; i++) nv[k++] = (i == pi) ? np : envp[i];
+    if (pi < 0) nv[k++] = np;
+    nv[k] = NULL;
+    return nv;
+}
+
 __attribute__((noreturn))
 static void loader_fail(const char *msg, const char *path) {
     fprintf(stderr, "z2root loader: %s(%s): %s\n", msg, path, strerror(errno));
@@ -4432,7 +4478,11 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     // Android のプログラムには、システム側へ渡せる形の端末を持たせる。
     // 静的 bionic は上の PT_NOTE で、動的プログラムは今マップしている bionic linker
     // (PT_NOTE に Android の印を持たない) の名前で見分ける。
-    if (is_bionic || interp_is_bionic(path)) retarget_stdio_to_dev_tty();
+    if (is_bionic || interp_is_bionic(path)) {
+        retarget_stdio_to_dev_tty();
+        // 名前だけで Android のコマンドを呼ぶスクリプト (pm / am) のために PATH も整える。
+        child_envp = envp_with_system_bin(child_envp);
+    }
 
     // ET_DYN(PIE)は連続領域を予約してから各セグメントを MAP_FIXED で埋める。
     // ET_EXEC は p_vaddr をそのまま使う(base=0)。
