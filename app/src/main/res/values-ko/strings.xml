@@ -30,6 +30,8 @@
     <string name="tip_tab_close_body">× 버튼이 없으므로 잘못 스쳐도 탭이 닫히지 않습니다. 아직 실행 중인 탭을 닫을 때는 먼저 확인을 묻습니다.</string>
     <string name="tip_tab_reorder_title">탭을 길게 눌러 끌면 순서를 바꿀 수 있습니다</string>
     <string name="tip_tab_reorder_body">옮기고 싶은 탭을 누른 채로, 손가락을 떼지 말고 좌우로 끌어 자리에 놓으세요.</string>
+    <string name="tip_tab_new_os_title">탭의 +를 길게 누르면 다른 OS로 탭 하나만 열 수 있습니다</string>
+    <string name="tip_tab_new_os_body">설치된 OS 목록이 나옵니다. 고른 OS로 열리는 것은 그 탭뿐이고, 설정에서 고른 OS는 바뀌지 않습니다.</string>
     <string name="tip_esc_flick_title">ESC를 위아래로 플릭하면 패드가 나옵니다</string>
     <string name="tip_esc_flick_body">ESC를 위로 플릭하면 붙여넣기, 아래로 플릭하면 이모지입니다. 패드의 (^^) 탭에는 이모티콘과 AA가 있습니다.</string>
     <string name="tip_backspace_flick_title">⌫를 좌우로 플릭하면 한 번에 더 많이 지웁니다</string>

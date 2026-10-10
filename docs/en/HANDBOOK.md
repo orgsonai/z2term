@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.28.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.29.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -689,7 +689,7 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 
 Settings are split into **9 groups** (Display / "Keyboard, input / Language" / Linux environment / Permissions and notifications / App lock / Maintenance / Developer / How to use (Tips) / About this app), and **tapping a heading opens or closes it**. The open/closed state is **remembered even after you close the app**, so you can keep the groups you use often expanded.
 
-> **How to use (Tips)** (0.8.399): double taps, long presses, flicks — the gestures that **show nothing on screen** are collected here. That toolbar buttons have a second function, how to close and reorder tabs, the ESC and ⌫ flicks, scrolling inside a GUI app, that `z2gui clean` reinstalls the GUI when the desktop stops coming up (0.8.519), that typing `z2term` lists the built-in commands, and that an AI can write your macros. These are things you would never run into by accident, so open it once.
+> **How to use (Tips)** (0.8.399): double taps, long presses, flicks — the gestures that **show nothing on screen** are collected here. That toolbar buttons have a second function, how to close and reorder tabs, that long-pressing the tab **+** opens one tab in another OS (0.9.29), the ESC and ⌫ flicks, scrolling inside a GUI app, that `z2gui clean` reinstalls the GUI when the desktop stops coming up (0.8.519), that typing `z2term` lists the built-in commands, and that an AI can write your macros. These are things you would never run into by accident, so open it once.
 
 **Action automation look (0.8.603)**: Command list → Automation → Action automation now looks like the Automation rules tab: monospace headings and text, bordered rows, bordered buttons and hint boxes. Each row ends with ▶ to run, Duplicate, ✎ to edit and ✕ to delete. Confirmation, step editing and picker dialogs use the app's colours. The floating bar shown while picking coordinates is unchanged. The Action automation / Automation rules subtab labels are monospace too.
 
@@ -922,6 +922,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.29 (versionCode 692), release candidate**: "How to use (Tips)" in Settings now mentions that long-pressing the tab **+** opens one tab in another OS.
 
 **0.9.28 (versionCode 691), release candidate**: Long-pressing the tab **+** lets you pick an OS and open just that one tab in it. The OS chosen in Settings does not change.
 

@@ -32,6 +32,8 @@
     <string name="tip_tab_close_body">× ボタンはありません（うっかり触って消えないようにするためです）。動いているタブを閉じるときだけ、確認が出ます。</string>
     <string name="tip_tab_reorder_title">タブは長押ししたまま動かすと並べ替えられます</string>
     <string name="tip_tab_reorder_body">動かしたいタブを長押しして、指を離さずに左右へ滑らせてください。</string>
+    <string name="tip_tab_new_os_title">タブの「+」を長押しすると、別の OS で 1 枚だけ開けます</string>
+    <string name="tip_tab_new_os_body">入っている OS の一覧が出ます。選んだ OS で開くのはそのタブだけで、設定で選んでいる OS は変わりません。</string>
     <string name="tip_esc_flick_title">ESC を上下にはらうとパッドが出ます</string>
     <string name="tip_esc_flick_body">ESC を上へはらうと貼り付け、下へはらうと絵文字です。パッドの (^^) タブには顔文字と AA があります。</string>
     <string name="tip_backspace_flick_title">⌫ を左右にはらうとまとめて消せます</string>

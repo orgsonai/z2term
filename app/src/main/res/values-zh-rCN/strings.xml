@@ -30,6 +30,8 @@
     <string name="tip_tab_close_body">这里没有 × 按钮，所以不会因为误触而关掉标签页。关闭仍在运行的标签页时会先请你确认。</string>
     <string name="tip_tab_reorder_title">长按标签页并拖动可以重新排序</string>
     <string name="tip_tab_reorder_body">按住想移动的标签页，手指不要抬起，直接向左或向右拖到位置上。</string>
+    <string name="tip_tab_new_os_title">长按标签栏的 + 可以只用另一个系统打开一个标签页</string>
+    <string name="tip_tab_new_os_body">会列出已安装的系统。只有这个标签页用所选系统打开，设置中选择的系统不会改变。</string>
     <string name="tip_esc_flick_title">上下滑动 ESC 可以调出面板</string>
     <string name="tip_esc_flick_body">向上滑动 ESC 是粘贴，向下滑动是表情符号。面板中的 (^^) 标签页里有颜文字和字符画。</string>
     <string name="tip_backspace_flick_title">左右滑动 ⌫ 可以一次删掉更多</string>

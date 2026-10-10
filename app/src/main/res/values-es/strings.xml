@@ -30,6 +30,8 @@
     <string name="tip_tab_close_body">No hay botón ×, así que un roce accidental no puede cerrar una pestaña. Cerrar una pestaña que sigue trabajando pide confirmación antes.</string>
     <string name="tip_tab_reorder_title">Mantén pulsada una pestaña y deslízala para reordenarla</string>
     <string name="tip_tab_reorder_body">Mantén pulsada la pestaña que quieras mover y arrástrala a izquierda o derecha hasta su sitio sin levantar el dedo.</string>
+    <string name="tip_tab_new_os_title">Mantén pulsado el + de las pestañas para abrir una sola pestaña en otro sistema</string>
+    <string name="tip_tab_new_os_body">Aparece la lista de sistemas instalados. Solo esa pestaña se abre en el sistema que elijas; el sistema elegido en Ajustes no cambia.</string>
     <string name="tip_esc_flick_title">Desliza ESC hacia arriba o abajo para abrir los paneles</string>
     <string name="tip_esc_flick_body">Desliza ESC hacia arriba para pegar y hacia abajo para los emojis. En el panel, la pestaña (^^) tiene emoticonos y arte ASCII.</string>
     <string name="tip_backspace_flick_title">Desliza ⌫ a izquierda o derecha para borrar más de golpe</string>

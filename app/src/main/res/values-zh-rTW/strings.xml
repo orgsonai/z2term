@@ -30,6 +30,8 @@
     <string name="tip_tab_close_body">這裡沒有 × 按鈕，所以不會因為誤觸而關掉分頁。關閉仍在執行的分頁時會先請你確認。</string>
     <string name="tip_tab_reorder_title">長按分頁並拖曳可以重新排序</string>
     <string name="tip_tab_reorder_body">按住想移動的分頁，手指不要抬起，直接向左或向右拖到位置上。</string>
+    <string name="tip_tab_new_os_title">長按分頁列的 + 可以只用另一個系統開啟一個分頁</string>
+    <string name="tip_tab_new_os_body">會列出已安裝的系統。只有這個分頁用所選系統開啟，設定中選擇的系統不會改變。</string>
     <string name="tip_esc_flick_title">上下滑動 ESC 可以調出面板</string>
     <string name="tip_esc_flick_body">向上滑動 ESC 是貼上，向下滑動是表情符號。面板中的 (^^) 分頁裡有顏文字和字元畫。</string>
     <string name="tip_backspace_flick_title">左右滑動 ⌫ 可以一次刪掉更多</string>
