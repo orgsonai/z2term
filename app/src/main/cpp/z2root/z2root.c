@@ -1544,6 +1544,7 @@ static void crash_log(pid_t pid, int sig, const siginfo_t *si, const struct user
 struct linkcopy_ent {
     int used;                          // dest 側の偽装がまだ残っている
     int src_used;                      // src 側の偽装(リンク数)がまだ残っている
+    long born_ms;                      // 記録した時刻(CLOCK_MONOTONIC, ms)。古い記録は捨てる
     char dest_host[PATH_MAX_Z];        // コピーで作った dest のホスト実パス(照合キー)
     char src_host[PATH_MAX_Z];         // リンク元のホスト実パス(リンク数の偽装用の照合キー)
     unsigned long src_dev, src_ino;    // 偽装で見せる src の (dev,ino)
@@ -1569,6 +1570,17 @@ static int g_linkcopy_used;          // 有効エントリ数(0 なら stat hot 
 // 招いた(0.8.62 で記録が初成功し hot path が常時 ON 化したことで顕在化、0.8.63 の (dev,ino)
 // 厳格化でも dev 不識別ゆえ未解決)。パスで照合すれば「まさにコピーした dest を stat した
 // とき」だけ偽装でき、無関係ファイルへの誤ヒットは原理的に起きない。
+// 記録の寿命。link の成立を確かめる stat は link の直後に来る(git も shadow-utils も次の
+// syscall で見る)。一方、確かめに来ない側の記録は使われないまま残り、残っている間は
+// **すべての stat がパスを読んで照合する**ぶん遅くなる(ln を 1 回使うと以後の stat が 1 割
+// 遅いまま、という形で出た)。短い寿命で捨てて、照合の負担と偽装の窓の両方を閉じる。
+#define LINKCOPY_TTL_MS 2000
+static long mono_ms(void) {
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) return 0;
+    return (long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
 static void linkcopy_record(unsigned long src_dev, unsigned long src_ino,
                             const char *dest_host, const char *src_host) {
     if (!dest_host || !dest_host[0]) return;
@@ -1577,6 +1589,7 @@ static void linkcopy_record(unsigned long src_dev, unsigned long src_ino,
     if (!e->used && !e->src_used) g_linkcopy_used++;
     e->used = 1;
     e->src_used = (src_host && src_host[0]) ? 1 : 0;
+    e->born_ms = mono_ms();
     snprintf(e->dest_host, sizeof(e->dest_host), "%s", dest_host);
     snprintf(e->src_host, sizeof(e->src_host), "%s", e->src_used ? src_host : "");
     e->src_dev = src_dev;
@@ -1589,6 +1602,15 @@ static void linkcopy_record(unsigned long src_dev, unsigned long src_ino,
 // stat 対象のホスト実パスが記録済み dest と一致するエントリを返す(添字)。-1=不一致。
 static int linkcopy_find_by_path(const char *host_path) {
     if (g_linkcopy_used == 0 || !host_path || !host_path[0]) return -1;
+    long now = mono_ms();
+    for (int i = 0; i < LINKCOPY_CACHE; i++) {
+        struct linkcopy_ent *e = &g_linkcopy[i];
+        if ((e->used || e->src_used) && now - e->born_ms > LINKCOPY_TTL_MS) {
+            e->used = e->src_used = 0;
+            g_linkcopy_used--;
+        }
+    }
+    if (g_linkcopy_used == 0) return -1;
     for (int i = 0; i < LINKCOPY_CACHE; i++)
         if (g_linkcopy[i].used && strcmp(g_linkcopy[i].dest_host, host_path) == 0)
             return i;
@@ -1609,6 +1631,8 @@ static void linkcopy_bump_nlink(pid_t pid, unsigned long addr) {
 // 一致した側の偽装を使い切りにする。両側とも済めばエントリを空ける。
 static void linkcopy_consume(int lc_idx) {
     struct linkcopy_ent *e = &g_linkcopy[lc_idx % LINKCOPY_CACHE];
+    // entry と exit の間に別の tracee の stat で寿命切れになっていたら、もう数えない。
+    if (!e->used && !e->src_used) return;
     if (lc_idx >= LINKCOPY_CACHE) e->src_used = 0; else e->used = 0;
     if (!e->used && !e->src_used) g_linkcopy_used--;
 }
