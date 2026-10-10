@@ -86,7 +86,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.9.18 (versionCode 681), release candidate**: Emoticon / ASCII art tab in the pad; multi-line text is sent as a paste; no hint marks on ESC.
+**0.9.19 (versionCode 682), release candidate**: Ctrl+Z → `fg` no longer freezes a tab; `su` / `sudo` work on Ubuntu and Arch; `~/.local/bin` is on PATH out of the box; single-executable JS CLIs start on Alpine; hosts connect in a new tab.
 
 **0.9.17 (versionCode 680), release candidate**: More symbols from conversion (きごう lists them all; ①②, ♡, ✓, αβ, ㎝ and more by reading).
 

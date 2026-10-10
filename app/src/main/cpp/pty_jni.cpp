@@ -166,6 +166,14 @@ Java_com_zerotoship_z2term_pty_PtyProcess_nativeCreate(
             signal(sig, SIG_DFL);
         }
 
+        // シグナルマスクも空に戻す。fork した Java スレッドは ART が SIGPIPE / SIGUSR1 /
+        // SIGQUIT をブロックしており、マスクは exec を越えて端末内の全プロセスへ引き継がれる。
+        // そのままだと SIGPIPE が届かず `cmd | head` の書き手が終わらない、SIGUSR1 の trap が
+        // 永久に呼ばれない、Ctrl+\ が効かない、という形で「止まる」。
+        sigset_t none;
+        sigemptyset(&none);
+        sigprocmask(SIG_SETMASK, &none, nullptr);
+
         // execve で置き換え
         execve(cmd, argv, envp);
 

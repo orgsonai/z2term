@@ -64,6 +64,19 @@
 #ifndef PTRACE_O_TRACESECCOMP
 #define PTRACE_O_TRACESECCOMP 0x00000080
 #endif
+// PTRACE_SEIZE 系(ジョブ制御の停止を正しく扱うために使う。run_tracer 参照)。
+#ifndef PTRACE_SEIZE
+#define PTRACE_SEIZE 0x4206
+#endif
+#ifndef PTRACE_LISTEN
+#define PTRACE_LISTEN 0x4208
+#endif
+#ifndef PTRACE_EVENT_STOP
+#define PTRACE_EVENT_STOP 128
+#endif
+#ifndef PTRACE_O_TRACEEXEC
+#define PTRACE_O_TRACEEXEC 0x00000010
+#endif
 // SIGSYS の si_code。seccomp フィルタ由来なら SYS_SECCOMP(1)。ヘッダによっては
 // 未定義なので自前で用意する(名前衝突を避けて Z_ 接頭辞)。
 #ifdef SYS_SECCOMP
@@ -2688,18 +2701,36 @@ static int install_seccomp_filter(const struct config *cfg) {
     //   [0] LD arch
     //   [1] arch != AARCH64 → ALLOW
     //   [2] LD nr
-    //   [3 .. 3+D-1]     deny 比較 D 個(一致で DENY=ENOSYS へ、不一致で次へ)
-    //   [3+D .. 3+D+C-1] trace 比較 C 個(一致で TRACE へ、不一致で次へ)
-    //   [3+D+C] ALLOW
-    //   [4+D+C] TRACE
-    //   [5+D+C] DENY (RET_ERRNO ENOSYS)
+    //   [3 .. 9]         監査ソケットの判定 A 個(下記)。該当しなければ nr を読み直して次へ
+    //   [3+A .. 3+A+D-1]     deny 比較 D 個(一致で DENY=ENOSYS へ、不一致で次へ)
+    //   [3+A+D .. 3+A+D+C-1] trace 比較 C 個(一致で TRACE へ、不一致で次へ)
+    //   [3+A+D+C] ALLOW
+    //   [4+A+D+C] TRACE
+    //   [5+A+D+C] DENY (RET_ERRNO ENOSYS)
+    //
+    // 監査ソケット: socket(AF_NETLINK, *, NETLINK_AUDIT) を EPROTONOSUPPORT にする。
+    // Android はアプリのこのソケットを EACCES で拒否するが、PAM と sudo は「監査が
+    // カーネルに無い」(EINVAL / EPROTONOSUPPORT / EAFNOSUPPORT)以外の失敗を致命的と
+    // みなし、PAM_SYSTEM_ERR で認証全体を止める(`su: System error`、
+    // `sudo: unable to open audit system: Permission denied`)。アプリのサンドボックスに
+    // 監査機能は実際に無いので、無いカーネルと同じ答えを返す。引数だけで決まるので
+    // フィルタ内で完結させ、トレーサの停止は増やさない。
     int C = n;
     int D = d;
-    // 固定 6 命令 + deny D 個 + trace C 個。一覧を増やしても溢れないよう要素数から決める。
-    struct sock_filter prog[6 + sizeof(dnrs)/sizeof(int) + sizeof(nrs)/sizeof(int)];
+    enum { A = 7 };
+    // 固定 6 命令 + 監査 A 個 + deny D 個 + trace C 個。一覧を増やしても溢れないよう要素数から決める。
+    struct sock_filter prog[6 + A + sizeof(dnrs)/sizeof(int) + sizeof(nrs)/sizeof(int)];
     int p = 0;
     prog[p++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, arch));
-    prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AUDIT_ARCH_AARCH64, 0, (__u8)(1 + D + C));
+    prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AUDIT_ARCH_AARCH64, 0, (__u8)(1 + A + D + C));
+    prog[p++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr));
+    // socket(198) でなければ 6 命令飛ばして deny 比較へ(A は nr のまま)。
+    prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 198, 0, 6);
+    prog[p++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, args[0]));
+    prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 16 /* AF_NETLINK */, 0, 3);
+    prog[p++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, args[2]));
+    prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 9 /* NETLINK_AUDIT */, 0, 1);
+    prog[p++] = (struct sock_filter)BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | (93u & SECCOMP_RET_DATA)); // EPROTONOSUPPORT
     prog[p++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr));
     for (int i = 0; i < D; i++)
         prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, (unsigned)dnrs[i], (__u8)(1 + D + C - i), 0);
@@ -2717,15 +2748,30 @@ static int install_seccomp_filter(const struct config *cfg) {
 
 // ---- 子プロセス: TRACEME してゲストコマンドを exec ----------------------------
 
+// トレーサと子の握手用パイプ(main が fork 前に作る)。トレーサが 1 バイト書く:
+//   'S' = PTRACE_SEIZE 済み(子は何もせず進む) / それ以外・EOF = 従来の TRACEME 方式で握手。
+static int g_hs_fd[2] = { -1, -1 };
+
 static int run_child(const struct config *cfg) {
-    if (ptrace(PTRACE_TRACEME, 0, 0, 0) != 0) {
-        perror("PTRACE_TRACEME");
-        return 127;
+    // トレーサと握手する。トレーサが PTRACE_O_TRACESECCOMP を立ててから seccomp フィルタを
+    // 入れて execve する。これをしないと「フィルタ導入済みだがトレーサが TRACESECCOMP
+    // 未設定」の窓で最初の execve が ENOSYS になる。
+    char hs = 0;
+    if (g_hs_fd[1] >= 0) close(g_hs_fd[1]);
+    if (g_hs_fd[0] >= 0) {
+        ssize_t r;
+        do { r = read(g_hs_fd[0], &hs, 1); } while (r < 0 && errno == EINTR);
+        if (r != 1) hs = 0;
+        close(g_hs_fd[0]);
     }
-    // トレーサと握手する。先に SIGSTOP で止まり、トレーサが PTRACE_O_TRACESECCOMP を
-    // 立ててから seccomp フィルタを入れて execve する。これをしないと「フィルタ導入
-    // 済みだがトレーサが TRACESECCOMP 未設定」の窓で最初の execve が ENOSYS になる。
-    raise(SIGSTOP);
+    if (hs != 'S') {
+        // 従来方式(SEIZE できない環境): TRACEME して SIGSTOP で止まり、トレーサを待つ。
+        if (ptrace(PTRACE_TRACEME, 0, 0, 0) != 0) {
+            perror("PTRACE_TRACEME");
+            return 127;
+        }
+        raise(SIGSTOP);
+    }
     // ゲスト視点の cwd へ移動 (ホスト実パスへ変換してから chdir)。
     // (フィルタ導入前に済ませる=この chdir はトレーサに翻訳させない)
     char host_cwd[PATH_MAX_Z];
@@ -3179,18 +3225,46 @@ static void z_resume(pid_t pid, int seccomp_on, const struct pid_state *st, long
 
 static int run_tracer(const struct config *cfg, pid_t child) {
     int status;
-    // 最初の停止 = 子の raise(SIGSTOP)(握手)。
-    if (waitpid(child, &status, 0) < 0) { perror("waitpid"); return 1; }
-
     int opts = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK |
                PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP;
     if (cfg->kill_on_exit) opts |= PTRACE_O_EXITKILL;
-    ptrace(PTRACE_SETOPTIONS, child, 0, (void *)(long)opts);
+
+    // まず PTRACE_SEIZE で掴む。TRACEME(従来方式)だと、tracee がジョブ制御で止まった
+    // (group-stop)あとの SIGCONT をカーネルがトレーサへ知らせず、tracee も起こさない。
+    // 止まったプロセスは「tracing stop」のまま二度と動かず、Ctrl+Z → fg や
+    // kill -STOP → kill -CONT でタブが固まる(Ctrl+C も効かない)。SEIZE した tracee は
+    // group-stop を PTRACE_EVENT_STOP で知らせてくるので、PTRACE_LISTEN で「止まったまま
+    // 待たせる」ことができ、SIGCONT でカーネルが起こして再び知らせてくれる。
+    //
+    // SEIZE では exec 後の SIGTRAP が来ないので TRACEEXEC を足す(PTRACE_EVENT_EXEC が
+    // 同じ位置づけの停止になり、下の「seccomp 不発の検出」がそのまま働く)。
+    // SEIZE が通らない環境は従来方式へ戻す(Z2ROOT_NO_SEIZE=1 で明示的にも戻せる)。
+    int seized = 0;
+    if (g_hs_fd[0] >= 0) { close(g_hs_fd[0]); g_hs_fd[0] = -1; }
+    if (!getenv("Z2ROOT_NO_SEIZE") &&
+        ptrace(PTRACE_SEIZE, child, 0, (void *)(long)(opts | PTRACE_O_TRACEEXEC)) == 0) {
+        seized = 1;
+        opts |= PTRACE_O_TRACEEXEC;
+    }
+    if (g_hs_fd[1] >= 0) {
+        char hs = seized ? 'S' : 'T';
+        ssize_t w;
+        do { w = write(g_hs_fd[1], &hs, 1); } while (w < 0 && errno == EINTR);
+        close(g_hs_fd[1]); g_hs_fd[1] = -1;
+    }
 
     struct pid_state *cst = state_for(child);
-    if (cst) cst->started = 1;  // 握手の SIGSTOP は消化済み
-    // 子を再開。以降 chdir(導入前=native)→フィルタ導入→execve と進む。
-    ptrace(PTRACE_CONT, child, 0, 0);
+    if (!seized) {
+        // 最初の停止 = 子の raise(SIGSTOP)(握手)。
+        if (waitpid(child, &status, 0) < 0) { perror("waitpid"); return 1; }
+        ptrace(PTRACE_SETOPTIONS, child, 0, (void *)(long)opts);
+        if (cst) cst->started = 1;  // 握手の SIGSTOP は消化済み
+        // 子を再開。以降 chdir(導入前=native)→フィルタ導入→execve と進む。
+        ptrace(PTRACE_CONT, child, 0, 0);
+    } else {
+        // SEIZE は子を止めない。握手のバイトを読んだ子がそのまま進む。
+        if (cst) cst->started = 1;
+    }
 
     int seccomp_mode = -1;   // -1: 未判定 / 0: seccomp 無効(フォールバック) / 1: 有効
     int boot_done = 0;       // ブートストラップ execve(子の最初の execve)を消化したか
@@ -3333,7 +3407,28 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             continue;
         }
 
-        // TRACEFORK で生まれた新規子の最初の SIGSTOP(アタッチ由来の人工停止)。
+        // SEIZE した tracee の PTRACE_EVENT_STOP。3 通りある:
+        //  - 新規子の最初の停止(sig=SIGTRAP)        → 下の started==0 の処理へ流す
+        //  - group-stop に入った(sig=停止シグナル)   → PTRACE_LISTEN で止めたまま待たせる。
+        //    再開させない(シェルに「Stopped」と見せるジョブ制御を壊さない)が、SIGCONT は
+        //    カーネルが受け取って起こし、次の通知(下)を寄こす
+        //  - LISTEN 中に SIGCONT 等で起きた(sig=SIGTRAP) → 普通に再開する
+        if (event == PTRACE_EVENT_STOP) {
+            struct pid_state *est = state_for(pid);
+            if (!est || est->started) {
+                if (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
+                    // LISTEN できなければ(group-stop ではなかった)止めたままにせず再開する。
+                    if (ptrace(PTRACE_LISTEN, pid, 0, 0) != 0)
+                        z_resume(pid, seccomp_mode, est, 0);
+                    continue;
+                }
+                z_resume(pid, seccomp_mode, est, 0);
+                continue;
+            }
+        }
+
+        // TRACEFORK で生まれた新規子の最初の停止(アタッチ由来の人工停止)。従来方式では
+        // SIGSTOP、SEIZE では PTRACE_EVENT_STOP(sig=SIGTRAP)。
         // 握り潰して再開しないと group-stop に化けてシェルの wait がハングする。
         {
             struct pid_state *nst = state_for(pid);
@@ -3366,8 +3461,11 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             continue;
         }
 
+        // 従来方式(SEIZE 不可の環境)だけがここで group-stop を見る。SEIZE では上の
+        // PTRACE_EVENT_STOP で処理済みで、ここへ来る停止シグナルは配送前のものだけ。
         // group-stop(SIGSTOP/TSTP/TTIN/TTOU の 2 段目)は PTRACE_GETSIGINFO が EINVAL。
         // 尊重して再開しない(ジョブ制御 Ctrl+Z / tcsetpgrp の SIGTTOU を壊さない)。
+        // ⚠ この方式では SIGCONT が届いても再開できない(上の SEIZE の説明を参照)。
         if (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
             siginfo_t si;
             if (ptrace(PTRACE_GETSIGINFO, pid, 0, &si) < 0) continue;
@@ -3522,6 +3620,48 @@ static void loader_fail(const char *msg, const char *path) {
     _exit(127);
 }
 
+// PT_LOAD 1 個ぶんの領域 [seg_start, seg_end) を確保して中身を入れる(保護は呼び元が付ける)。
+//
+// 実行不可のセグメントは、カーネルの exec と同じく**ファイルを直接マップ**する(MAP_PRIVATE)。
+// 匿名メモリへ read で写すと「捨てても元ファイルから戻る」というファイルマップの性質が
+// 失われる: 自分のデータ領域を madvise(MADV_DONTNEED) で手放して後から読み直すプログラム
+// (単一実行ファイルに JS ソースを埋め込むランタイム)は、戻ってくるのが 0 埋めのページになり
+// 「SyntaxError: Invalid character '\0'」で落ちる。ld.so 経由で起動した本体は ld.so が
+// ファイルマップするため起きず、ローダが本体を直接マップする経路だけで起きていた。
+//
+// 実行可能セグメントは従来どおり匿名メモリ(file-backed PROT_EXEC は W^X で不可)。
+// ファイルマップできない形(オフセットがページ境界に揃わない等)や mmap 失敗時も匿名へ戻す。
+static int map_load_segment(int fd, unsigned long seg_start, unsigned long seg_end,
+                            unsigned long off_in_pg, unsigned long p_offset,
+                            unsigned long p_filesz, unsigned long p_memsz,
+                            unsigned int p_flags, unsigned long pmask) {
+    if (!(p_flags & PF_X_Z) && p_filesz > 0 && p_offset >= off_in_pg &&
+        ((p_offset - off_in_pg) & pmask) == 0) {
+        unsigned long data_end = seg_start + off_in_pg + p_filesz;
+        unsigned long file_end = (data_end + pmask) & ~pmask;
+        if (file_end > seg_end) file_end = seg_end;
+        void *m = mmap((void *)seg_start, file_end - seg_start, PROT_READ | PROT_WRITE,
+                       MAP_PRIVATE | MAP_FIXED, fd, (off_t)(p_offset - off_in_pg));
+        if (m != MAP_FAILED) {
+            // bss の先頭(ファイル末尾と同じページの残り)は 0 にする。残りのページは匿名で足す。
+            if (p_memsz > p_filesz && file_end > data_end)
+                memset((void *)data_end, 0, file_end - data_end);
+            if (seg_end > file_end &&
+                mmap((void *)file_end, seg_end - file_end, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED)
+                return -1;
+            return 0;
+        }
+    }
+    void *seg = mmap((void *)seg_start, seg_end - seg_start, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    if (seg == MAP_FAILED) return -1;
+    if (p_filesz > 0 &&
+        pread(fd, (char *)seg_start + off_in_pg, p_filesz, (off_t)p_offset) != (ssize_t)p_filesz)
+        return -1;
+    return 0;
+}
+
 // path の ELF(PT_INTERP 無し)を匿名 PROT_EXEC メモリへマップし、
 // child_argv / child_envp で entry へ jump する。成功すれば戻らない。
 __attribute__((noreturn))
@@ -3630,15 +3770,10 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
         unsigned long seg_end   = (base + p_vaddr + p_memsz + pmask) & ~pmask;
         unsigned long off_in_pg = (base + p_vaddr) - seg_start;
 
-        // file-backed PROT_EXEC は W^X で不可。匿名 RW で確保→中身を read→本来の保護へ。
-        void *seg = mmap((void *)seg_start, seg_end - seg_start,
-                         PROT_READ | PROT_WRITE,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-        if (seg == MAP_FAILED) loader_fail("mmap seg", path);
-        if (p_filesz > 0 &&
-            pread(fd, (char *)seg_start + off_in_pg, p_filesz, (off_t)p_offset)
-                != (ssize_t)p_filesz)
-            loader_fail("read seg", path);
+        // RW で確保して中身を入れ、そのあと本来の保護へ ([map_load_segment])。
+        if (map_load_segment(fd, seg_start, seg_end, off_in_pg, p_offset, p_filesz, p_memsz,
+                             p_flags, pmask) != 0)
+            loader_fail("map seg", path);
         int prot = ((p_flags & PF_R_Z) ? PROT_READ : 0) |
                    ((p_flags & PF_W_Z) ? PROT_WRITE : 0) |
                    ((p_flags & PF_X_Z) ? PROT_EXEC : 0);
@@ -3890,12 +4025,8 @@ static int map_img(const char *path, struct img_map *out) {
         unsigned long seg_start = (base + p_vaddr) & ~pmask;
         unsigned long seg_end   = (base + p_vaddr + p_memsz + pmask) & ~pmask;
         unsigned long off_in_pg = (base + p_vaddr) - seg_start;
-        void *seg = mmap((void *)seg_start, seg_end - seg_start,
-                         PROT_READ | PROT_WRITE,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-        if (seg == MAP_FAILED) { close(fd); return -1; }
-        if (p_filesz > 0 &&
-            pread(fd, (char *)seg_start + off_in_pg, p_filesz, (off_t)p_offset) != (ssize_t)p_filesz) {
+        if (map_load_segment(fd, seg_start, seg_end, off_in_pg, p_offset, p_filesz, p_memsz,
+                             p_flags, pmask) != 0) {
             close(fd); return -1;
         }
         int prot = ((p_flags & PF_R_Z) ? PROT_READ : 0) |
@@ -4088,10 +4219,20 @@ int main(int argc, char **argv) {
         if (sl > 0) { cfg.self_path[sl] = '\0'; cfg.use_loader = 1; }
     }
 
+    // 握手用パイプ(run_child / run_tracer)。作れなければ子は従来方式で握手する。
+    if (pipe2(g_hs_fd, O_CLOEXEC) != 0) { g_hs_fd[0] = g_hs_fd[1] = -1; }
+
     pid_t child = fork();
     if (child < 0) { perror("fork"); return 1; }
     if (child == 0) {
         _exit(run_child(&cfg));
     }
+    // トレーサ自身は SIGPIPE で死なないようにする(死ぬと --kill-on-exit で配下が全滅する)。
+    // ⚠ fork の**後**に、ブロックで行う: 子(ゲスト)へは引き継がせない。無視(SIG_IGN)や fork 前の
+    // ブロックは exec を越えてゲスト全体に残り、パイプの書き手が終わらなくなる。
+    sigset_t pipe_only;
+    sigemptyset(&pipe_only);
+    sigaddset(&pipe_only, SIGPIPE);
+    sigprocmask(SIG_BLOCK, &pipe_only, NULL);
     return run_tracer(&cfg, child);
 }

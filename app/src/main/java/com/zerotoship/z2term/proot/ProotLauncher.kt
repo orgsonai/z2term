@@ -402,6 +402,7 @@ class ProotLauncher(private val context: Context) {
         ensureShellHistoryConfig(rootfs)
         // マクロ置き場を PATH に入れる設定を rootfs 側にも置く (env だけでは足りない経路がある)。
         ensureMacroPathConfig(rootfs)
+        ensureUserBinPathConfig(rootfs)
         // セッション復元の cwd 用に、プロンプト毎 OSC 7 (cwd 通知) を出すフックを仕込む。
         ensureOsc7CwdConfig(rootfs)
         removeOsc133PromptConfig(rootfs)
@@ -570,7 +571,12 @@ class ProotLauncher(private val context: Context) {
             // `remind.sh …` と名前で打てるようにするため — help も docs もその前提で書いてあるのに
             // PATH に無く、`command not found` になっていた (実機で指摘)。⚠ **末尾**に置くのは、
             // 同名のコマンドがあったときに OS 側を覆わないため。
-            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR",
+            // ⚠ 先頭に**利用者が入れたコマンドの置き場** (`~/.local/bin`) を足す (0.9.19)。各種 CLI の
+            // 公式インストーラはここへ入れて `~/.profile` に PATH を書くが、端末タブは非ログイン
+            // シェルなので `~/.profile` は読まれず、入れた直後から `command not found` になっていた
+            // (実機で指摘)。⚠ **先頭**に置くのは、自分で入れた版を OS 側より優先するため
+            // (インストーラが書く `PATH="$HOME/.local/bin:$PATH"` と同じ並び)。
+            "PATH=$USER_BIN_DIR:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR",
             "TMPDIR=/tmp",
             // ⚠ **sh (busybox ash) が rc を読む唯一の口** (0.8.364)。ash は非ログインの対話
             // シェルでは `$ENV` が指すファイルしか読まない。ファイルが無ければ何も起きない。
@@ -652,6 +658,7 @@ class ProotLauncher(private val context: Context) {
         sharedHomeDir.mkdirs()
         ensureShellHistoryConfig(rootfs)
         ensureMacroPathConfig(rootfs)
+        ensureUserBinPathConfig(rootfs)
         ensureOsc7CwdConfig(rootfs)
         removeOsc133PromptConfig(rootfs)
         ensureSshdWrapper(rootfs)
@@ -868,8 +875,8 @@ class ProotLauncher(private val context: Context) {
             // `can't open +09` で落ちる (= chroot に一度も入れない)。env 配列へ直接渡す
             // proot/z2root 経路と違い、chroot 経路はここだけシェルを通るため踏んでいた。
             append("TZ=").append(shq(PosixTimeZone.current())).append(' ')
-            // ⚠ proot 経路と同じくマクロ置き場を末尾に足す (0.8.287)。
-            append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR TMPDIR=/tmp")
+            // ⚠ proot 経路と同じくマクロ置き場を末尾に (0.8.287)、`~/.local/bin` を先頭に足す (0.9.19)。
+            append("PATH=$USER_BIN_DIR:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR TMPDIR=/tmp")
             append(displayEnv)
             append(" Z2_GUI_BACKEND=").append(if (AppSettings.lastKnown.guiDirect) "direct" else "vnc")
             append(sessionEnv)
@@ -1145,6 +1152,40 @@ class ProotLauncher(private val context: Context) {
                 setExecutable(true, false)
             }
         }.onFailure { Log.w(TAG, "macro PATH profile.d 配置失敗", it) }
+
+        appendOnceWithMarker(File(rootfs, "etc/bash.bashrc"), marker, block)
+        appendOnceWithMarker(File(rootfs, "etc/zsh/zshrc"), marker, block)
+    }
+
+    /**
+     * 利用者が入れたコマンドの置き場 (`~/.local/bin`) を **どの OS でも最初から PATH に入れる** (0.9.19)。
+     *
+     * `launch()` が渡す env の先頭に入れてある ([USER_BIN_DIR]) が、[ensureMacroPathConfig] と同じ理由で
+     * それだけでは足りない: ログインシェル (SSH ログイン・`su -`) は `/etc/profile` で PATH を
+     * 組み立て直すので、rootfs 側にも同じ設定を置く。⚠ **先頭**に足す (env 側と同じ理由)。
+     * ⚠ マクロ置き場とは**別の目印・別のファイル**にする — `appendOnceWithMarker` は一度書いたら
+     * 触らないので、同じ目印に足しても既存の rootfs には届かない。
+     */
+    private fun ensureUserBinPathConfig(rootfs: File) {
+        val marker = "# >>> z2term user bin path >>>"
+        val block = """
+            |$marker
+            |case ":${'$'}PATH:" in
+            |  *":${'$'}HOME/.local/bin:"*) ;;
+            |  *) PATH="${'$'}HOME/.local/bin:${'$'}PATH" ;;
+            |esac
+            |export PATH
+            |# <<< z2term user bin path <<<
+        """.trimMargin()
+
+        runCatching {
+            val profileD = File(rootfs, "etc/profile.d").apply { mkdirs() }
+            File(profileD, "z2term-userbin.sh").apply {
+                writeText("#!/bin/sh\n$block\n")
+                setReadable(true, false)
+                setExecutable(true, false)
+            }
+        }.onFailure { Log.w(TAG, "user bin PATH profile.d 配置失敗", it) }
 
         appendOnceWithMarker(File(rootfs, "etc/bash.bashrc"), marker, block)
         appendOnceWithMarker(File(rootfs, "etc/zsh/zshrc"), marker, block)
@@ -1760,6 +1801,7 @@ class ProotLauncher(private val context: Context) {
          * 展開されないため `$HOME` とは書けない)。
          */
         private const val MACRO_DIR = "/root/.z2term/macros"
+        private const val USER_BIN_DIR = "/root/.local/bin"
 
         /** SHELL に採用してよい既知のシェル basename (これ以外は実体シェルへ振り替える)。 */
         private val KNOWN_SHELLS = setOf("sh", "bash", "ash", "dash", "zsh", "ksh", "mksh")

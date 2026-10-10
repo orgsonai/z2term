@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.18.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.19.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -288,6 +288,8 @@ Settings > Maintenance > **"Take it with you"** writes your current setup to a s
 - **"Back up now"** writes one on the spot, so you can check the setup without waiting for the middle of the night.
 - ⚠ Choosing a different folder, or revoking access on the device, stops the writing. You will be notified — **pick the folder again** when that happens.
 
+**"Connect" opens a new tab (0.9.19).** The shell running in your current tab is left alone. The same applies when you connect from a GUI screen.
+
 ### Creating an SSH key in the app
 
 In 📜 > **Connections**, add an SSH connection and set auth to public key: a **"Create a key (ed25519)"** button appears.
@@ -502,33 +504,21 @@ That builds the keys used to verify package signatures; it happens once and need
 
 ## 6.5. Running `claude` (Claude Code)
 
-z2term runs inside a custom ptrace-based engine (z2root). The `claude` distribution
-comes in a **musl** flavor and a **glibc** flavor, and the musl one cannot start under z2root
-(musl's ld.so cannot launch a non-PIE executable). So install and use the **glibc** flavor.
-
-Run the following **in a glibc-based distro tab (e.g. Arch)** — it will not install on a
-musl-only distro such as Alpine.
+In a tab of any OS, just run the official installer (0.9.19).
 
 ```sh
-# Remove the existing (possibly musl) binary so re-install re-detects the flavor
-rm -f ~/.claude/downloads/claude
-
-# Official installer (on Arch it picks the glibc build automatically)
-curl -fsSL https://claude.ai/install.sh -o /tmp/ci.sh && bash /tmp/ci.sh
-
-# Put it on PATH (it installs into ~/.local/bin)
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-
-# Pin it so the auto-updater doesn't swap in a musl build
-echo 'export DISABLE_AUTOUPDATER=1' >> ~/.bashrc
+curl -fsSL https://claude.ai/install.sh | bash
 ```
 
-Reopen the tab (or `source ~/.bashrc`), then just run `claude`.
+When it finishes, type `claude` to start it. It installs into `~/.local/bin`, which is on PATH
+out of the box, so there is nothing to add to `~/.bashrc`.
 
 > Notes
-> - This setup is needed **once per tab (distro)** only. After that just run `claude`.
-> - If a current version is already installed the installer **skips the download**, so when you
->   want to swap the flavor, run the `rm -f` above first.
+> - This setup is needed **once per OS** (the program itself is stored separately per OS; your
+>   login and settings are shared).
+> - On Alpine, install `apk add bash curl libgcc libstdc++ ripgrep` first.
+> - Up to 0.9.18 it could not be installed on Alpine, and on the other OSes you had to put it on
+>   PATH yourself. A `PATH` line you added to `~/.bashrc` back then is harmless if left in place.
 > - The actual files live in `~/.local/share/claude/versions/<version>`, and `~/.local/bin/claude`
 >   is a shortcut (symlink) to them.
 
@@ -932,7 +922,7 @@ when a `z2-when` rule fired **without opening the app**.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
 
-**0.9.18 (versionCode 681), release candidate**: The pad has a new (^^) tab with emoticons, ASCII-only emoticons, one-line ASCII art and multi-line ASCII art. Multi-line art and multi-line clipboard entries are sent as a paste, so a shell does not run them line by line. The 📋 / 😀 marks on the ESC key and its hold popup are gone (the flick directions are in Tips).
+**0.9.19 (versionCode 682), release candidate**: Fixes for things that tended to hang on every OS. A job stopped with Ctrl+Z now comes back with `fg` instead of freezing the tab; `su` / `sudo` no longer fail with "System error" (Ubuntu, Arch); pipe writers that never finished and `trap` handlers that were never called are fixed. Commands installed into `~/.local/bin` can be run by name with no setup. On Alpine, CLIs that embed their JavaScript in a single executable now start. Connecting from "Connections" opens a new tab instead of replacing the current one.
 
 **0.9.17 (versionCode 680), release candidate**: More symbols are available from conversion. Typing きごう now lists every symbol in the dictionary instead of stopping partway, and adds symbols the dictionary lacked, such as ①②, ♡, ✓, αβ and ㎝. They can also be reached by reading: まる → ①②…, はーと → ♡, ちぇっく → ✓, ぎりしゃ → αβγ…, たんい → ㎝㎏…. Dictionary words that exactly match the reading are always listed in full, however many candidates there are.
 

@@ -1015,7 +1015,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onRun = { command ->
                 active.writeBytes(command.toByteArray(Charsets.UTF_8))
             },
-            onConnect = { profile -> active.connectSsh(profile) },
+            // 接続は必ず新しいタブで開く。今のタブで開くと、そこで動いているシェルが終了する。
+            // openNew がアクティブにし、同期的に STARTING へ進むのでローカルシェルは起動しない。
+            onConnect = { profile -> SessionManager.openNew(context).connectSsh(profile) },
             onSftp = { profile -> remoteFileTarget = RemoteFileTarget(profile, null) },
             onService = { profile, service ->
                 // 画面を開くサービス (VNC / RDP) は GUI タブへ、それ以外はファイル画面へ。
@@ -1660,9 +1662,8 @@ private fun GuiTabScreen(
             // 端末は writeBytes だが GUI は keysym 橋渡しで送る (M8-6 T1)。
             onRun = { command -> GuiKeyMapper.sendText(gui.desktopClient, command) },
             onConnect = { profile ->
-                val terminal = terminalForSettings ?: SessionManager.openNew(context)
-                terminal.connectSsh(profile)
-                SessionManager.setActive(terminal.id)
+                // 端末タブ側と同じく、既存の端末タブを使い回さず新しいタブで開く。
+                SessionManager.openNew(context).connectSsh(profile)
             },
             onSftp = { profile -> remoteFileTarget = RemoteFileTarget(profile, null) },
             onService = { profile, service ->
