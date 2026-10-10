@@ -93,6 +93,11 @@ extern char **environ;
 
 #define MAX_BINDS 64
 #define PATH_MAX_Z 4096
+// execve の 1 引数として読む長さの上限。Linux の上限(32 ページ = 4K ページで 128KB、16K ページで
+// 512KB)より大きく取り、範囲内かどうかの判定は書き換え後の execve を受けるカーネルに任せる。
+#define EXEC_ARG_MAX (1024 * 1024)
+// 1 回の syscall で一時的に権限ビットを足す対象の上限(renameat の移動元・移動先の親で 2 つ)。
+#define DAC_MAX 2
 
 struct bind_entry {
     char host[PATH_MAX_Z];   // ホスト側の実パス (例: /dev, /proc, <filesDir>/shared_home)
@@ -182,6 +187,14 @@ struct pid_state {
     pid_t as_target;
     unsigned long as_old_bias, as_new_bias, as_out;
     int as_setting;
+    // execve を失敗させたうえで、exit で errno を付け替える(0 = 付け替えない)。
+    //   exec_err_from != 0: 戻り値がその errno のときだけ exec_err_to へ直す
+    //   exec_err_from == 0: 失敗していれば何であっても exec_err_to へ直す
+    int exec_err_from, exec_err_to;
+    // root は権限ビットに縛られない(§dac)。entry で足したビットを exit で戻すための控え。
+    struct { char path[PATH_MAX_Z]; mode_t mode; } dac[DAC_MAX];
+    int dac_n;
+    int dac_access;         // faccessat: 所有者ビットだけが理由の EACCES を exit で 0 に直す
 };
 static struct pid_state g_map[MAP_CAP];
 
@@ -241,6 +254,15 @@ static void subst_cleanup(struct pid_state *st) {
     st->subst_path = NULL;
 }
 
+// §dac で一時的に足した権限ビットを元へ戻す。syscall の exit と、exit を見ないまま tracee が
+// 終わったとき(syscall の途中で kill された等)の両方から呼ぶ。
+static void dac_restore(struct pid_state *st) {
+    while (st->dac_n > 0) {
+        st->dac_n--;
+        chmod(st->dac[st->dac_n].path, st->dac[st->dac_n].mode);
+    }
+}
+
 static struct pid_state *state_for(pid_t pid) {
     int free_slot = -1;
     for (int i = 0; i < MAP_CAP; i++) {
@@ -264,6 +286,10 @@ static struct pid_state *state_for(pid_t pid) {
     g_map[free_slot].limit_tgid = 0;
     g_map[free_slot].as_bias = 0;
     g_map[free_slot].as_pending = 0;
+    g_map[free_slot].exec_err_from = 0;
+    g_map[free_slot].exec_err_to = 0;
+    g_map[free_slot].dac_n = 0;
+    g_map[free_slot].dac_access = 0;
     for (int k = 0; k < STATUS_FD_MAX; k++) {
         g_map[free_slot].status_fds[k] = -1;
         g_map[free_slot].status_fd_kind[k] = PROC_FD_NONE;
@@ -283,6 +309,7 @@ static void state_drop(pid_t pid) {
     for (int i = 0; i < MAP_CAP; i++) {
         if (g_map[i].used && g_map[i].pid == pid) {
             subst_cleanup(&g_map[i]);
+            dac_restore(&g_map[i]);
             g_map[i].used = 0;
             return;
         }
@@ -311,6 +338,44 @@ static ssize_t read_tracee_str(pid_t pid, unsigned long addr, char *buf, size_t 
     }
     buf[off] = '\0';
     return (ssize_t)off;
+}
+
+// 長さの上限を決めずに tracee の文字列を読む(malloc して返す。呼び出し側が free)。
+// execve の引数用。固定長(PATH_MAX_Z)で読んでいた間は、4095 バイトを超える引数が黙って
+// 切り詰められ、長い `sh -c '…'` や `python -c '…'` の後ろが欠けたまま起動していた。
+// max を超える文字列は *too_long=1 にして NULL を返す(呼び出し側が E2BIG にする)。
+static char *read_tracee_str_alloc(pid_t pid, unsigned long addr, size_t max, int *too_long) {
+    size_t cap = 256, off = 0;
+    char *buf = malloc(cap);
+    if (too_long) *too_long = 0;
+    if (!buf) return NULL;
+    for (;;) {
+        // 1 回の読み取りが未マップのページへまたがると丸ごと失敗する。ページ境界で区切る。
+        size_t want = 4096 - (size_t)((addr + off) & 4095);
+        if (off + want + 1 > cap) {
+            size_t ncap = cap * 2;
+            while (off + want + 1 > ncap) ncap *= 2;
+            char *nb = realloc(buf, ncap);
+            if (!nb) { free(buf); return NULL; }
+            buf = nb; cap = ncap;
+        }
+        struct iovec local = { buf + off, want };
+        struct iovec remote = { (void *)(addr + off), want };
+        ssize_t n = process_vm_readv(pid, &local, 1, &remote, 1, 0);
+        if (n <= 0) {
+            if (off == 0) { free(buf); return NULL; }
+            break;
+        }
+        if (memchr(buf + off, '\0', (size_t)n)) return buf;
+        off += (size_t)n;
+        if (off > max) {
+            free(buf);
+            if (too_long) *too_long = 1;
+            return NULL;
+        }
+    }
+    buf[off] = '\0';
+    return buf;
 }
 
 // process_vm_writev が EFAULT した時のフォールバック。PTRACE_POKEDATA は kernel の
@@ -680,12 +745,70 @@ static void canonicalize_guest(const struct config *cfg, pid_t pid, const char *
     else snprintf(out, cap, "%s", result);
 }
 
+// host が rootfs か bind のホスト側の配下にあるか(= host_to_guest で確実にゲストへ戻せるか)。
+static int host_is_mapped(const struct config *cfg, const char *host) {
+    for (int i = 0; i < cfg->nbinds; i++) {
+        size_t hl = strlen(cfg->binds[i].host);
+        if (strncmp(host, cfg->binds[i].host, hl) == 0 && (host[hl] == '/' || host[hl] == '\0'))
+            return 1;
+    }
+    size_t rl = EFF_ROOTFS_LEN(cfg);
+    return strncmp(host, EFF_ROOTFS(cfg), rl) == 0 && (host[rl] == '/' || host[rl] == '\0');
+}
+
+// fd 基準(*at の dirfd)の相対パスを、ゲスト絶対パス out へ直す。
+// 戻り値: 1 = 直した(呼び出し側で正規化してホスト実パスへ) / 0 = 従来どおり dirfd に任せる。
+//
+// fd 基準の相対パスをカーネルへそのまま渡すと、ゲストの決まりが 3 つ抜ける:
+//   - `..`           : rootfs の一番上から 1 つ上(= ホスト側の親)へ出てしまう。「/ の .. は /」を
+//                      確かめて自分がルートにいるか判定するプログラムが異常終了する
+//   - 絶対パス向きの symlink : ホストの / から辿られ、無い(ENOENT)か別物(Android の /etc 等)を開く
+//   - bind の差し込み口 : / を開いて "proc" や "root" を名前で辿ると、bind 先ではなく rootfs に
+//                      ある空の(隠されているはずの)フォルダへ入る。ホームを丸ごと辿る
+//                      tar / grep -r / find が、差し込んだフォルダの中身を取り違える
+// 名前 1 つだけで、そのどれにも当たらないもの(大多数)は従来どおりカーネルに任せる。
+// rm -r や find の速度を落とさないため。
+static int dirfd_guest_abs(const struct config *cfg, pid_t pid, const char *in_path,
+                           int deref_final, long dirfd, char *out, size_t cap) {
+    char proc[64], host_dir[PATH_MAX_Z];
+    snprintf(proc, sizeof(proc), "/proc/%d/fd/%ld", (int)pid, dirfd);
+    ssize_t n = readlink(proc, host_dir, sizeof(host_dir) - 1);
+    if (n <= 0 || host_dir[0] != '/') return 0;
+    host_dir[n] = '\0';
+    if (n >= 10 && strcmp(host_dir + n - 10, " (deleted)") == 0) return 0;
+    if (!host_is_mapped(cfg, host_dir)) return 0;
+
+    char guest_dir[PATH_MAX_Z];
+    host_to_guest(cfg, host_dir, guest_dir, sizeof(guest_dir));
+    if (strcmp(guest_dir, "/") == 0) guest_dir[0] = '\0';
+
+    int full = 0;
+    if (strchr(in_path, '/') != NULL || strcmp(in_path, "..") == 0) {
+        full = 1;                        // 途中の要素に symlink・`..`・差し込み口がありうる
+    } else if (strcmp(in_path, ".") != 0) {
+        char cand[PATH_MAX_Z];
+        snprintf(cand, sizeof(cand), "%s/%s", guest_dir, in_path);
+        for (int i = 0; i < cfg->nbinds && !full; i++)
+            if (strcmp(cand, cfg->binds[i].guest) == 0) full = 1;
+        if (!full && deref_final) {
+            char p[PATH_MAX_Z];
+            struct stat sb;
+            if ((size_t)snprintf(p, sizeof(p), "%s/%s", host_dir, in_path) < sizeof(p) &&
+                lstat(p, &sb) == 0 && S_ISLNK(sb.st_mode))
+                full = 1;
+        }
+    }
+    if (!full) return 0;
+    if ((size_t)snprintf(out, cap, "%s/%s", guest_dir, in_path) >= cap) return 0;
+    return 1;
+}
+
 // tracee の syscall パス引数(絶対 or cwd 相対)を、symlink 解決込みのホスト実パスへ。
 // 相対パスは /proc/<tid>/cwd(ホスト実パス)をゲスト cwd へ逆変換して絶対化する。
 // 戻り値: 0=変換した(host_out 有効), -1=変換不要/不可(既に rootfs 配下/空 等)。
 // dirfd: パスの基準となる *at の dirfd(無い syscall は AT_FDCWD を渡す)。
-// 相対パスは dirfd==AT_FDCWD のときだけ cwd 基準で絶対化する。実 fd 基準
-// (dirfd != AT_FDCWD)の相対パスは触らない(絶対化すると dirfd が無視され壊れる)。
+// 相対パスは dirfd==AT_FDCWD なら cwd 基準で絶対化する。実 fd 基準(dirfd != AT_FDCWD)は
+// dirfd_guest_abs が「直す必要がある」と判断したものだけ絶対化し、残りは触らない。
 static int host_path_for(const struct config *cfg, pid_t pid, const char *in_path,
                          int deref_final, long dirfd, char *host_out, size_t cap) {
     if (in_path[0] == '\0') return -1;
@@ -707,6 +830,11 @@ static int host_path_for(const struct config *cfg, pid_t pid, const char *in_pat
         else if (strncmp(in_path, "/proc/thread-self", 17) == 0 &&
                  (in_path[17] == '/' || in_path[17] == '\0'))
             tail = in_path + 17;
+        // /proc/self・/proc/thread-self そのものを「辿らずに」扱う呼び出し(readlink / lstat)は
+        // 書き換えない。/proc/<pid> へ直すと symlink ではなくフォルダになり、readlink が EINVAL、
+        // lstat が「フォルダ」を返す(/proc/self/exe を 1 要素ずつ辿って実パスを求める処理が
+        // 途中で止まる)。カーネルは呼び出した tracee 自身の pid を返すので、そのままで正しい。
+        if (tail && tail[0] == '\0' && !deref_final) return -1;
         if (tail) snprintf(guest_abs, sizeof(guest_abs), "/proc/%d%s", (int)pid, tail);
         else snprintf(guest_abs, sizeof(guest_abs), "%s", in_path);
 
@@ -727,8 +855,10 @@ static int host_path_for(const struct config *cfg, pid_t pid, const char *in_pat
                     snprintf(guest_abs, sizeof(guest_abs), "%s", st->exe_guest);
             }
         }
+    } else if (dirfd != AT_FDCWD) {
+        if (!dirfd_guest_abs(cfg, pid, in_path, deref_final, dirfd, guest_abs, sizeof(guest_abs)))
+            return -1;  // 名前 1 つだけの普通の要素 = dirfd に委ねる
     } else {
-        if (dirfd != AT_FDCWD) return -1;  // fd 相対は dirfd に委ねる
         char proc[64], host_cwd[PATH_MAX_Z];
         snprintf(proc, sizeof(proc), "/proc/%d/cwd", (int)pid);
         ssize_t n = readlink(proc, host_cwd, sizeof(host_cwd) - 1);
@@ -836,7 +966,11 @@ static int syscall_paths(long nr, struct sc_paths *out) {
     out->n = 0;
     struct path_arg *p = out->a;
     switch (nr) {
-        case 56:  case 437: p[out->n++] = (struct path_arg){1, 0, 1, -1, 0, 0}; break;    // openat/openat2
+        // openat: O_NOFOLLOW(flags arg2)なら最終要素の symlink を辿らない。辿ってしまうと、
+        // 「symlink なら開かない」ことを頼りにフォルダを掘る処理(rm -r など)が、リンク先の
+        // 中身へ入っていく。openat2 の flags は構造体の中なのでここでは見ない。
+        case 56:  p[out->n++] = (struct path_arg){1, 0, 1, 2, 0, (int)O_NOFOLLOW}; break;  // openat
+        case 437: p[out->n++] = (struct path_arg){1, 0, 1, -1, 0, 0}; break;              // openat2
         case 79:  p[out->n++] = (struct path_arg){1, 0, 1, 3, 0, 0x100}; break;           // newfstatat (flags arg3)
         case 291: p[out->n++] = (struct path_arg){1, 0, 1, 2, 0, 0x100}; break;           // statx (flags arg2)
         case 48:  case 439: p[out->n++] = (struct path_arg){1, 0, 1, 3, 0, 0x100}; break; // faccessat/2 (flags arg3)
@@ -1025,8 +1159,14 @@ static int interp_is_bionic(const char *interp) {
 // 戻り値: 0 = loader 包み済み(plan->target/prefix 有効) / 1 = passthrough
 //   (host_prog が非ELF。loader を噛ませず素の execve をカーネルに通し、
 //    ENOENT/ENOEXEC を呼び出し側 execvp に返させる。plan->target に host_prog のみ)。
+static int plan_exec_depth(const struct config *cfg, pid_t pid, const char *guest_prog,
+                           const char *orig_argv0, struct exec_plan *plan, int depth);
 static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog,
                      const char *orig_argv0, struct exec_plan *plan) {
+    return plan_exec_depth(cfg, pid, guest_prog, orig_argv0, plan, 0);
+}
+static int plan_exec_depth(const struct config *cfg, pid_t pid, const char *guest_prog,
+                           const char *orig_argv0, struct exec_plan *plan, int depth) {
     plan->nprefix = 0;
     plan->orig_start = 1;  // 元 argv0 は prefix で置換するため常に [1..] を連結
 
@@ -1043,6 +1183,21 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
     char sb_interp[PATH_MAX_Z], sb_arg[PATH_MAX_Z];
     if (read_script_shebang(host_prog, sb_interp, sizeof(sb_interp),
                             sb_arg, sizeof(sb_arg)) == 1) {
+        // インタプリタ自身が #! スクリプト(入れ子)、または相対パス(`#!./tool`)。Linux と同じく
+        // 内側を先に解決し、その後ろに「このスクリプトの #! 引数」と「スクリプトのパス」を足す:
+        //   <内側のインタプリタ> [内側の引数] <このスクリプトのインタプリタ> [引数] <スクリプト> …
+        // 以前はインタプリタを ELF と決めつけてローダへ渡し、"read ehdr" で起動に失敗していた。
+        // prefix の枠(PLAN_MAX_PREFIX)に収まるよう、入れ子は 1 段までにする。
+        // 普通のスクリプト(インタプリタが絶対パスの ELF)では余計な手間を足さないよう、相対パスの
+        // ときと、インタプリタが ELF でないと分かったときだけ調べる。
+        if (depth == 0 && sb_interp[0] != '/') {
+            if (plan_exec_depth(cfg, pid, sb_interp, sb_interp, plan, 1) == 0) {
+                if (sb_arg[0]) plan_push(plan, sb_arg);
+                plan_push(plan, guest_prog);
+                return 0;
+            }
+            plan->nprefix = 0;   // 内側を解決できなかった = 従来の経路で続ける
+        }
         char interp_real[PATH_MAX_Z];
         resolve_guest_symlink(cfg, sb_interp, interp_real, sizeof(interp_real));
         char host_interp[PATH_MAX_Z];
@@ -1050,6 +1205,16 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
             snprintf(host_interp, sizeof(host_interp), "%s", interp_real);
         char interp_loader[PATH_MAX_Z];
         int idyn = read_elf_interp(host_interp, interp_loader, sizeof(interp_loader));
+        if (idyn != 1 && depth == 0 && !file_is_elf(host_interp)) {
+            char i2[PATH_MAX_Z], a2[PATH_MAX_Z];
+            if (read_script_shebang(host_interp, i2, sizeof(i2), a2, sizeof(a2)) == 1 &&
+                plan_exec_depth(cfg, pid, sb_interp, sb_interp, plan, 1) == 0) {
+                if (sb_arg[0]) plan_push(plan, sb_arg);
+                plan_push(plan, guest_prog);
+                return 0;
+            }
+            plan->nprefix = 0;
+        }
         if (idyn == 1) {
             char host_loader[PATH_MAX_Z];
             if (!translate_abs(cfg, interp_loader, host_loader, sizeof(host_loader)))
@@ -1287,6 +1452,20 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
     char guest_prog[PATH_MAX_Z];
     if (read_tracee_str(pid, path_addr, guest_prog, sizeof(guest_prog)) < 0) return;
 
+    // fexecve(= execveat(fd, "", AT_EMPTY_PATH)): 開いてある fd の中身を実行する。そのまま通すと
+    // カーネルが動的ローダをホストの / から探して起動できない。fd が指す実ファイルのパスを求め、
+    // 通常の execve と同じ手順に載せる(メモリ上だけのファイル = memfd は対象外のまま)。
+    if (path_idx == 1 && guest_prog[0] == '\0' && (regs->regs[4] & 0x1000UL /* AT_EMPTY_PATH */)) {
+        char proc[64], fhost[PATH_MAX_Z];
+        snprintf(proc, sizeof(proc), "/proc/%d/fd/%d", (int)pid, (int)regs->regs[0]);
+        ssize_t fn = readlink(proc, fhost, sizeof(fhost) - 1);
+        if (fn <= 0 || fhost[0] != '/') return;
+        fhost[fn] = '\0';
+        if (fn >= 10 && strcmp(fhost + fn - 10, " (deleted)") == 0) return;
+        if (!host_is_mapped(cfg, fhost)) return;
+        host_to_guest(cfg, fhost, guest_prog, sizeof(guest_prog));
+    }
+
     // /proc/<pid>/exe をゲスト視点で返すため、execve 直前のゲストプログラムパスを
     // 控える。エントリ時点での記録なので失敗 execve では古い値が残るが、次に成功した
     // execve で上書きされるため実害は限定的(fork-exec の子は exec 失敗時に exit する)。
@@ -1301,6 +1480,7 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
     unsigned long argv_addr = regs->regs[path_idx + 1];
     char **args = NULL;
     int n = 0, cap = 0;
+    int too_long = 0;   // 1 引数が EXEC_ARG_MAX を超えた(Linux は E2BIG で断る)
     if (argv_addr) {
         for (;; n++) {
             unsigned long p = 0;
@@ -1314,11 +1494,33 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
                 if (!na) break;
                 args = na; cap = ncap;
             }
-            char *s = malloc(PATH_MAX_Z);
-            if (!s) break;
-            if (read_tracee_str(pid, p, s, PATH_MAX_Z) < 0) s[0] = '\0';
+            int big = 0;
+            char *s = read_tracee_str_alloc(pid, p, EXEC_ARG_MAX, &big);
+            if (big) too_long = 1;
+            if (!s) {
+                s = malloc(1);
+                if (!s) break;
+                s[0] = '\0';
+            }
             args[n] = s;
         }
+    }
+
+    // 1 引数が長すぎる: Linux は E2BIG で断る。存在しないパス(空文字列)へ差し替えて確実に
+    // 失敗させ、exit で戻り値を E2BIG に付け替える。
+    if (too_long) {
+        struct pid_state *st = state_lookup(pid);
+        unsigned long base = scratch_base(regs->sp, 8);
+        if (st && write_tracee_mem(pid, base, "", 1) == 0) {
+            regs->regs[path_idx] = base;
+            if (path_idx == 1) regs->regs[4] &= ~0x1000UL;   // AT_EMPTY_PATH(fd の実行)にしない
+            set_regs(pid, regs);
+            st->exec_err_from = 0;
+            st->exec_err_to = E2BIG;
+        }
+        for (int j = 0; j < n; j++) free(args[j]);
+        free(args);
+        return;
     }
 
     // 元 argv/comm を per-tracee に控える(plan_exec / wrap_with_loader が argv を書き換える
@@ -1343,6 +1545,20 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
         if (write_tracee_mem(pid, base, plan.target, plen) == 0) {
             regs->regs[path_idx] = base;
             set_regs(pid, regs);
+        }
+        // 実行ビットはあるが ELF でも #! 付きでもない通常ファイル: 本来の戻り値は ENOEXEC。
+        // Android はアプリのデータ領域にあるファイルの execve を、中身を見る前に EACCES で断る。
+        // そのままだと、シェルが「#! の無いスクリプトを sh で流し直す」動き(ENOEXEC が合図)に
+        // 入れず Permission denied で終わり、パッケージの設定スクリプトも実行できない。
+        // exit で EACCES を ENOEXEC に付け替える。
+        {
+            struct pid_state *st = state_lookup(pid);
+            struct stat xsb;
+            if (st && stat(plan.target, &xsb) == 0 && S_ISREG(xsb.st_mode) &&
+                (xsb.st_mode & 0111) && access(plan.target, R_OK) == 0) {
+                st->exec_err_from = EACCES;
+                st->exec_err_to = ENOEXEC;
+            }
         }
         for (int j = 0; j < n; j++) free(args[j]);
         free(args);
@@ -1597,6 +1813,13 @@ static int g_linkcopy_used;          // 有効エントリ数(0 なら stat hot 
 // syscall で見る)。一方、確かめに来ない側の記録は使われないまま残り、残っている間は
 // **すべての stat がパスを読んで照合する**ぶん遅くなる(ln を 1 回使うと以後の stat が 1 割
 // 遅いまま、という形で出た)。短い寿命で捨てて、照合の負担と偽装の窓の両方を閉じる。
+//
+// ⚠ dest に src の inode を見せるのは、**src がまだその inode で在るとき**だけにする。
+// git はオブジェクトを「一時ファイルを link して、元(一時ファイル)を消す」形で書くが、直後に
+// 確かめないので記録が残る。その寿命のうちに別の git (`git commit` の直後の `git clone`
+// など)がそのオブジェクトを stat すると、消えた一時ファイルの inode を見せられ、clone 側の
+// 「リンク元と同じ inode か」の検証と食い違って "hardlink different from source" で止まって
+// いた(0.9.25 で発見)。リンク元が消えたなら、それはもう誰のハードリンクでもない。
 #define LINKCOPY_TTL_MS 2000
 static long mono_ms(void) {
     struct timespec ts;
@@ -1635,8 +1858,18 @@ static int linkcopy_find_by_path(const char *host_path) {
     }
     if (g_linkcopy_used == 0) return -1;
     for (int i = 0; i < LINKCOPY_CACHE; i++)
-        if (g_linkcopy[i].used && strcmp(g_linkcopy[i].dest_host, host_path) == 0)
+        if (g_linkcopy[i].used && strcmp(g_linkcopy[i].dest_host, host_path) == 0) {
+            struct linkcopy_ent *e = &g_linkcopy[i];
+            struct stat sb;
+            if (e->src_host[0] &&
+                (lstat(e->src_host, &sb) != 0 || (unsigned long)sb.st_ino != e->src_ino)) {
+                // リンク元が消えた/入れ替わった = この記録はもう使わない
+                e->used = e->src_used = 0;
+                g_linkcopy_used--;
+                continue;
+            }
             return i;
+        }
     for (int i = 0; i < LINKCOPY_CACHE; i++)
         if (g_linkcopy[i].src_used && strcmp(g_linkcopy[i].src_host, host_path) == 0)
             return i + LINKCOPY_CACHE;
@@ -1683,6 +1916,20 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf, int lc_idx)
                 if (g_trc_on && (nr == 52 || nr == 53))
                     fprintf(g_trc, "[z2trc] FAKE chmod nr=%ld ret=%ld->0 pid=%d\n", nr, ret, pid);
                 regs.regs[0] = 0; set_regs(pid, &regs);
+            }
+            return;
+        // setxattr / lsetxattr / fsetxattr: security.*(ファイルに付ける特権 = security.capability
+        // など)と trusted.* は本物の特権が要り、アプリ uid では EPERM になる。パッケージ管理は
+        // 展開時にこれを付けようとし、失敗をそのパッケージの導入エラーとして数える(apk)。
+        // chown と同じく「付けたことにする」。実際には付かないので、後から読んでも出てこない。
+        case 5: case 6: case 7:
+            if (ret == -EPERM || ret == -EACCES) {
+                char name[64];
+                if (regs.regs[1] && read_tracee_str(pid, regs.regs[1], name, sizeof(name)) >= 0 &&
+                    (strncmp(name, "security.", 9) == 0 || strncmp(name, "trusted.", 8) == 0)) {
+                    regs.regs[0] = 0;
+                    set_regs(pid, &regs);
+                }
             }
             return;
         // kill: root なら EPERM は起きない。起きるのは chroot 外の別アプリ(別 uid)のプロセス
@@ -2400,6 +2647,8 @@ static int link_host_path(const struct config *cfg, pid_t pid, const char *path,
     if (path[0] == '/' || dirfd == AT_FDCWD)
         return host_path_for(cfg, pid, path, follow, dirfd, out, cap);
     if (path[0] == '\0') return -1;
+    // `..`・絶対パス向きの symlink・bind の差し込み口を含むものは、ゲストの決まりで解決する。
+    if (host_path_for(cfg, pid, path, follow, dirfd, out, cap) == 0) return 0;
     char proc[64], base[PATH_MAX_Z];
     snprintf(proc, sizeof(proc), "/proc/%d/fd/%ld", (int)pid, dirfd);
     ssize_t n = readlink(proc, base, sizeof(base) - 1);
@@ -2603,6 +2852,100 @@ static void maybe_rewrite_sockaddr(const struct config *cfg, pid_t pid, struct u
     socklog("sock nr=%ld ok: '%s' -> '%s'", nr, guest, target);
 }
 
+// §dac ---- root は権限ビットに縛られない --------------------------------------
+// 本物の root は、読み取り専用(0444)のファイルにも書け、書き込み不可(0555)のフォルダの中でも
+// 作成・削除でき、権限 000 のファイルも読める。ここの root は見かけだけで、実体は Android の
+// アプリ uid なので、自分が所有者でも権限ビットが無ければカーネルに EACCES で断られる。
+//   - dpkg が 0440 のファイルを展開後に書き込みで開き直せず、パッケージの導入が止まる
+//   - 0555 のフォルダを含む木を rm -rf で消せない
+//   - `echo x >> 読み取り専用のファイル` が通らない
+// 対象の syscall の entry で、所有者ビットだけが足りないときに限って一時的にそのビットを足し、
+// exit で元の権限へ戻す。開いた fd は権限を戻した後もそのまま使える。
+// 触るのは自分(実 uid)が所有する通常ファイルとフォルダだけ。/proc・/sys・/dev は対象外。
+static int dac_wanted(long nr) {
+    return nr == 56 || nr == 45 || nr == 35 || nr == 34 || nr == 33 || nr == 36 ||
+           nr == 38 || nr == 276 || nr == 48 || nr == 439;
+}
+
+static void dac_grant(const struct config *cfg, struct pid_state *st, const char *path, mode_t bits) {
+    if (st->dac_n >= DAC_MAX) return;
+    char real[PATH_MAX_Z];
+    if (!realpath(path, real)) return;
+    if (strncmp(real, "/proc/", 6) == 0 || strncmp(real, "/sys/", 5) == 0 ||
+        strncmp(real, "/dev/", 5) == 0)
+        return;
+    struct stat sb;
+    if (stat(real, &sb) != 0 || sb.st_uid != cfg->real_uid) return;
+    if (!S_ISREG(sb.st_mode) && !S_ISDIR(sb.st_mode)) return;
+    mode_t old = sb.st_mode & 07777;
+    if ((old & bits) == bits) return;       // ビットは足りている = 断られた理由は別(SELinux 等)
+    if (chmod(real, old | bits) != 0) return;
+    snprintf(st->dac[st->dac_n].path, sizeof(st->dac[st->dac_n].path), "%s", real);
+    st->dac[st->dac_n].mode = old;
+    st->dac_n++;
+}
+
+// host: 変換済みのホスト実パス(NULL = 変換しなかった)。guest: tracee が渡した元の文字列。
+static void dac_check(const struct config *cfg, pid_t pid, struct pid_state *st, long nr,
+                      const struct user_pt_regs *regs, const char *host, const char *guest,
+                      long dirfd) {
+    char path[PATH_MAX_Z];
+    if (host) {
+        snprintf(path, sizeof(path), "%s", host);
+    } else if (guest[0] == '/') {
+        snprintf(path, sizeof(path), "%s", guest);          // 既にホスト実パス
+    } else if (dirfd != AT_FDCWD && guest[0] != '\0') {
+        // fd 基準で変換しなかったもの(名前 1 つ)。トレーサからは /proc/<pid>/fd 越しに届く。
+        if ((size_t)snprintf(path, sizeof(path), "/proc/%d/fd/%ld/%s", (int)pid, dirfd, guest) >=
+            sizeof(path))
+            return;
+    } else {
+        return;
+    }
+
+    int parent = 0;
+    switch (nr) {
+        case 56: {  // openat
+            unsigned long fl = regs->regs[2];
+            if (fl & O_PATH) return;
+            int acc = (int)(fl & O_ACCMODE);
+            int need = (acc == O_RDONLY) ? R_OK : (acc == O_WRONLY) ? W_OK : (R_OK | W_OK);
+            if (fl & O_TRUNC) need |= W_OK;
+            if (access(path, need) == 0) return;
+            if (errno == ENOENT && (fl & O_CREAT)) { parent = 1; break; }
+            if (errno != EACCES) return;
+            dac_grant(cfg, st, path,
+                      (mode_t)(((need & R_OK) ? S_IRUSR : 0) | ((need & W_OK) ? S_IWUSR : 0)));
+            return;
+        }
+        case 45:    // truncate
+            if (access(path, W_OK) != 0 && errno == EACCES) dac_grant(cfg, st, path, S_IWUSR);
+            return;
+        case 48: case 439: {  // faccessat: 読み書きの可否だけを聞かれたら、root は常に可
+            int m = (int)regs->regs[2];
+            struct stat sb;
+            if (m == 0 || (m & X_OK)) return;
+            if (access(path, m) == 0 || errno != EACCES) return;
+            if (stat(path, &sb) == 0 && sb.st_uid == cfg->real_uid &&
+                (S_ISREG(sb.st_mode) || S_ISDIR(sb.st_mode)))
+                st->dac_access = 1;
+            return;
+        }
+        default:    // unlinkat / mkdirat / mknodat / symlinkat / renameat: 親フォルダへ書く
+            parent = 1;
+            break;
+    }
+    if (parent) {
+        size_t l = strlen(path);
+        while (l > 1 && path[l - 1] == '/') path[--l] = '\0';
+        char *sl = strrchr(path, '/');
+        if (!sl || sl == path) return;
+        *sl = '\0';
+        if (access(path, W_OK | X_OK) != 0 && errno == EACCES)
+            dac_grant(cfg, st, path, S_IWUSR | S_IXUSR);
+    }
+}
+
 static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_pt_regs *regs) {
     long nr = (long)regs->regs[8];
     if (nr == 200 || nr == 203) { maybe_rewrite_sockaddr(cfg, pid, regs); return; }  // bind / connect
@@ -2614,6 +2957,7 @@ static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_
 
     struct sc_paths sp;
     if (!syscall_paths(nr, &sp)) return;
+    struct pid_state *dac_st = (cfg->fake_root && dac_wanted(nr)) ? state_lookup(pid) : NULL;
 
     // 各パス引数を host 実パスへ変換し、まとめてスタック下スクラッチに置く。
     char hosts[2][PATH_MAX_Z];
@@ -2637,6 +2981,7 @@ static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_
         if (g_trc_on)
             fprintf(g_trc, "[z2trc] xlat pid=%d nr=%ld guest='%s' rc=%d host='%s'\n",
                     pid, nr, guest, hrc, hrc == 0 ? hosts[hn] : "");
+        if (dac_st) dac_check(cfg, pid, dac_st, nr, regs, hrc == 0 ? hosts[hn] : NULL, guest, dirfd);
         if (hrc != 0)
             continue;
         hidx[hn] = pa->idx;
@@ -2795,6 +3140,7 @@ static const int kTraceSyscallsFakeroot[] = {
     209,                      // getsockopt(SO_PEERCRED): peer uid/gidを0へ
     211, 212,                 // sendmsg / recvmsg (AF_UNIX SCM_CREDENTIALS の uid/gid 偽装)
     129,                      // kill: 別アプリのプロセスへの EPERM を ESRCH(存在しない)へ
+    7,                        // fsetxattr: security.* / trusted.* の EPERM を成功へ(5/6 は base 側)
 };
 
 // トレースではなく ENOSYS で明示拒否する syscall。io_uring は submission ring 経由で
@@ -2983,6 +3329,7 @@ static int syscall_needs_exit(const struct config *cfg, const struct pid_state *
         case 143: case 144: case 145: case 146: case 147: case 149:
         case 151: case 152: case 159: case 54: case 55:
         case 52: case 53: return 1;  // 戻り値を 0(成功)へ(chmod/chown/set*id の EPERM 偽装)
+        case 5: case 6: case 7: return 1;  // *setxattr: security.* / trusted.* の EPERM を成功へ
         case 148: case 150: return 1;  // getresuid/getresgid: 出力先の 3 つを 0 に書き換える
         case 209: return st->aux_addr != 0;  // getsockopt(SO_PEERCRED): struct ucredを0へ
         case 129: return 1;  // kill: EPERM を ESRCH へ
@@ -3189,6 +3536,9 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
     if (get_regs(pid, &regs) != 0) { st->entry_nr = -1; return 0; }
     st->entry_nr = (long)regs.regs[8];
     st->as_pending = 0;
+    st->exec_err_to = 0;
+    st->dac_access = 0;
+    if (st->dac_n) dac_restore(st);   // 前回の exit を見られなかった分(通常は 0)
     if (as_limit_entry(cfg, pid, st, &regs)) return 1;
     st->aux_kind = PROC_FD_NONE;
     st->linkcopy_hit = -1;
@@ -3198,6 +3548,15 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
     // process_vm_readv=EPERM / PTRACE_PEEKDATA=EIO となり、bind(2) の sockaddr を
     // 翻訳できない。アプリ sandbox 内の userspace root ではトレーサが必須なため、
     // この指定だけ 1 へ書き換え、prctl 自体は成功させる (0.8.327)。
+    // PR_SET_NAME: 自分で付けた名前を /proc/<pid>/comm・stat・status の見せかけにも反映する。
+    // 見せかけは execve 時の名前を控えたものなので、放っておくと ps や top に古い名前が出続ける。
+    if (st->entry_nr == 167 && regs.regs[0] == PR_SET_NAME) {
+        char nm[TASK_COMM_LEN];
+        if (st->proc_comm[0] && regs.regs[1] &&
+            read_tracee_str(pid, regs.regs[1], nm, sizeof(nm)) >= 0 && nm[0])
+            snprintf(st->proc_comm, sizeof(st->proc_comm), "%s", nm);
+        return 0;
+    }
     if (st->entry_nr == 167 && regs.regs[0] == PR_SET_DUMPABLE && regs.regs[1] == 0) {
         regs.regs[1] = 1;
         set_regs(pid, &regs);
@@ -3304,6 +3663,8 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
     }
     st->aux_addr = aux;
     maybe_rewrite_path(cfg, pid, &regs);
+    // 権限ビットを戻す・errno を付け替える必要があるものは、必ず exit を見る。
+    if (st->dac_n || st->dac_access || st->exec_err_to) return 1;
     return syscall_needs_exit(cfg, st);
 }
 
@@ -3323,6 +3684,29 @@ static void fake_getres_on_exit(pid_t pid, const struct pid_state *st) {
 
 // syscall-exit 時の処理(戻り値・構造体の逆変換 / 偽装)。
 static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_state *st) {
+    if (st->dac_n) dac_restore(st);   // §dac: 一時的に足した権限ビットを戻す(以降の処理は続ける)
+    if (st->exec_err_to) {            // execve: 失敗の errno を本来のものへ付け替える
+        int from = st->exec_err_from, to = st->exec_err_to;
+        struct user_pt_regs r;
+        st->exec_err_to = 0;
+        if (get_regs(pid, &r) == 0) {
+            long ret = (long)r.regs[0];
+            if (ret < 0 && ret > -4096 && (from == 0 || ret == -from)) {
+                r.regs[0] = (unsigned long)(long)-to;
+                set_regs(pid, &r);
+            }
+        }
+        return;
+    }
+    if (st->dac_access) {             // faccessat: root なら読み書きは常に可
+        struct user_pt_regs r;
+        st->dac_access = 0;
+        if (get_regs(pid, &r) == 0 && (long)r.regs[0] == -EACCES) {
+            r.regs[0] = 0;
+            set_regs(pid, &r);
+        }
+        return;
+    }
     if (st->as_pending) { as_limit_exit(pid, st); return; }
     if (st->link_pending && st->entry_nr == 37) {  // linkat: 失敗ならコピー fallback で成功偽装
         linkat_exit(st, pid);
@@ -3353,6 +3737,36 @@ static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_
             fake_root_on_exit(pid, st->entry_nr, st->aux_addr, st->linkcopy_hit);
         }
     }
+}
+
+// chroot(2) の代わり。Android はアプリに chroot を許さない(SIGSYS)ので、そのプロセスが見る
+// rootfs を差し替えることで同じ結果にする(Z2ROOT_ROOTFS による切り替えと同じ仕組み。子へも
+// 引き継がれる)。bind(/proc・/dev・ホーム等)は切り替え後もそのまま見える。
+// これが無い間は ENOSYS を返しており、認証前の処理を空のフォルダへ閉じ込めるサーバー
+// (OpenSSH の sshd など)が接続のたびに落ち、`chroot <dir> <cmd>` も使えなかった。
+// 戻り値は syscall の戻り値(0 か -errno)。
+static long emulate_chroot(const struct config *cfg, pid_t pid, const struct user_pt_regs *regs) {
+    char g[PATH_MAX_Z], host[PATH_MAX_Z];
+    if (!regs->regs[0] || read_tracee_str(pid, regs->regs[0], g, sizeof(g)) < 0) return -EFAULT;
+    if (g[0] == '\0') return -ENOENT;
+    if (host_path_for(cfg, pid, g, 1, AT_FDCWD, host, sizeof(host)) != 0)
+        snprintf(host, sizeof(host), "%s", g);   // 既にホスト実パス
+    struct stat sb;
+    if (stat(host, &sb) != 0) return -errno;
+    if (!S_ISDIR(sb.st_mode)) return -ENOTDIR;
+    size_t l = strlen(host);
+    while (l > 1 && host[l - 1] == '/') host[--l] = '\0';
+    struct pid_state *st = state_for(pid);
+    if (!st) return -ENOMEM;
+    if (strcmp(host, cfg->rootfs) == 0) {
+        st->rootfs_idx = -1;                     // 既定の rootfs へ戻る
+    } else {
+        int idx = rootfs_intern(host);
+        if (idx < 0) return -ENOMEM;
+        st->rootfs_idx = idx;
+    }
+    rootfs_select(pid);
+    return 0;
 }
 
 // 再開ヘルパー。seccomp モードでは「exit 待ち(at_exit)」のときだけ PTRACE_SYSCALL、
@@ -3686,6 +4100,15 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                         z_resume(pid, seccomp_mode, state_for(pid), 0);
                         continue;
                     }
+                }
+                if (nr == 51 && cfg->fake_root) {   // chroot: rootfs の差し替えで代用する
+                    long cr = emulate_chroot(cfg, pid, &regs);
+                    regs.regs[0] = (unsigned long)cr;
+                    set_regs(pid, &regs);
+                    if (g_trc_on)
+                        fprintf(g_trc, "[z2trc] SIGSYS chroot -> %ld pid=%d\n", cr, pid);
+                    z_resume(pid, seccomp_mode, state_for(pid), 0);
+                    continue;
                 }
                 int priv = (nr == 143 || nr == 144 || nr == 145 || nr == 146 ||
                             nr == 147 || nr == 149 || nr == 151 || nr == 152 ||

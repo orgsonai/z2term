@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.24.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.25.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -921,6 +921,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.25 (versionCode 688), release candidate**: Fixes found by installing extra commands on each OS and exercising them. Arguments longer than 4095 bytes were cut short; scripts without a `#!` first line failed with "Permission denied"; root could not write read-only files or delete read-only folders (this stopped a package install half-way on Ubuntu); walking a folder tree by name saw the wrong contents for mounted-in folders (`/proc`, parts of the home folder); `chroot` was unavailable (so OpenSSH `sshd` dropped every connection).
 
 **0.9.24 (versionCode 687), release candidate**: Fixes for commands that did not work on any OS. `uptime` and `w` ended with "Cannot get system uptime" (Arch / Ubuntu); calling an Android command such as `/system/bin/ls` gave "Unknown command"; `/system/bin/pm` and `am` failed to start with "expected absolute path". `/proc/uptime`, `/proc/loadavg` and `/proc/version` can now be read.
 
