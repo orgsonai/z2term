@@ -3579,6 +3579,28 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             struct user_pt_regs regs;
             if (get_regs(pid, &regs) == 0) {
                 long nr = (long)regs.regs[8];
+                // accept(202): Android のフィルタは accept を弾く(bionic は accept4 しか使わない)
+                // が、musl / glibc の accept() は 202 を直接呼ぶ。ENOSYS を返すと、接続を待つ
+                // プログラムが軒並み動かない(待ち受けの常駐プロセスが空回りする・すぐ落ちる)。
+                // 同じ引数の accept4(242, flags=0) に書き換え、svc 命令をもう一度実行させる。
+                // seccomp の TRAP は syscall を実行せず引数を巻き戻して止めるので、x0〜x2 は
+                // 元の引数のまま、pc は svc の次を指している。
+                // ⚠ LD_PRELOAD のシム(libz2accept.so)も同じ橋渡しをするが、環境変数を引き継がない
+                // 入口(SSH のセッション・env を消して起動するプログラム・静的リンク)には届かない。
+                if (nr == 202) {
+                    unsigned int insn = 0;
+                    if (read_tracee_mem(pid, (unsigned long)regs.pc - 4, &insn, 4) == 0 &&
+                        insn == 0xd4000001u /* svc #0 */) {
+                        regs.regs[8] = 242;
+                        regs.regs[3] = 0;
+                        regs.pc -= 4;
+                        set_regs(pid, &regs);
+                        if (g_trc_on)
+                            fprintf(g_trc, "[z2trc] SIGSYS accept -> accept4 pid=%d\n", pid);
+                        z_resume(pid, seccomp_mode, state_for(pid), 0);
+                        continue;
+                    }
+                }
                 int priv = (nr == 143 || nr == 144 || nr == 145 || nr == 146 ||
                             nr == 147 || nr == 149 || nr == 151 || nr == 152 ||
                             nr == 159 || nr == 54  || nr == 55  || nr == 52  ||

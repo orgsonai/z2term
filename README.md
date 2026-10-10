@@ -86,7 +86,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.9.20 (versionCode 683), release candidate**: Ctrl+Z → `fg` no longer freezes a tab; `su` / `sudo` work on Ubuntu and Arch; `~/.local/bin` is on PATH out of the box; single-executable JS CLIs start on Alpine; hosts connect in a new tab. `useradd` and packages with hard links install correctly.
+**0.9.21 (versionCode 684), release candidate**: Ctrl+Z → `fg` no longer freezes a tab; `su` / `sudo` work on Ubuntu and Arch; `~/.local/bin` is on PATH out of the box; single-executable JS CLIs start on Alpine; hosts connect in a new tab. `useradd` and packages with hard links install correctly. `tmux` / `gpg` work over SSH.
 
 **0.9.17 (versionCode 680), release candidate**: More symbols from conversion (きごう lists them all; ①②, ♡, ✓, αβ, ㎝ and more by reading).
 

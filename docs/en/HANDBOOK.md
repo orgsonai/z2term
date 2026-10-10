@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.20.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.21.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -922,7 +922,7 @@ when a `z2-when` rule fired **without opening the app**.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
 
-**0.9.20 (versionCode 683), release candidate**: Fixes for things that tended to hang on every OS. A job stopped with Ctrl+Z now comes back with `fg` instead of freezing the tab; `su` / `sudo` no longer fail with "System error" (Ubuntu, Arch); pipe writers that never finished and `trap` handlers that were never called are fixed. Commands installed into `~/.local/bin` can be run by name with no setup. On Alpine, CLIs that embed their JavaScript in a single executable now start. Connecting from "Connections" opens a new tab instead of replacing the current one. Adding users (`useradd`, `passwd` and friends) and installing packages that contain hard links (such as `tzdata` on Alpine) now work too.
+**0.9.21 (versionCode 684), release candidate**: Fixes for things that tended to hang on every OS. A job stopped with Ctrl+Z now comes back with `fg` instead of freezing the tab; `su` / `sudo` no longer fail with "System error" (Ubuntu, Arch); pipe writers that never finished and `trap` handlers that were never called are fixed. Commands installed into `~/.local/bin` can be run by name with no setup. On Alpine, CLIs that embed their JavaScript in a single executable now start. Connecting from "Connections" opens a new tab instead of replacing the current one. Adding users (`useradd`, `passwd` and friends) and installing packages that contain hard links (such as `tzdata` on Alpine) now work too. Programs that wait for connections (`tmux`, encrypting with `gpg` and so on) now also work when you log in over SSH.
 
 **0.9.17 (versionCode 680), release candidate**: More symbols are available from conversion. Typing きごう now lists every symbol in the dictionary instead of stopping partway, and adds symbols the dictionary lacked, such as ①②, ♡, ✓, αβ and ㎝. They can also be reached by reading: まる → ①②…, はーと → ♡, ちぇっく → ✓, ぎりしゃ → αβγ…, たんい → ㎝㎏…. Dictionary words that exactly match the reading are always listed in full, however many candidates there are.
 
