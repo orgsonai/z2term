@@ -8,10 +8,11 @@
     <string name="process_text_replace">取代所選文字</string>
     <string name="process_text_too_large">支援不含NUL、最大64 KiB的文字。</string>
     <string name="workspace_title">工作階段配置</string>
-    <string name="workspace_hint">選取並排顯示的分頁。點按窗格選擇輸入目標，拖曳分隔線調整大小。長按窗格標題並拖向另一個窗格即可互換，點兩下標題則只顯示該分頁。</string>
+    <string name="workspace_hint">選取並排顯示的分頁。點按窗格選擇輸入目標，拖曳分隔線調整大小。長按窗格標題並拖向另一個窗格即可互換，點按標題右端的按鈕（或點兩下標題）則只顯示該分頁。</string>
     <string name="workspace_vertical">上下</string>
     <string name="workspace_horizontal">左右</string>
     <string name="workspace_need_two">請先再開啟一個終端或GUI分頁。</string>
+    <string name="workspace_maximize">僅顯示此分頁</string>
     <string name="workspace_single">返回單窗格</string>
     <string name="workspace_external_hint">將目前分頁顯示在外接螢幕上。手機可控制該分頁或顯示其他分頁。</string>
     <string name="workspace_no_display">沒有可用的外接螢幕。</string>

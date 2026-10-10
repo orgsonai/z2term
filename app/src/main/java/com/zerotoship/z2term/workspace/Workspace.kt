@@ -13,8 +13,11 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -107,16 +110,19 @@ internal object Workspace {
             val target = swapArmed && !dragged
             Column(childModifier.border(if (target) 3.dp else 1.dp,
                 if (id == active.id || target || dragged) ZtsGreen else ZtsBorder)) {
+                // Showing only this tab: one place for the title's double-tap and its button.
+                val showAlone = {
+                    Workspace.layout = Workspace.layout.single(session.id)
+                    SessionManager.setActive(session.id)
+                }
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
                 Text((if (dragged) "⇅ " else "") + label, color = if (id == active.id) ZtsGreen else ZtsTextSecondary,
-                    maxLines = 1, modifier = Modifier.fillMaxWidth()
+                    maxLines = 1, modifier = Modifier.weight(1f)
                         .pointerInput(session.id) {
                             detectTapGestures(
                                 onTap = { SessionManager.setActive(session.id) },
                                 // Double-tap a title to show only that tab.
-                                onDoubleTap = {
-                                    Workspace.layout = Workspace.layout.single(session.id)
-                                    SessionManager.setActive(session.id)
-                                },
+                                onDoubleTap = { showAlone() },
                             )
                         }
                         .pointerInput(session.id) {
@@ -141,6 +147,15 @@ internal object Workspace {
                             )
                         }
                         .padding(6.dp))
+                // The same as the double-tap, without having to know the gesture. As tall as the
+                // title and wider than its glyph, so it is easy to hit without growing the title.
+                Box(Modifier.fillMaxHeight().width(44.dp).clickable(
+                        onClickLabel = stringResource(R.string.workspace_maximize), onClick = showAlone),
+                    contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.OpenInFull, stringResource(R.string.workspace_maximize),
+                        Modifier.size(16.dp), tint = if (id == active.id) ZtsGreen else ZtsTextSecondary)
+                }
+                }
                 Box(Modifier.fillMaxWidth().weight(1f)) {
                     if (id == active.id) content()
                     else {

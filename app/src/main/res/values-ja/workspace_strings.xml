@@ -8,10 +8,11 @@
     <string name="process_text_replace">選択文を置き換える</string>
     <string name="process_text_too_large">NULを含まないテキストを64 KiBまで扱えます。</string>
     <string name="workspace_title">セッションの配置</string>
-    <string name="workspace_hint">並べるタブを選びます。ペインをタップして入力先を選び、境界をドラッグして大きさを調整します。ペインの見出しを長押ししてもう一方へドラッグすると入れ替わり、見出しをダブルタップするとそのタブだけの 1 画面に戻ります。</string>
+    <string name="workspace_hint">並べるタブを選びます。ペインをタップして入力先を選び、境界をドラッグして大きさを調整します。ペインの見出しを長押ししてもう一方へドラッグすると入れ替わり、見出しの右端のボタン（または見出しのダブルタップ）で、そのタブだけの 1 画面に戻ります。</string>
     <string name="workspace_vertical">上下</string>
     <string name="workspace_horizontal">左右</string>
     <string name="workspace_need_two">先に端末またはGUIのタブをもう1枚開いてください。</string>
+    <string name="workspace_maximize">このタブだけを表示</string>
     <string name="workspace_single">1画面へ戻す</string>
     <string name="workspace_external_hint">今のタブを外部画面へ表示します。スマホではそのタブを操作するか、別のタブを表示できます。</string>
     <string name="workspace_no_display">利用できる外部画面がありません。</string>

@@ -8,10 +8,11 @@
     <string name="process_text_replace">替换所选文本</string>
     <string name="process_text_too_large">支持不含NUL、最大64 KiB的文本。</string>
     <string name="workspace_title">会话布局</string>
-    <string name="workspace_hint">选择并排显示的标签。点按窗格选择输入目标，拖动分隔线调整大小。长按窗格标题并拖向另一个窗格即可互换，双击标题则只显示该标签。</string>
+    <string name="workspace_hint">选择并排显示的标签。点按窗格选择输入目标，拖动分隔线调整大小。长按窗格标题并拖向另一个窗格即可互换，点按标题右端的按钮（或双击标题）则只显示该标签。</string>
     <string name="workspace_vertical">上下</string>
     <string name="workspace_horizontal">左右</string>
     <string name="workspace_need_two">请先再打开一个终端或GUI标签。</string>
+    <string name="workspace_maximize">仅显示此标签</string>
     <string name="workspace_single">返回单窗格</string>
     <string name="workspace_external_hint">将当前标签显示在外接屏幕上。手机可控制该标签或显示其他标签。</string>
     <string name="workspace_no_display">没有可用的外接屏幕。</string>

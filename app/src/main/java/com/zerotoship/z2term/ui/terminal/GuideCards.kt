@@ -161,57 +161,6 @@ enum class Guide(
         GuideStep(R.string.guide_step_edge_settings),
     )),
 
-    /**
-     * 充電やイヤホンの抜き差しに反応する。`z2-when` で待ち受ける形の見本。
-     *
-     * ⚠ **常駐スクリプトに戻さない** (0.8.338・利用者の判断)。0.8.337 まではログを 15 秒ごとに
-     * 見に行く形で、**反応が 10 秒近く遅れる**のを説明に書いていた。待ち受けはアプリ側が
-     * できる (`event:` はブロードキャストを受けたその場でルールを走らせる) ので、遅れも
-     * 待機中の電池消費も消える。⚠ **ワイルドカードで 2 本にまとめる** — 4 つのイベントに
-     * 4 本のルールを並べると、自動化タブが同じマクロで埋まる。
-     */
-    WATCH_BASIC("watch-basic", R.string.guide_desc_watch_basic, listOf(
-        GuideStep(R.string.guide_step_events_on),
-        GuideStep(R.string.guide_step_install, "z2-macro install watch-basic"),
-        GuideStep(
-            R.string.guide_step_when_charge,
-            "z2-when 'event:power_*' run ~/.z2term/macros/watch-basic.sh"
-        ),
-        GuideStep(
-            R.string.guide_step_when_headset,
-            "z2-when 'event:headset_*' run ~/.z2term/macros/watch-basic.sh"
-        ),
-        GuideStep(
-            R.string.guide_step_try_event,
-            "Z2_WHEN_EVENT=power_connected sh ~/.z2term/macros/watch-basic.sh"
-        ),
-    )),
-
-    /** 電池が減ったら知らせる。z2-when が起こす「使い切り」の形。 */
-    BATTERY_ALERT("battery-alert", R.string.guide_desc_battery_alert, listOf(
-        GuideStep(R.string.guide_step_events_on),
-        GuideStep(R.string.guide_step_install, "z2-macro install battery-alert"),
-        GuideStep(
-            R.string.guide_step_when,
-            "z2-when battery:below=%s run ~/.z2term/macros/battery-alert.sh",
-            askRes = R.string.guide_ask_battery_level,
-            askDefault = "20"
-        ),
-        GuideStep(R.string.guide_step_try, "sh ~/.z2term/macros/battery-alert.sh"),
-    )),
-
-    /** 毎朝きまった時刻に読み上げる。時刻トリガーの見本。 */
-    DAILY_REPORT("daily-report", R.string.guide_desc_daily_report, listOf(
-        GuideStep(R.string.guide_step_install, "z2-macro install daily-report"),
-        GuideStep(
-            R.string.guide_step_when,
-            "z2-when time:daily=%s run ~/.z2term/macros/daily-report.sh",
-            askRes = R.string.guide_ask_daily_time,
-            askDefault = "07:00"
-        ),
-        GuideStep(R.string.guide_step_try, "sh ~/.z2term/macros/daily-report.sh"),
-    )),
-
     /** 通知のワンタイムコードを自動でコピーする。 */
     OTP_CLIP("otp-clip", R.string.guide_desc_otp_clip, listOf(
         GuideStep(R.string.guide_step_notify_on),

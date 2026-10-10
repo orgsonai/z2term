@@ -933,9 +933,6 @@ Elige uno en las pestañas de la derecha.</string>
     <string name="settings_guides">Mostrar una guía</string>
     <string name="settings_guides_desc">Guías de funciones y de las macros de ejemplo incluidas. Elige una para poner sus pasos en tarjetas sobre la terminal. Al tocar una tarjeta se ejecuta esa única línea (los pasos que necesitan un valor tuyo lo piden antes); ✕ descarta los que no necesites.</string>
     <string name="guide_hint">Toca para ejecutar (primero se envía Ctrl-C, para que no se mezcle una línea a medio escribir) / ✕ para saltarte un paso</string>
-    <string name="guide_desc_watch_basic">reaccionar a la carga y a los auriculares justo cuando ocurre</string>
-    <string name="guide_desc_battery_alert">avisarme cuando la batería baje del % que yo elija</string>
-    <string name="guide_desc_daily_report">leerme la batería y la conexión cada mañana</string>
     <string name="guide_desc_otp_clip">copiar los códigos de un solo uso de las notificaciones</string>
     <string name="guide_desc_otp_sms">copiar los códigos de un solo uso de los SMS</string>
     <string name="guide_desc_unknown_call">notificación para copiar números de teléfono</string>
@@ -947,12 +944,8 @@ Elige uno en las pestañas de la derecha.</string>
     <string name="guide_step_help">Ver cómo se escribe (la sintaxis completa)</string>
     <string name="guide_step_list">Listar lo que hay registrado</string>
     <string name="guide_step_when">Registrar el disparador (Lista de comandos &gt; Automatización &gt; Reglas de automatización)</string>
-    <string name="guide_step_when_charge">Registrar el disparador de carga (Lista de comandos &gt; Automatización &gt; Reglas de automatización)</string>
-    <string name="guide_step_when_headset">Registrar también el disparador de los auriculares</string>
-    <string name="guide_step_try_event">Simular que acaba de empezar la carga y ejecutarla</string>
     <string name="guide_step_when_missed">Registrar una segunda para detectar también las llamadas perdidas</string>
     <string name="guide_step_try">Ejecutarla una vez para probarla</string>
-    <string name="guide_step_events_on">Ajustes -> activar \"Detección de eventos del sistema\"</string>
     <string name="guide_step_notify_on">Ajustes -> activar \"Detección de notificaciones\" + conceder el acceso a las notificaciones del sistema</string>
     <string name="guide_step_sms_on">Ajustes -> activar \"Detección de SMS\" + conceder el permiso de SMS del sistema</string>
     <string name="guide_step_needs_python">Necesita python3 (Alpine: apk add python3 / Debian, Kali: apt install -y python3 / Arch: pacman -S python)</string>
@@ -969,8 +962,6 @@ Elige uno en las pestañas de la derecha.</string>
     <string name="guide_ask_run">Ejecutar</string>
     <string name="guide_ask_feed_url">URL del feed que leer (de uno en uno; puedes añadir más después)</string>
     <string name="guide_ask_interval">Cada cuánto consultarlo (30m / 1h …; no bajes de 30 minutos)</string>
-    <string name="guide_ask_daily_time">A qué hora leerlo (HH:MM)</string>
-    <string name="guide_ask_battery_level" formatted="false">Avisarme por debajo de qué % de batería</string>
     <string name="guide_ask_qr_text">Texto o URL que convertir en un código QR</string>
     <string name="no_os_title">El shell Android está listo</string>
     <string name="no_os_action">Ajustes -> Entorno Linux: elige el SO que quieras e instálalo</string>

@@ -1007,9 +1007,6 @@ Pick one from the tabs on the right.</string>
     <string name="settings_guides">Show a guide</string>
     <string name="settings_guides_desc">Guides for features and the bundled sample macros. Pick one to put its steps on cards above the terminal. Tapping a card runs that one line (steps that need a value of your own ask first); ✕ drops the ones you do not need.</string>
     <string name="guide_hint">Tap to run (Ctrl-C first, so a half-typed line cannot mix in) / ✕ to skip a step</string>
-    <string name="guide_desc_watch_basic">react to charging and headsets, right as it happens</string>
-    <string name="guide_desc_battery_alert">warn me when the battery drops below a % I pick</string>
-    <string name="guide_desc_daily_report">read out battery and connection every morning</string>
     <string name="guide_desc_otp_clip">copy one-time codes from notifications</string>
     <string name="guide_desc_otp_sms">copy one-time codes from SMS</string>
     <string name="guide_desc_unknown_call">copy phone numbers from call notifications</string>
@@ -1021,12 +1018,8 @@ Pick one from the tabs on the right.</string>
     <string name="guide_step_help">See how to write it (the full syntax)</string>
     <string name="guide_step_list">List what is registered</string>
     <string name="guide_step_when">Register the trigger (Command list &gt; Automation &gt; Automation rules)</string>
-    <string name="guide_step_when_charge">Register the charging trigger (Command list &gt; Automation &gt; Automation rules)</string>
-    <string name="guide_step_when_headset">Register the headset trigger too</string>
-    <string name="guide_step_try_event">Pretend charging just started and run it</string>
     <string name="guide_step_when_missed">Register a second one to catch missed calls too</string>
     <string name="guide_step_try">Run it once to try it</string>
-    <string name="guide_step_events_on">Settings -> turn on "System event detection"</string>
     <string name="guide_step_notify_on">Settings -> turn on "Notification detection" + grant OS notification access</string>
     <string name="guide_step_sms_on">Settings -> turn on "SMS detection" + grant the OS SMS permission</string>
     <string name="guide_step_needs_python">Needs python3 (Alpine: apk add python3 / Debian, Kali: apt install -y python3 / Arch: pacman -S python)</string>
@@ -1043,8 +1036,6 @@ Pick one from the tabs on the right.</string>
     <string name="guide_ask_run">Run</string>
     <string name="guide_ask_feed_url">Feed URL to read (one at a time; you can add more later)</string>
     <string name="guide_ask_interval">How often to poll (30m / 1h …; do not go below 30 minutes)</string>
-    <string name="guide_ask_daily_time">What time to read it out (HH:MM)</string>
-    <string name="guide_ask_battery_level" formatted="false">Warn me below what battery %</string>
     <string name="guide_ask_qr_text">Text or URL to turn into a QR code</string>
 
     <!-- Shown when no Linux OS is installed at all (the state every fresh install starts in). -->

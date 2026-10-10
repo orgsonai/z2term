@@ -8,10 +8,11 @@
     <string name="process_text_replace">선택한 텍스트 바꾸기</string>
     <string name="process_text_too_large">NUL이 없는 텍스트를 최대 64 KiB까지 처리합니다.</string>
     <string name="workspace_title">세션 배치</string>
-    <string name="workspace_hint">함께 표시할 탭을 고르세요. 창을 눌러 입력 대상을 선택하고 경계를 끌어 크기를 조절합니다. 창 제목을 길게 누른 채 다른 창 쪽으로 끌면 서로 바뀌고, 제목을 두 번 누르면 그 탭만 한 화면으로 표시합니다.</string>
+    <string name="workspace_hint">함께 표시할 탭을 고르세요. 창을 눌러 입력 대상을 선택하고 경계를 끌어 크기를 조절합니다. 창 제목을 길게 누른 채 다른 창 쪽으로 끌면 서로 바뀌고, 제목 오른쪽 끝의 버튼(또는 제목을 두 번 누르기)으로 그 탭만 한 화면으로 표시합니다.</string>
     <string name="workspace_vertical">위 / 아래</string>
     <string name="workspace_horizontal">왼쪽 / 오른쪽</string>
     <string name="workspace_need_two">터미널 또는 GUI 탭을 하나 더 여세요.</string>
+    <string name="workspace_maximize">이 탭만 표시</string>
     <string name="workspace_single">한 화면으로</string>
     <string name="workspace_external_hint">현재 탭을 외부 화면에 표시합니다. 휴대폰에서 조작하거나 다른 탭을 볼 수 있습니다.</string>
     <string name="workspace_no_display">사용 가능한 외부 화면이 없습니다.</string>

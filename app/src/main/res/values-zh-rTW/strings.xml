@@ -918,9 +918,6 @@
     <string name="settings_guides">顯示導引</string>
     <string name="settings_guides_desc">這些是功能和隨應用程式附帶的示例巨集的指引。點一下，開始使用之前的步驟就會以卡片的形式出現在終端機上方。點選卡片會執行那一行（需要填你自己的值的行會先詢問），不需要的行可以用 ✕ 去掉。</string>
     <string name="guide_hint">點選執行（會先用 Ctrl-C 丟掉打了一半的內容再發送）／ 不需要的行用 ✕</string>
-    <string name="guide_desc_watch_basic">在充電、插拔耳機的當下就做出反應</string>
-    <string name="guide_desc_battery_alert">電量低於我指定的 % 時通知我</string>
-    <string name="guide_desc_daily_report">每天早上定時播報電量和連線狀況</string>
     <string name="guide_desc_otp_clip">從通知裡複製一次性驗證碼</string>
     <string name="guide_desc_otp_sms">從簡訊裡複製一次性驗證碼</string>
     <string name="guide_desc_unknown_call">來電號碼複製通知</string>
@@ -932,12 +929,8 @@
     <string name="guide_step_help">查看用法（完整的寫法一覽）</string>
     <string name="guide_step_list">列出已經登記的內容</string>
     <string name="guide_step_when">註冊觸發條件（指令列表 → 自動化 → 自動化規則）</string>
-    <string name="guide_step_when_charge">註冊充電觸發條件（指令列表 → 自動化 → 自動化規則）</string>
-    <string name="guide_step_when_headset">把耳機的觸發條件也登記上</string>
-    <string name="guide_step_try_event">假裝剛開始充電，跑一次試試</string>
     <string name="guide_step_when_missed">如果也要記未接來電，就再登記一條</string>
     <string name="guide_step_try">先試跑一次</string>
-    <string name="guide_step_events_on">⚙設定 → 開啟“系統事件偵測”</string>
     <string name="guide_step_notify_on">⚙設定 → 開啟“通知偵測” ＋ 授予系統的“通知使用權”</string>
     <string name="guide_step_sms_on">⚙設定 → 開啟“簡訊偵測” ＋ 授予系統的接收簡訊權限</string>
     <string name="guide_step_needs_python">前提: python3（Alpine: apk add python3 ／ Debian、Kali: apt install -y python3 ／ Arch: pacman -S python）</string>
@@ -954,8 +947,6 @@
     <string name="guide_ask_run">執行</string>
     <string name="guide_ask_feed_url">想讀的訂閱源 URL（一次一個，之後想加多少都行）</string>
     <string name="guide_ask_interval">每隔多久去看一次（30m / 1h 等。不要短於 30 分鐘）</string>
-    <string name="guide_ask_daily_time">在幾點播報（HH:MM）</string>
-    <string name="guide_ask_battery_level" formatted="false">電量低於百分之幾時通知</string>
     <string name="guide_ask_qr_text">想做成二維條碼的文字或 URL</string>
     <string name="no_os_title">Android Shell已就緒</string>
     <string name="no_os_action">⚙設定 → Linux 環境，選一個想用的系統裝上</string>

@@ -918,9 +918,6 @@
     <string name="settings_guides">显示向导</string>
     <string name="settings_guides_desc">这些是功能和随应用附带的示例宏的指引。点一下，开始使用之前的步骤就会以卡片的形式出现在终端上方。点击卡片会执行那一行（需要填你自己的值的行会先询问），不需要的行可以用 ✕ 去掉。</string>
     <string name="guide_hint">点击执行（会先用 Ctrl-C 丢掉打了一半的内容再发送）／ 不需要的行用 ✕</string>
-    <string name="guide_desc_watch_basic">在充电、插拔耳机的当下就做出反应</string>
-    <string name="guide_desc_battery_alert">电量低于我指定的 % 时通知我</string>
-    <string name="guide_desc_daily_report">每天早上定时播报电量和连接状况</string>
     <string name="guide_desc_otp_clip">从通知里复制一次性验证码</string>
     <string name="guide_desc_otp_sms">从短信里复制一次性验证码</string>
     <string name="guide_desc_unknown_call">来电号码复制通知</string>
@@ -932,12 +929,8 @@
     <string name="guide_step_help">查看用法（完整的写法一览）</string>
     <string name="guide_step_list">列出已经登记的内容</string>
     <string name="guide_step_when">注册触发条件（命令列表 → 自动化 → 自动化规则）</string>
-    <string name="guide_step_when_charge">注册充电触发条件（命令列表 → 自动化 → 自动化规则）</string>
-    <string name="guide_step_when_headset">把耳机的触发条件也登记上</string>
-    <string name="guide_step_try_event">假装刚开始充电，跑一次试试</string>
     <string name="guide_step_when_missed">如果也要记未接来电，就再登记一条</string>
     <string name="guide_step_try">先试跑一次</string>
-    <string name="guide_step_events_on">⚙设置 → 打开“系统事件检测”</string>
     <string name="guide_step_notify_on">⚙设置 → 打开“通知检测” ＋ 授予系统的“通知使用权”</string>
     <string name="guide_step_sms_on">⚙设置 → 打开“短信检测” ＋ 授予系统的接收短信权限</string>
     <string name="guide_step_needs_python">前提: python3（Alpine: apk add python3 ／ Debian、Kali: apt install -y python3 ／ Arch: pacman -S python）</string>
@@ -954,8 +947,6 @@
     <string name="guide_ask_run">执行</string>
     <string name="guide_ask_feed_url">想读的订阅源 URL（一次一个，之后想加多少都行）</string>
     <string name="guide_ask_interval">每隔多久去看一次（30m / 1h 等。不要短于 30 分钟）</string>
-    <string name="guide_ask_daily_time">在几点播报（HH:MM）</string>
-    <string name="guide_ask_battery_level" formatted="false">电量低于百分之几时通知</string>
     <string name="guide_ask_qr_text">想做成二维码的文字或 URL</string>
     <string name="no_os_title">Android Shell已就绪</string>
     <string name="no_os_action">⚙设置 → Linux 环境，选一个想用的系统装上</string>

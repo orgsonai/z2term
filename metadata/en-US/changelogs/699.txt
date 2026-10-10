@@ -1,0 +1,6 @@
+1.0.1
+
+- Each pane title in the split view now has an expand button at its right end.
+  Press it to go back to one pane showing just that tab.
+- Removed watch-basic / battery-alert / daily-report from "Show a guide" in Settings
+  (the macros can still be installed with z2-macro install).

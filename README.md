@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**1.0.1 (versionCode 699)**: Each pane title in the split view now has an expand button at its right end. Press it to go back to one pane showing just that tab (the same as double-tapping the title, without long-pressing the GUI button and choosing "One pane"). Also, `watch-basic`, `battery-alert` and `daily-report` were removed from the list under ⚙ Settings › "Show a guide" (the macros themselves can still be installed with `z2-macro install <name>`).
+
 **1.0.0 (versionCode 698), stable**: The first stable release. One change since 0.9.34: running a file that has no execute bit (mode 644 and the like) directly now fails with "Permission denied", as on Linux (it used to start; `chmod +x` makes it runnable). Files in places where the execute bit cannot be set, such as shared storage (`/sdcard`), can still be run directly as before.
 
 **0.9.34 (versionCode 697), release candidate**: After switching from root to another user you can get back to root with `su` / `sudo` again (0.9.33 made the switched process really appear as that user, which left no way back). On an OS that is already installed this takes effect once `su` / `sudo` are reinstalled (e.g. `pacman -S sudo util-linux` on Arch). Using them as root works as before without reinstalling.

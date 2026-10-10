@@ -4,7 +4,7 @@
 
 ## Split sessions
 
-Open two terminal, local GUI, VNC or RDP tabs. In the tab strip, **long-press the GUI (🖥) button next to +**, choose **Top / bottom** or **Left / right**, then the other tab. Tap a pane to focus it; the first tap only changes focus. The green border identifies the input target. Drag the divider to adjust the ratio. **Long-press GUI → One pane** restores one view. Long-press a pane title and drag it toward the other pane; release once that pane's border thickens to swap them. Focus and share of the space move with each tab (0.9.1). **Double-tap a title** to show only that tab (0.9.1).
+Open two terminal, local GUI, VNC or RDP tabs. In the tab strip, **long-press the GUI (🖥) button next to +**, choose **Top / bottom** or **Left / right**, then the other tab. Tap a pane to focus it; the first tap only changes focus. The green border identifies the input target. Drag the divider to adjust the ratio. **Long-press GUI → One pane** restores one view. Long-press a pane title and drag it toward the other pane; release once that pane's border thickens to swap them. Focus and share of the space move with each tab (0.9.1). Press the **expand button** at the right end of a pane title to show only that tab (1.0.1); **double-tapping the title** does the same (0.9.1).
 
 A short press still opens GUI. **Settings → Tips** also explains the gesture. Split panes omit the GUI-specific outer frame and padding and keep their dimensions when focus changes between GUI and terminal. Keyboard visibility is shared.
 

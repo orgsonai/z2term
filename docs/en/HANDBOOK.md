@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.0.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.1.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -278,10 +278,9 @@ Settings > Maintenance > **"Show a guide"** puts the steps for using a bundled s
 - The order they appear in is the order to follow. **Tapping a card runs that one line** (anything half-typed is thrown away with `Ctrl-C` first, so nothing mixes in).
 - **The ✕ on the right drops a step you do not need** without sending it. When every card is gone the guide closes.
 - Cards without a command (turn a setting on, install a prerequisite package) are just to read; tapping one removes it.
-- Each row is two lines: **the macro's name and what it does**. Available: `watch-basic` (react to charging and headsets) / `battery-alert` (warn me when the battery drops below a % I pick) / `daily-report` (read out battery and connection every morning) / `otp-clip` (copy one-time codes from notifications) / `otp-sms` (copy one-time codes from SMS) / `unknown-call` (copy phone numbers from call notifications) / `remind` (remind me with a notification) / `rss` (get notified about new feed items and read them) / `qr` (hand something over as a QR code) / `md` (read Markdown).
+- Each row is two lines: **the macro's name and what it does**. Available: `otp-clip` (copy one-time codes from notifications) / `otp-sms` (copy one-time codes from SMS) / `unknown-call` (copy phone numbers from call notifications) / `remind` (remind me with a notification) / `rss` (get notified about new feed items and read them) / `qr` (hand something over as a QR code) / `md` (read Markdown). `watch-basic`, `battery-alert` and `daily-report` were removed from the guide in 1.0.1 (the macros can still be installed with `z2-macro install <name>`).
 - `edge-workspace` creates one sample panel with Notepad, Translation and Terminal tabs. The guide includes manual translation-command installation and bundled macro setup. [Steps](EDGE-MACRO-FORMS.md#one-sample-with-three-tabs).
-- **A step that needs a value of yours asks first** (feed URL, polling interval, time of day, battery threshold, the text for a QR). It will not send an empty answer — this keeps the example values from being registered as they are.
-- ⚠ **`watch-basic` registers two triggers** (`event:power_*` for charging, `event:headset_*` for headsets). The app does the waiting, so it runs the moment you plug or unplug — no resident server needed. The last step is `Z2_WHEN_EVENT=power_connected sh …`, which **pretends charging just started** so you can check it.
+- **A step that needs a value of yours asks first** (feed URL, polling interval, the text for a QR). It will not send an empty answer — this keeps the example values from being registered as they are.
 - Chosen from a GUI tab, the guide opens **after switching to a terminal tab** (it needs somewhere to type).
 
 ### Stopping when you have used too much data (0.8.388)
@@ -958,6 +957,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**1.0.1 (versionCode 699)**: Each pane title in the split view now has an expand button at its right end. Press it to go back to one pane showing just that tab (the same as double-tapping the title, without long-pressing the GUI button and choosing "One pane"). Also, `watch-basic`, `battery-alert` and `daily-report` were removed from the list under ⚙ Settings › "Show a guide" (the macros themselves can still be installed with `z2-macro install <name>`).
 
 **1.0.0 (versionCode 698), stable**: The first stable release. One change since 0.9.34: running a file that has no execute bit (mode 644 and the like) directly now fails with "Permission denied", as on Linux (it used to start; `chmod +x` makes it runnable). Files in places where the execute bit cannot be set, such as shared storage (`/sdcard`), can still be run directly as before.
 

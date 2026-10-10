@@ -917,9 +917,6 @@
     <string name="settings_guides">안내 보기</string>
     <string name="settings_guides_desc">기능과 함께 실은 예제 매크로의 안내입니다. 하나를 고르면 사용하기까지의 절차가 터미널 위에 카드로 놓입니다. 카드를 누르면 그 한 줄이 실행되고(자기 값이 필요한 절차는 먼저 묻습니다), ✕로 필요 없는 것을 지웁니다.</string>
     <string name="guide_hint">누르면 실행 (먼저 Ctrl-C를 보내 쓰다 만 줄이 섞이지 않게 합니다) / ✕로 절차 건너뛰기</string>
-    <string name="guide_desc_watch_basic">충전과 헤드셋에 그 자리에서 반응하기</string>
-    <string name="guide_desc_battery_alert">배터리가 정한 % 밑으로 내려가면 알려 주기</string>
-    <string name="guide_desc_daily_report">아침마다 배터리와 연결 상태를 읽어 주기</string>
     <string name="guide_desc_otp_clip">알림에서 일회용 코드 복사하기</string>
     <string name="guide_desc_otp_sms">SMS에서 일회용 코드 복사하기</string>
     <string name="guide_desc_unknown_call">전화번호 복사 알림</string>
@@ -931,12 +928,8 @@
     <string name="guide_step_help">쓰는 법 보기 (전체 문법)</string>
     <string name="guide_step_list">등록된 것 보기</string>
     <string name="guide_step_when">트리거 등록 (명령 목록 &gt; 자동화 &gt; 자동화 규칙)</string>
-    <string name="guide_step_when_charge">충전 트리거 등록 (명령 목록 &gt; 자동화 &gt; 자동화 규칙)</string>
-    <string name="guide_step_when_headset">헤드셋 트리거도 등록</string>
-    <string name="guide_step_try_event">방금 충전이 시작된 셈 치고 실행해 보기</string>
     <string name="guide_step_when_missed">부재중 전화도 잡도록 하나 더 등록</string>
     <string name="guide_step_try">한 번 실행해 보기</string>
-    <string name="guide_step_events_on">설정 -> "시스템 이벤트 감지" 켜기</string>
     <string name="guide_step_notify_on">설정 -> "알림 감지" 켜기 + OS의 알림 접근 허용</string>
     <string name="guide_step_sms_on">설정 -> "SMS 감지" 켜기 + OS의 SMS 권한 허용</string>
     <string name="guide_step_needs_python">python3가 필요합니다 (Alpine: apk add python3 / Debian, Kali: apt install -y python3 / Arch: pacman -S python)</string>
@@ -953,8 +946,6 @@
     <string name="guide_ask_run">실행</string>
     <string name="guide_ask_feed_url">읽을 피드 URL (하나씩. 나중에 더 넣을 수 있습니다)</string>
     <string name="guide_ask_interval">얼마나 자주 볼지 (30m / 1h …. 30분보다 짧게는 하지 마세요)</string>
-    <string name="guide_ask_daily_time">몇 시에 읽어 줄지 (HH:MM)</string>
-    <string name="guide_ask_battery_level" formatted="false">배터리 몇 % 밑에서 알릴지</string>
     <string name="guide_ask_qr_text">QR 코드로 만들 글이나 URL</string>
     <string name="no_os_title">Android 셸을 사용할 수 있습니다</string>
     <string name="no_os_action">설정 -> Linux 환경: 원하는 OS를 골라 설치하세요</string>
