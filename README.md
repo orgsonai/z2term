@@ -467,7 +467,7 @@ gaps can't be caught by command tests — verify those at the seccomp-filter lev
 
 ## License
 
-The license of the app itself (`app/src/main/java/com/zerotoship/z2term/**`) is **GPL-3.0**.
+Everything written for this project — the app (`app/src/main/java/**`), the native code including the execution engine (`app/src/main/cpp/**`), and the scripts and docs in this repository — is licensed under **GPL-3.0-only**.
 Copyright (c) 2026 Zero to Ship. Corresponding source (GPL v3 §6): <https://github.com/orgsonai/z2term> (full text in the root `LICENSE`).
 Bundled third-party notices are available from Settings → OSS licenses.
 
@@ -475,6 +475,8 @@ Bundled third-party notices are available from Settings → OSS licenses.
 
 | Bundled item | License | How to get the corresponding source |
 |---|---|---|
+| ZXing Core 3.5.3 | Apache-2.0 | [zxing/zxing 3.5.3](https://github.com/zxing/zxing/tree/zxing-3.5.3) |
+| ZXing Android Embedded 4.3.0 | Apache-2.0 | [journeyapps/zxing-android-embedded v4.3.0](https://github.com/journeyapps/zxing-android-embedded/tree/v4.3.0) |
 | AndroidX / Jetpack Compose | Apache-2.0 | [Android Open Source Project](https://android.googlesource.com/) |
 | Kotlin Standard Library / Coroutines 1.7.3 | Apache-2.0 | [JetBrains/kotlin](https://github.com/JetBrains/kotlin) / [kotlinx.coroutines 1.7.3](https://github.com/Kotlin/kotlinx.coroutines/tree/1.7.3) |
 | JSch / JZlib / jBCrypt | BSD-3-Clause / ISC | [mwiede/jsch](https://github.com/mwiede/jsch) / [ymnk/jzlib](https://github.com/ymnk/jzlib) / [jBCrypt](https://www.mindrot.org/projects/jBCrypt/) |

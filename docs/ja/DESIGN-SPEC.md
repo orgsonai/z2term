@@ -3324,7 +3324,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 
 ### 6.4 SSH サーバ (PC → 端末) ※dropbear
 
-- **OpenSSH `/usr/sbin/sshd` は proot 不可** (privsep 破綻 + 新 OpenSSH は `UsePrivilegeSeparation` で起動不可)。→ **dropbear** を使用。
+- **OpenSSH `/usr/sbin/sshd` は proot 不可** (privsep 破綻 + 新 OpenSSH は `UsePrivilegeSeparation` で起動不可)。→ **dropbear** を使用。(旧エンジン proot 時代の記述。現在の z2root では 0.9.33 から OpenSSH の `sshd` にも接続できる。同梱・既定は引き続き dropbear)
 - 端末で **`sshd`** = `/usr/local/sbin/sshd` ラッパー (ProotLauncher が毎起動配置、PATH 優先)。`dropbearBootstrapScript` が本体。
   - ポート優先順: `-p` / `-o Port=N` 引数 → `/etc/ssh/sshd_config` の `Port` → 既定 2222。
   - `-f <config>` / `-D`(前景) / `-t`(設定確認) 対応。特権ポート(<1024)は proot で bind 不可を警告。
@@ -3798,7 +3798,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### 10.1 修正不能な制約
 
-**PRoot のカーネル特権制約 (修正不能)**: root に見えても `ip`/`nmap -sS`/`ping`/特権ポート bind は不可。代替は `nmap -sT` 等。OpenSSH sshd も privsep 破綻のため dropbear を使う。
+**PRoot のカーネル特権制約 (修正不能)**: root に見えても `ip`/`nmap -sS`/`ping`/特権ポート bind は不可。代替は `nmap -sT` 等。OpenSSH sshd も privsep 破綻のため dropbear を使う (旧エンジン proot 時代の記述。z2root では 0.9.33 から OpenSSH の `sshd` にも接続できる)。
 
 **z2root の入れ子起動が不可 (現状の実装制約)**: z2root の下でもう 1 つ z2root を起動すると、引数解析に到達する前に SIGSEGV で落ちる (rootfs 指定の有無・`-r /` でも同じ)。外側 z2root は execve をフックして自前ローダー経由で対象を map するが、z2root 自身は **static PIE** のためこの経路で展開できない。`Z2ROOT_NO_LOADER=1` は内側プロセスの挙動しか変えないので回避にならない。帰結として「シェルから別 rootfs のコンテナを起動する」形は取れない。複数 rootfs を同時に扱うなら、入れ子ではなく **1 つの z2root が tracee ごとにrootfs を持つ** 形にするしかない。**0.8.416 でそうした** — 下の 「tracee ごとの rootfs」を参照。
 

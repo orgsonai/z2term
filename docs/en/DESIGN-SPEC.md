@@ -3387,7 +3387,7 @@ into "close" — you would not be able to delete while the pad is open.
 
 ### 6.4 SSH server (PC → terminal) — dropbear
 
-- **OpenSSH `/usr/sbin/sshd` doesn't work under proot** (privsep breaks + new OpenSSH won't start with `UsePrivilegeSeparation`). → uses **dropbear**.
+- **OpenSSH `/usr/sbin/sshd` doesn't work under proot** (privsep breaks + new OpenSSH won't start with `UsePrivilegeSeparation`). → uses **dropbear**. (Written for the former proot engine. With the current z2root, OpenSSH `sshd` also accepts connections since 0.9.33; dropbear remains the bundled default.)
 - In the terminal, **`sshd`** = the `/usr/local/sbin/sshd` wrapper (placed by ProotLauncher on every launch, PATH priority). `dropbearBootstrapScript` is the body.
   - Port priority: `-p` / `-o Port=N` arg → `Port` in `/etc/ssh/sshd_config` → default 2222.
   - Supports `-f <config>` / `-D` (foreground) / `-t` (config check). Warns that privileged ports (<1024) can't be bound under proot.
@@ -3896,7 +3896,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### 10.1 Unfixable constraints
 
-**PRoot kernel-privilege constraints (unfixable)**: even appearing as root, `ip`/`nmap -sS`/`ping`/privileged-port bind are unavailable. Alternatives include `nmap -sT`. OpenSSH sshd also breaks privsep, so dropbear is used.
+**PRoot kernel-privilege constraints (unfixable)**: even appearing as root, `ip`/`nmap -sS`/`ping`/privileged-port bind are unavailable. Alternatives include `nmap -sT`. OpenSSH sshd also breaks privsep, so dropbear is used (written for the former proot engine; with z2root, OpenSSH `sshd` accepts connections since 0.9.33).
 
 **Nested z2root launch is impossible (current implementation constraint)**: starting a second z2root underneath a running one crashes with SIGSEGV before argument parsing is reached (with or without `-r`, including `-r /`). The outer z2root hooks execve and maps the target through its own loader, but z2root itself is a **static PIE** and cannot be mapped that way. `Z2ROOT_NO_LOADER=1` only changes the inner process's behaviour, so it is not a workaround. Consequently "launch a container on another rootfs from the shell" is not achievable. Handling multiple rootfs at once therefore means **one z2root holding a per-tracee rootfs** rather than nesting. **0.8.416 does exactly that** — see "Per-tracee rootfs" below.
 

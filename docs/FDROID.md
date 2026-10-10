@@ -1,6 +1,6 @@
 # Z2Term F-Droid 提出手順
 
-最終更新: 2026-09-28
+最終更新: 2026-10-11
 
 F-Droid は「APK を受け取って配る」ところではなく、**ソースから自分でビルドして配る**ところ。
 だから提出物は APK ではなく、`fdroiddata` という F-Droid 側のリポジトリに置く
@@ -105,9 +105,9 @@ F-Droid は**タグを指定してビルドする**ので、先にリリース�
 `docs/RELEASE.md` の通り。
 
 ```sh
-git tag v0.9.1
-git push origin v0.9.1
-git push github v0.9.1
+git tag v1.0.0
+git push origin v1.0.0
+git push github v1.0.0
 ```
 
 ⚠ **yml の `commit:` に書いたタグが GitHub に無いとビルドできない。**
@@ -147,15 +147,13 @@ done
 
 ### いま提出先に決めてあるタグ
 
-`metadata/com.zerotoship.z2term.yml` の `Builds:` は **0.9.1 (versionCode 664) /
-`commit: v0.9.1`** を指している (2026-09-27 に安定版の候補から提出する方針に変更。0.9.0 は
-タグを打たないまま 0.9.1 へ進んだので、候補の最初の公開は 0.9.1)。このタグは**まだ打っていない**ので、提出の前に
-上のとおり打って両方へ push する (打つと GitHub Actions が署名済み APK を作り、
-GitHub Release が公開される = 通常のリリースと同じ)。
+`metadata/com.zerotoship.z2term.yml` の `Builds:` は **1.0.0 (versionCode 698) /
+`commit: v1.0.0`** を指している (2026-10-11 に、候補の 0.9.x ではなく**最初の安定版から提出する**
+方針に決定)。このタグは**まだ打っていない**ので、提出の前に上のとおり打って両方へ push する
+(打つと GitHub Actions が署名済み APK を作り、GitHub Release が公開される = 通常のリリースと同じ)。
 
-更新内容 `metadata/{ja-JP,en-US}/changelogs/664.txt` は用意済み (いずれも 500 文字以内)。
-0.8.639 (647)・0.8.643 (651) 向けに書いた `647.txt` / `651.txt` はビルド定義から外れたので読まれない。
-下の §4 のビルド試験は 0.8.643 で通したもの。レシピは同じだが、提出前に 0.9.1 で通し直すと確実。
+更新内容 `metadata/{ja-JP,en-US}/changelogs/698.txt` は用意済み (いずれも 500 文字以内)。
+それ以前の版向けに書いた `647.txt` / `651.txt` / `664.txt` はビルド定義に載っていないので読まれない。
 
 ---
 
@@ -190,15 +188,22 @@ git push origin com.zerotoship.z2term
 
 F-Droid のビルドサーバーと同じ環境が Docker イメージで公開されている。
 **スマホ (Android の chroot) では Docker が動かないので、PC (Arch デスクトップ) で行う。**
-✅ **2026-09-23 に 0.8.643-alpha (651) で実施し、`BUILD SUCCESSFUL` まで通った**
-(PC の Docker、fdroidserver master)。§1 の対策 4 つ (署名設定の削除・NDK の受け渡し・
-scanner の除外・フォント検査の格下げ) はすべて実際のビルドで効いた。
+✅ **2026-10-11 に 1.0.0 (698) で実施し、`BUILD SUCCESSFUL` まで通った**
+(PC の Docker、fdroidserver master。タグを打つ前なので、下の注意のとおり `Repo:` をローカルの
+bare clone、`commit:` をコミットのハッシュに差し替えて試した。2026-09-23 の 0.8.643-alpha (651) に続く 2 回目)。
+§1 の対策 4 つ (署名設定の削除・NDK の受け渡し・scanner の除外・フォント検査の格下げ) は
+すべて実際のビルドで効いた。
 
-- prebuild 3 行が順に通り、z2root など 6 つの .so がソースから作られた
+- `fdroid lint` の指摘は、差し替えた `Repo:` に対する `git URLs must use https://` だけ (想定どおり)
+- prebuild 3 行が順に通り、z2root など 6 つの .so (`libz2root` / `libz2accept` / `libz2attach` /
+  `libz2android` / `libz2glycin` / `libz2usb`) がソースから作られた
 - scanner は jniLibs の .so 6 つと `kkc_matrix.bin` を「Ignoring」で通し、止まらなかった
-- フォント検査は `WARNING: [fonts] …` に格下げされ、ビルドは続いた
-- できた APK は未署名で `com.zerotoship.z2term` / 651 / 0.8.643-alpha、
-  `lib/arm64-v8a/libz2*.so` と `assets/kkc_matrix.bin` が入っている
+- Gradle は wrapper の `distributionUrl` から 9.3.1 が選ばれた
+- できた APK は未署名で `com.zerotoship.z2term` / 698 / 1.0.0、
+  `lib/arm64-v8a/libz2*.so` と `assets/kkc_matrix.bin` が入り、`assets/fonts/` は入っていない
+- ⚠ 1 回目の `--on-server` の実行で `SOURCE_DATE_EPOCH ('') must be a non-negative decimal integer`
+  が出るのは、ソースがまだ展開されていない状態で走るため (fdroidserver はビルド用フォルダの
+  git 履歴からこの値を作る)。2 回目の本番と同じビルドでは出ない
 
 ⚠ 手元で試すときの注意 (F-Droid 本番のビルドでは起きない):
 
@@ -252,8 +257,10 @@ fdroid build -v -l com.zerotoship.z2term            # 本番と同じビルド
 | アプリ内更新 (`z2-update`) | インストール元が `org.fdroid*` のときは**断って F-Droid 側へ誘導する** (`app/src/main/java/com/zerotoship/z2term/update/UpdateInstaller.kt` の `isManagedByStore`) |
 | `REQUEST_INSTALL_PACKAGES` を宣言している | ⚠ **ここは必ず先に説明を用意する。** 上のアプリ内更新のための宣言で、F-Droid から入れた版では経路ごと断る。落とすのは GitHub Releases の**自分自身の APK だけ**で、最後のインストールは利用者の 1 タップが要る (アプリが黙って入れ替える方法は Android に無い) |
 | 同梱バイナリ | 無し。実行エンジン z2root / z2accept / z2attach は毎ビルド、ソースから生成する |
-| 依存ライブラリ | AndroidX / Compose / DataStore / JSch (mwiede fork) / BouncyCastle / XZ。すべて FOSS で、Google Play Services や Firebase は入っていない |
-| フォント | `scripts/fetch-fonts.sh` が取ってくるもので git に入っていない。F-Droid ビルドでは**同梱しない** (端末の monospace へ自動フォールバック) |
+| 依存ライブラリ | AndroidX / Compose / DataStore / Kotlin 標準ライブラリ・Coroutines / JSch (mwiede fork) / BouncyCastle / XZ for Java / OkHttp・Okio / SMBJ (+ asn-one・MBassador・SLF4J API) / ZXing Core・ZXing Android Embedded / Guava ListenableFuture / JetBrains Annotations。取得元は `google()` と `mavenCentral()` だけ。すべて FOSS で、Google Play Services や Firebase は入っていない (一覧と版は `legal/OssComponents.kt`、実際に入るものは `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` で確かめられる) |
+| フォント | `scripts/fetch-fonts.sh` が取ってくるもので git に入っていない。F-Droid ビルドでは**同梱しない** (端末の monospace へ自動フォールバック)。アプリ内のライセンス一覧には 3 つのフォントも載ったままになる (GitHub 版と共通の一覧のため。載せ過ぎであって不足ではない) |
+| 権限 | `MANAGE_EXTERNAL_STORAGE` (Linux 側から共有ストレージを読み書きする)・`RECEIVE_SMS` (`z2-when` の SMS 着信イベント。本文は端末内のスクリプトへ渡すだけ)・`SYSTEM_ALERT_WINDOW` (エッジパネル)・`CAMERA` (QR の読み取り)・ユーザー補助サービス (操作自動化。利用者が設定で有効にしたときだけ)。いずれも送信先を持たず、解析・広告の SDK は入っていない |
+| 署名 | F-Droid は自分の鍵で署名するので、GitHub Releases の APK とは**署名が違う**。一方からもう一方へは上書きできない (入れ替えるときはバックアップ → アンインストール → 入れ直し → 復元)。公開されたら README と HANDBOOK のダウンロードの節にこの注意を足す |
 
 ---
 
