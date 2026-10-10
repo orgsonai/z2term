@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.22.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.23.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -493,7 +493,7 @@ It depends on which Linux is running inside.
 | Ubuntu / Kali | `apt update && apt install git vim` |
 | Arch | `pacman -Sy git vim` |
 
-You can switch distros in **⚙ Settings → Distro** (the first time triggers a download).
+You can pick a distro in **⚙ Settings → Distro** (the first time triggers a download). The OS you pick opens in a **new tab** and the tab you were using stays as it is (0.9.23; before that the current tab was rebuilt and whatever was running in it was lost).
 
 **The first time you open Arch**, the tab prints "🔑 Setting up the pacman keyring" and takes tens of seconds (0.8.316).
 That builds the keys used to verify package signatures; it happens once and needs no network. Let it finish
@@ -921,6 +921,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.23 (versionCode 686), release candidate**: Picking an OS under Linux environment in Settings now opens it in a new tab. It used to close and rebuild the tab you were using, which lost whatever was running there and its scrollback. The original tab is left as it is.
 
 **0.9.22 (versionCode 685), release candidate**: Fixes for things that tended to hang on every OS. A job stopped with Ctrl+Z now comes back with `fg` instead of freezing the tab; `su` / `sudo` no longer fail with "System error" (Ubuntu, Arch); pipe writers that never finished and `trap` handlers that were never called are fixed. Commands installed into `~/.local/bin` can be run by name with no setup. On Alpine, CLIs that embed their JavaScript in a single executable now start. Connecting from "Connections" opens a new tab instead of replacing the current one. Adding users (`useradd`, `passwd` and friends) and installing packages that contain hard links (such as `tzdata` on Alpine) now work too. Programs that wait for connections (`tmux`, encrypting with `gpg` and so on) now also work when you log in over SSH.
 

@@ -48,7 +48,7 @@
     <string name="settings_section_font_family">Fuente</string>
     <string name="settings_section_font_size">Tamaño del texto</string>
     <string name="settings_section_scrollback">Líneas de historial</string>
-    <string name="settings_section_distro">Distribución (cambiarla reinicia la sesión actual)</string>
+    <string name="settings_section_distro">Distribución (se abre en una pestaña nueva)</string>
     <string name="settings_section_key_layout">Distribución de teclas (propia)</string>
     <string name="settings_key_layout_desc">Elige aquí los planos que quieres usar y su orden. Duplica cualquier plano para crear el tuyo; usa Editar en un plano propio para renombrarlo o cambiar sus teclas.</string>
     <string name="settings_keyboard_faces_title">Planos que usa el teclado</string>
@@ -268,7 +268,7 @@
     <string name="action_cancel">Cancelar</string>
     <string name="action_close_dialog">Cerrar</string>
     <string name="action_download">Descargar</string>
-    <string name="action_download_and_switch">Descargar y cambiar</string>
+    <string name="action_download_and_switch">Descargar y abrir</string>
     <string name="action_clean_install">Instalación limpia</string>
     <string name="action_open_source">Abrir la fuente</string>
     <string name="settings_section_licenses">Licencias de software libre / código correspondiente</string>
@@ -286,7 +286,7 @@
     <string name="confirm_clean_install_msg">Se borrará %1$s (el rootfs y los datos descargados) y se descargará de nuevo desde cero%2$s. Se recomienda usar Wi-Fi. ¿Continuar?</string>
     <string name="confirm_download_msg">Se descargará %1$s por primera vez%2$s. Se recomienda usar Wi-Fi. ¿Continuar?</string>
     <string name="settings_clean_install_desc">Actívalo y elige un SO para borrar su rootfs y los datos descargados y reinstalarlo desde cero (para recuperarte de una descarga o extracción atascada).</string>
-    <string name="settings_distro_note">Alpine viene incluido. Ubuntu, Arch y Kali se descargan al cambiar a ellos por primera vez o al hacer una instalación limpia (se recomienda usar Wi-Fi).</string>
+    <string name="settings_distro_note">Alpine viene incluido. Ubuntu, Arch y Kali se descargan al elegirlos por primera vez o al hacer una instalación limpia (se recomienda usar Wi-Fi).</string>
     <string name="appinfo_version">Versión</string>
     <string name="appinfo_package">Paquete</string>
     <string name="appinfo_rootfs_generation">generación del rootfs</string>

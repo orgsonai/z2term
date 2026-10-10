@@ -50,7 +50,7 @@
     <string name="settings_section_font_family">フォントファミリー</string>
     <string name="settings_section_font_size">フォントサイズ</string>
     <string name="settings_section_scrollback">スクロールバック行数</string>
-    <string name="settings_section_distro">ディストロ (切替で現在のセッションを再起動)</string>
+    <string name="settings_section_distro">ディストロ (選ぶと新しいタブで開く)</string>
     <!-- 自分で作るキー配列 (0.8.408〜0.8.411・段階 2〜4 + 既定サイズ) -->
     <string name="settings_section_key_layout">キー配列（自分で作る）</string>
     <string name="settings_key_layout_desc">使用する面と順番をここでまとめて設定します。各面の「複製」から自作面を作り、自作面は「編集」から名前やキーを変更できます。</string>
@@ -276,7 +276,7 @@
     <string name="action_cancel">やめる</string>
     <string name="action_close_dialog">閉じる</string>
     <string name="action_download">ダウンロード</string>
-    <string name="action_download_and_switch">ダウンロードして切替</string>
+    <string name="action_download_and_switch">ダウンロードして開く</string>
     <string name="action_clean_install">クリーンインストール</string>
     <string name="action_open_source">ソースを開く</string>
     <string name="settings_section_licenses">OSS ライセンス / 対応ソース</string>
@@ -294,7 +294,7 @@
     <string name="confirm_clean_install_msg">%1$s を rootfs もダウンロード済みデータも消して最初から取得し直します%2$s。Wi-Fi 推奨。続けますか?</string>
     <string name="confirm_download_msg">%1$s を初回ダウンロードします%2$s。Wi-Fi 推奨。続けますか?</string>
     <string name="settings_clean_install_desc">ON にして OS を選ぶと、その OS を rootfs もダウンロード済みデータも消して最初から入れ直します (DL/解凍失敗で詰まったときの復旧用)。</string>
-    <string name="settings_distro_note">Alpine は同梱。Ubuntu / Arch / Kali は初回切替・クリーンインストール時に自動ダウンロード (Wi-Fi 推奨)。</string>
+    <string name="settings_distro_note">Alpine は同梱。Ubuntu / Arch / Kali は初めて選んだとき・クリーンインストール時に自動ダウンロード (Wi-Fi 推奨)。</string>
 
     <!-- アプリ情報セクションの行ラベル (D3 バッチ 1) -->
     <string name="appinfo_version">バージョン</string>

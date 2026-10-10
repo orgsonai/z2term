@@ -859,7 +859,7 @@ fun SettingsSheet(
                                     pendingCleanInstall = true
                                 } else {
                                     distroCleanArmed = false
-                                    session.cleanInstallDistro(id)
+                                    session.openDistro(id, clean = true)
                                     onDismiss()
                                 }
                             } else {
@@ -879,9 +879,9 @@ fun SettingsSheet(
                                     pendingDistroSwitch = spec   // 確認ダイアログを出す
                                     pendingCleanInstall = false
                                 } else {
-                                    // 切替を保存して override 付きで再起動 (settingsFlow 反映待ちの
-                                    // race を回避)。展開済みなら DL は走らない。
-                                    session.switchDistro(id)
+                                    // 選んだ OS を保存して新しいタブで開く (作業中のタブは残す)。
+                                    // 展開済みなら DL は走らない。
+                                    session.openDistro(id)
                                     onDismiss()
                                 }
                             }
@@ -1755,7 +1755,7 @@ fun SettingsSheet(
                 pendingDistroSwitch = null
                 pendingCleanInstall = false
                 distroCleanArmed = false
-                if (clean) session.cleanInstallDistro(id) else session.switchDistro(id)
+                session.openDistro(id, clean = clean)
                 onDismiss()
             },
             onCancel = { pendingDistroSwitch = null; pendingCleanInstall = false }

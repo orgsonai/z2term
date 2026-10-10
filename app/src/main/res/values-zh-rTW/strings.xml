@@ -48,7 +48,7 @@
     <string name="settings_section_font_family">字型</string>
     <string name="settings_section_font_size">字級</string>
     <string name="settings_section_scrollback">回捲行數</string>
-    <string name="settings_section_distro">發行版 (切換會重新啟動當前工作階段)</string>
+    <string name="settings_section_distro">發行版 (選擇後在新分頁中開啟)</string>
     <string name="settings_section_key_layout">鍵位配置（自訂）</string>
     <string name="settings_key_layout_desc">在這裡統一設定要使用的面和它們的順序。用任意一個面的“複製”做出自訂面；自訂面可以從“編輯”改名字或改鍵位。</string>
     <string name="settings_keyboard_faces_title">鍵盤使用的面</string>
@@ -267,7 +267,7 @@
     <string name="action_cancel">取消</string>
     <string name="action_close_dialog">關閉</string>
     <string name="action_download">下載</string>
-    <string name="action_download_and_switch">下載並切換</string>
+    <string name="action_download_and_switch">下載並開啟</string>
     <string name="action_clean_install">全新安裝</string>
     <string name="action_open_source">開啟原始碼</string>
     <string name="settings_section_licenses">開源授權條款 / 對應原始碼</string>
@@ -285,7 +285,7 @@
     <string name="confirm_clean_install_msg">將清除 %1$s（rootfs 和已下載的資料都會刪掉）並從頭重新取得%2$s。建議使用 Wi-Fi。要繼續嗎?</string>
     <string name="confirm_download_msg">將首次下載 %1$s%2$s。建議使用 Wi-Fi。要繼續嗎?</string>
     <string name="settings_clean_install_desc">開啟後選擇一個系統，就會連 rootfs 和已下載的資料一起刪掉，從頭重新安裝 (用於下載/解壓縮卡住時的還原)。</string>
-    <string name="settings_distro_note">Alpine 已隨應用程式附帶。Ubuntu / Arch / Kali 會在首次切換或全新安裝時自動下載 (建議使用 Wi-Fi)。</string>
+    <string name="settings_distro_note">Alpine 已隨應用程式附帶。Ubuntu / Arch / Kali 會在首次選擇或全新安裝時自動下載 (建議使用 Wi-Fi)。</string>
     <string name="appinfo_version">版本</string>
     <string name="appinfo_package">套件名稱</string>
     <string name="appinfo_rootfs_generation">rootfs 世代</string>

@@ -52,7 +52,7 @@
     <string name="settings_section_font_family">Font family</string>
     <string name="settings_section_font_size">Font size</string>
     <string name="settings_section_scrollback">Scrollback lines</string>
-    <string name="settings_section_distro">Distro (switching restarts the current session)</string>
+    <string name="settings_section_distro">Distro (opens in a new tab)</string>
     <!-- Custom key layouts (0.8.408–0.8.411, stages 2–4 + default sizing) -->
     <string name="settings_section_key_layout">Key layout (your own)</string>
     <string name="settings_key_layout_desc">Choose the faces to use and their order here. Duplicate any face to make your own; use Edit on a custom face to rename it or change its keys.</string>
@@ -280,7 +280,7 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_close_dialog">Close</string>
     <string name="action_download">Download</string>
-    <string name="action_download_and_switch">Download and switch</string>
+    <string name="action_download_and_switch">Download and open</string>
     <string name="action_clean_install">Clean install</string>
     <string name="action_open_source">Open source</string>
     <string name="settings_section_licenses">OSS licenses / corresponding source</string>
@@ -298,7 +298,7 @@
     <string name="confirm_clean_install_msg">%1$s will be wiped (rootfs and any downloaded data) and re-fetched from scratch%2$s. Wi-Fi recommended. Continue?</string>
     <string name="confirm_download_msg">%1$s will be downloaded for the first time%2$s. Wi-Fi recommended. Continue?</string>
     <string name="settings_clean_install_desc">Turn ON and pick an OS to wipe its rootfs and downloaded data and reinstall from scratch (recovery for stuck DL/extraction).</string>
-    <string name="settings_distro_note">Alpine is bundled. Ubuntu / Arch / Kali are downloaded on first switch or clean install (Wi-Fi recommended).</string>
+    <string name="settings_distro_note">Alpine is bundled. Ubuntu / Arch / Kali are downloaded the first time you pick them or on a clean install (Wi-Fi recommended).</string>
 
     <!-- App info row labels (D3 batch 1) -->
     <string name="appinfo_version">Version</string>

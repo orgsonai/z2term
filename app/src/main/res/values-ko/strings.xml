@@ -48,7 +48,7 @@
     <string name="settings_section_font_family">글꼴</string>
     <string name="settings_section_font_size">글자 크기</string>
     <string name="settings_section_scrollback">스크롤백 줄 수</string>
-    <string name="settings_section_distro">배포판 (바꾸면 지금 세션이 다시 시작됩니다)</string>
+    <string name="settings_section_distro">배포판 (고르면 새 탭에서 열립니다)</string>
     <string name="settings_section_key_layout">키 배열 (직접 만들기)</string>
     <string name="settings_key_layout_desc">쓸 면과 그 순서를 여기서 고릅니다. 아무 면이나 복제하면 자신만의 면이 되고, 직접 만든 면은 편집으로 이름과 키를 바꿀 수 있습니다.</string>
     <string name="settings_keyboard_faces_title">키보드가 쓰는 면</string>
@@ -266,7 +266,7 @@
     <string name="action_cancel">취소</string>
     <string name="action_close_dialog">닫기</string>
     <string name="action_download">내려받기</string>
-    <string name="action_download_and_switch">내려받고 전환</string>
+    <string name="action_download_and_switch">내려받고 열기</string>
     <string name="action_clean_install">클린 설치</string>
     <string name="action_open_source">소스 열기</string>
     <string name="settings_section_licenses">OSS 라이선스 / 대응 소스</string>
@@ -284,7 +284,7 @@
     <string name="confirm_clean_install_msg">%1$s을(를) 통째로 지우고(rootfs와 내려받은 데이터) 처음부터 다시 받습니다%2$s. Wi-Fi를 권합니다. 계속할까요?</string>
     <string name="confirm_download_msg">%1$s을(를) 처음으로 내려받습니다%2$s. Wi-Fi를 권합니다. 계속할까요?</string>
     <string name="settings_clean_install_desc">켠 다음 OS를 고르면 그 rootfs와 내려받은 데이터를 지우고 처음부터 다시 설치합니다 (내려받기나 풀기가 멈췄을 때의 복구 수단).</string>
-    <string name="settings_distro_note">Alpine은 앱에 들어 있습니다. Ubuntu / Arch / Kali는 처음 전환하거나 클린 설치할 때 내려받습니다 (Wi-Fi를 권합니다).</string>
+    <string name="settings_distro_note">Alpine은 앱에 들어 있습니다. Ubuntu / Arch / Kali는 처음 고르거나 클린 설치할 때 내려받습니다 (Wi-Fi를 권합니다).</string>
     <string name="appinfo_version">버전</string>
     <string name="appinfo_package">패키지</string>
     <string name="appinfo_rootfs_generation">rootfs 세대</string>

@@ -1158,7 +1158,37 @@ class TerminalSession(
     }
 
     /**
-     * ディストロを切り替えて再起動する。
+     * 設定で OS を選んだときの入口 (0.9.23・利用者の指摘「作業中のタブが消えて困る」)。
+     *
+     * ⚠ **使っているタブは上書きしない。** 選んだ OS は新しいタブで開き、元のタブは
+     * そのまま残す。0.9.22 までは選んだ瞬間に今のタブを閉じて作り直していたので、
+     * 動かしていた処理も画面の履歴も消えていた。
+     *
+     * このタブをそのまま使うのは、失うものが無いときだけ ([reusableForDistro])。
+     */
+    fun openDistro(id: String, clean: Boolean = false) {
+        val target = if (reusableForDistro(id, clean)) this else SessionManager.openNew(appContext)
+        if (clean) target.cleanInstallDistro(id) else target.switchDistro(id)
+    }
+
+    /**
+     * 選んだ OS をこのタブで開いてよいか。
+     *  - 何も動いていない (起動前 / 終了済み / 失敗)。失敗後の選び直しもここ。
+     *  - OS が 1 つも入っていないときの Android シェル (初回の案内用。残すと空のタブが増えるだけ)。
+     *  - クリーンインストールの対象 OS をこのタブが使っている (rootfs ごと消えるので残せない)。
+     */
+    private fun reusableForDistro(id: String, clean: Boolean): Boolean {
+        val ui = _uiState.value
+        return when (ui.state) {
+            TerminalState.IDLE, TerminalState.EXITED, TerminalState.ERROR -> true
+            else ->
+                (ui.mode == "android-sh" && !launcher.hasAnyDistro()) ||
+                    (clean && _distroId.value == id)
+        }
+    }
+
+    /**
+     * このタブのディストロを切り替えて再起動する (どのタブで開くかは [openDistro] が決める)。
      *
      * 設定への永続化は非同期なので、startTerminal には spec を直接 override 渡しして
      * settingsFlow の反映待ちレースを避ける。非同梱 distro なら startTerminal 内で
