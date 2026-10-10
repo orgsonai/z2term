@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.32.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.33.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -546,8 +546,9 @@ You can turn your phone into an SSH server and log in from a PC.
 - Register `sshd` (or `sshd --lan` to expose it to the LAN) under Command list → Servers and it keeps running without opening the app.
 - When started as a resident server it automatically runs in **foreground (stay-alive) mode** even without `-D` (0.8.165; before that it was restarted every few seconds, so connections were refused or dropped shortly after connecting).
 
-> Tip: `/usr/sbin/sshd` (OpenSSH) does not work with this app's mechanism. **Always type `sshd`**
-> (a lightweight dropbear runs underneath).
+> Tip: plain `sshd` runs the bundled lightweight dropbear; the button in Settings and the resident server use it too.
+> To use OpenSSH `sshd`, install it yourself and start it **by its full path**, e.g. `/usr/sbin/sshd -p 50000`
+> (`/usr/bin/sshd` on Arch). Connections work from 0.9.33; before that every connection was dropped.
 
 ---
 
@@ -922,6 +923,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.33 (versionCode 696), release candidate**: You can now connect to OpenSSH `sshd` (every connection used to be dropped). Also, after switching from root to another user (`su`, `runuser` and the like) the process now appears as that user (it used to appear as root no matter what).
 
 **0.9.32 (versionCode 695), release candidate**: Fixes the action-macro problem that 0.9.31 did not actually fix: "tap → wait for the next screen with `wait-ui`" still stopped (the part that stopped it was the watchdog that runs during a macro).
 

@@ -13,16 +13,17 @@
 // 実装済: execve ローダ差し替え / getcwd 逆変換 / #! シバン解決(1段) /
 //    canonicalize(パス内 symlink 解決 + . / .. 畳み) / cwd 相対パス絶対化(/proc/<pid>/cwd) /
 //    dirfd 相対パスの非変換(*at の dirfd 委譲) / 2パス syscall(rename/link/symlink) /
-//    相対 exec パス解決 / fakeroot(-0) uid-gid 偽装(get*id→0 / getgroups→0個 /
-//    set*id・chown 失敗の成功偽装 / stat の uid-gid→0) /
+//    相対 exec パス解決 / fakeroot(-0) uid-gid 偽装(見かけの資格情報 §cred: 初期値は root で、
+//    set*id の成否と get*id の値をカーネルと同じ規則で決める / chown 失敗の成功偽装 /
+//    stat の uid-gid→0) /
 //    link2symlink(linkat→symlinkat。Android FS の link() EACCES を symlink で回避) /
 //    rootfs/bind.host の起動時 realpath 正規化(アプリの mount namespace は
 //    /data/user/0/<pkg> を /data/data/<pkg> へ解決するため、chdir 後 getcwd が返す
 //    canonical 形と bind.host(context.filesDir 由来の /data/user/0 形)が食い違い、
 //    pwd / 相対 ls がホスト cwd を露出していた。両者を realpath で揃えて解消) /
-//    /proc 偽装(fakeroot -0: /proc/<pid>/status の read を傍受し Uid:/Gid: 行を 0・
-//    Groups: 行を空白・Cap{Prm,Eff,Bnd} を全 cap に書き換え、/proc/<pid>/loginuid を
-//    0 に化かす。get*id syscall 偽装と一貫した root の見え方にする)。
+//    /proc 偽装(fakeroot -0: /proc/<pid>/status の Uid:/Gid:/Groups: 行を見かけの資格情報で
+//    作り直し、Cap{Prm,Eff,Bnd} を書き換え、/proc/<pid>/loginuid を 0 に化かす。
+//    get*id syscall 偽装と一貫した見え方にする)。
 // 残り難所(readlinkat 戻り値逆変換 / マルチスレッド境界の厳密化)は
 //    TODO で明示。実機で小さく逐次検証して育てる。
 
@@ -155,6 +156,24 @@ struct config {
 #define PROC_FD_COMM     4  // /proc/.../comm (libz2root.so 漏れを argv0 basename へ差し替え)
 #define PROC_FD_STAT     5  // /proc/<pid>/stat の field 2 "(libz2root.so)" を argv0 basename へ
                             // (busybox ps 等は速度のため status/comm でなく stat field 2 を読む)
+// §cred ---- 見かけの資格情報 --------------------------------------------------
+// ここの root は見かけだけで、実体は Android のアプリ uid のまま変えられない。だからといって
+// 「set*id は何でも成功・get*id は常に 0」にすると、権限を捨てたあと**元へ戻せないことを
+// 確かめる**プログラムが「戻せてしまった」と判断して自分から落ちる(OpenSSH の sshd が接続の
+// たびに認証前の処理を別ユーザーへ降ろし、その直後にこれを確かめる)。
+// そこで「いま誰として動いているか」を覚え、カーネルと同じ規則で set*id の成否と get*id の
+// 値を決める。カーネルと同じく**スレッド単位**で持ち(全スレッドへ揃えるのは libc の仕事で、
+// 各スレッドが同じ syscall を呼んでくる)、fork / clone で子へ写し、exec では保持する。
+// 変わるのは見え方だけで、ファイルの実際の所有者やカーネルが見る権限は変わらない。
+#define CRED_NGROUPS 64     // 覚えておく補助グループの上限(超えた分は覚えない)
+enum { CR_REAL, CR_EFF, CR_SAVED, CR_FS };
+struct z_cred {
+    unsigned int uid[4];    // real / effective / saved / fs (添字は CR_*)
+    unsigned int gid[4];
+    int ngroups;
+    unsigned int groups[CRED_NGROUPS];
+};
+
 struct pid_state {
     pid_t pid;
     int at_exit;            // 0: 次は syscall-entry, 1: 次は syscall-exit
@@ -163,7 +182,11 @@ struct pid_state {
     long entry_nr;          // entry で記録した syscall 番号 (exit 時の戻り値逆変換用)
     unsigned long aux_addr; // getcwd 等の対象バッファアドレス
     unsigned long aux_len;  // readlinkat の bufsiz(戻りバッファ逆変換でホストパス長の上限に使う)
-    unsigned long res_ptr[3]; // getresuid/getresgid の出力先(real/effective/saved)。exit で 0 を書き込む
+    unsigned long res_ptr[3]; // getresuid/getresgid の出力先(real/effective/saved)、getgroups の (個数, 出力先)
+    struct z_cred cred;     // §cred: 見かけの uid / gid / 補助グループ。初期値はすべて 0 (root)
+    long cred_ret;          // set*id の entry で決めた戻り値(exit でカーネルの戻り値と差し替える)
+    int exec_setid;         // execve するファイルの setuid(1) / setgid(2) ビット。成功したら反映する
+    int forked;             // 親の fork / clone イベントを処理済み(= 親からの継承が済んでいる)
     char aux_path[PATH_MAX_Z]; // readlinkat 対象 symlink のホスト実パス(exit で自前 readlink し直す用, 空=未確定)
     int aux_kind;           // read entry で控えた追跡 fd の種別(PROC_FD_*, exit で偽装を分岐)
     int pending_open_kind;  // fakeroot: openat entry で偽装対象 proc パスを検出した種別(exit で fd を採取)
@@ -290,6 +313,9 @@ static struct pid_state *state_for(pid_t pid) {
     g_map[free_slot].exec_err_to = 0;
     g_map[free_slot].dac_n = 0;
     g_map[free_slot].dac_access = 0;
+    memset(&g_map[free_slot].cred, 0, sizeof(g_map[free_slot].cred));
+    g_map[free_slot].exec_setid = 0;
+    g_map[free_slot].forked = 0;
     for (int k = 0; k < STATUS_FD_MAX; k++) {
         g_map[free_slot].status_fds[k] = -1;
         g_map[free_slot].status_fd_kind[k] = PROC_FD_NONE;
@@ -1085,6 +1111,7 @@ struct exec_plan {
     char prefix[PLAN_MAX_PREFIX][PATH_MAX_Z];
     int nprefix;
     int orig_start;
+    int setid;      // 実行する ELF の setuid(1) / setgid(2) ビット(§cred)。スクリプトでは 0
 };
 
 static void plan_push(struct exec_plan *plan, const char *s) {
@@ -1147,6 +1174,17 @@ static int elf_e_type(const char *path) {
     return (int)t;
 }
 
+// 実行ファイルの setuid(1) / setgid(2) ビット(§cred)。カーネルと同じく、setgid は
+// グループの実行ビットが立っているときだけ数える。
+static int file_setid_bits(const char *path) {
+    struct stat sb;
+    if (stat(path, &sb) != 0 || !S_ISREG(sb.st_mode)) return 0;
+    int bits = 0;
+    if (sb.st_mode & S_ISUID) bits |= 1;
+    if ((sb.st_mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) bits |= 2;
+    return bits;
+}
+
 // PT_INTERP が Android の bionic linker か。
 static int interp_is_bionic(const char *interp) {
     const char *ib = strrchr(interp, '/');
@@ -1168,6 +1206,7 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
 static int plan_exec_depth(const struct config *cfg, pid_t pid, const char *guest_prog,
                            const char *orig_argv0, struct exec_plan *plan, int depth) {
     plan->nprefix = 0;
+    if (depth == 0) plan->setid = 0;
     plan->orig_start = 1;  // 元 argv0 は prefix で置換するため常に [1..] を連結
 
     // 相対 exec パスも /proc/<pid>/cwd で絶対化し、symlink 解決込みの host 実パスへ。
@@ -1246,6 +1285,7 @@ static int plan_exec_depth(const struct config *cfg, pid_t pid, const char *gues
     // 2) 動的 ELF: rootfs 内のローダ経由で起動。
     char interp[PATH_MAX_Z];
     if (read_elf_interp(host_prog, interp, sizeof(interp)) == 1) {
+        if (depth == 0) plan->setid = file_setid_bits(host_prog);
         char host_loader[PATH_MAX_Z];
         if (!translate_abs(cfg, interp, host_loader, sizeof(host_loader)))
             snprintf(host_loader, sizeof(host_loader), "%s", interp);
@@ -1327,6 +1367,7 @@ static int plan_exec_depth(const struct config *cfg, pid_t pid, const char *gues
     //    パス扱い→rootfs 前置」され ENOENT になる(rootfs 配下は二重変換抑止で偶然動く)。
     //    動的 ELF 経路(上記 §2)が ld.so に guest_real を渡すのと同じ理由・同じ host_to_guest
     //    逆変換で、rootfs/bind の両方で静的バイナリを正しくマップできる。
+    if (depth == 0) plan->setid = file_setid_bits(host_prog);
     char guest_static[PATH_MAX_Z];
     host_to_guest(cfg, host_prog, guest_static, sizeof(guest_static));
     snprintf(plan->target, sizeof(plan->target), "%s", guest_static);
@@ -1536,6 +1577,10 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
 
     struct exec_plan plan;
     int rc = plan_exec(cfg, pid, guest_prog, (n > 0) ? args[0] : guest_prog, &plan);
+    {
+        struct pid_state *st = state_lookup(pid);
+        if (st) st->exec_setid = plan.setid;
+    }
 
     if (rc == 1) {
         // passthrough: loader を噛ませず path レジスタを host パスへ変換するだけ。
@@ -1765,12 +1810,91 @@ static void crash_log(pid_t pid, int sig, const siginfo_t *si, const struct user
     fclose(out);
 }
 
+// ---- §cred: set*id / get*id ---------------------------------------------------
+#define CRED_KEEP 0xffffffffu   // set*id の引数 -1 (= その欄は変えない)
+
+static int cred_is_setter(long nr) {
+    return nr == 143 || nr == 144 || nr == 145 || nr == 146 || nr == 147 ||
+           nr == 149 || nr == 151 || nr == 152 || nr == 159;
+}
+
+static int cred_has(const unsigned int *id, unsigned int v, int n) {
+    for (int i = 0; i < n; i++) if (id[i] == v) return 1;
+    return 0;
+}
+
+// set*id を見かけの資格情報へ適用し、syscall の戻り値(0 か -errno。setfs*id は直前の値)を返す。
+// 規則はカーネルと同じ: 実効 uid が 0 の間は何にでも変えられ、0 でなくなったら
+// real / effective / saved のどれかにしか変えられない(それ以外は EPERM)。
+// gid と補助グループを変えられるかどうかも、gid ではなく実効 uid が 0 かで決まる。
+static long cred_set(struct z_cred *c, pid_t pid, long nr, const struct user_pt_regs *regs) {
+    unsigned int a = (unsigned int)regs->regs[0];
+    unsigned int b = (unsigned int)regs->regs[1];
+    unsigned int d = (unsigned int)regs->regs[2];
+    int priv = (c->uid[CR_EFF] == 0);
+    unsigned int *id = (nr == 143 || nr == 144 || nr == 149 || nr == 152) ? c->gid : c->uid;
+    switch (nr) {
+        case 146: case 144:  // setuid / setgid
+            if (a == CRED_KEEP) return -EINVAL;
+            if (priv) id[CR_REAL] = id[CR_SAVED] = a;
+            else if (a != id[CR_REAL] && a != id[CR_SAVED]) return -EPERM;
+            id[CR_EFF] = id[CR_FS] = a;
+            return 0;
+        case 145: case 143: {  // setreuid / setregid (real, effective)
+            if (!priv && ((a != CRED_KEEP && !cred_has(id, a, 2)) ||
+                          (b != CRED_KEEP && !cred_has(id, b, 3))))
+                return -EPERM;
+            unsigned int old_real = id[CR_REAL];
+            if (a != CRED_KEEP) id[CR_REAL] = a;
+            if (b != CRED_KEEP) id[CR_EFF] = b;
+            if (a != CRED_KEEP || (b != CRED_KEEP && b != old_real)) id[CR_SAVED] = id[CR_EFF];
+            id[CR_FS] = id[CR_EFF];
+            return 0;
+        }
+        case 147: case 149:  // setresuid / setresgid (real, effective, saved)
+            if (!priv && ((a != CRED_KEEP && !cred_has(id, a, 3)) ||
+                          (b != CRED_KEEP && !cred_has(id, b, 3)) ||
+                          (d != CRED_KEEP && !cred_has(id, d, 3))))
+                return -EPERM;
+            if (a != CRED_KEEP) id[CR_REAL] = a;
+            if (b != CRED_KEEP) id[CR_EFF] = b;
+            if (d != CRED_KEEP) id[CR_SAVED] = d;
+            id[CR_FS] = id[CR_EFF];
+            return 0;
+        case 151: case 152: {  // setfsuid / setfsgid: 成否にかかわらず直前の値を返す
+            unsigned int old = id[CR_FS];
+            if (a != CRED_KEEP && (priv || cred_has(id, a, 4))) id[CR_FS] = a;
+            return (long)old;
+        }
+        case 159: {  // setgroups(個数, 一覧)
+            if (!priv) return -EPERM;
+            if (a > 65536) return -EINVAL;   // NGROUPS_MAX
+            unsigned int g[CRED_NGROUPS];
+            int n = a > CRED_NGROUPS ? CRED_NGROUPS : (int)a;
+            if (n > 0 && read_tracee_mem(pid, regs->regs[1], g, (size_t)n * 4) != 0) return -EFAULT;
+            if (n > 0) memcpy(c->groups, g, (size_t)n * 4);
+            c->ngroups = n;
+            return 0;
+        }
+    }
+    return 0;
+}
+
+// exec が成功したとき: saved id を実効 id に揃える。実行ファイルに setuid / setgid ビットが
+// あれば実効 id を所有者にする。ここではファイルの所有者はすべて root に見せているので 0。
+// (これが無いと、別ユーザーへ降りた先から su / sudo で root へ戻れない。)
+static void cred_exec(struct z_cred *c, int setid) {
+    if (setid & 1) c->uid[CR_EFF] = 0;
+    if (setid & 2) c->gid[CR_EFF] = 0;
+    c->uid[CR_SAVED] = c->uid[CR_FS] = c->uid[CR_EFF];
+    c->gid[CR_SAVED] = c->gid[CR_FS] = c->gid[CR_EFF];
+}
+
 // fakeroot(-0): syscall-exit で uid/gid 関連の戻り値・構造体を root(0) に偽装する。
 // proot の -0 相当。ホストのアプリ uid/gid がゲストへ露出するのを防ぎ、root 前提の
 // パッケージ操作(apk/apt の chown 等)が EPERM で失敗しないよう成功に見せる。
-//   - getuid/geteuid/getgid/getegid → 0
-//   - getgroups → 補助グループ 0 個(ホスト gid の露出を消す。id の groups が root だけになる)
-//   - set*id / fchownat / fchown / fchmod / fchmodat が EPERM 等で失敗したら成功(0)に握りつぶす
+//   - get*id / getgroups / set*id は §cred(見かけの資格情報。初期値は root で補助グループ 0 個)
+//   - fchownat / fchown / fchmod / fchmodat が EPERM 等で失敗したら成功(0)に握りつぶす
 //   - newfstatat/fstat/statx の結果は st_uid/st_gid を 0 に上書き(所有者を root に見せる)
 // ---- コピー fallback の inode 偽装キャッシュ -----------------------------------
 // Android(SELinux untrusted_app)は link(2) を端末全域で拒否するため linkat は常に
@@ -1901,17 +2025,12 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf, int lc_idx)
     long ret = (long)regs.regs[0];
 
     switch (nr) {
-        case 174: case 175: case 176: case 177:  // getuid/geteuid/getgid/getegid
-            regs.regs[0] = 0; set_regs(pid, &regs); return;
-        case 158:  // getgroups: 補助グループ 0 個に偽装(ホスト gid を隠す)
-            if (ret >= 0) { regs.regs[0] = 0; set_regs(pid, &regs); }
-            return;
-        // set*id / chown / chmod 系: 失敗(EPERM 等)を成功(0)へ。ホスト権限は実際には
+        // chown / chmod 系: 失敗(EPERM 等)を成功(0)へ。ホスト権限は実際には
         // 変わらない。chmod(52/53) は dropbear が SSH PTY 確立時に chmod(/dev/pts/N) を
         // 呼ぶが、untrusted_app は pts を chmod できず EPERM → dropbear がセッションを
         // 即終了(接続リセット)するため、root と同じく成功に見せる必要がある。
-        case 143: case 144: case 145: case 146: case 147: case 149:
-        case 151: case 152: case 159: case 54: case 55: case 52: case 53:
+        // (get*id / getgroups / set*id は §cred の cred_on_exit が扱う。)
+        case 54: case 55: case 52: case 53:
             if (ret < 0) {
                 if (g_trc_on && (nr == 52 || nr == 53))
                     fprintf(g_trc, "[z2trc] FAKE chmod nr=%ld ret=%ld->0 pid=%d\n", nr, ret, pid);
@@ -1996,7 +2115,8 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf, int lc_idx)
 // Android アプリ uid(実 uid≠0)では一致せず EPERM → ゲストの接続が即死する(PulseAudio
 // の "Connection died")。proot 同様、cred を実 uid/gid へ書き換えてカーネルに通す。
 //   - sendmsg(entry): 載っている SCM_CREDENTIALS の uid/gid を実値へ(pid は実 pid のまま)。
-//   - recvmsg(exit) : 受け取った SCM_CREDENTIALS の uid/gid を 0 へ(root の見え方を一貫)。
+//   - recvmsg(exit) : 受け取った SCM_CREDENTIALS の uid/gid を、送り主の見かけの実効 id へ
+//     (§cred。送り主がこのエンジンの管理外なら 0)。
 // msghdr(LP64): msg_control=off32, msg_controllen=off40。cmsghdr: len(8)/level(4)/type(4)、
 // データは +16。ucred: pid(0)/uid(4)/gid(8)。
 #define Z_CMSG_CTRL_MAX 4096
@@ -2010,9 +2130,10 @@ static int read_msg_control(pid_t pid, unsigned long msgp,
     *ctrllen = cc[1];
     return 0;
 }
-// 制御バッファを走査し、SCM_CREDENTIALS の ucred.uid/gid を (new_uid,new_gid) へ。
+// 制御バッファを走査し、SCM_CREDENTIALS の ucred.uid/gid を書き換える。
+//   recv=0: (new_uid,new_gid) へ / recv=1: ucred.pid のプロセスの見かけの実効 id へ
 // 変更があれば tracee メモリへ書き戻す。戻り値 1=書き戻した / 0=触っていない(診断用)。
-static int patch_scm_creds(pid_t pid, unsigned long ctrl, unsigned long ctrllen,
+static int patch_scm_creds(pid_t pid, unsigned long ctrl, unsigned long ctrllen, int recv,
                            unsigned int new_uid, unsigned int new_gid) {
     if (ctrl == 0 || ctrllen < 16 || ctrllen > Z_CMSG_CTRL_MAX) return 0;
     char buf[Z_CMSG_CTRL_MAX];
@@ -2029,6 +2150,13 @@ static int patch_scm_creds(pid_t pid, unsigned long ctrl, unsigned long ctrllen,
         memcpy(&type, buf + off + 12, 4);
         if (clen < 16) break;
         if (level == SOL_SOCKET && type == SCM_CREDENTIALS && off + 16 + 12 <= (size_t)ctrllen) {
+            if (recv) {
+                pid_t sender;
+                memcpy(&sender, buf + off + 16, 4);       // ucred.pid
+                const struct pid_state *sst = state_lookup(sender);
+                new_uid = sst ? sst->cred.uid[CR_EFF] : 0;
+                new_gid = sst ? sst->cred.gid[CR_EFF] : 0;
+            }
             memcpy(buf + off + 16 + 4, &new_uid, 4);  // ucred.uid
             memcpy(buf + off + 16 + 8, &new_gid, 4);  // ucred.gid
             changed = 1;
@@ -2047,9 +2175,9 @@ static void rewrite_sendmsg_creds(const struct config *cfg, pid_t pid,
     if (msgp == 0) return;
     unsigned long ctrl, ctrllen;
     if (read_msg_control(pid, msgp, &ctrl, &ctrllen) != 0) return;
-    patch_scm_creds(pid, ctrl, ctrllen, (unsigned int)cfg->real_uid, (unsigned int)cfg->real_gid);
+    patch_scm_creds(pid, ctrl, ctrllen, 0, (unsigned int)cfg->real_uid, (unsigned int)cfg->real_gid);
 }
-// recvmsg(exit): 受信した SCM_CREDENTIALS の uid/gid を 0 へ(root の見え方を一貫)。
+// recvmsg(exit): 受信した SCM_CREDENTIALS の uid/gid を送り主の見かけの実効 id へ。
 // カーネルが msg_controllen を書き戻すので exit で読む。msg ポインタは entry で控えた値。
 //
 // [DEBUG] トレース ON のときは 1 行残す。X の通信は read ではなく recvmsg なので、GUI が
@@ -2065,13 +2193,15 @@ static void rewrite_recvmsg_creds(pid_t pid, unsigned long msgp, int fd) {
     unsigned long ctrl = 0, ctrllen = 0;
     int patched = 0;
     if (ret >= 0 && msgp != 0 && read_msg_control(pid, msgp, &ctrl, &ctrllen) == 0)
-        patched = patch_scm_creds(pid, ctrl, ctrllen, 0, 0);
+        patched = patch_scm_creds(pid, ctrl, ctrllen, 1, 0, 0);
     if (g_trc_on)
         fprintf(g_trc, "[z2trc] recvmsg pid=%d fd=%d ret=%ld clen=%lu pat=%d\n",
                 pid, fd, ret, ctrllen, patched);
 }
 
-// getsockopt(SOL_SOCKET, SO_PEERCRED) の uid/gid もfakerootと同じ0へ揃える。
+// getsockopt(SOL_SOCKET, SO_PEERCRED) の uid/gid も、相手の見かけの実効 id へ揃える
+// (§cred。相手がこのエンジンの管理外なら 0)。カーネルが覚えているのは接続した時点の値だが、
+// ここでは相手のいまの値を返す。
 // D-BusはクライアントがEXTERNAL認証で名乗るuid(getuid→0)と、サーバーがsocketから得る
 // peer uidを照合する。ここだけAndroid実uidのままだと不一致で認証が成立せず、全GUIアプリの
 // session busが「socketはあるが応答しない」状態になる。pidは実プロセス識別に必要なので保つ。
@@ -2080,19 +2210,21 @@ static void fake_peercred_on_exit(pid_t pid, unsigned long optval, unsigned long
     if (get_regs(pid, &regs) != 0 || (long)regs.regs[0] != 0 || !optval || !optlenp) return;
     unsigned int optlen = 0;
     if (read_tracee_mem(pid, optlenp, &optlen, sizeof optlen) != 0 || optlen < 12) return;
-    unsigned int zero = 0;
-    write_tracee_mem(pid, optval + 4, &zero, sizeof zero);  // struct ucred.uid
-    write_tracee_mem(pid, optval + 8, &zero, sizeof zero);  // struct ucred.gid
+    pid_t peer = 0;
+    read_tracee_mem(pid, optval, &peer, sizeof peer);       // struct ucred.pid
+    const struct pid_state *pst = peer > 0 ? state_lookup(peer) : NULL;
+    unsigned int uid = pst ? pst->cred.uid[CR_EFF] : 0;
+    unsigned int gid = pst ? pst->cred.gid[CR_EFF] : 0;
+    write_tracee_mem(pid, optval + 4, &uid, sizeof uid);    // struct ucred.uid
+    write_tracee_mem(pid, optval + 8, &gid, sizeof gid);    // struct ucred.gid
 }
 
 // fakeroot(-0) の /proc 偽装: get*id syscall を 0 に偽装しても、ゲストが
 // /proc/self/status(や /proc/<pid>/status)を直接読むとホストのアプリ uid/gid が
 // テキストで露出する(id -a / dpkg / apt の一部・各種スクリプトが参照)。read() の
-// 戻りバッファをスキャンし、Uid: / Gid: 行の各数値を 0、Groups: 行の数値を空白、
-// CapPrm/CapEff/CapBnd を全 cap セットに書き換えて root 一貫の見え方にする。
-// loginuid(別ファイル /proc/.../loginuid)も 0 に化かす。length は保存する
-// (数値を「右詰め 0 + 前空白」/ 固定幅 hex に置換)ため read の戻り値もバッファ
-// 後続も崩さない。
+// 戻りバッファをスキャンし、Uid: / Gid: / Groups: 行を見かけの資格情報(§cred。対象が
+// このエンジンの管理外なら root)で作り直し、CapPrm/CapEff/CapBnd を書き換える。
+// loginuid(別ファイル /proc/.../loginuid)も 0 に化かす(こちらは length 保存)。
 // TODO: read 分割でヘッダがチャンク跨ぎの場合(現状は read 1 回で status 全体
 //       が収まる前提=cat/glibc fread のバッファは status サイズ超なので実害なし)。
 
@@ -2194,10 +2326,10 @@ static int is_hex_digit(char c) {
     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
-// Cap 行(CapPrm/CapEff/CapBnd)の 16 進値を全 cap セットへ書き換える(length 保存)。
+// Cap 行(CapPrm/CapEff/CapBnd)の 16 進値を全 cap セット(has=0 なら 0)へ書き換える(length 保存)。
 // root は CapPrm/CapEff/CapBnd が全 cap、CapInh/CapAmb は 0 が通常なので後者は触らない。
 // uid=0 なのに CapEff=0 という矛盾(偽装の綻び)を消す狙い。
-static void fake_cap_field(char *b, size_t ls, size_t le) {
+static void fake_cap_field(char *b, size_t ls, size_t le, int has) {
     // canonical = cap 0..40 の全ビット = 000001ffffffffff(16 hex)。
     static const char full[16] = {'0','0','0','0','0','1','f','f','f','f','f','f','f','f','f','f'};
     size_t j = ls + 7;                              // "CapXxx:" の後ろ
@@ -2208,39 +2340,52 @@ static void fake_cap_field(char *b, size_t ls, size_t le) {
     size_t runlen = he - hs;                         // 通常 16
     for (size_t m = 0; m < runlen; m++) {
         size_t r = runlen - 1 - m;                   // 右からの距離
-        b[hs + m] = (r < 16) ? full[15 - r] : '0';   // 右詰めで full を流し込む
+        b[hs + m] = (has && r < 16) ? full[15 - r] : '0';   // 右詰めで full を流し込む
     }
 }
 
-// status バッファ内の Uid:/Gid: 行の数値を 0(前空白詰めで length 保存)、Groups: 行の
-// 数値を空白、Cap{Prm,Eff,Bnd} を全 cap に書き換える。行頭ラベルでのみ反応する。
-static void fake_status_buf(char *b, size_t len) {
-    size_t i = 0;
-    while (i < len) {
+// status バッファ内の Uid: / Gid: / Groups: 行を見かけの資格情報(c。NULL なら root)で
+// 作り直し、Cap{Prm,Eff,Bnd} を書き換える。行頭ラベルでのみ反応する。
+// 行の長さが変わるので新しい長さを返す(cap を超える分は切る)。
+static size_t fake_status_buf(char *b, size_t len, size_t cap, const struct z_cred *c) {
+    static const struct z_cred root_cred;   // すべて 0 = root
+    if (!c) c = &root_cred;
+    char out[STATUS_BUF_MAX];
+    if (cap > sizeof(out)) cap = sizeof(out);
+    size_t o = 0, i = 0;
+    while (i < len && o < cap) {
         size_t ls = i, le = i;
         while (le < len && b[le] != '\n') le++;
         size_t llen = le - ls;
-        if (llen >= 4 && (memcmp(b + ls, "Uid:", 4) == 0 || memcmp(b + ls, "Gid:", 4) == 0)) {
-            size_t j = ls + 4;
-            while (j < le) {
-                if (b[j] >= '0' && b[j] <= '9') {
-                    size_t k = j;
-                    while (k < le && b[k] >= '0' && b[k] <= '9') k++;
-                    for (size_t m = j; m + 1 < k; m++) b[m] = ' ';  // 上位桁を空白
-                    b[k - 1] = '0';                                  // 末尾を 0
-                    j = k;
-                } else j++;
-            }
+        char line[CRED_NGROUPS * 11 + 16];
+        int n = -1;
+        if (llen >= 4 && memcmp(b + ls, "Uid:", 4) == 0) {
+            n = snprintf(line, sizeof(line), "Uid:\t%u\t%u\t%u\t%u", c->uid[CR_REAL],
+                         c->uid[CR_EFF], c->uid[CR_SAVED], c->uid[CR_FS]);
+        } else if (llen >= 4 && memcmp(b + ls, "Gid:", 4) == 0) {
+            n = snprintf(line, sizeof(line), "Gid:\t%u\t%u\t%u\t%u", c->gid[CR_REAL],
+                         c->gid[CR_EFF], c->gid[CR_SAVED], c->gid[CR_FS]);
         } else if (llen >= 7 && memcmp(b + ls, "Groups:", 7) == 0) {
-            for (size_t j = ls + 7; j < le; j++)
-                if (b[j] >= '0' && b[j] <= '9') b[j] = ' ';
-        } else if (llen >= 7 && (memcmp(b + ls, "CapPrm:", 7) == 0 ||
-                                 memcmp(b + ls, "CapEff:", 7) == 0 ||
-                                 memcmp(b + ls, "CapBnd:", 7) == 0)) {
-            fake_cap_field(b, ls, le);
+            n = snprintf(line, sizeof(line), "Groups:\t");
+            for (int k = 0; k < c->ngroups; k++)   // カーネルと同じく各 gid の後ろに空白
+                n += snprintf(line + n, sizeof(line) - (size_t)n, "%u ", c->groups[k]);
+        } else if (llen >= 7 && memcmp(b + ls, "CapEff:", 7) == 0) {
+            fake_cap_field(b, ls, le, c->uid[CR_EFF] == 0);
+        } else if (llen >= 7 && memcmp(b + ls, "CapPrm:", 7) == 0) {
+            fake_cap_field(b, ls, le, cred_has(c->uid, 0, 3));
+        } else if (llen >= 7 && memcmp(b + ls, "CapBnd:", 7) == 0) {
+            fake_cap_field(b, ls, le, 1);
         }
+        const char *src = (n >= 0) ? line : b + ls;
+        size_t sl = (n >= 0) ? (size_t)n : llen;
+        if (sl > cap - o) sl = cap - o;
+        memcpy(out + o, src, sl);
+        o += sl;
+        if (le < len && o < cap) out[o++] = '\n';
         i = le + 1;  // 改行をスキップ(末尾改行無しでも len で終端)
     }
+    memcpy(b, out, o);
+    return o;
 }
 
 // loginuid バッファ内の 10 進数字をすべて '0' に置換(先頭ゼロ詰めで length 保存=
@@ -2324,7 +2469,7 @@ static void fake_proc_on_read(pid_t pid, unsigned long buf, int kind,
     if (len > PATH_MAX_Z) len = PATH_MAX_Z;  // status は read 1 回で全体が収まる前提
 
     if (kind == PROC_FD_LOGINUID || kind == PROC_FD_STATUS || kind == PROC_FD_STAT) {
-        // length 保存タイプ(in-place 偽装→そのまま書き戻し)。
+        // 長さが変わらないか縮むタイプ(in-place 偽装→そのまま書き戻し)。
         char b[PATH_MAX_Z];
         struct iovec lo = { b, len };
         struct iovec re = { (void *)buf, len };
@@ -2335,10 +2480,11 @@ static void fake_proc_on_read(pid_t pid, unsigned long buf, int kind,
             // 短縮されると Name 列の末尾空白が消えて pgrep/pidof/top が argv0 で拾える。
             if (st && st->proc_comm[0]) len = fake_stat_comm(b, len, st->proc_comm);
         } else {
-            // Name 行は length 保存しない fake_status_name を先に当てる(後続行の
-            // Uid/Gid/Cap*/Groups は length 保存なのでオフセット崩しは Name のみ)。
+            // Name 行は fake_status_name を先に当てる(短くなる)。Uid/Gid/Groups は作り直すので
+            // 長さが変わる。カーネルが返した長さを超える分は切る(read のバッファを越えない)。
+            size_t room = len;
             if (st && st->proc_comm[0]) len = fake_status_name(b, len, st->proc_comm);
-            fake_status_buf(b, len);
+            len = fake_status_buf(b, len, room, st ? &st->cred : NULL);
         }
         if (write_tracee_mem(pid, buf, b, len) == 0 && len != (size_t)ret) {
             regs.regs[0] = (unsigned long)len;
@@ -2536,10 +2682,10 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
             // 末尾空白を残さない=pgrep/pidof/top が argv0 で拾える。
             if (tst && tst->proc_comm[0]) total = fake_stat_comm(buf, total, tst->proc_comm);
         } else {  // PROC_FD_STATUS
-            // Name 行は length 保存しない fake_status_name を先に当てる(後続行は
-            // length 保存なので Name のみ短縮で全体が前にずれる)。
+            // Name 行は fake_status_name を先に当てる(短くなる)。Uid/Gid/Groups は対象プロセスの
+            // 見かけの資格情報で作り直す。
             if (tst && tst->proc_comm[0]) total = fake_status_name(buf, total, tst->proc_comm);
-            fake_status_buf(buf, total);
+            total = fake_status_buf(buf, total, sizeof(buf), tst ? &tst->cred : NULL);
         }
     }
 
@@ -3129,7 +3275,7 @@ static const int kTraceSyscallsFakeroot[] = {
     158,                      // getgroups
     143, 144, 145, 146, 147, 149, 151, 152, 159, 54, 55, 80,
     // setregid/setgid/setreuid/setuid/setresuid/setresgid/setfsuid/setfsgid/
-    // setgroups/fchownat/fchown/fstat(=fake_root_on_exit の対象)
+    // setgroups(以上 §cred)/fchownat/fchown/fstat(=fake_root_on_exit の対象)
     // ⚠ **getres*id(148/150) を落とさないこと。** getuid/geteuid(174/175) だけ偽装しても、
     // これらを使うプログラムには実 uid が見えてしまう。glibc の **bash は setuid 判定に
     // getresuid を使う**ため、$UID/$EUID が Android のアプリ uid のままになり、`EUID != 0`
@@ -3403,10 +3549,12 @@ static int syscall_needs_exit(const struct config *cfg, const struct pid_state *
         case 57: return 0;                            // close: entry で追跡解除のみ
         case 174: case 175: case 176: case 177: case 158:
         case 143: case 144: case 145: case 146: case 147: case 149:
-        case 151: case 152: case 159: case 54: case 55:
-        case 52: case 53: return 1;  // 戻り値を 0(成功)へ(chmod/chown/set*id の EPERM 偽装)
+        case 151: case 152: case 159: return 1;  // §cred: 戻り値を見かけの資格情報から決める
+        case 221: case 281: return 1;  // §cred: exec が成功したら saved id と setuid ビットを反映
+        case 54: case 55:
+        case 52: case 53: return 1;  // 戻り値を 0(成功)へ(chmod/chown の EPERM 偽装)
         case 5: case 6: case 7: return 1;  // *setxattr: security.* / trusted.* の EPERM を成功へ
-        case 148: case 150: return 1;  // getresuid/getresgid: 出力先の 3 つを 0 に書き換える
+        case 148: case 150: return 1;  // getresuid/getresgid: 出力先の 3 つを書き換える(§cred)
         case 209: return st->aux_addr != 0;  // getsockopt(SO_PEERCRED): struct ucredを0へ
         case 129: return 1;  // kill: EPERM を ESRCH へ
         case 212: return !cfg->no_recvmsg;  // recvmsg: 受信 SCM_CREDENTIALS の uid/gid を 0 へ([DEBUG] スイッチで介入なし)
@@ -3613,6 +3761,7 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
     st->entry_nr = (long)regs.regs[8];
     st->as_pending = 0;
     st->exec_err_to = 0;
+    st->exec_setid = 0;
     st->dac_access = 0;
     if (st->dac_n) dac_restore(st);   // 前回の exit を見られなかった分(通常は 0)
     if (as_limit_entry(cfg, pid, st, &regs)) return 1;
@@ -3658,11 +3807,19 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
         st->link_pending = 0;  // 翻訳失敗 = 通常パス変換へフォールバック(コピー fallback 無し)
     }
     // getresuid/getresgid(148/150): 出力先 3 本(real/effective/saved)を控える。
+    // getgroups(158): (個数, 出力先) を控える。
     // ⚠ **entry で控える**こと。exit では x0 が戻り値に潰れており、第 1 引数は読めない。
-    if (cfg->fake_root && (st->entry_nr == 148 || st->entry_nr == 150)) {
+    if (cfg->fake_root && (st->entry_nr == 148 || st->entry_nr == 150 || st->entry_nr == 158)) {
         st->res_ptr[0] = regs.regs[0];
         st->res_ptr[1] = regs.regs[1];
         st->res_ptr[2] = regs.regs[2];
+    }
+    // set*id(§cred): 引数が読める entry で成否を決め、exit でカーネルの戻り値と差し替える。
+    // 本物の syscall もそのまま走るが、アプリ uid では何も変えられない(失敗するか、変化なし)。
+    if (cfg->fake_root && cred_is_setter(st->entry_nr)) {
+        st->cred_ret = cred_set(&st->cred, pid, st->entry_nr, &regs);
+        st->aux_addr = 0;
+        return 1;
     }
     unsigned long aux = 0;
     if (st->entry_nr == 17) aux = regs.regs[0];      // getcwd buf
@@ -3744,23 +3901,58 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
     return syscall_needs_exit(cfg, st);
 }
 
-// getresuid/getresgid(148/150): 出力先の real/effective/saved をすべて 0 に書き換える。
+// §cred: get*id / getgroups / set*id の exit。戻り値(と出力先)を見かけの資格情報から決める。
+// 扱った syscall なら 1 を返す。
 //
-// getuid/geteuid(174/175) は戻り値そのものを 0 にすれば済むが、こちらは **戻り値が 0(成功)で
-// 中身はポインタ渡し**なので、書き込まれた 3 つを潰さないと実 uid が漏れる。glibc の bash は
-// setuid 判定にこれを使うため、ここを落とすと $UID/$EUID がアプリの実 uid のままになる。
-static void fake_getres_on_exit(pid_t pid, const struct pid_state *st) {
+// ⚠ **getres*id(148/150) を落とさないこと。** getuid/geteuid(174/175) は戻り値そのものだが、
+// こちらは**戻り値が 0(成功)で中身はポインタ渡し**なので、書き込まれた 3 つを直さないと実 uid が
+// 漏れる。glibc の bash は setuid 判定にこれを使うため、ここを落とすと $UID/$EUID がアプリの
+// 実 uid のままになる。
+static int cred_on_exit(pid_t pid, const struct pid_state *st) {
+    const struct z_cred *c = &st->cred;
+    long nr = st->entry_nr;
     struct user_pt_regs regs;
-    if (get_regs(pid, &regs) != 0) return;
-    if ((long)regs.regs[0] < 0) return;   // 失敗しているなら触らない(値は書かれていない)
-    unsigned int zero = 0;                 // uid_t / gid_t は 32bit
-    for (int i = 0; i < 3; i++)
-        if (st->res_ptr[i]) write_tracee_mem(pid, st->res_ptr[i], &zero, sizeof(zero));
+    unsigned long ret;
+    switch (nr) {
+        case 174: ret = c->uid[CR_REAL]; break;   // getuid
+        case 175: ret = c->uid[CR_EFF];  break;   // geteuid
+        case 176: ret = c->gid[CR_REAL]; break;   // getgid
+        case 177: ret = c->gid[CR_EFF];  break;   // getegid
+        case 148: case 150: {                      // getresuid / getresgid
+            if (get_regs(pid, &regs) != 0) return 1;
+            if ((long)regs.regs[0] < 0) return 1;  // 失敗しているなら触らない(値は書かれていない)
+            const unsigned int *id = (nr == 148) ? c->uid : c->gid;   // uid_t / gid_t は 32bit
+            for (int i = 0; i < 3; i++)
+                if (st->res_ptr[i]) write_tracee_mem(pid, st->res_ptr[i], &id[i], 4);
+            return 1;
+        }
+        case 158: {                                // getgroups(個数, 出力先)
+            int size = (int)st->res_ptr[0];
+            long r = c->ngroups;
+            if (size < 0 || (size > 0 && size < c->ngroups)) r = -EINVAL;
+            else if (size > 0 && c->ngroups > 0 &&
+                     write_tracee_mem(pid, st->res_ptr[1], c->groups, (size_t)c->ngroups * 4) != 0)
+                r = -EFAULT;
+            ret = (unsigned long)r;
+            break;
+        }
+        default:
+            if (!cred_is_setter(nr)) return 0;
+            ret = (unsigned long)st->cred_ret;     // entry で決めた成否
+            break;
+    }
+    if (get_regs(pid, &regs) == 0) { regs.regs[0] = ret; set_regs(pid, &regs); }
+    return 1;
 }
 
 // syscall-exit 時の処理(戻り値・構造体の逆変換 / 偽装)。
 static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_state *st) {
     if (st->dac_n) dac_restore(st);   // §dac: 一時的に足した権限ビットを戻す(以降の処理は続ける)
+    if (cfg->fake_root && (st->entry_nr == 221 || st->entry_nr == 281)) {   // §cred
+        struct user_pt_regs r;
+        if (get_regs(pid, &r) == 0 && (long)r.regs[0] == 0) cred_exec(&st->cred, st->exec_setid);
+        st->exec_setid = 0;
+    }
     if (st->exec_err_to) {            // execve: 失敗の errno を本来のものへ付け替える
         int from = st->exec_err_from, to = st->exec_err_to;
         struct user_pt_regs r;
@@ -3807,12 +3999,29 @@ static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_
             rewrite_recvmsg_creds(pid, st->aux_addr, (int)st->aux_len);
         } else if (st->entry_nr == 209 && st->aux_addr) {
             fake_peercred_on_exit(pid, st->aux_addr, st->aux_len);
-        } else if (st->entry_nr == 148 || st->entry_nr == 150) {
-            fake_getres_on_exit(pid, st);
+        } else if (cred_on_exit(pid, st)) {
+            // §cred: get*id / getgroups / set*id
         } else {
             fake_root_on_exit(pid, st->entry_nr, st->aux_addr, st->linkcopy_hit);
         }
     }
+}
+
+// 親の fork イベントをまだ見ていない新しい tracee へ、見かけの資格情報(§cred)を親から写す。
+// スレッドなら同じプロセスのメインスレッド、プロセスなら親プロセスから。
+static void cred_inherit_from_proc(struct pid_state *nst) {
+    char path[64], line[256];
+    snprintf(path, sizeof path, "/proc/%d/status", nst->pid);
+    FILE *f = fopen(path, "r");
+    if (!f) return;
+    int tgid = 0, ppid = 0, v;
+    while (fgets(line, sizeof line, f)) {
+        if (sscanf(line, "Tgid: %d", &v) == 1) tgid = v;
+        else if (sscanf(line, "PPid: %d", &v) == 1) ppid = v;
+    }
+    fclose(f);
+    const struct pid_state *src = state_lookup(tgid && tgid != nst->pid ? tgid : ppid);
+    if (src) nst->cred = src->cred;
 }
 
 // chroot(2) の代わり。Android はアプリに chroot を許さない(SIGSYS)ので、そのプロセスが見る
@@ -4015,6 +4224,22 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             continue;
         }
 
+        // exec したのがメインでないスレッドだと、カーネルはそのスレッドをメインの番号(= pid)へ
+        // 付け替え、他のスレッドを消す。この後に来る execve の exit は pid の名前で届くので、
+        // exec を呼んだスレッドの控え(見かけの資格情報・exec の途中経過)を pid へ付け替える。
+        // 再開は末尾の通常経路に任せる。
+        if (event == PTRACE_EVENT_EXEC) {
+            unsigned long former = 0;
+            if (ptrace(PTRACE_GETEVENTMSG, pid, 0, &former) == 0 && former && (pid_t)former != pid) {
+                struct pid_state *fst = state_lookup((pid_t)former);
+                if (fst) {
+                    state_drop(pid);
+                    fst->pid = pid;
+                    rootfs_select(pid);
+                }
+            }
+        }
+
         // fork/clone/vfork イベント。新規子を登録して再開。
         if (event == PTRACE_EVENT_FORK || event == PTRACE_EVENT_VFORK ||
             event == PTRACE_EVENT_CLONE) {
@@ -4029,6 +4254,10 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             // rootfs も継承する(コンテナの中で fork した子はそのコンテナに居る)。
             if (nst && pst) nst->rootfs_idx = pst->rootfs_idx;
             if (nst && pst) nst->as_bias = pst->as_bias;
+            // 見かけの資格情報(§cred)も継承する。子の最初の停止が先に届いていた場合は、そこで
+            // 写し終えて子はもう動いている(その後に変えているかもしれない)ので上書きしない。
+            if (nst && pst && !nst->started) nst->cred = pst->cred;
+            if (nst) nst->forked = 1;
             // cmdline/comm も同様に継承(execve まで親と同じ argv を見せる)。
             if (nst && pst && pst->proc_cmdline_len) {
                 memcpy(nst->proc_cmdline, pst->proc_cmdline, pst->proc_cmdline_len);
@@ -4065,6 +4294,10 @@ static int run_tracer(const struct config *cfg, pid_t child) {
         {
             struct pid_state *nst = state_for(pid);
             if (nst && nst->started == 0) {
+                // 親の fork イベントより先に届いた = まだ何も継承していない。走らせる前に
+                // 見かけの資格情報(§cred)だけは親から写す(走り出してから写すと、子が権限を
+                // 捨てた後に親の値で上書きしてしまう)。
+                if (!nst->forked) cred_inherit_from_proc(nst);
                 nst->started = 1;
                 // 新規子にもオプションを設定(継承されない環境への保険)。
                 ptrace(PTRACE_SETOPTIONS, pid, 0, (void *)(long)opts);
@@ -4107,8 +4340,8 @@ static int run_tracer(const struct config *cfg, pid_t child) {
         // ここで戻り値を作る(SIGSYS 停止時 x8 は syscall 番号を保持)。
         //
         // 偽装方針を 2 つに分ける:
-        //  (A) fakeroot 用の権限変更系(set*id/setgroups=143-159, chown=54/55,
-        //      chmod=52/53)だけ 0(成功)に化かす。戻り値だけで成立し、バッファ
+        //  (A) fakeroot 用の権限変更系(chown=54/55, chmod=52/53)だけ 0(成功)に化かす。
+        //      set*id/setgroups(143-159)は §cred が見かけの資格情報から成否を決める。戻り値だけで成立し、バッファ
         //      書き換えが要らないので syscall 未実行の SIGSYS でも 0 で足りる。
         //  (B) それ以外は全て -ENOSYS。claude(node) が使う新 syscall
         //      (io_uring=425-427 / epoll_pwait2=441 / clone3=435 / statx=291 /
@@ -4184,6 +4417,16 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                     if (g_trc_on)
                         fprintf(g_trc, "[z2trc] SIGSYS chroot -> %ld pid=%d\n", cr, pid);
                     z_resume(pid, seccomp_mode, state_for(pid), 0);
+                    continue;
+                }
+                if (cfg->fake_root && cred_is_setter(nr)) {   // §cred: set*id の成否を決める
+                    struct pid_state *sst = state_for(pid);
+                    long sr = sst ? cred_set(&sst->cred, pid, nr, &regs) : 0;
+                    regs.regs[0] = (unsigned long)sr;
+                    set_regs(pid, &regs);
+                    if (g_trc_on)
+                        fprintf(g_trc, "[z2trc] SIGSYS set*id nr=%ld -> %ld pid=%d\n", nr, sr, pid);
+                    z_resume(pid, seccomp_mode, sst, 0);
                     continue;
                 }
                 int priv = (nr == 143 || nr == 144 || nr == 145 || nr == 146 ||

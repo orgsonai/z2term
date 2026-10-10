@@ -559,7 +559,7 @@
     <string name="sshaccess_title">从电脑 SSH 连接</string>
     <string name="sshaccess_wifi_unavailable">请先连接 Wi-Fi (未检测到 IP)</string>
     <string name="sshaccess_from_pc_header">\n在电脑上:</string>
-    <string name="sshaccess_note">也可以在终端里用 `sshd` 启动 (端口取自 sshd_config 的 Port，也可以用 `-p` 指定)。\nOpenSSH 的 /usr/sbin/sshd 在 proot 下会因为 privsep 而无法使用 → 改用 dropbear。\n详情请参见 docs/SSH-INTO-Z2TERM.md</string>
+    <string name="sshaccess_note">也可以在终端里用 `sshd` 启动 (端口取自 sshd_config 的 Port，也可以用 `-p` 指定)。\n这里运行的是内置的 dropbear。要使用 OpenSSH 的 sshd，请自行安装后以完整路径启动，例如 /usr/sbin/sshd。\n详情请参见 docs/SSH-INTO-Z2TERM.md</string>
     <string name="gui_confirm_download_title">下载整套图形环境</string>
     <string name="gui_confirm_download_msg">首次启动图形界面 (Linux 桌面) 需要先下载显示用的软件包 (几十到几百 MB)。建议使用 Wi-Fi。要继续吗?</string>
     <string name="gui_confirm_download_action">下载并启动</string>

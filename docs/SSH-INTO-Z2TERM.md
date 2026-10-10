@@ -4,10 +4,11 @@ z2term には Alpine + **dropbear** (軽量 SSH サーバ) が同梱されてい
 z2term を PC から SSH ログイン / rsync / scp して使えます。
 
 > ⚠️ **なぜ OpenSSH の `sshd` ではなく dropbear か**
-> OpenSSH `sshd` は権限分離 (privsep) で実 UID を本当に落とせることを要求しますが、
-> PRoot 環境では実 UID はアプリ UID のままなので `permanently_set_uid: was able to
-> restore old egid` となり接続が即 reset されます。dropbear は PRoot 下でも問題なく
-> 動くため、z2term はこちらを使います。
+> 同梱しているのは軽量な dropbear で、設定画面のボタンも `sshd` コマンドもこちらを起動します。
+> OpenSSH の `sshd` は、認証前の処理を別ユーザーへ降ろしたあと「元の権限へ戻せないこと」を
+> 確かめます。0.9.32 までは root が見かけだけで戻せてしまい、`permanently_set_uid: was able to
+> restore old egid` で接続が即 reset されていました。0.9.33 からは OpenSSH の `sshd` も
+> 自分で入れて `/usr/sbin/sshd -p <ポート>`（Arch は `/usr/bin/sshd`）で起動すれば接続できます。
 
 ## 1. z2term 側 (Android) の準備
 

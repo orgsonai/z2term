@@ -1,6 +1,8 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-10 / 対象バージョン: 0.9.32 (versionCode 695)
+最終更新: 2026-10-11 / 対象バージョン: 0.9.33 (versionCode 696)
+
+**0.9.33（versionCode 696）・安定版の候補**: OpenSSH の `sshd` に接続できるようにしました（これまでは接続のたびに切れていました）。あわせて、root から別のユーザーへ切り替えたとき（`su`・`runuser` など）、切り替えた先のユーザーとして見えるようになりました（これまでは何をしても root のままに見えていました）。
 
 **0.9.32（versionCode 695）・安定版の候補**: 0.9.31 の修正では直っていなかった、操作自動化の「タップ → 次の画面を `wait-ui` で待つ」が止まる問題を直しました（止めていたのは実行中の見張りのほうでした）。
 
@@ -1703,7 +1705,7 @@ AF_UNIX のホストパスが `sun_path` の上限に収まらない場合、親
 | AF_UNIX ソケットの `sun_path` | `bind`/`connect` (aarch64 200/203) をトレースし rootfs 内のホスト実パスへ書き換え。abstract ソケット (`sun_path[0]=='\0'`) は触らない | 0.8.38 |
 | `accept`(202) | Android の untrusted_app seccomp が禁止 (bionic は `accept4`(242) しか使わない)。libc 非依存の極小 `LD_PRELOAD` シム `libz2accept.so` (生 `svc`・依存ライブラリ無し) で `accept()` を `accept4(...,0)` へ橋渡し | 0.8.39 |
 | io_uring 3 番号 (`io_uring_setup`=425 / `io_uring_enter`=426 / `io_uring_register`=427) | SIGSYS ハンドラが 0 でなく **`-ENOSYS`(-38)** を返し libuv を epoll へフォールバックさせる (他の SIGSYS は従来どおり 0 偽装) | 0.8.49 |
-| `SCM_CREDENTIALS` の ucred | `sendmsg`(211)/`recvmsg`(212) をトレースし、送信時はプロセスの実 uid/gid へ、受信時は 0 へ戻す。カーネルは申告 uid が実/実効/保存 uid のいずれか (または `CAP_SETUID`) と一致しないと `EPERM` を返すため。`SCM_RIGHTS`/memfd は無変更 | 0.8.53 |
+| `SCM_CREDENTIALS` の ucred | `sendmsg`(211)/`recvmsg`(212) をトレースし、送信時はプロセスの実 uid/gid へ、受信時は送り主の見かけの実効 uid/gid へ戻す (0.9.33。それ以前は常に 0。送り主がエンジンの管理外なら 0)。カーネルは申告 uid が実/実効/保存 uid のいずれか (または `CAP_SETUID`) と一致しないと `EPERM` を返すため。`SCM_RIGHTS`/memfd は無変更 | 0.8.53 |
 | ハードリンク (`linkat`) | **まず実ハードリンクを試し**、Android が `EACCES`/`EPERM`/`EXDEV` 等で拒否したときだけトレーサ側で `copy_for_link` が `old` を `new` へコピーして成功(0)を返す。`new` が既に存在する (本来 `EEXIST`) 等の本物のエラーは保持 | 0.8.47 |
 | ファイル監視 (`inotify_add_watch`=27) | パス引数 (arg1) をホスト実パスへ書き換える。⚠ **arg0 は inotify fd であって dirfd ではない**ので dirfd 無しとして扱う。既定は最終 symlink を辿り、mask に `IN_DONT_FOLLOW`(0x02000000) があるときだけ辿らない。⚠ **これが抜けていると実在するディレクトリでも必ず `ENOENT`** になり、ファイル監視を使うアプリが軒並み「対象が無い」と誤認する (実機で確認: KDE の `KDirWatch` が既存ディレクトリに対して `inotify failed … No such file or directory` を出していた)。`inotify_init1`(26)/`inotify_rm_watch`(28) は path を取らないので非対象 | 0.8.352 |
 | copy-fallback 後の `st_dev`/`st_ino` | git 2.46+ の「`link()` 後に dest を lstat し src と一致検証」を通すため、**パス相関**で偽装する (`linkcopy_record` がコピー先のホスト実パスを記録し、`newfstatat`/`statx` の entry で stat 対象のホストパスを `host_path_for` で解決して `linkcopy_find` が一致を見たときだけ exit で `st_dev`/`st_ino`、statx は `stx_ino`＋`stx_dev_major/minor` を src 値へ偽装) | 0.8.58〜0.8.64 |
@@ -1771,7 +1773,7 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 
 `id` は 0、bash は実 uid。バイナリの動的シンボルを見ると **`id` は `getuid`/`geteuid`(174/175) を、`bash` は `getresuid`(148) を使う**。z2root の fakeroot 対象は `setresuid`(147)/`setresgid`(149) を含みながら、**対になる getter の `getresuid`(148)/`getresgid`(150) だけを落としていた**。glibc の bash は setuid 判定に `getresuid` を使うため、**glibc 系 distro (Arch/Ubuntu/Kali) では `$UID`/`$EUID` が常に Android のアプリ uid**で、`EUID` を見る shell スクリプトが軒並み「root で実行してください」で止まっていた (`pacman-key --init` はその 1 例で、鍵束が作れない → `SigLevel = Required` の Arch では**何一つインストールできない**)。
 
-- 修正: 148/150 をトレース対象に足し、**出力先の real/effective/saved 3 つを 0 に書き換える** (`fake_getres_on_exit`)。⚠ `getuid`/`geteuid` と違い**戻り値ではなくポインタ渡し**なので、戻り値だけ 0 にしても実 uid が漏れる。出力先ポインタは **entry で控える** — exit では x0 が戻り値に潰れていて第 1 引数を読めない。
+- 修正: 148/150 をトレース対象に足し、**出力先の real/effective/saved 3 つを 0 に書き換える** (`fake_getres_on_exit`。0.9.33 からは見かけの資格情報を書く `cred_on_exit`)。⚠ `getuid`/`geteuid` と違い**戻り値ではなくポインタ渡し**なので、戻り値だけ 0 にしても実 uid が漏れる。出力先ポインタは **entry で控える** — exit では x0 が戻り値に潰れていて第 1 引数を読めない。
 - ⚠ **setter と getter は対で入れる。** この抜けは「set 系を列挙して get 系の対を落とす」形で入り込み、`getuid`/`geteuid` だけ見ていると偽装が効いているように見えるので気付けない。
 - ⚠ **失敗の理由を必ず残す。** 0.8.316〜0.8.318 は「失敗しました」の一行しか残らず、原因の特定に実機を何往復もした。端末タブの出力は logcat に流れないので、`z2-pacman-keyring` は理由を**共有ホーム側**のファイルにも書き (rootfs 内に置くと再展開で消える)、`ProotLauncher` が次の起動で logcat へ出して消す。
 
@@ -1803,6 +1805,16 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 
 **0.8.95 → 0.8.96 → 0.8.97 OS 15→16 アップグレード後に起動不能**: 0.8.95 で (1) `host_to_guest` のホットパスに `realpath()` を足し全パス変換に lstat walk を発生させ全体が激重・入力遅延化、(2) 起動毎に `find <rootfs> -type l` で rootfs 全走査＋symlink 再作成、の 2 変更で起動が不定・キーボード異常・symlink 破壊と自爆したため **0.8.96 で撤回**。0.8.97 でホットパス非依存の安全版で再修正＝原因は、proot `--link2symlink` が残す `.l2s` symlink がホスト絶対パスを抱えるところ、OS メジャーアップで data ディレクトリの絶対 prefix 正規化 (`/data/data` ↔ `/data/user/0` 等) が変わり、`host_to_guest` の rootfs/bind 直接照合が外れ stale 絶対パスを素通し→`translate_abs` が rootfs を二重前置→ENOENT となり `zsh` 等が `cannot open shared object file` で起動不能になっていた。修正＝rootfs マーカーからの純粋文字列 fallback (上記「パス変換」)。⚠️**実機 OS ダウングレード不可のため当該 OS アップ退行そのものの e2e 再現は不可。論理上 prefix 非依存で救済される設計。**
 
+**0.9.33 z2root: 見かけの資格情報 (§cred) と OpenSSH の `sshd`**: これまでの fakeroot は「`set*id` は何でも成功・`get*id` は常に 0」だった。権限を捨てたあと**元へ戻せないことを確かめる**プログラムは、これを「戻せてしまった」と読んで自分から終了する。OpenSSH の `sshd` は接続のたびに認証前の処理を別ユーザーへ降ろし、直後に `setgid(旧)`・`setuid(旧)` が**失敗すること**を確かめるので、`was able to restore old [e]gid` で毎回切れていた (0.9.25 で chroot を通した先)。⇒ tracee ごとに見かけの real / effective / saved / fs の uid・gid と補助グループを覚え (`struct z_cred`。初期値はすべて 0)、カーネルと同じ規則で成否と値を決める。
+- **規則** (`cred_set`): 実効 uid が 0 の間は何にでも変えられる。0 でなくなったら real / effective / saved のどれかにしか変えられず、それ以外は `EPERM`。gid と補助グループ (`setgroups`) を変えられるかも、gid ではなく実効 uid が 0 かで決まる。`setfs*id` は成否にかかわらず直前の値を返す。
+- **どこで決めるか**: Android はアプリの `set*id` を SIGSYS で止める端末と、カーネルまで通して `EPERM` を返す端末がある。前者は SIGSYS の処理で、後者は entry で成否を決めて exit で戻り値を差し替える (本物の syscall も走るが、アプリ uid では何も変えられない)。`get*id` / `getres*id` / `getgroups` は exit で覚えている値を返す (`cred_on_exit`)。
+- **スレッド単位で持つ**: カーネルの資格情報はスレッド単位で、プロセス全体へ揃えるのは libc の仕事 (各スレッドが同じ syscall を呼んでくる)。同じ持ち方にしたので、揃える処理を自前で持たない。
+- **継承**: fork / vfork / clone で子へ写す。⚠ 子の最初の停止が親の fork 通知より**先に**届くことがある (実機で確認)。そのまま走らせて後から写すと、子が権限を捨てた後に親の値で上書きしてしまうので、先に届いたときは走らせる前に `/proc/<pid>/status` の `Tgid` / `PPid` から親を求めて写し (`cred_inherit_from_proc`)、後から来た通知では上書きしない。
+- **exec**: 成功したら saved id を実効 id に揃える。実行ファイルに setuid / setgid ビットがあれば実効 id を 0 にする (ここではファイルの所有者をすべて root に見せているため。これが無いと、別ユーザーへ降りた先から `su` で root へ戻れない)。成否を見るために execve の exit も見るようにした。メインでないスレッドが exec すると、カーネルはそのスレッドをメインの番号へ付け替えるので、`PTRACE_EVENT_EXEC` で控えを付け替える。
+- **ほかの見え方も揃える**: `/proc/<pid>/status` の `Uid:` / `Gid:` / `Groups:` は対象プロセスの値で作り直す (実効 uid が 0 でなければ `CapEff` は 0)。`SO_PEERCRED` と受信した `SCM_CREDENTIALS` は相手の見かけの実効 id にする (自分の uid を名乗る側と、ソケットから相手の uid を読む側が食い違うと、D-Bus の認証が成立しない)。
+- ⚠ **変わるのは見え方だけ**。実体は Android のアプリ uid のままで、ファイルの実際の所有者やカーネルが見る権限は変わらない。別ユーザーへ降りた先でも、権限ビットを無視する (§dac)・`chown` が成功する、といった root 向けの扱いはそのまま効く。ファイルの所有者はこれまでどおりすべて root に見える。
+- ⚠ **実行ビットだけで読み取りビットの無い実行ファイル (権限 4111 など) は今も起動できない** (ローダが中身を読めない)。setuid ビットをそういう権限で配るコマンドは、別ユーザーへ降りた先からは使えない。
+
 **0.9.32 操作自動化: 0.9.31 で直っていなかった "Target application changed"**: 0.9.31 は `wait-ui` の中の判定だけを直したが、実機で流すと 4 回中 4 回同じところで止まった。打ち切っていたのは `wait-ui` ではなく、**実行中 100ms ごとに端末の状態を確かめる見張り** (`ActionRuntime.checkDevice`) だった。`wait-ui` は対象を一度確認すると実行の対象 (`run.target`) を握り続けるので、次の画面の窓のパッケージ名がまだ引けない隙間に見張りが走ると「切り替わった」と読む。⇒ 判定そのもの (`checkDevice`) を「前面の窓が**別アプリだと分かっている**ときだけ止める」に改め、名前がまだ分からない間 (`focusedPackage()` が null) は止めない。見張り・`wait-ui`・条件分岐・スクロールが同じ判定を使う。⚠ タップや要素の操作は、送る直前に対象の一致を別に確かめているので (`Target app is not focused`)、分からない窓へ操作が飛ぶことは無い。実機 (設定アプリ) で「タップ → `wait-ui`」が 4 回中 4 回通り、要素のタップ・出現待ち・スワイプ (3 種の速さ)・スクロール・タップ・長押し・ダブルタップ・ピンチ・2 本指スワイプ・ホーム / 戻る / 履歴 / 通知 / クイック設定のキーを並べた 43 手順が最後まで通ることを確認した。
 
 **0.9.31 操作自動化: `click` の次の `wait-ui` が "Target application changed" で必ず止まる**: 安定版前の実機確認で見つけた (設定アプリで 4 回中 4 回)。前面アプリの判定は「フォーカス中の窓の id → パッケージ名」の表 (`windowPackages`) を引く。この表は窓の状態変化イベントで埋まるので、タップで開いた**同じアプリの新しい窓**は、フォーカスを得てからイベントが届くまでの間「パッケージ名がまだ分からない」状態になる。`wait-ui` は対象を一度確認した後の不一致をすべて「別アプリへ切り替わった」と扱っていたため、その隙間で実行を打ち切っていた。⇒ `wait-ui` の中では、前面の窓のパッケージ名が**まだ分からない**ときは「まだ出ていない」として待ち続ける (`ActionRuntime.execute`)。**別アプリだと分かっている**窓が前面なら従来どおりその場で止める。画面消灯・ロック・ユーザー補助の切断・画面の向きの変化は、どちらの場合も従来どおりその場で止める。⚠ **この修正だけでは直らなかった** (0.9.32 を参照)。
@@ -1829,7 +1841,7 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 - **特権つきの拡張属性を付けられず、パッケージの導入がエラーになる (Alpine)**: `security.capability` などは本物の特権が要り `EPERM` になる。apk はこれをそのパッケージの導入エラーとして数える。⇒ `setxattr` / `lsetxattr` / `fsetxattr` の `security.*`・`trusted.*` に対する `EPERM` を、chown と同じく成功に見せる (実際には付かない)。
 - **`git commit` の直後の `git clone` (同じ端末内の複製) が "hardlink different from source" で止まる (Alpine / Ubuntu / Kali)**: コピーで代用したハードリンクは、成立を確かめる stat に備えて「コピー先を stat したらリンク元の inode を見せる」記録を 2 秒残す (0.9.22)。git はオブジェクトを「一時ファイルを link して、元を消す」形で書き、直後に確かめないので記録が残る。その間に別の git がそのオブジェクトを stat すると、**消えた一時ファイルの inode** を見せられ、clone 側の「リンク元と同じ inode か」の検証と食い違っていた。⇒ コピー先に inode を見せるのは、**リンク元がまだその inode で在るとき**だけにする (`linkcopy_find_by_path`)。消えていれば記録を捨てる。
 - **インタプリタがスクリプト・相対パスの `#!` が起動しない / `prctl(PR_SET_NAME)` が `ps` に出ない / `fexecve` が動かない**: `#!` のインタプリタを ELF と決めつけてローダへ渡していたので、インタプリタ自身が `#!` スクリプトの場合と `#!./tool` の場合に "read ehdr" で失敗していた ⇒ 内側を先に解決する (入れ子は 1 段まで)。`PR_SET_NAME` で付けた名前は `/proc/<pid>/comm` 等の見せかけにも反映する。`execveat(fd, "", AT_EMPTY_PATH)` は fd の指す実ファイルのパスを求めて通常の execve と同じ手順に載せる (メモリ上だけのファイルは対象外)。
-- **直していないもの (仕組み上の制限)**: `strace` / `ltrace` / `gdb` (既に ptrace されているプロセスは二重に追跡できない)、`fakeroot` と SysV IPC (`ipcmk`。Android のカーネルに無い。Debian 系は `fakeroot-tcp` で代用できる)、`unshare` (名前空間を作れない)、`setcap`、`mknod` での機器ファイル作成、`setuid` で本当に別ユーザーになること (見かけだけ)、**OpenSSH の `sshd` への接続** (0.9.32 の実機確認で判明。chroot は通るが、その先で権限を捨てた後に「元の権限へ戻せないこと」を確かめる処理があり、ここの root は見かけだけで戻せてしまうため `was able to restore old [e]gid` で接続ごとに終了する。同梱の `sshd` コマンド (dropbear) は動く)、メモリ上だけのファイルの実行、`sendto` に AF_UNIX のパスを直接渡す送信 (`connect` してから送る形は動く)、`rsync -H` などが元のハードリンクを見分けること (コピーで代用しているため)。
+- **直していないもの (仕組み上の制限)**: `strace` / `ltrace` / `gdb` (既に ptrace されているプロセスは二重に追跡できない)、`fakeroot` と SysV IPC (`ipcmk`。Android のカーネルに無い。Debian 系は `fakeroot-tcp` で代用できる)、`unshare` (名前空間を作れない)、`setcap`、`mknod` での機器ファイル作成、`setuid` でファイルの実際の所有者やカーネルが見る権限まで変えること (0.9.33 から見かけ上は別ユーザーになるが、実体はアプリ uid のまま)、メモリ上だけのファイルの実行、`sendto` に AF_UNIX のパスを直接渡す送信 (`connect` してから送る形は動く)、`rsync -H` などが元のハードリンクを見分けること (コピーで代用しているため)。
 
 **0.9.24 どの OS でも動かないコマンド 4 件 (実機の横断確認で発見)**: Alpine / Ubuntu / Arch / Kali の端末で同じ約 130 項目を実行して洗い出した。4 件とも全 OS で再現し、0.9.22 以前からあった。
 - **`uptime` / `w` が "Cannot get system uptime: Permission denied" で終わる (procps。Arch / Ubuntu)**: Android はアプリに `/proc/uptime` と `/proc/loadavg` を読ませない。busybox の `uptime` は `sysinfo(2)` を使うので Alpine では動き、差が見えにくかった。⇒ 0.9.2 の `/proc/stat` と同じ仕組み (`try_subst_proc_open`) に乗せ、**別の手段で本当の値が取れるものだけ**代用する: `/proc/uptime` は `CLOCK_BOOTTIME` (idle は取れないので 0)、`/proc/loadavg` は `sysinfo(2)` の `loads`、`/proc/version` は `uname(2)`。読める実ファイルや明示 bind を優先する点、読み取り専用の open だけを対象にする点は `/proc/stat` と同じ。⛔ 値を作れない `vmstat` / `diskstats` 等は代用しない。

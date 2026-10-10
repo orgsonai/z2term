@@ -560,7 +560,7 @@
     <string name="sshaccess_title">Acceso SSH desde un PC</string>
     <string name="sshaccess_wifi_unavailable">Conéctate a una red Wi-Fi (no se detectó ninguna IP)</string>
     <string name="sshaccess_from_pc_header">\nDesde tu PC:</string>
-    <string name="sshaccess_note">`sshd` también se puede lanzar desde la terminal (el puerto sale de Port en sshd_config, o de `-p`).\nEl /usr/sbin/sshd de OpenSSH rompe la separación de privilegios bajo proot → usamos dropbear.\nMás detalles en docs/SSH-INTO-Z2TERM.md</string>
+    <string name="sshaccess_note">`sshd` también se puede lanzar desde la terminal (el puerto sale de Port en sshd_config, o de `-p`).\nAquí se ejecuta el dropbear incluido. Para usar el sshd de OpenSSH, instálalo tú mismo e inícialo con su ruta completa, p. ej. /usr/sbin/sshd.\nMás detalles en docs/SSH-INTO-Z2TERM.md</string>
     <string name="gui_confirm_download_title">Descargar el entorno gráfico</string>
     <string name="gui_confirm_download_msg">La primera vez que se abre el entorno gráfico (escritorio Linux) hay que descargar los paquetes de pantalla (de decenas a cientos de MB). Se recomienda usar Wi-Fi. ¿Continuar?</string>
     <string name="gui_confirm_download_action">Descargar y abrir</string>

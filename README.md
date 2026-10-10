@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.33 (versionCode 696), release candidate**: You can now connect to OpenSSH `sshd` (every connection used to be dropped). Also, after switching from root to another user (`su`, `runuser` and the like) the process now appears as that user (it used to appear as root no matter what).
+
 **0.9.32 (versionCode 695), release candidate**: Fixes the action-macro problem that 0.9.31 did not actually fix: "tap → wait for the next screen with `wait-ui`" still stopped (the part that stopped it was the watchdog that runs during a macro).
 
 **0.9.31 (versionCode 694), release candidate**: In action macros, tapping an element and then waiting for the next screen of the same app with `wait-ui` stopped every time with "Target application changed".

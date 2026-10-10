@@ -596,7 +596,7 @@
     <string name="sshaccess_title">PC からの SSH 接続</string>
     <string name="sshaccess_wifi_unavailable">Wi-Fi に接続して下さい (IP 未検出)</string>
     <string name="sshaccess_from_pc_header">\nPC から:</string>
-    <string name="sshaccess_note">端末で `sshd` でも起動可 (ポートは sshd_config の Port、`-p` 指定も可)。\nOpenSSH の /usr/sbin/sshd は proot で privsep 破綻のため使えません → dropbear。\n詳細は docs/SSH-INTO-Z2TERM.md を参照</string>
+    <string name="sshaccess_note">端末で `sshd` でも起動可 (ポートは sshd_config の Port、`-p` 指定も可)。\nここで動くのは同梱の dropbear です。OpenSSH の sshd を使うときは、自分で入れて /usr/sbin/sshd のように場所まで書いて起動します。\n詳細は docs/SSH-INTO-Z2TERM.md を参照</string>
 
     <!-- TerminalScreen 残置文字列 (D3 バッチ 5) -->
     <string name="gui_confirm_download_title">GUI 一式をダウンロード</string>
