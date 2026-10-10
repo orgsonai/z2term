@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.30 (versionCode 693), release candidate**: The emoticon / ASCII art pad on the keyboard has a new ✎ tab for your own entries. Add them from ⚙ Settings › Keyboard, input › "Your own emoticons and ASCII art" (multi-line art is fine). They are included in backups. The built-in multi-line ASCII art grew from 16 to 40 pieces.
+
 **0.9.29 (versionCode 692), release candidate**: "How to use (Tips)" in Settings now mentions that long-pressing the tab **+** opens one tab in another OS.
 
 **0.9.28 (versionCode 691), release candidate**: Long-pressing the tab **+** lets you pick an OS and open just that one tab in it. The OS chosen in Settings does not change.

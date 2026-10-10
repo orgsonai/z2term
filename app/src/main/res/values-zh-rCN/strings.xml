@@ -138,6 +138,16 @@
     <string name="settings_user_dict_add">导入词典文件</string>
     <string name="settings_user_dict_file">%1$s  %2$d 词</string>
     <string name="settings_user_dict_remove">删除</string>
+    <string name="settings_section_kaomoji_custom">添加颜文字和字符画</string>
+    <string name="settings_kaomoji_custom_desc">在这里添加的内容会出现在键盘颜文字面板的 ✎ 标签页中。可以添加多行字符画（按 Enter 换行）。行首的空格会保留。</string>
+    <string name="settings_kaomoji_custom_text">颜文字 / 字符画</string>
+    <string name="settings_kaomoji_custom_add">添加</string>
+    <string name="settings_kaomoji_custom_added">已添加</string>
+    <string name="settings_kaomoji_custom_empty">没有输入内容</string>
+    <string name="settings_kaomoji_custom_duplicate">已经添加过了</string>
+    <string name="settings_kaomoji_custom_too_large">太大了（最多 40 行 / 2000 个字符）</string>
+    <string name="settings_kaomoji_custom_full">已满（200 条）。请先删除一些</string>
+    <string name="pad_kaomoji_custom_empty">还没有内容。\n可以在 设置 › 键盘 ›“添加颜文字和字符画”中添加。</string>
     <string name="settings_user_dict_added">已导入 %1$s（%2$d 词）</string>
     <string name="settings_user_dict_too_large">文件太大了（上限 8MB）</string>
     <string name="settings_user_dict_no_entries">一个词也没能读出来。请确认每行是“读音 /候选/”或制表符分隔的“读音〈制表符〉写法”，并且读音是平假名</string>

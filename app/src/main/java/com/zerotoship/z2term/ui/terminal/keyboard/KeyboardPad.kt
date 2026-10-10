@@ -89,7 +89,10 @@ internal fun KeyboardPad(
                 ClipboardHistoryStore.captureCurrent(context)
             }
             PadMode.EMOJI -> RecentEmojiStore.ensureLoaded(context)
-            PadMode.KAOMOJI -> RecentKaomojiStore.ensureLoaded(context)
+            PadMode.KAOMOJI -> {
+                RecentKaomojiStore.ensureLoaded(context)
+                CustomKaomojiStore.ensureLoaded(context)
+            }
             PadMode.NONE -> Unit
         }
     }
@@ -203,10 +206,16 @@ private fun ColumnScope.EmojiPane(style: KeyboardStyle, onInsert: (String) -> Un
 @Composable
 private fun ColumnScope.KaomojiPane(style: KeyboardStyle, onInsert: (String) -> Unit) {
     val recent by RecentKaomojiStore.items.collectAsState()
+    val custom by CustomKaomojiStore.items.collectAsState()
     val categories = KaomojiCatalog.ALL
-    // 0 = 最近使った順 (絵文字パッドと同じ並び)。
+    // 0 = 最近使った順 (絵文字パッドと同じ並び)。最後 = 自分で足したもの (設定から足す)。
     var tab by remember { mutableIntStateOf(0) }
-    val items = if (tab == 0) recent else categories.getOrNull(tab - 1)?.items.orEmpty()
+    val customTab = categories.size + 1
+    val items = when (tab) {
+        0 -> recent
+        customTab -> custom
+        else -> categories.getOrNull(tab - 1)?.items.orEmpty()
+    }
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp)
@@ -215,9 +224,13 @@ private fun ColumnScope.KaomojiPane(style: KeyboardStyle, onInsert: (String) -> 
         categories.forEachIndexed { i, c ->
             PadTab(c.label, selected = tab == i + 1, style = style) { tab = i + 1 }
         }
+        PadTab("✎", selected = tab == customTab, style = style) { tab = customTab }
     }
     if (items.isEmpty()) {
-        PadEmptyText(stringResource(R.string.pad_kaomoji_empty), style, Modifier.weight(1f))
+        PadEmptyText(
+            stringResource(if (tab == customTab) R.string.pad_kaomoji_custom_empty else R.string.pad_kaomoji_empty),
+            style, Modifier.weight(1f)
+        )
         return
     }
     // タブを替えたら先頭から見せる (前のタブの位置が残ると途中から始まる)。

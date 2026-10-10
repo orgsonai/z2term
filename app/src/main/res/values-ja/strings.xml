@@ -141,6 +141,16 @@
     <string name="settings_user_dict_add">辞書ファイルを取り込む</string>
     <string name="settings_user_dict_file">%1$s  %2$d 語</string>
     <string name="settings_user_dict_remove">削除</string>
+    <string name="settings_section_kaomoji_custom">顔文字・AA の追加</string>
+    <string name="settings_kaomoji_custom_desc">ここで足したものは、キーボードの顔文字パッドの「✎」タブに並びます。複数行の AA も入れられます（改行は Enter）。行頭の空白はそのまま残します。</string>
+    <string name="settings_kaomoji_custom_text">顔文字・AA</string>
+    <string name="settings_kaomoji_custom_add">追加</string>
+    <string name="settings_kaomoji_custom_added">追加しました</string>
+    <string name="settings_kaomoji_custom_empty">入力がありません</string>
+    <string name="settings_kaomoji_custom_duplicate">すでに追加されています</string>
+    <string name="settings_kaomoji_custom_too_large">大きすぎます（40 行・2000 文字まで）</string>
+    <string name="settings_kaomoji_custom_full">いっぱいです（200 件）。先にいくつか削除してください</string>
+    <string name="pad_kaomoji_custom_empty">まだありません。\n設定 › キーボード・入力 ›「顔文字・AA の追加」から足せます。</string>
     <string name="settings_user_dict_added">%1$s を取り込みました（%2$d 語）</string>
     <string name="settings_user_dict_too_large">ファイルが大きすぎます（上限 8MB）</string>
     <string name="settings_user_dict_no_entries">語が 1 つも読み取れませんでした。「よみ /候補/」かタブ区切りの「よみ〈タブ〉表記」になっているか、読みがひらがなかを確認してください</string>

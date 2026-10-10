@@ -144,6 +144,17 @@
     <string name="settings_user_dict_add">Import a dictionary file</string>
     <string name="settings_user_dict_file" tools:ignore="PluralsCandidate">%1$s  %2$d words</string>
     <string name="settings_user_dict_remove">Remove</string>
+    <string name="settings_section_kaomoji_custom">Your own emoticons and ASCII art</string>
+    <string name="settings_kaomoji_custom_desc">What you add here appears in the ✎ tab of the emoticon pad on the keyboard. Multi-line art is fine: press Enter for a new line. Leading spaces are kept.</string>
+    <string name="settings_kaomoji_custom_text">Emoticon / ASCII art</string>
+    <string name="settings_kaomoji_custom_add">Add</string>
+    <string name="settings_kaomoji_custom_added">Added</string>
+    <string name="settings_kaomoji_custom_empty">Nothing to add</string>
+    <string name="settings_kaomoji_custom_duplicate">Already added</string>
+    <string name="settings_kaomoji_custom_too_large">Too large (up to 40 lines / 2000 characters)</string>
+    <string name="settings_kaomoji_custom_full">The list is full (200). Remove some first</string>
+    <string name="pad_kaomoji_custom_empty">Nothing here yet.\nAdd your own from Settings › Keyboard › “Your own emoticons and ASCII art”.</string>
+    <string name="settings_kaomoji_custom_placeholder" translatable="false">(^_^)/</string>
     <string name="settings_user_dict_added" tools:ignore="PluralsCandidate">Imported %1$s (%2$d words)</string>
     <string name="settings_user_dict_too_large">That file is too large (8MB limit)</string>
     <string name="settings_user_dict_no_entries">No words could be read. Check that each line looks like "reading /candidate/" or tab-separated "reading&lt;TAB&gt;word", and that readings are hiragana</string>

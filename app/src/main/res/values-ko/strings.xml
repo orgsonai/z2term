@@ -138,6 +138,16 @@
     <string name="settings_user_dict_add">사전 파일 가져오기</string>
     <string name="settings_user_dict_file">%1$s  %2$d개 단어</string>
     <string name="settings_user_dict_remove">삭제</string>
+    <string name="settings_section_kaomoji_custom">이모티콘·AA 추가</string>
+    <string name="settings_kaomoji_custom_desc">여기서 추가한 것은 키보드 이모티콘 패드의 ✎ 탭에 나옵니다. 여러 줄 AA도 넣을 수 있습니다(줄바꿈은 Enter). 줄 앞의 공백은 그대로 둡니다.</string>
+    <string name="settings_kaomoji_custom_text">이모티콘·AA</string>
+    <string name="settings_kaomoji_custom_add">추가</string>
+    <string name="settings_kaomoji_custom_added">추가했습니다</string>
+    <string name="settings_kaomoji_custom_empty">입력이 없습니다</string>
+    <string name="settings_kaomoji_custom_duplicate">이미 추가되어 있습니다</string>
+    <string name="settings_kaomoji_custom_too_large">너무 큽니다(40줄·2000자까지)</string>
+    <string name="settings_kaomoji_custom_full">가득 찼습니다(200개). 먼저 몇 개를 삭제하세요</string>
+    <string name="pad_kaomoji_custom_empty">아직 없습니다.\n설정 › 키보드 › ‘이모티콘·AA 추가’에서 넣을 수 있습니다.</string>
     <string name="settings_user_dict_added">%1$s을(를) 가져왔습니다 (%2$d개 단어)</string>
     <string name="settings_user_dict_too_large">파일이 너무 큽니다 (8MB까지)</string>
     <string name="settings_user_dict_no_entries">단어를 하나도 읽지 못했습니다. 각 줄이 "요미 /후보/" 또는 탭으로 나뉜 "요미&lt;TAB&gt;단어" 형태인지, 요미가 히라가나인지 확인하세요</string>

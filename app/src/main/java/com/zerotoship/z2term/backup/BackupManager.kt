@@ -14,6 +14,7 @@ import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.snippets.SnippetStore
 import com.zerotoship.z2term.tile.TileStore
 import com.zerotoship.z2term.tile.Z2TileService
+import com.zerotoship.z2term.ui.terminal.keyboard.CustomKaomojiStore
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
 import com.zerotoship.z2term.widget.WidgetStore
@@ -122,6 +123,8 @@ object BackupManager {
     private const val ICONS = "icons.json"
     private const val DICT_DIR = "user_dict/"
     private const val IME_HISTORY = "ime_history.json"
+    /** 自分で足した顔文字・AA ([CustomKaomojiStore])。 */
+    private const val KAOMOJI_CUSTOM = CustomKaomojiStore.FILE_NAME
 
     /**
      * ファイル名に使う日時 (`20260725-2130`)。手で作るものと定期バックアップ
@@ -159,6 +162,7 @@ object BackupManager {
         // 辞書は拡張子を決めていない (利用者が持ち込んだファイル名のまま置く) ので、全部拾う。
         val dicts = filesIn(UserDictStore.dictDir(app), "")
         val imeHistory = ImeHistoryStore.historyFile(app).takeIf { it.isFile }
+        val kaomojiCustom = CustomKaomojiStore.file(app).takeIf { it.isFile }
         // 語数は読み込んでからでないと 0 に見える (数えるためだけに読む)。
         ImeHistoryStore.ensureLoaded(app)
 
@@ -176,6 +180,7 @@ object BackupManager {
             put(ICONS, iconsJson.toByteArray())
             dicts.forEach { put(DICT_DIR + it.name, it.readBytes()) }
             imeHistory?.let { put(IME_HISTORY, it.readBytes()) }
+            kaomojiCustom?.let { put(KAOMOJI_CUSTOM, it.readBytes()) }
         }
         // 暗号化するかは**合言葉の有無だけ**で決まる (秘密を含めるかとは別)。
         val encrypted = options.passphrase.isNotEmpty()
@@ -312,6 +317,7 @@ object BackupManager {
             }
         }
         entries[IME_HISTORY]?.let { File(app.filesDir, IME_HISTORY).writeBytes(it) }
+        entries[KAOMOJI_CUSTOM]?.let { CustomKaomojiStore.file(app).writeBytes(it) }
 
         edge?.let {
             EdgeBackup.apply(EdgeRuntime.store(app), it)
@@ -330,6 +336,7 @@ object BackupManager {
         }
         if (dictRestored) runCatching { UserDictStore.reload(app) }
         if (entries[IME_HISTORY] != null) runCatching { ImeHistoryStore.reload(app) }
+        if (entries[KAOMOJI_CUSTOM] != null) runCatching { CustomKaomojiStore.reload(app) }
         return true
     }
 

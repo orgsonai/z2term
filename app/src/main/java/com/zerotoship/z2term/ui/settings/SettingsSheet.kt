@@ -132,6 +132,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceConfig
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceEntry
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
+import com.zerotoship.z2term.ui.terminal.keyboard.CustomKaomojiStore
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
 import com.zerotoship.z2term.ui.terminal.keyboard.asTemplate
 import com.zerotoship.z2term.ui.terminal.keyboard.asciiKeyLayout
@@ -790,6 +791,71 @@ fun SettingsSheet(
                                 danger = true,
                                 onClick = { scope.launch { UserDictStore.remove(context, f.name) } }
                             )
+                        }
+                    }
+                }
+
+                // 自分で足す顔文字・AA。パッドの「✎」タブに並ぶ。ユーザー辞書の次に置く —
+                // どちらも「自分のものをキーボードへ足す」設定なので。
+                Section(title = stringResource(R.string.settings_section_kaomoji_custom)) {
+                    val customKaomoji by CustomKaomojiStore.items.collectAsState()
+                    LaunchedEffect(Unit) { CustomKaomojiStore.ensureLoaded(context) }
+                    var kaomojiDraft by remember { mutableStateOf("") }
+                    Text(
+                        text = stringResource(R.string.settings_kaomoji_custom_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    key("kaomoji-custom-text") {
+                        TextField(
+                            title = stringResource(R.string.settings_kaomoji_custom_text),
+                            placeholder = stringResource(R.string.settings_kaomoji_custom_placeholder),
+                            value = kaomojiDraft,
+                            onChange = { kaomojiDraft = it },
+                        )
+                    }
+                    ActionButton(
+                        label = stringResource(R.string.settings_kaomoji_custom_add),
+                        onClick = {
+                            scope.launch {
+                                val msg = when (CustomKaomojiStore.add(context, kaomojiDraft)) {
+                                    CustomKaomojiStore.AddResult.Added -> {
+                                        kaomojiDraft = ""
+                                        R.string.settings_kaomoji_custom_added
+                                    }
+                                    CustomKaomojiStore.AddResult.Empty -> R.string.settings_kaomoji_custom_empty
+                                    CustomKaomojiStore.AddResult.Duplicate -> R.string.settings_kaomoji_custom_duplicate
+                                    CustomKaomojiStore.AddResult.TooLarge -> R.string.settings_kaomoji_custom_too_large
+                                    CustomKaomojiStore.AddResult.Full -> R.string.settings_kaomoji_custom_full
+                                }
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                    )
+                    customKaomoji.forEach { k ->
+                        key(k) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // 複数行は行がそろうよう等幅で、折り返さずに横へ流す。
+                                Text(
+                                    text = k,
+                                    color = ZtsTextPrimary,
+                                    fontSize = 11.sp,
+                                    lineHeight = 13.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    softWrap = false,
+                                    modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState())
+                                )
+                                ActionButton(
+                                    label = stringResource(R.string.settings_user_dict_remove),
+                                    danger = true,
+                                    onClick = { scope.launch { CustomKaomojiStore.remove(context, k) } }
+                                )
+                            }
                         }
                     }
                 }

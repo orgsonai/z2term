@@ -138,6 +138,16 @@
     <string name="settings_user_dict_add">Importar un archivo de diccionario</string>
     <string name="settings_user_dict_file">%1$s  %2$d palabras</string>
     <string name="settings_user_dict_remove">Quitar</string>
+    <string name="settings_section_kaomoji_custom">Tus emoticonos y arte ASCII</string>
+    <string name="settings_kaomoji_custom_desc">Lo que añadas aquí aparece en la pestaña ✎ del panel de emoticonos del teclado. Admite arte de varias líneas: pulsa Intro para una línea nueva. Se conservan los espacios iniciales.</string>
+    <string name="settings_kaomoji_custom_text">Emoticono / arte ASCII</string>
+    <string name="settings_kaomoji_custom_add">Añadir</string>
+    <string name="settings_kaomoji_custom_added">Añadido</string>
+    <string name="settings_kaomoji_custom_empty">No hay nada que añadir</string>
+    <string name="settings_kaomoji_custom_duplicate">Ya está añadido</string>
+    <string name="settings_kaomoji_custom_too_large">Demasiado grande (hasta 40 líneas / 2000 caracteres)</string>
+    <string name="settings_kaomoji_custom_full">La lista está llena (200). Quita algunos primero</string>
+    <string name="pad_kaomoji_custom_empty">Aún no hay nada.\nAñade los tuyos en Ajustes › Teclado › «Tus emoticonos y arte ASCII».</string>
     <string name="settings_user_dict_added">Se importó %1$s (%2$d palabras)</string>
     <string name="settings_user_dict_too_large">Ese archivo es demasiado grande (límite de 8 MB)</string>
     <string name="settings_user_dict_no_entries">No se pudo leer ninguna palabra. Comprueba que cada línea tenga la forma \"lectura /candidato/\" o \"lectura&lt;TAB&gt;palabra\" separada por tabuladores, y que las lecturas estén en hiragana</string>

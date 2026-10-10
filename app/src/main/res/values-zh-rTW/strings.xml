@@ -138,6 +138,16 @@
     <string name="settings_user_dict_add">匯入詞典檔案</string>
     <string name="settings_user_dict_file">%1$s  %2$d 詞</string>
     <string name="settings_user_dict_remove">刪除</string>
+    <string name="settings_section_kaomoji_custom">新增顏文字和字元畫</string>
+    <string name="settings_kaomoji_custom_desc">在這裡新增的內容會出現在鍵盤顏文字面板的 ✎ 分頁中。可以新增多行字元畫（按 Enter 換行）。行首的空格會保留。</string>
+    <string name="settings_kaomoji_custom_text">顏文字 / 字元畫</string>
+    <string name="settings_kaomoji_custom_add">新增</string>
+    <string name="settings_kaomoji_custom_added">已新增</string>
+    <string name="settings_kaomoji_custom_empty">沒有輸入內容</string>
+    <string name="settings_kaomoji_custom_duplicate">已經新增過了</string>
+    <string name="settings_kaomoji_custom_too_large">太大了（最多 40 行 / 2000 個字元）</string>
+    <string name="settings_kaomoji_custom_full">已滿（200 筆）。請先刪除一些</string>
+    <string name="pad_kaomoji_custom_empty">還沒有內容。\n可以在 設定 › 鍵盤 ›「新增顏文字和字元畫」中新增。</string>
     <string name="settings_user_dict_added">已匯入 %1$s（%2$d 詞）</string>
     <string name="settings_user_dict_too_large">檔案太大了（上限 8MB）</string>
     <string name="settings_user_dict_no_entries">一個詞也沒能讀出來。請確認每行是“讀音 /候選/”或定位字元分隔的“讀音〈定位字元〉寫法”，並且讀音是平假名</string>

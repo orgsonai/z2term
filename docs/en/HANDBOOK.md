@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.29.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.30.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -171,7 +171,7 @@ Use **Settings › Key layout (your own)** to enable faces and change their orde
 - **Pasting what you copied (0.8.278)**: **flick up on the ESC key** and the same area becomes a **paste pad**. ⚠ Since 0.9.18 the ESC key shows only "ESC" (it used to show 📋 / 😀 above and below, and "▲📋 ▼😀" when held). The flick directions are also listed under Tips in Settings. Copied text is listed newest first; tap to insert it. ⚠ **Pasting closes the pad and takes you back to the keys** (0.8.395 — before that it stayed open and the × in the top-left had to be pressed after every paste). The emoji pad stays open, since emoji are usually typed several in a row. ✕ removes one entry, 🗑 clears all. ⚠ Entries are captured when you **copy first, then open the keyboard** (an Android rule: a keyboard may only read the clipboard while it is up). Clips marked as sensitive by password managers are never kept.
 - **The same flicks work on the `A` (latin) face (0.8.362)**: on the latin face too, **flick up on ESC to paste, down for emoji** — the same finger movement as the kana and number faces. ⚠ **The latin ESC shows no 📋 / 😀 marks** (that face is a grid of plain keys and the marks would change its look), and holding it pops nothing up, so **the movement is the only thing to remember**. ⚠ Before this there was **no way at all** to open the paste pad from the latin face: the seat the entry key needs is taken by the face-switch key in Japanese.
 - ⚠ While either pad is showing, **⌫ ⏎ ␣ ◀ ▶ still work**, so you can delete what you just pasted or hit return. The 😀 / 📋 / (^^) tabs at the top of the pad switch between emoji, paste and emoticons.
-- **Typing emoticons and ASCII art (0.9.18)**: press the **(^^) tab** at the top of the pad for a list of emoticons and ASCII art. Pick a category from the tabs — "(´ω`)" emoticons, ":-)" emoticons made only of ASCII letters and symbols, "AA" one-line art, "AA≡" multi-line art — and tap to insert. 🕘 on the left is most recently used. ASCII-only emoticons never break, whatever the font or SSH host. ⚠ **Multi-line art is sent as a paste**, so a shell does not run it line by line as commands (the same goes for multi-line clipboard entries).
+- **Typing emoticons and ASCII art (0.9.18)**: press the **(^^) tab** at the top of the pad for a list of emoticons and ASCII art. Pick a category from the tabs — "(´ω`)" emoticons, ":-)" emoticons made only of ASCII letters and symbols, "AA" one-line art, "AA≡" multi-line art — and tap to insert. 🕘 on the left is most recently used. **✎** on the right holds **your own entries** (0.9.30). In ⚙ Settings › Keyboard, input › "Your own emoticons and ASCII art", type into the field and press Add. Multi-line art goes in as it is (Enter for a new line) and leading spaces are kept. Remove entries in the same place. They are included in backups. ASCII-only emoticons never break, whatever the font or SSH host. ⚠ **Multi-line art is sent as a paste**, so a shell does not run it line by line as commands (the same goes for multi-line clipboard entries).
 - **Pads close with the keyboard (0.8.307)**: close the keyboard with emoji or paste still open and **the next time it opens you get the usual kana keys**. ⚠ Until now it came back exactly as you left it, so a reopened keyboard could be showing the emoji pad with no kana keys in sight. The **face (kana / ASCII / numbers) is still remembered** as before.
 - Note: this is a simple dictionary-based conversion, so it isn't as smart as Gboard — but words you use are learned and start appearing near the top.
 
@@ -922,6 +922,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.30 (versionCode 693), release candidate**: The emoticon / ASCII art pad on the keyboard has a new ✎ tab for your own entries. Add them from ⚙ Settings › Keyboard, input › "Your own emoticons and ASCII art" (multi-line art is fine). They are included in backups. The built-in multi-line ASCII art grew from 16 to 40 pieces.
 
 **0.9.29 (versionCode 692), release candidate**: "How to use (Tips)" in Settings now mentions that long-pressing the tab **+** opens one tab in another OS.
 
