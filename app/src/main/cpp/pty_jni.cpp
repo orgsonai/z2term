@@ -161,8 +161,10 @@ Java_com_zerotoship_z2term_pty_PtyProcess_nativeCreate(
         // termios 設定
         setup_terminal_modes(STDIN_FILENO);
 
-        // 標準シグナルを既定値に戻す
-        for (int sig = 1; sig < 32; ++sig) {
+        // シグナルを既定値に戻す。リアルタイムシグナルも含める: アプリ側が一部 (36 / 38) を
+        // 無視にしており、無視は exec を越えて端末内の全プロセスへ引き継がれる。
+        // 範囲外の番号は EINVAL で何も起きない。
+        for (int sig = 1; sig <= 64; ++sig) {
             signal(sig, SIG_DFL);
         }
 

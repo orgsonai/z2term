@@ -47,6 +47,8 @@
 #include <sys/un.h>      // struct sockaddr_un
 #include <sys/wait.h>
 #include <sys/resource.h> // getrlimit/setrlimit (自前ローダの専用スタック整合)
+#include <sys/sysinfo.h> // sysinfo (/proc/loadavg の代用)
+#include <sys/utsname.h> // uname (/proc/version の代用)
 #include <sys/mman.h>    // mmap / mprotect (自前ローダ)
 #include <sys/auxv.h>    // getauxval (自前ローダの auxv 構築)
 #include <alloca.h>      // alloca (自前ローダの初期スタック構築)
@@ -1011,6 +1013,13 @@ static int elf_e_type(const char *path) {
     return (int)t;
 }
 
+// PT_INTERP が Android の bionic linker か。
+static int interp_is_bionic(const char *interp) {
+    const char *ib = strrchr(interp, '/');
+    ib = ib ? ib + 1 : interp;
+    return strcmp(ib, "linker64") == 0 || strcmp(ib, "linker") == 0;
+}
+
 // guest_prog を resolve し host 実パスへ。orig_argv0 は ELF バイナリ起動時の argv0。
 // pid は相対 exec パスを /proc/<pid>/cwd で絶対化するため(run_child は自身の pid)。
 // 戻り値: 0 = loader 包み済み(plan->target/prefix 有効) / 1 = passthrough
@@ -1047,9 +1056,16 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
                 snprintf(host_loader, sizeof(host_loader), "%s", interp_loader);
             snprintf(plan->target, sizeof(plan->target), "%s", host_loader);
             plan_push(plan, host_loader);
-            plan_push(plan, "--argv0");
-            plan_push(plan, sb_interp);   // インタプリタの argv0 はシバン表記どおり
-            plan_push(plan, host_interp);
+            if (interp_is_bionic(interp_loader)) {
+                // bionic linker は --argv0 を解さず、実プログラムのパスとして読んで
+                // "expected absolute path: --argv0" で落ちる (`#!/system/bin/sh` の pm / am 等)。
+                // シバン表記のパスをそのまま渡す。それがインタプリタの argv0 にもなる。
+                plan_push(plan, sb_interp[0] == '/' ? sb_interp : host_interp);
+            } else {
+                plan_push(plan, "--argv0");
+                plan_push(plan, sb_interp);   // インタプリタの argv0 はシバン表記どおり
+                plan_push(plan, host_interp);
+            }
         } else {
             snprintf(plan->target, sizeof(plan->target), "%s", host_interp);
             plan_push(plan, sb_interp);   // argv0
@@ -1100,14 +1116,21 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
         // Android の bionic linker(/system/bin/linker64) は glibc/musl の ld.so と違い
         // `--argv0 <name>` を解さず、そのまま実プログラムの argv[1] へ漏らす。Android
         // ネイティブの build-tools(aapt2 等。interp=linker64)が "expected absolute path:
-        // --argv0" で daemon 起動失敗していた。bionic のときは --argv0 を渡さない
-        // (argv0 は実プログラムパスのままになるが Android ツールは argv0 を見ないため実害なし)。
-        const char *ib = strrchr(interp, '/');
-        ib = ib ? ib + 1 : interp;
-        int interp_is_bionic = (strcmp(ib, "linker64") == 0 || strcmp(ib, "linker") == 0);
-        if (!interp_is_bionic) {
+        // --argv0" で daemon 起動失敗していた。bionic のときは --argv0 を渡さない。
+        // linker に渡したパスがそのまま実プログラムの argv0 になる。
+        int bionic = interp_is_bionic(interp);
+        if (!bionic) {
             plan_push(plan, "--argv0");
             plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
+        }
+        // ⚠ bionic では symlink を解決する前の、呼ばれたとおりのパスを渡す。argv0 の名前で
+        // 動作を決める実行ファイル (/system/bin/ls -> toybox など) は、解決後のパスを渡すと
+        // 「toybox」として起動して第 1 引数をコマンド名と読み、Unknown command で終わる。
+        // linker の open() は傍受・翻訳されるので、ゲストパスのままで symlink も辿れる。
+        if (bionic && guest_prog[0] == '/') {
+            plan_push(plan, guest_prog);
+            wrap_with_loader(cfg, plan, 1);
+            return 0;
         }
         // ld.so が開く実プログラムは「ゲストパス」を渡す。ld.so の open() は
         // tracee として傍受・翻訳されるため、host_prog(=ホスト実パス)を渡すと
@@ -2131,7 +2154,46 @@ static size_t proc_boot_stat(char *buf, size_t cap) {
     return n > 0 && (size_t)n < cap ? (size_t)n : 0;
 }
 
-// /proc の temp 差し替え本体。起動日時補完は readfree の OFF 時にも行う。
+// Android がアプリに読ませない全体情報のうち、別の手段で**本当の値**が取れるもの。
+// 取れないもの (vmstat / diskstats 等) は作らない。
+//   /proc/stat    : btime だけ (上の proc_boot_stat)
+//   /proc/uptime  : CLOCK_BOOTTIME。idle は取れないので 0。procps の uptime / w はこれが
+//                   読めないと "Cannot get system uptime" で終わる (Arch / Ubuntu)
+//   /proc/loadavg : sysinfo(2) の loads。末尾の pid は要求元のもの
+//   /proc/version : uname(2)
+static int proc_denied_target(const char *g) {
+    return strcmp(g, "/proc/stat") == 0 || strcmp(g, "/proc/uptime") == 0 ||
+           strcmp(g, "/proc/loadavg") == 0 || strcmp(g, "/proc/version") == 0;
+}
+
+static size_t proc_denied_fill(const char *g, pid_t pid, char *buf, size_t cap) {
+    int n = 0;
+    if (strcmp(g, "/proc/stat") == 0) return proc_boot_stat(buf, cap);
+    if (strcmp(g, "/proc/uptime") == 0) {
+        struct timespec boot;
+        if (clock_gettime(CLOCK_BOOTTIME, &boot) != 0) return 0;
+        n = snprintf(buf, cap, "%lld.%02ld 0.00\n", (long long)boot.tv_sec,
+                     boot.tv_nsec / 10000000L);
+    } else if (strcmp(g, "/proc/loadavg") == 0) {
+        struct sysinfo si;
+        if (sysinfo(&si) != 0) return 0;
+        unsigned long v[3];
+        // loads は 1<<16 を 1.0 とする固定小数。カーネルと同じく 0.005 を足して切り捨てる。
+        for (int i = 0; i < 3; i++) v[i] = si.loads[i] + (65536UL / 200);
+        n = snprintf(buf, cap, "%lu.%02lu %lu.%02lu %lu.%02lu 1/%u %d\n",
+                     v[0] >> 16, ((v[0] & 0xffff) * 100) >> 16,
+                     v[1] >> 16, ((v[1] & 0xffff) * 100) >> 16,
+                     v[2] >> 16, ((v[2] & 0xffff) * 100) >> 16,
+                     (unsigned)si.procs, (int)pid);
+    } else if (strcmp(g, "/proc/version") == 0) {
+        struct utsname u;
+        if (uname(&u) != 0) return 0;
+        n = snprintf(buf, cap, "%s version %s (z2term) %s\n", u.sysname, u.release, u.version);
+    }
+    return n > 0 && (size_t)n < cap ? (size_t)n : 0;
+}
+
+// /proc の temp 差し替え本体。全体情報の代用は readfree の OFF 時にも行う。
 // 戻り値 1=差し替えた(呼び出し側は
 // maybe_rewrite_path をスキップし openat-exit で temp を unlink)、0=非対象/失敗
 // (通常 openat にフォールバック)。失敗時に uid 露出する可能性はあるが稀。
@@ -2171,7 +2233,7 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
         from_dirfd = 1;
     }
 
-    int boot_stat = strcmp(g, "/proc/stat") == 0;
+    int boot_stat = proc_denied_target(g);
     int kind = proc_open_kind(g);
     if (!boot_stat && (!cfg->readfree || kind == PROC_FD_NONE)) return 0;
 
@@ -2188,14 +2250,14 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
         unsigned long flags = regs->regs[2];
         if ((flags & O_ACCMODE) != O_RDONLY ||
             (flags & (O_PATH | O_DIRECTORY | O_CREAT | O_TRUNC | O_EXCL))) return 0;
-        // 明示 bind による差し替えや読める実 /proc/stat はそのまま通す。
+        // 明示 bind による差し替えや読める実ファイルはそのまま通す。
         char real[PATH_MAX_Z];
         if (host_path_for(cfg, pid, g, 1, AT_FDCWD, real, sizeof(real)) != 0 ||
-            strcmp(real, "/proc/stat") != 0) return 0;
+            strcmp(real, g) != 0) return 0;
         int fd = open(real, O_RDONLY | O_CLOEXEC);
         if (fd >= 0) { close(fd); return 0; }
         if (errno != EACCES && errno != EPERM) return 0;
-        total = proc_boot_stat(buf, sizeof(buf));
+        total = proc_denied_fill(g, pid, buf, sizeof(buf));
         if (!total) return 0;
     } else if (kind == PROC_FD_CMDLINE) {
         if (!tst || tst->proc_cmdline_len == 0) return 0;          // 控え無し=実 /proc

@@ -1,6 +1,8 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-10 / 対象バージョン: 0.9.23 (versionCode 686)
+最終更新: 2026-10-10 / 対象バージョン: 0.9.24 (versionCode 687)
+
+**0.9.24（versionCode 687）・安定版の候補**: どの OS でも動かなかったコマンドを直しました。`uptime` と `w` が「Cannot get system uptime」で終わる問題（Arch / Ubuntu）、Android 側のコマンドを `/system/bin/ls` のように呼ぶと「Unknown command」になる問題、`/system/bin/pm` や `am` が「expected absolute path」で起動しない問題です。`/proc/uptime`・`/proc/loadavg`・`/proc/version` も読めるようになりました。
 
 **0.9.23（versionCode 686）・安定版の候補**: 設定の「Linux 環境」で OS を選ぶと、新しいタブで開くようにしました。これまでは使っているタブを閉じて作り直していたので、動かしていた処理や画面の履歴が消えていました。元のタブはそのまま残ります。
 
@@ -1784,6 +1786,13 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 **0.8.84 大きい argv を渡す exec が `ENOENT` で失敗**: `rewrite_execve` が (1) argv 連結バッファが固定長 `char blob[8192]` で `blob_sz>8192` のとき `if (blob_sz<=sizeof(blob))` が偽になり**書き換えを丸ごとスキップ**→path レジスタにゲストパスが残ったまま execve され ENOENT、(2) argv 読み取り上限 `MAX_ARGS 256` で 256 個目以降を切り捨て、の二重制限を持っていた。クロスディストロ cmdtest e2e で Kali の `apt-get install python3` が dpkg の byte-compile (`python3.13 -E -S py_compile.py <287ファイル＝~11KB argv>`) で踏んで `cannot execute: required file not found` 失敗するのを発見 (二分で「argv 総バイト ~7.5KB 超・カーネル ARG_MAX 2MB 以下＝z2root 内部バッファ起因」と確定)。修正＝argv 読み取りを上限なしの動的確保 (`realloc`) に、`blob`/`parts`/`ptrs` を argv サイズ依存の `malloc` にして `MAX_ARGS` を撤去 (scratch は従来どおり `sp` 直下＝growsdown stack を `process_vm_writev` が伸長するため大 argv でも mapped)。Alpine/Ubuntu の cmdtest は非ゼロ 0 件。⚠️**Kali での python 導入完走＋大 argv exec の実機 e2e は本修正入り APK 導入後に確認が必要**。
 
 **0.8.95 → 0.8.96 → 0.8.97 OS 15→16 アップグレード後に起動不能**: 0.8.95 で (1) `host_to_guest` のホットパスに `realpath()` を足し全パス変換に lstat walk を発生させ全体が激重・入力遅延化、(2) 起動毎に `find <rootfs> -type l` で rootfs 全走査＋symlink 再作成、の 2 変更で起動が不定・キーボード異常・symlink 破壊と自爆したため **0.8.96 で撤回**。0.8.97 でホットパス非依存の安全版で再修正＝原因は、proot `--link2symlink` が残す `.l2s` symlink がホスト絶対パスを抱えるところ、OS メジャーアップで data ディレクトリの絶対 prefix 正規化 (`/data/data` ↔ `/data/user/0` 等) が変わり、`host_to_guest` の rootfs/bind 直接照合が外れ stale 絶対パスを素通し→`translate_abs` が rootfs を二重前置→ENOENT となり `zsh` 等が `cannot open shared object file` で起動不能になっていた。修正＝rootfs マーカーからの純粋文字列 fallback (上記「パス変換」)。⚠️**実機 OS ダウングレード不可のため当該 OS アップ退行そのものの e2e 再現は不可。論理上 prefix 非依存で救済される設計。**
+
+**0.9.24 どの OS でも動かないコマンド 4 件 (実機の横断確認で発見)**: Alpine / Ubuntu / Arch / Kali の端末で同じ約 130 項目を実行して洗い出した。4 件とも全 OS で再現し、0.9.22 以前からあった。
+- **`uptime` / `w` が "Cannot get system uptime: Permission denied" で終わる (procps。Arch / Ubuntu)**: Android はアプリに `/proc/uptime` と `/proc/loadavg` を読ませない。busybox の `uptime` は `sysinfo(2)` を使うので Alpine では動き、差が見えにくかった。⇒ 0.9.2 の `/proc/stat` と同じ仕組み (`try_subst_proc_open`) に乗せ、**別の手段で本当の値が取れるものだけ**代用する: `/proc/uptime` は `CLOCK_BOOTTIME` (idle は取れないので 0)、`/proc/loadavg` は `sysinfo(2)` の `loads`、`/proc/version` は `uname(2)`。読める実ファイルや明示 bind を優先する点、読み取り専用の open だけを対象にする点は `/proc/stat` と同じ。⛔ 値を作れない `vmstat` / `diskstats` 等は代用しない。
+- **Android 側の多機能実行ファイルが名前を取り違える (`/system/bin/ls -d /` → "toybox: Unknown command -d")**: bionic linker は `--argv0` を解さないので、linker に渡したパスがそのまま argv0 になる。そこへ **symlink を解決した後**のパス (`/system/bin/toybox`) を渡していたため、argv0 の名前で動作を決める実行ファイルが第 1 引数をコマンド名と読んでいた。⇒ bionic のときは**呼ばれたとおりの絶対パス**を渡す。linker の `open()` は傍受・翻訳されるので symlink はそこで辿られる。相対パスで呼ばれた場合は従来どおり。
+- **シバンが bionic のシェルを指すスクリプトが起動しない (`/system/bin/pm` / `am` → "expected absolute path: \"--argv0\"")**: 0.8.56 で動的 ELF の経路からは `--argv0` を外したが、シバン経路のインタプリタには付けたままだった。⇒ インタプリタの PT_INTERP が bionic なら付けず、シバン表記のパスをそのまま渡す。
+- **リアルタイムシグナルの一部 (36 / 38) が無視のまま引き継がれる**: PTY の子側で既定値へ戻していたのは 1〜31 だけで、アプリ側が無視にした分が exec を越えて端末内の全プロセスへ残っていた。⇒ 64 まで戻す。
+- **直していないもの (仕様)**: `chown` で root 以外へ変えた所有者は記録されず、`stat` は 0:0 を返す (`tar xp` の所有者復元も同じ)。停止中のプロセスの `/proc/<pid>/status` は `T (stopped)` ではなく `t (tracing stop)` になる (再開・ジョブ制御は動く)。
 
 **0.9.19 各 OS で止まる・動かない 4 件 (安定版前の横断確認で発見)**: Alpine / Ubuntu / Arch で同じ約 100 項目を実行して洗い出した。
 - **停止したプロセスが再開しない (Ctrl+Z → `fg`、`kill -STOP` → `kill -CONT`)**: 止まったプロセスが `t (tracing stop)` のまま二度と動かず、Ctrl+C も効かずタブが固まっていた。原因＝`PTRACE_TRACEME` で掴んだ tracee は、group-stop に入ったあとの `SIGCONT` をカーネルがトレーサへ知らせず、tracee も起こさない。対処＝**`PTRACE_SEIZE` で掴む**。group-stop は `PTRACE_EVENT_STOP` で届くので `PTRACE_LISTEN` で「止めたまま待たせ」、`SIGCONT` でカーネルが起こして再び `PTRACE_EVENT_STOP` (sig=SIGTRAP) を寄こしたら再開する。新規子の最初の停止も SIGSTOP ではなく `PTRACE_EVENT_STOP` になる。SEIZE では exec 後の SIGTRAP が来ないので `PTRACE_O_TRACEEXEC` を足し、`PTRACE_EVENT_EXEC` を同じ位置づけの停止として扱う (seccomp 不発の検出がそのまま働く)。握手は SIGSTOP ではなくパイプで行い (トレーサが SEIZE 後に 1 バイト書く)、SEIZE できない環境は従来方式へ戻る (`Z2ROOT_NO_SEIZE=1` で明示的にも戻せる)。

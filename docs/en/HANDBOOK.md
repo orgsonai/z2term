@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.23.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.24.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -921,6 +921,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.24 (versionCode 687), release candidate**: Fixes for commands that did not work on any OS. `uptime` and `w` ended with "Cannot get system uptime" (Arch / Ubuntu); calling an Android command such as `/system/bin/ls` gave "Unknown command"; `/system/bin/pm` and `am` failed to start with "expected absolute path". `/proc/uptime`, `/proc/loadavg` and `/proc/version` can now be read.
 
 **0.9.23 (versionCode 686), release candidate**: Picking an OS under Linux environment in Settings now opens it in a new tab. It used to close and rebuild the tab you were using, which lost whatever was running there and its scrollback. The original tab is left as it is.
 
