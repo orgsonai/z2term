@@ -49,6 +49,9 @@
     <string name="settings_section_font_size">글자 크기</string>
     <string name="settings_section_scrollback">스크롤백 줄 수</string>
     <string name="settings_section_distro">배포판 (고르면 새 탭에서 열립니다)</string>
+    <string name="new_tab_os_title">이 OS로 탭 열기</string>
+    <string name="new_tab_os_hint">이 탭에서만 사용합니다. 설정에서 고른 OS는 바뀌지 않습니다.</string>
+    <string name="new_tab_os_none">설치된 OS가 없습니다. 설정의 ‘배포판’에서 설치하세요.</string>
     <string name="settings_section_key_layout">키 배열 (직접 만들기)</string>
     <string name="settings_key_layout_desc">쓸 면과 그 순서를 여기서 고릅니다. 아무 면이나 복제하면 자신만의 면이 되고, 직접 만든 면은 편집으로 이름과 키를 바꿀 수 있습니다.</string>
     <string name="settings_keyboard_faces_title">키보드가 쓰는 면</string>

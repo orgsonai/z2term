@@ -51,6 +51,9 @@
     <string name="settings_section_font_size">フォントサイズ</string>
     <string name="settings_section_scrollback">スクロールバック行数</string>
     <string name="settings_section_distro">ディストロ (選ぶと新しいタブで開く)</string>
+    <string name="new_tab_os_title">この OS でタブを開く</string>
+    <string name="new_tab_os_hint">このタブだけに使います。設定で選んでいる OS は変わりません。</string>
+    <string name="new_tab_os_none">入っている OS がありません。設定の「ディストロ」から入れてください。</string>
     <!-- 自分で作るキー配列 (0.8.408〜0.8.411・段階 2〜4 + 既定サイズ) -->
     <string name="settings_section_key_layout">キー配列（自分で作る）</string>
     <string name="settings_key_layout_desc">使用する面と順番をここでまとめて設定します。各面の「複製」から自作面を作り、自作面は「編集」から名前やキーを変更できます。</string>

@@ -49,6 +49,9 @@
     <string name="settings_section_font_size">字号</string>
     <string name="settings_section_scrollback">回滚行数</string>
     <string name="settings_section_distro">发行版 (选择后在新标签页中打开)</string>
+    <string name="new_tab_os_title">用此系统打开标签页</string>
+    <string name="new_tab_os_hint">仅用于此标签页。设置中选择的系统不会改变。</string>
+    <string name="new_tab_os_none">尚未安装任何系统。请在设置的“发行版”中安装。</string>
     <string name="settings_section_key_layout">键位布局（自制）</string>
     <string name="settings_key_layout_desc">在这里统一设置要使用的面和它们的顺序。用任意一个面的“复制”做出自制面；自制面可以从“编辑”改名字或改键位。</string>
     <string name="settings_keyboard_faces_title">键盘使用的面</string>

@@ -121,11 +121,15 @@ object SessionManager {
      * 注入する (P3)。これにより端末内で `z2run <gui-app>` が走った瞬間、同じ :N の Xvnc が
      * 自動起動し、対応する GUI タブが z2term 側で開く。既存の単独 GUI タブ (🖥 ボタン) と
      * 番号が被らないよう同じ pool から最小空きを払い出す。
+     *
+     * [distroId] を渡すと、**そのタブだけ**その OS で開く (タブの「+」長押し)。設定で選んでいる
+     * OS は書き換えない。タブごとの OS は復元用に保存している値と同じ道 (restoreDistroId) で
+     * 渡すので、アプリを開き直してもそのタブはその OS のまま戻る。
      */
-    fun openNew(context: Context): TerminalSession = synchronized(lock) {
+    fun openNew(context: Context, distroId: String? = null): TerminalSession = synchronized(lock) {
         appContext = context.applicationContext
         val display = allocateDisplay()
-        val s = TerminalSession(context.applicationContext, display = display)
+        val s = TerminalSession(context.applicationContext, display = display, restoreDistroId = distroId)
         mutableSessions.add(s)
         trackTerminal(s)
         _sessions.value = mutableSessions.toList()

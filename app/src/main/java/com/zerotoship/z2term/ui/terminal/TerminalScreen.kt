@@ -616,6 +616,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onSelect = { SessionManager.setActive(it) },
             onClose = { SessionManager.close(it) },
             onNew = { SessionManager.openNew(context) },
+            onNewInOs = { id -> SessionManager.openNew(context, distroId = id) },
             onNewGui = { SessionManager.openLinkedGui(context) },
             vertical = railVertical,
             modifier = if (railVertical) Modifier.fillMaxHeight() else Modifier
@@ -1443,6 +1444,7 @@ private fun GuiTabScreen(
             onSelect = { SessionManager.setActive(it) },
             onClose = { SessionManager.close(it) },
             onNew = { SessionManager.openNew(context) },
+            onNewInOs = { id -> SessionManager.openNew(context, distroId = id) },
             onNewGui = { SessionManager.openLinkedGui(context) },
             vertical = railVertical,
             modifier = if (railVertical) Modifier.fillMaxHeight() else Modifier
@@ -3008,6 +3010,8 @@ private fun TabBar(
     onSelect: (String) -> Unit,
     onClose: (String) -> Unit,
     onNew: () -> Unit,
+    /** 「+」長押しで選んだ OS で、そのタブだけ開く (設定の OS は変えない)。 */
+    onNewInOs: (String) -> Unit,
     onNewGui: () -> Unit,
     /** true = 横画面の縦レール。並びもドラッグ並べ替えも縦になる (0.8.431)。 */
     vertical: Boolean = false,
@@ -3019,6 +3023,10 @@ private fun TabBar(
     // その分だけ dragOffset を戻して連続移動を続ける。
     var workspaceOpen by remember { mutableStateOf(false) }
     if (workspaceOpen) com.zerotoship.z2term.workspace.WorkspaceDialog(onDismiss = { workspaceOpen = false })
+    var osPickerOpen by remember { mutableStateOf(false) }
+    if (osPickerOpen) NewTabOsDialog(onPick = { osPickerOpen = false; onNewInOs(it) }, onDismiss = { osPickerOpen = false })
+    val osPickerLabel = stringResource(R.string.new_tab_os_title)
+    val workspaceLabel = stringResource(R.string.workspace_title)
     val tabWidths = remember { mutableStateMapOf<String, Int>() }
     val draggingId = remember { mutableStateOf<String?>(null) }
     val dragOffset = remember { mutableStateOf(0f) }
@@ -3127,8 +3135,8 @@ private fun TabBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                NewTabButton(label = "+", onClick = onNew, modifier = Modifier.fillMaxWidth())
-                NewTabButton(label = "🖥", onClick = onNewGui, onLongClick = { workspaceOpen = true }, modifier = Modifier.fillMaxWidth())
+                NewTabButton(label = "+", onClick = onNew, onLongClick = { osPickerOpen = true }, onLongClickLabel = osPickerLabel, modifier = Modifier.fillMaxWidth())
+                NewTabButton(label = "🖥", onClick = onNewGui, onLongClick = { workspaceOpen = true }, onLongClickLabel = workspaceLabel, modifier = Modifier.fillMaxWidth())
             }
         }
         return
@@ -3155,22 +3163,29 @@ private fun TabBar(
             sessions.forEach { sess -> key(sess.id) { chips(sess) } }
         }
         // 新規端末タブ
-        NewTabButton(label = "+", onClick = onNew)
+        // 長押しで OS を選んで、そのタブだけその OS で開く。
+        NewTabButton(label = "+", onClick = onNew, onLongClick = { osPickerOpen = true }, onLongClickLabel = osPickerLabel)
         // 新規 GUI タブ (Xvnc + RFB)。端末用「+」の隣に並べる。
-        NewTabButton(label = "🖥", onClick = onNewGui, onLongClick = { workspaceOpen = true })
+        NewTabButton(label = "🖥", onClick = onNewGui, onLongClick = { workspaceOpen = true }, onLongClickLabel = workspaceLabel)
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NewTabButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, onLongClick: (() -> Unit)? = null) {
+private fun NewTabButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
+) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(ZtsBgCard)
             .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick,
-                onLongClickLabel = if (onLongClick != null) stringResource(R.string.workspace_title) else null)
+                onLongClickLabel = if (onLongClick != null) onLongClickLabel else null)
             .padding(horizontal = 12.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -3182,6 +3197,43 @@ private fun NewTabButton(label: String, onClick: () -> Unit, modifier: Modifier 
             fontFamily = FontFamily.Monospace
         )
     }
+}
+
+/**
+ * 「+」長押しで出す OS の選択。選んだ OS で**そのタブだけ**開く。
+ *
+ * 並べるのは**入っている OS だけ**。ここからはダウンロードを始めない (入れるのは設定の
+ * 「ディストロ」で、確認もそちらにある)。設定で選んでいる OS は書き換えない。
+ */
+@Composable
+private fun NewTabOsDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    // 設定の OS 一覧と同じ判定 (展開済みか)。
+    val installed = remember {
+        DistroSpec.ALL.filter { java.io.File(context.filesDir, "distros/${it.id}/bin").exists() }
+    }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.new_tab_os_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(stringResource(if (installed.isEmpty()) R.string.new_tab_os_none else R.string.new_tab_os_hint))
+                installed.forEach { spec ->
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { onPick(spec.id) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(spec.displayName) }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
+        }
+    )
 }
 
 /**

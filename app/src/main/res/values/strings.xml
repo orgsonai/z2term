@@ -53,6 +53,9 @@
     <string name="settings_section_font_size">Font size</string>
     <string name="settings_section_scrollback">Scrollback lines</string>
     <string name="settings_section_distro">Distro (opens in a new tab)</string>
+    <string name="new_tab_os_title">Open a tab in this OS</string>
+    <string name="new_tab_os_hint">Used for this tab only. The OS chosen in Settings does not change.</string>
+    <string name="new_tab_os_none">No OS is installed. Install one from “Distro” in Settings.</string>
     <!-- Custom key layouts (0.8.408–0.8.411, stages 2–4 + default sizing) -->
     <string name="settings_section_key_layout">Key layout (your own)</string>
     <string name="settings_key_layout_desc">Choose the faces to use and their order here. Duplicate any face to make your own; use Edit on a custom face to rename it or change its keys.</string>

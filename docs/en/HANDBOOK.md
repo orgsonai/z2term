@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.27.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.28.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -206,6 +206,7 @@ Use **Settings › Key layout (your own)** to enable faces and change their orde
 | Scroll up/down | Drag with one finger. You can also **grab the scrollbar on the right edge** (it follows your finger from the moment you touch it). Use **↓** at the bottom-right to return to the latest. ⚠ **While a full-screen app is open** (a pager, an editor, a "full transcript" view, …) there is no terminal-side history to go back into, so your drag is **delivered to that app as ↑ / ↓** (0.8.393 — before that, a finger did nothing at all in full-screen apps) |
 | Make text bigger/smaller | **Pinch** with two fingers (spread/squeeze) |
 | Add a terminal | The tab **+** (terminal) / **🖥** (GUI desktop) |
+| Open just one tab in another OS | **Long-press** the tab **+** and pick an OS (0.9.28). **Only that tab** opens in it; the OS chosen in Settings does not change (the next tab you open by tapping **+** behaves as before). Only installed OSes are listed; install a new one from ⚙ Settings › Distro. After reopening the app, that tab comes back in the same OS |
 | Look at another tab while the GUI installs | **Go ahead.** The install keeps running in the background, and coming back picks the display up where it is (0.8.341. Before that, returning asked "install the GUI?" a second time, and answering "cancel" there **took the running install down with it**) |
 | Remove a terminal | **Double-tap** that tab (the last remaining one won't be removed). **If something is running in that tab, a confirmation dialog appears** (to prevent accidental removal while you are working). If nothing is running it closes right away |
 | Reorder tabs | **Long-press** a tab then **drag** left/right (you can move it edge to edge in one gesture) |
@@ -921,6 +922,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.28 (versionCode 691), release candidate**: Long-pressing the tab **+** lets you pick an OS and open just that one tab in it. The OS chosen in Settings does not change.
 
 **0.9.27 (versionCode 690), release candidate**: `/system/bin/pm` and `am` ended with "cmd: inaccessible or not found" on Alpine, Ubuntu and Kali.
 

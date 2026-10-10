@@ -1,6 +1,8 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-10 / 対象バージョン: 0.9.27 (versionCode 690)
+最終更新: 2026-10-10 / 対象バージョン: 0.9.28 (versionCode 691)
+
+**0.9.28（versionCode 691）・安定版の候補**: タブの「+」を長押しすると、OS を選んでそのタブだけその OS で開けるようになりました。設定で選んでいる OS は変わりません。
 
 **0.9.27（versionCode 690）・安定版の候補**: `/system/bin/pm` と `am` が、Alpine・Ubuntu・Kali では「cmd: inaccessible or not found」で終わる問題を直しました。
 
@@ -1792,6 +1794,8 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 **0.8.84 大きい argv を渡す exec が `ENOENT` で失敗**: `rewrite_execve` が (1) argv 連結バッファが固定長 `char blob[8192]` で `blob_sz>8192` のとき `if (blob_sz<=sizeof(blob))` が偽になり**書き換えを丸ごとスキップ**→path レジスタにゲストパスが残ったまま execve され ENOENT、(2) argv 読み取り上限 `MAX_ARGS 256` で 256 個目以降を切り捨て、の二重制限を持っていた。クロスディストロ cmdtest e2e で Kali の `apt-get install python3` が dpkg の byte-compile (`python3.13 -E -S py_compile.py <287ファイル＝~11KB argv>`) で踏んで `cannot execute: required file not found` 失敗するのを発見 (二分で「argv 総バイト ~7.5KB 超・カーネル ARG_MAX 2MB 以下＝z2root 内部バッファ起因」と確定)。修正＝argv 読み取りを上限なしの動的確保 (`realloc`) に、`blob`/`parts`/`ptrs` を argv サイズ依存の `malloc` にして `MAX_ARGS` を撤去 (scratch は従来どおり `sp` 直下＝growsdown stack を `process_vm_writev` が伸長するため大 argv でも mapped)。Alpine/Ubuntu の cmdtest は非ゼロ 0 件。⚠️**Kali での python 導入完走＋大 argv exec の実機 e2e は本修正入り APK 導入後に確認が必要**。
 
 **0.8.95 → 0.8.96 → 0.8.97 OS 15→16 アップグレード後に起動不能**: 0.8.95 で (1) `host_to_guest` のホットパスに `realpath()` を足し全パス変換に lstat walk を発生させ全体が激重・入力遅延化、(2) 起動毎に `find <rootfs> -type l` で rootfs 全走査＋symlink 再作成、の 2 変更で起動が不定・キーボード異常・symlink 破壊と自爆したため **0.8.96 で撤回**。0.8.97 でホットパス非依存の安全版で再修正＝原因は、proot `--link2symlink` が残す `.l2s` symlink がホスト絶対パスを抱えるところ、OS メジャーアップで data ディレクトリの絶対 prefix 正規化 (`/data/data` ↔ `/data/user/0` 等) が変わり、`host_to_guest` の rootfs/bind 直接照合が外れ stale 絶対パスを素通し→`translate_abs` が rootfs を二重前置→ENOENT となり `zsh` 等が `cannot open shared object file` で起動不能になっていた。修正＝rootfs マーカーからの純粋文字列 fallback (上記「パス変換」)。⚠️**実機 OS ダウングレード不可のため当該 OS アップ退行そのものの e2e 再現は不可。論理上 prefix 非依存で救済される設計。**
+
+**0.9.28 「+」長押しで OS を選んで 1 枚だけ開く**: 別の OS を少しだけ使いたいとき、設定で OS を選ぶと「選択中の OS」ごと変わり、その後に開くタブも常駐サーバーもその OS になっていた。⇒ タブの「+」長押しで入っている OS の一覧 (`NewTabOsDialog`) を出し、選んだ OS を `SessionManager.openNew(context, distroId)` へ渡す。タブごとの OS は復元用の値と同じ道 (`TerminalSession` の `restoreDistroId`) で渡すだけで、設定 (`distro_id`) には書かない。起動の判定 (`startupPlan`)・起動 (`startTerminal`)・タブの保存と復元は既存のまま通る。一覧は展開済みの OS だけで、ここからはダウンロードを始めない (設定の OS 一覧と同じ判定)。
 
 **0.9.27 `/system/bin/pm`・`am` が "cmd: inaccessible or not found" で終わる (Alpine / Ubuntu / Kali)**: 0.9.26 を 4 つの OS のタブで確かめて見つけた。`pm`・`am` は `#!/system/bin/sh` のスクリプトで、中から `cmd` を**名前だけ**で呼ぶ (Android のシェルは PATH に `/system/bin` がある前提)。OS 側の既定の PATH にはそれが無い。PATH へ自分で `/system/bin` を足してある環境でだけ動いていたので、0.9.24 の確認では見えなかった。⇒ 自前ローダが Android のプログラムへ移るとき、渡す環境変数の PATH の**末尾**へ `/system/bin` を足す (`envp_with_system_bin`)。OS のシェルの PATH は変えないので、OS のコマンドの見つかり方は変わらない。既に含まれていれば何もしない。
 

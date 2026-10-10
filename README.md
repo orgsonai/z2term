@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.28 (versionCode 691), release candidate**: Long-pressing the tab **+** lets you pick an OS and open just that one tab in it. The OS chosen in Settings does not change.
+
 **0.9.27 (versionCode 690), release candidate**: `/system/bin/pm` and `am` now work on Alpine, Ubuntu and Kali too (they ended with "cmd: inaccessible or not found").
 
 **0.9.26 (versionCode 689), release candidate**: Android commands (`/system/bin/cmd`, `pm`, `am`) now return their result when called from a tab as they are, including through a pipe; realtime signals 36 / 38 no longer start out ignored.

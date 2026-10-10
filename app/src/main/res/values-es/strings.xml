@@ -49,6 +49,9 @@
     <string name="settings_section_font_size">Tamaño del texto</string>
     <string name="settings_section_scrollback">Líneas de historial</string>
     <string name="settings_section_distro">Distribución (se abre en una pestaña nueva)</string>
+    <string name="new_tab_os_title">Abrir una pestaña en este sistema</string>
+    <string name="new_tab_os_hint">Solo se usa en esta pestaña. El sistema elegido en Ajustes no cambia.</string>
+    <string name="new_tab_os_none">No hay ningún sistema instalado. Instala uno desde «Distribución» en Ajustes.</string>
     <string name="settings_section_key_layout">Distribución de teclas (propia)</string>
     <string name="settings_key_layout_desc">Elige aquí los planos que quieres usar y su orden. Duplica cualquier plano para crear el tuyo; usa Editar en un plano propio para renombrarlo o cambiar sus teclas.</string>
     <string name="settings_keyboard_faces_title">Planos que usa el teclado</string>
