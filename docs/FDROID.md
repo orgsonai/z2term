@@ -105,9 +105,9 @@ F-Droid は**タグを指定してビルドする**ので、先にリリース�
 `docs/RELEASE.md` の通り。
 
 ```sh
-git tag v1.0.0
-git push origin v1.0.0
-git push github v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
+git push github v1.0.1
 ```
 
 ⚠ **yml の `commit:` に書いたタグが GitHub に無いとビルドできない。**
@@ -147,13 +147,13 @@ done
 
 ### いま提出先に決めてあるタグ
 
-`metadata/com.zerotoship.z2term.yml` の `Builds:` は **1.0.0 (versionCode 698) /
-`commit: v1.0.0`** を指している (2026-10-11 に、候補の 0.9.x ではなく**最初の安定版から提出する**
-方針に決定)。このタグは**まだ打っていない**ので、提出の前に上のとおり打って両方へ push する
-(打つと GitHub Actions が署名済み APK を作り、GitHub Release が公開される = 通常のリリースと同じ)。
+`metadata/com.zerotoship.z2term.yml` の `Builds:` は **1.0.1 (versionCode 699) /
+`commit: v1.0.1`** を指している (2026-10-11 に、候補の 0.9.x ではなく**安定版から提出する**方針に決定。
+最初の安定版 1.0.0 の直後に 1.0.1 を出したので、提出はその時点の最新である 1.0.1 から)。
+`v1.0.0` と `v1.0.1` は GitHub に公開済み。
 
-更新内容 `metadata/{ja-JP,en-US}/changelogs/698.txt` は用意済み (いずれも 500 文字以内)。
-それ以前の版向けに書いた `647.txt` / `651.txt` / `664.txt` はビルド定義に載っていないので読まれない。
+更新内容 `metadata/{ja-JP,en-US}/changelogs/699.txt` は用意済み (いずれも 500 文字以内)。
+`698.txt` (1.0.0) と、それ以前の版向けの `647.txt` / `651.txt` / `664.txt` はビルド定義に載っていないので読まれない。
 
 ---
 
@@ -188,7 +188,7 @@ git push origin com.zerotoship.z2term
 
 F-Droid のビルドサーバーと同じ環境が Docker イメージで公開されている。
 **スマホ (Android の chroot) では Docker が動かないので、PC (Arch デスクトップ) で行う。**
-✅ **2026-10-11 に 1.0.0 (698) で実施し、`BUILD SUCCESSFUL` まで通った**
+✅ **2026-10-11 に 1.0.0 (698) で実施し (レシピは 1.0.1 でも同じ。1.0.1 での変更は Kotlin と文言だけ)、`BUILD SUCCESSFUL` まで通った**
 (PC の Docker、fdroidserver master。タグを打つ前なので、下の注意のとおり `Repo:` をローカルの
 bare clone、`commit:` をコミットのハッシュに差し替えて試した。2026-09-23 の 0.8.643-alpha (651) に続く 2 回目)。
 §1 の対策 4 つ (署名設定の削除・NDK の受け渡し・scanner の除外・フォント検査の格下げ) は
