@@ -1,8 +1,8 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-10 / 対象バージョン: 0.9.19 (versionCode 682)
+最終更新: 2026-10-10 / 対象バージョン: 0.9.20 (versionCode 683)
 
-**0.9.19（versionCode 682）・安定版の候補**: どの OS でも止まりやすかったところを直しました。Ctrl+Z で止めたものが `fg` で戻らずタブが固まる問題、`su`／`sudo` が「System error」で使えない問題（Ubuntu・Arch）、パイプの書き手が終わらない・`trap` が呼ばれないことがある問題を解消しています。`~/.local/bin` に入れたコマンドは、何も設定しなくても名前で打てます。Alpine でも、JS を 1 つの実行ファイルに埋め込んだ種類の CLI が起動するようになりました。「接続先」の接続は、今のタブを置き換えず新しいタブで開きます。
+**0.9.20（versionCode 683）・安定版の候補**: どの OS でも止まりやすかったところを直しました。Ctrl+Z で止めたものが `fg` で戻らずタブが固まる問題、`su`／`sudo` が「System error」で使えない問題（Ubuntu・Arch）、パイプの書き手が終わらない・`trap` が呼ばれないことがある問題を解消しています。`~/.local/bin` に入れたコマンドは、何も設定しなくても名前で打てます。Alpine でも、JS を 1 つの実行ファイルに埋め込んだ種類の CLI が起動するようになりました。「接続先」の接続は、今のタブを置き換えず新しいタブで開きます。 ユーザーの追加（`useradd`／`passwd` など）と、ハードリンクを含むパッケージの導入（Alpine の `tzdata` など）も通るようになりました。
 
 **0.9.17（versionCode 680）・安定版の候補**: 変換で出せる記号を増やしました。「きごう」で辞書の記号が途中で切れずに全部並び、①②・♡・✓・αβ・㎝ など辞書になかった記号も加わります。「まる」→ ①②…、「はーと」→ ♡、「ちぇっく」→ ✓、「ぎりしゃ」→ αβγ…、「たんい」→ ㎝㎏… のように読みからも引けます。読みと完全に一致する辞書の語は、候補が多くても最後まで全部並びます。
 
@@ -1788,6 +1788,10 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 - **シグナルマスクが端末内の全プロセスへ漏れていた**: fork した Java スレッドは ART が SIGPIPE / SIGUSR1 / SIGQUIT をブロックしており、マスクは exec を越えて引き継がれる。SIGPIPE が届かずパイプの書き手が終わらない、SIGUSR1 の `trap` が永久に呼ばれない、Ctrl+\ が効かない、という形で出る (どのスレッドから起動したかで変わるため、タブによって起きたり起きなかったりした)。`pty_jni.cpp` の子側で `sigprocmask(SIG_SETMASK, 空)` してから exec する。⚠ トレーサ自身は fork の**後**に SIGPIPE を**ブロック**する (fork 前や `SIG_IGN` はゲストへ引き継がれる)。
 - **`su` / `sudo` / `runuser` が `System error` (glibc 系)**: Android はアプリの `socket(AF_NETLINK, *, NETLINK_AUDIT)` を EACCES で拒否するが、PAM と sudo は「監査がカーネルに無い」(EINVAL / EPROTONOSUPPORT / EAFNOSUPPORT) 以外の失敗を致命的とみなし認証全体を止める。seccomp フィルタの中でこの組み合わせだけ `EPROTONOSUPPORT` を返す (引数だけで決まるのでトレーサの停止は増えない)。
 - **ローダが本体を直接マップする経路で、プログラムが手放したデータが 0 になって戻る**: 実行不可の PT_LOAD を匿名メモリへ `pread` で写していたため、自分のデータ領域を `madvise(MADV_DONTNEED)` で手放して後から読み直すプログラム (JS ソースを 1 つの実行ファイルに埋め込むランタイム) は 0 埋めのページを読み、`SyntaxError: Invalid character '\0'` で落ちた。musl の非 PIE 動的本体 (`--loader-exec`) だけがこの経路を通るので Alpine でのみ起きていた (glibc は ld.so がファイルマップする)。`map_load_segment` が実行不可セグメントを**ファイルから直接 `MAP_PRIVATE` でマップ**する (カーネルの exec と同じ)。実行可能セグメントは従来どおり匿名 (file-backed PROT_EXEC は W^X で不可)。副次効果として、埋め込みデータが匿名メモリを占有しなくなる (実測: 約 166MB の匿名常駐 → ファイル由来 約 70MB)。
+
+**0.9.20 ハードリンクのコピー fallback に残っていた 2 つの穴 (実際にパッケージを入れる確認で発見)**: Android は `link(2)` を拒否するので `linkat` は常にコピーで代用している (0.8.47)。その代用が届いていない場面が 2 つあった。
+- **実 fd 基準の相対パスの `linkat` がコピー fallback に入らない**: `linkat(dirfd, "a/b", dirfd, "c/d")` は `host_path_for` が「fd 相対は dirfd に委ねる」として変換しないため、`linkat_entry` が未処理で抜け、実 `linkat` の EACCES がそのまま返っていた。展開先ルートの fd を基準に `linkat` するパッケージ管理 (apk) は、**ハードリンクを含むパッケージを入れるたびに `Failed to create …: Permission denied`** になり、そのパッケージを「壊れている」と記録して以後の全操作が終了コード 1 を返す (`tzdata` が 254 件)。`link_host_path` が `/proc/<pid>/fd/<dirfd>` の指す先へ相対パスを繋いでホスト実パスを作る。絶対パスと cwd 相対は従来どおり。
+- **コピーで代用したリンクのリンク数が 1 のまま**: 本物のハードリンクなら `link` 直後は両方の名前で `st_nlink` が 2 になる。shadow-utils の `/etc/passwd` ロックは「`link` して元の名前を `stat` し、リンク数が 2 であること」で成立を確かめるので、`useradd` / `groupadd` / `usermod` / `passwd` が `lock file already used (nlink: 1)` で必ず失敗していた。コピー fallback したペア (リンク元・コピー先のホスト実パス) を控え、どちらかを `stat` / `statx` したときリンク数を 1 つ多く見せる。inode の偽装 (0.8.58) と同じく、名前ごとに一度通せば破棄する。
 
 **0.8.99 → 0.8.100 → 0.8.101 素の ELF が間欠的に起動失敗**: `ls`/`ssh` 等が間欠的に `cannot open shared object file` で落ちる。真因は `.l2s` ではなく**パス書き換え用スクラッチ配置**＝変換済み host パスを tracee スタック下 `sp - SCRATCH_OFFSET(=2048)` へ `process_vm_writev` で書き戻していたが、kernel 6.x はリモート書込でスタックを grow しないため、起動最初期 (スタック low-water≒sp) に未 grow 下位ページへ書こうとして EFAULT→ローダが本体/libc を開けず起動不能になっていた (後段の locale 読込はスタック伸長済で成功するため run 単位で 5/8 のように割れる間欠性になる)。実機 instrumented trace (`scratch ... wr=-1 errno=14(Bad address)`) で確定。**0.8.99/0.8.100**＝`SCRATCH_OFFSET` を 2048→**16** に縮め sp 直下の同一 present ページ内へ置く。頻度は激減 (実機 `ls` 8/8) したが、`sp` がページ境界丁度や長い `.so` ホストパスでは依然下位ページへ落ち、`sscanf` 等を使わない素の `ls` は通っても zsh の ZLE モジュール `.so` がロードできずキーボード行編集が壊れる間欠症状が残った (`scratch_base()` のクランプでも `sp` 境界丁度は救済不能)。**0.8.101 で根治**＝`write_tracee_mem` に `PTRACE_POKEDATA` フォールバックを追加 (上記「パス変換」)。実機 z2root タブで **`ls` 8/8・`sshd --lan` 一発・zsh キーボード正常を確認済み**＝cannot-open / キーボード一連はクローズ (mmap 常駐 scratch への格上げは不要だった)。
 
