@@ -1,6 +1,8 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-11 / 対象バージョン: 0.9.34 (versionCode 697)
+最終更新: 2026-10-11 / 対象バージョン: 1.0.0 (versionCode 698)
+
+**1.0.0（versionCode 698）・安定版**: 最初の安定版です。0.9.34 からの変更は 1 つで、実行ビットの無いファイル（権限 644 など）を直接実行しようとすると、Linux と同じく「Permission denied」になります（これまでは起動していました。`chmod +x` すれば実行できます）。共有ストレージ（`/sdcard`）のように実行ビットを付けられない場所のファイルは、これまでどおり直接実行できます。
 
 **0.9.34（versionCode 697）・安定版の候補**: root から別のユーザーへ切り替えた先でも `su`・`sudo` で root へ戻れるようにしました（0.9.33 で、切り替えた先が本当にそのユーザーとして見えるようになった結果、戻れなくなっていました）。すでに入れてある OS では、`su`・`sudo` を入れ直すと有効になります（例: Arch は `pacman -S sudo util-linux`）。root のまま使う分には、入れ直さなくてもこれまでどおり動きます。
 
@@ -1806,6 +1808,10 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 **0.8.84 大きい argv を渡す exec が `ENOENT` で失敗**: `rewrite_execve` が (1) argv 連結バッファが固定長 `char blob[8192]` で `blob_sz>8192` のとき `if (blob_sz<=sizeof(blob))` が偽になり**書き換えを丸ごとスキップ**→path レジスタにゲストパスが残ったまま execve され ENOENT、(2) argv 読み取り上限 `MAX_ARGS 256` で 256 個目以降を切り捨て、の二重制限を持っていた。クロスディストロ cmdtest e2e で Kali の `apt-get install python3` が dpkg の byte-compile (`python3.13 -E -S py_compile.py <287ファイル＝~11KB argv>`) で踏んで `cannot execute: required file not found` 失敗するのを発見 (二分で「argv 総バイト ~7.5KB 超・カーネル ARG_MAX 2MB 以下＝z2root 内部バッファ起因」と確定)。修正＝argv 読み取りを上限なしの動的確保 (`realloc`) に、`blob`/`parts`/`ptrs` を argv サイズ依存の `malloc` にして `MAX_ARGS` を撤去 (scratch は従来どおり `sp` 直下＝growsdown stack を `process_vm_writev` が伸長するため大 argv でも mapped)。Alpine/Ubuntu の cmdtest は非ゼロ 0 件。⚠️**Kali での python 導入完走＋大 argv exec の実機 e2e は本修正入り APK 導入後に確認が必要**。
 
 **0.8.95 → 0.8.96 → 0.8.97 OS 15→16 アップグレード後に起動不能**: 0.8.95 で (1) `host_to_guest` のホットパスに `realpath()` を足し全パス変換に lstat walk を発生させ全体が激重・入力遅延化、(2) 起動毎に `find <rootfs> -type l` で rootfs 全走査＋symlink 再作成、の 2 変更で起動が不定・キーボード異常・symlink 破壊と自爆したため **0.8.96 で撤回**。0.8.97 でホットパス非依存の安全版で再修正＝原因は、proot `--link2symlink` が残す `.l2s` symlink がホスト絶対パスを抱えるところ、OS メジャーアップで data ディレクトリの絶対 prefix 正規化 (`/data/data` ↔ `/data/user/0` 等) が変わり、`host_to_guest` の rootfs/bind 直接照合が外れ stale 絶対パスを素通し→`translate_abs` が rootfs を二重前置→ENOENT となり `zsh` 等が `cannot open shared object file` で起動不能になっていた。修正＝rootfs マーカーからの純粋文字列 fallback (上記「パス変換」)。⚠️**実機 OS ダウングレード不可のため当該 OS アップ退行そのものの e2e 再現は不可。論理上 prefix 非依存で救済される設計。**
+
+**1.0.0 実行ビットの無いファイルが起動してしまう**: 実際に exec するのは常に自前のローダ (nativeLibraryDir の実行ファイル) なので、対象のファイルの実行ビットを誰も確かめておらず、権限 0644 の ELF やスクリプトがそのまま起動していた。本物の root でも、実行ビットが 1 つも無い通常ファイルは `EACCES` になる。⇒ 起動の段取りを決めるときに確かめ (`file_noexec`)、該当すれば execve を失敗させて戻り値を `EACCES` にする (長すぎる引数を `E2BIG` で断るのと同じ手順)。
+- ⚠ **実行ビットを付けられない場所は対象外**。Android は共有ストレージのファイルの権限を固定しており、`chmod +x` しても変わらない。そこまで断ると、置いたスクリプトを直接実行する手段が無くなる。見分けは場所の名前ではなく、**所有者の実行ビットを実際に足してみて残るか**で行い、すぐ元へ戻す (調べるのは実行ビットの無い通常ファイルを exec しようとしたときだけ)。
+- 判定は「実行ビットが 1 つでもあるか」だけで、誰のビットかは見ない (見かけの uid には連動させていない。§dac と同じ)。
 
 **0.9.34 別ユーザーから `su` / `sudo` で root へ戻れない (0.9.33 の退行)**: 0.9.33 で降りた先が本当に別ユーザーに見えるようになり、exec は setuid ビットを見て実効 uid を 0 にする。ところがそのビットが 2 つの理由で役に立っていなかった。
 - **同梱の OS を展開するとき setuid / setgid ビットを落としていた**: 展開は所有者の rwx だけを `File.setReadable` 等で付けており、この API では特殊ビットを付けられない。⇒ 所有者ビットに足して `Os.chmod` する (`DistroInstaller.setUnixMode`)。**新しく展開する OS から効く。** 展開済みの OS では、パッケージを入れ直すとパッケージ管理がビットを付け直す。

@@ -1112,6 +1112,7 @@ struct exec_plan {
     int nprefix;
     int orig_start;
     int setid;      // 実行する ELF の setuid(1) / setgid(2) ビット(§cred)。スクリプトでは 0
+    int noexec;     // 実行ビットが 1 つも無い(付けられるのに付いていない) = EACCES で断る
 };
 
 static void plan_push(struct exec_plan *plan, const char *s) {
@@ -1223,6 +1224,22 @@ static void exec_read_restore(void) {
     g_xr_path[0] = '\0';
 }
 
+// 実行ビットが 1 つも無い通常ファイルは、root でも実行できない(EACCES)。ここでは実際に exec
+// するのが常に自前のローダなので、確かめないと権限 0644 のプログラムやスクリプトも起動して
+// しまう。ただし**実行ビットを付けられない場所**(Android が権限を固定している共有ストレージ
+// など。chmod しても変わらない)のファイルまで断ると、そこに置いたものを直接実行する手段が
+// 無くなるので、断るのは「付けられるのに付いていない」ときだけにする。付けられるかどうかは
+// 場所の名前ではなく、所有者の実行ビットを実際に足してみて残るかで見分け、すぐ元へ戻す。
+static int file_noexec(const char *path) {
+    struct stat sb, probe;
+    if (stat(path, &sb) != 0 || !S_ISREG(sb.st_mode) || (sb.st_mode & 0111)) return 0;
+    mode_t old = sb.st_mode & 07777;
+    if (chmod(path, old | S_IXUSR) != 0) return 0;
+    int settable = (stat(path, &probe) == 0 && (probe.st_mode & S_IXUSR));
+    chmod(path, old);
+    return settable;
+}
+
 static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog,
                      const char *orig_argv0, struct exec_plan *plan) {
     int rc = plan_exec_depth(cfg, pid, guest_prog, orig_argv0, plan, 0);
@@ -1232,7 +1249,7 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
 static int plan_exec_depth(const struct config *cfg, pid_t pid, const char *guest_prog,
                            const char *orig_argv0, struct exec_plan *plan, int depth) {
     plan->nprefix = 0;
-    if (depth == 0) plan->setid = 0;
+    if (depth == 0) { plan->setid = 0; plan->noexec = 0; }
     plan->orig_start = 1;  // 元 argv0 は prefix で置換するため常に [1..] を連結
 
     // 相対 exec パスも /proc/<pid>/cwd で絶対化し、symlink 解決込みの host 実パスへ。
@@ -1243,6 +1260,7 @@ static int plan_exec_depth(const struct config *cfg, pid_t pid, const char *gues
         if (!translate_abs(cfg, real_guest, host_prog, sizeof(host_prog)))
             snprintf(host_prog, sizeof(host_prog), "%s", real_guest);
     }
+    if (depth == 0) plan->noexec = file_noexec(host_prog);
     if (depth == 0) exec_read_grant(cfg, host_prog);
 
     // 1) #! スクリプト: シバンのインタプリタを起動し、スクリプトを引数に渡す。
@@ -1607,6 +1625,24 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
     {
         struct pid_state *st = state_lookup(pid);
         if (st) st->exec_setid = plan.setid;
+    }
+
+    // 実行ビットの無いファイル: Linux は EACCES で断る。長すぎる引数と同じく、存在しないパス
+    // (空文字列)へ差し替えて確実に失敗させ、exit で戻り値を EACCES に付け替える。
+    // (ELF でもスクリプトでもないもの = rc 1 は、素の execve をカーネルが EACCES で断る。)
+    if (rc == 0 && plan.noexec) {
+        struct pid_state *st = state_lookup(pid);
+        unsigned long base = scratch_base(regs->sp, 8);
+        if (st && write_tracee_mem(pid, base, "", 1) == 0) {
+            regs->regs[path_idx] = base;
+            if (path_idx == 1) regs->regs[4] &= ~0x1000UL;   // AT_EMPTY_PATH(fd の実行)にしない
+            set_regs(pid, regs);
+            st->exec_err_from = 0;
+            st->exec_err_to = EACCES;
+        }
+        for (int j = 0; j < n; j++) free(args[j]);
+        free(args);
+        return;
     }
 
     if (rc == 1) {

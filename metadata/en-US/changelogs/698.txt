@@ -1,0 +1,11 @@
+1.0.0 — stable
+
+- The first stable release.
+- You can now connect to OpenSSH sshd.
+- Switching from root to another user really appears as that user,
+  and su / sudo take you back to root from there.
+- Long-press the tab "+" to pick an OS and open just that tab in it.
+- Android commands (cmd / pm / am) return their output in a tab.
+- Action macros no longer stop after a tap.
+- Files without an execute bit cannot be run directly, as on Linux
+  (files on shared storage still can).
