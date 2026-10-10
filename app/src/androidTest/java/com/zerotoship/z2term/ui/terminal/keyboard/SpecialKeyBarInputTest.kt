@@ -71,7 +71,7 @@ class SpecialKeyBarInputTest {
                     Column(Modifier.windowInsetsPadding(WindowInsets.systemBars)) {
                         SpecialKeyBar(
                             layoutJson = KeyLayoutJson.toJsonString(layout),
-                            composing = ComposingState { sent.add("text:$it") },
+                            composing = ComposingState(onCommit = { sent.add("text:$it") }),
                             ctrlState = ctrl,
                             onBytes = { sent.add("text:${it.toString(Charsets.UTF_8)}") },
                             onKey = { key, mods -> sent.add("key:${key.id}:${mods.ctrl}") },
