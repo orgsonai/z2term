@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**0.9.34 (versionCode 697), release candidate**: After switching from root to another user you can get back to root with `su` / `sudo` again (0.9.33 made the switched process really appear as that user, which left no way back). On an OS that is already installed this takes effect once `su` / `sudo` are reinstalled (e.g. `pacman -S sudo util-linux` on Arch). Using them as root works as before without reinstalling.
+
 **0.9.33 (versionCode 696), release candidate**: You can now connect to OpenSSH `sshd` (every connection used to be dropped). Also, after switching from root to another user (`su`, `runuser` and the like) the process now appears as that user (it used to appear as root no matter what).
 
 **0.9.32 (versionCode 695), release candidate**: Fixes the action-macro problem that 0.9.31 did not actually fix: "tap → wait for the next screen with `wait-ui`" still stopped (the part that stopped it was the watchdog that runs during a macro).

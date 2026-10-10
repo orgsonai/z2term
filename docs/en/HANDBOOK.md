@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.33.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.34.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -923,6 +923,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.34 (versionCode 697), release candidate**: After switching from root to another user you can get back to root with `su` / `sudo` again (0.9.33 made the switched process really appear as that user, which left no way back). On an OS that is already installed this takes effect once `su` / `sudo` are reinstalled (e.g. `pacman -S sudo util-linux` on Arch). Using them as root works as before without reinstalling.
 
 **0.9.33 (versionCode 696), release candidate**: You can now connect to OpenSSH `sshd` (every connection used to be dropped). Also, after switching from root to another user (`su`, `runuser` and the like) the process now appears as that user (it used to appear as root no matter what).
 

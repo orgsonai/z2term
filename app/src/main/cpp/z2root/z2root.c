@@ -1199,9 +1199,35 @@ static int interp_is_bionic(const char *interp) {
 //    ENOENT/ENOEXEC を呼び出し側 execvp に返させる。plan->target に host_prog のみ)。
 static int plan_exec_depth(const struct config *cfg, pid_t pid, const char *guest_prog,
                            const char *orig_argv0, struct exec_plan *plan, int depth);
+
+// §dac(exec): root は、実行ビットさえあれば読み取りビットの無いファイル(権限 4111 や 0111)も
+// 実行できる。ここでは実行ファイルの中身をこちらで読んで(ELF か・ローダはどれか)起動の段取りを
+// 決めるので、実体のアプリ uid に読み取りビットが無いと「ELF ではない」と判断して起動できない。
+// setuid ビットをこの権限で配るコマンドが、パッケージで入れたままでは使えなかった。
+// 段取りを決める間だけ所有者の読み取りビットを足し、決め終えたら戻す。この後ローダが開く分は
+// openat の §dac が同じことをする。触るのは自分(実 uid)が所有する通常ファイルだけ。
+static char g_xr_path[PATH_MAX_Z];
+static mode_t g_xr_mode;
+static void exec_read_grant(const struct config *cfg, const char *host) {
+    struct stat sb;
+    if (!cfg->fake_root || g_xr_path[0]) return;
+    if (stat(host, &sb) != 0 || !S_ISREG(sb.st_mode) || sb.st_uid != cfg->real_uid) return;
+    if ((sb.st_mode & S_IRUSR) || !(sb.st_mode & 0111)) return;
+    if (chmod(host, (sb.st_mode & 07777) | S_IRUSR) != 0) return;
+    snprintf(g_xr_path, sizeof(g_xr_path), "%s", host);
+    g_xr_mode = sb.st_mode & 07777;
+}
+static void exec_read_restore(void) {
+    if (!g_xr_path[0]) return;
+    chmod(g_xr_path, g_xr_mode);
+    g_xr_path[0] = '\0';
+}
+
 static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog,
                      const char *orig_argv0, struct exec_plan *plan) {
-    return plan_exec_depth(cfg, pid, guest_prog, orig_argv0, plan, 0);
+    int rc = plan_exec_depth(cfg, pid, guest_prog, orig_argv0, plan, 0);
+    exec_read_restore();
+    return rc;
 }
 static int plan_exec_depth(const struct config *cfg, pid_t pid, const char *guest_prog,
                            const char *orig_argv0, struct exec_plan *plan, int depth) {
@@ -1217,6 +1243,7 @@ static int plan_exec_depth(const struct config *cfg, pid_t pid, const char *gues
         if (!translate_abs(cfg, real_guest, host_prog, sizeof(host_prog)))
             snprintf(host_prog, sizeof(host_prog), "%s", real_guest);
     }
+    if (depth == 0) exec_read_grant(cfg, host_prog);
 
     // 1) #! スクリプト: シバンのインタプリタを起動し、スクリプトを引数に渡す。
     char sb_interp[PATH_MAX_Z], sb_arg[PATH_MAX_Z];
