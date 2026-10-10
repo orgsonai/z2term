@@ -1,6 +1,8 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-10 / 対象バージョン: 0.9.30 (versionCode 693)
+最終更新: 2026-10-10 / 対象バージョン: 0.9.31 (versionCode 694)
+
+**0.9.31（versionCode 694）・安定版の候補**: 操作自動化で、要素をタップして同じアプリの次の画面を `wait-ui` で待つと、毎回「Target application changed」で止まる問題を直しました。
 
 **0.9.30（versionCode 693）・安定版の候補**: キーボードの顔文字・AA パッドに、自分で足したものが並ぶ「✎」タブを足しました。⚙設定 › キーボード・入力 ›「顔文字・AA の追加」から足せます（複数行も可）。バックアップにも入ります。あわせて、最初から入っている複数行の AA を 16 個から 40 個に増やしました。
 
@@ -1798,6 +1800,8 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 **0.8.84 大きい argv を渡す exec が `ENOENT` で失敗**: `rewrite_execve` が (1) argv 連結バッファが固定長 `char blob[8192]` で `blob_sz>8192` のとき `if (blob_sz<=sizeof(blob))` が偽になり**書き換えを丸ごとスキップ**→path レジスタにゲストパスが残ったまま execve され ENOENT、(2) argv 読み取り上限 `MAX_ARGS 256` で 256 個目以降を切り捨て、の二重制限を持っていた。クロスディストロ cmdtest e2e で Kali の `apt-get install python3` が dpkg の byte-compile (`python3.13 -E -S py_compile.py <287ファイル＝~11KB argv>`) で踏んで `cannot execute: required file not found` 失敗するのを発見 (二分で「argv 総バイト ~7.5KB 超・カーネル ARG_MAX 2MB 以下＝z2root 内部バッファ起因」と確定)。修正＝argv 読み取りを上限なしの動的確保 (`realloc`) に、`blob`/`parts`/`ptrs` を argv サイズ依存の `malloc` にして `MAX_ARGS` を撤去 (scratch は従来どおり `sp` 直下＝growsdown stack を `process_vm_writev` が伸長するため大 argv でも mapped)。Alpine/Ubuntu の cmdtest は非ゼロ 0 件。⚠️**Kali での python 導入完走＋大 argv exec の実機 e2e は本修正入り APK 導入後に確認が必要**。
 
 **0.8.95 → 0.8.96 → 0.8.97 OS 15→16 アップグレード後に起動不能**: 0.8.95 で (1) `host_to_guest` のホットパスに `realpath()` を足し全パス変換に lstat walk を発生させ全体が激重・入力遅延化、(2) 起動毎に `find <rootfs> -type l` で rootfs 全走査＋symlink 再作成、の 2 変更で起動が不定・キーボード異常・symlink 破壊と自爆したため **0.8.96 で撤回**。0.8.97 でホットパス非依存の安全版で再修正＝原因は、proot `--link2symlink` が残す `.l2s` symlink がホスト絶対パスを抱えるところ、OS メジャーアップで data ディレクトリの絶対 prefix 正規化 (`/data/data` ↔ `/data/user/0` 等) が変わり、`host_to_guest` の rootfs/bind 直接照合が外れ stale 絶対パスを素通し→`translate_abs` が rootfs を二重前置→ENOENT となり `zsh` 等が `cannot open shared object file` で起動不能になっていた。修正＝rootfs マーカーからの純粋文字列 fallback (上記「パス変換」)。⚠️**実機 OS ダウングレード不可のため当該 OS アップ退行そのものの e2e 再現は不可。論理上 prefix 非依存で救済される設計。**
+
+**0.9.31 操作自動化: `click` の次の `wait-ui` が "Target application changed" で必ず止まる**: 安定版前の実機確認で見つけた (設定アプリで 4 回中 4 回)。前面アプリの判定は「フォーカス中の窓の id → パッケージ名」の表 (`windowPackages`) を引く。この表は窓の状態変化イベントで埋まるので、タップで開いた**同じアプリの新しい窓**は、フォーカスを得てからイベントが届くまでの間「パッケージ名がまだ分からない」状態になる。`wait-ui` は対象を一度確認した後の不一致をすべて「別アプリへ切り替わった」と扱っていたため、その隙間で実行を打ち切っていた。⇒ `wait-ui` の中では、前面の窓のパッケージ名が**まだ分からない**ときは「まだ出ていない」として待ち続ける (`ActionRuntime.execute`)。**別アプリだと分かっている**窓が前面なら従来どおりその場で止める。画面消灯・ロック・ユーザー補助の切断・画面の向きの変化は、どちらの場合も従来どおりその場で止める。
 
 **0.9.30 顔文字・AA を自分で足す**: 同梱の一覧 (`KaomojiCatalog`) は固定で、よく使う自分の AA を置く場所が無かった。⇒ `CustomKaomojiStore` (保存先 `filesDir/kaomoji_custom.json`。`{"items":[…]}`、新しいものが先頭) を足し、パッドの最後に「✎」タブとして並べる。足す・消すのは設定の「顔文字・AA の追加」だけにし、パッド側には編集を持ち込まない (キーの並ぶ狭い場所なので)。入力は `normalize` で整える: 改行を LF にそろえ、行末の空白と前後の空行を落とし、タブは空白 4 つにする。**行頭の空白は絵の一部なので残す。** 上限は 200 件・1 件 40 行 / 2000 文字。バックアップには IME の学習履歴と同じくファイルごと入れ、復元後に読み直す (`BackupManager` の `KAOMOJI_CUSTOM`)。複数行のものを端末へ送るときは同梱の AA と同じくペーストとして送る。同梱の複数行 AA は 16 → 40 個 (ここで作ったものだけ。作者の署名がある AA は写していない)。
 

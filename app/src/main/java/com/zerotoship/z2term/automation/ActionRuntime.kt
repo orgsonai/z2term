@@ -163,7 +163,14 @@ internal object ActionRuntime {
                 if (step.operation == "wait-ui") return ActionUiWait(::schedule).start(step.timeoutMs,
                     { callback ->
                         // Launch returns before its window is focused. Wait for that first arrival too.
-                        if (run.target == null && !AndroidActions.targetMatches(resolved.target)) {
+                        // After the target was seen once, a tap may open the next screen of the same app:
+                        // the new window is focused before its package is known here (it arrives with the
+                        // window-state event). "Not known yet" is not "the app changed" — treating it as a
+                        // change made every click → wait-ui pair fail. A window known to belong to another
+                        // app still stops the run at once.
+                        val focused = AndroidActions.focusedPackage()
+                        if (focused != resolved.target) {
+                            if (focused != null) checkDevice(run) else { run.target = null; checkDevice(run) }
                             val noWork: () -> Unit = {}
                             callback(false, null)
                             noWork

@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.9.30.apk`) on your phone.
+1. Put the APK file (`z2term-0.9.31.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -922,6 +922,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**0.9.31 (versionCode 694), release candidate**: In action macros, tapping an element and then waiting for the next screen of the same app with `wait-ui` stopped every time with "Target application changed".
 
 **0.9.30 (versionCode 693), release candidate**: The emoticon / ASCII art pad on the keyboard has a new ✎ tab for your own entries. Add them from ⚙ Settings › Keyboard, input › "Your own emoticons and ASCII art" (multi-line art is fine). They are included in backups. The built-in multi-line ASCII art grew from 16 to 40 pieces.
 
