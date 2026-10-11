@@ -53,8 +53,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 702
-        versionName = "1.0.4"
+        versionCode = 703
+        versionName = "1.0.5"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -288,6 +288,7 @@ val verifyBundledFonts = tasks.register("verifyBundledFonts") {
             "app/src/main/assets/fonts/IBMPlexMono-Regular.ttf",
             "app/src/main/assets/fonts/JetBrainsMono-Regular.ttf",
             "app/src/main/assets/fonts/FiraCode-Regular.ttf",
+            "app/src/main/assets/fonts/Z2Mono-Regular.ttf",
         ).filter { !File(root, it).exists() }
             .map { "  - $it\n      復元: git checkout -- $it (取り直すなら bash scripts/fetch-fonts.sh)" }
         if (missing.isNotEmpty()) {

@@ -55,6 +55,7 @@ REQUIRED=(
     "app/src/main/assets/fonts/IBMPlexMono-Regular.ttf"
     "app/src/main/assets/fonts/JetBrainsMono-Regular.ttf"
     "app/src/main/assets/fonts/FiraCode-Regular.ttf"
+    "app/src/main/assets/fonts/Z2Mono-Regular.ttf"
 )
 
 missing=0

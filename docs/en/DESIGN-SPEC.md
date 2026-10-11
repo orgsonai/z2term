@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-11 / Target version: 1.0.4 (versionCode 702)
+Last updated: 2026-10-11 / Target version: 1.0.5 (versionCode 703)
+
+**1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
 **1.0.4 (versionCode 702)**: The three terminal fonts (IBM Plex Mono, JetBrains Mono, Fira Code) now ship in the F-Droid build as well. Until now the F-Droid build had none of them and offered only the system font. On some devices the system font leaves a wide gap after every character; these three are now available there too. The GitHub APK is unchanged.
 
@@ -3486,7 +3488,7 @@ the socket built in 0.8.422 works.
 - **The counting skips comments** (found right after 0.8.423). Notes explaining the syntax, such as `// a third language goes after t(en = …, ja = …)`, were being counted as strings, inflating the total by 8. Since a marked language must reach 100%, **no amount of translating would have got there**.
 - **`z2scan` baselines are per language.** It compares findings as text, so switching language makes every item look changed. `z2scan` records the language code in the baseline and asks you to re-save when it differs (that code is itself one of the `t(…)` values, carrying `zh-CN`).
 - ⛔ **No Chinese input method is bundled.** Pinyin/zhuyin-to-hanzi conversion is a job the size of the Japanese IME, and what you type at a shell is commands (ASCII), so hanzi belong to the OS input method. **Only the UI and messages are translated; the keyboard explicitly does not cover Chinese** (stated in both the README and the HANDBOOK).
-- ⚠ **The bundled terminal fonts have no CJK.** JetBrains Mono / Fira Code / IBM Plex Mono fall through to the system font (already the case for Japanese, so nothing new). ⛔ Bundling a CJK font collides head-on with the "21MB, no third-party prebuilts" policy, so it is not done.
+- ⚠ **The bundled terminal fonts have no CJK.** JetBrains Mono / Fira Code / IBM Plex Mono / Z2 Mono fall through to the system font (already the case for Japanese, so nothing new). ⛔ Bundling a CJK font collides head-on with the "21MB, no third-party prebuilts" policy, so it is not done.
 
 #### Traditional Chinese added (the second B3 language, 0.8.426)
 
@@ -3801,7 +3803,7 @@ built-in keyboard**".
 | Item | Key | Default | Range/options |
 |---|---|---|---|
 | Theme | themeName | "ZTS Theme" | 9 options |
-| Font | fontId | "monospace" | System / IBM Plex / JetBrains / Fira Code |
+| Font | fontId | "monospace" | System / IBM Plex / JetBrains / Fira Code / Z2 Mono |
 | Font size | fontSizeSp | 13 | 4–32 |
 | Scrollback lines | scrollbackLines | 5000 | 500–50000 |
 | Distro | distroId | "alpine" | alpine / ubuntu / archlinux / kali |
@@ -3907,6 +3909,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - The rootfs is not bundled; it is fetched at startup via `DistroSpec.ALPINE`'s official CDN URL + SHA-256. There are no third-party native prebuilts (proot/talloc etc. are F-Droid non-compliant), so the engine is z2root built from bundled source.
 - **The rootfs in assets uses the `.tgz` extension** (with `.tar.gz`, aapt decompresses and renames it).
 - **The F-Droid build strips the signing config mechanically (0.8.414).** The build server deletes the `signingConfigs { ... }` block and any `signingConfig = <expression without spaces>` line before running `assembleRelease` (F-Droid signs the APK itself). So **never spread that assignment over two lines with `?:` inside `release { }`** — only the first line is removed, the `?:` line is left orphaned, and the build dies with a Kotlin syntax error. Resolve it outside `buildTypes` in `val releaseSigningConfig` and keep a single-line assignment inside `release`. The submission steps and the other compliance points (scanignore, how the NDK is passed) are in `docs/FDROID.md`.
+- **Z2 Mono is our own font, tracked together with how it is made (1.0.5).** `assets/fonts/Z2Mono-Regular.ttf` is a monospaced font made for this app (the 95 ASCII characters, OFL-1.1, copyright Zero to Ship). It is not drawn in a design tool: `scripts/z2-mono/build.py` describes each glyph as stroke centerlines (polylines and arcs) and generates the outlines. No outlines from existing fonts are used. The TTF carries no build timestamp, so the same script with the versions in `scripts/z2-mono/requirements.txt` produces the same file. ⚠ **Always replace the TTF and the script as a pair** (never ship a newer generated file than its source). The app build does not generate it and uses the finished TTF (so the build does not need Python).
 - **Fonts live in git from 1.0.4.** `assets/fonts/*.ttf` (IBM Plex Mono / JetBrains Mono / Fira Code, all OFL-1.1, unmodified) are tracked in the repository, so the F-Droid build ships them too. Reason: on some devices the system monospace is not actually monospaced, and since the terminal uses the width of "M" as one cell, every character ends up with a wide gap (seen on the user's device; no system setting fixes it). `scripts/fetch-fonts.sh` stays for replacing them with a newer version or fetching them again. The next item describes **versions up to 1.0.3**.
 - **(Up to 1.0.3) The F-Droid build ships no fonts (handled in 0.8.639).** `assets/fonts/*.ttf` comes from `scripts/fetch-fonts.sh` over the network and is not in git, so it is absent in the freshly cloned tree F-Droid builds. `verifyBundledFonts` **fails the build** on a missing bundled asset, so the yml prebuild passes `echo allowMissingBundledAssets=true >> ../gradle.properties` to **downgrade it to a warning**. ⛔ **Do not delete the check itself** — local and CI builds always run `fetch-fonts.sh`, and the check is what keeps a font-less APK from being published. With no fonts present, [`TerminalFonts.isAvailable`] falls back to the device monospace, so only the choice of fonts shrinks.
 - **`useLegacyPackaging=true` is required** (so the `.so` files that get execve'd are placed as real files in nativeLibraryDir).

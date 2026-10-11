@@ -1,6 +1,8 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-11 / 対象バージョン: 1.0.4 (versionCode 702)
+最終更新: 2026-10-11 / 対象バージョン: 1.0.5 (versionCode 703)
+
+**1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
 **1.0.4（versionCode 702）**: 端末のフォント 3 つ（IBM Plex Mono・JetBrains Mono・Fira Code）を、F-Droid 版にも入れるようにしました。これまで F-Droid 版には入っておらず、端末のシステムフォントしか選べませんでした。機種によってはシステムフォントで 1 字ごとの間が大きく空くことがあり、その場合もこの 3 つに切り替えられます。GitHub の APK は今までと同じです。
 
@@ -3421,7 +3423,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 - **数え上げはコメントを飛ばす**（0.8.423 の後で判明）。`// 3 言語目は t(en = …, ja = …) の後ろへ` のような**書き方の注記**まで文言として数えており、総数が 8 件多く出ていた。印を付けた言語は 100% を要求されるので、そのままでは**訳しても届かない**。
 - **`z2scan` の基準ファイルは言語ごと**。診断結果を文字列で比べる作りなので、言語を変えると全項目が「変化した」に見える。`z2scan` は基準に言語コードを書き込み、違えば取り直しを促す（この言語コードも `t(…)` の 1 つとして `zh-CN` を持たせてある）。
 - ⛔ **中国語の入力方式は入れない。** 拼音・注音から漢字を選ぶ変換エンジンが要り、日本語 IME と同規模の仕事になる。端末に打つのはコマンド（ASCII）なので、漢字は OS の入力方法へ回す。**UI と文言だけを訳し、キーボードは対応しないと明記する**（README / HANDBOOK の両方に書いた）。
-- ⚠ **端末フォントに CJK は無い。** 同梱の JetBrains Mono / Fira Code / IBM Plex Mono は CJK を持たず、システムフォントへ落ちて表示される（日本語で既にそうなので新規の問題ではない）。⛔ CJK フォントの同梱は「21MB・第三者 prebuilt を持たない」方針と正面衝突するので採らない。
+- ⚠ **端末フォントに CJK は無い。** 同梱の JetBrains Mono / Fira Code / IBM Plex Mono / Z2 Mono は CJK を持たず、システムフォントへ落ちて表示される（日本語で既にそうなので新規の問題ではない）。⛔ CJK フォントの同梱は「21MB・第三者 prebuilt を持たない」方針と正面衝突するので採らない。
 
 #### 繁体字中国語を追加（B3 の 2 言語目・0.8.426）
 
@@ -3701,7 +3703,7 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 | 項目 | キー | 既定 | 範囲/候補 |
 |---|---|---|---|
 | テーマ | themeName | "ZTS Theme" | 9 種 |
-| フォント | fontId | "monospace" | System / IBM Plex / JetBrains / Fira Code |
+| フォント | fontId | "monospace" | System / IBM Plex / JetBrains / Fira Code / Z2 Mono |
 | フォントサイズ | fontSizeSp | 13 | 4–32 |
 | スクロールバック行数 | scrollbackLines | 5000 | 500–50000 |
 | ディストロ | distroId | "alpine" | alpine / ubuntu / archlinux / kali |
@@ -3806,6 +3808,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - 同梱物: `src/main/jniLibs/arm64-v8a/{libz2root,libz2accept,libz2attach}.so`(ソースからビルド)、`assets/fonts/*.ttf`。
 - rootfs は APK に含めず、`DistroSpec.ALPINE` の公式 CDN URL + SHA-256 で起動時に取得する。第三者 native prebuilt (proot/talloc 等) は F-Droid 非適合なので持たず、実行エンジンは同梱ソースからビルドする z2root だけ。
 - **F-Droid のビルドでは署名設定が機械的に削除される (0.8.414)。** ビルドサーバーは `signingConfigs { ... }` ブロックと `signingConfig = <空白を含まない式>` の行を消してから `assembleRelease` する (署名は F-Droid 自身が行うため)。そのため **`release { }` の中で `?:` を使って 2 行に跨いで書いてはいけない** — 1 行目だけが消えて `?:` の行が孤立し、Kotlin の構文エラーでビルドが落ちる。解決は `buildTypes` の外の `val releaseSigningConfig` で行い、`release` の中は 1 行の代入にしておく。提出手順とその他の適合条件 (scanignore・NDK の渡し方) は `docs/FDROID.md`。
+- **Z2 Mono は自作し、作り方ごと git に入れる (1.0.5)。** `assets/fonts/Z2Mono-Regular.ttf` はこのアプリのために作った等幅フォント (ASCII の 95 字・OFL-1.1・著作権は Zero to Ship)。絵を描くソフトで作らず、字の形を線の通り道 (折れ線と円弧) で書いた `scripts/z2-mono/build.py` から生成する。既存フォントの輪郭は使っていない。TTF に作った日時を埋め込まないので、同じスクリプトと `scripts/z2-mono/requirements.txt` の版からは同じファイルができる。⚠ **TTF とスクリプトは必ず組で入れ替える** (生成物だけが新しい、を作らない)。アプリのビルドでは生成せず、できあがった TTF を使う (ビルドに Python を要求しないため)。
 - **フォントは 1.0.4 から git に入れる。** `assets/fonts/*.ttf` (IBM Plex Mono / JetBrains Mono / Fira Code。いずれも OFL-1.1・改変なし) をリポジトリで管理し、F-Droid のビルドにもそのまま入るようにした。理由: 端末の monospace が実際には等幅でない機種があり、端末画面は「M」の幅を 1 マスにするので、そこでは 1 字ごとの間が大きく空く (利用者の実機で発生。端末の設定では直せない)。`scripts/fetch-fonts.sh` は版の入れ替えと取り直し用に残す。以下の 1 項は **1.0.3 までの版**の話。
 - **(1.0.3 まで) F-Droid のビルドではフォントを同梱しない (0.8.639 で手当て)。** `assets/fonts/*.ttf` は `scripts/fetch-fonts.sh` がネットワークから取るもので git に入っていないため、clone したてのツリーをビルドする F-Droid では存在しない。`verifyBundledFonts` は同梱漏れを**ビルドエラーで止める**ので、yml の prebuild で `echo allowMissingBundledAssets=true >> ../gradle.properties` を渡して**警告へ格下げ**する。⛔ **検査そのものを消さないこと** — 手元と CI は `fetch-fonts.sh` を必ず流しており、フォント無しの APK を配らないための守りとして効かせ続ける。フォント不在時は [`TerminalFonts.isAvailable`] が端末の monospace へ落とすので、選択肢が 1 つになるだけで動作に支障はない。
 - **`useLegacyPackaging=true` 必須** (execve する .so を nativeLibraryDir に実体配置するため)。

@@ -551,6 +551,7 @@
     <string name="oss_purpose_fira_code">Monospaced terminal font (with ligatures)</string>
     <string name="oss_purpose_ibm_plex_mono">Monospaced terminal font</string>
     <string name="oss_purpose_jetbrains_mono">Monospaced terminal font</string>
+    <string name="oss_purpose_z2_mono">Monospaced terminal font</string>
     <string name="oss_purpose_skk_jisyo">Source dictionary for the bundled kana-kanji dictionary</string>
     <string name="oss_purpose_ipadic">Vocabulary and part-of-speech connection costs for kana-kanji conversion</string>
     <string name="oss_purpose_jawiki_collocation">Source corpus for the co-occurrence data used to re-rank candidates</string>

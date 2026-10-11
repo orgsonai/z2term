@@ -1,0 +1,4 @@
+1.0.5
+
+- Added "Z2 Mono" to the terminal fonts, a monospaced font made for this app.
+  Pick it under "Font family" in Settings.

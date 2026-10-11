@@ -209,6 +209,14 @@ object OssComponents {
             sourceUrl = "https://github.com/JetBrains/JetBrainsMono",
             purposeRes = R.string.oss_purpose_jetbrains_mono,
         ),
+        OssComponent(
+            // このアプリのために作った等幅フォント (英字・数字・記号)。
+            name = "Z2 Mono",
+            licenseId = "OFL-1.1",
+            copyright = "Copyright (c) 2026 Zero to Ship",
+            sourceUrl = "https://github.com/orgsonai/z2term",
+            purposeRes = R.string.oss_purpose_z2_mono,
+        ),
 
         // ===== (e) かな漢字変換データ (assets/) =====
         // 出所の詳細は assets/KKC-DICT-NOTICE.txt にまとめてある。

@@ -86,6 +86,8 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
+**1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
+
 **1.0.4（versionCode 702）**: 端末のフォント 3 つ（IBM Plex Mono・JetBrains Mono・Fira Code）を、F-Droid 版にも入れるようにしました。これまで F-Droid 版には入っておらず、端末のシステムフォントしか選べませんでした。機種によってはシステムフォントで 1 字ごとの間が大きく空くことがあり、その場合もこの 3 つに切り替えられます。GitHub の APK は今までと同じです。
 
 **1.0.3（versionCode 701）**: 内蔵キーボードに、日本語をローマ字で打つ面を足しました（`a`→あ、`ke`→け、`kyou`→きょう）。⚙設定 › キーボード・入力 の面の一覧で「日本語・ローマ字」を ON にすると、切り替えキー（あa）で出せます（最初は OFF です）。英字面から TAB・⇧・CTRL・ALT を外して、字のキーを 1 割強ほど広げてあります。字の並びと ESC・⌫・⏎・矢印の位置は英字面と同じです。4 段目の右端は `、 。 ー` で、空白キーは打ちかけがあれば変換、無ければ空白です。変換・候補・学習はフリックのかな面と同じものを使います。
@@ -494,6 +496,7 @@ Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://gith
 | Guava ListenableFuture 1.0 | Apache-2.0 | [google/guava](https://github.com/google/guava) |
 | JetBrains Java Annotations 23.0.0 | Apache-2.0 | [JetBrains/java-annotations](https://github.com/JetBrains/java-annotations) |
 | Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
+| Z2 Mono（このアプリのために作ったフォント。生成スクリプトは `scripts/z2-mono/`） | OFL-1.1 | このリポジトリ |
 | SKK-JISYO.L（同梱辞書 `z2dict.txt` の原本） | GPL-2.0-or-later | [skk-dev/dict](https://github.com/skk-dev/dict) |
 | IPADIC（mecab-ipadic 2.7.0-20070801。`kkc_lex.tsv` / `kkc_matrix.bin` の元） | NAIST ライセンス | [taku910/mecab](https://github.com/taku910/mecab) |
 | 日本語版ウィキペディア（共起データ `kkc_colloc.bloom` の元） | CC BY-SA 4.0 | [jawiki ダンプ](https://dumps.wikimedia.org/jawiki/) |

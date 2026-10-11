@@ -518,6 +518,7 @@
     <string name="oss_purpose_fira_code">Fuente monoespaciada para la terminal (con ligaduras)</string>
     <string name="oss_purpose_ibm_plex_mono">Fuente monoespaciada para la terminal</string>
     <string name="oss_purpose_jetbrains_mono">Fuente monoespaciada para la terminal</string>
+    <string name="oss_purpose_z2_mono">Fuente monoespaciada para la terminal</string>
     <string name="oss_purpose_skk_jisyo">Diccionario de origen del diccionario kana-kanji incluido</string>
     <string name="oss_purpose_ipadic">Vocabulario y costes de conexión gramatical para la conversión kana-kanji</string>
     <string name="oss_purpose_jawiki_collocation">Corpus de origen de los datos de coocurrencia usados para reordenar los candidatos</string>

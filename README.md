@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
+
 **1.0.4 (versionCode 702)**: The three terminal fonts (IBM Plex Mono, JetBrains Mono, Fira Code) now ship in the F-Droid build as well. Until now the F-Droid build had none of them and offered only the system font. On some devices the system font leaves a wide gap after every character; these three are now available there too. The GitHub APK is unchanged.
 
 **1.0.3 (versionCode 701)**: The built-in keyboard has a new face for typing Japanese in romaji (`a` → あ, `ke` → け, `kyou` → きょう). Turn on "Japanese — romaji" in the face list under ⚙ Settings › Keyboard, input and reach it with the switch key (あa); it starts off. It is the letter face without TAB, ⇧, CTRL and ALT, which makes the letter keys a little over 10% wider. The letters and ESC, ⌫, ⏎ and the arrows sit where they do on the letter face. The right end of the fourth row is `、 。 ー`, and the space key converts while something is being composed and types a space otherwise. Conversion, candidates and learning are the same as on the flick kana face.
@@ -499,6 +501,7 @@ Bundled third-party notices are available from Settings → OSS licenses.
 | Guava ListenableFuture 1.0 | Apache-2.0 | [google/guava](https://github.com/google/guava) |
 | JetBrains Java Annotations 23.0.0 | Apache-2.0 | [JetBrains/java-annotations](https://github.com/JetBrains/java-annotations) |
 | Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
+| Z2 Mono (made for this app; generator in `scripts/z2-mono/`) | OFL-1.1 | this repository |
 | SKK-JISYO.L (source of the bundled dictionary `z2dict.txt`) | GPL-2.0-or-later | [skk-dev/dict](https://github.com/skk-dev/dict) |
 | IPADIC (mecab-ipadic 2.7.0-20070801; source of `kkc_lex.tsv` / `kkc_matrix.bin`) | NAIST license | [taku910/mecab](https://github.com/taku910/mecab) |
 | Japanese Wikipedia (source of the co-occurrence data `kkc_colloc.bloom`) | CC BY-SA 4.0 | [jawiki dumps](https://dumps.wikimedia.org/jawiki/) |

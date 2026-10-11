@@ -517,6 +517,7 @@
     <string name="oss_purpose_fira_code">終端機用等寬字型 (支援連字)</string>
     <string name="oss_purpose_ibm_plex_mono">終端機用等寬字型</string>
     <string name="oss_purpose_jetbrains_mono">終端機用等寬字型</string>
+    <string name="oss_purpose_z2_mono">終端機用等寬字型</string>
     <string name="oss_purpose_skk_jisyo">內建假名漢字轉換字典的原始字典</string>
     <string name="oss_purpose_ipadic">假名漢字轉換的詞彙與詞性連接成本</string>
     <string name="oss_purpose_jawiki_collocation">用於候選重新排序的共現資料來源</string>

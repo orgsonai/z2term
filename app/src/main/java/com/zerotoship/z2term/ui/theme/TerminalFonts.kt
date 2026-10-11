@@ -27,8 +27,9 @@ object TerminalFontOptions {
     val IBM_PLEX_MONO = TerminalFontOption("ibm-plex-mono", "IBM Plex Mono", "IBMPlexMono-Regular.ttf")
     val JETBRAINS_MONO = TerminalFontOption("jetbrains-mono", "JetBrains Mono", "JetBrainsMono-Regular.ttf")
     val FIRA_CODE = TerminalFontOption("fira-code", "Fira Code", "FiraCode-Regular.ttf")
+    val Z2_MONO = TerminalFontOption("z2-mono", "Z2 Mono", "Z2Mono-Regular.ttf")
 
-    val ALL = listOf(MONOSPACE, IBM_PLEX_MONO, JETBRAINS_MONO, FIRA_CODE)
+    val ALL = listOf(MONOSPACE, IBM_PLEX_MONO, JETBRAINS_MONO, FIRA_CODE, Z2_MONO)
 
     fun byId(id: String): TerminalFontOption = ALL.firstOrNull { it.id == id } ?: MONOSPACE
 

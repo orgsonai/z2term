@@ -516,6 +516,7 @@
     <string name="oss_purpose_fira_code">고정폭 터미널 글꼴 (합자 있음)</string>
     <string name="oss_purpose_ibm_plex_mono">고정폭 터미널 글꼴</string>
     <string name="oss_purpose_jetbrains_mono">고정폭 터미널 글꼴</string>
+    <string name="oss_purpose_z2_mono">고정폭 터미널 글꼴</string>
     <string name="oss_purpose_skk_jisyo">함께 실은 가나한자 사전의 원본 사전</string>
     <string name="oss_purpose_ipadic">가나한자 변환용 어휘와 품사 접속 비용</string>
     <string name="oss_purpose_jawiki_collocation">후보를 다시 매기는 데 쓰는 공기 데이터의 원본 말뭉치</string>

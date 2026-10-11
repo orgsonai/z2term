@@ -71,6 +71,7 @@ Builds:
 
 # ⚠ プログラミングフォント (IBM Plex Mono / JetBrains Mono / Fira Code。いずれも OFL-1.1) は
 #    **1.0.4 から git に入っている**ので、F-Droid のビルドにもそのまま入る。
+#    1.0.5 からは自作の Z2 Mono (OFL-1.1) も入る。生成スクリプトは scripts/z2-mono/build.py。
 #    1.0.3 までは scripts/fetch-fonts.sh がビルド前にネットワークから取る作りで、
 #    F-Droid のビルドには入らず、端末の monospace だけになっていた。
 
