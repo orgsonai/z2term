@@ -1,6 +1,6 @@
 # Z2Term F-Droid 提出手順
 
-最終更新: 2026-10-11
+最終更新: 2026-10-12
 
 F-Droid は「APK を受け取って配る」ところではなく、**ソースから自分でビルドして配る**ところ。
 だから提出物は APK ではなく、`fdroiddata` という F-Droid 側のリポジトリに置く
@@ -47,16 +47,22 @@ F-Droid は 1 行目だけを消すので `?: signingConfigs.getByName("debug")`
 
 ### 5 への対策 — yml の `scanignore:`
 
-scanner は prebuild の**後**に走るので、生成したばかりのファイルも検査対象になる。
-z2term では 2 つが引っかかるので、理由を添えて除外している。
+scanner は prebuild の**後**、ビルド (手順 6) の**前**に走る。z2term では 1 つが引っかかるので、
+理由を添えて除外している。
 
 | 除外するもの | 理由 |
 |---|---|
-| `app/src/main/jniLibs/arm64-v8a` | prebuild が `app/src/main/cpp/` の**ソースから生成した**実行体。git には入っていない (`.gitignore` 済み) ので同梱物ではない |
 | `app/src/main/assets/kkc_matrix.bin` | かな漢字変換の品詞接続コスト表。int16 の数表であって実行コードではない。出典と著作権表示は `app/src/main/assets/KKC-DICT-NOTICE.txt` |
 
 ⚠ `scanignore` に書いたパスは、**実在し、かつ実際に 1 件以上の指摘を消していないと
 それ自体がエラーになる**。使わなくなったら消すこと。
+
+⛔ **ネイティブ (z2root など 6 つの .so) を prebuild で作らないこと。** prebuild で作ると
+scanner が走る時点でソースツリーにバイナリがあることになり、`scanignore` で jniLibs を
+除外する羽目になる。最初の提出はその形で、審査で **「ライブラリは build で作ること」** と
+指摘された (2026-10-12)。Gradle の `buildZ2rootNative` が `assembleRelease` の中で
+`scripts/build-z2root.sh` を呼ぶので、レシピには何も書かなくてよい。scanner の時点では
+jniLibs は空で、除外も要らない。
 
 ### 6 への対策 — フォント同梱漏れ検査の格下げ
 
@@ -96,11 +102,13 @@ NDK 同梱の `source.properties` から版数を写して追記している。
 prebuild:
   - "grep Pkg.Revision $$NDK$$/source.properties | tr -d ' ' | sed s/Pkg.Revision=/ndk.version=/ >> ../local.properties"
   - "echo allowMissingBundledAssets=true >> ../gradle.properties"
-  - "ANDROID_NDK_HOME=$$NDK$$ bash ../scripts/build-z2root.sh"
 ```
 
-`local.properties` は prebuild より前に作られるので、追記で足りる
-(2 行目は 1 つ上の節、3 行目は実行エンジンのソースビルド)。
+`local.properties` は prebuild より前に作られるので、追記で足りる (2 行目は 1 つ上の節)。
+
+実行エンジンなどのネイティブを作る `scripts/build-z2root.sh` は、Gradle の `buildZ2rootNative` から
+ビルド中に呼ばれる。こちらは NDK の場所を環境変数 `ANDROID_NDK_HOME` から拾う
+(fdroidserver が `ndk:` で入れた NDK のパスを、Gradle を起動するときに渡してくる)。
 
 ---
 
@@ -143,7 +151,7 @@ done
 
 上の `versionName` / `versionCode` / `commit` / `CurrentVersion*` が
 `app/build.gradle.kts` の版数と揃っていること、更新内容が両言語にあり 500 文字以内で
-あること、`scanignore` の 2 つが実在することを目で確かめる。
+あること、`scanignore` に書いたものが実在することを目で確かめる。
 
 ⛔ **タグの中身は後から直せない。** タグを push すると GitHub Actions が
 署名済み APK を作って GitHub Release を公開し、アプリ内更新 (`z2-update`) が
@@ -156,6 +164,7 @@ done
 `v1.0.5` のコミット**を指している。2026-10-11 に、候補の 0.9.x ではなく**安定版から提出する**方針に決め、
 その時点の最新だった 1.0.1 (699) で提出した。同じ日の審査中に、フォント 4 つ (自作の Z2 Mono を含む) が
 入る 1.0.5 へ向け直した (審査の途中で版を上げるのは差し支えない。レシピの prebuild / scanignore は同じ)。
+2026-10-12 に審査の指摘を受け、ネイティブを作る prebuild の 3 行目と jniLibs の `scanignore` を外した (§1)。
 `v1.0.0` 〜 `v1.0.5` は GitHub に公開済み。
 
 更新内容 `metadata/{ja-JP,en-US}/changelogs/703.txt` は用意済み (いずれも 500 文字以内)。
@@ -215,7 +224,11 @@ bare clone、`commit:` をコミットのハッシュに差し替えて試した
 すべて実際のビルドで効いた。
 ✅ **同じ日に 1.0.5 (703) でも実施し、通った** (こちらは公開済みの `v1.0.5` のコミットを、本番と同じ `Repo:` のまま)。
 `fdroid lint` は指摘なし。できた APK には `assets/fonts/` の 4 つ (IBM Plex Mono / JetBrains Mono /
-Fira Code / Z2 Mono) が入っている。下の箇条書きは 1.0.0 のときの記録で、フォントの行だけが今と違う。
+Fira Code / Z2 Mono) が入っている。下の箇条書きは 1.0.0 のときの記録で、フォントの行と、prebuild・scanner の行が今と違う。
+✅ **2026-10-12 に、ネイティブを prebuild から外したレシピ (prebuild 2 行・`scanignore` は `kkc_matrix.bin` だけ) で
+1.0.5 (703) をもう一度流し、通った。** `fdroid lint` は指摘なし。scanner が「Ignoring」で通したのは
+`kkc_matrix.bin` の 1 件だけで、6 つの .so は Gradle のビルド中に作られて APK に入った
+(APK の大きさは外す前と同じ 27,682,544 バイト)。
 
 - `fdroid lint` の指摘は、差し替えた `Repo:` に対する `git URLs must use https://` だけ (想定どおり)
 - prebuild 3 行が順に通り、z2root など 6 つの .so (`libz2root` / `libz2accept` / `libz2attach` /

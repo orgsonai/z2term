@@ -48,23 +48,20 @@ Builds:
     #   これが無いと assembleRelease が必ず「fonts が見つかりません」で止まる。
     #   フォント不在時は TerminalFonts が端末の monospace へ落とすので動作に支障はない。
     #   1.0.4 以降はフォントが git にあるので、このフラグは何も格下げしない (付いていて無害)。
-    # prebuild 3: z2root / z2accept / z2attach を app/src/main/cpp/ のソースから
-    #   NDK clang でビルドし jniLibs へ置く。prebuilt は同梱していない
-    #   (Android 10+ は nativeLibraryDir からの execve しか許さないため、
-    #   自前ビルドでも .so という名前での同梱が要る)。
+    # ⚠ z2root など 6 つのネイティブ (app/src/main/cpp/ のソースから NDK clang で作り
+    #   jniLibs へ置く実行体) は **prebuild では作らない**。Gradle の buildZ2rootNative が
+    #   assembleRelease の中で scripts/build-z2root.sh を呼ぶので、ビルドの段階で作られる。
+    #   NDK の場所は fdroidserver が渡す環境変数 ANDROID_NDK_HOME から拾う。
+    #   審査で「ライブラリは build で作ること」と指摘され、2026-10-12 に prebuild から外した
+    #   (prebuild で作ると scanner の前にバイナリが出来てしまい、scanignore が要った)。
     prebuild:
       - "grep Pkg.Revision $$NDK$$/source.properties | tr -d ' ' | sed s/Pkg.Revision=/ndk.version=/ >> ../local.properties"
       - "echo allowMissingBundledAssets=true >> ../gradle.properties"
-      - "ANDROID_NDK_HOME=$$NDK$$ bash ../scripts/build-z2root.sh"
-    # scanner は「ソースツリーに置かれたバイナリ」を一律で弾く (scan は prebuild の
-    # 後に走るので、生成したばかりの .so も対象に入る)。次の 2 つは正当な例外:
-    #   - jniLibs/arm64-v8a  : 直前の prebuild が **ソースから生成した** 実行体。
-    #                          git には入っておらず (.gitignore 済み)、同梱物ではない。
+    # scanner は「ソースツリーに置かれたバイナリ」を一律で弾く。次の 1 つは正当な例外:
     #   - kkc_matrix.bin     : かな漢字変換の品詞接続コスト表。int16 の数表であって
     #                          実行コードではない。出典と著作権表示は
     #                          app/src/main/assets/KKC-DICT-NOTICE.txt にある。
     scanignore:
-      - app/src/main/jniLibs/arm64-v8a
       - app/src/main/assets/kkc_matrix.bin
     gradle:
       - yes
