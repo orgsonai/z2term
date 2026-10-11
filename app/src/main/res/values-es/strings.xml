@@ -147,6 +147,11 @@
     <string name="settings_kaomoji_custom_duplicate">Ya está añadido</string>
     <string name="settings_kaomoji_custom_too_large">Demasiado grande (hasta 40 líneas / 2000 caracteres)</string>
     <string name="settings_kaomoji_custom_full">La lista está llena (200). Quita algunos primero</string>
+    <string name="settings_kaomoji_custom_open">Gestionar la lista</string>
+    <string name="kaomoji_custom_title">Tus emoticonos y arte ASCII</string>
+    <string name="kaomoji_custom_empty">Aún no has añadido nada.</string>
+    <string name="kaomoji_custom_clear_confirm">¿Eliminar todo lo que has añadido? Esto no se puede deshacer.</string>
+    <string name="kaomoji_custom_search_hint">Buscar…</string>
     <string name="pad_kaomoji_custom_empty">Aún no hay nada.\nAñade los tuyos en Ajustes › Teclado › «Tus emoticonos y arte ASCII».</string>
     <string name="settings_user_dict_added">Se importó %1$s (%2$d palabras)</string>
     <string name="settings_user_dict_too_large">Ese archivo es demasiado grande (límite de 8 MB)</string>

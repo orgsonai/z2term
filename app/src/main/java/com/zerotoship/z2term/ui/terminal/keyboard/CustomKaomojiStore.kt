@@ -16,7 +16,8 @@ import java.io.File
 /**
  * 自分で足した顔文字・AA (顔文字・AA パッドの「✎」タブ)。保存場所: `filesDir/kaomoji_custom.json`。
  *
- * 足す・消すのは設定 (キーボード・入力 › 顔文字・AA の追加) から。パッドは並べて打つだけにする
+ * 足すのは設定 (キーボード・入力 › 顔文字・AA の追加)、見る・消すはそこから開く一覧
+ * ([com.zerotoship.z2term.ui.settings.CustomKaomojiSheet]) から。パッドは並べて打つだけにする
  * (キーの並ぶ狭い場所に編集を持ち込まない)。バックアップにはこのファイルごと入る
  * ([com.zerotoship.z2term.backup.BackupManager])。
  *
@@ -82,6 +83,15 @@ internal object CustomKaomojiStore {
             if (next.size == _items.value.size) return@withLock
             write(context, next)
             _items.value = next
+        }
+    }
+
+    suspend fun clear(context: Context) {
+        ensureLoaded(context)
+        lock.withLock {
+            if (_items.value.isEmpty()) return@withLock
+            write(context, emptyList())
+            _items.value = emptyList()
         }
     }
 

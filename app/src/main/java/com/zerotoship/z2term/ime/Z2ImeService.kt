@@ -58,6 +58,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.ComposingState
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
 import com.zerotoship.z2term.ui.terminal.keyboard.KanaKanjiConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceConfig
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceEntry
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
@@ -126,6 +127,20 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         // 独自テーマは端末画面が読み込む作りなので、キーボードだけ先に使われたときのために
         // ここでも読む (どちらから呼んでも 1 度しか読まない)。
         CustomThemeStore.ensureLoaded(this)
+        // ⚠ 入力ビューの中 (Compose) で見ても足りない — 物理キーボードだけで使う人は
+        // 入力ビューが 1 度も作られないことがあるので、打鍵を受ける側で設定を追う。
+        lifecycleScope.launch {
+            appSettings.flow.collect { settings ->
+                enabledFaces = KeyboardFaceConfig.enabledEntriesFromJson(
+                    orderValue = settings.keyboardFaceOrder,
+                    enabledValue = settings.keyboardFaceEnabledIds,
+                    layoutsJson = settings.keyboardLayoutsJson,
+                    legacyNumberEnabled = settings.keyboardNumberFace,
+                    legacyActiveLayoutId = settings.keyboardLayoutActiveId,
+                    legacyKanaAvailable = false,
+                )
+            }
+        }
         // 辞書は端末側と同じものを 1 度だけ読む (どちらから先に使っても二重に読まない)。
         lifecycleScope.launch {
             KanaKanjiConverter.ensureLoaded(this@Z2ImeService)
@@ -432,6 +447,20 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         get() = KanaModeState.enabled.value
         set(value) = KanaModeState.set(value)
 
+    /** 利用者が自分で ON にしている面 (言語による既定は含めない)。設定を読み終えるまでは空。 */
+    @Volatile private var enabledFaces: List<KeyboardFaceEntry> = emptyList()
+
+    /**
+     * かなモードへ入れるか ([KeyboardFaceConfig.kanaInputAvailable])。
+     * ⚠ 言語は打鍵のたびに見る — アプリの言語は設定 (DataStore) とは別の場所にあり、
+     * 切り替えても [enabledFaces] の更新は走らない。
+     */
+    private val kanaInputAvailable: Boolean
+        get() = KeyboardFaceConfig.kanaInputAvailable(
+            enabledEntries = enabledFaces,
+            appLanguageJapanese = LocaleHelper.language(this) == LocaleHelper.LANG_JA,
+        )
+
     /** まだかなになっていないローマ字 (`k` / `ky` など)。 */
     private var romaji = ""
 
@@ -458,6 +487,19 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
             !isPhysicalKeyboard(device.sources, device.keyboardType, device.isVirtual)
         ) return false
         hardwareKeyboard.value = true
+        // ⛔ **日本語入力を使わない人の打鍵は 1 つも食べない** ([kanaInputAvailable])。
+        // 切り替えキーごと素通しするので、`Shift+Space` はただの空白として相手へ届く。
+        // ⚠ かなモードのまま設定で外された場合は、ここで畳んでから素通しする。
+        if (!kanaInputAvailable) {
+            if (kanaMode) {
+                flushRomaji()
+                composing.commitRaw()
+                kanaMode = false
+                updateInputViewShown()
+                requestHideSelf(0)
+            }
+            return false
+        }
         if (isKanaToggle(keyCode, event)) {
             flushRomaji()
             composing.commitRaw()

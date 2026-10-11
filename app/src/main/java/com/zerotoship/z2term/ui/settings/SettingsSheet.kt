@@ -224,6 +224,8 @@ fun SettingsSheet(
     var linuxGroupY by remember { mutableStateOf(0) }
     // IME 学習履歴の管理シート。非 null の間 [ImeHistorySheet] を表示する (キーボードパッチ)。
     var imeHistoryOpen by remember { mutableStateOf(false) }
+    // 自分で足した顔文字・AA の一覧。true の間 [CustomKaomojiSheet] を表示する。
+    var customKaomojiOpen by remember { mutableStateOf(false) }
     // カスタム配列エディタは別 Dialog ではなく、設定画面の同じ Surface 内で固定ページに切り替える。
     var keyLayoutEditingId by remember { mutableStateOf<String?>(null) }
     // 持ち出し / 引き継ぎ (0.8.239)。秘密を含めるときだけ合言葉を要る形にする。
@@ -833,31 +835,22 @@ fun SettingsSheet(
                             }
                         },
                     )
-                    customKaomoji.forEach { k ->
-                        key(k) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // 複数行は行がそろうよう等幅で、折り返さずに横へ流す。
-                                Text(
-                                    text = k,
-                                    color = ZtsTextPrimary,
-                                    fontSize = 11.sp,
-                                    lineHeight = 13.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    softWrap = false,
-                                    modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState())
-                                )
-                                ActionButton(
-                                    label = stringResource(R.string.settings_user_dict_remove),
-                                    danger = true,
-                                    onClick = { scope.launch { CustomKaomojiStore.remove(context, k) } }
-                                )
-                            }
-                        }
-                    }
+                    // ⚠ 足したものはここに並べない。数が増えると設定の他の項目が下へ押し出される
+                    // ので、件数だけ出して一覧 ([CustomKaomojiSheet]) で見る・消す。
+                    Text(
+                        text = stringResource(
+                            R.string.settings_kaomoji_custom_count,
+                            customKaomoji.size,
+                            CustomKaomojiStore.MAX_ENTRIES,
+                        ),
+                        color = ZtsTextSecondary,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.settings_kaomoji_custom_open),
+                        onClick = { customKaomojiOpen = true }
+                    )
                 }
 
                 // 言語スイッチ。アプリ内で「端末に合わせる/日本語/English」を切替える
@@ -1942,6 +1935,9 @@ fun SettingsSheet(
     }
 
     // IME 学習履歴の管理シート (キーボードパッチ)。設定シートと**重ねて**開く。
+    if (customKaomojiOpen) {
+        CustomKaomojiSheet(onDismiss = { customKaomojiOpen = false })
+    }
     if (imeHistoryOpen) {
         ImeHistorySheet(onDismiss = { imeHistoryOpen = false })
     }

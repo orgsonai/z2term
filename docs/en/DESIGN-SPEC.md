@@ -1,6 +1,8 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-11 / Target version: 1.0.1 (versionCode 699)
+Last updated: 2026-10-11 / Target version: 1.0.2 (versionCode 700)
+
+**1.0.2 (versionCode 700)**: Emoticons and ASCII art you added now have a list of their own. ⚙ Settings › Keyboard, input › "Your own emoticons and ASCII art" keeps just the input field and a count; press "Manage list" to open the list. There you can search, remove entries one by one or remove everything, and long art is folded to 6 lines (tap to show all of it). Until now every entry was listed inside Settings, pushing the other items down as the list grew. Also, Japanese input from an external keyboard (toggled with the half/full-width key, Shift + Space and so on) now works only when the app language is Japanese or you have turned the kana face on yourself. If you do not use Japanese, Shift + Space no longer switches to kana.
 
 **1.0.1 (versionCode 699)**: Each pane title in the split view now has an expand button at its right end. Press it to go back to one pane showing just that tab (the same as double-tapping the title, without long-pressing the GUI button and choosing "One pane"). Also, `watch-basic`, `battery-alert` and `daily-report` were removed from the list under ⚙ Settings › "Show a guide" (the macros themselves can still be installed with `z2-macro install <name>`).
 
@@ -1860,6 +1862,8 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 
 **0.9.30 adding your own emoticons and ASCII art**: the built-in list (`KaomojiCatalog`) is fixed, and there was nowhere to keep art of your own. ⇒ `CustomKaomojiStore` (stored in `filesDir/kaomoji_custom.json` as `{"items":[…]}`, newest first) was added and shown as a ✎ tab at the end of the pad. Adding and removing happens only in Settings ("Your own emoticons and ASCII art"); the pad itself stays a place to pick from, since it sits among the keys. Input goes through `normalize`: line breaks become LF, trailing spaces and leading / trailing blank lines are dropped, tabs become four spaces. **Leading spaces are kept because they are part of the picture.** Limits: 200 entries, 40 lines / 2000 characters each. Backups carry the file as a whole, like the IME learning history, and reload it after a restore (`KAOMOJI_CUSTOM` in `BackupManager`). Multi-line entries are sent to the terminal as a paste, the same as the built-in art. The built-in multi-line art went from 16 to 40 pieces (made here; no signed art was copied).
 
+**1.0.2 a list for what you added**: in 0.9.30 the entries were listed right inside the Settings section, so the other settings were pushed down as the list grew (user report). ⇒ Settings keeps only the input field, a count (`n / 200`) and "Manage list"; the list itself moved to its own sheet, `CustomKaomojiSheet` (`ui/settings/`). It follows `ImeHistorySheet` for the IME learning history: search (substring), per-entry removal, and remove-all behind a confirmation (`CustomKaomojiStore.clear`). ⚠ Multi-line art can be 40 lines tall, so a row is folded to 6 lines and a tap opens the whole thing.
+
 **0.9.28 long-press "+" to open one tab in a chosen OS**: to use another OS briefly you had to pick it in Settings, which changes the "selected OS" itself — every tab opened afterwards and the resident servers moved to that OS too. ⇒ long-pressing the tab "+" shows the installed OSes (`NewTabOsDialog`) and passes the chosen one to `SessionManager.openNew(context, distroId)`. The per-tab OS travels the same way as the value used for restoring tabs (`restoreDistroId` of `TerminalSession`); nothing is written to the setting (`distro_id`). The startup decision (`startupPlan`), startup (`startTerminal`) and tab save / restore run unchanged. Only extracted OSes are listed and no download starts from here (same check as the OS list in Settings).
 
 **0.9.27 `/system/bin/pm` and `am` ended with "cmd: inaccessible or not found" (Alpine / Ubuntu / Kali)**: found by checking 0.9.26 in a tab of each of the four OSes. `pm` and `am` are `#!/system/bin/sh` scripts that call `cmd` **by name only** (the Android shell assumes `/system/bin` is on PATH). The default PATH of the OS does not contain it. It only worked where `/system/bin` had been added to PATH by hand, which is why the 0.9.24 check did not show it. ⇒ when the built-in loader moves into an Android program, it appends `/system/bin` to the **end** of PATH in the environment it passes (`envp_with_system_bin`). The PATH of the OS shell is not changed, so how OS commands are found stays the same. Nothing is done if it is already there.
@@ -3518,7 +3522,10 @@ Once more no calling code changed (only the roster line, `res/values-ko/`, and t
 
 **Relationship to the built-in keyboard**: display language and input method are **kept separate**. The kana
 face is enabled by default only when the app language is Japanese (`legacyKanaAvailable`); other languages
-get the ASCII and numeric faces. ⛔ **No Chinese conversion engine (pinyin/zhuyin) is carried** — what you
+get the ASCII and numeric faces. ⚠ **The hardware-keyboard kana mode follows the same rule** (1.0.2,
+`KeyboardFaceConfig.kanaInputAvailable`): the toggle keys work only when the app language is Japanese or the
+kana face has been turned on by the user. Through 1.0.1 the toggle ignored the face settings, so `Shift+Space`
+turned keystrokes into kana for people who never type Japanese. ⛔ **No Chinese conversion engine (pinyin/zhuyin) is carried** — what you
 type at a shell is commands (ASCII), and for the occasional Chinese text the OS input method is one switch
 away. The built-in keyboard exists so the terminal can be typed *without* the OS input method; it is not a
 container for a per-language IME. ⭐ **Accented letters (`ñ`, `á`, `¿` …) are a key-layout matter** and the
@@ -3573,6 +3580,8 @@ being delegated back to us (confirmed on-device with `settings get secure enable
   ANSI external keyboard has no half/full-width key, so a fallback is required. ⛔ `Ctrl+Space` is
   not used (the input method would be taking a combination the terminal wants). ⚠ **Ascii is the
   default**: the first thing typed in a terminal is almost always a command.
+  ⛔ **Keystrokes from people who do not use Japanese input pass through, toggle keys included**
+  (1.0.2, `kanaInputAvailable`: app language not Japanese and the kana face not turned on).
 - ⚠ **No key artwork while a physical keyboard is attached** (the keys are already under the
   fingers); only the candidate bar is shown, with `onEvaluateInputViewShown` limited to composing
   and kana mode. ⚠ **Kana mode keeps the window open** — with a physical keyboard the target app

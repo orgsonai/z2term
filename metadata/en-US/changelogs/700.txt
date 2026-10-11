@@ -1,0 +1,6 @@
+1.0.2
+
+- Emoticons and ASCII art you added now have a list of their own: search and
+  remove them from Settings › "Your own emoticons and ASCII art" › "Manage list".
+- Switching an external keyboard to Japanese input (Shift + Space and so on) now
+  works only when the app language is Japanese or the kana face is turned on.

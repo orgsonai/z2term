@@ -147,6 +147,11 @@
     <string name="settings_kaomoji_custom_duplicate">이미 추가되어 있습니다</string>
     <string name="settings_kaomoji_custom_too_large">너무 큽니다(40줄·2000자까지)</string>
     <string name="settings_kaomoji_custom_full">가득 찼습니다(200개). 먼저 몇 개를 삭제하세요</string>
+    <string name="settings_kaomoji_custom_open">목록 관리</string>
+    <string name="kaomoji_custom_title">추가한 이모티콘·AA</string>
+    <string name="kaomoji_custom_empty">아직 추가한 것이 없습니다.</string>
+    <string name="kaomoji_custom_clear_confirm">추가한 이모티콘·AA를 모두 삭제할까요? 되돌릴 수 없습니다.</string>
+    <string name="kaomoji_custom_search_hint">찾기…</string>
     <string name="pad_kaomoji_custom_empty">아직 없습니다.\n설정 › 키보드 › ‘이모티콘·AA 추가’에서 넣을 수 있습니다.</string>
     <string name="settings_user_dict_added">%1$s을(를) 가져왔습니다 (%2$d개 단어)</string>
     <string name="settings_user_dict_too_large">파일이 너무 큽니다 (8MB까지)</string>

@@ -147,6 +147,11 @@
     <string name="settings_kaomoji_custom_duplicate">已經新增過了</string>
     <string name="settings_kaomoji_custom_too_large">太大了（最多 40 行 / 2000 個字元）</string>
     <string name="settings_kaomoji_custom_full">已滿（200 筆）。請先刪除一些</string>
+    <string name="settings_kaomoji_custom_open">管理清單</string>
+    <string name="kaomoji_custom_title">已新增的顏文字和字元畫</string>
+    <string name="kaomoji_custom_empty">還沒有新增內容。</string>
+    <string name="kaomoji_custom_clear_confirm">要刪除全部已新增的顏文字和字元畫嗎? 此操作無法復原。</string>
+    <string name="kaomoji_custom_search_hint">搜尋…</string>
     <string name="pad_kaomoji_custom_empty">還沒有內容。\n可以在 設定 › 鍵盤 ›「新增顏文字和字元畫」中新增。</string>
     <string name="settings_user_dict_added">已匯入 %1$s（%2$d 詞）</string>
     <string name="settings_user_dict_too_large">檔案太大了（上限 8MB）</string>

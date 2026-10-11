@@ -153,6 +153,12 @@
     <string name="settings_kaomoji_custom_duplicate">Already added</string>
     <string name="settings_kaomoji_custom_too_large">Too large (up to 40 lines / 2000 characters)</string>
     <string name="settings_kaomoji_custom_full">The list is full (200). Remove some first</string>
+    <string name="settings_kaomoji_custom_open">Manage list</string>
+    <string name="kaomoji_custom_title">Your emoticons and ASCII art</string>
+    <string name="kaomoji_custom_empty">Nothing added yet.</string>
+    <string name="kaomoji_custom_clear_confirm">Remove everything you added? This cannot be undone.</string>
+    <string name="kaomoji_custom_search_hint">Search…</string>
+    <string name="settings_kaomoji_custom_count" translatable="false">%1$d / %2$d</string>
     <string name="pad_kaomoji_custom_empty">Nothing here yet.\nAdd your own from Settings › Keyboard › “Your own emoticons and ASCII art”.</string>
     <string name="settings_kaomoji_custom_placeholder" translatable="false">(^_^)/</string>
     <string name="settings_user_dict_added" tools:ignore="PluralsCandidate">Imported %1$s (%2$d words)</string>

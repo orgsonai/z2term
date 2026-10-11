@@ -150,6 +150,11 @@
     <string name="settings_kaomoji_custom_duplicate">すでに追加されています</string>
     <string name="settings_kaomoji_custom_too_large">大きすぎます（40 行・2000 文字まで）</string>
     <string name="settings_kaomoji_custom_full">いっぱいです（200 件）。先にいくつか削除してください</string>
+    <string name="settings_kaomoji_custom_open">一覧を管理</string>
+    <string name="kaomoji_custom_title">追加した顔文字・AA</string>
+    <string name="kaomoji_custom_empty">まだ追加していません。</string>
+    <string name="kaomoji_custom_clear_confirm">追加した顔文字・AA をすべて削除しますか? この操作は取り消せません。</string>
+    <string name="kaomoji_custom_search_hint">文字で検索…</string>
     <string name="pad_kaomoji_custom_empty">まだありません。\n設定 › キーボード・入力 ›「顔文字・AA の追加」から足せます。</string>
     <string name="settings_user_dict_added">%1$s を取り込みました（%2$d 語）</string>
     <string name="settings_user_dict_too_large">ファイルが大きすぎます（上限 8MB）</string>

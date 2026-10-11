@@ -189,4 +189,36 @@ class KeyboardFaceTest {
         assertTrue(simple.id !in enabled)
         assertTrue(KeyboardFaceEntry.BUILTIN_ASCII_ID in enabled)
     }
+
+    @Test
+    fun kanaInputIsClosedByDefaultUnlessTheAppLanguageIsJapanese() {
+        val entries = KeyboardFaceConfig.allEntries(null, emptyList())
+        fun enabled(value: String?) = KeyboardFaceConfig.enabledEntries(
+            orderValue = null,
+            enabledValue = value,
+            layouts = emptyList(),
+            legacyNumberEnabled = false,
+            legacyActiveLayoutId = "",
+            legacyKanaAvailable = false,
+        )
+
+        // 何も触っていない人: 日本語以外なら閉じる。
+        assertTrue(!KeyboardFaceConfig.kanaInputAvailable(enabled(null), appLanguageJapanese = false))
+        assertTrue(KeyboardFaceConfig.kanaInputAvailable(enabled(null), appLanguageJapanese = true))
+
+        // かな面を自分で ON にした人は、言語に関係なく使える。
+        val withKana = KeyboardFaceConfig.encodeEnabled(
+            entries,
+            setOf(KeyboardFaceEntry.BUILTIN_ASCII_ID, KeyboardFaceEntry.BUILTIN_KANA_ID),
+        )
+        assertTrue(KeyboardFaceConfig.kanaInputAvailable(enabled(withKana), appLanguageJapanese = false))
+
+        // 日本語の人は、フリック面を外していても物理キーボードで打てる。
+        assertTrue(
+            KeyboardFaceConfig.kanaInputAvailable(
+                enabled(KeyboardFaceEntry.BUILTIN_ASCII_ID),
+                appLanguageJapanese = true,
+            )
+        )
+    }
 }

@@ -234,6 +234,18 @@ object KeyboardFaceConfig {
         legacyKanaAvailable = legacyKanaAvailable,
     )
 
+    /**
+     * 日本語入力 (物理キーボードのかなモード) を使えるか。
+     *
+     * ⚠ **アプリの言語が日本語でない人には既定で閉じる。** かな面は [enabledIds] が既定で
+     * 外しているが、物理キーボードの切り替えキー (`Shift+Space` など) は面の設定を見ずに
+     * 効いていたので、日本語を使わない人が押すと打鍵がかなに化けた。面を自分で ON にした人は
+     * 言語に関係なく使える (かな面と同じ扱い)。
+     * ⚠ 日本語の人は面を外していても使える — 物理キーボードだけで打つ人はフリック面を外す。
+     */
+    fun kanaInputAvailable(enabledEntries: List<KeyboardFaceEntry>, appLanguageJapanese: Boolean): Boolean =
+        appLanguageJapanese || enabledEntries.any { it.face == KeyboardFace.KANA }
+
     fun encodeOrder(entries: List<KeyboardFaceEntry>): String = entries.joinToString(SEPARATOR) { it.id }
 
     fun encodeEnabled(entries: List<KeyboardFaceEntry>, enabledIds: Set<String>): String =
