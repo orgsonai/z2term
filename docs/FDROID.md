@@ -60,9 +60,14 @@ z2term では 2 つが引っかかるので、理由を添えて除外してい�
 
 ### 6 への対策 — フォント同梱漏れ検査の格下げ
 
-プログラミングフォント (`app/src/main/assets/fonts/*.ttf`) は `scripts/fetch-fonts.sh`
-がネットワークから取ってくるもので、**git に入っていない**。F-Droid ではネットワーク取得を
-避けたいので同梱しない方針だが、`app/build.gradle.kts` の `verifyBundledFonts` タスクが
+⭐ **1.0.4 からフォントは git に入っている**ので、F-Droid のビルドにもそのまま入る。
+以下は **1.0.3 までの版をビルドするとき**の話 (提出済みの 1.0.1 がこれに当たる)。
+フォントを入れた理由: 端末の monospace が実際には等幅でない機種があり、そこでは 1 字ごとの
+間が大きく空いて読みにくい (利用者の実機で発生。端末の設定では直せない)。
+
+1.0.3 までは、プログラミングフォント (`app/src/main/assets/fonts/*.ttf`) は `scripts/fetch-fonts.sh`
+がネットワークから取ってくるもので、**git に入っていなかった**。F-Droid ではネットワーク取得を
+避けたいので同梱しない方針だったが、`app/build.gradle.kts` の `verifyBundledFonts` タスクが
 「同梱必須物の欠落」を **ビルドエラーとして止める**作りになっている
 (手元で `git clean` 後に走らせる事故を防ぐための検査)。
 
@@ -77,9 +82,9 @@ prebuild:
 フォントが無いときは `TerminalFonts.isAvailable()` が assets を確認して端末の monospace へ
 落とすので、**フォントの選択肢が 1 つ (System Monospace) になるだけ**で動作に支障はない。
 
-⛔ **この検査を build.gradle.kts 側で消さないこと。** 手元と CI では
-`scripts/fetch-fonts.sh` を必ず流しており、フォント無しの APK を配らないための検査として
-効かせ続ける。F-Droid のビルドでだけ警告へ落とす。
+⛔ **この検査を build.gradle.kts 側で消さないこと。** フォント無しの APK を配らないための
+検査として効かせ続ける。1.0.4 以降は格下げフラグが付いていても、フォントが git にあるので
+何も格下げされない (yml の prebuild は変えなくてよい)。
 
 ### NDK の渡し方
 
@@ -272,7 +277,7 @@ fdroid build -v -l com.zerotoship.z2term            # 本番と同じビルド
 | `REQUEST_INSTALL_PACKAGES` を宣言している | ⚠ **ここは必ず先に説明を用意する。** 上のアプリ内更新のための宣言で、F-Droid から入れた版では経路ごと断る。落とすのは GitHub Releases の**自分自身の APK だけ**で、最後のインストールは利用者の 1 タップが要る (アプリが黙って入れ替える方法は Android に無い) |
 | 同梱バイナリ | 無し。実行エンジン z2root / z2accept / z2attach は毎ビルド、ソースから生成する |
 | 依存ライブラリ | AndroidX / Compose / DataStore / Kotlin 標準ライブラリ・Coroutines / JSch (mwiede fork) / BouncyCastle / XZ for Java / OkHttp・Okio / SMBJ (+ asn-one・MBassador・SLF4J API) / ZXing Core・ZXing Android Embedded / Guava ListenableFuture / JetBrains Annotations。取得元は `google()` と `mavenCentral()` だけ。すべて FOSS で、Google Play Services や Firebase は入っていない (一覧と版は `legal/OssComponents.kt`、実際に入るものは `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` で確かめられる) |
-| フォント | `scripts/fetch-fonts.sh` が取ってくるもので git に入っていない。F-Droid ビルドでは**同梱しない** (端末の monospace へ自動フォールバック)。アプリ内のライセンス一覧には 3 つのフォントも載ったままになる (GitHub 版と共通の一覧のため。載せ過ぎであって不足ではない) |
+| フォント | IBM Plex Mono / JetBrains Mono / Fira Code の 3 つ (いずれも SIL Open Font License 1.1・改変なし)。**1.0.4 から git に入っており、F-Droid ビルドにも入る。** アプリ内のライセンス一覧に 3 つとも載せ、OFL-1.1 の本文も同梱している。1.0.3 までの版では git に無く、F-Droid ビルドには入らない (端末の monospace へ自動フォールバック) |
 | 権限 | `MANAGE_EXTERNAL_STORAGE` (Linux 側から共有ストレージを読み書きする)・`RECEIVE_SMS` (`z2-when` の SMS 着信イベント。本文は端末内のスクリプトへ渡すだけ)・`SYSTEM_ALERT_WINDOW` (エッジパネル)・`CAMERA` (QR の読み取り)・ユーザー補助サービス (操作自動化。利用者が設定で有効にしたときだけ)。いずれも送信先を持たず、解析・広告の SDK は入っていない |
 | 署名 | F-Droid は自分の鍵で署名するので、GitHub Releases の APK とは**署名が違う**。一方からもう一方へは上書きできない (入れ替えるときはバックアップ → アンインストール → 入れ直し → 復元)。公開されたら README と HANDBOOK のダウンロードの節にこの注意を足す |
 

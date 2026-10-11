@@ -9,9 +9,10 @@ APK に同梱するアセットを配置します。Linux rootfs はAPKへ同梱
 bash scripts/build-bundle.sh        # z2root + fonts
 ```
 
-## カスタムフォント
+## フォント
 
-`assets/fonts/` にTTF/OTFを置くと設定画面で選択できます。
+`assets/fonts/` の 3 つは git に入っています（1.0.4 から。いずれも SIL Open Font License 1.1）。
+新しい版へ入れ替えるときは `FORCE=1 bash scripts/fetch-fonts.sh`。
 
 | ファイル名 | 入手元 |
 |---|---|

@@ -42,11 +42,12 @@ Builds:
     #   違うため、直書きせず環境ごとに切り替える作りにしてある)。NDK 同梱の
     #   source.properties から Pkg.Revision を写して渡す。
     #   local.properties は prebuild より前に作られるので追記でよい。
-    # prebuild 2: プログラミングフォント (*.ttf) は git に入っておらず、F-Droid では
-    #   同梱しない (下の注記)。app/build.gradle.kts の verifyBundledFonts は「同梱漏れ」を
-    #   ビルドエラーにするので、F-Droid のビルドではこのフラグで警告へ格下げする。
+    # prebuild 2: **1.0.3 までの版**はプログラミングフォント (*.ttf) が git に入っておらず、
+    #   F-Droid のビルドには入らない (下の注記)。app/build.gradle.kts の verifyBundledFonts は
+    #   「同梱漏れ」をビルドエラーにするので、このフラグで警告へ格下げする。
     #   これが無いと assembleRelease が必ず「fonts が見つかりません」で止まる。
     #   フォント不在時は TerminalFonts が端末の monospace へ落とすので動作に支障はない。
+    #   1.0.4 以降はフォントが git にあるので、このフラグは何も格下げしない (付いていて無害)。
     # prebuild 3: z2root / z2accept / z2attach を app/src/main/cpp/ のソースから
     #   NDK clang でビルドし jniLibs へ置く。prebuilt は同梱していない
     #   (Android 10+ は nativeLibraryDir からの execve しか許さないため、
@@ -68,11 +69,10 @@ Builds:
     gradle:
       - yes
 
-# ⚠ プログラミングフォント (IBM Plex Mono / JetBrains Mono / Fira Code) は
-#    scripts/fetch-fonts.sh がネットワークから取得するもので git に入っていない。
-#    F-Droid のビルドではネットワーク取得を避けたいので **同梱しない**。
-#    TerminalFonts.isAvailable() が assets を確認し、無ければ端末の monospace に
-#    フォールバックする作りなので、フォント選択肢が減るだけで動作に支障はない。
+# ⚠ プログラミングフォント (IBM Plex Mono / JetBrains Mono / Fira Code。いずれも OFL-1.1) は
+#    **1.0.4 から git に入っている**ので、F-Droid のビルドにもそのまま入る。
+#    1.0.3 までは scripts/fetch-fonts.sh がビルド前にネットワークから取る作りで、
+#    F-Droid のビルドには入らず、端末の monospace だけになっていた。
 
 AutoUpdateMode: Version
 # 最初の提出は安定版 1.0.1 (1.0.0 の直後の版)。-alpha 付きのタグは F-Droid では拾わない (docs/FDROID.md §6)。

@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.3.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.4.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -963,6 +963,8 @@ when a `z2-when` rule fired **without opening the app**.
 5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
+
+**1.0.4 (versionCode 702)**: The three terminal fonts (IBM Plex Mono, JetBrains Mono, Fira Code) now ship in the F-Droid build as well. Until now the F-Droid build had none of them and offered only the system font. On some devices the system font leaves a wide gap after every character; these three are now available there too. The GitHub APK is unchanged.
 
 **1.0.3 (versionCode 701)**: The built-in keyboard has a new face for typing Japanese in romaji (`a` → あ, `ke` → け, `kyou` → きょう). Turn on "Japanese — romaji" in the face list under ⚙ Settings › Keyboard, input and reach it with the switch key (あa); it starts off. It is the letter face without TAB, ⇧, CTRL and ALT, which makes the letter keys a little over 10% wider. The letters and ESC, ⌫, ⏎ and the arrows sit where they do on the letter face. The right end of the fourth row is `、 。 ー`, and the space key converts while something is being composed and types a space otherwise. Conversion, candidates and learning are the same as on the flick kana face.
 

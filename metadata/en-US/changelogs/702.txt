@@ -1,0 +1,4 @@
+1.0.4
+
+- The three terminal fonts (IBM Plex Mono / JetBrains Mono / Fira Code) now ship
+  in the F-Droid build as well. Pick one under "Font family" in Settings.

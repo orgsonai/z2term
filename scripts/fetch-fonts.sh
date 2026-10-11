@@ -7,6 +7,10 @@
 #   - JetBrainsMono-Regular.ttf
 #   - FiraCode-Regular.ttf
 #
+# ⚠ フォントは 1.0.4 から **git に入っている**。このスクリプトは、新しい版へ入れ替えるとき
+#   (FORCE=1) と、消してしまったときの取り直し用。ふだんのビルドでは既存ファイルを見て何もしない。
+#   入れ替えたら中身 (名前・版・ライセンス表記) を確かめてからコミットすること。
+#
 # 使い方:
 #   bash scripts/fetch-fonts.sh             # 全部
 #   FORCE=1 bash scripts/fetch-fonts.sh     # 既存ファイルを上書き

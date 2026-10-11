@@ -1,0 +1,4 @@
+1.0.4
+
+- 端末のフォント 3 つ (IBM Plex Mono / JetBrains Mono / Fira Code) を
+  F-Droid 版にも入れました。設定の「フォントファミリー」で選べます。

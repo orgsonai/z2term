@@ -53,8 +53,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 701
-        versionName = "1.0.3"
+        versionCode = 702
+        versionName = "1.0.4"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -262,10 +262,10 @@ tasks.matching {
 }.configureEach { dependsOn(buildZ2rootNative) }
 
 // ---------------------------------------------------------------------------
-// git 管理外の「同梱必須物」の欠落検出。
+// 「同梱必須物」の欠落検出。
 //
-// fonts(fetch-fonts.sh) は .gitignore 対象で、clone・clean 後に消えても git では
-// 復元されない。欠けたまま `assembleX` するとフォント無しの APK ができるため、
+// fonts は 1.0.4 から git に入っている (それまでは fetch-fonts.sh がビルド前に取っていた)。
+// それでも消してしまえば欠けたまま `assembleX` でき、フォント無しの APK ができるため、
 // 対応する merge タスクの前段で実体を検査し、欠落時は再生成スクリプト名つきの
 // メッセージでビルドを止める(緊急時は -PallowMissingBundledAssets=true で警告に格下げ)。
 // z2root の .so は上の buildZ2rootNative が常に再生成するため、ここでは検査しない。
@@ -280,7 +280,7 @@ val repoRootDir: File = rootProject.projectDir
 // fonts は src/main/assets/fonts に置く。
 val verifyBundledFonts = tasks.register("verifyBundledFonts") {
     group = "verification"
-    description = "プログラミングフォント(scripts/fetch-fonts.sh)の同梱漏れを検査"
+    description = "プログラミングフォント(assets/fonts)の同梱漏れを検査"
     val root = repoRootDir
     val allow = allowMissingBundled
     doLast {
@@ -289,11 +289,11 @@ val verifyBundledFonts = tasks.register("verifyBundledFonts") {
             "app/src/main/assets/fonts/JetBrainsMono-Regular.ttf",
             "app/src/main/assets/fonts/FiraCode-Regular.ttf",
         ).filter { !File(root, it).exists() }
-            .map { "  - $it\n      再生成: bash scripts/fetch-fonts.sh" }
+            .map { "  - $it\n      復元: git checkout -- $it (取り直すなら bash scripts/fetch-fonts.sh)" }
         if (missing.isNotEmpty()) {
-            val msg = "\n[fonts] git 管理外の同梱必須ファイルが見つかりません:\n" +
+            val msg = "\n[fonts] 同梱必須のフォントが見つかりません:\n" +
                 missing.joinToString("\n") +
-                "\n  → 上記スクリプトを実行してから再ビルドしてください。" +
+                "\n  → 復元してから再ビルドしてください。" +
                 "\n  → 緊急回避: ./gradlew ... -PallowMissingBundledAssets=true (警告に格下げ)"
             if (allow) println("WARNING:$msg") else throw GradleException(msg)
         }

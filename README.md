@@ -86,6 +86,8 @@ Pick whichever fits:
 
 ## Current version
 
+**1.0.4 (versionCode 702)**: The three terminal fonts (IBM Plex Mono, JetBrains Mono, Fira Code) now ship in the F-Droid build as well. Until now the F-Droid build had none of them and offered only the system font. On some devices the system font leaves a wide gap after every character; these three are now available there too. The GitHub APK is unchanged.
+
 **1.0.3 (versionCode 701)**: The built-in keyboard has a new face for typing Japanese in romaji (`a` → あ, `ke` → け, `kyou` → きょう). Turn on "Japanese — romaji" in the face list under ⚙ Settings › Keyboard, input and reach it with the switch key (あa); it starts off. It is the letter face without TAB, ⇧, CTRL and ALT, which makes the letter keys a little over 10% wider. The letters and ESC, ⌫, ⏎ and the arrows sit where they do on the letter face. The right end of the fourth row is `、 。 ー`, and the space key converts while something is being composed and types a space otherwise. Conversion, candidates and learning are the same as on the flick kana face.
 
 **1.0.2 (versionCode 700)**: Emoticons and ASCII art you added now have a list of their own. ⚙ Settings › Keyboard, input › "Your own emoticons and ASCII art" keeps just the input field and a count; press "Manage list" to open the list. There you can search, remove entries one by one or remove everything, and long art is folded to 6 lines (tap to show all of it). Until now every entry was listed inside Settings, pushing the other items down as the list grew. Also, Japanese input from an external keyboard (toggled with the half/full-width key, Shift + Space and so on) now works only when the app language is Japanese or you have turned the kana face on yourself. If you do not use Japanese, Shift + Space no longer switches to kana.
@@ -339,7 +341,7 @@ bash scripts/build-bundle.sh
 It runs two generators and verifies the common payload:
 
 1. `build-z2root.sh` → `libz2root.so` / `libz2accept.so` (needs an NDK)
-2. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` `-Regular.ttf`
+2. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` `-Regular.ttf` (tracked in git from 1.0.4, so this normally does nothing)
 
 A final manifest step prints `OK` / `MISS` per artifact. Linux rootfs archives are downloaded at runtime and are never APK build inputs.
 
