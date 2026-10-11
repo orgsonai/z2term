@@ -135,8 +135,15 @@ fun TerminalKeyboard(
     val currentIndex = faces.indexOfFirst { it.id == currentFace.id }.coerceAtLeast(0)
     val nextFace = faces[(currentIndex + 1) % faces.size]
 
+    // ローマ字面: 宙に浮いた打ちかけ (`かn`) を、変換・確定の前にかなへ落とす。他の面では何もしない。
+    fun flushRomaji() {
+        if (face != KeyboardFace.ROMAJI) return
+        RomajiTyping.flush(composing.textBeforeCursor)?.let { composing.replaceBeforeCursor(it.delete, it.insert) }
+    }
+
     // 面を移る。⚠ 打ちかけのかなは**先に確定**する (面をまたいで持ち越さない)。
     fun switchFace(to: KeyboardFaceEntry) {
+        flushRomaji()
         composing.commitRaw()
         sym = false
         pad = PadMode.NONE
@@ -228,13 +235,14 @@ fun TerminalKeyboard(
         // 未確定文字の編集は修飾なしの操作だけで行う。ショートカットは確定後に送る。
         val consumed = if (mods.isEmpty) when (key) {
             NamedKey.ESC -> if (composing.isActive) { composing.reset(); true } else false
-            NamedKey.ENTER -> composing.commitRaw()
+            NamedKey.ENTER -> { flushRomaji(); composing.commitRaw() }
             NamedKey.BACKSPACE -> composing.backspace()
             NamedKey.LEFT -> if (composing.isActive) { composing.moveCursorLeft(); true } else false
             NamedKey.RIGHT -> if (composing.isActive) { composing.moveCursorRight(); true } else false
             else -> false
         } else false
         if (!consumed) {
+            flushRomaji()
             composing.commitRaw()
             onKey(key, mods)
         }
@@ -265,6 +273,33 @@ fun TerminalKeyboard(
         composing.replaceLast(forms[(index + 1) % forms.size])
     }
 
+    // ローマ字面の 1 打鍵。⚠ 変換・候補・確定はかな面と同じ [composing] に任せ、ここは
+    // 「かなをどう作るか」だけを受け持つ ([RomajiTyping])。
+    fun emitRomaji(ch: Char, isFlick: Boolean) {
+        // 空白キーは、打ちかけがあれば変換・無ければ空白 (物理キーボードのかなモードと同じ)。
+        if (ch == ' ' && !isFlick) {
+            if (composing.isActive) { flushRomaji(); composing.convert() }
+            else onBytes(" ".toByteArray(Charsets.UTF_8))
+            return
+        }
+        // フリック先・記号面・⇧ 中の字は、かなにせず打った字のまま入れる。
+        // ⚠ 変換中ならその中へ積む (かな面の記号と同じ。先に送ると語順が入れ替わる)。
+        if (isFlick || sym || shift != ShiftState.OFF) {
+            val literal = if (!isFlick && !sym) ch.uppercaseChar() else ch
+            if (composing.isActive) composing.append(literal)
+            else onBytes(literal.toString().toByteArray(Charsets.UTF_8))
+            resetOneShotMods()
+            return
+        }
+        val edit = RomajiTyping.type(composing.textBeforeCursor, ch)
+        // 数字や記号だけで、打ちかけも無いなら、変換中にせずそのまま送る (`ls 123` を素で打てる)。
+        if (!composing.isActive && !edit.hasKana && !edit.hasPending) {
+            onBytes(edit.insert.toByteArray(Charsets.UTF_8))
+        } else {
+            composing.replaceBeforeCursor(edit.delete, edit.insert)
+        }
+    }
+
     fun emitFaceText(text: String, isFlick: Boolean) {
         if (text.isEmpty()) return
         if (accessoryBar) {
@@ -290,10 +325,13 @@ fun TerminalKeyboard(
                 else onBytes(ch.toString().toByteArray(Charsets.UTF_8))
             }
             KeyboardFace.NUMBER -> composing.commitExternalText(text)
+            KeyboardFace.ROMAJI -> emitRomaji(text.first(), isFlick)
         }
     }
 
-    val renderStyle = if (face == KeyboardFace.ASCII) entryStyle else entryStyle.forTwelveKeyFace()
+    // ⚠ ローマ字面は英字面と同じ 10 列の並びなので、12 キー用の寸法へは寄せない。
+    val renderStyle = if (face == KeyboardFace.ASCII || face == KeyboardFace.ROMAJI) entryStyle
+        else entryStyle.forTwelveKeyFace()
     val rowSpacing = if (renderStyle.keyHeight >= 56.dp) 4.dp else 3.dp
     val isCompact = renderStyle.id == "compact"
     val smallFont = (renderStyle.keyFontSp - 3f).coerceAtLeast(10f)
@@ -405,6 +443,7 @@ fun TerminalKeyboard(
             customForFace != null && sym && customForFace.symbolRows != null ->
                 customForFace.copy(rows = customForFace.symbolRows)
             accessoryBar && customForFace != null -> customForFace
+            face == KeyboardFace.ROMAJI -> romajiKeyLayout(hasFaceKey = hasFaceKey, symbols = sym)
             else -> asciiKeyLayout(
                 compact = isCompact,
                 hasFaceKey = hasFaceKey,

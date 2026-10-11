@@ -1,0 +1,5 @@
+1.0.3
+
+- The built-in keyboard has a new face for typing Japanese in romaji (a → あ, ke → け).
+  Turn on "Japanese — romaji" in the face list under Settings › Keyboard, input.
+- This face leaves out TAB, Shift, CTRL and ALT to make the letter keys wider.

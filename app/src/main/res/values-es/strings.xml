@@ -63,9 +63,11 @@
     <string name="settings_keyboard_face_builtin_ascii">Letras: deslizamiento en cuatro direcciones (integrado)</string>
     <string name="settings_keyboard_face_builtin_ascii_simple">Letras: sencillo (integrado, desactivado al principio)</string>
     <string name="settings_keyboard_face_builtin_number">Números (integrado)</string>
+    <string name="settings_keyboard_face_builtin_romaji">Japonés: romaji (integrado, desactivado al principio)</string>
     <string name="settings_key_layout_new_name">Mis letras</string>
     <string name="settings_key_layout_new_kana_name">Mi japonés</string>
     <string name="settings_key_layout_new_number_name">Mis números</string>
+    <string name="settings_key_layout_new_romaji_name">Mi romaji</string>
     <string name="settings_key_layout_copy_name">Mi copia</string>
     <string name="settings_key_layout_name">Nombre</string>
     <string name="settings_key_layout_delete">Eliminar esta distribución</string>

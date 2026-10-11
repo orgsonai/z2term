@@ -1355,6 +1355,24 @@ class ComposingState(
         refreshPredict()
     }
 
+    /**
+     * カーソル直前の [count] 文字を [s] に置き換える (ローマ字面: 打ちかけの `k` を「か」へ)。
+     * ⚠ 消す・足すを別々に呼ぶと、そのたびに候補を引き直す。1 打鍵 1 回で済ませる。
+     */
+    fun replaceBeforeCursor(count: Int, s: String) {
+        val at = cursor.coerceIn(0, text.length)
+        val from = (at - count).coerceAtLeast(0)
+        text = text.substring(0, from) + s + text.substring(at)
+        cursor = from + s.length
+        lastEmitChar = null
+        lastEmitTimeMs = 0
+        selectedCandidateIndex = -1
+        if (text.isEmpty()) { candidates = emptyList(); fullPrediction = null } else refreshPredict()
+    }
+
+    /** カーソルより前の文字列 (ローマ字面が打ちかけを読み直すのに使う)。 */
+    val textBeforeCursor: String get() = text.substring(0, cursor.coerceIn(0, text.length))
+
     /** カーソル直前の文字を [s] (濁点等) に置換 (濁点循環)。カーソルが行頭なら何もしない。 */
     fun replaceLast(s: Char) {
         if (cursor == 0) return

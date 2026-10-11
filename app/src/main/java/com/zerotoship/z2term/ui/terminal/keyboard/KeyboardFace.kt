@@ -24,7 +24,16 @@ enum class KeyboardFace(val id: String) {
      * 指が細かい。ポート番号・IP・`chmod 755` のように**数字だけを続けて打つ場面**が端末では
      * 多いので、そこだけ大きなキーで打てる面を用意する。
      */
-    NUMBER("number");
+    NUMBER("number"),
+
+    /**
+     * 日本語をローマ字で打つ面 (1.0.3)。英字の並びのまま、`ka` → か のようにかなになる。
+     *
+     * ⚠ **変換・候補・確定・学習は [KANA] と同じもの** ([ComposingState]) を使う。違うのは
+     * 「かなをどう作るか」だけ (フリックで直接入れるか、[RomajiTyping] で組み立てるか)。
+     * ⚠ **既定は OFF。** 面の一覧で自分で ON にする (言語による既定は付けない)。
+     */
+    ROMAJI("romaji");
 
     /**
      * 切替キーに出すラベル。
@@ -38,6 +47,7 @@ enum class KeyboardFace(val id: String) {
             KANA -> "あ"
             ASCII -> "ABC"
             NUMBER -> "12"
+            ROMAJI -> "あa"
         }
 
     companion object {
@@ -120,6 +130,7 @@ data class KeyboardFaceEntry(
         const val BUILTIN_ASCII_ID = "builtin:ascii"
         const val BUILTIN_ASCII_SIMPLE_ID = "builtin:ascii_simple"
         const val BUILTIN_NUMBER_ID = "builtin:number"
+        const val BUILTIN_ROMAJI_ID = "builtin:romaji"
         private const val CUSTOM_PREFIX = "custom:"
 
         fun builtin(face: KeyboardFace): KeyboardFaceEntry = KeyboardFaceEntry(
@@ -127,6 +138,7 @@ data class KeyboardFaceEntry(
                 KeyboardFace.KANA -> BUILTIN_KANA_ID
                 KeyboardFace.ASCII -> BUILTIN_ASCII_ID
                 KeyboardFace.NUMBER -> BUILTIN_NUMBER_ID
+                KeyboardFace.ROMAJI -> BUILTIN_ROMAJI_ID
             },
             face = face,
         )
@@ -154,6 +166,8 @@ object KeyboardFaceConfig {
     fun allEntries(orderValue: String?, layouts: List<KeyLayout>): List<KeyboardFaceEntry> {
         val known = buildList {
             add(KeyboardFaceEntry.builtin(KeyboardFace.KANA))
+            // ⚠ 保存済みの並びに無い面は、この順のまま末尾へ足される (既定 OFF なので巡回は変わらない)。
+            add(KeyboardFaceEntry.builtin(KeyboardFace.ROMAJI))
             add(KeyboardFaceEntry.builtin(KeyboardFace.ASCII))
             add(KeyboardFaceEntry.builtinAsciiSimple())
             add(KeyboardFaceEntry.builtin(KeyboardFace.NUMBER))
@@ -239,12 +253,13 @@ object KeyboardFaceConfig {
      *
      * ⚠ **アプリの言語が日本語でない人には既定で閉じる。** かな面は [enabledIds] が既定で
      * 外しているが、物理キーボードの切り替えキー (`Shift+Space` など) は面の設定を見ずに
-     * 効いていたので、日本語を使わない人が押すと打鍵がかなに化けた。面を自分で ON にした人は
-     * 言語に関係なく使える (かな面と同じ扱い)。
+     * 効いていたので、日本語を使わない人が押すと打鍵がかなに化けた。日本語の面 (かな /
+     * ローマ字) を自分で ON にした人は言語に関係なく使える。
      * ⚠ 日本語の人は面を外していても使える — 物理キーボードだけで打つ人はフリック面を外す。
      */
     fun kanaInputAvailable(enabledEntries: List<KeyboardFaceEntry>, appLanguageJapanese: Boolean): Boolean =
-        appLanguageJapanese || enabledEntries.any { it.face == KeyboardFace.KANA }
+        appLanguageJapanese ||
+            enabledEntries.any { it.face == KeyboardFace.KANA || it.face == KeyboardFace.ROMAJI }
 
     fun encodeOrder(entries: List<KeyboardFaceEntry>): String = entries.joinToString(SEPARATOR) { it.id }
 

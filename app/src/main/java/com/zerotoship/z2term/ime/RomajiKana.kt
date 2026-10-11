@@ -1,10 +1,11 @@
 package com.zerotoship.z2term.ime
 
 /**
- * ローマ字 → かな。**物理キーボードから日本語を打つためだけ**に使う。
+ * ローマ字 → かな。物理キーボードと、画面のローマ字面
+ * ([com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace.ROMAJI]・1.0.3) が使う。
  *
- * ⚠ 内蔵キーボードはフリック入力なので、ここまで「かなは直接入る」ものだった。外付け
- * キーボードを繋ぐと打鍵はアルファベットで届くので、その間だけこの変換が要る。
+ * ⚠ 内蔵キーボードのかな面はフリック入力なので「かなは直接入る」。打鍵がアルファベットで
+ * 届く物理キーボードとローマ字面だけ、この変換が要る。
  *
  * ⭐ **確定したかなを返すだけ**で、変換 (かな漢字) や候補は
  * [com.zerotoship.z2term.ui.terminal.keyboard.ComposingState] が今までどおり受け持つ。
@@ -76,6 +77,23 @@ object RomajiKana {
         else -> TABLE[pending] ?: pending
     }
 
+    /**
+     * [letters] の末尾のうち、**まだかなに育つ打ちかけ**の部分 (無ければ空)。
+     *
+     * 画面のローマ字面は打ちかけを変換中の文字列にそのまま見せるので、「どこからが打ちかけか」を
+     * 文字列から読み直す必要がある (別に状態を持つと、⌫ やカーソル移動のたびにずれる)。
+     * ⚠ かなにならずに残った英字 (`q` など) は打ちかけに数えない — 数えると次の打鍵と
+     * 組み合わされず、`qna` が「qnあ」になる。
+     */
+    fun pendingSuffix(letters: String): String {
+        val tail = letters.takeLastWhile { it in 'a'..'z' }
+        for (length in minOf(tail.length, MAX_PENDING) downTo 1) {
+            val candidate = tail.takeLast(length)
+            if (candidate in PREFIXES) return candidate
+        }
+        return ""
+    }
+
     private val SYMBOLS: Map<Char, String> = mapOf(
         '-' to "ー", ',' to "、", '.' to "。", '/' to "・", '[' to "「", ']' to "」",
     )
@@ -145,6 +163,9 @@ object RomajiKana {
         }
         put("nn", "ん")
     }
+
+    /** 打ちかけの最長 (`ltsu` の `lts`)。 */
+    private val MAX_PENDING: Int by lazy { TABLE.keys.maxOf { it.length } - 1 }
 
     /** 途中まで打った状態が「まだ育つ」かの判定用。表のすべての接頭辞。 */
     private val PREFIXES: Set<String> = buildSet {

@@ -68,9 +68,11 @@
     <string name="settings_keyboard_face_builtin_ascii">Letters — four-way flick (built in)</string>
     <string name="settings_keyboard_face_builtin_ascii_simple">Letters — simple (built in, initially off)</string>
     <string name="settings_keyboard_face_builtin_number">Numbers (built in)</string>
+    <string name="settings_keyboard_face_builtin_romaji">Japanese — romaji (built in, initially off)</string>
     <string name="settings_key_layout_new_name">My letters</string>
     <string name="settings_key_layout_new_kana_name">My Japanese</string>
     <string name="settings_key_layout_new_number_name">My numbers</string>
+    <string name="settings_key_layout_new_romaji_name">My romaji</string>
     <string name="settings_key_layout_copy_name">My copy</string>
     <string name="settings_key_layout_name">Name</string>
     <string name="settings_key_layout_delete">Delete this layout</string>

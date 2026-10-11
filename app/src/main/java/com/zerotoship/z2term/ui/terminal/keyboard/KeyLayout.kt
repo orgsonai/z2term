@@ -364,7 +364,7 @@ data class KeyLayout(
     val faceId: String = KeyboardFace.ASCII.id,
     /** この面を描くスタイル。スタイル選択廃止後は、面ごとに保持する。 */
     val styleId: String = KeyboardStyle.SPACIOUS.id,
-    /** 英字面の `?#` で開く子配列。英字以外では null。 */
+    /** 英字面・ローマ字面の `?#` で開く子配列。それ以外では null。 */
     val symbolRows: List<KeyRow>? = null,
     /** 複製した瞬間の名前と配列。保存後でも「デフォルトに戻す」ための不変スナップショット。 */
     val defaultName: String? = null,
@@ -387,6 +387,8 @@ data class KeyLayout(
                 symbols = true,
                 fourWayFlick = inferredStyle == KeyboardStyle.SPACIOUS.id,
             ).rows
+        } else if (faceId == KeyboardFace.ROMAJI.id) {
+            symbolRows ?: romajiKeyLayout(hasFaceKey = true, symbols = true).rows
         } else null
         val enriched = copy(styleId = inferredStyle, symbolRows = symbols)
         return if (enriched.defaultRows != null) enriched else enriched.copy(

@@ -66,9 +66,11 @@
     <string name="settings_keyboard_face_builtin_ascii">英字・4方向フリック（内蔵）</string>
     <string name="settings_keyboard_face_builtin_ascii_simple">英字・シンプル（内蔵・初期OFF）</string>
     <string name="settings_keyboard_face_builtin_number">数字（内蔵）</string>
+    <string name="settings_keyboard_face_builtin_romaji">日本語・ローマ字（内蔵・初期OFF）</string>
     <string name="settings_key_layout_new_name">じぶんの英字</string>
     <string name="settings_key_layout_new_kana_name">じぶんの日本語</string>
     <string name="settings_key_layout_new_number_name">じぶんの数字</string>
+    <string name="settings_key_layout_new_romaji_name">じぶんのローマ字</string>
     <string name="settings_key_layout_copy_name">じぶんの複製</string>
     <string name="settings_key_layout_name">名前</string>
     <string name="settings_key_layout_delete">この配列を削除</string>

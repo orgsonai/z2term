@@ -29,6 +29,12 @@ object AsciiKeys {
     val ROW3: List<String> = listOf("a", "s", "d", "f", "g", "h", "j", "k", "l")
     val ROW4: List<String> = listOf("z", "x", "c", "v", "b", "n", "m", ",", ".", "/")
 
+    /** ローマ字面の 4 段目。右端 3 つが句読点と長音 (英字面では `, . /`)。 */
+    val ROMAJI_ROW4: List<String> = listOf("z", "x", "c", "v", "b", "n", "m", "、", "。", "ー")
+
+    /** ローマ字面の句読点・長音キーの上フリック (差し替える前の半角の字)。 */
+    val ROMAJI_PUNCT_UP: Map<String, String> = mapOf("、" to ",", "。" to ".", "ー" to "-")
+
     val SYM_ROW1: List<String> = listOf("!", "@", "#", "$", "%", "^", "&", "*", "(", ")")
     val SYM_ROW2: List<String> = listOf("-", "_", "+", "=", "/", "\\", "[", "]", "{", "}")
     val SYM_ROW3: List<String> = listOf("`", "~", "'", "\"", ";", ":", "<", ">", "|")
@@ -81,6 +87,9 @@ object AsciiKeys {
 
     /** 最下段のスペース。 */
     const val W_SPACE = 2f
+
+    /** ローマ字面の最下段の空白 (変換を兼ねる)。 */
+    const val W_ROMAJI_SPACE = 2.25f
 
     /** COMPACT の上バーと、パッドを開いている間の補助行で使う標準幅。 */
     const val W_KEY = 1f
@@ -207,6 +216,76 @@ fun asciiKeyLayout(
         name = id,
         rows = rows,
         styleId = if (compact) KeyboardStyle.COMPACT.id else KeyboardStyle.SPACIOUS.id,
+    )
+}
+
+/**
+ * ローマ字面 ([KeyboardFace.ROMAJI]・1.0.3) の配列。
+ *
+ * ⭐ **英字面から左端の列 (TAB / ⇧ / CTRL) と ALT を外し、そのぶん字のキーを広げたもの。**
+ * 英字面は字の段に 11 個ぶん強を並べるので指が細かく、日本語を続けて打つと隣を押しやすい
+ * (利用者の指摘)。日本語を打つ間は TAB・⇧・CTRL・ALT を使わないので、字の段を 10 個ぶんに
+ * 収める。⚠ 字の並びと ESC / ⌫ / ⏎ / 矢印の位置は英字面と同じにしてある (面を移っても
+ * 指の位置が変わらない)。
+ *
+ * - 4 段目の右端は `, . /` の代わりに **`、 。 ー`**。上フリックで元の `, . -` が出る。
+ * - 空白キーは、打ちかけがあれば変換・無ければ空白 ([TerminalKeyboard] が見分ける)。
+ * - ⇧ が無いので、英字をそのまま入れたいときは字のキーを**下フリック** (大文字)。
+ *
+ * @param hasFaceKey 面の切替キーが要るか。無いときは、その席が貼り付け / 絵文字の入口になる。
+ * @param symbols 記号面（`?#` を押した状態）か。⚠ 記号面でも左端の列は出さない。
+ */
+fun romajiKeyLayout(hasFaceKey: Boolean, symbols: Boolean = false): KeyLayout {
+    val r1 = if (symbols) AsciiKeys.SYM_ROW1 else AsciiKeys.ROW1
+    val r2 = if (symbols) AsciiKeys.SYM_ROW2 else AsciiKeys.ROW2
+    val r3 = if (symbols) AsciiKeys.SYM_ROW3 else AsciiKeys.ROW3
+    val r4 = if (symbols) AsciiKeys.SYM_ROW4 else AsciiKeys.ROMAJI_ROW4
+
+    val rows = listOf(
+        KeyRow(
+            buildList {
+                add(slot(escKey(), AsciiKeys.W_SIDE))
+                r1.forEach { add(slot(digitKey(it))) }
+                add(slot(backspaceKey(), AsciiKeys.W_SIDE))
+            }
+        ),
+        KeyRow(r2.mapIndexed { i, label -> slot(letterKey(label, flickRow2(i, symbols, fourWay = true))) }),
+        KeyRow(
+            buildList {
+                r3.forEachIndexed { i, label ->
+                    add(slot(letterKey(label, flickUpRow(AsciiKeys.FLICK_UP_ROW3, i, label, symbols))))
+                }
+                add(slot(KeyDef.named("⏎", NamedKey.ENTER, repeatable = true), AsciiKeys.W_ENTER))
+            }
+        ),
+        KeyRow(
+            r4.mapIndexed { i, label ->
+                val flick = AsciiKeys.ROMAJI_PUNCT_UP[label]
+                    ?.let { mapOf(KeyGesture.UP to listOf<KeyAction>(KeyAction.Text(it))) }
+                    ?: flickUpRow(AsciiKeys.FLICK_UP_ROW4, i, label, symbols)
+                slot(letterKey(label, flick))
+            }
+        ),
+        KeyRow(
+            listOf(
+                slot(if (hasFaceKey) faceKey() else padKey(), AsciiKeys.W_FACE),
+                slot(symbolToggleKey(symbols), AsciiKeys.W_MOD),
+                // ⚠ ALT を外したぶんを空白へ回す。矢印の幅は英字面とほぼ同じに保つ (2.25 はその値)。
+                slot(spaceKey().copy(label = "変換 / space"), AsciiKeys.W_ROMAJI_SPACE),
+                slot(arrowKey("←", NamedKey.LEFT)),
+                slot(arrowKey("↓", NamedKey.DOWN)),
+                slot(arrowKey("↑", NamedKey.UP)),
+                slot(arrowKey("→", NamedKey.RIGHT)),
+            )
+        ),
+    )
+
+    return KeyLayout(
+        id = if (symbols) "romaji_sym" else "romaji",
+        name = "Romaji",
+        rows = rows,
+        faceId = KeyboardFace.ROMAJI.id,
+        styleId = KeyboardStyle.SPACIOUS.id,
     )
 }
 

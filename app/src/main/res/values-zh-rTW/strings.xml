@@ -63,9 +63,11 @@
     <string name="settings_keyboard_face_builtin_ascii">字母 · 四向滑動（內建）</string>
     <string name="settings_keyboard_face_builtin_ascii_simple">字母 · 簡易（內建，預設關閉）</string>
     <string name="settings_keyboard_face_builtin_number">數字（內建）</string>
+    <string name="settings_keyboard_face_builtin_romaji">日文 · 羅馬字（內建，預設關閉）</string>
     <string name="settings_key_layout_new_name">我的字母</string>
     <string name="settings_key_layout_new_kana_name">我的日文</string>
     <string name="settings_key_layout_new_number_name">我的數字</string>
+    <string name="settings_key_layout_new_romaji_name">我的羅馬字</string>
     <string name="settings_key_layout_copy_name">我的副本</string>
     <string name="settings_key_layout_name">名稱</string>
     <string name="settings_key_layout_delete">刪除這個配置</string>

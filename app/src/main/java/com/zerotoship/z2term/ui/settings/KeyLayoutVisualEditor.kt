@@ -117,8 +117,10 @@ internal class KeyLayoutEditorSelection(layout: KeyLayout) {
 @Composable
 internal fun rememberKeyLayoutEditorSelection(layout: KeyLayout): KeyLayoutEditorSelection {
     val state = remember(layout.id) { KeyLayoutEditorSelection(layout) }
-    val supportsSymbols = layout.faceId == com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace.ASCII.id &&
-        layout.symbolRows != null
+    val supportsSymbols = layout.faceId in setOf(
+        com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace.ASCII.id,
+        com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace.ROMAJI.id,
+    ) && layout.symbolRows != null
     LaunchedEffect(supportsSymbols) {
         if (!supportsSymbols) state.changeSurface(layout, false)
     }
@@ -144,8 +146,10 @@ internal fun KeyLayoutVisualEditor(
     state: KeyLayoutEditorSelection,
     onChange: (KeyLayout) -> Unit,
 ) {
-    val supportsSymbols = layout.faceId == com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace.ASCII.id &&
-        layout.symbolRows != null
+    val supportsSymbols = layout.faceId in setOf(
+        com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace.ASCII.id,
+        com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace.ROMAJI.id,
+    ) && layout.symbolRows != null
     val workingLayout = state.surface(layout)
     val selected = state.selected
     val path = selected.firstOrNull { it in workingLayout.keyPaths() }

@@ -63,9 +63,11 @@
     <string name="settings_keyboard_face_builtin_ascii">영문 — 사방 플릭 (내장)</string>
     <string name="settings_keyboard_face_builtin_ascii_simple">영문 — 단순 (내장, 처음에는 꺼짐)</string>
     <string name="settings_keyboard_face_builtin_number">숫자 (내장)</string>
+    <string name="settings_keyboard_face_builtin_romaji">일본어 — 로마자 (내장, 처음에는 꺼짐)</string>
     <string name="settings_key_layout_new_name">내 영문</string>
     <string name="settings_key_layout_new_kana_name">내 일본어</string>
     <string name="settings_key_layout_new_number_name">내 숫자</string>
+    <string name="settings_key_layout_new_romaji_name">내 로마자</string>
     <string name="settings_key_layout_copy_name">내 사본</string>
     <string name="settings_key_layout_name">이름</string>
     <string name="settings_key_layout_delete">이 배열 삭제</string>

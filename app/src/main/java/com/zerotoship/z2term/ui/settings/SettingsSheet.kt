@@ -140,6 +140,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.newKeyLayoutId
 import com.zerotoship.z2term.ui.terminal.keyboard.nextActiveAfterRemove
 import com.zerotoship.z2term.ui.terminal.keyboard.japaneseKeyLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.numberKeyLayout
+import com.zerotoship.z2term.ui.terminal.keyboard.romajiKeyLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.removeLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.uniqueKeyLayoutName
 import com.zerotoship.z2term.ui.terminal.keyboard.upsertLayout
@@ -2813,11 +2814,13 @@ private fun KeyLayoutSection(
     val newName = stringResource(R.string.settings_key_layout_new_name)
     val newKanaName = stringResource(R.string.settings_key_layout_new_kana_name)
     val newNumberName = stringResource(R.string.settings_key_layout_new_number_name)
+    val newRomajiName = stringResource(R.string.settings_key_layout_new_romaji_name)
     val copyName = stringResource(R.string.settings_key_layout_copy_name)
     val builtinKanaLabel = stringResource(R.string.settings_keyboard_face_builtin_kana)
     val builtinAsciiLabel = stringResource(R.string.settings_keyboard_face_builtin_ascii)
     val builtinAsciiSimpleLabel = stringResource(R.string.settings_keyboard_face_builtin_ascii_simple)
     val builtinNumberLabel = stringResource(R.string.settings_keyboard_face_builtin_number)
+    val builtinRomajiLabel = stringResource(R.string.settings_keyboard_face_builtin_romaji)
     var keyboardTestText by remember { mutableStateOf("") }
     val legacyKanaAvailable = LocaleHelper.language(context) == LocaleHelper.LANG_JA
     val faceEntries = remember(settings.keyboardFaceOrder, layouts) {
@@ -2902,6 +2905,7 @@ private fun KeyLayoutSection(
                     KeyboardFace.KANA -> "あ"
                     KeyboardFace.ASCII -> if (layout.styleId == KeyboardStyle.COMPACT.id) "ABC-S" else "ABC"
                     KeyboardFace.NUMBER -> "12"
+                    KeyboardFace.ROMAJI -> "あa"
                 }
                 "★ ${layout.name.ifBlank { layout.id }}  [$target]"
             } ?: if (entry.id == KeyboardFaceEntry.BUILTIN_ASCII_SIMPLE_ID) {
@@ -2910,6 +2914,7 @@ private fun KeyLayoutSection(
                 KeyboardFace.KANA -> builtinKanaLabel
                 KeyboardFace.ASCII -> builtinAsciiLabel
                 KeyboardFace.NUMBER -> builtinNumberLabel
+                KeyboardFace.ROMAJI -> builtinRomajiLabel
             }
             FaceOrderRow(
                 label = label,
@@ -2939,6 +2944,12 @@ private fun KeyLayoutSection(
                             duplicate(asciiSource(compact = true), newName)
                         entry.face == KeyboardFace.KANA -> duplicate(japaneseKeyLayout(), newKanaName)
                         entry.face == KeyboardFace.NUMBER -> duplicate(numberKeyLayout(), newNumberName)
+                        entry.face == KeyboardFace.ROMAJI -> duplicate(
+                            romajiKeyLayout(hasFaceKey = true).copy(
+                                symbolRows = romajiKeyLayout(hasFaceKey = true, symbols = true).rows,
+                            ),
+                            newRomajiName,
+                        )
                         else -> duplicate(asciiSource(compact = false), newName)
                     }
                 },
