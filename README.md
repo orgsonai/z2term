@@ -58,7 +58,7 @@ Double-tap **⌨** in the toolbar to show or hide the keyboard. **Settings → K
 Every release ships one APK: `z2term-<version>.apk`. See the release page for its size.
 
 It bundles no OS and no third-party prebuilts, so **the first launch asks you to pick a distribution
-in Settings › Linux environment** (0.8.314; Alpine is fetched from the official CDN, verified by
+in Settings › Linux environment** (Alpine is fetched from the official CDN, verified by
 SHA-256, and updates never re-download it). Automatic updates (below) fetch the whole APK each time.
 
 ⚠ **Up to 0.8.358 there was a second, ~190MB APK with Alpine bundled (the `full` flavor).
@@ -72,7 +72,7 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 Pick whichever fits:
 
-- **In-app update (0.8.371)** — *Settings → App info → Check for updates* → **"Download and install"**.
+- **In-app update** — *Settings → App info → Check for updates* → **"Download and install"**.
   It asks GitHub for the latest release **only when you tap the button** (nothing is checked
   automatically, and no network is touched until then), downloads the new APK and takes you all the way
   to the install screen. ⚠ Android always makes **the last tap yours** — no app can replace itself
