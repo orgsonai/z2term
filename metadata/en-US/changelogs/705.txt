@@ -1,0 +1,4 @@
+1.0.7
+
+- Removed the card in the QR guide that told you to install qrencode.
+  The app makes QR codes itself, so nothing needs installing.

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.7 (versionCode 705)**: Removed the card at the top of the QR guide (Settings › Maintenance › "Show a guide" › `qr`) that told you to install `qrencode`. The app has made QR codes itself since 0.8.630, so nothing needs installing inside a z2term tab.
+
 **1.0.6 (versionCode 704)**: What a guide added can now be put back when you decide not to use it. Each row under Settings › Maintenance › "Show a guide" has "Clean up" at its right end. It shows the steps that remove the macro, automation rules, panels and tile slots that guide added, on the same kind of cards as the guide. Nothing is removed until you tap a card, and ✕ keeps whatever you want to keep. What you entered yourself, such as the feed list or the reminder records, is on a separate card. Also added `z2-macro remove <name>`, which deletes your copy of a bundled sample (it stops without deleting a copy you edited). The Tips in Settings now mention that double-tapping text in the terminal selects a word.
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.

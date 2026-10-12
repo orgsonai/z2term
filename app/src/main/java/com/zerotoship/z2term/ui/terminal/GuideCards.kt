@@ -290,9 +290,14 @@ enum class Guide(
         GuideStep(R.string.guide_undo_permissions),
     )),
 
-    /** QR にして別の端末へ渡す。 */
+    /**
+     * QR にして別の端末へ渡す。
+     *
+     * ⚠ **前提パッケージのカードを置かない** (1.0.7)。符号化は 0.8.630 からアプリがやる (`z2-qr encode`) ので、
+     * z2term のタブの中では入れるものが無い。`qrencode` を入れる手順を先頭に出すと、要らない
+     * インストールを勧めることになる。
+     */
     QR("qr", R.string.guide_desc_qr, listOf(
-        GuideStep(R.string.guide_step_needs_qrencode),
         GuideStep(R.string.guide_step_install, "z2-macro install qr"),
         GuideStep(R.string.guide_step_help, "qr.sh -h"),
         GuideStep(

@@ -1013,7 +1013,6 @@
     <string name="guide_step_notify_on">⚙設定 →「通知検知」を ON ＋ OS の「通知アクセス」を許可する</string>
     <string name="guide_step_sms_on">⚙設定 →「SMS 検知」を ON ＋ OS の SMS 受信を許可する</string>
     <string name="guide_step_needs_python">前提: python3（Alpine: apk add python3 ／ Debian・Kali: apt install -y python3 ／ Arch: pacman -S python）</string>
-    <string name="guide_step_needs_qrencode">前提: qrencode（Alpine: apk add libqrencode-tools ／ Debian・Kali: apt install qrencode ／ Arch: pacman -S qrencode）</string>
     <string name="guide_step_feeds">読みたいフィードの URL を書く</string>
     <string name="guide_step_rss_existing">登録済みの手順は × で省略。古い通知ルールは自動化で編集し、「一覧」を rss.sh view へ振り分けます</string>
     <string name="guide_step_rss_permission">通知から画面を開くため「他のアプリの上に表示」を許可する</string>
