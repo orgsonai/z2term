@@ -183,7 +183,14 @@ internal class EdgeTerminalUi(context: Context, label: String, private val termi
     }
 
     private fun execute() {
-        if (disposed || entry.text.isNullOrBlank()) return
+        if (disposed) return
+        // While a command runs, the same field answers it. An empty answer is Enter.
+        if (terminal.state()?.phase == EdgeTerminalSession.Phase.RUNNING) {
+            runCatching { if (terminal.answer(entry.text.toString())) entry.setText("") }
+                .onFailure { Toast.makeText(context, it.message, Toast.LENGTH_LONG).show() }
+            return
+        }
+        if (entry.text.isNullOrBlank()) return
         runCatching {
             val command = entry.text.toString()
             if (terminal.execute(command)) {
@@ -205,8 +212,18 @@ internal class EdgeTerminalUi(context: Context, label: String, private val termi
             if (atEnd) scroll.post { if (!disposed) scroll.scrollTo(0, (output.bottom - scroll.height + scroll.paddingBottom).coerceAtLeast(0)) }
         }
         val phase = state?.phase ?: EdgeTerminalSession.Phase.NEW
+        val running = phase == EdgeTerminalSession.Phase.RUNNING
+        val hint = context.getString(if (running) R.string.edge_terminal_answer else R.string.edge_terminal_command)
+        if (entry.hint != hint) { entry.hint = hint; entry.contentDescription = hint }
+        val action = context.getString(if (running) R.string.edge_terminal_send else R.string.edge_run)
+        if (run.text.toString() != action) run.text = action
+        val width = scroll.width - output.paddingLeft - output.paddingRight
+        if (width > 0) {
+            val columns = (width / output.paint.measureText("M")).toInt().coerceIn(20, 400)
+            if (terminal.columns != columns) terminal.columns = columns
+        }
         status.visibility = if (phase == EdgeTerminalSession.Phase.NEW) GONE else VISIBLE
-        run.isEnabled = phase in setOf(EdgeTerminalSession.Phase.NEW, EdgeTerminalSession.Phase.IDLE)
+        run.isEnabled = phase in setOf(EdgeTerminalSession.Phase.NEW, EdgeTerminalSession.Phase.IDLE, EdgeTerminalSession.Phase.RUNNING)
         stop.isEnabled = phase in setOf(EdgeTerminalSession.Phase.STARTING, EdgeTerminalSession.Phase.RUNNING, EdgeTerminalSession.Phase.IDLE)
         status.text = listOfNotNull(state?.environment?.takeIf { it.isNotBlank() }, when (phase) {
             EdgeTerminalSession.Phase.NEW -> context.getString(R.string.edge_terminal_ready)

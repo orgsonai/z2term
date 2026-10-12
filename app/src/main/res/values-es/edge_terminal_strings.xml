@@ -12,7 +12,9 @@
     <string name="edge_terminal_exit">Código: %1$d</string>
     <string name="edge_terminal_ended">Finalizada · actualiza para iniciar otra sesión</string>
     <string name="edge_terminal_truncated">Se muestran los últimos 64K caracteres</string>
-    <string name="edge_terminal_help">Cerrar el panel o cambiar de pestaña conserva la shell, la salida y el borrador. Actualizar los restablece manualmente. Usa una pestaña de terminal normal para comandos interactivos.</string>
+    <string name="edge_terminal_help">Cerrar el panel o cambiar de pestaña conserva la shell, la salida y el borrador. Actualizar los restablece manualmente. Mientras un comando se ejecuta, el campo le responde y Detener termina solo ese comando. Usa una pestaña de terminal normal para programas a pantalla completa.</string>
     <string name="edge_terminal_one_line_required">La miniterminal admite comandos de una línea de hasta 16.384 caracteres. Usa una terminal normal para fragmentos de varias líneas.</string>
     <string name="edge_terminal_refresh">Actualizar sesión</string>
+    <string name="edge_terminal_answer">Responde al comando en curso (vacío envía Enter)</string>
+    <string name="edge_terminal_send">Enviar</string>
 </resources>

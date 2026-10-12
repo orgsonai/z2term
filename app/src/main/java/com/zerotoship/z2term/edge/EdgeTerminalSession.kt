@@ -33,6 +33,9 @@ internal class EdgeTerminalSession(private val launch: (String) -> Launch) : Aut
     private var exitCode: Int? = null
     private var error: String? = null
     private var closed = false
+    private var columns = COLUMNS
+    /** The running command was already asked to end; the next request kills it. */
+    private var interrupted = false
     private var monitor: ScheduledFuture<*>? = null
     private val protocol = EdgeTerminalProtocol(token) { event ->
         when {
@@ -48,6 +51,7 @@ internal class EdgeTerminalSession(private val launch: (String) -> Launch) : Aut
             event.startsWith("done:") && !closed -> {
                 exitCode = event.substringAfter(':').toIntOrNull()
                 phase = Phase.IDLE
+                interrupted = false
             }
         }
     }
@@ -75,12 +79,55 @@ internal class EdgeTerminalSession(private val launch: (String) -> Launch) : Aut
     private fun send(command: String) {
         pending = null
         phase = Phase.RUNNING
+        interrupted = false
+        write(EdgeTerminalProtocol.commandLine(token, command))
+    }
+
+    private fun write(text: String) {
         workers.execute {
             val p = synchronized(lock) { if (closed) null else process?.process }
             if (p != null) runCatching {
-                p.writer.write((command + "\n").toByteArray(Charsets.UTF_8)); p.writer.flush()
+                p.writer.write(text.toByteArray(Charsets.UTF_8)); p.writer.flush()
             }.onFailure { fail(it) }
         }
+    }
+
+    /**
+     * Answers the running command with one line; an empty answer is just Enter.
+     * A line that arrives after the command ended is dropped by the shell loop, never run.
+     */
+    fun answer(text: String): Boolean = synchronized(lock) {
+        require(text.none { it == '\n' || it == '\r' || it == '\u0000' } &&
+            text.toByteArray(Charsets.UTF_8).size <= ANSWER_BYTES) { "Enter an answer on one line (up to $ANSWER_BYTES bytes)" }
+        if (closed || phase != Phase.RUNNING) return false
+        write(text + "\n")
+        true
+    }
+
+    /**
+     * Ends only the running command and keeps the shell: the terminal's foreground job gets SIGTERM,
+     * then SIGKILL on a second request. The interrupt character is not used, because a shell started
+     * with a command string exits when its job dies from SIGINT.
+     * Returns false when there is no separate job to signal (a shell builtin is running).
+     */
+    fun interrupt(): Boolean {
+        val (pid, again) = synchronized(lock) {
+            if (closed || phase != Phase.RUNNING) return false
+            (shell?.pid ?: return false) to interrupted
+        }
+        val job = EdgeTerminalProcesses.foregroundJob(pid) ?: return false
+        synchronized(lock) { interrupted = true }
+        return runCatching { Os.kill(-job, if (again) OsConstants.SIGKILL else OsConstants.SIGTERM) }.isSuccess
+    }
+
+    /** Matches the terminal width to the result view, so tables and progress lines are not wrapped twice. */
+    fun resize(columns: Int) {
+        val p = synchronized(lock) {
+            if (closed || columns == this.columns) return
+            this.columns = columns
+            process?.process
+        }
+        if (p != null) workers.execute { runCatching { p.resize(ROWS, columns) } }
     }
 
     private fun start() {
@@ -89,6 +136,7 @@ internal class EdgeTerminalSession(private val launch: (String) -> Launch) : Aut
         synchronized(lock) {
             process = launched
             environment = launched.environment
+            runCatching { launched.process.resize(ROWS, columns) }
             if (closed) workers.execute { terminate(launched) }
             else monitor = clock.scheduleWithFixedDelay({
                 val current = synchronized(lock) { shell }
@@ -166,6 +214,10 @@ internal class EdgeTerminalSession(private val launch: (String) -> Launch) : Aut
     }
 
     companion object {
+        const val COLUMNS = 80
+        private const val ROWS = 24
+        /** A canonical-mode line holds 4095 bytes; stay well inside it. */
+        private const val ANSWER_BYTES = 2048
         private val workers = Executors.newCachedThreadPool { Thread(it, "edge-terminal-io").apply { isDaemon = true } }
         private val clock = Executors.newSingleThreadScheduledExecutor { Thread(it, "edge-terminal-watch").apply { isDaemon = true } }
 

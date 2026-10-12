@@ -1,0 +1,7 @@
+1.0.8
+
+- A running command can now be answered in the edge panel's simple terminal,
+  so commands that ask y/n can carry on.
+- Stop ends only the running command and keeps the shell.
+- Progress displays no longer pile up into one line, and the width follows
+  the result view.

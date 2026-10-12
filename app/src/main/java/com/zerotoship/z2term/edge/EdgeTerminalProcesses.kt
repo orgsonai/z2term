@@ -20,6 +20,15 @@ internal object EdgeTerminalProcesses {
         parse(pid, File(dir, "stat").readText(), File(dir, "status").readText())
     }.getOrNull()
 
+    /** The terminal's foreground process group, when it is a job other than the shell itself. */
+    fun foregroundJob(stat: String): Int? = runCatching {
+        val fields = stat.substring(stat.lastIndexOf(')') + 2).trim().split(Regex("\\s+"))
+        val group = fields[2].toInt(); val foreground = fields[5].toInt()
+        foreground.takeIf { it > 1 && it != group }
+    }.getOrNull()
+
+    fun foregroundJob(shell: Int): Int? = runCatching { File("/proc/$shell/stat").readText() }.getOrNull()?.let(::foregroundJob)
+
     fun members(session: Int, token: String, engine: Boolean): List<Process> = File("/proc").list().orEmpty().mapNotNull {
         it.toIntOrNull()?.let(::read)?.takeIf { p -> !p.zombie && (p.session == session ||
             engine && p.tracer == session || runCatching {

@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.7.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.8.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -1210,7 +1210,7 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Add/edit/delete/reorder items | `set ID:item key=value ...` / `remove ID:item` / `set ID:item order=N` |
 | App launch mode / add note | Item `run=z2-intent -p PACKAGE --window MODE` / `type=note` |
 | Macro forms | `type=argument/macro/result`; see [arguments, results and translation](EDGE-MACRO-FORMS.md). |
-| Mini terminal | Item `type=terminal`. Retained across closing; reset manually with ↻; see [lifetime and controls](MINI-TERMINAL.md). |
+| Mini terminal | Item `type=terminal`. A running command can be answered from the input row, and Stop ends only that command (1.0.8). Retained across closing; reset manually with ↻; see [lifetime and controls](MINI-TERMINAL.md). |
 | Note background / text colour | Item `note-background` / `note-color` = `#RRGGBB` (omitted/empty means automatic; writable with `z2-edge set ID:memo`) |
 
 Optional add/settings controls are icons at the end. Tab/note addition and item editing live in settings. Run items can also be reordered directly in the menu.

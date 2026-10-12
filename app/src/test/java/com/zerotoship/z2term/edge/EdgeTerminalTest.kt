@@ -14,6 +14,60 @@ class EdgeTerminalTest {
         assertEquals("日本語\nok", parser.text)
     }
 
+    /** A progress line redrawn with CR must replace itself, not pile up into one endless line. */
+    @Test fun carriageReturnStartsTheLineOverButCrLfIsAPlainNewline() {
+        val parser = EdgeTerminalProtocol("abc") {}
+        "one\r\n 10%\r 50%\r\u001b[K100%\r\ndone\r".forEach { parser.append(it.toString()) }
+        assertEquals("one\n100%\ndone", parser.text)
+    }
+
+    @Test fun foregroundJobIsReportedOnlyWhenItIsNotTheShell() {
+        fun stat(group: Int, foreground: Int) = "456 (sh) S 1 $group 456 34816 $foreground 0 0"
+        assertEquals(789, EdgeTerminalProcesses.foregroundJob(stat(456, 789)))
+        assertNull(EdgeTerminalProcesses.foregroundJob(stat(456, 456)))
+        assertNull(EdgeTerminalProcesses.foregroundJob(stat(456, -1)))
+    }
+
+    /**
+     * Runs the real shell loop on a pseudo-terminal: a running command can be answered, and an answer
+     * that arrives after its command ended is dropped instead of being run as the next command.
+     */
+    @Test fun runningCommandReadsAnswersAndLateAnswersAreNeverRun() {
+        val script = listOf("/usr/bin/script", "/bin/script").firstOrNull { java.io.File(it).canExecute() }
+        org.junit.Assume.assumeTrue("no script(1) to provide a pseudo-terminal", script != null)
+        val events = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val parser = EdgeTerminalProtocol("abc") { events.add(it) }
+        val builder = ProcessBuilder(script!!, "-q", "-c", "exec sh -i -c \"\$Z2_TEST_SCRIPT\"", "/dev/null").redirectErrorStream(true)
+        builder.environment()["Z2_TEST_SCRIPT"] = EdgeTerminalProtocol.script("abc")
+        val process = builder.start()
+        val reader = Thread {
+            runCatching {
+                val input = java.io.InputStreamReader(process.inputStream, Charsets.UTF_8)
+                val chars = CharArray(1024)
+                while (true) { val n = input.read(chars); if (n < 0) break; synchronized(parser) { parser.append(String(chars, 0, n)) } }
+            }
+        }.apply { isDaemon = true; start() }
+        fun await(what: String, test: () -> Boolean) {
+            val end = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(10)
+            while (!test()) { assertTrue("timed out waiting for $what: ${synchronized(parser) { parser.text }}", System.nanoTime() < end); Thread.sleep(20) }
+        }
+        fun write(text: String) { process.outputStream.write(text.toByteArray()); process.outputStream.flush() }
+        fun text() = synchronized(parser) { parser.text }
+        try {
+            await("ready") { events.any { it.startsWith("ready:") } }
+            write(EdgeTerminalProtocol.commandLine("abc", "printf 'ok? '; read answer; echo got=\$answer"))
+            await("the prompt") { text().contains("ok? ") }
+            write("y\n")
+            await("the first command") { events.count { it.startsWith("done:") } == 1 }
+            assertTrue(text(), text().contains("got=y"))
+            write("echo LATE-ANSWER-WAS-RUN\n")
+            write(EdgeTerminalProtocol.commandLine("abc", "echo next"))
+            await("the second command") { events.count { it.startsWith("done:") } == 2 }
+            assertTrue(text(), text().contains("next"))
+            assertFalse(text(), text().contains("LATE-ANSWER-WAS-RUN"))
+        } finally { process.destroyForcibly(); reader.join(1000) }
+    }
+
     @Test fun clearsPreviousResultAndBoundsUnendingOutput() {
         val parser = EdgeTerminalProtocol("abc") {}
         repeat(100) { parser.append("x".repeat(4096)) }
