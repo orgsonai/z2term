@@ -1764,7 +1764,16 @@ object EdgeRuntime {
                     val context = app!!
                     EdgeTerminalState { EdgeTerminalSession.create(context) }
                 }
-                val terminal = EdgeTerminalUi(ui(), label, state, fillSpace, inlineClose)
+                val terminalStore = store(app!!)
+                val terminal = EdgeTerminalUi(ui(), label, state, fillSpace, inlineClose,
+                    item.fields["terminal-size"]?.toIntOrNull() ?: EdgeTerminalUi.TEXT_SIZE) { size ->
+                    // Saved per item like a note's size, so the next opening and the recreation commands keep it.
+                    runCatching {
+                        terminalStore.setItem(target, mapOf("terminal-size" to size.toString()))
+                        val updated = terminalStore.panel(panelId)
+                        panels = panels.map { if (it.id == panelId) updated else it }
+                    }.onFailure { fail(it) }
+                }
                 terminals.add(terminal)
                 row.addView(terminal, if (fillSpace) LinearLayout.LayoutParams(-1, 0, 1f) else LinearLayout.LayoutParams(-1, -2))
             }

@@ -1,6 +1,6 @@
 # Mini terminal in an edge panel
 
-Target: 1.0.8 (versionCode 706)
+Target: 1.0.9 (versionCode 707)
 
 In panel settings, choose Add item → Text input → Connect to a shell. To add it to an existing panel through the CLI:
 
@@ -46,7 +46,7 @@ Simply closing the panel preserves ordinary foreground and background jobs. Endi
 
 An empty display name hides the heading, internal ID and heading space. A page containing only a terminal anchors its input at the bottom and gives the remaining height to output. Help text is no longer permanently displayed below it.
 
-Drag vertically inside the result to read all retained output. Horizontal flicks over results switch tabs; vertical drags scroll results. Once a vertical scroll starts, sideways movement does not switch tabs. Long presses remain available for text selection. The result is plain text, bounded to the latest 65,536 characters with a truncation indicator. Output continues to drain after the display limit. ANSI colours and screen controls are omitted. A progress display that returns to the start of the line and redraws replaces that line (1.0.8). The terminal width follows the width of the result. Pagers such as `less` are not used; the whole text is printed (`PAGER=cat`). Background output appears as it arrives.
+Drag vertically inside the result to read all retained output. Horizontal flicks over results switch tabs; vertical drags scroll results. Once a vertical scroll starts, sideways movement does not switch tabs. Long presses remain available for text selection. **A two-finger pinch changes the text size of the result** (1.0.9; 8–32 sp, 14 sp by default). The size is saved per item (`terminal-size`), and the terminal width follows it. The result is plain text, bounded to the latest 65,536 characters with a truncation indicator. Output continues to drain after the display limit. ANSI colours and screen controls are omitted. A progress display that returns to the start of the line and redraws replaces that line (1.0.8). The terminal width follows the width of the result. Pagers such as `less` are not used; the whole text is printed (`PAGER=cat`). Background output appears as it arrives.
 
 Input accepts one line of up to 16,384 characters. A running command can be answered one line at a time from the input row. Programs that read single keys and full-screen TUIs belong in a regular terminal tab. Terminal multiplexers can be started in detached mode from this panel.
 

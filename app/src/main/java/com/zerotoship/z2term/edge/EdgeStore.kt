@@ -254,7 +254,7 @@ class EdgeStore(val root: File) {
         }
 
         fun validateItem(values: Map<String, String>) {
-            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "note-background", "note-color", "args", "result", "result-controls", "argument-kind", "default", "choices", "required", "rows", "stdin", "width", "height", "align", "at", "view-refresh", "view-refresh-button", "view-expand-button", "row")
+            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "terminal-size", "note-background", "note-color", "args", "result", "result-controls", "argument-kind", "default", "choices", "required", "rows", "stdin", "width", "height", "align", "at", "view-refresh", "view-refresh-button", "view-expand-button", "row")
             require(values.keys.all { it in allowed }) { "Unknown item field: ${values.keys - allowed}" }
             val type = values["type"] ?: "run"
             require(type in setOf("run", "text", "toggle", "list", "input", "note", "terminal", "macro", "argument", "result", "view")) { "Unsupported type: $type" }
@@ -267,6 +267,9 @@ class EdgeStore(val root: File) {
             values["note-lines"]?.let { require(it in setOf("on", "off")) { "note-lines: on|off" } }
             values["note-size"]?.let {
                 require(it.toIntOrNull()?.let { n -> n in 10..32 } == true) { "note-size: 10–32 sp" }
+            }
+            values["terminal-size"]?.let {
+                require(it.toIntOrNull()?.let { n -> n in EdgeTerminalUi.MIN_TEXT_SIZE..EdgeTerminalUi.MAX_TEXT_SIZE } == true) { "terminal-size: 8–32 sp" }
             }
             require(values["out"].orEmpty() in setOf("", "none", "panel", "toast", "notify")) { "Unknown out" }
             values["every"]?.let { require(it.toLongOrNull()?.let { n -> n == 0L || n in 5..86400 } == true) { "every: 0 or 5–86400 seconds" } }

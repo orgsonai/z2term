@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.8.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.9.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 

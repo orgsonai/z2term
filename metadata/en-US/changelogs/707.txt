@@ -1,0 +1,4 @@
+1.0.9
+
+- In the edge panel's simple terminal, pinching the result now changes
+  the text size.

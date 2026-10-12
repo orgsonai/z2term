@@ -126,6 +126,11 @@ class EdgeTerminalTest {
             assertEquals("terminal", item.type)
             assertEquals("", item.command)
             assertTrue(EdgePanelCommands.generate(store.panels(), "main").contains("'type=terminal'"))
+            // The pinched text size is saved on the item and survives into the recreation commands.
+            store.setItem("main:term", mapOf("terminal-size" to "20"))
+            assertEquals("20", store.item("main:term").fields["terminal-size"])
+            assertTrue(EdgePanelCommands.generate(store.panels(), "main").contains("terminal-size=20"))
+            assertTrue(runCatching { store.setItem("main:term", mapOf("terminal-size" to "40")) }.isFailure)
         } finally { dir.deleteRecursively() }
     }
 }

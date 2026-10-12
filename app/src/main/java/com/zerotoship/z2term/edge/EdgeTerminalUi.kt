@@ -9,6 +9,7 @@ import android.os.Looper
 import android.text.InputFilter
 import android.text.InputType
 import android.view.KeyEvent
+import android.view.ScaleGestureDetector
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.BaseInputConnection
 import android.widget.EditText
@@ -29,7 +30,9 @@ import kotlinx.coroutines.withContext
 /** Closing the view leaves the item-owned shell and output running. */
 @android.annotation.SuppressLint("ViewConstructor") // Created only in code, with the saved item label.
 internal class EdgeTerminalUi(context: Context, label: String, private val terminal: EdgeTerminalState, fillSpace: Boolean = false,
-    close: (() -> Unit)? = null) : LinearLayout(context) {
+    close: (() -> Unit)? = null, textSize: Int = TEXT_SIZE, private val onTextSize: (Int) -> Unit = {}) : LinearLayout(context) {
+    /** Result text size in sp. Fractional while a pinch is in progress, whole once it ends. */
+    private var size = textSize.coerceIn(MIN_TEXT_SIZE, MAX_TEXT_SIZE).toFloat()
     private val handler = Handler(Looper.getMainLooper())
     private var disposed = false
     private val history = terminal.history
@@ -51,7 +54,7 @@ internal class EdgeTerminalUi(context: Context, label: String, private val termi
     }
     private val output = TextView(context).apply {
         id = R.id.edge_terminal_output
-        setTextColor(EdgeEditorUi.foreground(context)); textSize = 14f; typeface = Typeface.MONOSPACE
+        setTextColor(EdgeEditorUi.foreground(context)); this.textSize = size; typeface = Typeface.MONOSPACE
         setTextIsSelectable(true)
         setPadding(dp(8), dp(8), dp(8), dp(8))
         contentDescription = context.getString(R.string.edge_terminal_result)
@@ -126,6 +129,19 @@ internal class EdgeTerminalUi(context: Context, label: String, private val termi
                 else -> false
             }
         }
+        // Pinch on the result changes its text size. The terminal width follows in render().
+        scroll.pinch = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                size = (size * detector.scaleFactor).coerceIn(MIN_TEXT_SIZE.toFloat(), MAX_TEXT_SIZE.toFloat())
+                output.textSize = size
+                return true
+            }
+            override fun onScaleEnd(detector: ScaleGestureDetector) {
+                val saved = Math.round(size)
+                size = saved.toFloat(); output.textSize = size
+                if (!disposed) onTextSize(saved)
+            }
+        }).apply { isQuickScaleEnabled = false }
         render(); handler.post(poll)
     }
 
@@ -234,6 +250,12 @@ internal class EdgeTerminalUi(context: Context, label: String, private val termi
             EdgeTerminalSession.Phase.ENDED -> context.getString(R.string.edge_terminal_ended)
             EdgeTerminalSession.Phase.FAILED -> state?.error
         }, if (state?.truncated == true) context.getString(R.string.edge_terminal_truncated) else null).joinToString(" · ")
+    }
+
+    companion object {
+        const val TEXT_SIZE = 14
+        const val MIN_TEXT_SIZE = 8
+        const val MAX_TEXT_SIZE = 32
     }
 
     fun dispose() {
