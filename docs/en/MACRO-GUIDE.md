@@ -290,7 +290,7 @@ prerequisite → 3-A).
 | `z2-noti` | `z2-noti list` | Read **the notifications on screen right now** (read-only, see below) | TSV |
 | `z2-session` | `z2-session list\|new\|send\|capture\|attach\|close` | Drive **the app's own tabs** (see below) | TSV / index |
 | `z2-server` | `z2-server list\|start\|stop\|status <server>` | Start / stop **a registered resident server** (see below) | TSV |
-| `z2-macro` | `z2-macro list\|install\|diff\|show\|run\|dir` | Manage the bundled samples (`list` marks each `new` / `same` / `differs`) | — |
+| `z2-macro` | `z2-macro list\|install\|remove\|diff\|show\|run\|dir` | Manage the bundled samples (`list` marks each `new` / `same` / `differs`) | — |
 
 ### `z2-notify -b` (get an answer back = interactive macros)
 

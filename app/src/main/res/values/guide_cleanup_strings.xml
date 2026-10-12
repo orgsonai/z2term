@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内の片付け (1.0.6)。Guide.cleanup -->
+    <string name="settings_guide_cleanup">Clean up</string>
+    <string name="settings_guides_cleanup_desc">\"Clean up\" shows the steps that remove what a guide added, as the same kind of cards. Nothing is removed until you tap a card.</string>
+    <string name="guide_cleanup_heading">remove what this added</string>
+    <string name="guide_cleanup_hint">Tap to run (Ctrl-C first, so a half-typed line cannot mix in) / ✕ to keep it</string>
+    <string name="guide_undo_rules">Remove the automation rules that call this macro</string>
+    <string name="guide_undo_macro">Remove the macro (stops without removing it if you edited it yourself)</string>
+    <string name="guide_undo_notify_off">If nothing else uses it: Settings -> turn off \"Notification detection\"</string>
+    <string name="guide_undo_sms_off">If nothing else uses it: Settings -> turn off \"SMS detection\"</string>
+    <string name="guide_undo_remind_all">Cancel every reminder you registered</string>
+    <string name="guide_undo_remind_tiles">Empty the tile slots that run remind.sh</string>
+    <string name="guide_undo_remind_data">Delete the reminder records (✕ to keep them)</string>
+    <string name="guide_undo_rss_data">Delete the feed list and the collected articles (✕ to keep them)</string>
+    <string name="guide_undo_edge_main">Delete the sample app panel \"main\" (items you added to it go too)</string>
+    <string name="guide_undo_edge_samples">Delete the three sample panels (the text in the note goes too)</string>
+    <string name="guide_undo_edge_off">If you use no other panel, turn panels off (the bar disappears)</string>
+    <string name="guide_undo_permissions">\"Display over other apps\" and accessibility can only be turned off in Android settings. Leave them on if another feature uses them.</string>
+</resources>

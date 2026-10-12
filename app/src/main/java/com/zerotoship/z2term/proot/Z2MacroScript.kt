@@ -1701,6 +1701,7 @@ fun z2MacroScript(lang: String): String {
             "usage: z2-macro <subcommand>",
                 "  list                list bundled samples (marked new / same / differs)",
                 "  install <name|all>  copy into ~/.z2term/macros/ (never overwrites; -f to force)",
+                "  remove <name>       delete your copy of a bundled sample (stops if it differs; -f to force)",
                 "  diff <name>         what differs between your copy and the bundled one (yours on the left)",
                 "  show <name>         print the script",
                 "  run <name>          run it here (Ctrl-C to stop)",
@@ -1711,6 +1712,7 @@ fun z2MacroScript(lang: String): String {
             "usage: z2-macro <サブコマンド>",
                 "  list                同梱サンプルの一覧 (未導入 / 同じ / 差分あり つき)",
                 "  install <名前|all>  ~/.z2term/macros/ へコピー (既存は上書きしない。-f で上書き)",
+                "  remove <名前>       入れた同梱サンプルを消す (同梱版と違うときは止まる。-f で消す)",
                 "  diff <名前>         端末のコピーと同梱版の違いを見る (左が自分の側)",
                 "  show <名前>         中身を表示",
                 "  run <名前>          その場で実行 (Ctrl-C で止める)",
@@ -1721,6 +1723,7 @@ fun z2MacroScript(lang: String): String {
                 "usage: z2-macro <子命令>",
                 "  list                列出随附的示例 (带 未安装 / 相同 / 有差异 标记)",
                 "  install <名字|all>  复制到 ~/.z2term/macros/ (不覆盖已有的。-f 强制覆盖)",
+                "  remove <名字>       删除装好的随附示例 (和随附版不同时会停下。-f 强制删除)",
                 "  diff <名字>         看设备上的副本和随附版有什么不同 (左边是你自己的)",
                 "  show <名字>         显示脚本内容",
                 "  run <名字>          就地运行 (Ctrl-C 停止)",
@@ -1731,6 +1734,7 @@ fun z2MacroScript(lang: String): String {
                 "usage: z2-macro <子指令>",
                 "  list                列出隨附的示例 (帶 未安裝 / 相同 / 有差異 標記)",
                 "  install <名字|all>  複製到 ~/.z2term/macros/ (不覆寫已有的。-f 強制覆寫)",
+                "  remove <名字>       刪除裝好的隨附示例 (和隨附版不同時會停下。-f 強制刪除)",
                 "  diff <名字>         看裝置上的副本和隨附版有什麼不同 (左邊是你自己的)",
                 "  show <名字>         顯示指令碼內容",
                 "  run <名字>          就地執行 (Ctrl-C 停止)",
@@ -1741,6 +1745,7 @@ fun z2MacroScript(lang: String): String {
             "uso: z2-macro <subcomando>",
             "  list                  lista las muestras incluidas (marcadas nueva / igual / distinta)",
             "  install <nombre|all>  copia en ~/.z2term/macros/ (nunca sobrescribe; -f fuerza)",
+            "  remove <nombre>       borra tu copia de una muestra incluida (se detiene si difiere; -f fuerza)",
             "  diff <nombre>         diferencias entre tu copia y la incluida (la tuya a la izquierda)",
             "  show <nombre>         imprime el script",
             "  run <nombre>          lo ejecuta aquí (Ctrl-C para pararlo)",
@@ -1751,6 +1756,7 @@ fun z2MacroScript(lang: String): String {
             "사용법: z2-macro <하위 명령>",
             "  list               함께 실은 예제를 나열합니다 (new / same / differs로 표시)",
             "  install <이름|all> ~/.z2term/macros/로 복사합니다 (덮어쓰지 않습니다. -f로 강제)",
+            "  remove <이름>      설치한 예제를 지웁니다 (함께 실은 것과 다르면 멈춥니다. -f로 강제)",
             "  diff <이름>        내 것과 함께 실은 것의 차이 (왼쪽이 내 것)",
             "  show <이름>        스크립트를 출력합니다",
             "  run <이름>         여기서 실행합니다 (멈추려면 Ctrl-C)",
@@ -1803,6 +1809,29 @@ fun z2MacroScript(lang: String): String {
         "zh-TW" to "還沒有安裝 (請先 z2-macro install):",
         "es" to "todavía no está instalada (ejecuta antes z2-macro install):",
         "ko" to "아직 설치되지 않았습니다 (먼저 z2-macro install을 실행하세요):"
+    )
+    // `remove` (1.0.6)。案内の片付けから呼ぶが、install の対になる一般のコマンド。
+    // ⚠ **同梱版と違うコピーは黙って消さない。** 自分で書き換えた分かもしれず、消すと戻せない
+    //    (同じものなら install で入れ直せる)。違うときは止めて、見る手段と消す手段を出す。
+    val msgRemoved = t(en = "removed:", ja = "消しました:", "zh-CN" to "已删除:", "zh-TW" to "已刪除:", "es" to "borrada:",
+    "ko" to "지웠습니다:")
+    val msgAbsent = t(en = "not installed:", ja = "入っていません:", "zh-CN" to "没有安装:", "zh-TW" to "沒有安裝:", "es" to "no está instalada:",
+    "ko" to "설치되어 있지 않습니다:")
+    val msgRemoveDiffers = t(
+        en = "yours differs from the bundled one, so it was not removed:",
+        ja = "同梱版と中身が違うので消していません:",
+        "zh-CN" to "和随附版的内容不一样，所以没有删除:",
+        "zh-TW" to "和隨附版的內容不一樣，所以沒有刪除:",
+        "es" to "la tuya difiere de la incluida, así que no se ha borrado:",
+        "ko" to "내 것이 함께 실은 것과 달라서 지우지 않았습니다:"
+    )
+    val msgHowRemove = t(
+        en = "look first: z2-macro diff %s   /   remove it anyway: z2-macro remove -f %s (your own edits go too)",
+        ja = "まず違いを見る: z2-macro diff %s   /   それでも消す: z2-macro remove -f %s (自分で書き換えた分も消えます)",
+        "zh-CN" to "先看看差别: z2-macro diff %s   /   仍然删除: z2-macro remove -f %s (你自己改的部分也会没了)",
+        "zh-TW" to "先看看差別: z2-macro diff %s   /   仍然刪除: z2-macro remove -f %s (你自己改的部分也會沒了)",
+        "es" to "míralo antes: z2-macro diff %s   /   borrarla igualmente: z2-macro remove -f %s (tus cambios se van con ella)",
+        "ko" to "먼저 보기: z2-macro diff %s   /   그래도 지우기: z2-macro remove -f %s (내가 고친 것도 함께 사라집니다)"
     )
     val msgNoDiffTool = t(
         en = "no diff here. You can still read the bundled one with z2-macro show.",
@@ -1914,6 +1943,21 @@ fun z2MacroScript(lang: String): String {
         |        echo "$msgHintResident"
         |        echo "  sh ${d}DEST/${d}name"
         |      fi
+        |    done ;;
+        |  remove)
+        |    # 同梱サンプルのコピーだけを消す。自分で書いたマクロ (同梱に無い名前) には触らない。
+        |    [ ${d}# -ge 2 ] || usage
+        |    shift
+        |    for name in "${d}@"; do
+        |      case "${d}name" in *.sh) ;; *) name="${d}name.sh" ;; esac
+        |      if [ ! -f "${d}SRC/${d}name" ]; then echo "$msgNotFound ${d}name" >&2; continue; fi
+        |      if [ ! -f "${d}DEST/${d}name" ]; then echo "$msgAbsent ${d}DEST/${d}name"; continue; fi
+        |      if [ "${d}force" != "1" ] && ! same_as_bundled "${d}SRC/${d}name" "${d}DEST/${d}name"; then
+        |        echo "$msgRemoveDiffers ${d}DEST/${d}name" >&2
+        |        printf '  $msgHowRemove\n' "${d}name" "${d}name" >&2
+        |        continue
+        |      fi
+        |      rm -f "${d}DEST/${d}name" && echo "$msgRemoved ${d}DEST/${d}name"
         |    done ;;
         |  diff)
         |    # 左が端末のコピー・右が同梱版 (`-` が自分の側、`+` が同梱版で増えた行)。

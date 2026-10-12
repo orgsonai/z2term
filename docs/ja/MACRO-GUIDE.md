@@ -285,7 +285,7 @@ z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term
 | `z2-noti` | `z2-noti list` | **いま出ている通知**を読む（読むだけ・下記） | TSV |
 | `z2-session` | `z2-session list\|new\|send\|capture\|attach\|close` | **アプリ自身のタブ**を操る（下記） | TSV / 番号 |
 | `z2-server` | `z2-server list\|start\|stop\|status <サーバー>` | **登録済みの常駐サーバー**を起こす / 落とす（下記） | TSV |
-| `z2-macro` | `z2-macro list\|install\|diff\|show\|run\|dir` | 同梱サンプルの管理（`list` に `未導入` / `同じ` / `差分あり` が出ます） | — |
+| `z2-macro` | `z2-macro list\|install\|remove\|diff\|show\|run\|dir` | 同梱サンプルの管理（`list` に `未導入` / `同じ` / `差分あり` が出ます） | — |
 
 ### `z2-notify -b`（返事を受け取る＝対話型マクロ）
 

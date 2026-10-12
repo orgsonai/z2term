@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内の片付け (1.0.6)。Guide.cleanup -->
+    <string name="settings_guide_cleanup">清理</string>
+    <string name="settings_guides_cleanup_desc">按“清理”會用同樣的卡片顯示刪除該導引所新增內容的步驟。不點卡片就什麼都不會刪除。</string>
+    <string name="guide_cleanup_heading">清理新增的內容</string>
+    <string name="guide_cleanup_hint">點選執行（會先用 Ctrl-C 丟掉打了一半的內容再發送）／ 要保留的用 ✕</string>
+    <string name="guide_undo_rules">刪除呼叫這個巨集的自動化規則</string>
+    <string name="guide_undo_macro">刪除這個巨集（如果你自己改過，就不刪除並停下）</string>
+    <string name="guide_undo_notify_off">如果別處不用：⚙設定 → 關閉“通知偵測”</string>
+    <string name="guide_undo_sms_off">如果別處不用：⚙設定 → 關閉“簡訊偵測”</string>
+    <string name="guide_undo_remind_all">取消已登記的全部提醒</string>
+    <string name="guide_undo_remind_tiles">清空分配給 remind.sh 的方塊位</string>
+    <string name="guide_undo_remind_data">刪除提醒的記錄（要保留就按 ✕）</string>
+    <string name="guide_undo_rss_data">刪除訂閱清單和收集到的文章（要保留就按 ✕）</string>
+    <string name="guide_undo_edge_main">刪除範例應用程式清單面板 main（你自己加的項目也會一起刪除）</string>
+    <string name="guide_undo_edge_samples">刪除三個範例面板（記事本裡的內容也會刪除）</string>
+    <string name="guide_undo_edge_off">如果沒有在用別的面板，就關閉面板（長條會消失）</string>
+    <string name="guide_undo_permissions">“顯示在其他應用程式上層”和無障礙的許可只能在 Android 的設定裡關閉。如果別的功能在用，請保持原樣。</string>
+</resources>

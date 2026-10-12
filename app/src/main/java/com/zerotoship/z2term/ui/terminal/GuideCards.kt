@@ -129,7 +129,19 @@ data class GuideStep(
 enum class Guide(
     val id: String,
     @param:StringRes val descRes: Int,
-    val steps: List<GuideStep>
+    val steps: List<GuideStep>,
+    /**
+     * 片付けの手順 (1.0.6)。**この案内で足したものを消す**カードで、使わないと決めた人が元へ戻すためのもの。
+     *
+     *  - 消すのは**この案内が作ったものだけ**。マクロ本体は `z2-macro remove`、ルールは
+     *    そのマクロを呼んでいるものを `z2-when list` から拾って `z2-when remove`、パネルは案内が付けた
+     *    ID で `z2-edge delete`。
+     *  - **人が入れた中身 (フィードの一覧・リマインドの記録) は別のカードに分ける。** 押さなければ残る。
+     *  - Android の許可はアプリから外せず、ほかの機能も使うので、読むだけのカードにする。
+     *  - ⚠ 「案内が実行したことを記録して一括で巻き戻す」形にしない (利用者の判断)。案内のあとで
+     *    自分で直したものまで、何が消えるか見えないまま消えるため。**消す行を見せて、押した行だけ走らせる。**
+     */
+    val cleanup: List<GuideStep>
 ) {
     /**
      * 画面の端のバーからアプリ一覧を開く (0.8.601)。マクロではなく、機能を使えるようにするまでの案内。
@@ -148,6 +160,10 @@ enum class Guide(
         GuideStep(R.string.guide_step_edge_panel, commandOf = { EdgeDefaultPanel.command(it) }),
         GuideStep(R.string.guide_step_edge_on, "z2-edge on"),
         GuideStep(R.string.guide_step_edge_settings),
+    ), cleanup = listOf(
+        GuideStep(R.string.guide_undo_edge_main, "z2-edge delete ${EdgeDefaultPanel.PANEL_ID}"),
+        GuideStep(R.string.guide_undo_edge_off, "z2-edge off"),
+        GuideStep(R.string.guide_undo_permissions),
     )),
 
     EDGE_WORKSPACE("edge-workspace", R.string.guide_desc_edge_workspace, listOf(
@@ -159,6 +175,17 @@ enum class Guide(
         GuideStep(R.string.guide_step_sample_open, "z2-edge on && z2-edge open sample-tools"),
         GuideStep(R.string.guide_step_sample_use),
         GuideStep(R.string.guide_step_edge_settings),
+    ), cleanup = listOf(
+        // 親を先に消す (子をタブとして指しているため)。無い ID で止まらないよう 1 枚ずつ回す。
+        GuideStep(
+            R.string.guide_undo_edge_samples,
+            "for p in " + listOf(
+                EdgeSamplePanels.Kind.NOTE, EdgeSamplePanels.Kind.TRANSLATION, EdgeSamplePanels.Kind.TERMINAL
+            ).joinToString(" ") { it.id } + "; do z2-edge delete \"\$p\"; done"
+        ),
+        GuideStep(R.string.guide_undo_macro, guideUndoMacro("translate")),
+        GuideStep(R.string.guide_undo_edge_off, "z2-edge off"),
+        GuideStep(R.string.guide_undo_permissions),
     )),
 
     /** 通知のワンタイムコードを自動でコピーする。 */
@@ -166,6 +193,10 @@ enum class Guide(
         GuideStep(R.string.guide_step_notify_on),
         GuideStep(R.string.guide_step_install, "z2-macro install otp-clip"),
         GuideStep(R.string.guide_step_when, "z2-when notify:otp run ~/.z2term/macros/otp-clip.sh"),
+    ), cleanup = listOf(
+        GuideStep(R.string.guide_undo_rules, guideUndoRules("otp-clip")),
+        GuideStep(R.string.guide_undo_macro, guideUndoMacro("otp-clip")),
+        GuideStep(R.string.guide_undo_notify_off),
     )),
 
     /** SMS のワンタイムコードを自動でコピーする (伏せ字を迂回できる確実な方)。 */
@@ -173,6 +204,10 @@ enum class Guide(
         GuideStep(R.string.guide_step_sms_on),
         GuideStep(R.string.guide_step_install, "z2-macro install otp-sms"),
         GuideStep(R.string.guide_step_when, "z2-when sms:otp run ~/.z2term/macros/otp-sms.sh"),
+    ), cleanup = listOf(
+        GuideStep(R.string.guide_undo_rules, guideUndoRules("otp-sms")),
+        GuideStep(R.string.guide_undo_macro, guideUndoMacro("otp-sms")),
+        GuideStep(R.string.guide_undo_sms_off),
     )),
 
     /** 着信通知に含まれる電話番号をコピー通知で渡す。 */
@@ -187,6 +222,10 @@ enum class Guide(
             R.string.guide_step_when_missed,
             "z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh"
         ),
+    ), cleanup = listOf(
+        GuideStep(R.string.guide_undo_rules, guideUndoRules("unknown-call")),
+        GuideStep(R.string.guide_undo_macro, guideUndoMacro("unknown-call")),
+        GuideStep(R.string.guide_undo_notify_off),
     )),
 
     /**
@@ -198,6 +237,16 @@ enum class Guide(
         GuideStep(R.string.guide_step_setup, "sh ~/.z2term/macros/remind.sh setup"),
         GuideStep(R.string.guide_step_help, "remind.sh help"),
         GuideStep(R.string.guide_step_list, "remind.sh list"),
+    ), cleanup = listOf(
+        // ⚠ 予約の取り消しはマクロ自身にやらせるので、**マクロを消すより前**に置く。
+        GuideStep(R.string.guide_undo_remind_all, "sh ~/.z2term/macros/remind.sh del all"),
+        GuideStep(R.string.guide_undo_rules, guideUndoRules("remind")),
+        GuideStep(
+            R.string.guide_undo_remind_tiles,
+            "z2-tile list | grep -F remind.sh | cut -f1 | while read -r n; do z2-tile clear \"\$n\"; done"
+        ),
+        GuideStep(R.string.guide_undo_macro, guideUndoMacro("remind")),
+        GuideStep(R.string.guide_undo_remind_data, "rm -rf ~/.z2term/remind"),
     )),
 
     /**
@@ -233,6 +282,12 @@ enum class Guide(
         GuideStep(R.string.guide_step_try, "sh ~/.z2term/macros/rss.sh"),
         GuideStep(R.string.guide_step_rss_view, "sh ~/.z2term/macros/rss.sh view"),
         GuideStep(R.string.guide_step_rss_manage),
+    ), cleanup = listOf(
+        // 定期巡回と通知の操作、どちらのルールも rss.sh を呼ぶので 1 行で両方拾える。
+        GuideStep(R.string.guide_undo_rules, guideUndoRules("rss")),
+        GuideStep(R.string.guide_undo_macro, guideUndoMacro("rss")),
+        GuideStep(R.string.guide_undo_rss_data, "rm -rf ~/.z2term/rss"),
+        GuideStep(R.string.guide_undo_permissions),
     )),
 
     /** QR にして別の端末へ渡す。 */
@@ -245,6 +300,8 @@ enum class Guide(
             "qr.sh \"%s\"",
             askRes = R.string.guide_ask_qr_text
         ),
+    ), cleanup = listOf(
+        GuideStep(R.string.guide_undo_macro, guideUndoMacro("qr")),
     ));
 
     companion object {
@@ -254,6 +311,19 @@ enum class Guide(
         fun byId(id: String): Guide? = entries.firstOrNull { it.id == id }
     }
 }
+
+/**
+ * そのマクロを呼んでいる自動化ルールを消す 1 行 (片付け用)。
+ *
+ * ルールに決まった ID は無いので、`z2-when list` の行から**マクロのパスを含むもの**を拾う。
+ * 案内のあとで条件を足したり名前を付けたりしたルールも、呼ぶ先が同じなら対象になる
+ * (マクロを消したあとに残っても動かないルールだから)。`z2-when remove` は 1 件ずつ受ける。
+ */
+private fun guideUndoRules(macro: String): String =
+    "z2-when list | grep -F macros/$macro.sh | cut -f1 | while read -r id; do z2-when remove \"\$id\"; done"
+
+/** マクロ本体を消す 1 行 (片付け用)。自分で書き換えたコピーは `z2-macro remove` が止める。 */
+private fun guideUndoMacro(macro: String): String = "z2-macro remove $macro"
 
 /**
  * 案内の説明 1 行。**埋める値がある案内はここで入れる**ので、呼ぶ側は値を知らなくてよい。
@@ -271,6 +341,11 @@ fun guideDesc(guide: Guide): String = stringResource(guide.descRes)
 @Composable
 fun guideTitle(guide: Guide): String = "${guide.id} — ${guideDesc(guide)}"
 
+/** 片付けの見出し 1 行 (`rss — 足したものを片付ける`)。どの案内の片付けかを名前で示す。 */
+@Composable
+fun guideCleanupTitle(guide: Guide): String =
+    "${guide.id} — ${stringResource(R.string.guide_cleanup_heading)}"
+
 /**
  * いま出している案内。**画面をまたいで 1 つだけ**持つ。
  *
@@ -279,28 +354,45 @@ fun guideTitle(guide: Guide): String = "${guide.id} — ${guideDesc(guide)}"
  * アプリを開いている間だけの状態で、永続化はしない (案内は毎回選んで出すもの)。
  */
 object GuideHost {
-    var current: Guide? by mutableStateOf(null)
+    private var shown: Guide? by mutableStateOf(null)
+
+    /**
+     * 出している案内。**入れると手順の側 ([Guide.steps]) になる** — 片付けを出したまま別の案内を
+     * 開いたときに、片付けのカードが出てしまわないように。片付けは [cleanup] を後から立てる。
+     */
+    var current: Guide?
+        get() = shown
+        set(value) {
+            shown = value
+            cleanup = false
+        }
+
+    /** true の間は [current] の片付け ([Guide.cleanup]) を出す (1.0.6)。 */
+    var cleanup: Boolean by mutableStateOf(false)
 }
 
 /**
  * 案内 1 本を端末の上にカードで出す。
  *
+ * @param cleanup true なら手順ではなく片付け ([Guide.cleanup]) を出す。見た目と送り方は同じ。
  * @param onRun カードのコマンドを実行する (`Ctrl-C` → コマンド → ⏎ は呼び出し側が付ける)。
  * @param onFinish カードが尽きたか、見出しの ✕ が押されたとき。
  */
 @Composable
 fun GuideCards(
     guide: Guide,
+    cleanup: Boolean = false,
     onRun: (String) -> Unit,
     onFinish: () -> Unit,
 ) {
     val context = LocalContext.current
     // 触った / ✕ したカードはその場で消す (どこまで進んだかが見た目で分かる)。
-    val remaining = remember(guide) {
-        mutableStateListOf(*guide.steps.mapNotNull { it.resolved(context) }.toTypedArray())
+    val remaining = remember(guide, cleanup) {
+        val steps = if (cleanup) guide.cleanup else guide.steps
+        mutableStateListOf(*steps.mapNotNull { it.resolved(context) }.toTypedArray())
     }
     // 値を聞いている最中の手順 ([GuideStep.askRes] 付き)。聞き終わるまで実行しない。
-    var asking by remember(guide) { mutableStateOf<GuideStep?>(null) }
+    var asking by remember(guide, cleanup) { mutableStateOf<GuideStep?>(null) }
 
     fun done(step: GuideStep) {
         remaining.remove(step)
@@ -308,8 +400,8 @@ fun GuideCards(
     }
 
     GuideCardColumn(
-        title = guideTitle(guide),
-        hint = stringResource(R.string.guide_hint),
+        title = if (cleanup) guideCleanupTitle(guide) else guideTitle(guide),
+        hint = stringResource(if (cleanup) R.string.guide_cleanup_hint else R.string.guide_hint),
         onClose = onFinish
     ) {
         remaining.forEach { step ->

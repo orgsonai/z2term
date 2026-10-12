@@ -120,6 +120,7 @@ import com.zerotoship.z2term.ui.components.rememberReorderState
 import com.zerotoship.z2term.ui.components.reorderItem
 import com.zerotoship.z2term.ui.components.reorderLongPressHandle
 import com.zerotoship.z2term.ui.terminal.Guide
+import com.zerotoship.z2term.ui.terminal.GuideHost
 import com.zerotoship.z2term.ui.terminal.NoOsSettingsNotice
 import com.zerotoship.z2term.ui.terminal.ToolbarButtonSpec
 import com.zerotoship.z2term.ui.terminal.ToolbarButtons
@@ -1569,31 +1570,56 @@ fun SettingsSheet(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Guide.ALL.forEach { guide ->
-                            Column(
+                            // 行の本体は手順、右端は片付け (1.0.6)。使わないと決めたときに、同じ行から
+                            // 元へ戻す手順を出せるようにする。別の一覧に分けると対応が読めなくなる。
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(ZtsBgCard)
-                                    .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-                                    .clickable { onShowGuide(guide) }
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp)),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { onShowGuide(guide) }
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = guide.id,
+                                        color = ZtsGreen,
+                                        fontSize = 13.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    Text(
+                                        text = guideDesc(guide),
+                                        color = ZtsTextSecondary,
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
                                 Text(
-                                    text = guide.id,
-                                    color = ZtsGreen,
-                                    fontSize = 13.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                                Text(
-                                    text = guideDesc(guide),
+                                    text = stringResource(R.string.settings_guide_cleanup),
                                     color = ZtsTextSecondary,
                                     fontSize = 11.sp,
-                                    fontFamily = FontFamily.Monospace
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier
+                                        // 出し方 (シートを閉じる・端末タブへ移る) は手順と同じ道を通し、
+                                        // そのあとで片付けの側へ切り替える ([GuideHost.current] は手順へ戻すため)。
+                                        .clickable { onShowGuide(guide); GuideHost.cleanup = true }
+                                        .padding(horizontal = 12.dp, vertical = 14.dp)
                                 )
                             }
                         }
                     }
+                    Text(
+                        text = stringResource(R.string.settings_guides_cleanup_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
 
                 // 端末リセット (アプリ初回起動時の状態に戻す = 端末タブ 1 つだけにして初期化)。
@@ -3132,6 +3158,7 @@ private fun appLockGraceLabel(sec: Int): Int = when (sec) {
 @Composable
 private fun TipsSection() {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        TipItem(R.string.tip_word_select_title, R.string.tip_word_select_body)
         TipItem(R.string.tip_toolbar_title, R.string.tip_toolbar_body)
         TipItem(R.string.tip_kb_resize_title, R.string.tip_kb_resize_body)
         TipItem(R.string.tip_tab_close_title, R.string.tip_tab_close_body)

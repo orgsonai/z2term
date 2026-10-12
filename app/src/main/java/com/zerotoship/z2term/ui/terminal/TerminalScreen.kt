@@ -709,6 +709,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         activeGuide?.takeIf { !split }?.let { guide ->
             GuideCards(
                 guide = guide,
+                cleanup = GuideHost.cleanup,
                 onRun = { cmd -> runGuideCommand(active, scope, cmd) },
                 onFinish = { GuideHost.current = null }
             )

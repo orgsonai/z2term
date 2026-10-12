@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 小技 (Tips): 端末のダブルタップ選択 (1.0.6)。TipsSection -->
+    <string name="tip_word_select_title">端末の文字は、ダブルタップで単語ごと選べます</string>
+    <string name="tip_word_select_body">パスやホスト名、IP アドレスはひとまとまりで選ばれます。折り返して次の行に続いていても、繋げて選びます。選んだあとは、両端のつまみを動かして範囲を変えられます。マウスの操作を受け取るアプリの画面では、ダブルタップはそのアプリへ渡ります。</string>
+</resources>

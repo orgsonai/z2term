@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内の片付け (1.0.6)。Guide.cleanup -->
+    <string name="settings_guide_cleanup">Deshacer</string>
+    <string name="settings_guides_cleanup_desc">\"Deshacer\" muestra, con las mismas tarjetas, los pasos que quitan lo que añadió una guía. No se quita nada hasta que tocas una tarjeta.</string>
+    <string name="guide_cleanup_heading">quitar lo que añadió</string>
+    <string name="guide_cleanup_hint">Toca para ejecutar (primero se envía Ctrl-C, para que no se mezcle una línea a medio escribir) / ✕ para conservarlo</string>
+    <string name="guide_undo_rules">Quitar las reglas de automatización que llaman a esta macro</string>
+    <string name="guide_undo_macro">Quitar la macro (si la editaste, se detiene sin quitarla)</string>
+    <string name="guide_undo_notify_off">Si nada más la usa: Ajustes -> desactivar \"Detección de notificaciones\"</string>
+    <string name="guide_undo_sms_off">Si nada más la usa: Ajustes -> desactivar \"Detección de SMS\"</string>
+    <string name="guide_undo_remind_all">Cancelar todos los recordatorios registrados</string>
+    <string name="guide_undo_remind_tiles">Vaciar los huecos de mosaico que ejecutan remind.sh</string>
+    <string name="guide_undo_remind_data">Borrar los registros de recordatorios (✕ para conservarlos)</string>
+    <string name="guide_undo_rss_data">Borrar la lista de fuentes y los artículos recogidos (✕ para conservarlos)</string>
+    <string name="guide_undo_edge_main">Borrar el panel de apps de ejemplo \"main\" (también se van los elementos que le añadiste)</string>
+    <string name="guide_undo_edge_samples">Borrar los tres paneles de ejemplo (también se va el texto de la nota)</string>
+    <string name="guide_undo_edge_off">Si no usas ningún otro panel, desactiva los paneles (la barra desaparece)</string>
+    <string name="guide_undo_permissions">\"Mostrar sobre otras apps\" y la accesibilidad solo se pueden desactivar en los ajustes de Android. Déjalas si otra función las usa.</string>
+</resources>

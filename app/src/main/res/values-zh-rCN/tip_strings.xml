@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 小技 (Tips): 端末のダブルタップ選択 (1.0.6)。TipsSection -->
+    <string name="tip_word_select_title">双击终端里的文字，可以按单词选中</string>
+    <string name="tip_word_select_body">路径、主机名、IP 地址会作为一个整体被选中，即使折到下一行也会连起来选。选中之后，可以拖动两端的手柄来改变范围。在读取鼠标操作的应用画面里，双击会交给那个应用。</string>
+</resources>

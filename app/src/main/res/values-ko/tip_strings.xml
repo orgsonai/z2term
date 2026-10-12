@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 小技 (Tips): 端末のダブルタップ選択 (1.0.6)。TipsSection -->
+    <string name="tip_word_select_title">터미널의 글자를 두 번 누르면 단어 단위로 선택됩니다</string>
+    <string name="tip_word_select_body">경로, 호스트 이름, IP 주소는 한 덩어리로 선택되며, 다음 줄로 넘어가 있어도 이어서 선택됩니다. 그 뒤에는 양 끝의 손잡이를 끌어 범위를 바꿀 수 있습니다. 마우스 입력을 받는 앱 화면에서는 두 번 누르기가 그 앱으로 전달됩니다.</string>
+</resources>

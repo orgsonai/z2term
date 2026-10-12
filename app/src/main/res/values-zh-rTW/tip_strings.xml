@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 小技 (Tips): 端末のダブルタップ選択 (1.0.6)。TipsSection -->
+    <string name="tip_word_select_title">點兩下終端裡的文字，可以按單詞選取</string>
+    <string name="tip_word_select_body">路徑、主機名稱、IP 位址會作為一個整體被選取，即使折到下一行也會連起來選。選取之後，可以拖動兩端的控點來改變範圍。在讀取滑鼠操作的應用程式畫面裡，點兩下會交給那個應用程式。</string>
+</resources>

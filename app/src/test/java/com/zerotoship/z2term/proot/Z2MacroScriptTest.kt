@@ -113,6 +113,46 @@ class Z2MacroScriptTest {
         }
     }
 
+    /**
+     * `remove` は**同梱版と同じコピーだけ**を黙って消す (1.0.6)。違うコピーは自分で書き換えた分かも
+     * しれず、消すと戻せないので止める。同梱に無い名前 (= 自分で書いたマクロ) には触らない。
+     */
+    @Test
+    fun removeKeepsACopyYouEdited() {
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val (src, home) = fixture("new")
+        val copy = File(home, ".z2term/macros/demo.sh")
+        val own = File(home, ".z2term/macros/mine.sh")
+        try {
+            val (_, absent) = run(src, home, "remove", "demo")
+            assertTrue("入っていないと言っていない: $absent", absent.contains("入っていません"))
+
+            run(src, home, "install", "demo")
+            own.writeText("#!/bin/sh\necho mine\n")
+            val (_, unknown) = run(src, home, "remove", "mine")
+            assertTrue("自分で書いたマクロを消している: $unknown", own.exists())
+
+            copy.writeText("#!/bin/sh\n# demo.sh — 見本\necho edited\n")
+            val (_, differs) = run(src, home, "remove", "demo")
+            assertTrue("書き換えたコピーを消している: $differs", copy.exists())
+            assertTrue("消す手段が出ていない: $differs", differs.contains("z2-macro remove -f demo.sh"))
+            assertTrue(
+                "diff より先に -f を勧めている: $differs",
+                differs.indexOf("z2-macro diff") < differs.indexOf("z2-macro remove -f")
+            )
+
+            run(src, home, "remove", "-f", "demo")
+            assertTrue("-f でも消えていない", !copy.exists())
+
+            run(src, home, "install", "demo")
+            val (_, removed) = run(src, home, "remove", "demo")
+            assertTrue("同じコピーが消えていない: $removed", !copy.exists())
+            assertTrue("消したと言っていない: $removed", removed.contains("消しました"))
+        } finally {
+            src.deleteRecursively(); home.deleteRecursively()
+        }
+    }
+
     /** `diff` は「どちらが自分の側か」が要る。左 (`<`) が端末のコピー。 */
     @Test
     fun diffShowsYourCopyOnTheLeft() {

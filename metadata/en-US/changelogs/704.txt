@@ -1,0 +1,7 @@
+1.0.6
+
+- What a guide added can now be put back when you decide not to use it.
+  "Clean up" on each row of "Show a guide" in Settings shows the steps on cards.
+- Added z2-macro remove, which deletes an installed bundled sample.
+- The Tips in Settings now mention that double-tapping text in the terminal
+  selects a word.

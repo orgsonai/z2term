@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 小技 (Tips): 端末のダブルタップ選択 (1.0.6)。TipsSection -->
+    <string name="tip_word_select_title">Toca dos veces un texto del terminal para seleccionar una palabra</string>
+    <string name="tip_word_select_body">Una ruta, un nombre de host o una dirección IP se seleccionan de una pieza, aunque continúen en la línea siguiente. Después, arrastra los tiradores de los extremos para cambiar el rango. En una pantalla donde una app lee el ratón, el doble toque va a esa app.</string>
+</resources>

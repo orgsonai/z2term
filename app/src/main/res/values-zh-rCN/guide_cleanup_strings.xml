@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内の片付け (1.0.6)。Guide.cleanup -->
+    <string name="settings_guide_cleanup">清理</string>
+    <string name="settings_guides_cleanup_desc">按“清理”会用同样的卡片显示删除该向导所添加内容的步骤。不点卡片就什么都不会删除。</string>
+    <string name="guide_cleanup_heading">清理添加的内容</string>
+    <string name="guide_cleanup_hint">点击执行（会先用 Ctrl-C 丢掉打了一半的内容再发送）／ 要保留的用 ✕</string>
+    <string name="guide_undo_rules">删除调用这个宏的自动化规则</string>
+    <string name="guide_undo_macro">删除这个宏（如果你自己改过，就不删除并停下）</string>
+    <string name="guide_undo_notify_off">如果别处不用：⚙设置 → 关闭“通知检测”</string>
+    <string name="guide_undo_sms_off">如果别处不用：⚙设置 → 关闭“短信检测”</string>
+    <string name="guide_undo_remind_all">取消已登记的全部提醒</string>
+    <string name="guide_undo_remind_tiles">清空分配给 remind.sh 的磁贴位</string>
+    <string name="guide_undo_remind_data">删除提醒的记录（要保留就按 ✕）</string>
+    <string name="guide_undo_rss_data">删除订阅列表和收集到的文章（要保留就按 ✕）</string>
+    <string name="guide_undo_edge_main">删除示例应用列表面板 main（你自己加的项目也会一起删除）</string>
+    <string name="guide_undo_edge_samples">删除三个示例面板（记事本里的内容也会删除）</string>
+    <string name="guide_undo_edge_off">如果没有在用别的面板，就关闭面板（边条会消失）</string>
+    <string name="guide_undo_permissions">“显示在其他应用的上层”和无障碍的许可只能在 Android 的设置里关闭。如果别的功能在用，请保持原样。</string>
+</resources>
