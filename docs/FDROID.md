@@ -118,9 +118,9 @@ F-Droid は**タグを指定してビルドする**ので、先にリリース�
 `docs/RELEASE.md` の通り。
 
 ```sh
-git tag v1.0.5
-git push origin v1.0.5
-git push github v1.0.5
+git tag v1.0.9
+git push origin v1.0.9
+git push github v1.0.9
 ```
 
 ⚠ **yml の `commit:` に書いたタグが GitHub に無いとビルドできない。**
@@ -160,14 +160,15 @@ done
 
 ### いま提出先に決めてあるタグ
 
-`metadata/com.zerotoship.z2term.yml` の `Builds:` は **1.0.5 (versionCode 703) /
-`v1.0.5` のコミット**を指している。2026-10-11 に、候補の 0.9.x ではなく**安定版から提出する**方針に決め、
+`metadata/com.zerotoship.z2term.yml` の `Builds:` は **1.0.9 (versionCode 707) /
+`v1.0.9` のコミット**を指している。2026-10-11 に、候補の 0.9.x ではなく**安定版から提出する**方針に決め、
 その時点の最新だった 1.0.1 (699) で提出した。同じ日の審査中に、フォント 4 つ (自作の Z2 Mono を含む) が
 入る 1.0.5 へ向け直した (審査の途中で版を上げるのは差し支えない。レシピの prebuild / scanignore は同じ)。
+2026-10-12 に 1.0.9 を出したので、レシピも 1.0.9 へ向け直した (マージ前に新しい版を出したら合わせるよう審査で求められている。変えたのは版数とコミットだけ)。
 2026-10-12 に審査の指摘を受け、ネイティブを作る prebuild の 3 行目と jniLibs の `scanignore` を外した (§1)。
-`v1.0.0` 〜 `v1.0.5` は GitHub に公開済み。
+`v1.0.0` 〜 `v1.0.5` と `v1.0.9` は GitHub に公開済み (1.0.6〜1.0.8 はタグを打っていない)。
 
-更新内容 `metadata/{ja-JP,en-US}/changelogs/703.txt` は用意済み (いずれも 500 文字以内)。
+更新内容 `metadata/{ja-JP,en-US}/changelogs/707.txt` は用意済み (いずれも 500 文字以内)。
 `698.txt` (1.0.0) と、それ以前の版向けの `647.txt` / `651.txt` / `664.txt` はビルド定義に載っていないので読まれない。
 
 ---
@@ -229,6 +230,8 @@ Fira Code / Z2 Mono) が入っている。下の箇条書きは 1.0.0 のとき�
 1.0.5 (703) をもう一度流し、通った。** `fdroid lint` は指摘なし。scanner が「Ignoring」で通したのは
 `kkc_matrix.bin` の 1 件だけで、6 つの .so は Gradle のビルド中に作られて APK に入った
 (APK の大きさは外す前と同じ 27,682,544 バイト)。
+✅ **同じ日に 1.0.9 (707) でも流し、通った** (公開済みの `v1.0.9` のコミット、本番と同じ `Repo:`)。`fdroid lint` は指摘なし。
+できた APK は `com.zerotoship.z2term` / 707 / 1.0.9 で、27,712,204 バイト。レシピで変えたのは版数とコミットだけ。
 
 - `fdroid lint` の指摘は、差し替えた `Repo:` に対する `git URLs must use https://` だけ (想定どおり)
 - prebuild 3 行が順に通り、z2root など 6 つの .so (`libz2root` / `libz2accept` / `libz2attach` /

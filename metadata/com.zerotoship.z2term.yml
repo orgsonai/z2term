@@ -28,10 +28,10 @@ RepoType: git
 Repo: https://github.com/orgsonai/z2term
 
 Builds:
-  - versionName: 1.0.5
-    versionCode: 703
-    # タグ名ではなくコミットの完全なハッシュで指す (fdroiddata の決まり)。v1.0.5 のコミット。
-    commit: b13f3e818adcaba672667e6e9e4d9004d25751b0
+  - versionName: 1.0.9
+    versionCode: 707
+    # タグ名ではなくコミットの完全なハッシュで指す (fdroiddata の決まり)。v1.0.9 のコミット。
+    commit: 28213703ffeffe991fd2bf2958cf105b8959783d
     subdir: app
     # NDK は fdroidserver が sdkmanager で自動導入し、パスを $$NDK$$ で渡してくる。
     # ソースは NDK 27 以降で確認している。
@@ -73,7 +73,7 @@ Builds:
 #    F-Droid のビルドには入らず、端末の monospace だけになっていた。
 
 AutoUpdateMode: Version
-# 提出は安定版から。最初は 1.0.1 で出し、審査中に 1.0.5 (フォント 4 つを含む版) へ向け直した。-alpha 付きのタグは F-Droid では拾わない (docs/FDROID.md §6)。
+# 提出は安定版から。最初は 1.0.1 で出し、審査中に 1.0.5 (フォント 4 つを含む版)、続いて 1.0.9 へ向け直した (新しい版を出したらレシピも合わせるよう審査で求められている)。-alpha 付きのタグは F-Droid では拾わない (docs/FDROID.md §6)。
 UpdateCheckMode: Tags ^v[0-9.]+$
-CurrentVersion: 1.0.5
-CurrentVersionCode: 703
+CurrentVersion: 1.0.9
+CurrentVersionCode: 707
