@@ -13,8 +13,8 @@ It runs Alpine, Ubuntu, Arch and Kali without root, opens a Linux desktop in a t
 * It can ask you things: "z2-ask" puts a question in the notification shade and reads your reply into a shell variable
 * Automation hub: "z2-when" runs scripts on device events (charging, battery level, time or cron, Wi-Fi, connectivity, boot, a share from another app, an incoming SMS, sensors, an arriving notification, a new file), narrowed by filters. Rules are plain text and survive reboots without opening the app.
 * Resident servers: register any server as a start command and keep it running in the background without the app being open
-* Edge panels: a panel that floats over other apps, holding buttons, notes, a mini terminal and your own macros. Open it by swiping the bar at the screen edge
-* Action automation: record taps, swipes and gestures and play them back; steps combine with repeats, conditions and calls to other macros, and run from a tile, a widget or an edge panel
+* Edge panels: "z2-edge" builds a panel that floats over other apps. It holds commands, macros and app launches as buttons, plus notes and a mini terminal. Open it by swiping the bar at the screen edge; it can be edited on screen as well
+* Screen actions: "z2-action" sends taps, swipes and gestures from the shell. Steps live in a plain text file with repeats, conditions and calls to other step files. They can also be edited on screen or recorded by tracing with a finger, and run from a tile, a widget or an edge panel
 * QR tools: scan and create QR codes offline, with a history; "z2-qr" makes one from the terminal as well
 * Screenshots of just what you want: "z2-shot" grabs the screen, you draw around the part to keep, then save or share it
 * Read what you built: "z2-view" opens a page made on the terminal inside the app, with JavaScript and network loads switched off
