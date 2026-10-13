@@ -20,6 +20,8 @@ package com.zerotoship.z2term.settings
  * cooldown=30m
  * between=22:00-07:00
  * days=mon-fri
+ * answer=続けますか? [y/N]=>y
+ * secret=Password:
  * order=0
  * ```
  *
@@ -101,6 +103,14 @@ data class WhenRule(
      * 時間帯」に通知が飛ぶのは驚きでしかないため。
      */
     val otherwise: String = "",
+    /**
+     * `answer=` / `secret=` … コマンドが端末へ聞いてきたときの返事 (空 = 何も送らない。1.0.12)。
+     *
+     * 画面なしの実行には答える人が居ないので、確認やパスワードを聞くコマンドはそこで止まっていた。
+     * `answer=<聞かれる文言>=><返事>` は何行でも書ける。`secret=<聞かれる文言>` は入力を隠す返事で、
+     * **中身はこのファイルに書かない** (アプリの中に暗号化して置く。ここでは [PromptAnswer.text] は空)。
+     */
+    val answers: List<PromptAnswer> = emptyList(),
 ) {
     /**
      * トリガーの種別 (`:` の手前)。例: `charge` / `battery` / `time`。
@@ -141,6 +151,10 @@ data class WhenRule(
         if (cooldown.isNotEmpty()) append("cooldown=").append(cooldown).append('\n')
         if (between.isNotEmpty()) append("between=").append(between).append('\n')
         if (days.isNotEmpty()) append("days=").append(days).append('\n')
+        answers.forEach { a ->
+            if (a.secret) append("secret=").append(a.prompt).append('\n')
+            else append("answer=").append(a.prompt).append(PromptAnswer.SEPARATOR).append(a.text).append('\n')
+        }
         if (order != NO_ORDER) append("order=").append(order).append('\n')
     }
 
@@ -161,6 +175,7 @@ data class WhenRule(
             var name = ""
             var conditionAny = ""
             var otherwise = ""
+            val answers = ArrayList<PromptAnswer>()
             text.lineSequence().forEach { line ->
                 val eq = line.indexOf('=')
                 if (eq <= 0) return@forEach
@@ -185,12 +200,16 @@ data class WhenRule(
                     "days" -> days = value.trim()
                     // 名前は人が読む文字列なので中の空白は保つ (前後だけ落とす)。
                     "name" -> name = value.trim()
+                    // 返事は中の空白に意味がある (空白 1 つを送る等) ので、末尾 CR だけ落とす。
+                    "answer" -> PromptAnswer.parse(value.trimEnd('\r'))?.let { answers += it }
+                    "secret" -> value.trim().takeIf { it.isNotEmpty() }
+                        ?.let { answers += PromptAnswer(it, secret = true) }
                 }
             }
             if (trigger.isBlank() || run.isBlank()) return null
             return WhenRule(
                 id, trigger, run, enabled, order, condition, cooldown, between, days, name,
-                conditionAny, otherwise,
+                conditionAny, otherwise, answers,
             )
         }
     }

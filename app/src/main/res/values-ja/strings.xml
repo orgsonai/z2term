@@ -915,6 +915,16 @@
     <string name="when_cooldown_field">cooldown = 前の実行からこの時間は動かさない</string>
     <string name="when_between_field">between = この時間帯だけ</string>
     <string name="when_days_field">days = この曜日だけ</string>
+    <string name="when_answer_title">コマンドに聞かれたときの返事</string>
+    <string name="when_answer_prompt">聞かれる文言（行の終わり）</string>
+    <string name="when_answer_text">返事</string>
+    <string name="when_answer_text_hint">空なら Enter だけ</string>
+    <string name="when_answer_stored_hint">保存済み（変えるときだけ入力）</string>
+    <string name="when_answer_secret">入力を隠す（パスワード）</string>
+    <string name="when_answer_add">＋ 返事を追加</string>
+    <string name="when_answer_remove">削除</string>
+    <string name="when_answer_note">出力の最後の行がこの文言で終わったら、返事と Enter を送ります。隠す返事は、端末が打った文字を表示しない状態のときだけ送ります。中身はルールファイルではなく、アプリの中に暗号化して保存します。</string>
+    <string name="when_answer_secret_missing">隠す返事の中身を入力してください。</string>
     <string name="when_form_trigger_empty">きっかけを入れてください。</string>
     <string name="when_form_trigger_unknown">知らないきっかけです: %1$s（下の候補から選べます）</string>
     <string name="when_form_trigger_bad_spec">きっかけの書き方が違います: %1$s（下の候補から選べます）</string>

@@ -9,7 +9,7 @@ package com.zerotoship.z2term.settings
  * 分からない**。組んだそばから 1 行で見えれば、その 2 つが同じものだと画面の上で分かる。
  *
  * ⚠ **貼れば同じルールがもう 1 本できる**ことがこの関数の責任。引数の並びは `z2-when` の usage と
- * 同じにする (トリガー → `name=` / `if=` / `if_any=` / `else=` / `cooldown=` / `between=` / `days=`
+ * 同じにする (トリガー → `name=` / `if=` / `if_any=` / `else=` / `cooldown=` / `between=` / `days=` / `answer=` / `secret=`
  * → `run` → コマンド)。`z2-when` は `run` の**後ろを全部コマンド**として読む (`"$*"`) ので、
  * コマンドは 1 引数にまとめてクォートする。
  */
@@ -39,6 +39,11 @@ object WhenCommandLine {
         if (rule.cooldown.isNotEmpty()) parts += "cooldown=" + quote(rule.cooldown)
         if (rule.between.isNotEmpty()) parts += "between=" + quote(rule.between)
         if (rule.days.isNotEmpty()) parts += "days=" + quote(rule.days)
+        // 隠す返事は文言だけ (中身はこの行に出さない。貼った先では編集画面で入れ直す)。
+        rule.answers.forEach { a ->
+            parts += if (a.secret) "secret=" + quote(a.prompt)
+            else "answer=" + quote(a.prompt + PromptAnswer.SEPARATOR + a.text)
+        }
         parts += "run"
         parts += quote(rule.run)
         return parts.joinToString(" ")

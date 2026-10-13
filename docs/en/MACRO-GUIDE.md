@@ -583,7 +583,8 @@ z2-when notify:otp run 'z2-notify -h -c "$Z2_WHEN_OTP" "One-time code" "$Z2_WHEN
   trigger**, which is how you shake out mistakes in the script itself.
 - If something runs away, `z2-when pause` (or "Pause automatic runs" in the Automation tab).
   **No trigger fires anything** while paused, the rules stay, and ▶ still works.
-- Registered commands run through `sh -lc` (inside the selected distro) each time they fire.
+- Registered commands run in **the same shell as a terminal tab** (inside the selected distro) each time
+  they fire (1.0.12; it reads the tab's startup files such as `.zshrc` / `.bashrc`, so what works in a tab works here).
   **Wrap the whole command in single quotes when you use `Z2_WHEN_*`**
   (`run 'z2-toast "$Z2_WHEN_EVENT"'`). With double quotes, **the shell you are registering from
   expands it first** and an empty string gets stored.

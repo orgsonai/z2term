@@ -709,7 +709,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |mkdir -p "${d}DIR" 2>/dev/null
         |reload() { /usr/local/bin/z2api 0 when-reload >/dev/null 2>&1 || true; }
         |usage() {
-        |  echo "usage: z2-when <trigger> [name=..] [if=..] [if_any=..] [else=..] [cooldown=..] [between=..] [days=..] run <cmd...>" >&2
+        |  echo "usage: z2-when <trigger> [name=..] [if=..] [if_any=..] [else=..] [cooldown=..] [between=..] [days=..] [answer=..] [secret=..] run <cmd...>" >&2
         |  echo "       z2-when list | events | pause | resume | fired [n] | remove <id|all> | on <id> | off <id> | log <id>" >&2
         |  exit 1
         |}
@@ -788,7 +788,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    trig="${d}1"; shift
         |    # 絞り込み (0.8.263) はトリガーの直後に置く。run の後ろは**全部コマンド**という
         |    # 今までの読み方を変えないため (コマンド側に if= が現れても誤解しない)。
-        |    zif=""; zcool=""; zbetw=""; zdays=""; zname=""; zifany=""; zelse=""
+        |    zif=""; zcool=""; zbetw=""; zdays=""; zname=""; zifany=""; zelse=""; zans=""
         |    while [ ${d}# -ge 1 ]; do
         |      case "${d}1" in
         |        name=*)     zname="${d}{1#name=}"; shift ;;
@@ -802,6 +802,11 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |        cooldown=*) zcool="${d}{1#cooldown=}"; shift ;;
         |        between=*)  zbetw="${d}{1#between=}"; shift ;;
         |        days=*)     zdays="${d}{1#days=}"; shift ;;
+        |        # 聞かれたときの返事 (1.0.12)。何個でも書けるので、ルールファイルの行のまま溜める。
+        |        # secret= は文言だけ (中身はアプリの編集画面で入れ、アプリの中に暗号化して置く)。
+        |        answer=*=\>*|secret=?*)
+        |                    zans="${d}zans${d}(printf '%s' "${d}1" | tr '\n\r' '  ')
+        |"; shift ;;
         |        run)        shift; break ;;
         |        *)          break ;;
         |      esac
@@ -869,6 +874,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |      [ -n "${d}zcool" ] && printf 'cooldown=%s\n' "${d}zcool"
         |      [ -n "${d}zbetw" ] && printf 'between=%s\n' "${d}zbetw"
         |      [ -n "${d}zdays" ] && printf 'days=%s\n' "${d}zdays"
+        |      [ -n "${d}zans" ] && printf '%s' "${d}zans"
         |      true
         |    } > "${d}tmp"
         |    mv "${d}tmp" "${d}DIR/${d}id.rule" || { echo "${m.whenWriteFailed}" >&2; exit 1; }

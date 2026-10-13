@@ -934,6 +934,16 @@
     <string name="when_cooldown_field">cooldown = do not run again for this long</string>
     <string name="when_between_field">between = only in this time window</string>
     <string name="when_days_field">days = only on these days</string>
+    <string name="when_answer_title">What to reply when the command asks</string>
+    <string name="when_answer_prompt">When it asks (the end of the line)</string>
+    <string name="when_answer_text">Reply</string>
+    <string name="when_answer_text_hint">empty = just Enter</string>
+    <string name="when_answer_stored_hint">saved (type only to change it)</string>
+    <string name="when_answer_secret">Hide the input (password)</string>
+    <string name="when_answer_add">+ Add a reply</string>
+    <string name="when_answer_remove">Remove</string>
+    <string name="when_answer_note">When the last line of the output ends with this text, the reply and Enter are sent. A hidden reply is sent only while the terminal hides typed characters, and is kept encrypted inside the app, not in the rule file.</string>
+    <string name="when_answer_secret_missing">Enter the content of the hidden reply.</string>
     <string name="when_form_trigger_empty">Enter a trigger.</string>
     <string name="when_form_trigger_unknown">Unknown trigger: %1$s (pick one from the list below)</string>
     <string name="when_form_trigger_bad_spec">Malformed trigger: %1$s (pick one from the list below)</string>

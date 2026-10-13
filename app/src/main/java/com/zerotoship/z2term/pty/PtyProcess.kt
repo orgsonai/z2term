@@ -55,6 +55,12 @@ class PtyProcess private constructor(
      */
     fun foregroundPgid(): Int = if (closed) -1 else nativeForegroundPgid(fd)
 
+    /**
+     * 端末が打った文字を表示しない状態か (パスワードの入力待ち)。
+     * 取得できないときは false (隠す入力を、見える状態かもしれない端末へ送らないため)。
+     */
+    fun echoOff(): Boolean = !closed && nativeEchoOff(fd) == 1
+
     /** 終了コード（プロセスがまだ生きている場合は null） */
     val exitCode: Int?
         get() = completedExitCode ?: if (isAlive) null else {
@@ -219,6 +225,9 @@ class PtyProcess private constructor(
 
         @JvmStatic
         private external fun nativeForegroundPgid(fd: Int): Int
+
+        @JvmStatic
+        private external fun nativeEchoOff(fd: Int): Int
 
         @JvmStatic
         private external fun createFileDescriptor(fd: Int): FileDescriptor

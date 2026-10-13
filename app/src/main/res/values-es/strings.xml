@@ -866,6 +866,16 @@
     <string name="when_cooldown_field">cooldown = no volver a ejecutarla durante este tiempo</string>
     <string name="when_between_field">between = solo dentro de esta franja horaria</string>
     <string name="when_days_field">days = solo estos días</string>
+    <string name="when_answer_title">Qué responder cuando el comando pregunta</string>
+    <string name="when_answer_prompt">Cuando pregunta (el final de la línea)</string>
+    <string name="when_answer_text">Respuesta</string>
+    <string name="when_answer_text_hint">vacío = solo Enter</string>
+    <string name="when_answer_stored_hint">guardada (escribe solo para cambiarla)</string>
+    <string name="when_answer_secret">Ocultar la entrada (contraseña)</string>
+    <string name="when_answer_add">+ Añadir una respuesta</string>
+    <string name="when_answer_remove">Quitar</string>
+    <string name="when_answer_note">Cuando la última línea de la salida termina con este texto, se envían la respuesta y Enter. Una respuesta oculta solo se envía mientras el terminal oculta lo que se escribe, y se guarda cifrada dentro de la app, no en el archivo de la regla.</string>
+    <string name="when_answer_secret_missing">Introduce el contenido de la respuesta oculta.</string>
     <string name="when_form_trigger_empty">Escribe un disparador.</string>
     <string name="when_form_trigger_unknown">Disparador desconocido: %1$s (elige uno de la lista de abajo)</string>
     <string name="when_form_trigger_bad_spec">Disparador mal formado: %1$s (elige uno de la lista de abajo)</string>

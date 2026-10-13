@@ -1,0 +1,6 @@
+1.0.12
+
+- Automation, tiles, widgets and edge-panel buttons now run in the same
+  shell as a terminal tab, so a command that works in a tab works there.
+- Automation rules can hold replies to what a command asks, so commands
+  asking for confirmation or a password finish without a screen.

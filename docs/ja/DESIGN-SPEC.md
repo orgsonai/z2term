@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-13 / 対象バージョン: 1.0.11 (versionCode 709)
+最終更新: 2026-10-13 / 対象バージョン: 1.0.12 (versionCode 710)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -821,7 +821,9 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 - **0.8.214 で受け口を `SystemEventService` の動的レシーバへ移した**（`handlePower` / `handleBatteryLowOkay`）。wifi / sms / sensor と同じく **`charge:*` / `battery:*` も「検知 ON」が前提**になる。§10-1 の「常駐を増やさず回す」はこの範囲で撤回。
 - 電池しきい値は充電の抜き差し・`BATTERY_LOW`/`OKAY` に加えて、**残量が 1% 変わるたび**に `WhenManager.onBatteryChanged` を呼ぶ（`SystemEventService.handleBatteryLevel`）。0.8.213 までは 10% 刻みの境界でしか評価せず、`battery:above=40` が 40%→44% で発火しない・発火しても最大 10% 遅れて `Z2_WHEN_LEVEL` が実値とズレる、という「跨いだ瞬間」の説明と食い違う状態だった。`events.jsonl` の `battery_level` イベントは従来どおり 10% 刻み（ログを汚さないため）。エッジ判定なので二重に呼ばれても跨いだ瞬間しか発火せず、前回値と同じなら `.battlevel` の書き戻しもしない。
 
-**実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の追加 env（wifi: `Z2_WHEN_SSID` / sms: `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP` / sensor: `Z2_WHEN_SENSOR`・`Z2_WHEN_LUX` / event: `Z2_WHEN_EVENT`・`Z2_WHEN_EVENT_NAME`・`Z2_WHEN_ACTION`）で渡す（外部入力をシェルへ文字列展開しない安全境界。値は単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
+**実行**: 発火すると「そのとき選ばれている distro」で `<run>` を **headless 起動**（`ServerDaemonManager` と同じ launch + drain パターン）。**シェルは端末タブと同じもの（1.0.12）**: `ProotLauncher.loginShell`（root のログインシェル → distro 既定 → `/bin/sh`）を取り、`-l -i -c` で起動する（bash だけ `-i -c`。ログインシェルの bash は `~/.bashrc` を自分では読まないため）。`-i` でタブと同じ起動ファイル（`.zshrc`・`.bashrc`・`$ENV`）を読み、`-l` で従来どおり `/etc/profile` 系も読む。sh 系以外のログインシェルは `/bin/sh` のまま（渡すスクリプトが sh の書き方のため）。それまでは常に `/bin/sh -lc` で、タブの起動ファイルに書いた環境変数が届かず「タブでは通るコマンドが自動化では失敗する」ことがあった（実機で指摘）。この経路は `HeadlessRun` に 1 本化してあるので、タイル・ウィジェット・エッジパネルのボタンにも同じく効く。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の追加 env（wifi: `Z2_WHEN_SSID` / sms: `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP` / sensor: `Z2_WHEN_SENSOR`・`Z2_WHEN_LUX` / event: `Z2_WHEN_EVENT`・`Z2_WHEN_EVENT_NAME`・`Z2_WHEN_ACTION`）で渡す（外部入力をシェルへ文字列展開しない安全境界。値は単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
+
+**聞かれたときの返事（1.0.12）**: 画面なしの実行には答える人が居ないため、確認やパスワードを聞くコマンドは入力待ちのまま終わらなかった。ルールに `answer=<聞かれる文言>=><返事>`（何行でも）と `secret=<聞かれる文言>` を書けるようにし、`HeadlessRun` が出力を読みながら答える（`PromptResponder`）。判定は**出力の最後の行が文言で終わること**（色などの制御列と CR は落として比べる・大小文字は区別しない・複数合えば長い文言）。隠さない返事は出力が 200ms 止まってから送り、同じ質問には来るたびに答える（1 回の実行で 50 回まで。超えたら止める）。`secret` は**端末が ECHO を落としているときだけ**送る（pty master の `tcgetattr`。表示する状態の端末へ送ると返事がログに残るため。5 秒待っても隠す状態にならなければ送らない）。1 回の実行で 1 回だけで、もう一度聞かれたら受け付けられなかったと見て実行を止める（間違った内容を送り続けない）。`secret` の中身はルールファイルに書かず、`filesDir/when_secrets/<id>` に Android Keystore の鍵で暗号化して置く（`WhenSecrets`。Linux 側からは見えず、鍵は端末ごと）。入力はルール編集画面だけで、CLI からは文言の登録まで。送った返事そのものはログへ書かない（隠す返事を送ったこと・送らなかった理由だけを 1 行残す）。
 
 **絞り込み（`if=` / `cooldown=` / `between=` / `days=`、0.8.263）**: ルールに**「動いていい状況か」**を足す任意項目。`trigger=` が「いつ動くか」を決めるのに対し、こちらは**どのトリガーにも同じように効く**。
 
@@ -1240,7 +1242,7 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 - `widget/WidgetConfigActivity`（`APPWIDGET_CONFIGURE`）… そのウィジェットに並べるマクロを選ぶ（最大 4）。API 31+ は `configuration_optional` を付けてあるので設定せずに置いてもよい（その場合はマクロディレクトリの先頭 4 件が並ぶ）。
 - `widget/WidgetStore`… ウィジェットごとの選択と「直近に走らせたマクロ」を **SharedPreferences** に保存する。ウィジェットは**アプリのプロセスが生きていない状態**で描画・タップされるので、非同期前提の DataStore ではなく同期で読める SharedPreferences を使う。マクロ本体はユーザーのファイル（`~/.z2term/macros/*.sh`）が正本で、ウィジェットは参照するだけ。
 
-**タップ実行の経路**: ボタンの `PendingIntent`（自分宛のブロードキャスト）→ `StatusWidgetProvider.onReceive` → `HeadlessRun.launch` → 完了を待たず再描画。**新しい常駐サービスは足さない**（電池要因を増やさない）。`HeadlessRun`（`service/HeadlessRun.kt`）は `z2-when` のルール実行から切り出した共通経路で、「選択中の distro で `sh -lc` を 1 回起動し、出力をログへ流し切る」処理を 1 本化している（呼び元が違っても肥大対策と pty の drain がズレない）。実行ログは `~/.z2term/widget/run.log`（端末から `tail` して確かめられる）。マクロ名は実在ファイルからしか来ないが、シェルへは単一引用符で渡して展開させない（`z2-when` と同じ安全境界）。
+**タップ実行の経路**: ボタンの `PendingIntent`（自分宛のブロードキャスト）→ `StatusWidgetProvider.onReceive` → `HeadlessRun.launch` → 完了を待たず再描画。**新しい常駐サービスは足さない**（電池要因を増やさない）。`HeadlessRun`（`service/HeadlessRun.kt`）は `z2-when` のルール実行から切り出した共通経路で、「選択中の distro でタブと同じシェルを 1 回起動し、出力をログへ流し切る」処理を 1 本化している（呼び元が違っても肥大対策と pty の drain がズレない）。実行ログは `~/.z2term/widget/run.log`（端末から `tail` して確かめられる）。マクロ名は実在ファイルからしか来ないが、シェルへは単一引用符で渡して展開させない（`z2-when` と同じ安全境界）。
 
 **更新のきっかけは 3 つ**:
 1. OS の定期更新（`updatePeriodMillis` = 30 分。OS 側の下限なのでこれ以上は詰められない）

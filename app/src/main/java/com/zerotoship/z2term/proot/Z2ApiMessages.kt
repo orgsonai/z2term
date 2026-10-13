@@ -2588,6 +2588,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   cooldown=30m            … do not run again within that time (10s / 30m / 2h)
         |#   between=22:00-07:00     … only inside that window (wraps past midnight)
         |#   days=mon-fri            … only on those days (names or cron numbers 0-7, 0/7 = Sunday)
+        |#   answer='<prompt>=><reply>' … when the command asks this on the terminal, type the reply
+        |#                             and Enter (repeatable; e.g. answer='[y/N]=>y'). Matches the end
+        |#                             of the last output line.
+        |#   secret='<prompt>'       … same for a hidden reply (a password). Its content is entered in
+        |#                             the app's rule editor and kept encrypted inside the app.
         |# Skipped runs are recorded too — z2-when fired shows skip:if / skip:if→else / skip:between / skip:days
         |# / skip:cooldown, so a rule that never runs can be explained. The ▶ button in the app
         |# ignores every filter (it is there to try the rule out).
@@ -2659,6 +2664,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   cooldown=30m            … 前回の実行からこの時間は再実行しない (10s / 30m / 2h)
         |#   between=22:00-07:00     … この時間帯だけ実行 (日跨ぎ可)
         |#   days=mon-fri            … この曜日だけ実行 (曜日名か cron と同じ数字 0-7 / 0,7=日曜)
+        |#   answer='<文言>=><返事>'  … コマンドが端末でこう聞いてきたら、返事と Enter を送る
+        |#                             (何個でも書ける。例: answer='[y/N]=>y')。出力の最後の行の
+        |#                             終わりと比べる
+        |#   secret='<文言>'         … 入力を隠す返事 (パスワード) 用。中身はアプリのルール編集画面で
+        |#                             入れる (アプリの中に暗号化して保存。ルールファイルには書かない)
         |# 弾いたことも記録する — z2-when fired に skip:if / skip:if→else / skip:between / skip:days / skip:cooldown
         |# として出るので、「動かない理由」が分かる。アプリ画面の ▶ は絞り込みを無視する
         |# (試すためのボタンなので)。
@@ -2730,6 +2740,10 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   cooldown=30m            … 距上次执行这段时间内不再运行 (10s / 30m / 2h)
         |#   between=22:00-07:00     … 只在这个时间段执行 (可以跨零点)
         |#   days=mon-fri            … 只在这些星期执行 (星期名，或和 cron 一样的数字 0-7 / 0,7=周日)
+        |#   answer='<提示>=><回答>'  … 命令在终端这样询问时，送出回答和 Enter
+        |#                             (可写多个。例: answer='[y/N]=>y')。与输出最后一行的结尾比较
+        |#   secret='<提示>'         … 用于隐藏输入的回答 (密码)。内容在应用的规则编辑画面输入
+        |#                             (加密保存在应用内，不写入规则文件)
         |# 筛掉的也会记录 — z2-when fired 里会出现 skip:if / skip:if→else / skip:between / skip:days / skip:cooldown，
         |# 所以「为什么不动」是查得出来的。应用界面上的 ▶ 会无视所有筛选
         |# (它是用来试跑的按钮)。
@@ -2801,6 +2815,10 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   cooldown=30m            … 距上次執行這段時間內不再執行 (10s / 30m / 2h)
         |#   between=22:00-07:00     … 只在這個時間段執行 (可以跨零點)
         |#   days=mon-fri            … 只在這些星期執行 (星期名，或和 cron 一樣的數字 0-7 / 0,7=週日)
+        |#   answer='<提示>=><回答>'  … 指令在終端這樣詢問時，送出回答和 Enter
+        |#                             (可寫多個。例: answer='[y/N]=>y')。與輸出最後一行的結尾比較
+        |#   secret='<提示>'         … 用於隱藏輸入的回答 (密碼)。內容在應用程式的規則編輯畫面輸入
+        |#                             (加密儲存在應用程式內，不寫入規則檔)
         |# 篩掉的也會記錄 — z2-when fired 裡會出現 skip:if / skip:if→else / skip:between / skip:days / skip:cooldown，
         |# 所以「為什麼不動」是查得出來的。應用程式介面上的 ▶ 會無視所有篩選
         |# (它是用來試跑的按鈕)。
@@ -2872,6 +2890,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   cooldown=30m            … no repetirla dentro de ese tiempo (10s / 30m / 2h)
         |#   between=22:00-07:00     … solo dentro de esa franja (puede cruzar la medianoche)
         |#   days=mon-fri            … solo esos días (nombres o números de cron 0-7, 0/7 = domingo)
+        |#   answer='<texto>=><respuesta>' … cuando el comando pregunta esto en el terminal, escribe la
+        |#                             respuesta y Enter (repetible; p. ej. answer='[y/N]=>y'). Se compara
+        |#                             con el final de la última línea de salida.
+        |#   secret='<texto>'        … lo mismo para una respuesta oculta (una contraseña). Su contenido se
+        |#                             introduce en el editor de reglas de la app y se guarda cifrado en ella.
         |# Las ejecuciones descartadas también se anotan: z2-when fired muestra skip:if / skip:if→else /
         |# skip:between / skip:days / skip:cooldown, así que una regla que nunca corre se puede explicar.
         |# El botón ▶ de la aplicación ignora todos los filtros (está para probar la regla).
@@ -2944,6 +2967,10 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   cooldown=30m                       … 그 시간 안에는 되풀이하지 않습니다 (10s / 30m / 2h)
         |#   between=22:00-07:00                … 그 시간대에만 (자정을 넘겨도 됩니다)
         |#   days=mon-fri                       … 그 요일에만 (이름이나 cron의 숫자 0-7. 0/7 = 일요일)
+        |#   answer='<문구>=><답>'    … 명령이 터미널에서 이렇게 물으면 답과 Enter 를 보냅니다
+        |#                             (여러 개 가능. 예: answer='[y/N]=>y'). 출력 마지막 줄의 끝과 비교합니다
+        |#   secret='<문구>'         … 입력을 숨기는 답 (비밀번호) 용. 내용은 앱의 규칙 편집 화면에서 입력합니다
+        |#                             (앱 안에 암호화해 저장하며 규칙 파일에는 쓰지 않습니다)
         |# 걸러진 실행도 기록합니다: z2-when fired가 skip:if / skip:if→else / skip:between / skip:days /
         |# skip:cooldown을 보여 주므로, 한 번도 돌지 않는 규칙의 이유를 댈 수 있습니다.
         |# 앱의 ▶ 버튼은 거르기를 모두 무시합니다 (규칙을 시험해 보라고 있는 것입니다).

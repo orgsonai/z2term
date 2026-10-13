@@ -60,6 +60,8 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.service.Z2ApiBridge
 import com.zerotoship.z2term.service.WhenGuard
 import com.zerotoship.z2term.service.WhenManager
+import com.zerotoship.z2term.service.WhenSecrets
+import com.zerotoship.z2term.settings.PromptAnswer
 import com.zerotoship.z2term.settings.WhenRule
 import com.zerotoship.z2term.settings.WhenTriggerCatalog
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
@@ -190,7 +192,7 @@ fun WhenRulesBody() {
             WhenRuleEditForm(
                 initial = currentEdit,
                 isNew = isNew,
-                onSave = { saved ->
+                onSave = { saved, secrets ->
                     scope.launch(Dispatchers.IO) {
                         // 新規は id を持たせずに開くので、保存する瞬間に採番する
                         // (作りかけで閉じたときに空のルールファイルを残さないため)。
@@ -199,6 +201,12 @@ fun WhenRulesBody() {
                         } else {
                             saved
                         }
+                        // 隠す返事の中身はルールファイルとは別に置く。実行より先に揃えておく。
+                        WhenSecrets.save(
+                            context, rule.id,
+                            keep = rule.answers.filter { it.secret }.map { it.prompt },
+                            updates = secrets,
+                        )
                         WhenManager.saveRule(context, rule)
                         reloadTick++
                     }
@@ -530,11 +538,15 @@ private fun WhenRuleRow(
 private fun WhenRuleEditForm(
     initial: WhenRule,
     isNew: Boolean,
-    onSave: (WhenRule) -> Unit,
+    /** 2 つ目は**今回入れ直した**隠す返事 (聞かれる文言 → 中身)。触っていないものは入らない。 */
+    onSave: (WhenRule, Map<String, String>) -> Unit,
     onCancel: () -> Unit,
 ) {
     val context = LocalContext.current
     var name by remember(initial.id) { mutableStateOf(initial.name) }
+    // 聞かれたときの返事 (1.0.12)。隠す返事の中身は画面へ読み戻さない (保存済みかどうかだけ見る)。
+    var answerRows by remember(initial.id) { mutableStateOf(initial.answers) }
+    val storedSecrets = remember(initial.id) { WhenSecrets.storedPrompts(context, initial.id) }
     var trigger by remember(initial.id) { mutableStateOf(initial.trigger) }
     var run by remember(initial.id) { mutableStateOf(initial.run) }
     var condition by remember(initial.id) { mutableStateOf(initial.condition) }
@@ -578,6 +590,7 @@ private fun WhenRuleEditForm(
     val msgRunMultiline = stringResource(R.string.when_form_run_multiline)
     val msgIfUnknown = stringResource(R.string.when_form_if_unknown)
     val msgCondIncomplete = stringResource(R.string.when_cond_incomplete)
+    val msgAnswerSecretMissing = stringResource(R.string.when_answer_secret_missing)
 
     Text(
         text = if (isNew) stringResource(R.string.when_new_rule_title)
@@ -800,6 +813,67 @@ private fun WhenRuleEditForm(
         placeholder = "mon-fri"
     )
 
+    // --- 聞かれたときの返事 (1.0.12) -----------------------------------------
+    Text(
+        text = stringResource(R.string.when_answer_title),
+        color = ZtsTextSecondary,
+        fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace
+    )
+    answerRows.forEachIndexed { index, row ->
+        fun update(next: PromptAnswer) {
+            answerRows = answerRows.toMutableList().also { it[index] = next }
+        }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(6.dp))
+                .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                .padding(8.dp)
+        ) {
+            Field(
+                label = stringResource(R.string.when_answer_prompt),
+                value = row.prompt,
+                onChange = { update(row.copy(prompt = it.replace("\n", " ").replace("\r", ""))) },
+                placeholder = "Password:"
+            )
+            Field(
+                label = stringResource(R.string.when_answer_text),
+                value = row.text,
+                onChange = { update(row.copy(text = it.replace("\n", "").replace("\r", ""))) },
+                placeholder = stringResource(
+                    if (row.secret && row.prompt.trim() in storedSecrets) R.string.when_answer_stored_hint
+                    else R.string.when_answer_text_hint
+                ),
+                secret = row.secret
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ModeChip(
+                    label = stringResource(R.string.when_answer_secret),
+                    selected = row.secret,
+                    onClick = { update(row.copy(secret = !row.secret)) }
+                )
+                Box(modifier = Modifier.weight(1f))
+                PillButton(label = stringResource(R.string.when_answer_remove)) {
+                    answerRows = answerRows.toMutableList().also { it.removeAt(index) }
+                }
+            }
+        }
+    }
+    PillButton(label = stringResource(R.string.when_answer_add)) {
+        answerRows = answerRows + PromptAnswer("")
+    }
+    Text(
+        text = stringResource(R.string.when_answer_note),
+        color = ZtsTextSecondary,
+        fontSize = 10.sp,
+        fontFamily = FontFamily.Monospace
+    )
+
     // --- 端末で言うとこう (0.8.375) ------------------------------------------
     // ⚠ **保存する中身とプレビューは 1 か所で組む**。別々に組むと「画面に出ているコマンド」と
     // 「保存されるルール」がズレて、コピーして貼った 1 行が別のルールになる。
@@ -822,6 +896,9 @@ private fun WhenRuleEditForm(
         cooldown = cooldown.trim(),
         between = between.trim(),
         days = days.trim(),
+        // 文言が空の行は捨てる。隠す返事の中身はルールへ入れない (別に保存する)。
+        answers = answerRows.filter { it.prompt.isNotBlank() }
+            .map { PromptAnswer(it.prompt.trim(), if (it.secret) "" else it.text, it.secret) },
     )
     Text(
         text = stringResource(R.string.when_cmd_title),
@@ -903,9 +980,15 @@ private fun WhenRuleEditForm(
             // ビルダーで組んだ条件は**往復で検証する** (組み立てた文字列を読み直せなければ、
             // 値の入れ忘れなどで画面の見た目と実際の式がズレている)。
             val incomplete = builtSpec != null && WhenConditionSpec.parse(builtSpec) == null
-            error = problem ?: if (incomplete) msgCondIncomplete else null
+            // 隠す返事は、中身が保存済みか今回入れたものでないと送るものが無い。
+            val secretRows = answerRows.filter { it.secret && it.prompt.isNotBlank() }
+            val secretMissing = secretRows.any { it.text.isEmpty() && it.prompt.trim() !in storedSecrets }
+            error = problem ?: if (incomplete) msgCondIncomplete
+                else if (secretMissing) msgAnswerSecretMissing else null
             // 画面に出ているコマンドと同じもの ([edited]) をそのまま保存する。
-            if (error == null) onSave(edited)
+            if (error == null) {
+                onSave(edited, secretRows.filter { it.text.isNotEmpty() }.associate { it.prompt.trim() to it.text })
+            }
         }
     }
 }

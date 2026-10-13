@@ -850,6 +850,16 @@
     <string name="when_cooldown_field">cooldown = 이 시간 동안은 다시 실행하지 않기</string>
     <string name="when_between_field">between = 이 시간대에만</string>
     <string name="when_days_field">days = 이 요일에만</string>
+    <string name="when_answer_title">명령이 물을 때의 답</string>
+    <string name="when_answer_prompt">묻는 문구 (줄의 끝)</string>
+    <string name="when_answer_text">답</string>
+    <string name="when_answer_text_hint">비우면 Enter 만</string>
+    <string name="when_answer_stored_hint">저장됨 (바꿀 때만 입력)</string>
+    <string name="when_answer_secret">입력 숨기기 (비밀번호)</string>
+    <string name="when_answer_add">+ 답 추가</string>
+    <string name="when_answer_remove">삭제</string>
+    <string name="when_answer_note">출력의 마지막 줄이 이 문구로 끝나면 답과 Enter 를 보냅니다. 숨기는 답은 터미널이 입력한 글자를 표시하지 않는 상태일 때만 보내며, 내용은 규칙 파일이 아니라 앱 안에 암호화해 저장합니다.</string>
+    <string name="when_answer_secret_missing">숨기는 답의 내용을 입력하세요.</string>
     <string name="when_form_trigger_empty">트리거를 입력하세요.</string>
     <string name="when_form_trigger_unknown">모르는 트리거입니다: %1$s (아래 목록에서 고르세요)</string>
     <string name="when_form_trigger_bad_spec">트리거의 형태가 잘못되었습니다: %1$s (아래 목록에서 고르세요)</string>

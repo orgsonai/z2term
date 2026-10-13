@@ -797,7 +797,20 @@ object WhenManager {
             // ルールのログを見ているライブ tail ウィジェット (D2) があれば描き直す。
             // 置かれていなければ何もしない (常駐は増やさない)。
             onExit = { runCatching { TailWidgetProvider.refresh(app) } },
+            answers = answersFor(context, rule),
         )
+    }
+
+    /**
+     * ルールの返事を、送れる形にする。隠す返事はアプリの中の保存先 ([WhenSecrets]) から中身を足す。
+     * 中身が保存されていないもの (別の端末から写したルール等) は外す — 空の返事を送らない。
+     */
+    private fun answersFor(context: Context, rule: WhenRule): List<com.zerotoship.z2term.settings.PromptAnswer> {
+        if (rule.answers.none { it.secret }) return rule.answers
+        val stored = WhenSecrets.read(context, rule.id)
+        return rule.answers.mapNotNull { a ->
+            if (!a.secret) a else stored[a.prompt]?.let { a.copy(text = it) }
+        }
     }
 
     // --- 画面 (自動化タブ) から使う操作 ---
@@ -913,6 +926,7 @@ object WhenManager {
     fun removeRule(context: Context, ruleId: String) {
         runCatching { File(whenDir(context), "$ruleId.rule").delete() }
         runCatching { File(whenDir(context), "$ruleId.log").delete() }
+        WhenSecrets.delete(context, ruleId)
         forgetLastFire(context, ruleId)
         reload(context)
     }

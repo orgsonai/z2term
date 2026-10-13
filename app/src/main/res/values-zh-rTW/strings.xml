@@ -851,6 +851,16 @@
     <string name="when_cooldown_field">cooldown = 距上次執行這段時間內不再執行</string>
     <string name="when_between_field">between = 只在這個時間段</string>
     <string name="when_days_field">days = 只在這些星期</string>
+    <string name="when_answer_title">指令詢問時的回答</string>
+    <string name="when_answer_prompt">詢問的文字（行尾）</string>
+    <string name="when_answer_text">回答</string>
+    <string name="when_answer_text_hint">留空則只送 Enter</string>
+    <string name="when_answer_stored_hint">已儲存（只在修改時輸入）</string>
+    <string name="when_answer_secret">隱藏輸入（密碼）</string>
+    <string name="when_answer_add">＋ 新增回答</string>
+    <string name="when_answer_remove">刪除</string>
+    <string name="when_answer_note">輸出的最後一行以這段文字結尾時，送出回答和 Enter。隱藏的回答只在終端不顯示所輸入字元的狀態下送出，內容加密儲存在應用程式內，不寫入規則檔。</string>
+    <string name="when_answer_secret_missing">請輸入隱藏回答的內容。</string>
     <string name="when_form_trigger_empty">請填寫觸發條件。</string>
     <string name="when_form_trigger_unknown">無法識別的觸發條件: %1$s（可以從下面的候選裡選）</string>
     <string name="when_form_trigger_bad_spec">觸發條件的寫法不對: %1$s（可以從下面的候選裡選）</string>

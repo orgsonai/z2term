@@ -294,6 +294,21 @@ Java_com_zerotoship_z2term_pty_PtyProcess_nativeForegroundPgid(
     return (jint) pgid;
 }
 
+/**
+ * 端末が「打った文字を表示しない」状態か (termios の ECHO が落ちているか)。
+ * パスワードの入力待ちをプロンプトの文言ではなく端末の状態で見分けるために使う。
+ * 1 = 表示しない / 0 = 表示する / -1 = 取得失敗。
+ */
+JNIEXPORT jint JNICALL
+Java_com_zerotoship_z2term_pty_PtyProcess_nativeEchoOff(
+        JNIEnv* /* env */,
+        jobject /* companion */,
+        jint fd) {
+    struct termios tio;
+    if (tcgetattr(fd, &tio) != 0) return -1;
+    return (tio.c_lflag & ECHO) ? 0 : 1;
+}
+
 JNIEXPORT void JNICALL
 Java_com_zerotoship_z2term_pty_PtyProcess_nativeClose(
         JNIEnv* /* env */,

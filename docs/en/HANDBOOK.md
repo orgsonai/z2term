@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.11.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.12.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -1716,6 +1716,8 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # on any ringe
   - `if=<cond>` … only run when the **device is in that state**. Commas mean "and", a leading `!` negates. The conditions are exactly what `z2-state` shows (`wifi` `charging` `screen` `locked` `headset` `bt_audio` `airplane` `idle` / `ssid=` `ringer=` `plug=` / `level<30` `temp>40` `volume>0`). E.g. `if=wifi,!screen` (on Wi‑Fi with the screen off) / `if=ssid=Home` (only on your home network) / `if=level<30`.
   - `if_any=<cond>` … run when **any one of them** holds (0.8.372). The comma means "or"; the conditions themselves are the same as `if=`. Written together with `if=`, it reads "**all of `if`, and any one of `if_any`**". E.g. `if=charging if_any=wifi,ssid=Home` (charging, and on Wi-Fi or at home).
   - `else=<cmd>` … run this **instead** when the condition did not hold (0.8.372). E.g. `else='z2-notify "skipped: no Wi-Fi"'`. ⚠ **Only `if` / `if_any` reach it.** A run skipped by `between` (window), `days` or `cooldown` runs **nothing at all** — a rule you switched off for the night must not send you a notification at 3am.
+  - `answer='<prompt>=><reply>'` … what to reply when the command **asks something** on the terminal (1.0.12). A run without a screen has nobody to answer, so a command asking `[y/N]` used to stop there. When **the last line of the output ends with that text**, the reply and Enter are sent. Repeatable (e.g. `answer='[y/N]=>y'`); the same question is answered every time it comes back.
+  - `secret='<prompt>'` … a **hidden reply, such as a password** (1.0.12). Its content is not written in the command: enter it in the app's rule editor ("What to reply when the command asks" → "Hide the input"). It is **kept encrypted inside the app** and never reaches the rule file, the run log or a backup. It is sent only while the terminal hides typed characters, and once per run (asked again, the run is stopped, since the content was not accepted). After copying a rule to another device, enter it again there.
   - `cooldown=<duration>` … **do not run again for that long** (`30s` / `10m` / `2h`; a bare number means minutes). Useful for triggers that come in bursts, like `sensor:shake`.
   - `between=HH:MM-HH:MM` … only **inside that window**. It may **wrap past midnight** (`22:00-07:00`); the start time is included, the end time is not.
   - `days=mon-fri` … only on **those days**. Lists work (`sat,sun`) and so do cron-style numbers (`1-5`, where 0 and 7 are Sunday).
