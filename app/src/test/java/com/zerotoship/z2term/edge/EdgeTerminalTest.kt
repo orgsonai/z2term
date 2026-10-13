@@ -68,6 +68,14 @@ class EdgeTerminalTest {
         } finally { process.destroyForcibly(); reader.join(1000) }
     }
 
+    @Test fun usesTheTabsLoginShellUnlessItCannotReadTheSessionLoop() {
+        assertEquals("/usr/bin/zsh", EdgeTerminalSession.shellFor("/usr/bin/zsh"))
+        assertEquals("/bin/bash", EdgeTerminalSession.shellFor("/bin/bash"))
+        assertEquals("/bin/ash", EdgeTerminalSession.shellFor("/bin/ash"))
+        assertEquals("/bin/sh", EdgeTerminalSession.shellFor("/usr/bin/fish"))
+        assertEquals("/bin/sh", EdgeTerminalSession.shellFor(""))
+    }
+
     @Test fun clearsPreviousResultAndBoundsUnendingOutput() {
         val parser = EdgeTerminalProtocol("abc") {}
         repeat(100) { parser.append("x".repeat(4096)) }

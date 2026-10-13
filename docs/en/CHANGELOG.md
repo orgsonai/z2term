@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.10 (versionCode 708)**: The edge panel's simple terminal now runs the same shell as a terminal tab (it was always `/bin/sh`, so commands and aliases that work in a tab could fail). It uses the OS's login shell and reads the same startup file (`.bashrc`, `.zshrc` and so on); the status line shows the shell. Its snippet list also remembers the group you had open, separately from the group selected in the main app's snippet screen.
+
 **1.0.9 (versionCode 707)**: In the edge panel's simple terminal, pinching the result with two fingers now changes the text size (8–32 sp). The size is saved per item, and the terminal width follows it.
 
 **1.0.8 (versionCode 706)**: A running command can now be answered in the edge panel's simple terminal. Until now a command's input was empty, so a command that asks y/n, such as `pacman -Syu`, ended there. While a command runs, the input row answers it and the button reads Send (an empty row sends Enter). Stop now ends only the running command and keeps the shell (the directory you changed to and your variables stay; ↻ still resets everything). Progress displays that used to pile up into one endless line now replace their line. The terminal width follows the result view, and pagers are not used, so `git log` and `man` no longer stop waiting for a key. When a password is asked for, it does not appear in the result, but the characters are visible in the input row while you type. Programs that read single keys or run full-screen still belong in a regular terminal tab.

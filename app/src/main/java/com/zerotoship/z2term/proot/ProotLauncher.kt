@@ -941,6 +941,14 @@ class ProotLauncher(private val context: Context) {
         }
     }.getOrDefault(false)
 
+    /**
+     * 端末タブが起動するのと同じシェル (root のログインシェル → [fallbackShell] → /bin/sh)。
+     * タブの外でコマンドを受ける入口 (エッジパネルの簡易ターミナル) が、タブと同じシェルで
+     * 動かすために使う。
+     */
+    fun loginShell(distroId: String, fallbackShell: String = "/bin/sh"): String =
+        resolveShell(File(distrosDir, distroId), "", fallbackShell)
+
     private fun resolveShell(rootfs: File, requested: String, fallbackShell: String): String {
         // 空 command を導入した呼び元では、passwd が読めない・壊れている場合もあり得る。
         // そのとき空文字を z2root の argv 末尾へ渡すと「command 無し」になって起動前に終了するため、

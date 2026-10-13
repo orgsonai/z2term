@@ -1,6 +1,6 @@
 # Mini terminal in an edge panel
 
-Target: 1.0.9 (versionCode 707)
+Target: 1.0.10 (versionCode 708)
 
 In panel settings, choose Add item → Text input → Connect to a shell. To add it to an existing panel through the CLI:
 
@@ -25,7 +25,7 @@ While a command runs, the same input row **answers that command** and the button
 
 In the input field, **Up** recalls older commands and **Down** returns toward newer commands, then restores the unfinished draft. This reads the same `~/.bash_history` and `~/.zsh_history` as the regular history list. No separate history file is created, and these files are not written by the mini terminal. Commands accepted by this panel item, including across reopening, are also available at the front of its in-memory history. Accepting a run clears the input; Up recalls it. History selection never executes a command. Multi-line entries and entries over 16,384 characters are skipped in this one-line input.
 
-Use **≡ (Snippets)** in the existing action row to show the app's snippet list in place of the result. It uses the same entries, order, groups and storage as the main app. Tap to insert, then press **Run**. **+ New** registers the current input; edits and deletions also appear in the main app. Input-form snippets ask for values before insertion; file values accept typed paths. Use a regular terminal for multi-line snippets.
+Use **≡ (Snippets)** in the existing action row to show the app's snippet list in place of the result. It uses the same entries, order, groups and storage as the main app. **The group you had open is still open next time** (1.0.10). The panel keeps this on its own, apart from the group selected in the main app's snippet screen; changing one leaves the other alone. Tap to insert, then press **Run**. **+ New** registers the current input; edits and deletions also appear in the main app. Input-form snippets ask for values before insertion; file values accept typed paths. Use a regular terminal for multi-line snippets.
 
 Closing the list restores the previous result. The tabs and input keep their positions, with no extra action row.
 
@@ -36,7 +36,7 @@ Closing the list restores the previous result. The tabs and input keep their pos
 - While typing, outside taps and Back first dismiss the keyboard and input focus. Otherwise, they close the panel. **× (Close)** also works during typing. Hiding the keyboard alone keeps the panel open. Long-press outside to open settings.
 - With tabs, Close stays at the right of the tab row. Without tabs or a panel title, it shares the action row.
 - Manual refresh, Stop while no command is running, deleting or changing the item type, turning panels off, service shutdown and Stop all end the shell. State is not restored after app process death.
-- Commands use the selected local Linux environment, or Android sh if Linux is not installed. Existing terminal and SSH tabs are independent. As with other panel commands, Linux runs through the execution engine.
+- Commands use the selected local Linux environment, or Android sh if Linux is not installed. **The shell is the one a terminal tab starts** (root's login shell in that OS, including one set with `chsh`) and it reads the same startup file (`.bashrc`, `.zshrc` and so on) (1.0.10), so the aliases, functions and PATH you have in a tab work here. Through 1.0.9 it was always `/bin/sh`. Only a login shell that cannot read sh syntax (fish, for example) still gets `/bin/sh`. The status line shows the OS and the shell. Anything the startup file prints also appears in the result. Existing terminal and SSH tabs are independent. As with other panel commands, Linux runs through the execution engine.
 
 ## Stopping jobs
 

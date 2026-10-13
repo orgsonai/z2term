@@ -236,6 +236,19 @@ class SnippetStore(private val context: Context) {
         context.snippetDataStore.edit { p -> p[KEY_SELECTED_GROUP] = id }
     }
 
+    /**
+     * エッジパネルで最後に開いていたグループ。端末本体の [selectedGroup] とは**別に**覚える
+     * (板と本体で使う棚が違っても、片方を変えたときにもう片方が動かない)。
+     * [EDGE_GROUP_ALL] = すべて、"" = どのグループにも入っていないもの。
+     */
+    val edgeSelectedGroup: Flow<String> = context.snippetDataStore.data.map { p ->
+        p[KEY_EDGE_SELECTED_GROUP] ?: EDGE_GROUP_ALL
+    }
+
+    suspend fun setEdgeSelectedGroup(id: String) {
+        context.snippetDataStore.edit { p -> p[KEY_EDGE_SELECTED_GROUP] = id }
+    }
+
     /** グループを作る / 名前を直す。 */
     suspend fun upsertGroup(group: SnippetGroup) {
         context.snippetDataStore.edit { p ->
@@ -320,6 +333,10 @@ class SnippetStore(private val context: Context) {
         private val KEY = stringPreferencesKey("snippets")
         private val KEY_GROUPS = stringPreferencesKey("snippet_groups")
         private val KEY_SELECTED_GROUP = stringPreferencesKey("snippet_selected_group")
+        private val KEY_EDGE_SELECTED_GROUP = stringPreferencesKey("snippet_edge_selected_group")
+
+        /** [edgeSelectedGroup] の「すべて」。グループの id (UUID) とは重ならない。 */
+        const val EDGE_GROUP_ALL = "*"
 
         /**
          * [all] のうち [visible] に含まれる行の位置だけを、[visible] の並びで置き換える

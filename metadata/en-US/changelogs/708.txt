@@ -1,0 +1,6 @@
+1.0.10
+
+- The edge panel's simple terminal now runs the same shell as a
+  terminal tab, so the aliases and PATH you have in a tab work there.
+- Its snippet list remembers the group you had open, separately from
+  the group selected in the main app.

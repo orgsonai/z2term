@@ -231,10 +231,21 @@ internal class EdgeTerminalSession(private val launch: (String) -> Launch) : Aut
                     val id = settings.distroId
                     check(File(app.filesDir, "distros/$id").isDirectory) { "Local environment is missing: $id" }
                     val spec = DistroSpec.byId(id) ?: DistroSpec.ALPINE
-                    Launch(launcher.launch(distroId = id, command = "/bin/sh", fallbackShell = spec.defaultShell,
-                        extraArgs = listOf("-i", "-c", script), waitTracees = true), id, true)
+                    val shell = shellFor(launcher.loginShell(id, spec.defaultShell))
+                    Launch(launcher.launch(distroId = id, command = shell, fallbackShell = spec.defaultShell,
+                        extraArgs = listOf("-i", "-c", script), waitTracees = true),
+                        "$id ${shell.substringAfterLast('/')}", true)
                 }
             }
         }
+
+        /**
+         * The shell a terminal tab starts, so aliases, functions and PATH from its startup file match (1.0.10).
+         * The session loop is written in sh syntax; a login shell that cannot read it keeps /bin/sh.
+         */
+        fun shellFor(loginShell: String): String =
+            if (loginShell.substringAfterLast('/') in SH_SYNTAX) loginShell else "/bin/sh"
+
+        private val SH_SYNTAX = setOf("sh", "bash", "ash", "dash", "zsh", "ksh", "mksh")
     }
 }

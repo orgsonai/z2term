@@ -21,10 +21,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-/** Uses the app's existing snippets; the panel has no separate command registry. */
+/** Uses the app's existing snippets; the panel has no separate command registry. Only the open group is its own. */
 @android.annotation.SuppressLint("ViewConstructor")
 internal class EdgeSnippetUi(context: Context, private val draft: () -> String,
     private val insert: (String) -> Boolean, private val close: () -> Unit) : LinearLayout(context) {
@@ -53,12 +54,19 @@ internal class EdgeSnippetUi(context: Context, private val draft: () -> String,
             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 val next = when (position) { 0 -> null; 1 -> ""; else -> groups.getOrNull(position - 2)?.id }
-                if (selectedGroup != next) { selectedGroup = next; if (!editing) list() }
+                if (selectedGroup != next) {
+                    selectedGroup = next
+                    scope.launch { runCatching { store.setEdgeSelectedGroup(next ?: SnippetStore.EDGE_GROUP_ALL) } }
+                    if (!editing) list()
+                }
             }
         }
         addView(group, LayoutParams(-1, -2))
         addView(scroll, LayoutParams(-1, 0, 1f))
         scope.launch {
+            // The panel remembers its own group; the main app's selection is a separate key.
+            selectedGroup = runCatching { store.edgeSelectedGroup.first() }.getOrNull()
+                ?.takeIf { it != SnippetStore.EDGE_GROUP_ALL }
             store.snippets.combine(store.groups) { commands, shelves -> commands to shelves }.catch { e ->
                 Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
             }.collect { (commands, shelves) ->
