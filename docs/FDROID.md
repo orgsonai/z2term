@@ -298,7 +298,7 @@ fdroid build -v -l com.zerotoship.z2term            # 本番と同じビルド
 | 同梱バイナリ | 無し。実行エンジン z2root / z2accept / z2attach は毎ビルド、ソースから生成する |
 | 依存ライブラリ | AndroidX / Compose / DataStore / Kotlin 標準ライブラリ・Coroutines / JSch (mwiede fork) / BouncyCastle / XZ for Java / OkHttp・Okio / SMBJ (+ asn-one・MBassador・SLF4J API) / ZXing Core・ZXing Android Embedded / Guava ListenableFuture / JetBrains Annotations。取得元は `google()` と `mavenCentral()` だけ。すべて FOSS で、Google Play Services や Firebase は入っていない (一覧と版は `legal/OssComponents.kt`、実際に入るものは `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` で確かめられる) |
 | フォント | IBM Plex Mono / JetBrains Mono / Fira Code の 3 つ (いずれも SIL Open Font License 1.1・改変なし) と、1.0.5 から自作の Z2 Mono (OFL-1.1。生成スクリプトは `scripts/z2-mono/build.py` で、TTF はそこから作ったもの)。**1.0.4 から git に入っており、F-Droid ビルドにも入る。** アプリ内のライセンス一覧にすべて載せ、OFL-1.1 の本文も同梱している。1.0.3 までの版では git に無く、F-Droid ビルドには入らない (端末の monospace へ自動フォールバック) |
-| 権限 | `MANAGE_EXTERNAL_STORAGE` (Linux 側から共有ストレージを読み書きする)・`RECEIVE_SMS` (`z2-when` の SMS 着信イベント。本文は端末内のスクリプトへ渡すだけ)・`SYSTEM_ALERT_WINDOW` (エッジパネル)・`CAMERA` (QR の読み取り)・ユーザー補助サービス (操作自動化。利用者が設定で有効にしたときだけ)。いずれも送信先を持たず、解析・広告の SDK は入っていない |
+| 権限 | `MANAGE_EXTERNAL_STORAGE` (Linux 側から共有ストレージを読み書きする)・`RECEIVE_SMS` (`z2-when` の SMS 着信イベント。本文は端末内のスクリプトへ渡すだけ)・`SYSTEM_ALERT_WINDOW` (エッジパネル)・`CAMERA` (QR の読み取り)・ユーザー補助サービス (画面操作。利用者が設定で有効にしたときだけ)。いずれも送信先を持たず、解析・広告の SDK は入っていない |
 | 署名 | F-Droid は自分の鍵で署名するので、GitHub Releases の APK とは**署名が違う**。一方からもう一方へは上書きできない (入れ替えるときはバックアップ → アンインストール → 入れ直し → 復元)。公開されたら README と HANDBOOK のダウンロードの節にこの注意を足す |
 
 ---

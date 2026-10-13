@@ -38,7 +38,7 @@
     <string name="permissions_request">Request permission</string>
     <string name="permissions_granted">Enabled / allowed</string>
     <string name="permissions_missing">Not enabled / not allowed</string>
-    <string name="tools_automation_actions">Action automation</string>
+    <string name="tools_automation_actions">Screen actions</string>
     <string name="tools_automation_rules">Automation rules</string>
     <string name="permissions_tab_access">Permissions</string>
     <string name="permissions_tab_logs">Notifications and logs</string>

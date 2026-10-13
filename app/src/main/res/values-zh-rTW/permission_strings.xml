@@ -38,7 +38,7 @@
     <string name="permissions_request">要求權限</string>
     <string name="permissions_granted">已啟用／已允許</string>
     <string name="permissions_missing">未啟用／未允許</string>
-    <string name="tools_automation_actions">操作自動化</string>
+    <string name="tools_automation_actions">螢幕操作</string>
     <string name="tools_automation_rules">自動化規則</string>
     <string name="permissions_tab_access">權限</string>
     <string name="permissions_tab_logs">通知與日誌</string>

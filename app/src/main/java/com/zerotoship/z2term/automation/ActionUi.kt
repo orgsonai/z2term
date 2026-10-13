@@ -30,7 +30,7 @@ import androidx.core.view.isNotEmpty
 import androidx.core.graphics.drawable.toDrawable
 
 /**
- * 操作自動化タブの View 部品 (0.8.603)。
+ * 画面操作タブの View 部品 (0.8.603)。
  *
  * コマンド一覧の他のタブ (Compose) と同じ寸法・色・等幅の文字を View で出す。見本は自動化ルールタブ
  * (`WhenRulesBody`)、`ServersSheet.kt` の `PillButton` / `IconCell` / `Field` / `HintBox`、確認は

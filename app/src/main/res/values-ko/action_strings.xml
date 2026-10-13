@@ -60,7 +60,7 @@
     <string name="action_pick_cancelled">좌표 선택을 취소했습니다 (취소, 화면 변경, 잠금, 연결 해제 또는 2분 경과).</string>
     <string name="action_pick_prepare">화면을 평소처럼 조작할 수 있습니다. 원하는 화면으로 이동한 뒤 좌표 선택을 누르세요.</string>
     <string name="action_pick_swipe">3초 이내에 스와이프한 뒤 적용을 누르세요. 소요 시간을 기록합니다. 화면을 조작하려면 화면 조작을 사용하세요.</string>
-    <string name="action_pick_point">점을 선택한 뒤 적용을 누르세요. 선택 터치는 뒤로 전달되지 않습니다. 화면 조작으로 일반 조작에 돌아갈 수 있습니다.</string>
+    <string name="action_pick_point">점을 선택한 뒤 적용을 누르세요. 선택 터치는 뒤로 전달되지 않습니다. 일반 조작을 누르면 화면을 평소처럼 조작할 수 있습니다.</string>
     <string name="action_pick_move">조작부 이동</string>
     <string name="action_pick_screen">저장된 화면 크기나 방향이 다릅니다. 화면 설정을 바꾸기 전에 기존 좌표를 확인하세요.</string>
     <string name="action_state_queued">시작 대기</string>
@@ -102,7 +102,7 @@
     <string name="action_ui_read">요소 가져오기</string>
     <string name="action_ui_empty">이 화면에 선택할 수 있는 요소가 없습니다.</string>
     <string name="action_edit_screen_hint">요소 지정만 사용하면 비워둘 수 있습니다. 좌표 동작에는 화면 정보가 필요합니다.</string>
-    <string name="action_pick_navigate">화면 조작</string>
+    <string name="action_pick_navigate">일반 조작</string>
     <string name="action_pick_background_failed">편집기를 백그라운드로 옮기지 못했습니다. 좌표 선택을 다시 누르세요.</string>
     <string name="action_pick_launch_failed">요소를 선택할 앱(%1$s)을 열 수 없습니다. 대상과 앱 활성화 상태를 확인하세요.</string>
     <string name="action_pick_foreground">요소를 선택할 앱(%1$s)을 전면에 표시하세요.</string>

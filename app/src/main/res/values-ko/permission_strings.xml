@@ -38,7 +38,7 @@
     <string name="permissions_request">권한 요청</string>
     <string name="permissions_granted">활성화됨 / 허용됨</string>
     <string name="permissions_missing">비활성화됨 / 허용되지 않음</string>
-    <string name="tools_automation_actions">동작 자동화</string>
+    <string name="tools_automation_actions">화면 조작</string>
     <string name="tools_automation_rules">자동화 규칙</string>
     <string name="permissions_tab_access">권한</string>
     <string name="permissions_tab_logs">알림 및 로그</string>

@@ -1,0 +1,4 @@
+1.0.11
+
+- The "Action automation" tab in the command list is now called
+  "Screen actions". Its contents and saved macros are unchanged.

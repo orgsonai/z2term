@@ -38,7 +38,7 @@
     <string name="permissions_request">请求权限</string>
     <string name="permissions_granted">已启用／已允许</string>
     <string name="permissions_missing">未启用／未允许</string>
-    <string name="tools_automation_actions">操作自动化</string>
+    <string name="tools_automation_actions">屏幕操作</string>
     <string name="tools_automation_rules">自动化规则</string>
     <string name="permissions_tab_access">权限</string>
     <string name="permissions_tab_logs">通知与日志</string>

@@ -38,7 +38,7 @@
     <string name="permissions_request">許可を求める</string>
     <string name="permissions_granted">有効・許可済み</string>
     <string name="permissions_missing">無効・未許可</string>
-    <string name="tools_automation_actions">操作自動化</string>
+    <string name="tools_automation_actions">画面操作</string>
     <string name="tools_automation_rules">自動化ルール</string>
     <string name="permissions_tab_access">権限</string>
     <string name="permissions_tab_logs">通知・ログ</string>

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.11 (versionCode 709)**: The "Action automation" tab under Command list › Automation is now called "Screen actions" (its contents and your saved action macros are unchanged). The name now matches the store description: `z2-action`, which drives the screen from the shell. In Japanese and Korean, the button that returns to normal touch while picking coordinates was renamed so that it does not share the tab's name; it works as before.
+
 **1.0.10 (versionCode 708)**: The edge panel's simple terminal now runs the same shell as a terminal tab (it was always `/bin/sh`, so commands and aliases that work in a tab could fail). It uses the OS's login shell and reads the same startup file (`.bashrc`, `.zshrc` and so on); the status line shows the shell. Its snippet list also remembers the group you had open, separately from the group selected in the main app's snippet screen.
 
 **1.0.9 (versionCode 707)**: In the edge panel's simple terminal, pinching the result with two fingers now changes the text size (8–32 sp). The size is saved per item, and the terminal width follows it.

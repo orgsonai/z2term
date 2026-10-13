@@ -38,7 +38,7 @@
     <string name="permissions_request">Solicitar permiso</string>
     <string name="permissions_granted">Activado / permitido</string>
     <string name="permissions_missing">Desactivado / no permitido</string>
-    <string name="tools_automation_actions">Automatizar acciones</string>
+    <string name="tools_automation_actions">Acciones en pantalla</string>
     <string name="tools_automation_rules">Reglas de automatización</string>
     <string name="permissions_tab_access">Permisos</string>
     <string name="permissions_tab_logs">Notificaciones y registros</string>

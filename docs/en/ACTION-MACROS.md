@@ -28,7 +28,7 @@ Definitions live in the shared home at `/root/.z2term/actions/NAME.actions`. Use
 
 ## Create and edit through the GUI (0.8.574)
 
-Open Command list → Automation → Action automation. The list and editor appear directly inside the tab (0.8.586). Panels need not be enabled.
+Open Command list → Automation → Screen actions. The list and editor appear directly inside the tab (0.8.586). Panels need not be enabled.
 
 1. Choose New and enter a name using letters, digits, underscores or hyphens.
 2. To operate the foreground screen, add the desired actions directly. To use a specific app, add Launch app, choose the application and add a wait for its screen to become ready.
@@ -97,7 +97,7 @@ Choose Pick coordinates while editing a tap, hold or swipe. z2term moves the too
 
 - Tap a point or draw from the start to the end of a swipe. Selection touches do not operate the underlying screen. A straight swipe captures its endpoints and measured duration (1–3000 ms). Use freehand recording to retain a whole sequence and its changing speed.
 - Use Navigate to operate the screen normally and reach another screen. Press Pick coordinates in the floating controls to resume selection.
-- Draw again to adjust, then choose Apply to return to the numeric fields. Controls can move between the top and bottom; Cancel returns to editing inside the original Action automation tab. Selection does not check the app package or restrict points to a target window.
+- Draw again to adjust, then choose Apply to return to the numeric fields. Controls can move between the top and bottom; Cancel returns to editing inside the original Screen actions tab. Selection does not check the app package or restrict points to a target window.
 - Coordinates return in the selected unit (px / percent), together with the screen dimensions and rotation. If existing screen metadata differs, review other coordinates before explicitly changing the screen setting.
 - Selection cancels on screen off, lock, geometry/rotation changes, accessibility disconnection or after two minutes. Selection and macro execution are mutually exclusive; edge panels are temporarily hidden.
 

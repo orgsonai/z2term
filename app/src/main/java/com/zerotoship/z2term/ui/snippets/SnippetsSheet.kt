@@ -109,7 +109,7 @@ private enum class AutomationTab { ACTIONS, RULES }
  *    シェルの履歴ファイル (`~/.bash_history` / `~/.zsh_history`) をそのまま見る。
  *  - 接続先: SSH / SFTP と、その SSH に追加した FTP / SMB / WebDAV / VNC を開く。
  *  - サーバー: 常駐サーバーの起動/停止・ON/OFF・編集 ([ServersBody])。
- *  - 自動化: 操作自動化の管理画面と、自動化ルールを切り替える。
+ *  - 自動化: 画面操作の管理画面と、自動化ルールを切り替える。
  *
  * [showSshTab] は呼び出し元が接続先機能を提供できない特殊画面だけ false にできる。
  * サーバータブは [serverSession] が渡されたときだけ出す。
