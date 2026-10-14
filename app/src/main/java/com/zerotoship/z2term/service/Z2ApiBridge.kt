@@ -1507,6 +1507,7 @@ object Z2ApiBridge {
 
     /**
      * `z2-view` — 端末が `/storage/app/z2api/<stage>/page.html` へ置いた 1 枚を開く。
+     * 文字 (コマンドの出力など) は `page.txt` で届き、ここで頁に包む (中身はすべてエスケープ)。
      *
      * ⚠ **受け取るのは置き場の名前だけ**。パスをそのまま受けると、端末側から任意のファイルを
      * アプリに読ませる口になる (共有ストレージの外も含めて)。
@@ -1517,11 +1518,15 @@ object Z2ApiBridge {
         val directory = java.io.File(staging, stage)
         require(directory.canonicalFile.parentFile == staging.canonicalFile) { "view: bad stage" }
         val page = java.io.File(directory, "page.html")
+        val text = java.io.File(directory, "page.txt")
         val controls = java.io.File(directory, "controls.json")
-        require(page.canonicalFile.parentFile == directory.canonicalFile &&
-            controls.canonicalFile.parentFile == directory.canonicalFile) { "view: bad file" }
+        require(listOf(page, text, controls).all { it.canonicalFile.parentFile == directory.canonicalFile }) { "view: bad file" }
         require(title.toByteArray().size <= com.zerotoship.z2term.viewer.ViewerPage.TITLE_LIMIT) { "view: title too long" }
-        val html = com.zerotoship.z2term.viewer.ViewerPage.read(page, com.zerotoship.z2term.viewer.ViewerPage.HTML_LIMIT)
+        val limit = com.zerotoship.z2term.viewer.ViewerPage.HTML_LIMIT
+        val html = if (text.isFile) {
+            com.zerotoship.z2term.viewer.ViewerPage.fromText(com.zerotoship.z2term.viewer.ViewerPage.read(text, limit, lenient = true))
+                .also { require(it.toByteArray().size <= limit) { "view: text exceeds 4 MB once shown as a page" } }
+        } else com.zerotoship.z2term.viewer.ViewerPage.read(page, limit)
         val actions = if (controls.isFile) com.zerotoship.z2term.viewer.ViewerControls.parse(
             com.zerotoship.z2term.viewer.ViewerPage.read(controls, com.zerotoship.z2term.viewer.ViewerControls.LIMIT)) else null
         com.zerotoship.z2term.viewer.ViewerStore.publish(context,

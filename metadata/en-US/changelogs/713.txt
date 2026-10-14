@@ -1,0 +1,8 @@
+1.0.15
+
+- z2-view reads a command's output as it is (ls -l | z2-view);
+  text that is not HTML is shown wrapped and monospaced.
+- Find in page. In a panel, turn it on under Display.
+- Macro forms gain multiline, number, switch, date and time fields,
+  and a page link can hand a value to an action.
+- In the bundled RSS macro, every article has Delete.

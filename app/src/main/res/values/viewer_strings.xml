@@ -14,4 +14,11 @@
     <string name="viewer_update_help">Manual only: opening or switching tabs uses the last page without running the command. Press Refresh the first time. Automatic: refreshes on open and at the interval in Advanced settings. An empty or zero interval refreshes only on open. Page updates from actions such as adding or deleting still appear in either mode.</string>
     <string name="viewer_empty_manual">No page yet. Press Refresh to run the configured command and display it.</string>
     <string name="viewer_empty_hidden">No page yet. Enable the Refresh button in this item’s settings, or send a page to this item from a macro.</string>
+    <string name="viewer_find">Find</string>
+    <string name="viewer_find_hint">Find in page</string>
+    <string name="viewer_find_previous">Previous match</string>
+    <string name="viewer_find_next">Next match</string>
+    <string name="viewer_find_close">Close find</string>
+    <string name="viewer_show_find">Show Find button</string>
+    <string name="viewer_number">Enter %1$s as a number.</string>
 </resources>

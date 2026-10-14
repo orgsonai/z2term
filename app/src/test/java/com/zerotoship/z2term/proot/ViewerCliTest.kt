@@ -14,7 +14,8 @@ class ViewerCliTest {
             val api = File(dir, "api").apply {
                 writeText("""#!/bin/sh
 printf '%s\n' "${'$'}@" > '${calls.path}'
-cp '${staging.path}/'"${'$'}3"/page.html '${dir.path}/received.html'
+rm -f '${dir.path}'/received-page.*
+for f in '${staging.path}/'"${'$'}3"/page.*; do cp "${'$'}f" '${dir.path}/received-'"${'$'}{f##*/}"; done
 if [ -f '${staging.path}/'"${'$'}3"/controls.json ]; then cp '${staging.path}/'"${'$'}3"/controls.json '${dir.path}/received.json'; fi
 """)
                 setExecutable(true)
@@ -25,18 +26,22 @@ if [ -f '${staging.path}/'"${'$'}3"/controls.json ]; then cp '${staging.path}/'"
             }
             val html = File(dir, "page.html").apply { writeText("<p>日本語</p>") }
             val controls = File(dir, "controls.json").apply { writeText("{\"handler\":\"example.sh\"}") }
-            fun run(vararg args: String): Int {
+            fun feed(input: String?, vararg args: String): Int {
                 val p = ProcessBuilder(listOf("sh", script.path) + args).apply {
                     environment()["Z2_VIEW_TARGET"] = "tools:page"
                     environment()["Z2_VIEW_SESSION"] = "session-token"
                 }.redirectErrorStream(true).start()
+                p.outputStream.use { if (input != null) it.write(input.toByteArray()) }
                 p.inputStream.bufferedReader().readText()
                 return p.waitFor()
             }
+            fun run(vararg args: String) = feed(null, *args)
+            val received = File(dir, "received-page.html")
+            val receivedText = File(dir, "received-page.txt")
             assertEquals(0, run("--controls", controls.path, html.path, "Title"))
             assertEquals(listOf("tools:page", "session-token"), calls.readLines().takeLast(2))
             assertEquals(controls.readText(), File(dir, "received.json").readText())
-            assertEquals(html.readText(), File(dir, "received.html").readText())
+            assertEquals(html.readText(), received.readText())
             assertEquals(0, run("--edge", "other:page", html.path))
             assertEquals(listOf("other:page", ""), calls.readLines().takeLast(2))
             assertTrue(staging.listFiles()!!.isEmpty())
@@ -47,7 +52,20 @@ if [ -f '${staging.path}/'"${'$'}3"/controls.json ]; then cp '${staging.path}/'"
             assertTrue(staging.listFiles()!!.isEmpty())
             html.writeBytes(ByteArray(4 * 1024 * 1024) { 65 })
             assertEquals(0, run(html.path))
-            assertEquals(html.length(), File(dir, "received.html").length())
+            assertEquals(html.length(), received.length())
+
+            // Standard input: plain text goes over as text, a page as a page; files decide by name, then content.
+            assertEquals(0, feed("total 0\n<not a tag at the start>\n"))
+            assertEquals("total 0\n<not a tag at the start>\n", receivedText.readText()); assertFalse(received.exists())
+            assertEquals(0, feed("  <p>page</p>", "-", "Title"))
+            assertTrue(received.exists()); assertFalse(receivedText.exists())
+            assertEquals(0, feed("<p>shown as text</p>", "--text", "-"))
+            assertTrue(receivedText.exists())
+            val log = File(dir, "notes.log").apply { writeText("plain words") }
+            assertEquals(0, run(log.path)); assertTrue(receivedText.exists())
+            assertEquals(0, run("--html", log.path)); assertTrue(received.exists())
+            assertNotEquals(0, run("-x"))
+            assertTrue(staging.listFiles()!!.isEmpty())
         } finally { dir.deleteRecursively() }
     }
 }

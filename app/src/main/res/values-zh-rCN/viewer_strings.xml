@@ -14,4 +14,11 @@
     <string name="viewer_update_help">仅手动：打开或切换标签页时使用上次页面，不执行命令。首次请点“刷新”。自动：打开时刷新，并按高级设置中的间隔刷新。间隔为空或0时仅在打开时刷新。添加、删除等操作带来的页面变化在两种方式下都会显示。</string>
     <string name="viewer_empty_manual">尚无页面。点“刷新”即可运行配置的命令并显示页面。</string>
     <string name="viewer_empty_hidden">尚无页面。请在此项设置中显示“刷新”按钮，或从宏向此项发送页面。</string>
+    <string name="viewer_find">查找</string>
+    <string name="viewer_find_hint">在页面中查找</string>
+    <string name="viewer_find_previous">上一个</string>
+    <string name="viewer_find_next">下一个</string>
+    <string name="viewer_find_close">关闭查找</string>
+    <string name="viewer_show_find">显示“查找”按钮</string>
+    <string name="viewer_number">%1$s请输入数字。</string>
 </resources>

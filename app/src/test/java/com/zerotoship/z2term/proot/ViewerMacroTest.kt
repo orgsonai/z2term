@@ -53,7 +53,7 @@ class ViewerMacroTest {
         for (lang in listOf("ja", "en", "zh-CN", "zh-TW", "es", "ko")) Fixture(lang).use { f ->
             val result = f.run("view")
             assertEquals(result.second, 0, result.first)
-            f.jsonCheck("assert d['handler']=='remind.sh'; assert d['actions'][0]['args']==['view-add']; assert len(d['actions'][0]['fields'])==4")
+            f.jsonCheck("assert d['handler']=='remind.sh'; assert d['actions'][0]['args']==['view-add']; assert len(d['actions'][0]['fields'])==4; assert d['actions'][0]['fields'][0]['type']=='multiline'")
             assertTrue(File(f.home, "page.html").readText().contains("</html>"))
         }
     }
@@ -144,6 +144,10 @@ class ViewerMacroTest {
             f.jsonCheck("assert d['refresh']==['feeds','0']; a=next(a for a in d['actions'] if a['id']=='edit-0'); assert a['fields'][0]['default']=='https://example.test/rss?a=1&b=2'")
             assertEquals(0, f.run("feeds").first)
             assertTrue(File(f.home, "page.html").readText().contains("https://example.test/rss?a=1&amp;b=2"))
+            // One remove action serves every feed; the link carries the feed's key.
+            f.jsonCheck("r=next(a for a in d['actions'] if a['id']=='remove'); assert r['param'] and r['args']==['feed-remove'] and r['confirm']; " +
+                "assert not any(a['id'].startswith('remove-') for a in d['actions'])")
+            assertTrue(File(f.home, "page.html").readText().contains("z2-action:remove/"))
             assertFalse(File(f.home, "calls").exists())
         }
     }
@@ -165,8 +169,12 @@ class ViewerMacroTest {
             val kept = f.run("settings", "off", "on")
             assertEquals(kept.second, 0, kept.first)
             f.jsonCheck("s=next(a for a in d['actions'] if a['id']=='settings'); assert [x['default'] for x in s['fields']]==['off','on']; " +
-                "assert sum(a['args'][0]=='remove' for a in d['actions'])==3; " +
+                "assert [x['type'] for x in s['fields']]==['switch','switch']; " +
+                "assert [a['args'] for a in d['actions'] if a['args'][0]=='remove']==[['remove']]; " +
+                "assert next(a for a in d['actions'] if a['id']=='d')['param']; " +
                 "assert all(a.get('confirm') for a in d['actions'] if a['args'][0]=='remove-site')")
+            // Each article's delete link names the one shared action and carries the article's key.
+            assertTrue(File(f.home, "page.html").readText().contains("z2-action:d/" + key("https://b.example/1")))
             val months = File(rss, "archive").listFiles { file -> file.extension == "tsv" }!!
             assertEquals(1, months.size)
             assertEquals(3, months[0].readLines().size)
@@ -187,7 +195,8 @@ class ViewerMacroTest {
 
             // The archive is read a month at a time, searched across months, and dropped by month.
             assertEquals(0, f.run("archive").first)
-            f.jsonCheck("assert d['refresh'][0]=='archive'; assert next(a for a in d['actions'] if a['id']=='drop')['confirm']")
+            f.jsonCheck("assert d['refresh'][0]=='archive'; assert next(a for a in d['actions'] if a['id']=='drop')['confirm']; " +
+                "m=next(a for a in d['actions'] if a['id']=='month'); assert m['param'] and m['args']==['archive']")
             assertTrue(File(f.home, "page.html").readText().contains("Alpha one"))
             assertEquals(0, f.run("archive-search", "ALPHA two").first)
             f.jsonCheck("assert d['refresh']==['archive-search','ALPHA two','0']")

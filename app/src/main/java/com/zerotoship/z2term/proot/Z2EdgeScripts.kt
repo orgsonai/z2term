@@ -66,6 +66,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# view: run=で頁を作るコマンドを指定。z2-viewの表示先がこの項目になります。
         |# view-refresh=manual|auto（既定manual）。手動は前回の頁を表示し、自動は開いた時とevery間隔で更新。
         |# view-refresh-button=on|off / view-expand-button=on|off で更新・拡大の表示（各既定on）。マクロの操作は残す。
+        |# view-find-button=on|off で頁内検索の表示（既定off）。
         |# text/toggle/list は開いた時に更新。every=5〜86400秒（既定0）は開いている間だけ。
         |# run/state を省略すれば push/state でのみ更新。イベント更新は z2-when から push。
         |# 定義: ~/.z2term/edge/ID/panel.conf と 項目.item（UTF-8、1行1フィールド）。
@@ -136,6 +137,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# view: run= produces a page with z2-view; the page returns to this item.
         |# view-refresh=manual|auto (default manual). Manual uses the last page; auto runs on open and at every= intervals.
         |# view-refresh-button=on|off / view-expand-button=on|off show Refresh/Expand (both default on); macro actions remain.
+        |# view-find-button=on|off shows Find in page (default off).
         |# text/toggle/list refresh on open; every=5..86400 only while open (default 0).
         |# Omit run/state for push-only items. Use z2-when with push for event updates.
         |# Definitions: ~/.z2term/edge/ID/panel.conf and item.item, UTF-8 key=value lines.

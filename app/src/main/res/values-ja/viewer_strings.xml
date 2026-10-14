@@ -14,4 +14,11 @@
     <string name="viewer_update_help">手動のみ：開く・タブ切替ではコマンドを実行せず、前回の表示を使います。初回は「更新」を押してください。自動：開いたときに更新し、「詳細設定」の更新間隔でも読み直します。間隔が空欄または0なら開いたときだけです。追加・削除などの操作による表示更新はどちらでも反映します。</string>
     <string name="viewer_empty_manual">まだページがありません。「更新」を押すと、設定したコマンドで表示します。</string>
     <string name="viewer_empty_hidden">まだページがありません。項目の設定で「更新」ボタンを表示するか、マクロからこの項目へページを送ってください。</string>
+    <string name="viewer_find">検索</string>
+    <string name="viewer_find_hint">頁内を検索</string>
+    <string name="viewer_find_previous">前の一致</string>
+    <string name="viewer_find_next">次の一致</string>
+    <string name="viewer_find_close">検索を閉じる</string>
+    <string name="viewer_show_find">「検索」ボタンを表示</string>
+    <string name="viewer_number">%1$sは数値で入力してください。</string>
 </resources>

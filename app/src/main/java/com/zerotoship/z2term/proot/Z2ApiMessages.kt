@@ -398,6 +398,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# Use --edge PANEL:ITEM to send to an existing type=view edge item.
         |# Use --controls FILE.json for generic forms and actions handled by an installed macro.
         |# View items default to manual refresh. view-refresh=auto runs run= on open; z2-view returns to that item.
+        |# Use - or a pipe (ls -l | z2-view) to read standard input. Text that does not start with < is shown
+        |# wrapped in a monospace font, colour codes removed; --text / --html choose explicitly.
     """.trimMargin(),
         ja = """
         |# z2-view <ファイル.html> [題名] … ここで作った頁を z2term の中で読みます。
@@ -410,6 +412,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# --edge パネル:項目 で、既存のtype=view項目へ表示を送ります。
         |# --controls ファイル.json で汎用フォームと操作を定義し、導入済みマクロへ渡せます。
         |# ビューは既定で手動更新。view-refresh=autoなら開いた時にrun=を実行し、z2-viewは同じ項目へ表示します。
+        |# - かパイプ (ls -l | z2-view) で標準入力を読みます。< で始まらない文字は、色の指定を除き
+        |# 折り返し付きの等幅で出します。--text / --html で明示もできます。
     """.trimMargin(),
         "zh-CN" to """
         |# z2-view <文件.html> [标题] … 在 z2term 里阅读你在这里做好的页面。
@@ -421,6 +425,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# --edge 面板:项目 可发送到已有的 type=view 项目。
         |# --controls 文件.json 可定义通用表单和操作，交给已安装的宏处理。
         |# 视图默认手动刷新。view-refresh=auto 时打开会执行 run=，z2-view 返回同一项目。
+        |# 用 - 或管道 (ls -l | z2-view) 读取标准输入。不以 < 开头的文字去掉颜色代码后，
+        |# 以自动换行的等宽字体显示；--text / --html 可明确指定。
     """.trimMargin(),
         "zh-TW" to """
         |# z2-view <檔案.html> [標題] … 在 z2term 裡閱讀你在這裡做好的頁面。
@@ -432,6 +438,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# --edge 面板:項目 可傳送到既有的 type=view 項目。
         |# --controls 檔案.json 可定義通用表單與操作，交給已安裝的巨集處理。
         |# 檢視預設手動重新整理。view-refresh=auto 時開啟會執行 run=，z2-view 回到同一項目。
+        |# 用 - 或管線 (ls -l | z2-view) 讀取標準輸入。不以 < 開頭的文字去掉顏色碼後，
+        |# 以自動換行的等寬字型顯示；--text / --html 可明確指定。
     """.trimMargin(),
         "es" to """
         |# z2-view <archivo.html> [título] … lee dentro de z2term una página hecha aquí.
@@ -444,6 +452,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# --edge PANEL:ELEMENTO envía a un elemento existente de tipo type=view.
         |# --controls ARCHIVO.json define formularios y acciones para una macro instalada.
         |# La vista se actualiza manualmente por defecto. view-refresh=auto ejecuta run= al abrir; z2-view vuelve al mismo elemento.
+        |# Con - o una tubería (ls -l | z2-view) lee la entrada estándar. El texto que no empieza por < se muestra
+        |# ajustado en letra monoespaciada y sin códigos de color; --text / --html lo fijan.
     """.trimMargin(),
         "ko" to """
         |# z2-view <파일.html> [제목] … 여기서 만든 페이지를 z2term 안에서 읽습니다.
@@ -456,16 +466,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# --edge 패널:항목 으로 기존 type=view 항목에 보냅니다.
         |# --controls 파일.json 으로 범용 폼과 작업을 정의하여 설치한 매크로로 전달합니다.
         |# 뷰는 기본적으로 수동 갱신입니다. view-refresh=auto이면 열 때 run=을 실행하고 z2-view는 같은 항목으로 돌아옵니다.
+        |# - 또는 파이프 (ls -l | z2-view) 로 표준 입력을 읽습니다. < 로 시작하지 않는 글자는 색 코드를 빼고
+        |# 줄바꿈되는 고정폭 글꼴로 보여 줍니다. --text / --html 로 직접 정할 수도 있습니다.
     """.trimMargin()
     )
 
     val viewUsage: String = t(
-        en = "usage: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <file.html> [title]",
-        ja = "usage: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <ファイル.html> [題名]",
-        "zh-CN" to "用法: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <文件.html> [标题]",
-        "zh-TW" to "用法: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <檔案.html> [標題]",
-        "es" to "uso: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <archivo.html> [título]",
-        "ko" to "사용법: z2-view [--edge PANEL:ITEM] [--controls FILE.json] <파일.html> [제목]"
+        en = "usage: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <file|-> [title]",
+        ja = "usage: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <ファイル|-> [題名]",
+        "zh-CN" to "用法: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <文件|-> [标题]",
+        "zh-TW" to "用法: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <檔案|-> [標題]",
+        "es" to "uso: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <archivo|-> [título]",
+        "ko" to "사용법: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <파일|-> [제목]"
     )
 
     val viewUnreadable: String = t(

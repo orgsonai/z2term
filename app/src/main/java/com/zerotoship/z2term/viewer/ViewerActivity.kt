@@ -43,7 +43,8 @@ class ViewerActivity : ComponentActivity() {
             val pad = (12 * resources.displayMetrics.density).toInt()
             setPadding(pad, pad / 2, pad, pad / 2)
         }, LinearLayout.LayoutParams(-1, -2))
-        pane = ViewerPane(this, key).also { root.addView(it, LinearLayout.LayoutParams(-1, 0, 1f)) }
+        // A full screen for reading: finding a word is always offered here; panels keep it opt-in.
+        pane = ViewerPane(this, key, options = ViewerOptions(showFind = true)).also { root.addView(it, LinearLayout.LayoutParams(-1, 0, 1f)) }
         setContentView(root)
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime())

@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.14.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.15.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -1447,7 +1447,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-share "text"` | Hand text to Android's share sheet |
 | `z2-share --file /sdcard/Download/report.pdf` | Share file contents with another app; multiple files supported. [Sharing and input forms](SHARE-WORKFLOW.md) |
 | `z2-open <URL or path>` | Open a URL or file in the default app |
-| `z2-view <file.html> [title]` | **Read a page you made here, inside z2term** (0.8.628). No server and no browser. JavaScript and network loads are off, and only `http(s)` links leave for your usual browser. The phone's theme arrives as CSS variables (`--z2-bg` `--z2-bg2` `--z2-fg` `--z2-dim` `--z2-line` `--z2-accent`), so a page written with them follows the terminal colours. Up to 4 MB; embed pictures as `data:` URIs (remote ones are not fetched) |
+| `z2-view <file.html> [title]` | **Read a page you made here, inside z2term** (0.8.628). No server and no browser. JavaScript and network loads are off, and only `http(s)` links leave for your usual browser. The phone's theme arrives as CSS variables (`--z2-bg` `--z2-bg2` `--z2-fg` `--z2-dim` `--z2-line` `--z2-accent`), so a page written with them follows the terminal colours. Up to 4 MB; embed pictures as `data:` URIs (remote ones are not fetched). `ls -l \| z2-view` or `z2-view -` reads standard input, and text that is not HTML (its first character is not `<`) is shown wrapped and monospaced (1.0.15). The full-screen view has Find for words in the page (1.0.15). See [VIEWER.md](VIEWER.md) |
 | `z2-qr` | Scan a QR code with the camera and show one Open button for its content |
 | `z2-qr encode [-o FILE.png] [-p PIXELS] [-m MODULES] [-t] [TEXT]` | **Make a QR code** (0.8.630). Nothing to install — the app encodes it, the same way the QR tools screen does. With no TEXT it reads standard input. A PNG by default (`~/.z2term/qr/qr.png`), and the path is printed; `-t` draws it here with block characters instead. `-p` is the size to aim for in pixels (default 600), `-m` the quiet zone in modules (default 4). Up to 2000 bytes |
 | `z2-img [-w COLS] [-r ROWS] [--clear] <file>...` | **Draw a picture in the terminal** (0.8.495). PNG / JPEG / WebP / GIF / BMP. Pass `-` to read one image from stdin (`curl -s <url> \| z2-img -`). By default it **fits the terminal width**; `-w` (columns) and `-r` (rows) set it explicitly. `--clear` removes every picture drawn so far. Given several files, it prints each name on its own line before the picture. ⚠ **Pictures only appear in a z2term tab, or in a terminal that speaks the kitty graphics protocol.** Over `ssh` or inside a pager you just get gibberish. ⚠ By default it **only writes to a terminal** — down a pipe or into a file the bytes are indistinguishable from garbage — so pass `-f` if you really mean it. ⚠ The aspect ratio assumes a cell is twice as tall as it is wide; if it looks squashed, tune it with `Z2_IMG_ASPECT=0.45 z2-img photo.jpg` (smaller = taller). ⚠ **Large photos are subsampled while decoding** (4 megapixels max). Only a few hundred pixels ever reach the screen, so nothing looks different, but the original resolution is not kept in memory |

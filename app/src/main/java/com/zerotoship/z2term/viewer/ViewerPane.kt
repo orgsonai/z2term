@@ -12,6 +12,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -22,6 +23,7 @@ import com.zerotoship.z2term.edge.EdgeSettingsUi
 import com.zerotoship.z2term.edge.EdgeToolRow
 import com.zerotoship.z2term.service.HeadlessRun
 import androidx.core.view.isEmpty
+import androidx.core.view.isVisible
 
 /** Offline HTML and separately registered controls. HTML never supplies shell code. */
 @android.annotation.SuppressLint("ViewConstructor", "ClickableViewAccessibility") // Programmatic view; the listener defers clicks to WebView.
@@ -41,6 +43,10 @@ internal class ViewerPane(context: Context, private val key: String, private val
     val hasDraft: Boolean get() = form != null
     private val web = WebView(context)
     private val refreshButton = button(R.string.edge_refresh) { refresh() }
+    private val findButton = button(R.string.viewer_find) { if (findBar.isVisible) closeFind() else openFind() }
+    private val findBar = LinearLayout(context)
+    private val findInput = EditText(context)
+    private val findCount = TextView(context)
     private var page: ViewerPage? = null
     private var disposed = false
     private var busy = false
@@ -64,6 +70,8 @@ internal class ViewerPane(context: Context, private val key: String, private val
         status.setTextColor(EdgeSettingsUi.muted(context))
         status.setPadding(dp(12), dp(6), dp(12), dp(6)); status.visibility = GONE
         addView(status, LayoutParams(-1, -2))
+        buildFindBar()
+        addView(findBar, LayoutParams(-1, -2))
         web.setBackgroundColor(EdgeSettingsUi.canvas(context))
         web.settings.apply {
             javaScriptEnabled = false
@@ -80,7 +88,7 @@ internal class ViewerPane(context: Context, private val key: String, private val
                 if (disposed || request == null || !request.isForMainFrame || !request.hasGesture()) return true
                 val uri = request.url
                 if (uri.scheme == "z2-action") {
-                    page?.controls?.actions?.firstOrNull { it.id == uri.schemeSpecificPart }?.let { action(it) }
+                    page?.controls?.link(uri.schemeSpecificPart.orEmpty())?.let { (a, value) -> action(a, value) }
                 } else if (uri.scheme in setOf("http", "https")) {
                     val app = context.applicationContext
                     runCatching {
@@ -91,8 +99,16 @@ internal class ViewerPane(context: Context, private val key: String, private val
                 return true
             }
             override fun onPageFinished(view: WebView?, url: String?) {
-                if (!disposed) web.post { if (!disposed) web.scrollTo(0, restoreY) }
+                if (!disposed) web.post {
+                    if (disposed) return@post
+                    web.scrollTo(0, restoreY)
+                    // A page that arrives while searching is searched again, so the count stays true.
+                    if (findBar.isVisible) find()
+                }
             }
+        }
+        web.setFindListener { active, total, done ->
+            if (done && !disposed) findCount.text = if (findInput.text.isBlank()) "" else if (total == 0) "0" else "${active + 1}/$total"
         }
         web.setOnTouchListener { _, event ->
             if (event.actionMasked == MotionEvent.ACTION_DOWN) web.parent?.requestDisallowInterceptTouchEvent(true)
@@ -111,12 +127,63 @@ internal class ViewerPane(context: Context, private val key: String, private val
         setText(label); isAllCaps = false; minHeight = dp(48)
         setTextColor(EdgeSettingsUi.foreground(context)); setOnClickListener { click() }
     }
+    private fun buildFindBar() {
+        findBar.orientation = HORIZONTAL; findBar.visibility = GONE
+        findBar.gravity = android.view.Gravity.CENTER_VERTICAL
+        findBar.setPadding(dp(8), 0, dp(4), 0)
+        findInput.apply {
+            hint = context.getString(R.string.viewer_find_hint); isSingleLine = true
+            setTextColor(EdgeSettingsUi.foreground(context)); setHintTextColor(EdgeSettingsUi.muted(context))
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+            filters = arrayOf(android.text.InputFilter.LengthFilter(200))
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                override fun afterTextChanged(s: android.text.Editable?) { if (findBar.isVisible) find() }
+            })
+            setOnEditorActionListener { _, _, _ -> if (text.isNotBlank()) web.findNext(true); true }
+        }
+        findBar.addView(findInput, LayoutParams(0, -2, 1f))
+        findCount.setTextColor(EdgeSettingsUi.muted(context)); findCount.setPadding(dp(8), 0, dp(4), 0)
+        findBar.addView(findCount, LayoutParams(-2, -2))
+        fun step(label: String, description: Int, click: () -> Unit) = Button(context).apply {
+            text = label; contentDescription = context.getString(description); isAllCaps = false
+            minWidth = dp(48); minimumWidth = dp(48); minHeight = dp(48)
+            setTextColor(EdgeSettingsUi.foreground(context)); setOnClickListener { click() }
+            findBar.addView(this, LayoutParams(-2, -2))
+        }
+        step("▲", R.string.viewer_find_previous) { if (findInput.text.isNotBlank()) web.findNext(false) }
+        step("▼", R.string.viewer_find_next) { if (findInput.text.isNotBlank()) web.findNext(true) }
+        step("✕", R.string.viewer_find_close) { closeFind() }
+    }
+
+    private fun find() {
+        val query = findInput.text.toString()
+        if (query.isBlank()) { web.clearMatches(); findCount.text = "" } else web.findAllAsync(query)
+    }
+
+    private fun openFind() {
+        if (disposed || hasDraft) return
+        findBar.visibility = VISIBLE; updateTools()
+        findInput.requestFocus()
+        context.getSystemService(android.view.inputmethod.InputMethodManager::class.java)?.showSoftInput(findInput, 0)
+        find()
+    }
+
+    private fun closeFind() {
+        if (!findBar.isVisible) return
+        context.getSystemService(android.view.inputmethod.InputMethodManager::class.java)?.hideSoftInputFromWindow(windowToken, 0)
+        findBar.visibility = GONE; web.clearMatches(); findCount.text = ""; updateTools()
+    }
+
     private fun message(value: String) { status.text = value; status.visibility = if (value.isBlank()) GONE else VISIBLE }
 
     private fun updateTools() {
         tools.removeAllViews()
         refreshButton.isEnabled = !busy && !hasDraft
         if (options.showRefresh) tools.addView(refreshButton)
+        findButton.isEnabled = !hasDraft
+        if (options.showFind) tools.addView(findButton)
         page?.controls?.actions?.filter { it.toolbar }?.forEach { a ->
             tools.addView(Button(context).apply {
                 text = a.label; isAllCaps = false; minHeight = dp(48); setTextColor(EdgeSettingsUi.foreground(context))
@@ -189,17 +256,20 @@ internal class ViewerPane(context: Context, private val key: String, private val
         }
     }
 
-    private fun action(action: ViewerControls.Action) {
+    private fun action(action: ViewerControls.Action, value: String? = null) {
         if (disposed || busy || hasDraft) return
         val controls = page?.controls ?: return
+        // The link's value follows the fixed arguments and precedes anything typed into the form.
+        val fixed = action.args + listOfNotNull(value)
         if (action.fields.isNotEmpty()) {
+            closeFind()
             restoreY = web.scrollY; web.visibility = GONE
             form = ViewerForm(context, action, ::showDialog,
                 cancel = { if (!busy) { closeForm(); pending?.let { pending = null; render(it) }; updateTools() } },
-                submit = { args -> confirmAction(controls, action, action.args + args) }, error = ::message)
+                submit = { args -> confirmAction(controls, action, fixed + args) }, error = ::message)
             formScroll.removeAllViews(); formScroll.addView(form); formScroll.visibility = VISIBLE
             updateTools()
-        } else confirmAction(controls, action, action.args)
+        } else confirmAction(controls, action, fixed)
     }
 
     private fun confirmAction(controls: ViewerControls, action: ViewerControls.Action, args: List<String>) {

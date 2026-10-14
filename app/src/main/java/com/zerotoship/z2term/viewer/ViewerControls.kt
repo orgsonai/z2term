@@ -8,10 +8,24 @@ internal data class ViewerControls(val source: String, val handler: String, val 
     val actions: List<Action>) {
     data class Field(val label: String, val type: String, val initial: String, val required: Boolean,
         val choices: List<Pair<String, String>>)
+    /** [param]: a page link may add one value (`z2-action:ID/VALUE`), passed after [args] as one argument. */
     data class Action(val id: String, val label: String, val args: List<String>, val toolbar: Boolean,
-        val confirmation: String, val fields: List<Field>)
+        val confirmation: String, val fields: List<Field>, val param: Boolean = false)
+
+    /** Finds the registered action a page link names, with its value. Unknown or ill-formed links do nothing. */
+    fun link(target: String): Pair<Action, String?>? {
+        val id = target.substringBefore('/')
+        val value = if ('/' in target) target.substringAfter('/') else null
+        val action = actions.firstOrNull { it.id == id } ?: return null
+        if (action.param != (value != null)) return null
+        if (value != null && (value.isEmpty() || !validValue(value))) return null
+        return action to value
+    }
+
     companion object {
         const val LIMIT = 256 * 1024
+        val FIELD_TYPES = setOf("text", "multiline", "number", "switch", "date", "time", "datetime", "choice")
+        private fun validValue(value: String) = value.length <= 4096 && '\u0000' !in value
         private fun JSONArray.strings(): List<String> {
             require(length() <= 32) { "Too many viewer arguments" }
             return (0 until length()).map { getString(it).also { value ->
@@ -32,18 +46,21 @@ internal data class ViewerControls(val source: String, val handler: String, val 
                 require(id.matches(Regex("[A-Za-z0-9_-]{1,80}"))) { "Invalid viewer action ID" }
                 val fields = a.optJSONArray("fields") ?: JSONArray()
                 require(fields.length() <= 8) { "Too many viewer fields" }
+                val param = a.optBoolean("param")
+                // A toolbar button has no page link to carry the value.
+                require(!(param && a.optBoolean("toolbar"))) { "A param action cannot be a toolbar button" }
                 Action(id, a.getString("label"), a.getJSONArray("args").strings(), a.optBoolean("toolbar"),
                     a.optString("confirm"), (0 until fields.length()).map { f ->
                         val field = fields.getJSONObject(f)
                         val type = field.optString("type", "text")
-                        require(type in setOf("text", "datetime", "choice")) { "Unknown viewer field: $type" }
+                        require(type in FIELD_TYPES) { "Unknown viewer field: $type" }
                         val choices = field.optJSONArray("choices") ?: JSONArray()
                         require(choices.length() <= 32 && (type != "choice" || choices.length() > 0)) { "Invalid viewer choices" }
                         Field(field.getString("label"), type, field.optString("default"), field.optBoolean("required", true),
                             (0 until choices.length()).map { c -> choices.getJSONObject(c).let {
                                 it.getString("value").also { value -> require(value.length <= 4096 && '\u0000' !in value) } to it.getString("label")
                             } })
-                    })
+                    }, param)
             }
             require(actions.map { it.id }.distinct().size == actions.size) { "Duplicate viewer action ID" }
             return ViewerControls(text, handler, refresh, actions)

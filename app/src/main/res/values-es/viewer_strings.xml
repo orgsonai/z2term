@@ -14,4 +14,11 @@
     <string name="viewer_update_help">Solo manual: al abrir o cambiar de pestaña se usa la última página sin ejecutar el comando. Pulsa Actualizar la primera vez. Automático: actualiza al abrir y según el intervalo de Ajustes avanzados. Vacío o 0 actualiza solo al abrir. Los cambios de acciones como añadir o eliminar se muestran en ambos modos.</string>
     <string name="viewer_empty_manual">Aún no hay página. Pulsa Actualizar para ejecutar el comando configurado y mostrarla.</string>
     <string name="viewer_empty_hidden">Aún no hay página. Activa el botón Actualizar en los ajustes de este elemento o envía una página desde una macro.</string>
+    <string name="viewer_find">Buscar</string>
+    <string name="viewer_find_hint">Buscar en la página</string>
+    <string name="viewer_find_previous">Coincidencia anterior</string>
+    <string name="viewer_find_next">Coincidencia siguiente</string>
+    <string name="viewer_find_close">Cerrar búsqueda</string>
+    <string name="viewer_show_find">Mostrar botón Buscar</string>
+    <string name="viewer_number">Escribe %1$s como número.</string>
 </resources>

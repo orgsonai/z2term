@@ -187,6 +187,8 @@ actions = [
     {"id": "add", "label": add, "args": ["feed-add"], "toolbar": True,
      "fields": [{"id": "url", "label": url_label, "type": "text", "required": True}]},
     {"id": "articles", "label": articles, "args": ["view"], "toolbar": True},
+    # One action removes any feed: each link carries the feed's key (z2-action:remove/KEY).
+    {"id": "remove", "label": remove, "args": ["feed-remove"], "confirm": confirm, "param": True},
 ]
 def link(action_id, label):
     return '<a href="z2-action:' + action_id + '">' + html.escape(label) + '</a>'
@@ -212,16 +214,15 @@ if not urls:
     out.append('<p>' + html.escape(empty) + '</p>')
 out.append('<ul>')
 for i, url in enumerate(urls[page * page_size:(page + 1) * page_size]):
-    edit_id, remove_id = "edit-" + str(i), "remove-" + str(i)
+    # Changing shows the current URL in the form, so each feed keeps its own edit action.
+    edit_id = "edit-" + str(i)
     key = identity(url)
-    actions.extend([
+    actions.append(
         {"id": edit_id, "label": change, "args": ["feed-edit", key],
          "fields": [{"id": "url", "label": url_label, "type": "text",
-                     "default": url[:2048], "required": True}]},
-        {"id": remove_id, "label": remove, "args": ["feed-remove", key], "confirm": confirm},
-    ])
+                     "default": url[:2048], "required": True}]})
     out.append('<li><p class="url">' + html.escape(url) + '</p><nav>'
-               + link(edit_id, change) + link(remove_id, remove) + '</nav></li>')
+               + link(edit_id, change) + link("remove/" + key, remove) + '</nav></li>')
 out.append('</ul><nav class="pages">')
 for action_id, label, target in (("previous", previous, page - 1), ("next", next_label, page + 1)):
     if 0 <= target < page_count:

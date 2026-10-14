@@ -186,28 +186,41 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
-    // z2-view (0.8.628): 端末で書いた HTML をアプリの中で読む。⚠ 受け渡しは z2-share と同じ
+    // z2-view (0.8.628): 端末で書いた HTML をアプリの中で読む。文字・標準入力は page.txt で渡す (1.0.15)。⚠ 受け渡しは z2-share と同じ
     // /storage/app/z2api の下へ写してから名前だけを渡す (アプリ側に任意のパスを読ませない)。
     val view = "#!/bin/sh\n" + m.viewHelp + "\n" + helpCaseDash + """
-        |target=${d}{Z2_VIEW_TARGET:-}; session=${d}{Z2_VIEW_SESSION:-}; controls=
+        |target=${d}{Z2_VIEW_TARGET:-}; session=${d}{Z2_VIEW_SESSION:-}; controls=; kind=
         |while [ ${d}# -gt 0 ]; do
         |  case ${d}1 in
         |    --edge) [ ${d}# -ge 2 ] || exit 1; target=${d}2; session=; shift 2 ;;
         |    --controls) [ ${d}# -ge 2 ] || exit 1; controls=${d}2; shift 2 ;;
+        |    --text) kind=text; shift ;;
+        |    --html) kind=html; shift ;;
         |    --) shift; break ;;
+        |    -) break ;;
         |    -*) echo "${m.viewUsage}" >&2; exit 1 ;;
         |    *) break ;;
         |  esac
         |done
+        |# 何も渡さずにパイプされたら標準入力を読む (ls -l | z2-view)。
+        |if [ ${d}# -eq 0 ] && [ ! -t 0 ]; then set -- -; fi
         |[ ${d}# -ge 1 ] && [ ${d}# -le 2 ] || { echo "${m.viewUsage}" >&2; exit 1; }
-        |[ -f "${d}1" ] && [ -r "${d}1" ] || { echo "${m.viewUnreadable} ${d}1" >&2; exit 1; }
+        |[ "${d}1" = - ] || { [ -f "${d}1" ] && [ -r "${d}1" ]; } || { echo "${m.viewUnreadable} ${d}1" >&2; exit 1; }
         |DIR=/storage/app/z2api
         |mkdir -p "${d}DIR" || exit 1
         |stage=${d}(mktemp -d "${d}DIR/view-XXXXXXXXXX") || exit 1
         |trap 'rm -rf "${d}stage"' 0
         |trap 'exit 1' 1 2 15
-        |head -c 4194305 < "${d}1" > "${d}stage/page.html" || exit 1
-        |[ "${d}(wc -c < "${d}stage/page.html")" -le 4194304 ] || { echo 'z2-view: HTML exceeds 4 MB' >&2; exit 1; }
+        |if [ "${d}1" = - ]; then head -c 4194305 > "${d}stage/in"; else head -c 4194305 < "${d}1" > "${d}stage/in"; fi || exit 1
+        |[ "${d}(wc -c < "${d}stage/in")" -le 4194304 ] || { echo 'z2-view: page exceeds 4 MB' >&2; exit 1; }
+        |if [ -z "${d}kind" ]; then
+        |  case ${d}1 in
+        |    *.html|*.htm|*.xhtml|*.HTML|*.HTM) kind=html ;;
+        |    # 頁はタグで始まる。最初に見える文字が < でなければ、ただの文字として出す。
+        |    *) [ "${d}(tr -d ' \t\r\n' < "${d}stage/in" | head -c 1)" = '<' ] && kind=html || kind=text ;;
+        |  esac
+        |fi
+        |if [ "${d}kind" = text ]; then mv "${d}stage/in" "${d}stage/page.txt"; else mv "${d}stage/in" "${d}stage/page.html"; fi || exit 1
         |if [ -n "${d}controls" ]; then
         |  head -c 262145 < "${d}controls" > "${d}stage/controls.json" || exit 1
         |  [ "${d}(wc -c < "${d}stage/controls.json")" -le 262144 ] || { echo 'z2-view: controls exceed 256 KiB' >&2; exit 1; }

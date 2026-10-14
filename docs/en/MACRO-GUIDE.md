@@ -278,7 +278,7 @@ prerequisite → 3-A).
 | `z2-battery` | `z2-battery` | Battery state | `{"level":N,"charging":bool}` |
 | `z2-share` | `z2-share "text"` | Share sheet | — |
 | `z2-open` | `z2-open <URL\|path>` | Open in the default app | — |
-| `z2-view` | `z2-view <file.html> [title]` | Read a page you made here **inside the app** (no server) | — |
+| `z2-view` | `z2-view <file\|-> [title]` | Read a page you made here **inside the app** (no server). `-` or a pipe reads standard input; anything not HTML is shown as monospaced text (1.0.15) | — |
 | `z2-qr` | `z2-qr` | Open QR tools with the camera scanning | — |
 | `z2-intent` | see below | Fire an arbitrary Intent | — |
 | `z2-state` | `z2-state [key]` | **Current device state** (see below) | JSON, or the raw value for a key |
@@ -1153,7 +1153,7 @@ The macro installed by `z2-macro install rss` combines polling, keeping new item
 | Opening an article | `z2-open <URL>`, using the URL after `rss:` in the notification name |
 | Reading the list | `sh ~/.z2term/macros/rss.sh view` opens articles grouped by site through `z2-view` |
 | Managing subscriptions | Use Subscriptions in the view to add, change or remove URLs; the next poll uses the changes and collected articles are kept |
-| Removing from the list | Delete per article and per site; `z2-action:` links in the page call `rss.sh remove` / `remove-site` (1.0.14) |
+| Removing from the list | Delete per article and per site; `z2-action:` links in the page call `rss.sh remove` / `remove-site` (1.0.14; article deletes use the value-carrying link `z2-action:d/<key>` and appear on every article since 1.0.15) |
 | Images and keeping | Settings switches thumbnail images and keeping articles; images are embedded in the page, and kept articles are read and searched by month under Archive (1.0.14) |
 
 Register notification actions with:

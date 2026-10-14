@@ -45,9 +45,33 @@ Under Display, Show Refresh button and Show Expand button control those buttons 
 | `view-refresh` | `manual` (default) / `auto` |
 | `view-refresh-button` | `on` (default) / `off` |
 | `view-expand-button` | `on` (default) / `off` |
+| `view-find-button` | `on` / `off` (default). The Find in page button (1.0.15) |
 | `every` | Automatic mode only. Empty or 0 means on open only; 5–86400 seconds also enables periodic refresh |
 
 Swipe the tab strip horizontally to scroll its labels without selecting a different tab. Swipe horizontally on an HTML view to change tabs, and vertically to scroll the page. A vertical start or long press will not turn into a tab change.
+
+## Read from the terminal (standard input and plain text)
+
+Since 1.0.15 a command's output can be read without writing an HTML file first.
+
+```sh
+ls -l | z2-view                     # piped, no arguments
+ps -ef | z2-view - "Processes"      # - is standard input; the second argument is the title
+z2-view notes.txt                   # a plain text file
+```
+
+- Input whose first visible character is not `<` is treated as plain text. It is shown wrapped in a monospace font with terminal colour codes (escape sequences) removed. Every character is escaped, so nothing is read as a tag.
+- Files named `.html`, `.htm` or `.xhtml` are always pages, whatever they contain.
+- `--text` (always text) and `--html` (always a page) override the automatic choice.
+- The limit is 4 MB, as for pages, and the text wrapped as a page must also fit in 4 MB. Bytes that are not valid UTF-8 are shown as replacement characters.
+
+## Find in page
+
+Since 1.0.15 a word can be found in the page being shown. Find opens an entry above the page; each keystroke highlights the matches and shows the position and total (such as `3/12`). ▲ and ▼ move between matches and ✕ closes. The keyboard's search key also moves to the next match.
+
+- The full-screen view (opened from the terminal with `z2-view`, or with Expand) always shows Find.
+- Edge panel view items do not show it by default. Turn on Show Find button under the item's Display, or set `view-find-button=on`.
+- A page that arrives while finding is searched again for the same word. Opening a form closes Find.
 
 ## Define forms and actions in a macro
 
@@ -73,7 +97,7 @@ z2-view --controls "$HOME/controls.json" "$HOME/page.html" "My view"
         ]}
       ]
     },
-    {"id": "remove-123", "label": "Delete", "args": ["remove", "123"], "confirm": "Delete this item?"}
+    {"id": "remove", "label": "Delete", "args": ["remove"], "param": true, "confirm": "Delete this item?"}
   ]
 }
 ```
@@ -88,13 +112,28 @@ z2-view --controls "$HOME/controls.json" "$HOME/page.html" "My view"
 | `args` | Fixed arguments, followed by field values in field order |
 | `toolbar` | Show a button above the page when true |
 | `confirm` | Optional confirmation before execution |
+| `param` | When true, a page link supplies one value (below). Cannot be combined with `toolbar` (1.0.15) |
 | `fields` | Optional generic input form; absent means execute without a form |
 | `type=text` | Free text, optional `default` |
+| `type=multiline` | Free text over several lines; starts four lines tall (1.0.15) |
+| `type=number` | A number. Shows the numeric keyboard and refuses to send anything not shaped like `-12` or `3.5` (1.0.15) |
+| `type=switch` | An on/off switch passing `on` or `off`; `default` `on` starts it on (1.0.15) |
+| `type=date` | Date only, as `yyyyMMdd` (1.0.15) |
+| `type=time` | Time only, as `HHmm`. Initial value defaults to one hour later (1.0.15) |
 | `type=datetime` | Native date/time selection; local time as `yyyyMMddHHmm`. Initial value defaults to one hour later |
 | `type=choice` | Display each choice's `label`, pass its `value`; optional `default` |
 | `required` | True by default; false allows an empty field |
 
-HTML may link to an already registered action: `<a href="z2-action:remove-123">Delete</a>`. Without a separate definition, such links execute nothing.
+HTML may link to an already registered action: `<a href="z2-action:save">Save</a>`. Without a separate definition, such links execute nothing.
+
+An action with `"param": true` is called with one value after a `/` in the link (1.0.15). A list with a Delete link on every row then needs one action instead of one per row (a page holds at most 500 actions).
+
+```html
+<a href="z2-action:remove/123">Delete</a>
+<a href="z2-action:remove/456">Delete</a>
+```
+
+The example runs `example.sh remove 123`: the value follows the fixed arguments as **one argument**, and any form fields follow it. Values are 1–4096 characters. Percent-encode `#`, `%`, `?` and spaces (`%23` and so on); the app decodes them before passing the value. A `param` action linked without a value, or an ordinary action linked with one, runs nothing. Each action has one confirmation, so rows that need their own confirmation text still register an action per row.
 
 After an operation, calling `z2-view` again replaces the same view in either host. Normally macros should leave the supplied `Z2_VIEW_SESSION` and `Z2_VIEW_TARGET` unchanged. Explicit `--edge` redirects to the specified item.
 
@@ -127,4 +166,6 @@ RSS displays saved articles immediately and fetches feeds only for actions from 
 
 Use Subscriptions in the article view to add, change or remove feed URLs. Changes apply on the next poll; collected articles are kept. Returning with Articles fetches the new subscriptions. `rss.sh feeds` also opens the subscription list.
 
-The reminder macro generates HTML and form JSON with `sh` and `awk`. Add specifies content, date/time and repetition, with optional text scheduling that overrides the date and repetition fields. Weekly repetition uses the selected date's weekday. Scheduled, repeating and notified entries are distinct; notified does not mean completed. Row deletion uses a stable ID and cancels pending alarms, repeating rules and snoozes before removing data. Failed cancellation retains the data. Adding registers the necessary event hooks but does not place tiles. `remind.sh view` provides the same controls in the standalone viewer.
+In 1.0.15 the per-article Delete, the subscription Delete and the archive's month links each became one value-carrying (`param`) action. Article deletes used to be added newest first up to the action limit (500); now every article in the list has one. The two Settings entries are switches (`type=switch`).
+
+The reminder macro generates HTML and form JSON with `sh` and `awk`. Add specifies content (a multiline field since 1.0.15), date/time and repetition, with optional text scheduling that overrides the date and repetition fields. Weekly repetition uses the selected date's weekday. Scheduled, repeating and notified entries are distinct; notified does not mean completed. Row deletion uses a stable ID and cancels pending alarms, repeating rules and snoozes before removing data. Failed cancellation retains the data. Adding registers the necessary event hooks but does not place tiles. `remind.sh view` provides the same controls in the standalone viewer.

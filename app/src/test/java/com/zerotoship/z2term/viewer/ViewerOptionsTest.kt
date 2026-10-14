@@ -15,7 +15,10 @@ class ViewerOptionsTest {
             assertEquals(0L, options.interval(60))
             assertTrue(options.showRefresh)
             assertTrue(options.showExpand)
+            // Find is opt-in, so panels made before it look the same.
+            assertFalse(options.showFind)
         }
+        assertTrue(ViewerOptions.from(mapOf("view-find-button" to "on")).showFind)
     }
 
     @Test fun controlsAreIndependentOfAutomaticUpdatesAndPersistInExports() {
@@ -53,7 +56,7 @@ class ViewerOptionsTest {
             store.setItem("main:page", mapOf("type" to "view", "run" to "example.sh view"))
             val original = store.item("main:page").fields
             for ((key, invalid) in listOf("view-refresh" to "always", "view-refresh-button" to "yes",
-                "view-expand-button" to "false", "view-refresh" to "")) {
+                "view-expand-button" to "false", "view-find-button" to "1", "view-refresh" to "")) {
                 try {
                     store.setItem("main:page", mapOf(key to invalid))
                     fail("Invalid $key was accepted")

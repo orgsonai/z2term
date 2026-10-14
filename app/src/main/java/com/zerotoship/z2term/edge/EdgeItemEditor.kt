@@ -204,6 +204,7 @@ object EdgeItemEditor {
         }
         val viewRefreshButton = viewSwitch(R.string.viewer_show_refresh, initialViewOptions.showRefresh)
         val viewExpandButton = viewSwitch(R.string.viewer_show_expand, initialViewOptions.showExpand)
+        val viewFindButton = viewSwitch(R.string.viewer_show_find, initialViewOptions.showFind)
 
         // Command: what runs, and for an ON/OFF button how its state is found.
         val buttonStateHelp = commands.addNote(R.string.edge_button_state_desc)
@@ -272,7 +273,7 @@ object EdgeItemEditor {
             buttonStateHelp.visibility = if (stateButton) View.VISIBLE else View.GONE
             sourceGroup.visibility = if (stateButton) View.VISIBLE else View.GONE
             noteLines.visibility = if (selected == "note") View.VISIBLE else View.GONE
-            listOf(viewRefreshButton, viewExpandButton, viewUpdateGroup).forEach {
+            listOf(viewRefreshButton, viewExpandButton, viewFindButton, viewUpdateGroup).forEach {
                 it.visibility = if (selected == "view") View.VISIBLE else View.GONE
             }
             resultControls.visibility = if (selected in setOf("result", "macro") || bound) View.VISIBLE else View.GONE
@@ -334,6 +335,7 @@ object EdgeItemEditor {
                 resultControls.isChecked != (item?.fields?.get("result-controls") == "on") ||
                 viewRefreshButton.isChecked != initialViewOptions.showRefresh ||
                 viewExpandButton.isChecked != initialViewOptions.showExpand ||
+                viewFindButton.isChecked != initialViewOptions.showFind ||
                 (viewUpdateMode.selectedItemPosition == 1) != initialViewOptions.automatic ||
                 entries.any { (key, entry) -> entry.text.toString() != item?.fields?.get(key).orEmpty() }
         }
@@ -345,6 +347,7 @@ object EdgeItemEditor {
             resultControls.isChecked = item?.fields?.get("result-controls") == "on"
             viewRefreshButton.isChecked = initialViewOptions.showRefresh
             viewExpandButton.isChecked = initialViewOptions.showExpand
+            viewFindButton.isChecked = initialViewOptions.showFind
             viewUpdateMode.setSelection(if (initialViewOptions.automatic) 1 else 0)
             launchMode = initialMode; windowMode?.setSelection(AppLaunch.modes.indexOf(initialMode))
             scaleFreeform = initialScale; scale?.setSelection(if (initialScale) 0 else 1)
@@ -387,6 +390,7 @@ object EdgeItemEditor {
                     values["view-refresh"] = if (viewUpdateMode.selectedItemPosition == 1) "auto" else "manual"
                     values["view-refresh-button"] = if (viewRefreshButton.isChecked) "on" else "off"
                     values["view-expand-button"] = if (viewExpandButton.isChecked) "on" else "off"
+                    values["view-find-button"] = if (viewFindButton.isChecked) "on" else "off"
                 }
                 entries.forEach { (key, entry) ->
                     // Preserve hidden values; only visible fields are edited.

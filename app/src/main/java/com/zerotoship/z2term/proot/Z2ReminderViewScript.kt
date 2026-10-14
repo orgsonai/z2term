@@ -50,7 +50,7 @@ cmd_view() (
       print "<h1>" html(l[1]) "</h1>" > out
       print "{\"handler\":\"remind.sh\",\"refresh\":[\"view\"],\"actions\":[" > controls
       print "{\"id\":\"add\",\"label\":" json(l[2]) ",\"toolbar\":true,\"args\":[\"view-add\"],\"fields\":[" > controls
-      print "{\"label\":" json(l[4]) ",\"type\":\"text\"}," > controls
+      print "{\"label\":" json(l[4]) ",\"type\":\"multiline\"}," > controls
       print "{\"label\":" json(l[5]) ",\"type\":\"datetime\"}," > controls
       print "{\"label\":" json(l[6]) ",\"type\":\"choice\",\"choices\":[" > controls
       split("once daily weekday weekly",repeatValues," ")

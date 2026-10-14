@@ -1098,22 +1098,6 @@ private fun rssBody(d: String, t: CliText): String {
         "es" to "Miniaturas",
         "ko" to "썸네일 이미지"
     )
-    val cThumbsOn = t(
-        en = "Fetch",
-        ja = "取得する",
-        "zh-CN" to "获取",
-        "zh-TW" to "取得",
-        "es" to "Descargar",
-        "ko" to "가져오기"
-    )
-    val cThumbsOff = t(
-        en = "Do not fetch",
-        ja = "取得しない",
-        "zh-CN" to "不获取",
-        "zh-TW" to "不取得",
-        "es" to "No descargar",
-        "ko" to "가져오지 않기"
-    )
     val cSave = t(
         en = "Keep past articles",
         ja = "過去の記事の保存",
@@ -1121,22 +1105,6 @@ private fun rssBody(d: String, t: CliText): String {
         "zh-TW" to "保存過去的文章",
         "es" to "Conservar artículos anteriores",
         "ko" to "지난 글 보관"
-    )
-    val cSaveOn = t(
-        en = "Keep",
-        ja = "保存する",
-        "zh-CN" to "保存",
-        "zh-TW" to "保存",
-        "es" to "Conservar",
-        "ko" to "보관"
-    )
-    val cSaveOff = t(
-        en = "Do not keep",
-        ja = "保存しない",
-        "zh-CN" to "不保存",
-        "zh-TW" to "不保存",
-        "es" to "No conservar",
-        "ko" to "보관하지 않기"
     )
     val cDeleteSite = t(
         en = "Delete all articles of this site",
@@ -1305,14 +1273,14 @@ build_page() {
   # ${d}1 = where to write the controls (given only when the page is shown). Z2RSS_OPEN = site to leave open.
   python3 - "${d}ARTICLES" "${d}PAGE" "${d}THUMBDIR" "${d}THUMBS" "${d}ARCHIVE" "${d}{1:-}" "${d}{Z2RSS_OPEN:-}" \
     "$cPageTitle" "$cPageSites" "$cPageArticles" "$cOpen" "$cSubscriptions" "$cSettings" "$cArchive" "$cDelete" \
-    "$cThumbs" "$cThumbsOn" "$cThumbsOff" "$cSave" "$cSaveOn" "$cSaveOff" \
+    "$cThumbs" "$cSave" \
     "$cDeleteSite" "$cConfirmSite" <<'Z2RSS_HTML'
 import base64, hashlib, html, json, sys, time, os, tempfile
 
 src, dst, thumb_dir, thumbs, archive, controls, opened = sys.argv[1:8]
 (title, l_sites, l_articles, l_open, l_feeds, l_settings, l_archive, l_delete,
- l_thumbs, l_thumbs_on, l_thumbs_off, l_keep, l_keep_on, l_keep_off,
- l_delete_site, l_confirm_site) = sys.argv[8:24]
+ l_thumbs, l_keep,
+ l_delete_site, l_confirm_site) = sys.argv[8:20]
 
 def key(url):
     return hashlib.sha1(url.encode("utf-8")).hexdigest()
@@ -1346,16 +1314,17 @@ def save(path, text):
         if os.path.exists(pending):
             os.unlink(pending)
 
-def choice(label, value, on, off):
-    return {"label": label, "type": "choice", "default": value,
-            "choices": [{"value": "on", "label": on}, {"value": "off", "label": off}]}
+def switch(label, value):
+    # A switch hands over "on" / "off", the same words the settings command takes.
+    return {"label": label, "type": "switch", "default": value}
 
 actions = [
     {"id": "feeds", "label": l_feeds, "args": ["feeds"]},
     {"id": "settings", "label": l_settings, "args": ["settings"],
-     "fields": [choice(l_thumbs, thumbs, l_thumbs_on, l_thumbs_off),
-                choice(l_keep, archive, l_keep_on, l_keep_off)]},
+     "fields": [switch(l_thumbs, thumbs), switch(l_keep, archive)]},
     {"id": "archive", "label": l_archive, "args": ["archive"]},
+    # One action deletes any article: each link carries the article's key (z2-action:d/KEY).
+    {"id": "d", "label": l_delete, "args": ["remove"], "param": True},
 ]
 
 rows = []
@@ -1368,26 +1337,21 @@ for line in open(src, encoding="utf-8", errors="replace"):
     if not url.startswith("http://") and not url.startswith("https://"):
         continue
     stamp = int(part[0]) if part[0].isdigit() else 0
-    rows.append([stamp, url, "\t".join(part[2:]).strip() or url, picture(url), ""])
+    rows.append([stamp, url, "\t".join(part[2:]).strip() or url, picture(url)])
 
 groups = {}
 for row in rows:
     host = row[1].split("://", 1)[-1].split("/", 1)[0]
     groups.setdefault(host, []).append(row)
 
-# Every delete link is one viewer action, and the viewer accepts a limited number of actions.
-# Sites get theirs first; articles follow, newest first.
+# A site's delete asks with its own name and count, so each site keeps one action of its own.
+# The viewer accepts a limited number of actions; articles need none of their own.
 site_actions = {}
 for i, (host, items) in enumerate(groups.items()):
     if len(actions) < 495:
         site_actions[host] = "s" + str(i)
         actions.append({"id": "s" + str(i), "label": l_delete_site, "args": ["remove-site", host],
                         "confirm": l_confirm_site.replace("%h", host).replace("%s", str(len(items)))})
-for i, row in enumerate(rows):
-    if len(actions) >= 495:
-        break
-    row[4] = "d" + str(i)
-    actions.append({"id": row[4], "label": l_delete, "args": ["remove", key(row[1])]})
 
 style = (
     '<style>'
@@ -1439,11 +1403,11 @@ for host, items in groups.items():
         # Removes many at once, so the action asks first (confirm in the controls).
         out.append('<p class="s"><a class="x" href="z2-action:' + site_actions[host] + '">'
                    + html.escape(l_delete_site) + '</a></p>')
-    for stamp, url, name, image, remove in items:
+    for stamp, url, name, image in items:
         link = html.escape(url, quote=True)
         when = time.strftime("%m-%d %H:%M", time.localtime(stamp)) if stamp else ""
         thumb = '<a class="i" href="' + link + '">' + image + '</a>' if image else ''
-        drop = '<a class="x" href="z2-action:' + remove + '">' + html.escape(l_delete) + '</a>' if remove else ''
+        drop = '<a class="x" href="z2-action:d/' + key(url) + '">' + html.escape(l_delete) + '</a>'
         out.append('<article>' + thumb + '<div class="b">'
                    '<a class="t" href="' + link + '">' + html.escape(name) + '</a>'
                    '<p class="m"><time>' + when + '</time><span>' + drop
@@ -1699,8 +1663,11 @@ if not months:
 else:
     if not words:
         # The months. Plain text links, so many months do not weigh the page down.
+        # One action opens any month; each link carries the month (z2-action:month/YYYY-MM).
+        actions.append({"id": "month", "label": l_months, "args": ["archive"], "param": True})
         out.append('<nav class="g">' + ''.join(
-            link("m" + str(i), name_of(m), ["archive", m], m == month) for i, m in enumerate(months[:200])) + '</nav>')
+            '<b>' + html.escape(name_of(m)) + '</b>' if m == month else
+            '<a href="z2-action:month/' + m + '">' + html.escape(name_of(m)) + '</a>' for m in months[:200]) + '</nav>')
         # Removing a month cannot be undone, so the action asks first.
         out.append('<nav class="g">' + link(
             "drop", l_drop, ["archive-drop", month],
