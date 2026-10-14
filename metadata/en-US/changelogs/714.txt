@@ -1,0 +1,6 @@
+1.0.16
+
+- Pinching did nothing in a z2-view page. It now changes the text size,
+  and the page re-wraps to the width.
+- The screen opened from the terminal keeps one size; each panel item
+  keeps its own.

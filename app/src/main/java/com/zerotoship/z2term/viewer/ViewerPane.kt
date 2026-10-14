@@ -8,6 +8,7 @@ import android.app.KeyguardManager
 import android.os.Handler
 import android.os.Looper
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -31,7 +32,8 @@ internal class ViewerPane(context: Context, private val key: String, private val
     private val producer: String = "", private val every: Long = 0, private val timeout: Long = 30,
     private val expand: (() -> Unit)? = null, private val external: (() -> Unit)? = null,
     private val runner: EdgeRunner = EdgeRunner(context.applicationContext),
-    private val options: ViewerOptions = ViewerOptions()) : LinearLayout(context) {
+    private val options: ViewerOptions = ViewerOptions(),
+    private val onTextZoom: (Int) -> Unit = {}) : LinearLayout(context) {
     private val main = Handler(Looper.getMainLooper())
     private val status = TextView(context)
     private val tools = EdgeToolRow(context)
@@ -51,6 +53,8 @@ internal class ViewerPane(context: Context, private val key: String, private val
     private var disposed = false
     private var busy = false
     private var retryScheduled = false
+    private var textSize = options.textZoom.toFloat()
+    private var pinching = false
     private val refreshInterval = options.interval(every)
     private var restoreY = positions[key] ?: 0
     private val token = ViewerStore.attach(key) { if (hasDraft || mutation || dialog != null) pending = it else render(it) }
@@ -79,9 +83,11 @@ internal class ViewerPane(context: Context, private val key: String, private val
             allowContentAccess = false
             domStorageEnabled = false
             blockNetworkLoads = true
-            builtInZoomControls = true
+            // A pinch sizes the text (below), so the page is not zoomed as a picture as well.
+            builtInZoomControls = false
             displayZoomControls = false
-            setSupportZoom(true)
+            setSupportZoom(false)
+            textZoom = options.textZoom
         }
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -110,9 +116,34 @@ internal class ViewerPane(context: Context, private val key: String, private val
         web.setFindListener { active, total, done ->
             if (done && !disposed) findCount.text = if (findInput.text.isBlank()) "" else if (total == 0) "0" else "${active + 1}/$total"
         }
+        // Pinch changes the text size and the page re-wraps to the width, like the panel terminal.
+        val pinch = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                textSize = (textSize * detector.scaleFactor).coerceIn(
+                    ViewerOptions.MIN_TEXT_ZOOM.toFloat(), ViewerOptions.MAX_TEXT_ZOOM.toFloat())
+                web.settings.textZoom = Math.round(textSize)
+                return true
+            }
+            override fun onScaleEnd(detector: ScaleGestureDetector) {
+                val saved = Math.round(textSize)
+                textSize = saved.toFloat(); web.settings.textZoom = saved
+                if (!disposed) onTextZoom(saved)
+            }
+        }).apply { isQuickScaleEnabled = false }
         web.setOnTouchListener { _, event ->
-            if (event.actionMasked == MotionEvent.ACTION_DOWN) web.parent?.requestDisallowInterceptTouchEvent(true)
-            false
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                web.parent?.requestDisallowInterceptTouchEvent(true)
+                pinching = false
+            }
+            pinch.onTouchEvent(event)
+            if (!pinching && event.pointerCount > 1) {
+                pinching = true
+                // The page saw the first finger go down: end that touch (a tap, a scroll, a selection) first.
+                val cancel = MotionEvent.obtain(event).apply { this.action = MotionEvent.ACTION_CANCEL }
+                web.onTouchEvent(cancel)
+                cancel.recycle()
+            }
+            pinching
         }
         addView(web, LayoutParams(-1, 0, 1f))
         formScroll.visibility = GONE

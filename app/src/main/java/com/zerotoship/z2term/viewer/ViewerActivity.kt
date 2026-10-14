@@ -44,7 +44,12 @@ class ViewerActivity : ComponentActivity() {
             setPadding(pad, pad / 2, pad, pad / 2)
         }, LinearLayout.LayoutParams(-1, -2))
         // A full screen for reading: finding a word is always offered here; panels keep it opt-in.
-        pane = ViewerPane(this, key, options = ViewerOptions(showFind = true)).also { root.addView(it, LinearLayout.LayoutParams(-1, 0, 1f)) }
+        // Pages opened from a terminal are new each time, so this screen keeps one text size for all of them.
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val zoom = prefs.getInt(TEXT_ZOOM, ViewerOptions.TEXT_ZOOM)
+            .coerceIn(ViewerOptions.MIN_TEXT_ZOOM, ViewerOptions.MAX_TEXT_ZOOM)
+        pane = ViewerPane(this, key, options = ViewerOptions(showFind = true, textZoom = zoom),
+            onTextZoom = { prefs.edit().putInt(TEXT_ZOOM, it).apply() }).also { root.addView(it, LinearLayout.LayoutParams(-1, 0, 1f)) }
         setContentView(root)
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime())
@@ -71,6 +76,8 @@ class ViewerActivity : ComponentActivity() {
     }
     override fun onDestroy() { pane?.dispose(); pane = null; super.onDestroy() }
     companion object {
+        private const val PREFS = "viewer"
+        private const val TEXT_ZOOM = "text-zoom"
         internal fun open(context: Context, key: String) {
             context.startActivity(Intent(context, ViewerActivity::class.java).putExtra("page", key)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP))

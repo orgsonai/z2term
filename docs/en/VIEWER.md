@@ -46,6 +46,7 @@ Under Display, Show Refresh button and Show Expand button control those buttons 
 | `view-refresh-button` | `on` (default) / `off` |
 | `view-expand-button` | `on` (default) / `off` |
 | `view-find-button` | `on` / `off` (default). The Find in page button (1.0.15) |
+| `view-text-size` | `50`–`300` (percent, default `100`). Text size; a pinch writes it (1.0.16) |
 | `every` | Automatic mode only. Empty or 0 means on open only; 5–86400 seconds also enables periodic refresh |
 
 Swipe the tab strip horizontally to scroll its labels without selecting a different tab. Swipe horizontally on an HTML view to change tabs, and vertically to scroll the page. A vertical start or long press will not turn into a tab change.
@@ -72,6 +73,15 @@ Since 1.0.15 a word can be found in the page being shown. Find opens an entry ab
 - The full-screen view (opened from the terminal with `z2-view`, or with Expand) always shows Find.
 - Edge panel view items do not show it by default. Turn on Show Find button under the item's Display, or set `view-find-button=on`.
 - A page that arrives while finding is searched again for the same word. Opening a form closes Find.
+
+## Text size (pinch)
+
+Since 1.0.16, pinching the page with two fingers changes its text size (50–300%). The page is not magnified as a picture: the text grows or shrinks and re-wraps to the width, so nothing runs off the side.
+
+- The full-screen view opened from the terminal with `z2-view` (including Expand) keeps one size and uses it for the next page too.
+- Each edge panel view item keeps its own size (`view-text-size`).
+
+Pages that set their text size in `px` scale by the same ratio.
 
 ## Define forms and actions in a macro
 
