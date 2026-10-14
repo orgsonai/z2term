@@ -43,14 +43,17 @@ internal object EdgeSettingsUi {
     // The editor does not invent colours: it reads the app palette, which is derived from the
     // selected terminal theme (ground and text straight from it, surfaces and borders lifted off
     // the ground, one accent - the ZTS green). Nothing here to keep in step with a second palette.
-    fun canvas(context: Context): Int = AppColors.bgPrimary.toArgb()
-    fun surface(context: Context): Int = AppColors.bgCard.toArgb()
-    fun line(context: Context): Int = AppColors.border.toArgb()
-    fun strong(context: Context): Int = AppColors.textTertiary.toArgb()
-    fun foreground(context: Context): Int = AppColors.textPrimary.toArgb()
-    fun muted(context: Context): Int = AppColors.textSecondary.toArgb()
-    fun accent(context: Context): Int = AppColors.accent.toArgb()
-    fun danger(context: Context): Int = AppColors.error.toArgb()
+    // A panel with its own scheme hands its palette over through the view context ([EdgePalette]).
+    fun canvas(context: Context): Int = EdgePalette.of(context)?.canvas ?: AppColors.bgPrimary.toArgb()
+    /** The second ground, one step off the canvas (a status strip, an alternate row). */
+    fun raised(context: Context): Int = EdgePalette.of(context)?.raised ?: AppColors.bgSecondary.toArgb()
+    fun surface(context: Context): Int = EdgePalette.of(context)?.surface ?: AppColors.bgCard.toArgb()
+    fun line(context: Context): Int = EdgePalette.of(context)?.line ?: AppColors.border.toArgb()
+    fun strong(context: Context): Int = EdgePalette.of(context)?.strong ?: AppColors.textTertiary.toArgb()
+    fun foreground(context: Context): Int = EdgePalette.of(context)?.foreground ?: AppColors.textPrimary.toArgb()
+    fun muted(context: Context): Int = EdgePalette.of(context)?.muted ?: AppColors.textSecondary.toArgb()
+    fun accent(context: Context): Int = EdgePalette.of(context)?.accent ?: AppColors.accent.toArgb()
+    fun danger(context: Context): Int = EdgePalette.of(context)?.danger ?: AppColors.error.toArgb()
     /** A theme may hand us any accent, so the label on a filled button is chosen by luminance. */
     private fun onAccent(context: Context): Int =
         if (ColorUtils.calculateLuminance(accent(context)) > 0.4) Color.rgb(10, 12, 14) else Color.WHITE

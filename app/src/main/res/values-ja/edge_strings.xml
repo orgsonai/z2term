@@ -163,7 +163,7 @@
     <string name="edge_note_smaller">メモの文字を小さく</string>
     <string name="edge_note_larger">メモの文字を大きく</string>
     <string name="edge_bar_color">バーの色</string>
-    <string name="edge_bar_color_help">自動は背景に合わせて白・黒を切り替えます。Android 11以降と「z2term Android 操作」のユーザー補助が必要です。判定できない場合も白黒の縁取りを表示します。白・黒の固定では画面画像を取得しません。</string>
+    <string name="edge_bar_color_help">自動は背景に合わせて白・黒を切り替えます。Android 11以降と「z2term Android 操作」のユーザー補助が必要です。判定できない場合も白黒の縁取りを表示します。色を固定した場合は画面画像を取得しません。縁取りは、その色の上で見えやすい白か黒になります。</string>
     <string name="edge_note_background">メモの背景色</string>
     <string name="edge_note_color">メモの文字色</string>
     <string name="edge_note_colors_help">色見本または #RRGGBB で指定します。自動に戻すと背景はテーマに従い、文字は背景に合わせます。保存すると反映されます。</string>
@@ -234,4 +234,17 @@
     <string name="settings_edge_open">エッジパネルの設定を開く</string>
     <string name="settings_edge_hint">エッジパネルがオフでも開けます。そのときは端のバーを出さず、閉じたあともオフのままです。パネルがまだ無いときは作り方の案内を出します。</string>
     <string name="settings_edge_overlay">「他のアプリの上に重ねて表示」を許可してから、もう一度押してください。</string>
+    <string name="edge_section_colors">配色</string>
+    <string name="edge_scheme">パネルの配色</string>
+    <string name="edge_scheme_follow">端末と同じ</string>
+    <string name="edge_scheme_help">このパネルだけに使う端末テーマを選びます。パネル内のタブにも同じ配色を使います。編集画面は常に端末の配色のままです。</string>
+    <string name="edge_bar_gray">グレー</string>
+    <string name="edge_bar_red">赤</string>
+    <string name="edge_bar_orange">オレンジ</string>
+    <string name="edge_bar_yellow">黄</string>
+    <string name="edge_bar_green">緑</string>
+    <string name="edge_bar_cyan">シアン</string>
+    <string name="edge_bar_blue">青</string>
+    <string name="edge_bar_purple">紫</string>
+    <string name="edge_bar_pink">ピンク</string>
 </resources>

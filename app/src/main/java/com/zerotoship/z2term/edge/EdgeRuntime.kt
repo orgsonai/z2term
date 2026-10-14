@@ -16,7 +16,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
-import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -129,7 +128,9 @@ object EdgeRuntime {
         }
     }
 
-    private fun ui(): Context = ContextThemeWrapper(windowContext!!, android.R.style.Theme_DeviceDefault_DayNight)
+    /** Colours of the open panel when it has its own scheme; null follows the app palette. */
+    private var panelPalette: EdgePalette? = null
+    private fun ui(): Context = EdgePaletteContext(windowContext!!, panelPalette)
     private fun wm() = windowContext!!.getSystemService(WindowManager::class.java)
     private fun dp(n: Int) = (n * windowContext!!.resources.displayMetrics.density).toInt()
     private fun unlocked(): Boolean = app?.let {
@@ -372,6 +373,14 @@ object EdgeRuntime {
     // also opens from the notification and z2-edge open, so there is no single click to report.
     @SuppressLint("ClickableViewAccessibility")
     private fun showHandles() {
+        // Handles sit on other apps, outside any panel: they keep the app palette even while a
+        // panel with its own scheme is open.
+        val opened = panelPalette
+        panelPalette = null
+        try { buildHandles() } finally { panelPalette = opened }
+    }
+
+    private fun buildHandles() {
         if (!unlocked() || actionsSuspended) return
         removeHandles()
         val contrastTargets = mutableListOf<EdgeHandleContrast.Target>()
@@ -394,15 +403,18 @@ object EdgeRuntime {
             var previewRight: Boolean? = null
             val barBackground = background(round = true)
             var blackBar = f["bar-color"] == "black"
+            // A preset or #RRGGBB bar keeps one fill; its outline and badge take the contrasting ink.
+            val barFill = EdgeBarColor.fill(f["bar-color"])
+            val barInk = barFill?.let { EdgeBarColor.ink(it) }
             val view = object : TextView(ui()) {
                 override fun onDraw(canvas: android.graphics.Canvas) {
                     if (!button) {
                         // Keep the complete shape independent of the wider touch target.
                         val visibleWidth = if (relocating) this.width else size.coerceAtMost(this.width)
                         val left = if (right && !relocating) this.width - visibleWidth else 0
-                        barBackground.setColor(if (blackBar) Color.BLACK else Color.WHITE)
+                        barBackground.setColor(barFill ?: if (blackBar) Color.BLACK else Color.WHITE)
                         barBackground.setStroke(minOf(dp(1).coerceAtLeast(1), (visibleWidth / 4).coerceAtLeast(1)),
-                            if (blackBar) Color.WHITE else Color.BLACK)
+                            barInk ?: if (blackBar) Color.WHITE else Color.BLACK)
                         barBackground.cornerRadius = minOf(visibleWidth, this.height) / 2f
                         barBackground.setBounds(left, 0, left + visibleWidth, this.height)
                         barBackground.draw(canvas)
@@ -417,7 +429,7 @@ object EdgeRuntime {
             }.apply {
                 text = badges[panel.id] ?: if (button) "≡" else ""
                 textSize = 16f
-                setTextColor(if (button) colors().second else if (blackBar) Color.WHITE else Color.BLACK)
+                setTextColor(if (button) colors().second else barInk ?: if (blackBar) Color.WHITE else Color.BLACK)
                 background = if (button) background(true) else null; gravity = Gravity.CENTER
                 alpha = f["alpha"]?.toFloatOrNull() ?: 1f
                 setPadding(0, 0, 0, 0); maxLines = 2
@@ -794,6 +806,9 @@ object EdgeRuntime {
         val previousTabScroll = if (openRootId == root.id && editingItems == settings)
             existingWindow?.findViewWithTag<android.widget.HorizontalScrollView>("edge-tabs")?.scrollX ?: 0 else 0
         clearPanel(keepWindow = existingWindow != null)
+        // The editor keeps the app palette, so a scheme with poor contrast can always be changed back.
+        panelPalette = if (settings) null
+            else EdgePalette.named(panel.fields["scheme"]) ?: EdgePalette.named(root.fields["scheme"])
         val session = EdgeEditorSession(ui())
         editorSession = session
         editingItems = settings
@@ -1317,6 +1332,7 @@ object EdgeRuntime {
             panelView = null
         }
         openId = null; openRootId = null; editingItems = false; renderers.clear()
+        panelPalette = null
     }
 
     /** Grid columns the legacy renderer would use, so derived rows match what the panel showed. */

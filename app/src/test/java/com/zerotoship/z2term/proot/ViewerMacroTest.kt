@@ -134,7 +134,9 @@ class ViewerMacroTest {
         for (lang in listOf("ja", "en", "zh-CN", "zh-TW", "es", "ko")) Fixture(lang).use { f ->
             f.macro.writeText(z2MacroSamples(lang).getValue("rss.sh"))
             assertEquals(0, f.run("view").first)
-            f.jsonCheck("a=next(a for a in d['actions'] if a['id']=='feeds'); assert a['toolbar']; assert a['args']==['feeds']")
+            // Subscriptions is a link in the page, not a toolbar button: a narrow panel stacks toolbar buttons.
+            f.jsonCheck("a=next(a for a in d['actions'] if a['id']=='feeds'); assert not a.get('toolbar'); assert a['args']==['feeds']")
+            assertTrue(File(f.home, "page.html").readText().contains("z2-action:feeds"))
             val added = f.run("feed-add", "https://example.test/rss?a=1&b=2")
             assertEquals(added.second, 0, added.first)
             val rss = File(f.home, ".z2term/rss")
@@ -142,6 +144,59 @@ class ViewerMacroTest {
             f.jsonCheck("assert d['refresh']==['feeds','0']; a=next(a for a in d['actions'] if a['id']=='edit-0'); assert a['fields'][0]['default']=='https://example.test/rss?a=1&b=2'")
             assertEquals(0, f.run("feeds").first)
             assertTrue(File(f.home, "page.html").readText().contains("https://example.test/rss?a=1&amp;b=2"))
+            assertFalse(File(f.home, "calls").exists())
+        }
+    }
+
+    @Test fun rssListDeletesArticlesAndKeepsAnArchiveInEveryLanguage() {
+        fun key(url: String) = java.security.MessageDigest.getInstance("SHA-1").digest(url.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        for (lang in listOf("ja", "en", "zh-CN", "zh-TW", "es", "ko")) Fixture(lang).use { f ->
+            f.macro.writeText(z2MacroSamples(lang).getValue("rss.sh"))
+            val rss = File(f.home, ".z2term/rss").apply { mkdirs() }
+            val articles = File(rss, "articles.tsv")
+            val latest = File(rss, "latest.txt")
+            articles.writeText("1791900000\thttps://a.example/1\tAlpha one\n1791900000\thttps://a.example/2\tAlpha two\n" +
+                "1791900000\thttps://b.example/1\tBeta one\n")
+            latest.writeText("Alpha one  https://a.example/1\nAlpha two  https://a.example/2\nBeta one  https://b.example/1\n")
+            File(rss, "seen.txt").writeText("https://a.example/1\tAlpha one\n")
+
+            // Keeping starts with what is already listed; thumbnails stay off so nothing is fetched.
+            val kept = f.run("settings", "off", "on")
+            assertEquals(kept.second, 0, kept.first)
+            f.jsonCheck("s=next(a for a in d['actions'] if a['id']=='settings'); assert [x['default'] for x in s['fields']]==['off','on']; " +
+                "assert sum(a['args'][0]=='remove' for a in d['actions'])==3; " +
+                "assert all(a.get('confirm') for a in d['actions'] if a['args'][0]=='remove-site')")
+            val months = File(rss, "archive").listFiles { file -> file.extension == "tsv" }!!
+            assertEquals(1, months.size)
+            assertEquals(3, months[0].readLines().size)
+            assertNotEquals(0, f.run("settings", "maybe", "on").first)
+
+            // One article goes; its site stays open, and the next poll will not bring it back.
+            assertEquals(0, f.run("remove", key("https://a.example/1")).first)
+            assertEquals(listOf("https://a.example/2", "https://b.example/1"), articles.readLines().map { it.split("\t")[1] })
+            assertFalse(latest.readText().contains("https://a.example/1"))
+            assertTrue(File(rss, "seen.txt").readText().contains("https://a.example/1"))
+            assertTrue(File(f.home, "page.html").readText().contains("<details open><summary>a.example"))
+            assertNotEquals(0, f.run("remove", "not-a-key").first)
+
+            // A whole site goes; the archive keeps everything.
+            assertEquals(0, f.run("remove-site", "a.example").first)
+            assertEquals(listOf("https://b.example/1"), articles.readLines().map { it.split("\t")[1] })
+            assertEquals(3, months[0].readLines().size)
+
+            // The archive is read a month at a time, searched across months, and dropped by month.
+            assertEquals(0, f.run("archive").first)
+            f.jsonCheck("assert d['refresh'][0]=='archive'; assert next(a for a in d['actions'] if a['id']=='drop')['confirm']")
+            assertTrue(File(f.home, "page.html").readText().contains("Alpha one"))
+            assertEquals(0, f.run("archive-search", "ALPHA two").first)
+            f.jsonCheck("assert d['refresh']==['archive-search','ALPHA two','0']")
+            File(f.home, "page.html").readText().let { html ->
+                assertTrue(html.contains("Alpha two")); assertFalse(html.contains("Alpha one")); assertFalse(html.contains("Beta one"))
+            }
+            assertNotEquals(0, f.run("archive-drop", "../x").first)
+            assertEquals(0, f.run("archive-drop", months[0].nameWithoutExtension).first)
+            assertFalse(months[0].exists())
             assertFalse(File(f.home, "calls").exists())
         }
     }

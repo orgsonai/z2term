@@ -45,7 +45,7 @@ object EdgeAppearanceEditor {
             "title" to "off", "close" to "off", "tabbar" to "off", "add" to "off", "settings" to "off",
             "labels" to "", "fit" to "content", "place" to "handle", "at" to "", "flow" to "",
             "tools-place" to "",
-            "columns" to "auto", "icon-size" to "40", "handle" to "off", "bar-color" to "auto", "side" to "right", "open" to "",
+            "columns" to "auto", "icon-size" to "40", "handle" to "off", "bar-color" to "auto", "scheme" to "", "side" to "right", "open" to "",
             "offset" to "30", "x" to "85", "y" to "30",
             "gesture-up" to "", "gesture-down" to "", "gesture-double-tap" to "",
             "gesture-scroll" to "off", "gesture-speed" to "600", "gesture-range" to "160", "scroll-x" to "50", "scroll-y" to "50",
@@ -106,7 +106,8 @@ object EdgeAppearanceEditor {
                 override fun afterTextChanged(s: Editable?) { update() }
             })
         }
-        fun choice(key: String, label: Int, options: List<String>, names: List<Int>) {
+        /** [texts] replaces [names] when the options are not fixed strings (theme names). */
+        fun choice(key: String, label: Int, options: List<String>, names: List<Int>, texts: List<String>? = null) {
             labels[key] = label
             if (options == listOf("off", "on")) {
                 val input = EditText(context).apply { setText(panel.fields[key] ?: defaults.getValue(key)) }
@@ -124,7 +125,7 @@ object EdgeAppearanceEditor {
             val picker = EdgeSettingsUi.dress(context, android.widget.Spinner(context))
             picker.contentDescription = context.getString(label)
             picker.adapter = android.widget.ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
-                names.mapIndexed { index, name ->
+                texts ?: names.mapIndexed { index, name ->
                     if (key == "columns" && index > 0) context.getString(name, index) else context.getString(name)
                 })
             picker.setSelection(options.indexOf(input.text.toString()).coerceAtLeast(0))
@@ -163,12 +164,21 @@ object EdgeAppearanceEditor {
         content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_items))
         choice("labels", R.string.edge_show_labels, listOf("", "on", "off"), listOf(R.string.edge_option_auto, R.string.edge_option_on, R.string.edge_option_off))
         control("icon-size", R.string.edge_icon_size, 16, 192)
+        content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_colors))
+        // A scheme is a terminal theme name; a name saved earlier stays selectable even if that theme is gone.
+        val schemes = (EdgePalette.schemes() + listOfNotNull(panel.fields["scheme"]?.takeIf { it.isNotEmpty() })).distinct()
+        choice("scheme", R.string.edge_scheme, listOf("") + schemes, emptyList(),
+            listOf(context.getString(R.string.edge_scheme_follow)) + schemes)
+        help(R.string.edge_scheme_help)
         content = EdgeSettingsUi.section(context, sections, context.getString(R.string.edge_section_handle))
         choice("handle", R.string.edge_handle_kind, listOf("off", "bar", "button"),
             listOf(R.string.edge_option_off, R.string.edge_handle_bar, R.string.edge_handle_button))
         choice("side", R.string.edge_handle_side, listOf("left", "right"), listOf(R.string.edge_place_left, R.string.edge_place_right))
-        choice("bar-color", R.string.edge_bar_color, listOf("auto", "white", "black"),
-            listOf(R.string.edge_option_auto, R.string.theme_color_white, R.string.theme_color_black))
+        choice("bar-color", R.string.edge_bar_color, EdgeBarColor.names,
+            listOf(R.string.edge_option_auto, R.string.theme_color_white, R.string.theme_color_black,
+                R.string.edge_bar_gray, R.string.edge_bar_red, R.string.edge_bar_orange, R.string.edge_bar_yellow,
+                R.string.edge_bar_green, R.string.edge_bar_cyan, R.string.edge_bar_blue, R.string.edge_bar_purple,
+                R.string.edge_bar_pink))
         val barHelp = content
         content = EdgeSettingsUi.column(context)
         barExplanation = content

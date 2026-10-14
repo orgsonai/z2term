@@ -163,7 +163,7 @@
     <string name="edge_note_smaller">Decrease note text size</string>
     <string name="edge_note_larger">Increase note text size</string>
     <string name="edge_bar_color">Bar colour</string>
-    <string name="edge_bar_color_help">Automatic switches between white and black using the background. Requires Android 11 or later and z2term Android actions accessibility. A contrasting outline remains when sampling is unavailable. Fixed white or black does not capture screen images.</string>
+    <string name="edge_bar_color_help">Automatic switches between white and black using the background. Requires Android 11 or later and z2term Android actions accessibility. A contrasting outline remains when sampling is unavailable. A fixed colour does not capture screen images; its outline is black or white, whichever stays visible.</string>
     <string name="edge_note_background">Note background colour</string>
     <string name="edge_note_color">Note text colour</string>
     <string name="edge_note_colors_help">Choose a swatch or enter #RRGGBB. Automatic uses the theme background and adapts the text to the background. Changes apply when saved.</string>
@@ -234,4 +234,17 @@
     <string name="settings_edge_open">Open edge panel settings</string>
     <string name="settings_edge_hint">Works while the panels are off: the edge bar stays hidden and they stay off after you close it. With no panel yet, the setup guide opens instead.</string>
     <string name="settings_edge_overlay">Allow z2term to display over other apps, then tap again.</string>
+    <string name="edge_section_colors">Colours</string>
+    <string name="edge_scheme">Colour scheme</string>
+    <string name="edge_scheme_follow">Same as the terminal</string>
+    <string name="edge_scheme_help">Choose a terminal theme for this panel only. Tabs of the panel share it. The editor always keeps the terminal\'s colours.</string>
+    <string name="edge_bar_gray">Grey</string>
+    <string name="edge_bar_red">Red</string>
+    <string name="edge_bar_orange">Orange</string>
+    <string name="edge_bar_yellow">Yellow</string>
+    <string name="edge_bar_green">Green</string>
+    <string name="edge_bar_cyan">Cyan</string>
+    <string name="edge_bar_blue">Blue</string>
+    <string name="edge_bar_purple">Purple</string>
+    <string name="edge_bar_pink">Pink</string>
 </resources>

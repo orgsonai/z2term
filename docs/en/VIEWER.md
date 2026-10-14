@@ -123,8 +123,8 @@ z2-edge set reminders:page type=view 'run=remind.sh view' view-refresh=auto ever
 z2-edge on
 ```
 
-RSS displays saved articles immediately and fetches feeds on manual refresh. Article links open the external browser. Its existing Python 3 standard-library prerequisite remains unchanged.
+RSS displays saved articles immediately and fetches feeds only for actions from inside the list screen — Refresh, and Articles from the subscriptions screen (1.0.13; the pane's Refresh polls from its first press). Article links open the external browser. Its existing Python 3 standard-library prerequisite remains unchanged; only thumbnail images (chosen under Settings) need Pillow. Subscriptions, Archive and Settings are links inside the page, so the pane's toolbar holds only Refresh and Expand.
 
-Use Subscriptions in the article view to add, change or remove feed URLs. Changes apply on the next poll; collected articles are kept. Return with Articles and refresh to fetch the new subscriptions. `rss.sh feeds` also opens the subscription list.
+Use Subscriptions in the article view to add, change or remove feed URLs. Changes apply on the next poll; collected articles are kept. Returning with Articles fetches the new subscriptions. `rss.sh feeds` also opens the subscription list.
 
 The reminder macro generates HTML and form JSON with `sh` and `awk`. Add specifies content, date/time and repetition, with optional text scheduling that overrides the date and repetition fields. Weekly repetition uses the selected date's weekday. Scheduled, repeating and notified entries are distinct; notified does not mean completed. Row deletion uses a stable ID and cancels pending alarms, repeating rules and snoozes before removing data. Failed cancellation retains the data. Adding registers the necessary event hooks but does not place tiles. `remind.sh view` provides the same controls in the standalone viewer.

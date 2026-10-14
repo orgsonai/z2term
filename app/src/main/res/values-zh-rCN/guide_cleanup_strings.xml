@@ -14,7 +14,7 @@
     <string name="guide_undo_remind_data">删除提醒的记录（要保留就按 ✕）</string>
     <string name="guide_undo_rss_data">删除订阅列表和收集到的文章（要保留就按 ✕）</string>
     <string name="guide_undo_edge_main">删除示例应用列表面板 main（你自己加的项目也会一起删除）</string>
-    <string name="guide_undo_edge_samples">删除三个示例面板（记事本里的内容也会删除）</string>
+    <string name="guide_undo_edge_samples">删除示例面板（记事本里的内容也会删除）</string>
     <string name="guide_undo_edge_off">如果没有在用别的面板，就关闭面板（边条会消失）</string>
     <string name="guide_undo_permissions">“显示在其他应用的上层”和无障碍的许可只能在 Android 的设置里关闭。如果别的功能在用，请保持原样。</string>
 </resources>

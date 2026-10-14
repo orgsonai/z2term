@@ -17,11 +17,11 @@ internal object EdgeEditorUi {
     fun dp(context: Context, value: Int): Int = (value * context.resources.displayMetrics.density).toInt().coerceAtLeast(1)
     // Same source as the rest of the app (see EdgeSettingsUi): the panel that floats over other
     // apps has to read as this app's own surface, so it follows the selected terminal theme.
-    fun foreground(context: Context): Int = AppColors.textPrimary.toArgb()
-    fun muted(context: Context): Int = AppColors.textSecondary.toArgb()
-    fun surface(context: Context): Int = AppColors.bgPrimary.toArgb()
-    fun line(context: Context): Int = AppColors.border.toArgb()
-    fun accent(context: Context): Int = AppColors.accent.toArgb()
+    fun foreground(context: Context): Int = EdgePalette.of(context)?.foreground ?: AppColors.textPrimary.toArgb()
+    fun muted(context: Context): Int = EdgePalette.of(context)?.muted ?: AppColors.textSecondary.toArgb()
+    fun surface(context: Context): Int = EdgePalette.of(context)?.canvas ?: AppColors.bgPrimary.toArgb()
+    fun line(context: Context): Int = EdgePalette.of(context)?.line ?: AppColors.border.toArgb()
+    fun accent(context: Context): Int = EdgePalette.of(context)?.accent ?: AppColors.accent.toArgb()
     fun divider(context: Context): View = View(context).apply {
         setBackgroundColor(line(context)); layoutParams = LinearLayout.LayoutParams(-1, dp(context, 1))
     }

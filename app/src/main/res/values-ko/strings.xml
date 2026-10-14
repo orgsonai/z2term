@@ -1194,12 +1194,14 @@ SSH 연결: %3$d
     <string name="guide_sample_note">메모장</string>
     <string name="guide_sample_translation">번역</string>
     <string name="guide_sample_terminal">터미널</string>
+    <string name="guide_sample_rss">RSS</string>
+    <string name="guide_sample_reminder">리마인더</string>
     <string name="guide_sample_source">원문</string>
     <string name="guide_sample_language">번역할 언어</string>
     <string name="guide_sample_translate">번역</string>
     <string name="guide_sample_result">번역문</string>
     <string name="guide_step_edge_local">패널이 사용하는 로컬 Linux 환경의 터미널에서 셸 입력 대기 상태로 진행하세요.</string>
-    <string name="guide_step_sample_create">탭 세 개가 있는 예제 패널 하나 만들기 (기존 설정과 항목 유지)</string>
+    <string name="guide_step_sample_create">탭 세 개가 있는 예제 패널 하나 만들기 (기존 설정과 항목 유지). rss나 remind 매크로가 설치되어 있으면 그 탭도 추가합니다</string>
     <string name="guide_step_sample_open">패널을 켜고 예제 열기 (오른쪽 막대를 안쪽으로 밀면 다시 열립니다)</string>
     <string name="guide_step_sample_use" formatted="false">세 탭을 전환하며 사용하세요. 메모는 두 번 눌러 편집하며 자동 저장됩니다. 번역은 원문과 대상 언어를 지정한 뒤 번역을 누르세요. 탭 전환이나 닫기로 번역 입력과 결과는 지워집니다. 터미널의 셸, 출력, 입력 중인 내용은 유지되며 ↻로 직접 초기화합니다. 샘플 바의 불투명도는 30%입니다.</string>
     <string name="guide_step_translation_cli" tools:ignore="TypographyDashes">trans가 없다면 같은 Linux 환경에서 해당 명령을 직접 실행하세요.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\n이 카드는 안내용이며 눌러도 설치되지 않습니다. 번역할 텍스트는 외부 번역 서비스로 전송됩니다.</string>

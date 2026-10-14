@@ -150,7 +150,7 @@
     <string name="edge_note_smaller">缩小笔记字号</string>
     <string name="edge_note_larger">放大笔记字号</string>
     <string name="edge_bar_color">触发条颜色</string>
-    <string name="edge_bar_color_help">自动根据背景切换白色和黑色。需要Android 11及以上和z2term Android操作无障碍服务。无法判断时仍保留对比描边。固定白色或黑色不会获取屏幕图像。</string>
+    <string name="edge_bar_color_help">自动根据背景切换白色和黑色。需要Android 11及以上和z2term Android操作无障碍服务。无法判断时仍保留对比描边。固定颜色不会获取屏幕图像；描边会使用在该颜色上更清晰的黑色或白色。</string>
     <string name="edge_note_background">便笺背景色</string>
     <string name="edge_note_color">便笺文字色</string>
     <string name="edge_note_colors_help">选择色样或输入#RRGGBB。自动使用主题背景，并根据背景调整文字颜色。保存后生效。</string>
@@ -221,4 +221,17 @@
     <string name="settings_edge_open">打开边缘面板设置</string>
     <string name="settings_edge_hint">边缘面板关闭时也能打开：此时不显示边缘条，关闭设置后仍保持关闭。还没有面板时会打开创建指南。</string>
     <string name="settings_edge_overlay">请允许 z2term 显示在其他应用上层，然后再点一次。</string>
+    <string name="edge_section_colors">配色</string>
+    <string name="edge_scheme">面板配色</string>
+    <string name="edge_scheme_follow">与终端相同</string>
+    <string name="edge_scheme_help">选择只用于此面板的终端主题。面板内的标签页使用相同配色。编辑界面始终保持终端的配色。</string>
+    <string name="edge_bar_gray">灰</string>
+    <string name="edge_bar_red">红</string>
+    <string name="edge_bar_orange">橙</string>
+    <string name="edge_bar_yellow">黄</string>
+    <string name="edge_bar_green">绿</string>
+    <string name="edge_bar_cyan">青</string>
+    <string name="edge_bar_blue">蓝</string>
+    <string name="edge_bar_purple">紫</string>
+    <string name="edge_bar_pink">粉</string>
 </resources>

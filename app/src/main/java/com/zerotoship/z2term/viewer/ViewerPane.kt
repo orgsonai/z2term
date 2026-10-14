@@ -16,12 +16,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import android.widget.ScrollView
-import androidx.compose.ui.graphics.toArgb
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.edge.EdgeRunner
+import com.zerotoship.z2term.edge.EdgeSettingsUi
 import com.zerotoship.z2term.edge.EdgeToolRow
 import com.zerotoship.z2term.service.HeadlessRun
-import com.zerotoship.z2term.ui.theme.AppColors
 import androidx.core.view.isEmpty
 
 /** Offline HTML and separately registered controls. HTML never supplies shell code. */
@@ -59,13 +58,13 @@ internal class ViewerPane(context: Context, private val key: String, private val
 
     init {
         orientation = VERTICAL
-        setBackgroundColor(AppColors.bgPrimary.toArgb())
+        setBackgroundColor(EdgeSettingsUi.canvas(context))
         addView(tools, LayoutParams(-1, -2))
         updateTools()
-        status.setTextColor(AppColors.textSecondary.toArgb())
+        status.setTextColor(EdgeSettingsUi.muted(context))
         status.setPadding(dp(12), dp(6), dp(12), dp(6)); status.visibility = GONE
         addView(status, LayoutParams(-1, -2))
-        web.setBackgroundColor(AppColors.bgPrimary.toArgb())
+        web.setBackgroundColor(EdgeSettingsUi.canvas(context))
         web.settings.apply {
             javaScriptEnabled = false
             allowFileAccess = false
@@ -110,7 +109,7 @@ internal class ViewerPane(context: Context, private val key: String, private val
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
     private fun button(label: Int, click: () -> Unit) = Button(context).apply {
         setText(label); isAllCaps = false; minHeight = dp(48)
-        setTextColor(AppColors.textPrimary.toArgb()); setOnClickListener { click() }
+        setTextColor(EdgeSettingsUi.foreground(context)); setOnClickListener { click() }
     }
     private fun message(value: String) { status.text = value; status.visibility = if (value.isBlank()) GONE else VISIBLE }
 
@@ -120,7 +119,7 @@ internal class ViewerPane(context: Context, private val key: String, private val
         if (options.showRefresh) tools.addView(refreshButton)
         page?.controls?.actions?.filter { it.toolbar }?.forEach { a ->
             tools.addView(Button(context).apply {
-                text = a.label; isAllCaps = false; minHeight = dp(48); setTextColor(AppColors.textPrimary.toArgb())
+                text = a.label; isAllCaps = false; minHeight = dp(48); setTextColor(EdgeSettingsUi.foreground(context))
                 isEnabled = !busy && !hasDraft; setOnClickListener { action(a) }
             })
         }
@@ -242,9 +241,11 @@ internal class ViewerPane(context: Context, private val key: String, private val
     }
 
     private fun themed(html: String): String {
-        fun hex(color: androidx.compose.ui.graphics.Color) = "#%06X".format(color.toArgb() and 0xFFFFFF)
+        // The page follows the pane it is shown in: a panel with its own scheme hands over that palette.
+        fun hex(color: Int) = "#%06X".format(color and 0xFFFFFF)
         val style = "<style>:root{--z2-bg:%s;--z2-bg2:%s;--z2-fg:%s;--z2-dim:%s;--z2-line:%s;--z2-accent:%s}</style>".format(
-            hex(AppColors.bgPrimary), hex(AppColors.bgSecondary), hex(AppColors.textPrimary), hex(AppColors.textSecondary), hex(AppColors.border), hex(AppColors.accent))
+            hex(EdgeSettingsUi.canvas(context)), hex(EdgeSettingsUi.raised(context)), hex(EdgeSettingsUi.foreground(context)),
+            hex(EdgeSettingsUi.muted(context)), hex(EdgeSettingsUi.line(context)), hex(EdgeSettingsUi.accent(context)))
         val head = Regex("<head[^>]*>", RegexOption.IGNORE_CASE).find(html)
         return if (head != null) html.substring(0, head.range.last + 1) + style + html.substring(head.range.last + 1) else style + html
     }

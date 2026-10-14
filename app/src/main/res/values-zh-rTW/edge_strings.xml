@@ -150,7 +150,7 @@
     <string name="edge_note_smaller">縮小筆記字級</string>
     <string name="edge_note_larger">放大筆記字級</string>
     <string name="edge_bar_color">觸發條色彩</string>
-    <string name="edge_bar_color_help">自動依背景切換白色和黑色。需要Android 11以上及z2term Android操作無障礙服務。無法判斷時仍保留對比描邊。固定白色或黑色不會取得螢幕影像。</string>
+    <string name="edge_bar_color_help">自動依背景切換白色和黑色。需要Android 11以上及z2term Android操作無障礙服務。無法判斷時仍保留對比描邊。固定色彩不會取得螢幕影像；描邊會使用在該色彩上較清楚的黑色或白色。</string>
     <string name="edge_note_background">便箋背景色</string>
     <string name="edge_note_color">便箋文字色</string>
     <string name="edge_note_colors_help">選擇色樣或輸入#RRGGBB。自動使用佈景主題背景，並依背景調整文字色彩。儲存後生效。</string>
@@ -221,4 +221,17 @@
     <string name="settings_edge_open">開啟邊緣面板設定</string>
     <string name="settings_edge_hint">邊緣面板關閉時也能開啟：此時不顯示邊緣條，關閉設定後仍保持關閉。還沒有面板時會開啟建立指南。</string>
     <string name="settings_edge_overlay">請允許 z2term 顯示於其他應用程式上層，然後再點一次。</string>
+    <string name="edge_section_colors">配色</string>
+    <string name="edge_scheme">面板配色</string>
+    <string name="edge_scheme_follow">與終端機相同</string>
+    <string name="edge_scheme_help">選擇只用於此面板的終端機主題。面板內的分頁使用相同配色。編輯畫面一律維持終端機的配色。</string>
+    <string name="edge_bar_gray">灰</string>
+    <string name="edge_bar_red">紅</string>
+    <string name="edge_bar_orange">橙</string>
+    <string name="edge_bar_yellow">黃</string>
+    <string name="edge_bar_green">綠</string>
+    <string name="edge_bar_cyan">青</string>
+    <string name="edge_bar_blue">藍</string>
+    <string name="edge_bar_purple">紫</string>
+    <string name="edge_bar_pink">粉紅</string>
 </resources>

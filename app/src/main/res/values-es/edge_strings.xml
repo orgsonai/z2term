@@ -150,7 +150,7 @@
     <string name="edge_note_smaller">Reducir el tamaño del texto de la nota</string>
     <string name="edge_note_larger">Aumentar el tamaño del texto de la nota</string>
     <string name="edge_bar_color">Color de la barra</string>
-    <string name="edge_bar_color_help">Automático alterna blanco y negro según el fondo. Requiere Android 11 o posterior y Accesibilidad de acciones Android de z2term. Si no se puede analizar, conserva un borde de contraste. Los colores fijos no capturan imágenes.</string>
+    <string name="edge_bar_color_help">Automático alterna blanco y negro según el fondo. Requiere Android 11 o posterior y Accesibilidad de acciones Android de z2term. Si no se puede analizar, conserva un borde de contraste. Los colores fijos no capturan imágenes; el borde es negro o blanco, el que mejor se vea.</string>
     <string name="edge_note_background">Color de fondo de la nota</string>
     <string name="edge_note_color">Color del texto de la nota</string>
     <string name="edge_note_colors_help">Elige una muestra o escribe #RRGGBB. Automático usa el fondo del tema y adapta el texto al fondo. Se aplica al guardar.</string>
@@ -221,4 +221,17 @@
     <string name="settings_edge_open">Abrir los ajustes de los paneles laterales</string>
     <string name="settings_edge_hint">Funciona con los paneles apagados: la barra del borde no aparece y siguen apagados al cerrar. Si aún no hay ningún panel, se abre la guía de creación.</string>
     <string name="settings_edge_overlay">Permite que z2term se muestre sobre otras aplicaciones y vuelve a tocar.</string>
+    <string name="edge_section_colors">Colores</string>
+    <string name="edge_scheme">Esquema de colores</string>
+    <string name="edge_scheme_follow">Igual que el terminal</string>
+    <string name="edge_scheme_help">Elige un tema de terminal solo para este panel. Las pestañas del panel lo comparten. El editor conserva siempre los colores del terminal.</string>
+    <string name="edge_bar_gray">Gris</string>
+    <string name="edge_bar_red">Rojo</string>
+    <string name="edge_bar_orange">Naranja</string>
+    <string name="edge_bar_yellow">Amarillo</string>
+    <string name="edge_bar_green">Verde</string>
+    <string name="edge_bar_cyan">Cian</string>
+    <string name="edge_bar_blue">Azul</string>
+    <string name="edge_bar_purple">Morado</string>
+    <string name="edge_bar_pink">Rosa</string>
 </resources>

@@ -735,6 +735,7 @@ private fun rssBody(d: String, t: CliText): String {
 #      Edit an existing notification rule instead of adding another one.
 #
 # Needs: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
+#   Thumbnails (Settings on the list) also need Pillow (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
 # Battery: the more often you poll the more it costs. Do not go below 30 minutes.
 #
 # z2-run: z2-when time:every=30m run ~/.z2term/macros/rss.sh
@@ -757,6 +758,7 @@ private fun rssBody(d: String, t: CliText): String {
 #      通知のルールが登録済みなら、追加せず既存のルールを編集する。
 #
 # 必要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
+#   サムネイル画像 (一覧の「設定」) を使うなら Pillow も (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
 # 電池: 取りに行くほど食う。30 分より短くしないこと。
 #
 # z2-run: z2-when time:every=30m run ~/.z2term/macros/rss.sh
@@ -779,6 +781,7 @@ private fun rssBody(d: String, t: CliText): String {
 #      如果通知规则已存在，请编辑原规则，不要重复添加。
 #
 # 需要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
+#   使用缩略图 (列表的“设置”) 还需要 Pillow (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
 # 电池: 取得越勤耗得越多。不要短于 30 分钟。
 #
 # z2-run: z2-when time:every=30m run ~/.z2term/macros/rss.sh
@@ -801,6 +804,7 @@ private fun rssBody(d: String, t: CliText): String {
 #      如果通知規則已存在，請編輯原規則，不要重複新增。
 #
 # 需要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
+#   使用縮圖 (列表的「設定」) 還需要 Pillow (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
 # 電池: 取得越勤耗得越多。不要短於 30 分鐘。
 #
 # z2-run: z2-when time:every=30m run ~/.z2term/macros/rss.sh
@@ -823,6 +827,7 @@ private fun rssBody(d: String, t: CliText): String {
 #      Si ya existe una regla de notificaciones, edítala en lugar de añadir otra.
 #
 # Necesita: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
+#   Las miniaturas (Ajustes en la lista) necesitan además Pillow (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
 # Batería: cuanto más a menudo consultes, más cuesta. No bajes de 30 minutos.
 #
 # z2-run: z2-when time:every=30m run ~/.z2term/macros/rss.sh
@@ -845,6 +850,7 @@ private fun rssBody(d: String, t: CliText): String {
 #      알림 규칙이 이미 있으면 새로 추가하지 말고 기존 규칙을 편집하세요.
 #
 # 필요: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
+#   썸네일 이미지(목록의 설정)를 쓰려면 Pillow도 필요합니다 (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
 # 배터리: 자주 볼수록 더 듭니다. 30분보다 짧게는 하지 마세요.
 #
 # z2-run: z2-when time:every=30m run ~/.z2term/macros/rss.sh
@@ -1060,6 +1066,207 @@ private fun rssBody(d: String, t: CliText): String {
             "# latest.txt는 한 줄 한 글의 날 데이터 그대로 둡니다 (위젯의 tail과 rss-open.sh가 읽습니다)."
     )
 
+    val cSettings = t(
+        en = "Settings",
+        ja = "設定",
+        "zh-CN" to "设置",
+        "zh-TW" to "設定",
+        "es" to "Ajustes",
+        "ko" to "설정"
+    )
+    val cArchive = t(
+        en = "Archive",
+        ja = "アーカイブ",
+        "zh-CN" to "存档",
+        "zh-TW" to "封存",
+        "es" to "Archivo",
+        "ko" to "보관함"
+    )
+    val cDelete = t(
+        en = "Delete",
+        ja = "削除",
+        "zh-CN" to "删除",
+        "zh-TW" to "刪除",
+        "es" to "Eliminar",
+        "ko" to "삭제"
+    )
+    val cThumbs = t(
+        en = "Thumbnail images",
+        ja = "サムネイル画像",
+        "zh-CN" to "缩略图",
+        "zh-TW" to "縮圖",
+        "es" to "Miniaturas",
+        "ko" to "썸네일 이미지"
+    )
+    val cThumbsOn = t(
+        en = "Fetch",
+        ja = "取得する",
+        "zh-CN" to "获取",
+        "zh-TW" to "取得",
+        "es" to "Descargar",
+        "ko" to "가져오기"
+    )
+    val cThumbsOff = t(
+        en = "Do not fetch",
+        ja = "取得しない",
+        "zh-CN" to "不获取",
+        "zh-TW" to "不取得",
+        "es" to "No descargar",
+        "ko" to "가져오지 않기"
+    )
+    val cSave = t(
+        en = "Keep past articles",
+        ja = "過去の記事の保存",
+        "zh-CN" to "保存过去的文章",
+        "zh-TW" to "保存過去的文章",
+        "es" to "Conservar artículos anteriores",
+        "ko" to "지난 글 보관"
+    )
+    val cSaveOn = t(
+        en = "Keep",
+        ja = "保存する",
+        "zh-CN" to "保存",
+        "zh-TW" to "保存",
+        "es" to "Conservar",
+        "ko" to "보관"
+    )
+    val cSaveOff = t(
+        en = "Do not keep",
+        ja = "保存しない",
+        "zh-CN" to "不保存",
+        "zh-TW" to "不保存",
+        "es" to "No conservar",
+        "ko" to "보관하지 않기"
+    )
+    val cDeleteSite = t(
+        en = "Delete all articles of this site",
+        ja = "このサイトの記事をすべて削除",
+        "zh-CN" to "删除此站点的全部文章",
+        "zh-TW" to "刪除此站點的全部文章",
+        "es" to "Eliminar todos los artículos de este sitio",
+        "ko" to "이 사이트의 글 모두 삭제"
+    )
+    val cConfirmSite = t(
+        en = "Remove %s articles of %h from the list?",
+        ja = "%h の記事 %s 本を一覧から削除しますか？",
+        "zh-CN" to "从列表中删除 %h 的 %s 篇文章？",
+        "zh-TW" to "從列表中刪除 %h 的 %s 篇文章？",
+        "es" to "¿Quitar de la lista %s artículos de %h?",
+        "ko" to "%h의 글 %s개를 목록에서 삭제할까요?"
+    )
+    val cArticles = t(
+        en = "Articles",
+        ja = "記事一覧",
+        "zh-CN" to "文章列表",
+        "zh-TW" to "文章列表",
+        "es" to "Artículos",
+        "ko" to "글 목록"
+    )
+    val cPrev = t(
+        en = "Previous",
+        ja = "前へ",
+        "zh-CN" to "上一页",
+        "zh-TW" to "上一頁",
+        "es" to "Anterior",
+        "ko" to "이전"
+    )
+    val cNext = t(
+        en = "Next",
+        ja = "次へ",
+        "zh-CN" to "下一页",
+        "zh-TW" to "下一頁",
+        "es" to "Siguiente",
+        "ko" to "다음"
+    )
+    val cCount = t(
+        en = "%s articles",
+        ja = "%s 本",
+        "zh-CN" to "%s 篇",
+        "zh-TW" to "%s 篇",
+        "es" to "%s artículos",
+        "ko" to "%s개"
+    )
+    val cUndated = t(
+        en = "Undated",
+        ja = "日付不明",
+        "zh-CN" to "日期不明",
+        "zh-TW" to "日期不明",
+        "es" to "Sin fecha",
+        "ko" to "날짜 없음"
+    )
+    val cArchiveEmpty = t(
+        en = "Nothing kept yet. Turn on Keep past articles in Settings, and collected articles will stay here.",
+        ja = "保存した記事はまだありません。「設定」の「過去の記事の保存」を「保存する」にすると、取得した記事がここに残ります。",
+        "zh-CN" to "还没有保存的文章。在“设置”中把“保存过去的文章”设为“保存”后，获取到的文章会留在这里。",
+        "zh-TW" to "還沒有保存的文章。在「設定」中把「保存過去的文章」設為「保存」後，取得的文章會留在這裡。",
+        "es" to "Aún no hay artículos guardados. Activa Conservar artículos anteriores en Ajustes y los artículos reunidos quedarán aquí.",
+        "ko" to "아직 보관한 글이 없습니다. 설정에서 지난 글 보관을 보관으로 바꾸면 모은 글이 여기에 남습니다."
+    )
+    val cSearch = t(
+        en = "Search",
+        ja = "検索",
+        "zh-CN" to "搜索",
+        "zh-TW" to "搜尋",
+        "es" to "Buscar",
+        "ko" to "검색"
+    )
+    val cSearchWord = t(
+        en = "Words (separate with spaces to require all of them)",
+        ja = "探す言葉 (空白で区切ると、すべてを含む記事)",
+        "zh-CN" to "搜索词 (用空格分隔时需全部包含)",
+        "zh-TW" to "搜尋詞 (以空格分隔時需全部包含)",
+        "es" to "Palabras (separadas por espacios: deben aparecer todas)",
+        "ko" to "찾을 말 (띄어 쓰면 모두 포함한 글)"
+    )
+    val cByMonth = t(
+        en = "By month",
+        ja = "月ごとに見る",
+        "zh-CN" to "按月查看",
+        "zh-TW" to "按月檢視",
+        "es" to "Por mes",
+        "ko" to "월별로 보기"
+    )
+    val cNoHit = t(
+        en = "Nothing found.",
+        ja = "見つかりませんでした。",
+        "zh-CN" to "没有找到。",
+        "zh-TW" to "沒有找到。",
+        "es" to "No se encontró nada.",
+        "ko" to "찾지 못했습니다."
+    )
+    val cDropMonth = t(
+        en = "Delete this month",
+        ja = "この月を削除",
+        "zh-CN" to "删除这个月",
+        "zh-TW" to "刪除這個月",
+        "es" to "Eliminar este mes",
+        "ko" to "이 달 삭제"
+    )
+    val cDropConfirm = t(
+        en = "Delete the %s kept articles of %m? This cannot be undone.",
+        ja = "%m の保存記事 %s 本を削除しますか？ 元に戻せません。",
+        "zh-CN" to "删除 %m 保存的 %s 篇文章？此操作无法撤销。",
+        "zh-TW" to "刪除 %m 保存的 %s 篇文章？此操作無法復原。",
+        "es" to "¿Eliminar los %s artículos guardados de %m? No se puede deshacer.",
+        "ko" to "%m에 보관한 글 %s개를 삭제할까요? 되돌릴 수 없습니다."
+    )
+    val cOnOff = t(
+        en = "Specify on or off",
+        ja = "on か off を指定してください",
+        "zh-CN" to "请指定 on 或 off",
+        "zh-TW" to "請指定 on 或 off",
+        "es" to "Indica on u off",
+        "ko" to "on 또는 off를 지정하세요"
+    )
+    val cNoPillow = t(
+        en = "Thumbnail images need Pillow for Python (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)",
+        ja = "サムネイル画像には Python の Pillow が要ります (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)",
+        "zh-CN" to "缩略图需要 Python 的 Pillow (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)",
+        "zh-TW" to "縮圖需要 Python 的 Pillow (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)",
+        "es" to "Las miniaturas necesitan Pillow para Python (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)",
+        "ko" to "썸네일 이미지에는 Python의 Pillow가 필요합니다 (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)"
+    )
+
     return """$head
 DIR="${d}HOME/.z2term/rss"
 FEEDS="${d}DIR/feeds.txt"
@@ -1073,6 +1280,16 @@ ARTICLES="${d}DIR/articles.tsv"
 PAGE="${d}DIR/latest.html"
 KEEP=500                                  # $cKeep
 HITMAX=5                                  # $cHitMax
+SETTINGS="${d}DIR/settings.conf"
+THUMBDIR="${d}DIR/thumbs"
+IMGHINTS="${d}DIR/.img"
+# Whether to fetch thumbnail images (switched in Settings on the list). Off by default.
+THUMBS=${d}(sed -n 's/^thumbs=//p' "${d}SETTINGS" 2>/dev/null | head -n 1)
+[ "${d}THUMBS" = on ] || THUMBS=off
+# Whether to keep every collected article (also in Settings). Off by default.
+ARCHDIR="${d}DIR/archive"
+ARCHIVE=${d}(sed -n 's/^archive=//p' "${d}SETTINGS" 2>/dev/null | head -n 1)
+[ "${d}ARCHIVE" = on ] || ARCHIVE=off
 
 $feedManager
 
@@ -1085,10 +1302,61 @@ build_page() {
   fi
   mkdir -p "${d}DIR" || return 1
   touch "${d}ARTICLES" || return 1
-  python3 - "${d}ARTICLES" "${d}PAGE" "$cPageTitle" "$cPageSites" "$cPageArticles" "$cOpen" <<'Z2RSS_HTML'
-import html, sys, time, os, tempfile
+  # ${d}1 = where to write the controls (given only when the page is shown). Z2RSS_OPEN = site to leave open.
+  python3 - "${d}ARTICLES" "${d}PAGE" "${d}THUMBDIR" "${d}THUMBS" "${d}ARCHIVE" "${d}{1:-}" "${d}{Z2RSS_OPEN:-}" \
+    "$cPageTitle" "$cPageSites" "$cPageArticles" "$cOpen" "$cSubscriptions" "$cSettings" "$cArchive" "$cDelete" \
+    "$cThumbs" "$cThumbsOn" "$cThumbsOff" "$cSave" "$cSaveOn" "$cSaveOff" \
+    "$cDeleteSite" "$cConfirmSite" <<'Z2RSS_HTML'
+import base64, hashlib, html, json, sys, time, os, tempfile
 
-src, dst, title, l_sites, l_articles, l_open = sys.argv[1:7]
+src, dst, thumb_dir, thumbs, archive, controls, opened = sys.argv[1:8]
+(title, l_sites, l_articles, l_open, l_feeds, l_settings, l_archive, l_delete,
+ l_thumbs, l_thumbs_on, l_thumbs_off, l_keep, l_keep_on, l_keep_off,
+ l_delete_site, l_confirm_site) = sys.argv[8:24]
+
+def key(url):
+    return hashlib.sha1(url.encode("utf-8")).hexdigest()
+
+# Images are embedded: the viewer blocks network loads, so a remote image cannot be shown.
+# A total budget keeps the page light; the newest articles use it first.
+budget = 2200000
+def picture(url):
+    global budget
+    if thumbs != "on":
+        return ""
+    try:
+        with open(os.path.join(thumb_dir, key(url) + ".jpg"), "rb") as f:
+            data = f.read()
+    except OSError:
+        return ""
+    size = (len(data) + 2) // 3 * 4
+    if not data or size > budget:
+        return ""
+    budget -= size
+    return ('<img alt="" width="96" height="64" src="data:image/jpeg;base64,'
+            + base64.b64encode(data).decode("ascii") + '">')
+
+def save(path, text):
+    fd, pending = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".page-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as out:
+            out.write(text)
+        os.replace(pending, path)
+    finally:
+        if os.path.exists(pending):
+            os.unlink(pending)
+
+def choice(label, value, on, off):
+    return {"label": label, "type": "choice", "default": value,
+            "choices": [{"value": "on", "label": on}, {"value": "off", "label": off}]}
+
+actions = [
+    {"id": "feeds", "label": l_feeds, "args": ["feeds"]},
+    {"id": "settings", "label": l_settings, "args": ["settings"],
+     "fields": [choice(l_thumbs, thumbs, l_thumbs_on, l_thumbs_off),
+                choice(l_keep, archive, l_keep_on, l_keep_off)]},
+    {"id": "archive", "label": l_archive, "args": ["archive"]},
+]
 
 rows = []
 for line in open(src, encoding="utf-8", errors="replace"):
@@ -1100,12 +1368,26 @@ for line in open(src, encoding="utf-8", errors="replace"):
     if not url.startswith("http://") and not url.startswith("https://"):
         continue
     stamp = int(part[0]) if part[0].isdigit() else 0
-    rows.append((stamp, url, "\t".join(part[2:]).strip() or url))
+    rows.append([stamp, url, "\t".join(part[2:]).strip() or url, picture(url), ""])
 
 groups = {}
-for stamp, url, name in rows:
-    host = url.split("://", 1)[-1].split("/", 1)[0]
-    groups.setdefault(host, []).append((stamp, url, name))
+for row in rows:
+    host = row[1].split("://", 1)[-1].split("/", 1)[0]
+    groups.setdefault(host, []).append(row)
+
+# Every delete link is one viewer action, and the viewer accepts a limited number of actions.
+# Sites get theirs first; articles follow, newest first.
+site_actions = {}
+for i, (host, items) in enumerate(groups.items()):
+    if len(actions) < 495:
+        site_actions[host] = "s" + str(i)
+        actions.append({"id": "s" + str(i), "label": l_delete_site, "args": ["remove-site", host],
+                        "confirm": l_confirm_site.replace("%h", host).replace("%s", str(len(items)))})
+for i, row in enumerate(rows):
+    if len(actions) >= 495:
+        break
+    row[4] = "d" + str(i)
+    actions.append({"id": row[4], "label": l_delete, "args": ["remove", key(row[1])]})
 
 style = (
     '<style>'
@@ -1115,15 +1397,25 @@ style = (
     'header{padding:14px 16px;border-bottom:1px solid var(--z2-line,#ddd)}'
     'h1{margin:0;font-size:17px;font-weight:600}'
     'header p{margin:3px 0 0;font-size:13px;color:var(--z2-dim,#666)}'
-    'section{padding:0 16px}'
-    'h2{position:sticky;top:0;margin:0;padding:13px 0 5px;font-size:12px;font-weight:600;'
-    'letter-spacing:.05em;color:var(--z2-accent,#0a7d3f);background:var(--z2-bg,#fff);'
+    'header nav{display:flex;gap:20px;margin-top:6px;font-size:14px}'
+    'header nav a{color:var(--z2-accent,#0a7d3f);text-decoration:none;padding:8px 0}'
+    'details{padding:0 16px}'
+    'summary{position:sticky;top:0;padding:14px 0;font-size:14px;font-weight:600;'
+    'color:var(--z2-accent,#0a7d3f);background:var(--z2-bg,#fff);'
     'border-bottom:1px solid var(--z2-line,#ddd)}'
-    'h2 span{float:right;font-weight:400;color:var(--z2-dim,#666)}'
-    'article{padding:11px 0;border-bottom:1px solid var(--z2-line,#eee)}'
+    'summary span{float:right;font-weight:400;color:var(--z2-dim,#666)}'
+    'article{display:flex;gap:12px;align-items:flex-start;padding:11px 0;'
+    'border-bottom:1px solid var(--z2-line,#eee)}'
+    'a.i{flex:none;line-height:0}'
+    'a.i img{display:block;width:96px;height:64px;object-fit:cover}'
+    'div.b{flex:1;min-width:0}'
     'a.t{display:block;color:inherit;text-decoration:none}'
     'p.m{display:flex;justify-content:space-between;align-items:center;'
     'margin:6px 0 0;font-size:12px;color:var(--z2-dim,#666)}'
+    'p.m span{display:flex;gap:22px;align-items:center}'
+    'a.x{color:inherit;text-decoration:none;padding:4px 0}'
+    'p.s{margin:0;padding:8px 0;text-align:right;font-size:12px;color:var(--z2-dim,#666);'
+    'border-bottom:1px solid var(--z2-line,#eee)}'
     'a.o{color:var(--z2-accent,#0a7d3f);text-decoration:none;'
     'border:1px solid currentColor;padding:3px 12px}'
     '</style>'
@@ -1133,27 +1425,455 @@ out = ['<!doctype html><html><head><meta charset="utf-8">',
        '<meta name="viewport" content="width=device-width,initial-scale=1">',
        '<title>' + html.escape(title) + '</title>', style, '</head><body>',
        '<header><h1>' + html.escape(title) + '</h1><p>'
-       + html.escape(l_sites.replace("%s", str(len(groups)))) + ' \u00b7 '
-       + html.escape(l_articles.replace("%s", str(len(rows)))) + '</p></header>']
+       + html.escape(l_sites.replace("%s", str(len(groups)))) + ' · '
+       + html.escape(l_articles.replace("%s", str(len(rows)))) + '</p>'
+       # These live in the page: toolbar buttons stack vertically in a narrow panel and hide the articles.
+       '<nav><a href="z2-action:feeds">' + html.escape(l_feeds) + '</a>'
+       '<a href="z2-action:archive">' + html.escape(l_archive) + '</a>'
+       '<a href="z2-action:settings">' + html.escape(l_settings) + '</a></nav></header>']
 for host, items in groups.items():
-    out.append('<section><h2>' + html.escape(host) + '<span>' + str(len(items)) + '</span></h2>')
-    for stamp, url, name in items:
+    # One folded block per site. The viewer runs no JavaScript, so this is <details>.
+    out.append('<details' + (' open' if host == opened else '') + '><summary>' + html.escape(host)
+               + '<span>' + str(len(items)) + '</span></summary>')
+    if host in site_actions:
+        # Removes many at once, so the action asks first (confirm in the controls).
+        out.append('<p class="s"><a class="x" href="z2-action:' + site_actions[host] + '">'
+                   + html.escape(l_delete_site) + '</a></p>')
+    for stamp, url, name, image, remove in items:
         link = html.escape(url, quote=True)
         when = time.strftime("%m-%d %H:%M", time.localtime(stamp)) if stamp else ""
-        out.append('<article><a class="t" href="' + link + '">' + html.escape(name) + '</a>'
-                   '<p class="m"><time>' + when + '</time>'
-                   '<a class="o" href="' + link + '">' + html.escape(l_open) + '</a></p></article>')
-    out.append('</section>')
+        thumb = '<a class="i" href="' + link + '">' + image + '</a>' if image else ''
+        drop = '<a class="x" href="z2-action:' + remove + '">' + html.escape(l_delete) + '</a>' if remove else ''
+        out.append('<article>' + thumb + '<div class="b">'
+                   '<a class="t" href="' + link + '">' + html.escape(name) + '</a>'
+                   '<p class="m"><time>' + when + '</time><span>' + drop
+                   + '<a class="o" href="' + link + '">' + html.escape(l_open) + '</a></span></p></div></article>')
+    out.append('</details>')
 out.append('</body></html>')
-fd, pending = tempfile.mkstemp(dir=os.path.dirname(dst), prefix=".page-")
-try:
-    with os.fdopen(fd, "w", encoding="utf-8") as page:
-        page.write("\n".join(out))
-    os.replace(pending, dst)
-finally:
-    if os.path.exists(pending):
-        os.unlink(pending)
+save(dst, "\n".join(out))
+if controls:
+    save(controls, json.dumps({"handler": "rss.sh", "refresh": ["refresh-view"], "actions": actions},
+                              ensure_ascii=False))
 Z2RSS_HTML
+}
+
+# Remove articles from the list. They stay in seen.txt, so the next poll does not bring them back,
+# and they stay in the archive if they were kept. Prints the site of what was removed.
+# ${d}1 = key (one article; ${d}2 is the hash of its URL) / site (every article of a site; ${d}2 is the host).
+remove_article() {
+  python3 - "${d}ARTICLES" "${d}LATEST" "${d}1" "${d}2" <<'Z2RSS_DEL'
+import hashlib, os, re, sys, tempfile
+
+articles, latest, kind, wanted = sys.argv[1:5]
+if kind not in ("key", "site") or not wanted or (kind == "key" and not re.fullmatch(r"[0-9a-f]{40}", wanted)):
+    sys.exit(1)
+
+def matches(url):
+    if kind == "site":
+        return url.split("://", 1)[-1].split("/", 1)[0] == wanted
+    return hashlib.sha1(url.encode("utf-8")).hexdigest() == wanted
+
+def rewrite(path, keep):
+    try:
+        lines = open(path, encoding="utf-8", errors="replace").readlines()
+    except FileNotFoundError:
+        return
+    kept = [line for line in lines if keep(line)]
+    if len(kept) == len(lines):
+        return
+    fd, pending = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".del-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as out:
+            out.writelines(kept)
+        os.replace(pending, path)
+    finally:
+        if os.path.exists(pending):
+            os.unlink(pending)
+
+gone = set()
+def in_list(line):
+    part = line.rstrip("\n").split("\t")
+    if len(part) >= 3 and matches(part[1].strip()):
+        gone.add(part[1].strip())
+        return False
+    return True
+
+rewrite(articles, in_list)
+# latest.txt lines are "title  URL": the URL is the last word.
+rewrite(latest, lambda line: (line.split() or [""])[-1] not in gone)
+for url in gone:
+    print(url.split("://", 1)[-1].split("/", 1)[0])
+    break
+Z2RSS_DEL
+}
+
+# Keep what was collected in one file per month (only when Settings says to keep).
+# The list holds the newest 500; this is never trimmed. Images are hard links to thumbs (no extra space).
+archive_new() {
+  [ "${d}ARCHIVE" = on ] || return 0
+  mkdir -p "${d}ARCHDIR/thumbs" || return 0
+  awk -F'\t' -v now="${d}1" '{ print now "\t" ${d}1 "\t" ${d}2 }' "${d}NEW" >> "${d}ARCHDIR/${d}(date +%Y-%m).tsv"
+}
+
+# When keeping starts, take in the articles and images already on the list.
+archive_seed() {
+  mkdir -p "${d}ARCHDIR/thumbs" || return 1
+  touch "${d}ARTICLES"
+  python3 - "${d}ARTICLES" "${d}ARCHDIR" "${d}THUMBDIR" <<'Z2RSS_SEED'
+import hashlib, os, sys, tempfile, time
+
+articles, archive, thumbs = sys.argv[1:4]
+
+def rows(path):
+    found = []
+    for line in open(path, encoding="utf-8", errors="replace"):
+        part = line.rstrip("\n").split("\t")
+        if len(part) >= 3 and part[1].startswith(("http://", "https://")):
+            found.append((int(part[0]) if part[0].isdigit() else 0, part[1], "\t".join(part[2:])))
+    return found
+
+months = {}
+for name in os.listdir(archive):
+    if name.endswith(".tsv"):
+        months[name[:-4]] = rows(os.path.join(archive, name))
+known = {url for items in months.values() for _, url, _ in items}
+
+changed = set()
+for stamp, url, name in rows(articles):
+    if url in known:
+        continue
+    known.add(url)
+    # Articles with no known arrival time share one bundle.
+    month = time.strftime("%Y-%m", time.localtime(stamp)) if stamp else "0000-00"
+    months.setdefault(month, []).append((stamp, url, name))
+    changed.add(month)
+    src = os.path.join(thumbs, hashlib.sha1(url.encode("utf-8")).hexdigest() + ".jpg")
+    dst = os.path.join(archive, "thumbs", os.path.basename(src))
+    if os.path.exists(src) and not os.path.exists(dst):
+        try:
+            os.link(src, dst)
+        except OSError:
+            pass
+
+for month in changed:
+    items = sorted(months[month], key=lambda row: row[0])
+    fd, pending = tempfile.mkstemp(dir=archive, prefix=".seed-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as out:
+            out.writelines(str(s) + "\t" + u + "\t" + n + "\n" for s, u, n in items)
+        os.replace(pending, os.path.join(archive, month + ".tsv"))
+    finally:
+        if os.path.exists(pending):
+            os.unlink(pending)
+Z2RSS_SEED
+}
+
+# The page for kept articles. One page for everything would be heavy: one month, 50 per page.
+# ${d}1 = month, ${d}2 = page, ${d}3 = search words (when given, every month is searched).
+view_archive() (
+  mkdir -p "${d}ARCHDIR/thumbs" || exit 1
+  arch_work=${d}(mktemp -d "${d}DIR/.archive-XXXXXXXX") || exit 1
+  trap 'rm -rf "${d}arch_work"' 0
+  python3 - "${d}ARCHDIR" "${d}arch_work" "${d}THUMBS" "${d}{1:-}" "${d}{2:-0}" "${d}{3:-}" \
+    "$cArchive" "$cArticles" "$cOpen" "$cPrev" "$cNext" "$cCount" "$cUndated" \
+    "$cArchiveEmpty" \
+    "$cSearch" "$cSearchWord" "$cByMonth" "$cNoHit" \
+    "$cDropMonth" "$cDropConfirm" <<'Z2RSS_ARCH'
+import base64, hashlib, html, json, os, re, sys, time
+
+archive, work, thumbs, month, page, query = sys.argv[1:7]
+(title, l_back, l_open, l_prev, l_next, l_count, l_undated, l_empty,
+ l_search, l_word, l_months, l_none, l_drop, l_drop_confirm) = sys.argv[7:21]
+PER = 50
+
+months = sorted((n[:-4] for n in os.listdir(archive) if re.fullmatch(r"\d{4}-\d{2}\.tsv", n)), reverse=True)
+query = " ".join(query.split())[:200]
+words = query.lower().split()
+if words:
+    month = ""
+elif month not in months:
+    month = months[0] if months else ""
+page = int(page) if page.isdigit() and len(page) < 6 else 0
+
+def load(name):
+    found = []
+    for line in open(os.path.join(archive, name + ".tsv"), encoding="utf-8", errors="replace"):
+        part = line.rstrip("\n").split("\t")
+        if len(part) >= 3 and part[1].startswith(("http://", "https://")):
+            found.append((int(part[0]) if part[0].isdigit() else 0, part[1], "\t".join(part[2:]).strip() or part[1]))
+    found.reverse()                         # newest first
+    return found
+
+rows = []
+if words:
+    # Search every month: articles whose title or URL contains all the words.
+    for name in months:
+        for row in load(name):
+            text = (row[2] + " " + row[1]).lower()
+            if all(word in text for word in words):
+                rows.append(row)
+elif month:
+    rows = load(month)
+pages = max(1, (len(rows) + PER - 1) // PER)
+page = min(page, pages - 1)
+
+def name_of(m):
+    return l_undated if m == "0000-00" else m
+
+def picture(url):
+    if thumbs != "on":
+        return ""
+    name = hashlib.sha1(url.encode("utf-8")).hexdigest() + ".jpg"
+    try:
+        with open(os.path.join(archive, "thumbs", name), "rb") as f:
+            data = f.read()
+    except OSError:
+        return ""
+    return ('<img alt="" width="96" height="64" src="data:image/jpeg;base64,'
+            + base64.b64encode(data).decode("ascii") + '">') if data else ""
+
+actions = [{"id": "back", "label": l_back, "args": ["show"]}]
+def link(action_id, label, args, current=False, **more):
+    if current:
+        return '<b>' + html.escape(label) + '</b>'
+    actions.append(dict({"id": action_id, "label": label, "args": args}, **more))
+    return '<a href="z2-action:' + action_id + '">' + html.escape(label) + '</a>'
+
+style = (
+    '<style>'
+    ':root{color-scheme:light dark}'
+    'body{margin:0;background:var(--z2-bg,#fff);color:var(--z2-fg,#111);'
+    'font:16px/1.55 -apple-system,"Noto Sans JP","Noto Sans",sans-serif}'
+    'header{padding:14px 16px;border-bottom:1px solid var(--z2-line,#ddd)}'
+    'h1{margin:0;font-size:17px;font-weight:600}'
+    'header p{margin:3px 0 0;font-size:13px;color:var(--z2-dim,#666);overflow-wrap:anywhere}'
+    'nav{display:flex;flex-wrap:wrap;gap:6px 20px;align-items:center;font-size:14px}'
+    'header nav{margin-top:6px}'
+    'nav a{color:var(--z2-accent,#0a7d3f);text-decoration:none;padding:8px 0}'
+    'nav.g{padding:6px 16px;border-bottom:1px solid var(--z2-line,#ddd)}'
+    'nav.g span{color:var(--z2-dim,#666)}'
+    'nav.g a.x{margin-left:auto;color:var(--z2-dim,#666);font-size:12px}'
+    'main{padding:0 16px}'
+    'article{display:flex;gap:12px;align-items:flex-start;padding:11px 0;'
+    'border-bottom:1px solid var(--z2-line,#eee)}'
+    'a.i{flex:none;line-height:0}'
+    'a.i img{display:block;width:96px;height:64px;object-fit:cover}'
+    'div.b{flex:1;min-width:0}'
+    'a.t{display:block;color:inherit;text-decoration:none}'
+    'p.m{display:flex;justify-content:space-between;align-items:center;gap:12px;'
+    'margin:6px 0 0;font-size:12px;color:var(--z2-dim,#666)}'
+    'a.o{flex:none;color:var(--z2-accent,#0a7d3f);text-decoration:none;'
+    'border:1px solid currentColor;padding:3px 12px}'
+    '</style>'
+)
+
+def turn(to):
+    return ["archive-search", query, str(to)] if words else ["archive", month, str(to)]
+
+def pager(tag):
+    if pages < 2:
+        return ''
+    bits = []
+    if page > 0:
+        bits.append(link("prev" + tag, l_prev, turn(page - 1)))
+    bits.append('<span>' + str(page + 1) + ' / ' + str(pages) + '</span>')
+    if page < pages - 1:
+        bits.append(link("next" + tag, l_next, turn(page + 1)))
+    return '<nav class="g">' + ''.join(bits) + '</nav>'
+
+what = '「' + query + '」' if words else name_of(month)
+head = ['<a href="z2-action:back">' + html.escape(l_back) + '</a>']
+if months:
+    if words:
+        head.append(link("months", l_months, ["archive"]))
+    head.append(link("search", l_search, ["archive-search"],
+                     fields=[{"label": l_word, "type": "text", "default": query, "required": True}]))
+out = ['<!doctype html><html><head><meta charset="utf-8">',
+       '<meta name="viewport" content="width=device-width,initial-scale=1">',
+       '<title>' + html.escape(title) + '</title>', style, '</head><body>',
+       '<header><h1>' + html.escape(title) + '</h1><p>'
+       + html.escape((what + ' · ' if what else '') + l_count.replace("%s", str(len(rows))))
+       + '</p><nav>' + ''.join(head) + '</nav></header>']
+if not months:
+    out.append('<main><p>' + html.escape(l_empty) + '</p></main>')
+else:
+    if not words:
+        # The months. Plain text links, so many months do not weigh the page down.
+        out.append('<nav class="g">' + ''.join(
+            link("m" + str(i), name_of(m), ["archive", m], m == month) for i, m in enumerate(months[:200])) + '</nav>')
+        # Removing a month cannot be undone, so the action asks first.
+        out.append('<nav class="g">' + link(
+            "drop", l_drop, ["archive-drop", month],
+            confirm=l_drop_confirm.replace("%m", name_of(month)).replace("%s", str(len(rows)))
+        ).replace('<a ', '<a class="x" ', 1) + '</nav>')
+    out.append(pager("") + '<main>')
+    if not rows:
+        out.append('<p>' + html.escape(l_none) + '</p>')
+    for stamp, url, name in rows[page * PER:(page + 1) * PER]:
+        href = html.escape(url, quote=True)
+        # A search crosses months, so its dates carry the year.
+        when = time.strftime("%Y-%m-%d %H:%M" if words else "%m-%d %H:%M", time.localtime(stamp)) if stamp else ""
+        host = url.split("://", 1)[-1].split("/", 1)[0]
+        image = picture(url)
+        thumb = '<a class="i" href="' + href + '">' + image + '</a>' if image else ''
+        out.append('<article>' + thumb + '<div class="b">'
+                   '<a class="t" href="' + href + '">' + html.escape(name) + '</a>'
+                   '<p class="m"><span>' + html.escape(host) + (' · ' + when if when else '') + '</span>'
+                   '<a class="o" href="' + href + '">' + html.escape(l_open) + '</a></p></div></article>')
+    out.append('</main>' + pager("2"))
+out.append('</body></html>')
+with open(os.path.join(work, "page.html"), "w", encoding="utf-8") as f:
+    f.write("\n".join(out))
+refresh = turn(page) if words or month else ["archive"]
+with open(os.path.join(work, "controls.json"), "w", encoding="utf-8") as f:
+    json.dump({"handler": "rss.sh", "refresh": refresh, "actions": actions}, f, ensure_ascii=False)
+Z2RSS_ARCH
+  [ ${d}? -eq 0 ] || exit 1
+  z2-view --controls "${d}arch_work/controls.json" "${d}arch_work/page.html" "$cArchive"
+)
+
+# Remove one month of kept articles and its images (images of articles still listed stay with the list).
+drop_archive_month() {
+  python3 - "${d}ARCHDIR" "${d}1" <<'Z2RSS_DROP'
+import hashlib, os, re, sys
+
+archive, month = sys.argv[1:3]
+if not re.fullmatch(r"\d{4}-\d{2}", month):
+    sys.exit(1)
+path = os.path.join(archive, month + ".tsv")
+try:
+    lines = open(path, encoding="utf-8", errors="replace").readlines()
+except FileNotFoundError:
+    sys.exit(0)                             # already gone (a second tap)
+for line in lines:
+    part = line.rstrip("\n").split("\t")
+    if len(part) >= 3:
+        name = hashlib.sha1(part[1].encode("utf-8")).hexdigest() + ".jpg"
+        try:
+            os.unlink(os.path.join(archive, "thumbs", name))
+        except OSError:
+            pass
+os.unlink(path)
+Z2RSS_DROP
+}
+
+# Fetch a thumbnail per article and store it small (only when Settings says to fetch).
+# The image is the one named in the feed, else the article page's og:image.
+# Only the newest 60 are tried and one run stops after 10 seconds; the next poll fills the rest.
+fetch_thumbs() {
+  [ "${d}THUMBS" = on ] || return 0
+  [ -s "${d}ARTICLES" ] || return 0
+  mkdir -p "${d}THUMBDIR" || return 0
+  touch "${d}IMGHINTS"
+  kept=; [ "${d}ARCHIVE" = on ] && mkdir -p "${d}ARCHDIR/thumbs" && kept="${d}ARCHDIR/thumbs"
+  python3 - "${d}ARTICLES" "${d}IMGHINTS" "${d}THUMBDIR" "${d}kept" <<'Z2RSS_THUMB'
+import hashlib, html, io, os, re, sys, time, urllib.error, urllib.request
+from concurrent.futures import ThreadPoolExecutor, wait
+from urllib.parse import urljoin
+try:
+    from PIL import Image, ImageOps
+except Exception:
+    sys.exit(0)
+
+Image.MAX_IMAGE_PIXELS = 40000000
+articles, hints_file, out, kept = sys.argv[1:5]
+AGENT = {"User-Agent": "Mozilla/5.0 (compatible; z2term-rss/1)"}
+WEB = ("http://", "https://")
+
+def key(url):
+    return hashlib.sha1(url.encode("utf-8")).hexdigest()
+
+urls = []
+for line in open(articles, encoding="utf-8", errors="replace"):
+    part = line.rstrip("\n").split("\t")
+    if len(part) >= 3 and part[1].startswith(WEB):
+        urls.append(part[1])
+
+# Drop images of articles no longer listed, and leftovers of an interrupted run.
+keep = {key(u) for u in urls}
+for name in os.listdir(out):
+    if name.split(".")[0] not in keep:
+        try:
+            os.unlink(os.path.join(out, name))
+        except OSError:
+            pass
+
+hints = {}
+for line in open(hints_file, encoding="utf-8", errors="replace"):
+    part = line.rstrip("\n").split("\t")
+    if len(part) == 2:
+        hints.setdefault(part[0], part[1])
+
+def get(url, limit):
+    req = urllib.request.Request(url, headers=AGENT)
+    with urllib.request.urlopen(req, timeout=6) as r:
+        return r.read(limit + 1), r.geturl()
+
+def og_image(url):
+    data, final = get(url, 400000)
+    text = data.decode("utf-8", "replace")
+    for tag in re.findall(r"<meta\b[^>]*>", text, re.I):
+        if not re.search(r'(?:property|name)\s*=\s*["\']?(?:og:image|twitter:image)["\'\s>]', tag, re.I):
+            continue
+        m = re.search(r'content\s*=\s*(?:"([^"]*)"|\'([^\']*)\')', tag, re.I)
+        found = html.unescape((m.group(1) or m.group(2) or "") if m else "").strip()
+        if found:
+            return urljoin(final, found)
+    return ""
+
+def work(url):
+    base = os.path.join(out, key(url))
+    def none():
+        # No image, or one that cannot be read: leave a marker so it is not tried every time.
+        open(base + ".none", "w").close()
+    try:
+        image = hints.get(url) or og_image(url)
+        if not image.startswith(WEB):
+            return none()
+        data, _ = get(image, 4000000)
+    except urllib.error.HTTPError:
+        return none()
+    except Exception:
+        # A network failure is retried later, an hour apart, so a dead host does not slow every poll.
+        open(base + ".fail", "w").close()
+        return
+    try:
+        if len(data) > 4000000:
+            return none()
+        im = Image.open(io.BytesIO(data))
+        im.draft("RGB", (384, 256))
+        im = im.convert("RGBA")
+        flat = Image.new("RGB", im.size, (255, 255, 255))
+        flat.paste(im, mask=im.split()[3])
+        flat = ImageOps.fit(flat, (192, 128))
+        pending = os.path.join(out, ".t-" + key(url))
+        flat.save(pending, "JPEG", quality=62, optimize=True)
+        os.replace(pending, base + ".jpg")
+    except Exception:
+        return none()
+    if kept:
+        # When articles are kept, a second name keeps the image after it leaves the list.
+        try:
+            os.link(base + ".jpg", os.path.join(kept, key(url) + ".jpg"))
+        except OSError:
+            pass
+
+def recent(path):
+    try:
+        return time.time() - os.path.getmtime(path) < 3600
+    except OSError:
+        return False
+
+need = [u for u in urls[:60]
+        if not os.path.exists(os.path.join(out, key(u) + ".jpg"))
+        and not os.path.exists(os.path.join(out, key(u) + ".none"))
+        and not recent(os.path.join(out, key(u) + ".fail"))]
+if need:
+    pool = ThreadPoolExecutor(max_workers=6)
+    wait([pool.submit(work, u) for u in need], timeout=10)
+os._exit(0)                         # do not wait for what ran out of time
+Z2RSS_THUMB
+  return 0
 }
 
 case "${d}1" in
@@ -1163,16 +1883,57 @@ case "${d}1" in
     exit ${d}? ;;
 esac
 
-if [ "${d}1" = view ]; then
-  build_page || exit 1
-  controls=${d}(mktemp "${d}DIR/.controls-XXXXXXXX") || exit 1
-  trap 'rm -f "${d}controls"' 0
-  printf '%s\n' '{"handler":"rss.sh","refresh":["refresh-view"],"actions":[{"id":"feeds","label":"$cSubscriptions","args":["feeds"],"toolbar":true}]}' > "${d}controls"
-  z2-view --controls "${d}controls" "${d}PAGE" "$cPageTitle"
+# Kept articles: rss.sh archive [month [page]]
+#   search: rss.sh archive-search <words> [page]    remove a month: rss.sh archive-drop <month>
+if [ "${d}1" = archive-drop ]; then
+  drop_archive_month "${d}2" || exit 1
+  set -- archive
+fi
+if [ "${d}1" = archive ] || [ "${d}1" = archive-search ]; then
+  command -v python3 >/dev/null 2>&1 || { echo "$cNoPy" >&2; exit 1; }
+  if [ "${d}1" = archive-search ]; then view_archive "" "${d}{3:-0}" "${d}2"; else view_archive "${d}2" "${d}3" ""; fi
   exit ${d}?
 fi
-if [ "${d}1" = refresh-view ]; then
-  sh "${d}0" && sh "${d}0" view
+
+# Delete on an article: remove just that one and show the list again with its site left open.
+if [ "${d}1" = remove ]; then
+  Z2RSS_OPEN=${d}(remove_article key "${d}2") || exit 1
+  export Z2RSS_OPEN
+  set -- show
+fi
+# Delete on a site: remove every listed article of that site.
+if [ "${d}1" = remove-site ]; then
+  remove_article site "${d}2" >/dev/null || exit 1
+  set -- show
+fi
+
+# Settings on the list: fetch thumbnails or not / keep collected articles or not.
+[ "${d}1" = set-thumbs ] && set -- settings "${d}2" "${d}ARCHIVE"
+if [ "${d}1" = settings ]; then
+  case "${d}2${d}3" in onon|onoff|offon|offoff) ;; *) echo "$cOnOff" >&2; exit 1 ;; esac
+  if [ "${d}2" = on ] && ! python3 -c 'import PIL' 2>/dev/null; then
+    echo "$cNoPillow" >&2
+    exit 1
+  fi
+  mkdir -p "${d}DIR" || exit 1
+  printf 'thumbs=%s\narchive=%s\n' "${d}2" "${d}3" > "${d}SETTINGS" || exit 1
+  was=${d}THUMBS
+  THUMBS=${d}2; ARCHIVE=${d}3
+  if [ "${d}3" = on ]; then archive_seed || exit 1; fi
+  # Right after thumbnails are turned on, fetch them for the articles already listed.
+  if [ "${d}2" = on ] && [ "${d}was" != on ]; then set -- refresh-view; else set -- show; fi
+fi
+
+if [ "${d}1" = view ] || [ "${d}1" = refresh-view ] || [ "${d}1" = show ]; then
+  # From inside the list screen (Refresh, Articles) the feeds are polled before the list is built.
+  # view from a notification or a terminal opens what is already collected.
+  if [ "${d}1" = refresh-view ] || { [ "${d}1" = view ] && [ -n "${d}Z2_VIEW_SESSION" ]; }; then
+    Z2RSS_NO_PAGE=1 sh "${d}0" || exit 1
+  fi
+  controls=${d}(mktemp "${d}DIR/.controls-XXXXXXXX") || exit 1
+  trap 'rm -f "${d}controls"' 0
+  build_page "${d}controls" || exit 1
+  z2-view --controls "${d}controls" "${d}PAGE" "$cPageTitle"
   exit ${d}?
 fi
 
@@ -1208,11 +1969,12 @@ if [ ! -f "${d}IMPORTANT" ]; then
 fi
 
 : > "${d}DIR/.raw"
+: > "${d}IMGHINTS"
 while IFS= read -r url; do
   case "${d}url" in ''|'#'*) continue ;; esac
   # $cSkipFail
-  python3 - "${d}url" >> "${d}DIR/.raw" <<'Z2RSS_PY'
-import sys, urllib.request, xml.etree.ElementTree as ET
+  python3 - "${d}url" "${d}IMGHINTS" "${d}THUMBS" >> "${d}DIR/.raw" <<'Z2RSS_PY'
+import html, re, sys, urllib.request, xml.etree.ElementTree as ET
 
 req = urllib.request.Request(sys.argv[1], headers={"User-Agent": "z2term-rss/1"})
 try:
@@ -1221,18 +1983,35 @@ try:
 except Exception:
     sys.exit(0)
 
+# Note the image a feed names for each article, only when thumbnails are fetched.
+hints = open(sys.argv[2], "a", encoding="utf-8") if sys.argv[3] == "on" else None
+
+def picture(c, t):
+    kind = (c.get("type") or "") + (c.get("medium") or "")
+    if c.get("url") and (t == "thumbnail" or (t in ("content", "enclosure") and "image" in kind)):
+        return c.get("url").strip()
+    if t in ("encoded", "description", "content", "summary") and c.text:
+        m = re.search(r'<img\b[^>]*?\bsrc\s*=\s*["\']([^"\']+)', c.text, re.I)
+        if m:
+            return html.unescape(m.group(1)).strip()
+    return ""
+
 for it in root.iter():
     if it.tag.split("}")[-1] not in ("item", "entry"):
         continue
-    title = link = ""
+    title = link = image = ""
     for c in it:
         t = c.tag.split("}")[-1]
         if t == "title" and not title:
             title = (c.text or "").strip()
         elif t == "link" and not link:
             link = (c.get("href") or c.text or "").strip()
+        if hints and not image:
+            image = picture(c, t)
     if link.startswith("http"):
         print(link + "\t" + (title or link))
+        if hints and image.startswith("http") and not re.search(r"\s", image) and not re.search(r"\s", link):
+            hints.write(link + "\t" + image + "\n")
 Z2RSS_PY
 done < "${d}FEEDS"
 
@@ -1241,7 +2020,12 @@ touch "${d}SEEN"
 grep -Fxv -f "${d}SEEN" "${d}DIR/.raw" 2>/dev/null | grep . > "${d}NEW"
 rm -f "${d}DIR/.raw"
 n=${d}(grep -c . "${d}NEW" 2>/dev/null)
-[ "${d}{n:-0}" -eq 0 ] && exit 0
+if [ "${d}{n:-0}" -eq 0 ]; then
+  # Nothing new, but images still missing are fetched.
+  fetch_thumbs
+  rm -f "${d}IMGHINTS"
+  exit 0
+fi
 
 cat "${d}NEW" "${d}SEEN" | head -n "${d}KEEP" > "${d}SEEN.t" && mv "${d}SEEN.t" "${d}SEEN"
 $cPrepend
@@ -1252,7 +2036,11 @@ stamp=${d}(date +%s)
 { awk -F'\t' -v now="${d}stamp" '{ print now "\t" ${d}1 "\t" ${d}2 }' "${d}NEW"; \
   cat "${d}ARTICLES" 2>/dev/null; } \
   | head -n "${d}KEEP" > "${d}ARTICLES.t" && mv "${d}ARTICLES.t" "${d}ARTICLES"
-build_page || true
+archive_new "${d}stamp"
+fetch_thumbs
+rm -f "${d}IMGHINTS"
+# When called from the list screen, the caller builds the page next.
+[ -n "${d}Z2RSS_NO_PAGE" ] || build_page || true
 
 $cSplitDoc
 : > "${d}HITS"

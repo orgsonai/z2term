@@ -1,0 +1,7 @@
+1.0.13
+
+- An edge panel can take its own colours from a terminal theme, and the
+  bar handle offers nine colours beside black and white.
+- The bundled RSS macro was reworked: the list folds by site, articles
+  can be deleted, and thumbnails, an archive and search are available.
+- The sample-panel guide also adds RSS and reminder tabs.

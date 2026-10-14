@@ -11,6 +11,16 @@ internal object EdgeSamplePanels {
         TERMINAL("sample-tools-terminal", R.string.guide_sample_terminal)
     }
 
+    /** Tabs that show a macro's own page. Each is added only when that macro is installed. */
+    enum class Extra(val id: String, val macro: String, val title: Int, val timeout: String) {
+        // The feed page polls on refresh, which takes longer than the default 30 seconds allows.
+        RSS("sample-tools-rss", "rss.sh", R.string.guide_sample_rss, "120"),
+        REMINDER("sample-tools-remind", "remind.sh", R.string.guide_sample_reminder, "30")
+    }
+
+    /** Every panel the guide can create, parent first (the order its cleanup deletes them in). */
+    val ids: List<String> = Kind.entries.map { it.id } + Extra.entries.map { it.id }
+
     fun panel(kind: Kind, label: (Int) -> String, targetLanguage: String = "ja"): EdgeStore.Panel {
         val fields = linkedMapOf("label" to label(kind.title), "handle" to "bar", "side" to "right",
             "offset" to "48", "size" to "6", "length" to "6", "alpha" to "0.3",
@@ -53,9 +63,25 @@ internal object EdgeSamplePanels {
 
     fun command(label: (Int) -> String, language: String = "ja"): String =
         // Children must exist before the parent can refer to them as tabs.
-        listOf(Kind.TRANSLATION, Kind.TERMINAL, Kind.NOTE).joinToString(" && ") {
-            command(panel(it, label, language))
-        }
+        (listOf(Kind.TRANSLATION, Kind.TERMINAL, Kind.NOTE).map { command(panel(it, label, language)) } +
+            Extra.entries.map { command(it, label) }).joinToString(" && ")
+
+    /**
+     * A tab for a macro page, skipped when the macro is not installed. It is attached with
+     * `z2-edge tab`, so it also joins a sample panel made before the macro was installed; like the
+     * other samples, an existing tab or item is left alone.
+     */
+    private fun command(extra: Extra, label: (Int) -> String): String {
+        val view = mapOf("type" to "view", "label" to "", "run" to "${extra.macro} view", "timeout" to extra.timeout)
+        EdgeStore.validateItem(view)
+        fun unlessPresent(target: String, words: List<String>): String =
+            "(z2-edge get ${EdgeDefaultPanel.shellWord(target)} >/dev/null 2>&1 || " +
+                words.joinToString(" ", transform = EdgeDefaultPanel::shellWord) + ")"
+        val tab = unlessPresent(extra.id, listOf("z2-edge", "tab", Kind.NOTE.id, extra.id, label(extra.title)))
+        val page = unlessPresent("${extra.id}:page",
+            listOf("z2-edge", "set", "${extra.id}:page") + view.map { (key, value) -> "$key=$value" })
+        return "{ test ! -f \"\$HOME/.z2term/macros/${extra.macro}\" || { $tab && $page; }; }"
+    }
 
     private fun command(panel: EdgeStore.Panel): String {
         fun create(verb: String, target: String, fields: Map<String, String>): String {

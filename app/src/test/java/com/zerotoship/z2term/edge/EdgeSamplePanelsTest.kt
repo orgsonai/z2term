@@ -38,13 +38,16 @@ class EdgeSamplePanelsTest {
         try {
             // A tiny CLI double records definitions and reports which targets already exist.
             val cli = dir.resolve("z2-edge")
-            cli.writeText("#!/bin/sh\ncase \"\$1\" in\nget) test -f \"\$2\" ;;\npanel|set) target=\$2; shift 2; printf '%s\\n' \"\$@\" > \"\$target\" ;;\n*) exit 99 ;;\nesac\n")
+            cli.writeText("#!/bin/sh\ncase \"\$1\" in\nget) test -f \"\$2\" ;;\npanel|set) target=\$2; shift 2; printf '%s\\n' \"\$@\" > \"\$target\" ;;\n" +
+                "tab) printf '%s\\n' \"\$4\" > \"\$3\"; printf '%s\\n' \"\$3\" >> \"\$2.tabs\" ;;\n*) exit 99 ;;\nesac\n")
             cli.setExecutable(true)
             val label = "User's \$(touch injected) label"
             val command = EdgeSamplePanels.command({ label })
             fun run() {
                 val process = ProcessBuilder("/bin/sh", "-c", command).directory(dir).apply {
                     environment()["PATH"] = dir.path + ":" + environment()["PATH"]
+                    // The optional tabs look for installed macros under HOME, never on the machine running the test.
+                    environment()["HOME"] = dir.path
                 }.redirectErrorStream(true).start()
                 val output = process.inputStream.bufferedReader().readText()
                 assertEquals(output, 0, process.waitFor())
@@ -58,6 +61,21 @@ class EdgeSamplePanelsTest {
             run()
             assertEquals("custom settings", parent.readText())
             assertEquals("custom note", item.readText())
+            // No macro installed: no extra tab. Installed later: its tab joins the existing panel, once.
+            assertFalse(dir.resolve("sample-tools.tabs").exists())
+            dir.resolve(".z2term/macros").mkdirs()
+            dir.resolve(".z2term/macros/rss.sh").writeText("#!/bin/sh\n")
+            run()
+            assertEquals("sample-tools-rss\n", dir.resolve("sample-tools.tabs").readText())
+            assertEquals("$label\n", dir.resolve("sample-tools-rss").readText())
+            assertTrue(dir.resolve("sample-tools-rss:page").readText().contains("run=rss.sh view\n"))
+            dir.resolve(".z2term/macros/remind.sh").writeText("#!/bin/sh\n")
+            val page = dir.resolve("sample-tools-rss:page").apply { writeText("custom page") }
+            run()
+            assertEquals("sample-tools-rss\nsample-tools-remind\n", dir.resolve("sample-tools.tabs").readText())
+            assertEquals("custom page", page.readText())
+            assertTrue(dir.resolve("sample-tools-remind:page").readText().contains("run=remind.sh view\n"))
+            assertEquals("custom settings", parent.readText())
         } finally { dir.deleteRecursively() }
     }
 }

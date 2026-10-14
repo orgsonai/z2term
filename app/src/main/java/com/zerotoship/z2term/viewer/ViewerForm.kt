@@ -11,10 +11,9 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
-import androidx.compose.ui.graphics.toArgb
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.edge.EdgeSettingsUi
 import com.zerotoship.z2term.edge.EdgeToolRow
-import com.zerotoship.z2term.ui.theme.AppColors
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -27,7 +26,7 @@ internal class ViewerForm(context: Context, action: ViewerControls.Action, showD
         orientation = VERTICAL; setPadding(dp(12), dp(8), dp(12), dp(12))
         val values = action.fields.map { field ->
             addView(TextView(context).apply {
-                text = field.label; setTextColor(AppColors.textSecondary.toArgb()); setPadding(0, dp(12), 0, dp(4))
+                text = field.label; setTextColor(EdgeSettingsUi.muted(context)); setPadding(0, dp(12), 0, dp(4))
             })
             when (field.type) {
                 "choice" -> {
@@ -68,7 +67,7 @@ internal class ViewerForm(context: Context, action: ViewerControls.Action, showD
                     val entry = EditText(context).apply {
                         inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
                         setText(field.initial); contentDescription = field.label
-                        setTextColor(AppColors.textPrimary.toArgb()); minLines = 1; maxLines = 4
+                        setTextColor(EdgeSettingsUi.foreground(context)); minLines = 1; maxLines = 4
                         filters = arrayOf(android.text.InputFilter.LengthFilter(4096))
                     }
                     addView(entry, LayoutParams(-1, -2))
@@ -96,6 +95,6 @@ internal class ViewerForm(context: Context, action: ViewerControls.Action, showD
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
     private fun button(label: String, click: () -> Unit) = Button(context).apply {
         text = label; isAllCaps = false; minHeight = dp(48)
-        setTextColor(AppColors.textPrimary.toArgb()); setOnClickListener { click() }
+        setTextColor(EdgeSettingsUi.foreground(context)); setOnClickListener { click() }
     }
 }

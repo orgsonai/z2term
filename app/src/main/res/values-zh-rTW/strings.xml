@@ -1201,12 +1201,14 @@ SSH 連線目標 %3$d 個
     <string name="guide_sample_note">記事本</string>
     <string name="guide_sample_translation">翻譯</string>
     <string name="guide_sample_terminal">終端機</string>
+    <string name="guide_sample_rss">RSS</string>
+    <string name="guide_sample_reminder">提醒</string>
     <string name="guide_sample_source">原文</string>
     <string name="guide_sample_language">目標語言</string>
     <string name="guide_sample_translate">翻譯</string>
     <string name="guide_sample_result">譯文</string>
     <string name="guide_step_edge_local">請在面板使用的本機 Linux 環境中開啟終端機，等候 shell 輸入提示後再繼續。</string>
-    <string name="guide_step_sample_create">建立一個含三個分頁的範例面板（保留既有設定與項目）</string>
+    <string name="guide_step_sample_create">建立一個含三個分頁的範例面板（保留既有設定與項目）。若已安裝 rss 或 remind 巨集，也會加入對應的分頁</string>
     <string name="guide_step_sample_open">啟用面板並開啟範例（從右側邊欄向內滑動可再次開啟）</string>
     <string name="guide_step_sample_use" formatted="false">切換三個分頁使用。點兩下筆記正文即可編輯，內容自動儲存。翻譯時輸入原文、選擇目標語言並點選翻譯。切換分頁或關閉面板會清除翻譯輸入和結果。終端的 Shell、輸出和輸入草稿會保留，可用 ↻ 手動重新整理。範例列的不透明度為30%。</string>
     <string name="guide_step_translation_cli" tools:ignore="TypographyDashes">若尚未安裝 trans，請在同一 Linux 環境中手動執行對應命令。\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\n此卡片僅供閱讀，點選不會安裝。待翻譯文字會傳送至外部翻譯服務。</string>

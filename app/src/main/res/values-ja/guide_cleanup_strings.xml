@@ -14,7 +14,7 @@
     <string name="guide_undo_remind_data">リマインドの記録を消す（残すなら ✕）</string>
     <string name="guide_undo_rss_data">フィードの一覧と集めた記事を消す（残すなら ✕）</string>
     <string name="guide_undo_edge_main">見本のアプリ一覧パネル main を消す（自分で足した項目も一緒に消えます）</string>
-    <string name="guide_undo_edge_samples">サンプルパネル 3 枚を消す（メモ帳の本文も消えます）</string>
+    <string name="guide_undo_edge_samples">サンプルパネルを消す（メモ帳の本文も消えます）</string>
     <string name="guide_undo_edge_off">ほかにパネルを使っていなければ、パネルを OFF にする（バーが消えます）</string>
     <string name="guide_undo_permissions">「他のアプリの上に重ねて表示」やユーザー補助の許可は、Android の設定でしか外せません。ほかの機能で使っているなら、そのままにしてください。</string>
 </resources>

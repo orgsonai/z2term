@@ -179,9 +179,7 @@ enum class Guide(
         // 親を先に消す (子をタブとして指しているため)。無い ID で止まらないよう 1 枚ずつ回す。
         GuideStep(
             R.string.guide_undo_edge_samples,
-            "for p in " + listOf(
-                EdgeSamplePanels.Kind.NOTE, EdgeSamplePanels.Kind.TRANSLATION, EdgeSamplePanels.Kind.TERMINAL
-            ).joinToString(" ") { it.id } + "; do z2-edge delete \"\$p\"; done"
+            "for p in " + EdgeSamplePanels.ids.joinToString(" ") + "; do z2-edge delete \"\$p\"; done"
         ),
         GuideStep(R.string.guide_undo_macro, guideUndoMacro("translate")),
         GuideStep(R.string.guide_undo_edge_off, "z2-edge off"),

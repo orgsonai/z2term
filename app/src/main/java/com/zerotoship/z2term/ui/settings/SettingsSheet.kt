@@ -1606,10 +1606,15 @@ fun SettingsSheet(
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     modifier = Modifier
+                                        // 押せる範囲を枠で囲む (1.0.13・利用者の指摘)。枠が無いと行の本体 (手順) との
+                                        // 境目が見えず、手順を出すつもりで片付けを押してしまう。
+                                        .padding(end = 8.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .border(1.dp, ZtsBorder, RoundedCornerShape(4.dp))
                                         // 出し方 (シートを閉じる・端末タブへ移る) は手順と同じ道を通し、
                                         // そのあとで片付けの側へ切り替える ([GuideHost.current] は手順へ戻すため)。
                                         .clickable { onShowGuide(guide); GuideHost.cleanup = true }
-                                        .padding(horizontal = 12.dp, vertical = 14.dp)
+                                        .padding(horizontal = 10.dp, vertical = 10.dp)
                                 )
                             }
                         }

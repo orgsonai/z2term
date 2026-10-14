@@ -1298,12 +1298,14 @@ Edge panels: %12$d, notes: %13$d</string>
     <string name="guide_sample_note">Notepad</string>
     <string name="guide_sample_translation">Translation</string>
     <string name="guide_sample_terminal">Terminal</string>
+    <string name="guide_sample_rss">RSS</string>
+    <string name="guide_sample_reminder">Reminders</string>
     <string name="guide_sample_source">Text to translate</string>
     <string name="guide_sample_language">Translate to</string>
     <string name="guide_sample_translate">Translate</string>
     <string name="guide_sample_result">Translated text</string>
     <string name="guide_step_edge_local">Run these steps in the local Linux environment used by panels, from a terminal showing a shell prompt.</string>
-    <string name="guide_step_sample_create">Create one sample panel with three tabs (keep existing settings and items)</string>
+    <string name="guide_step_sample_create">Create one sample panel with three tabs (keep existing settings and items). If the rss or remind macro is installed, its tab is added too</string>
     <string name="guide_step_sample_open">Enable panels and open the sample (swipe inward from its right-edge bar to reopen)</string>
     <string name="guide_step_translation_cli" tools:ignore="TypographyDashes">Install the trans translation command yourself in this same Linux environment if missing.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nThese commands are instructions; tapping this card does not install anything. Text is sent to an external translation service.</string>
     <string name="guide_sample_translation_missing">Install the trans command and prepare the translation macro first, then run the sample creation step again.</string>
