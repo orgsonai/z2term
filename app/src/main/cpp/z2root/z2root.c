@@ -1565,6 +1565,7 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
     // (固定長で切ると dpkg の byte-compile 等 argv の多い exec が壊れる)。
     unsigned long argv_addr = regs->regs[path_idx + 1];
     char **args = NULL;
+    unsigned long *uargs = NULL;   // 各引数の tracee 側アドレス(書き換え後の argv から元の文字列を指す)
     int n = 0, cap = 0;
     int too_long = 0;   // 1 引数が EXEC_ARG_MAX を超えた(Linux は E2BIG で断る)
     if (argv_addr) {
@@ -1578,8 +1579,12 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
                 int ncap = cap ? cap * 2 : 32;
                 char **na = realloc(args, (size_t)ncap * sizeof(*na));
                 if (!na) break;
-                args = na; cap = ncap;
+                args = na;
+                unsigned long *nu = realloc(uargs, (size_t)ncap * sizeof(*nu));
+                if (!nu) break;
+                uargs = nu; cap = ncap;
             }
+            uargs[n] = p;
             int big = 0;
             char *s = read_tracee_str_alloc(pid, p, EXEC_ARG_MAX, &big);
             if (big) too_long = 1;
@@ -1606,6 +1611,7 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
         }
         for (int j = 0; j < n; j++) free(args[j]);
         free(args);
+        free(uargs);
         return;
     }
 
@@ -1642,6 +1648,7 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
         }
         for (int j = 0; j < n; j++) free(args[j]);
         free(args);
+        free(uargs);
         return;
     }
 
@@ -1670,56 +1677,67 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
         }
         for (int j = 0; j < n; j++) free(args[j]);
         free(args);
+        free(uargs);
         return;
     }
 
     // 最終 argv = plan.prefix[..] + args[plan.orig_start..]
-    int maxparts = plan.nprefix + n + 1;
-    const char **parts = malloc((size_t)maxparts * sizeof(*parts));
-    if (!parts) { for (int j = 0; j < n; j++) free(args[j]); free(args); return; }
-    int pc = 0;
-    for (int j = 0; j < plan.nprefix; j++) parts[pc++] = plan.prefix[j];
-    for (int j = plan.orig_start; j < n; j++) parts[pc++] = args[j];
-
-    // tracee スタック下に [target 文字列][argv blob][8B align][ポインタ配列 + NULL] を配置。
-    // blob/ptrs は argv サイズに応じて動的確保する(固定 8KB だと大きい argv で書き換えを
-    // 取りこぼし、ゲストパスのまま execve され ENOENT になっていた)。
+    // tracee スタック下に [target 文字列][prefix 文字列][8B align][ポインタ配列 + NULL] を置く。
+    // args[orig_start..] は書き写さず、tracee に残っている元の文字列(uargs)をそのまま指す。
+    // 書き写していた間は、posix_spawn の子(glibc は「引数の個数 × 8 + 約 32KB」の専用スタックで
+    // 動かす)で引数の合計が約 30KB を超えるとスタックの外へはみ出して書けず、ゲストパスのまま
+    // execve され ENOENT になっていた(大きなリンクで cc → collect2 が起動できない等)。
+    // 新しく書くのはポインタ配列と prefix だけなので、glibc がその子に確保する余裕に収まる。
+    int pc = plan.nprefix + (n > plan.orig_start ? n - plan.orig_start : 0);
     size_t target_len = strlen(plan.target) + 1;
-    size_t blob_sz = 0;
-    for (int j = 0; j < pc; j++) blob_sz += strlen(parts[j]) + 1;
-    size_t total = target_len + blob_sz + 8 + (size_t)(pc + 1) * 8;
+    size_t pre_sz = 0;
+    for (int j = 0; j < plan.nprefix; j++) pre_sz += strlen(plan.prefix[j]) + 1;
+    size_t total = target_len + pre_sz + 8 + (size_t)(pc + 1) * 8;
     unsigned long base = scratch_base(regs->sp, total);
 
-    char *blob = malloc(blob_sz ? blob_sz : 1);
+    char *blob = malloc(pre_sz ? pre_sz : 1);
     unsigned long *ptrs = malloc((size_t)(pc + 1) * sizeof(*ptrs));
+    int ok = 0;
     if (blob && ptrs) {
         unsigned long blob_base = base + target_len;
         size_t boff = 0;
-        for (int j = 0; j < pc; j++) {
-            size_t l = strlen(parts[j]) + 1;
-            memcpy(blob + boff, parts[j], l);
-            ptrs[j] = blob_base + boff;
+        int k = 0;
+        for (int j = 0; j < plan.nprefix; j++) {
+            size_t l = strlen(plan.prefix[j]) + 1;
+            memcpy(blob + boff, plan.prefix[j], l);
+            ptrs[k++] = blob_base + boff;
             boff += l;
         }
+        for (int j = plan.orig_start; j < n; j++) ptrs[k++] = uargs[j];
+        ptrs[k] = 0;
         unsigned long arr = (blob_base + boff + 7) & ~7UL;
-        unsigned long nullp = 0;
-        int ok = (write_tracee_mem(pid, base, plan.target, target_len) == 0);
-        if (ok) ok = (write_tracee_mem(pid, blob_base, blob, boff) == 0);
-        for (int j = 0; j < pc && ok; j++)
-            ok = (write_tracee_mem(pid, arr + (unsigned long)j * 8, &ptrs[j], 8) == 0);
-        if (ok) ok = (write_tracee_mem(pid, arr + (unsigned long)pc * 8, &nullp, 8) == 0);
+        ok = (write_tracee_mem(pid, base, plan.target, target_len) == 0);
+        if (ok && boff) ok = (write_tracee_mem(pid, blob_base, blob, boff) == 0);
+        if (ok) ok = (write_tracee_mem(pid, arr, ptrs, (size_t)(pc + 1) * 8) == 0);
         if (ok) {
             regs->regs[path_idx] = base;
             regs->regs[path_idx + 1] = arr;
             set_regs(pid, regs);
         }
     }
+    // 書き換えを置けなかった: そのまま通すとゲストパスで execve されて ENOENT に見える。
+    // パスを NULL にして確実に失敗させ、exit で E2BIG(引数が大きすぎる)へ付け替える。
+    if (!ok) {
+        struct pid_state *st = state_lookup(pid);
+        if (st) {
+            regs->regs[path_idx] = 0;
+            if (path_idx == 1) regs->regs[4] &= ~0x1000UL;   // AT_EMPTY_PATH(fd の実行)にしない
+            set_regs(pid, regs);
+            st->exec_err_from = 0;
+            st->exec_err_to = E2BIG;
+        }
+    }
 
     free(blob);
     free(ptrs);
-    free(parts);
     for (int j = 0; j < n; j++) free(args[j]);
     free(args);
+    free(uargs);
 }
 
 // syscall-exit で getcwd(17) の戻りバッファに入ったホスト実パスをゲストパスへ逆変換する。

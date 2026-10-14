@@ -1,0 +1,5 @@
+1.0.17
+
+- A program inside the OS that started another one with long
+  arguments failed with "No such file or directory". Rust and large
+  C/C++ builds could not start the linker; this is fixed.
