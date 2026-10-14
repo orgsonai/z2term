@@ -1606,7 +1606,7 @@ fun SettingsSheet(
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     modifier = Modifier
-                                        // 押せる範囲を枠で囲む (1.0.13・利用者の指摘)。枠が無いと行の本体 (手順) との
+                                        // 押せる範囲を枠で囲む (1.0.14・利用者の指摘)。枠が無いと行の本体 (手順) との
                                         // 境目が見えず、手順を出すつもりで片付けを押してしまう。
                                         .padding(end = 8.dp)
                                         .clip(RoundedCornerShape(4.dp))

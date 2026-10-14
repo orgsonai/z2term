@@ -1153,8 +1153,8 @@ The macro installed by `z2-macro install rss` combines polling, keeping new item
 | Opening an article | `z2-open <URL>`, using the URL after `rss:` in the notification name |
 | Reading the list | `sh ~/.z2term/macros/rss.sh view` opens articles grouped by site through `z2-view` |
 | Managing subscriptions | Use Subscriptions in the view to add, change or remove URLs; the next poll uses the changes and collected articles are kept |
-| Removing from the list | Delete per article and per site; `z2-action:` links in the page call `rss.sh remove` / `remove-site` (1.0.13) |
-| Images and keeping | Settings switches thumbnail images and keeping articles; images are embedded in the page, and kept articles are read and searched by month under Archive (1.0.13) |
+| Removing from the list | Delete per article and per site; `z2-action:` links in the page call `rss.sh remove` / `remove-site` (1.0.14) |
+| Images and keeping | Settings switches thumbnail images and keeping articles; images are embedded in the page, and kept articles are read and searched by month under Archive (1.0.14) |
 
 Register notification actions with:
 

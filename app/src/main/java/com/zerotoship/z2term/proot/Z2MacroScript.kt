@@ -1930,6 +1930,8 @@ if [ "${d}1" = view ] || [ "${d}1" = refresh-view ] || [ "${d}1" = show ]; then
   if [ "${d}1" = refresh-view ] || { [ "${d}1" = view ] && [ -n "${d}Z2_VIEW_SESSION" ]; }; then
     Z2RSS_NO_PAGE=1 sh "${d}0" || exit 1
   fi
+  # The first view on a fresh install comes before any poll: the folder may not exist yet.
+  mkdir -p "${d}DIR" || exit 1
   controls=${d}(mktemp "${d}DIR/.controls-XXXXXXXX") || exit 1
   trap 'rm -f "${d}controls"' 0
   build_page "${d}controls" || exit 1

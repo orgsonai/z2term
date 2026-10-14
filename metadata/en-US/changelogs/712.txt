@@ -1,4 +1,4 @@
-1.0.13
+1.0.14
 
 - An edge panel can take its own colours from a terminal theme, and the
   bar handle offers nine colours beside black and white.

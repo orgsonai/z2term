@@ -21,7 +21,7 @@ The item editor is split, from the top, into Component and behavior, Display, Co
 
 ## One sample with three tabs
 
-Settings → Maintenance → Show a guide → **edge-workspace** adds one guide that creates **one panel with Notepad, Translation and Terminal tabs**, opened from a single right-edge bar. When the `rss` or `remind` macro is installed, a tab showing its page (RSS, Reminders) is added too (1.0.13; if you install the macro later, run the same step again — existing tabs and items are left as they are). Both this sample and the app-panel sample use 30% handle opacity (`alpha=0.3`).
+Settings → Maintenance → Show a guide → **edge-workspace** adds one guide that creates **one panel with Notepad, Translation and Terminal tabs**, opened from a single right-edge bar. When the `rss` or `remind` macro is installed, a tab showing its page (RSS, Reminders) is added too (1.0.14; if you install the macro later, run the same step again — existing tabs and items are left as they are). Both this sample and the app-panel sample use 30% handle opacity (`alpha=0.3`).
 
 <img src="../images/shot-edge-workspace.png" width="280" alt="The three-tab panel opened from the right-edge bar: Notepad, Translation and Terminal">
 

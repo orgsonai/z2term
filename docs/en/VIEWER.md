@@ -123,7 +123,7 @@ z2-edge set reminders:page type=view 'run=remind.sh view' view-refresh=auto ever
 z2-edge on
 ```
 
-RSS displays saved articles immediately and fetches feeds only for actions from inside the list screen — Refresh, and Articles from the subscriptions screen (1.0.13; the pane's Refresh polls from its first press). Article links open the external browser. Its existing Python 3 standard-library prerequisite remains unchanged; only thumbnail images (chosen under Settings) need Pillow. Subscriptions, Archive and Settings are links inside the page, so the pane's toolbar holds only Refresh and Expand.
+RSS displays saved articles immediately and fetches feeds only for actions from inside the list screen — Refresh, and Articles from the subscriptions screen (1.0.14; the pane's Refresh polls from its first press). Article links open the external browser. Its existing Python 3 standard-library prerequisite remains unchanged; only thumbnail images (chosen under Settings) need Pillow. Subscriptions, Archive and Settings are links inside the page, so the pane's toolbar holds only Refresh and Expand.
 
 Use Subscriptions in the article view to add, change or remove feed URLs. Changes apply on the next poll; collected articles are kept. Returning with Articles fetches the new subscriptions. `rss.sh feeds` also opens the subscription list.
 

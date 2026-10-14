@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.13.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.14.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -285,7 +285,7 @@ Settings > Maintenance > **"Show a guide"** puts the steps for using a bundled s
 - **The ✕ on the right drops a step you do not need** without sending it. When every card is gone the guide closes.
 - Cards without a command (turn a setting on, install a prerequisite package) are just to read; tapping one removes it.
 - Each row is two lines: **the macro's name and what it does**. Available: `otp-clip` (copy one-time codes from notifications) / `otp-sms` (copy one-time codes from SMS) / `unknown-call` (copy phone numbers from call notifications) / `remind` (remind me with a notification) / `rss` (get notified about new feed items and read them) / `qr` (hand something over as a QR code) / `md` (read Markdown). `watch-basic`, `battery-alert` and `daily-report` were removed from the guide in 1.0.1 (the macros can still be installed with `z2-macro install <name>`).
-- `edge-workspace` creates one sample panel with Notepad, Translation and Terminal tabs. When the `rss` or `remind` macro is installed, its tab is added too (1.0.13; if you install the macro later, run the same step of the guide again). The guide includes manual translation-command installation and bundled macro setup. [Steps](EDGE-MACRO-FORMS.md#one-sample-with-three-tabs).
+- `edge-workspace` creates one sample panel with Notepad, Translation and Terminal tabs. When the `rss` or `remind` macro is installed, its tab is added too (1.0.14; if you install the macro later, run the same step of the guide again). The guide includes manual translation-command installation and bundled macro setup. [Steps](EDGE-MACRO-FORMS.md#one-sample-with-three-tabs).
 - **A step that needs a value of yours asks first** (feed URL, polling interval, the text for a QR). It will not send an empty answer — this keeps the example values from being registered as they are.
 - Chosen from a GUI tab, the guide opens **after switching to a terminal tab** (it needs somewhere to type).
 - **If you decide not to use it, "Clean up" at the right of each row puts things back** (1.0.6). It shows the steps that remove the macro, automation rules, panels and tile slots that guide added, on the same kind of cards. Nothing is removed until you tap a card, and ✕ keeps whatever you want to keep. What you entered yourself, such as the feed list or the reminder records, is on a separate card. Android permissions (display over other apps, accessibility) cannot be turned off by the app, so a read-only card points them out.
@@ -1204,8 +1204,8 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Grid columns and icon size | `columns=auto` or 1–16; `icon-size=16..192` dp (default 40) |
 | Handle shape, position, activation | `handle` / `side` / `offset` / `x` / `y` / `size` / `length` / `alpha` / `open` (also via `z2-edge handle`) |
 | How to scroll | `scroll-how=auto\|node\|swipe` (default auto: direct terminal actions, continued vertical swipes for other continuous scrolling. node never touches the screen; swipe always sends a vertical stroke. In node mode, apps without fractional support move in page-sized steps. 0.9.8) |
-| Bar colour | `bar-color=auto\|white\|black\|gray\|red\|orange\|yellow\|green\|cyan\|blue\|purple\|pink\|#RRGGBB` (default auto; also `z2-edge handle ID bar --bar-color blue`. A fixed colour is outlined in black or white, whichever stays visible. 1.0.13) |
-| Panel colours | `scheme=THEME` (a terminal theme name: that panel alone takes its colours — frame, buttons and the page inside. Empty follows the terminal. In the settings screen this is Colours; the editor always keeps the terminal's colours. 1.0.13) |
+| Bar colour | `bar-color=auto\|white\|black\|gray\|red\|orange\|yellow\|green\|cyan\|blue\|purple\|pink\|#RRGGBB` (default auto; also `z2-edge handle ID bar --bar-color blue`. A fixed colour is outlined in black or white, whichever stays visible. 1.0.14) |
+| Panel colours | `scheme=THEME` (a terminal theme name: that panel alone takes its colours — frame, buttons and the page inside. Empty follows the terminal. In the settings screen this is Colours; the editor always keeps the terminal's colours. 1.0.14) |
 | Add, name and order tabs | `z2-edge tab PARENT ID LABEL`, `panel ID label=Name`, `panel PARENT tabs=a,b` |
 | Add/delete panels | `panel ID label=Name handle=bar side=right` / `delete ID` |
 | Add/edit/delete/reorder items | `set ID:item key=value ...` / `remove ID:item` / `set ID:item order=N` |
@@ -1590,7 +1590,7 @@ Each article on the page opens its original site. JavaScript and network loads a
 
 For a terminal list, use `sh ~/.z2term/macros/rss.sh list` (20 items) or `sh ~/.z2term/macros/rss.sh list 50` (choose a count). Tap a title to open it. Piped or redirected output includes the URLs as plain text.
 
-**Using the list (1.0.13)**
+**Using the list (1.0.14)**
 
 - Articles are **folded by site**; tap a site name to open it.
 - **Refresh** on the list screen, and Articles on the subscriptions screen, poll the feeds before rebuilding the list. List on a notification and `rss.sh view` from a terminal open what is already collected.
