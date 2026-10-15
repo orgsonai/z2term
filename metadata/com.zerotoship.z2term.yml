@@ -57,6 +57,12 @@ Builds:
     prebuild:
       - "grep Pkg.Revision $$NDK$$/source.properties | tr -d ' ' | sed s/Pkg.Revision=/ndk.version=/ >> ../local.properties"
       - "echo allowMissingBundledAssets=true >> ../gradle.properties"
+      # prebuild 3: REQUEST_INSTALL_PACKAGES をマニフェストから外す。この権限は GitHub 版のアプリ内更新
+      #   (z2-update) のためだけにあり、F-Droid から入れた版では isManagedByStore で更新そのものを断るので
+      #   使わない。審査で Reports タブの警告を「直すか説明する」よう求められ、使わないものは外すことにした
+      #   (2026-10-15)。F-Droid の APK を手で入れた場合は、更新が「許可が要る」で止まるだけ (署名も違うので
+      #   GitHub の APK では上書きできない)。サブディレクトリ app で走るのでパスは src/main/ から。
+      - "sed -i -e '/android.permission.REQUEST_INSTALL_PACKAGES/d' src/main/AndroidManifest.xml"
     # scanner は「ソースツリーに置かれたバイナリ」を一律で弾く。次の 1 つは正当な例外:
     #   - kkc_matrix.bin     : かな漢字変換の品詞接続コスト表。int16 の数表であって
     #                          実行コードではない。出典と著作権表示は

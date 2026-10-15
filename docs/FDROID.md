@@ -303,11 +303,11 @@ fdroid build -v -l com.zerotoship.z2term            # 本番と同じビルド
 |---|---|
 | 実行時に rootfs を落として実行する | 初回起動で利用者が配布元を選んで同意したうえで、公式 CDN から取得し SHA-256 で検証する。取得物は自由ソフトウェア。同じ作りの端末アプリが先例として F-Droid にある (AntiFeature も付いていない) |
 | アプリ内更新 (`z2-update`) | インストール元が `org.fdroid*` のときは**断って F-Droid 側へ誘導する** (`app/src/main/java/com/zerotoship/z2term/update/UpdateInstaller.kt` の `isManagedByStore`) |
-| `REQUEST_INSTALL_PACKAGES` を宣言している | ⚠ **ここは必ず先に説明を用意する。** 上のアプリ内更新のための宣言で、F-Droid から入れた版では経路ごと断る。落とすのは GitHub Releases の**自分自身の APK だけ**で、最後のインストールは利用者の 1 タップが要る (アプリが黙って入れ替える方法は Android に無い) |
+| `REQUEST_INSTALL_PACKAGES` | 上のアプリ内更新のための宣言で、F-Droid から入れた版では使わない。**2026-10-15 から、レシピの prebuild 3 行目で F-Droid 版のマニフェストから外している** (審査で Reports タブの警告を「直すか説明する」よう求められたため)。GitHub 版には残る。F-Droid の APK を手で入れた場合は、アプリ内更新が「許可が要る」で止まるだけ |
 | 同梱バイナリ | 無し。実行エンジン z2root / z2accept / z2attach は毎ビルド、ソースから生成する |
 | 依存ライブラリ | AndroidX / Compose / DataStore / Kotlin 標準ライブラリ・Coroutines / JSch (mwiede fork) / BouncyCastle / XZ for Java / OkHttp・Okio / SMBJ (+ asn-one・MBassador・SLF4J API) / ZXing Core・ZXing Android Embedded / Guava ListenableFuture / JetBrains Annotations。取得元は `google()` と `mavenCentral()` だけ。すべて FOSS で、Google Play Services や Firebase は入っていない (一覧と版は `legal/OssComponents.kt`、実際に入るものは `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` で確かめられる) |
 | フォント | IBM Plex Mono / JetBrains Mono / Fira Code の 3 つ (いずれも SIL Open Font License 1.1・改変なし) と、1.0.5 から自作の Z2 Mono (OFL-1.1。生成スクリプトは `scripts/z2-mono/build.py` で、TTF はそこから作ったもの)。**1.0.4 から git に入っており、F-Droid ビルドにも入る。** アプリ内のライセンス一覧にすべて載せ、OFL-1.1 の本文も同梱している。1.0.3 までの版では git に無く、F-Droid ビルドには入らない (端末の monospace へ自動フォールバック) |
-| 権限 | `MANAGE_EXTERNAL_STORAGE` (Linux 側から共有ストレージを読み書きする)・`RECEIVE_SMS` (`z2-when` の SMS 着信イベント。本文は端末内のスクリプトへ渡すだけ)・`SYSTEM_ALERT_WINDOW` (エッジパネル)・`CAMERA` (QR の読み取り)・ユーザー補助サービス (画面操作。利用者が設定で有効にしたときだけ)。いずれも送信先を持たず、解析・広告の SDK は入っていない |
+| 権限 (`check apk` の Reports に minor で出る。2026-10-15 に MR で用途を説明済み) | `INTERNET` (ssh・git・パッケージ導入・rootfs の取得)・`MANAGE_EXTERNAL_STORAGE` (Linux 側から共有ストレージを読み書きする)・`RECEIVE_SMS` (`z2-when` の SMS 着信イベント。本文は端末内のスクリプトへ渡すだけ)・`SYSTEM_ALERT_WINDOW` (エッジパネル)・`CAMERA` (QR の読み取り)・ユーザー補助サービス (画面操作。利用者が設定で有効にしたときだけ)。いずれも送信先を持たず、解析・広告の SDK は入っていない |
 | 署名 | F-Droid は自分の鍵で署名するので、GitHub Releases の APK とは**署名が違う**。一方からもう一方へは上書きできない (入れ替えるときはバックアップ → アンインストール → 入れ直し → 復元)。公開されたら README と HANDBOOK のダウンロードの節にこの注意を足す |
 
 ---
