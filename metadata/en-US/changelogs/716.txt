@@ -1,0 +1,6 @@
+1.0.18
+
+- z2-view: a pinch can zoom the whole page instead of the text
+  (z2-view --pinch page; for a panel item, Pinch under Display).
+- The text size can be set as a number
+  (z2-view --text-size 130; for a panel item, Text size (%)).

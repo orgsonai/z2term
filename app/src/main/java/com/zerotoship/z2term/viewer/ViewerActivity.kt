@@ -45,10 +45,12 @@ class ViewerActivity : ComponentActivity() {
         }, LinearLayout.LayoutParams(-1, -2))
         // A full screen for reading: finding a word is always offered here; panels keep it opt-in.
         // Pages opened from a terminal are new each time, so this screen keeps one text size for all of them.
+        // `z2-view --text-size` picks the size for this page only; a text pinch still updates the remembered one.
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val zoom = prefs.getInt(TEXT_ZOOM, ViewerOptions.TEXT_ZOOM)
-            .coerceIn(ViewerOptions.MIN_TEXT_ZOOM, ViewerOptions.MAX_TEXT_ZOOM)
-        pane = ViewerPane(this, key, options = ViewerOptions(showFind = true, textZoom = zoom),
+        val zoom = intent.getIntExtra(EXTRA_TEXT_ZOOM, 0).takeIf { it > 0 } ?: prefs.getInt(TEXT_ZOOM, ViewerOptions.TEXT_ZOOM)
+        pane = ViewerPane(this, key, options = ViewerOptions(showFind = true,
+                textZoom = zoom.coerceIn(ViewerOptions.MIN_TEXT_ZOOM, ViewerOptions.MAX_TEXT_ZOOM),
+                pagePinch = intent.getBooleanExtra(EXTRA_PAGE_PINCH, false)),
             onTextZoom = { prefs.edit().putInt(TEXT_ZOOM, it).apply() }).also { root.addView(it, LinearLayout.LayoutParams(-1, 0, 1f)) }
         setContentView(root)
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
@@ -78,8 +80,12 @@ class ViewerActivity : ComponentActivity() {
     companion object {
         private const val PREFS = "viewer"
         private const val TEXT_ZOOM = "text-zoom"
-        internal fun open(context: Context, key: String) {
+        private const val EXTRA_PAGE_PINCH = "page-pinch"
+        private const val EXTRA_TEXT_ZOOM = "text-size"
+        /** textZoom 0 = the remembered size. */
+        internal fun open(context: Context, key: String, pagePinch: Boolean = false, textZoom: Int = 0) {
             context.startActivity(Intent(context, ViewerActivity::class.java).putExtra("page", key)
+                .putExtra(EXTRA_PAGE_PINCH, pagePinch).putExtra(EXTRA_TEXT_ZOOM, textZoom)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP))
         }
     }

@@ -254,7 +254,7 @@ class EdgeStore(val root: File) {
         }
 
         fun validateItem(values: Map<String, String>) {
-            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "terminal-size", "note-background", "note-color", "args", "result", "result-controls", "argument-kind", "default", "choices", "required", "rows", "stdin", "width", "height", "align", "at", "view-refresh", "view-refresh-button", "view-expand-button", "view-find-button", "view-text-size", "row")
+            val allowed = setOf("type", "label", "icon", "run", "off", "button-state", "button-source", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size", "terminal-size", "note-background", "note-color", "args", "result", "result-controls", "argument-kind", "default", "choices", "required", "rows", "stdin", "width", "height", "align", "at", "view-refresh", "view-refresh-button", "view-expand-button", "view-find-button", "view-text-size", "view-pinch", "row")
             require(values.keys.all { it in allowed }) { "Unknown item field: ${values.keys - allowed}" }
             val type = values["type"] ?: "run"
             require(type in setOf("run", "text", "toggle", "list", "input", "note", "terminal", "macro", "argument", "result", "view")) { "Unsupported type: $type" }

@@ -21,4 +21,9 @@
     <string name="viewer_find_close">Close find</string>
     <string name="viewer_show_find">Show Find button</string>
     <string name="viewer_number">Enter %1$s as a number.</string>
+    <string name="viewer_pinch" formatted="false">Pinch</string>
+    <string name="viewer_pinch_text" formatted="false">Size the text</string>
+    <string name="viewer_pinch_page" formatted="false">Zoom the whole page</string>
+    <string name="viewer_text_size" formatted="false">Text size (%)</string>
+    <string name="viewer_text_size_help" formatted="false">50–300; empty means 100. With \"Size the text\", a pinch fills this in.</string>
 </resources>

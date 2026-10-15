@@ -21,4 +21,9 @@
     <string name="viewer_find_close">検索を閉じる</string>
     <string name="viewer_show_find">「検索」ボタンを表示</string>
     <string name="viewer_number">%1$sは数値で入力してください。</string>
+    <string name="viewer_pinch" formatted="false">ピンチの動き</string>
+    <string name="viewer_pinch_text" formatted="false">文字の大きさを変える</string>
+    <string name="viewer_pinch_page" formatted="false">頁ごと拡大する</string>
+    <string name="viewer_text_size" formatted="false">文字の大きさ（%）</string>
+    <string name="viewer_text_size_help" formatted="false">50〜300。空欄なら 100。「文字の大きさを変える」ではピンチで変えると自動で入ります。</string>
 </resources>

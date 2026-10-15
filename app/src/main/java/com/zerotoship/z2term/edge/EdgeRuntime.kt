@@ -1799,7 +1799,8 @@ object EdgeRuntime {
                 val viewer = com.zerotoship.z2term.viewer.ViewerPane(ui(), key, target,
                     EdgeMacroCommand.resolve(item.command, com.zerotoship.z2term.widget.WidgetStore.availableMacros(context)),
                     item.every, item.timeout,
-                    expand = { close(); com.zerotoship.z2term.viewer.ViewerActivity.open(context, key) }, external = { close() }, runner = runner!!,
+                    expand = { close(); com.zerotoship.z2term.viewer.ViewerActivity.open(context, key,
+                        pagePinch = item.fields["view-pinch"] == "page") }, external = { close() }, runner = runner!!,
                     options = com.zerotoship.z2term.viewer.ViewerOptions.from(item.fields)) { size ->
                     // Saved per item like the terminal's size, so the next opening and the recreation commands keep it.
                     runCatching {

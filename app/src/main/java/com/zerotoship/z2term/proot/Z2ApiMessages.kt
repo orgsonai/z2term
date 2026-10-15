@@ -400,6 +400,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# View items default to manual refresh. view-refresh=auto runs run= on open; z2-view returns to that item.
         |# Use - or a pipe (ls -l | z2-view) to read standard input. Text that does not start with < is shown
         |# wrapped in a monospace font, colour codes removed; --text / --html choose explicitly.
+        |# A pinch sizes the text; --pinch page zooms the whole page instead. --text-size 50..300 sets the
+        |# text size (percent) for this page. Both apply to the full screen; a panel item uses its own settings.
     """.trimMargin(),
         ja = """
         |# z2-view <ファイル.html> [題名] … ここで作った頁を z2term の中で読みます。
@@ -414,6 +416,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# ビューは既定で手動更新。view-refresh=autoなら開いた時にrun=を実行し、z2-viewは同じ項目へ表示します。
         |# - かパイプ (ls -l | z2-view) で標準入力を読みます。< で始まらない文字は、色の指定を除き
         |# 折り返し付きの等幅で出します。--text / --html で明示もできます。
+        |# ピンチは文字の大きさを変えます。--pinch page なら頁ごと拡大します。--text-size 50〜300 で
+        |# この頁の文字の大きさ (%) を決めます。どちらも全画面用で、パネルの項目は項目の設定に従います。
     """.trimMargin(),
         "zh-CN" to """
         |# z2-view <文件.html> [标题] … 在 z2term 里阅读你在这里做好的页面。
@@ -427,6 +431,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# 视图默认手动刷新。view-refresh=auto 时打开会执行 run=，z2-view 返回同一项目。
         |# 用 - 或管道 (ls -l | z2-view) 读取标准输入。不以 < 开头的文字去掉颜色代码后，
         |# 以自动换行的等宽字体显示；--text / --html 可明确指定。
+        |# 双指缩放改变文字大小；--pinch page 则缩放整个页面。--text-size 50..300 设定本页文字大小 (%)。
+        |# 两者用于全屏显示；面板项目按项目的设置。
     """.trimMargin(),
         "zh-TW" to """
         |# z2-view <檔案.html> [標題] … 在 z2term 裡閱讀你在這裡做好的頁面。
@@ -440,6 +446,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# 檢視預設手動重新整理。view-refresh=auto 時開啟會執行 run=，z2-view 回到同一項目。
         |# 用 - 或管線 (ls -l | z2-view) 讀取標準輸入。不以 < 開頭的文字去掉顏色碼後，
         |# 以自動換行的等寬字型顯示；--text / --html 可明確指定。
+        |# 雙指縮放改變文字大小；--pinch page 則縮放整個頁面。--text-size 50..300 設定本頁文字大小 (%)。
+        |# 兩者用於全螢幕顯示；面板項目依項目的設定。
     """.trimMargin(),
         "es" to """
         |# z2-view <archivo.html> [título] … lee dentro de z2term una página hecha aquí.
@@ -454,6 +462,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# La vista se actualiza manualmente por defecto. view-refresh=auto ejecuta run= al abrir; z2-view vuelve al mismo elemento.
         |# Con - o una tubería (ls -l | z2-view) lee la entrada estándar. El texto que no empieza por < se muestra
         |# ajustado en letra monoespaciada y sin códigos de color; --text / --html lo fijan.
+        |# Pellizcar cambia el tamaño del texto; --pinch page amplía la página entera. --text-size 50..300 fija
+        |# el tamaño del texto (%) de esta página. Ambos son para pantalla completa; un elemento de panel usa sus ajustes.
     """.trimMargin(),
         "ko" to """
         |# z2-view <파일.html> [제목] … 여기서 만든 페이지를 z2term 안에서 읽습니다.
@@ -468,16 +478,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# 뷰는 기본적으로 수동 갱신입니다. view-refresh=auto이면 열 때 run=을 실행하고 z2-view는 같은 항목으로 돌아옵니다.
         |# - 또는 파이프 (ls -l | z2-view) 로 표준 입력을 읽습니다. < 로 시작하지 않는 글자는 색 코드를 빼고
         |# 줄바꿈되는 고정폭 글꼴로 보여 줍니다. --text / --html 로 직접 정할 수도 있습니다.
+        |# 핀치는 글자 크기를 바꿉니다. --pinch page 이면 페이지 전체를 확대합니다. --text-size 50~300 으로
+        |# 이 페이지의 글자 크기(%)를 정합니다. 둘 다 전체 화면용이며 패널 항목은 항목 설정을 따릅니다.
     """.trimMargin()
     )
 
     val viewUsage: String = t(
-        en = "usage: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <file|-> [title]",
-        ja = "usage: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <ファイル|-> [題名]",
-        "zh-CN" to "用法: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <文件|-> [标题]",
-        "zh-TW" to "用法: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <檔案|-> [標題]",
-        "es" to "uso: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <archivo|-> [título]",
-        "ko" to "사용법: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] <파일|-> [제목]"
+        en = "usage: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] [--pinch text|page] [--text-size N] <file|-> [title]",
+        ja = "usage: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] [--pinch text|page] [--text-size N] <ファイル|-> [題名]",
+        "zh-CN" to "用法: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] [--pinch text|page] [--text-size N] <文件|-> [标题]",
+        "zh-TW" to "用法: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] [--pinch text|page] [--text-size N] <檔案|-> [標題]",
+        "es" to "uso: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] [--pinch text|page] [--text-size N] <archivo|-> [título]",
+        "ko" to "사용법: z2-view [--edge PANEL:ITEM] [--controls FILE.json] [--text|--html] [--pinch text|page] [--text-size N] <파일|-> [제목]"
     )
 
     val viewUnreadable: String = t(

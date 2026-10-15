@@ -18,9 +18,22 @@ class ViewerOptionsTest {
             // Find is opt-in, so panels made before it look the same.
             assertFalse(options.showFind)
             assertEquals(ViewerOptions.TEXT_ZOOM, options.textZoom)
+            // A pinch keeps sizing the text unless the item asks for page zoom.
+            assertFalse(options.pagePinch)
         }
         assertTrue(ViewerOptions.from(mapOf("view-find-button" to "on")).showFind)
         assertEquals(150, ViewerOptions.from(mapOf("view-text-size" to "150")).textZoom)
+        assertTrue(ViewerOptions.from(mapOf("view-pinch" to "page")).pagePinch)
+        assertFalse(ViewerOptions.from(mapOf("view-pinch" to "text")).pagePinch)
+    }
+
+    @Test fun commandOptionsShareTheItemRules() {
+        assertEquals(120, ViewerOptions.textZoom("120", "--text-size"))
+        assertTrue(ViewerOptions.pagePinch("page", "--pinch"))
+        for (bad in listOf("49", "301", "", "1e2")) {
+            try { ViewerOptions.textZoom(bad, "--text-size"); fail("Accepted $bad") } catch (_: IllegalArgumentException) { }
+        }
+        try { ViewerOptions.pagePinch("zoom", "--pinch"); fail("Accepted zoom") } catch (_: IllegalArgumentException) { }
     }
 
     @Test fun controlsAreIndependentOfAutomaticUpdatesAndPersistInExports() {
@@ -59,7 +72,8 @@ class ViewerOptionsTest {
             val original = store.item("main:page").fields
             for ((key, invalid) in listOf("view-refresh" to "always", "view-refresh-button" to "yes",
                 "view-expand-button" to "false", "view-find-button" to "1", "view-refresh" to "",
-                "view-text-size" to "49", "view-text-size" to "301", "view-text-size" to "big")) {
+                "view-text-size" to "49", "view-text-size" to "301", "view-text-size" to "big",
+                "view-pinch" to "zoom", "view-pinch" to "")) {
                 try {
                     store.setItem("main:page", mapOf(key to invalid))
                     fail("Invalid $key was accepted")

@@ -21,4 +21,9 @@
     <string name="viewer_find_close">Cerrar búsqueda</string>
     <string name="viewer_show_find">Mostrar botón Buscar</string>
     <string name="viewer_number">Escribe %1$s como número.</string>
+    <string name="viewer_pinch" formatted="false">Pellizcar</string>
+    <string name="viewer_pinch_text" formatted="false">Cambiar el tamaño del texto</string>
+    <string name="viewer_pinch_page" formatted="false">Ampliar la página entera</string>
+    <string name="viewer_text_size" formatted="false">Tamaño del texto (%)</string>
+    <string name="viewer_text_size_help" formatted="false">50–300; vacío es 100. Con «Cambiar el tamaño del texto», pellizcar lo rellena.</string>
 </resources>

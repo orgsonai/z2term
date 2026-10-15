@@ -21,4 +21,9 @@
     <string name="viewer_find_close">찾기 닫기</string>
     <string name="viewer_show_find">찾기 버튼 표시</string>
     <string name="viewer_number">%1$s은(는) 숫자로 입력하세요.</string>
+    <string name="viewer_pinch" formatted="false">핀치 동작</string>
+    <string name="viewer_pinch_text" formatted="false">글자 크기 바꾸기</string>
+    <string name="viewer_pinch_page" formatted="false">페이지 전체 확대</string>
+    <string name="viewer_text_size" formatted="false">글자 크기(%)</string>
+    <string name="viewer_text_size_help" formatted="false">50~300. 비워 두면 100. \"글자 크기 바꾸기\"에서는 핀치로 바꾸면 자동으로 들어갑니다.</string>
 </resources>

@@ -46,7 +46,8 @@ Under Display, Show Refresh button and Show Expand button control those buttons 
 | `view-refresh-button` | `on` (default) / `off` |
 | `view-expand-button` | `on` (default) / `off` |
 | `view-find-button` | `on` / `off` (default). The Find in page button (1.0.15) |
-| `view-text-size` | `50`–`300` (percent, default `100`). Text size; a pinch writes it (1.0.16) |
+| `view-text-size` | `50`–`300` (percent, default `100`). Text size; a pinch writes it (1.0.16). Also set under the item's Display (1.0.18) |
+| `view-pinch` | `text` (default) / `page`. Whether a pinch sizes the text or zooms the whole page (1.0.18) |
 | `every` | Automatic mode only. Empty or 0 means on open only; 5–86400 seconds also enables periodic refresh |
 
 Swipe the tab strip horizontally to scroll its labels without selecting a different tab. Swipe horizontally on an HTML view to change tabs, and vertically to scroll the page. A vertical start or long press will not turn into a tab change.
@@ -82,6 +83,22 @@ Since 1.0.16, pinching the page with two fingers changes its text size (50–300
 - Each edge panel view item keeps its own size (`view-text-size`).
 
 Pages that set their text size in `px` scale by the same ratio.
+
+### Zoom the whole page, or set the text size (1.0.18)
+
+A pinch can zoom the **page itself** instead of the text. This suits pages that break when re-wrapped, such as pictures and tables. A zoomed page is wider than the screen, so move it up, down and sideways with a finger.
+
+- For the screen opened from the terminal, choose with options to `z2-view`, each time it opens:
+
+  ```sh
+  z2-view --pinch page page.html          # a pinch zooms the whole page
+  z2-view --text-size 130 page.html       # open this page with the text at 130%
+  ```
+
+  `--pinch text` (the default) behaves as in 1.0.16. `--text-size` takes 50–300 and opens only this page at that size (without it, the remembered size is used). Neither applies when the page goes to a panel (`--edge`, or a command inside a panel); the item's settings decide there.
+- For an edge panel view item, choose Pinch (Size the text / Zoom the whole page) and Text size (%) under the item's Display (`view-pinch=page`, `view-text-size=130`). Expand to full screen keeps the item's pinch behaviour.
+- The text size still applies while pinching zooms the page. The page zoom is not remembered (each opening starts fitted to the width).
+- In a panel, a sideways move pans a zoomed page while it can still move that way; at its edge the move changes tabs.
 
 ## Define forms and actions in a macro
 

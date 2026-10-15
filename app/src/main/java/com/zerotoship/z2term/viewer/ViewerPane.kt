@@ -83,10 +83,11 @@ internal class ViewerPane(context: Context, private val key: String, private val
             allowContentAccess = false
             domStorageEnabled = false
             blockNetworkLoads = true
-            // A pinch sizes the text (below), so the page is not zoomed as a picture as well.
-            builtInZoomControls = false
+            // One meaning per pinch: either WebView zooms the page, or the text is sized (below) and
+            // the page is not zoomed as a picture as well.
+            builtInZoomControls = options.pagePinch
             displayZoomControls = false
-            setSupportZoom(false)
+            setSupportZoom(options.pagePinch)
             textZoom = options.textZoom
         }
         web.webViewClient = object : WebViewClient() {
@@ -116,7 +117,7 @@ internal class ViewerPane(context: Context, private val key: String, private val
         web.setFindListener { active, total, done ->
             if (done && !disposed) findCount.text = if (findInput.text.isBlank()) "" else if (total == 0) "0" else "${active + 1}/$total"
         }
-        // Pinch changes the text size and the page re-wraps to the width, like the panel terminal.
+        // A text pinch changes the text size and the page re-wraps to the width, like the panel terminal.
         val pinch = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
                 textSize = (textSize * detector.scaleFactor).coerceIn(
@@ -135,6 +136,7 @@ internal class ViewerPane(context: Context, private val key: String, private val
                 web.parent?.requestDisallowInterceptTouchEvent(true)
                 pinching = false
             }
+            if (options.pagePinch) return@setOnTouchListener false
             pinch.onTouchEvent(event)
             if (!pinching && event.pointerCount > 1) {
                 pinching = true

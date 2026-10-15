@@ -39,11 +39,21 @@ if [ -f '${staging.path}/'"${'$'}3"/controls.json ]; then cp '${staging.path}/'"
             val received = File(dir, "received-page.html")
             val receivedText = File(dir, "received-page.txt")
             assertEquals(0, run("--controls", controls.path, html.path, "Title"))
-            assertEquals(listOf("tools:page", "session-token"), calls.readLines().takeLast(2))
+            // z2api 1 view STAGE TITLE TARGET SESSION PINCH TEXT-SIZE
+            assertEquals(listOf("tools:page", "session-token", "", ""), calls.readLines().drop(4))
             assertEquals(controls.readText(), File(dir, "received.json").readText())
             assertEquals(html.readText(), received.readText())
             assertEquals(0, run("--edge", "other:page", html.path))
-            assertEquals(listOf("other:page", ""), calls.readLines().takeLast(2))
+            assertEquals(listOf("other:page", ""), calls.readLines().drop(4).take(2))
+            // Pinch and text size for the full screen travel as the last two arguments; bad values never reach the app.
+            assertEquals(0, run("--pinch", "page", "--text-size", "120", html.path))
+            assertEquals(listOf("page", "120"), calls.readLines().drop(6))
+            calls.delete()
+            for (bad in listOf(listOf("--pinch", "zoom"), listOf("--pinch"), listOf("--text-size", "49"),
+                listOf("--text-size", "301"), listOf("--text-size", "1e2"), listOf("--text-size"))) {
+                assertNotEquals(0, run(*(bad + html.path).toTypedArray()))
+                assertFalse(calls.exists())
+            }
             assertTrue(staging.listFiles()!!.isEmpty())
             calls.delete()
             html.writeBytes(ByteArray(4 * 1024 * 1024 + 1) { 65 })

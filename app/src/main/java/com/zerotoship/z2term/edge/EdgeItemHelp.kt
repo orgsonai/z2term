@@ -28,6 +28,7 @@ internal object EdgeItemHelp {
         "choices" -> R.string.edge_help_choices
         "rows" -> R.string.edge_help_rows
         "width", "height" -> R.string.edge_help_size
+        "view-text-size" -> R.string.viewer_text_size_help
         else -> null
     }
 
@@ -48,6 +49,7 @@ internal object EdgeItemHelp {
         "width" -> "100%"
         "height" -> "360"
         "at" -> "50%,50%"
+        "view-text-size" -> "120"
         else -> null
     }
 }

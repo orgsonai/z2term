@@ -32,6 +32,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
     private var swiping = false
     private var swipeOnResult = false
     private var swipeHorizontal = true
+    private var swipePage: android.webkit.WebView? = null
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     private val swipeDistance = maxOf(touchSlop, 32 * resources.displayMetrics.density)
 
@@ -55,6 +56,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
                 swipeStartY = event.rawY
                 swiping = false
                 swipeOnResult = swipeArea?.let { resultAt(it, event) } == true
+                swipePage = swipeArea?.let { pageAt(it, event) }
                 swipeHorizontal = swipeOnResult || horizontalTabSwipe
                 swipeCandidate = tabStrip?.let { contains(it, event) } != true &&
                     swipeArea?.let { contains(it, event) && !controlAt(it, event) } == true
@@ -67,14 +69,17 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
                 val across = kotlin.math.abs(if (swipeHorizontal) dy else dx)
                 // Once the result starts a vertical scroll, do not steal a later sideways move.
                 val crossDistance = if (swipeOnResult) touchSlop else swipeDistance
-                if (event.eventTime - event.downTime >= ViewConfiguration.getLongPressTimeout() ||
+                // A page zoomed wider than the panel pans sideways first; at its edge the swipe changes tabs again.
+                val pans = swipeHorizontal && dx != 0f &&
+                    swipePage?.canScrollHorizontally(if (dx < 0) 1 else -1) == true
+                if (pans || event.eventTime - event.downTime >= ViewConfiguration.getLongPressTimeout() ||
                     across > crossDistance && across >= along) swipeCandidate = false
                 else if (along > swipeDistance && along > across * 1.5f) {
                     swiping = true
                     return true // Android cancels the child's tap before delivering the remaining gesture here.
                 }
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> swipeCandidate = false
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { swipeCandidate = false; swipePage = null }
         }
         return super.onInterceptTouchEvent(event)
     }
@@ -113,6 +118,15 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
             if (controlAt(view.getChildAt(i), event)) return true
         }
         return false
+    }
+
+    private fun pageAt(view: View, event: MotionEvent): android.webkit.WebView? {
+        if (!contains(view, event)) return null
+        if (view is android.webkit.WebView) return view
+        if (view is ViewGroup) for (i in view.childCount - 1 downTo 0) {
+            pageAt(view.getChildAt(i), event)?.let { return it }
+        }
+        return null
     }
 
     private fun resultAt(view: View, event: MotionEvent): Boolean {

@@ -135,7 +135,8 @@ object EdgeItemEditor {
             "choices" to R.string.edge_argument_choices, "required" to R.string.edge_argument_required,
             "rows" to R.string.edge_form_rows, "stdin" to R.string.edge_item_stdin,
             "width" to R.string.edge_item_width, "height" to R.string.edge_item_height,
-            "align" to R.string.edge_item_align, "at" to R.string.edge_item_at)
+            "align" to R.string.edge_item_align, "at" to R.string.edge_item_at,
+            "view-text-size" to R.string.viewer_text_size)
         val entries = linkedMapOf<String, EditText>()
         val groups = linkedMapOf<String, LinearLayout>()
         val examples = linkedMapOf<String, TextView>()
@@ -182,6 +183,7 @@ object EdgeItemEditor {
             if (key == "required") EdgeItemPickers.options(context, group, entry, listOf("off", "on"),
                 listOf(R.string.edge_argument_optional, R.string.edge_argument_mandatory))
             if (key == "run" || key == "off") EdgeItemPickers.macros(context, group, entry)
+            if (key == "view-text-size") entry.inputType = android.text.InputType.TYPE_CLASS_NUMBER
             group.addView(EdgeSettingsUi.spacer(context, 12))
             into.addView(group)
         }
@@ -205,6 +207,17 @@ object EdgeItemEditor {
         val viewRefreshButton = viewSwitch(R.string.viewer_show_refresh, initialViewOptions.showRefresh)
         val viewExpandButton = viewSwitch(R.string.viewer_show_expand, initialViewOptions.showExpand)
         val viewFindButton = viewSwitch(R.string.viewer_show_find, initialViewOptions.showFind)
+        // What a pinch does on the page: size the text (default) or zoom the whole page.
+        val viewPinchGroup = EdgeSettingsUi.column(context)
+        val viewPinch = EdgeSettingsUi.dress(context, Spinner(context)).apply {
+            contentDescription = context.getString(R.string.viewer_pinch)
+            adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
+                listOf(R.string.viewer_pinch_text, R.string.viewer_pinch_page).map { context.getString(it) })
+            setSelection(if (initialViewOptions.pagePinch) 1 else 0)
+        }
+        EdgeSettingsUi.labeled(context, viewPinchGroup, context.getString(R.string.viewer_pinch), viewPinch)
+        display.addView(viewPinchGroup)
+        field("view-text-size", display)
 
         // Command: what runs, and for an ON/OFF button how its state is found.
         val buttonStateHelp = commands.addNote(R.string.edge_button_state_desc)
@@ -273,7 +286,7 @@ object EdgeItemEditor {
             buttonStateHelp.visibility = if (stateButton) View.VISIBLE else View.GONE
             sourceGroup.visibility = if (stateButton) View.VISIBLE else View.GONE
             noteLines.visibility = if (selected == "note") View.VISIBLE else View.GONE
-            listOf(viewRefreshButton, viewExpandButton, viewFindButton, viewUpdateGroup).forEach {
+            listOf(viewRefreshButton, viewExpandButton, viewFindButton, viewPinchGroup, viewUpdateGroup).forEach {
                 it.visibility = if (selected == "view") View.VISIBLE else View.GONE
             }
             resultControls.visibility = if (selected in setOf("result", "macro") || bound) View.VISIBLE else View.GONE
@@ -292,6 +305,7 @@ object EdgeItemEditor {
                     "required" -> selected == "argument" && selection.component != "display"
                     "rows" -> selected in setOf("argument", "result", "macro", "run")
                     "out" -> selected !in setOf("note", "terminal", "argument", "result", "view")
+                    "view-text-size" -> selected == "view"
                     "run", "timeout" -> selected !in setOf("note", "terminal", "argument", "result")
                     else -> true
                 }
@@ -336,6 +350,7 @@ object EdgeItemEditor {
                 viewRefreshButton.isChecked != initialViewOptions.showRefresh ||
                 viewExpandButton.isChecked != initialViewOptions.showExpand ||
                 viewFindButton.isChecked != initialViewOptions.showFind ||
+                (viewPinch.selectedItemPosition == 1) != initialViewOptions.pagePinch ||
                 (viewUpdateMode.selectedItemPosition == 1) != initialViewOptions.automatic ||
                 entries.any { (key, entry) -> entry.text.toString() != item?.fields?.get(key).orEmpty() }
         }
@@ -348,6 +363,7 @@ object EdgeItemEditor {
             viewRefreshButton.isChecked = initialViewOptions.showRefresh
             viewExpandButton.isChecked = initialViewOptions.showExpand
             viewFindButton.isChecked = initialViewOptions.showFind
+            viewPinch.setSelection(if (initialViewOptions.pagePinch) 1 else 0)
             viewUpdateMode.setSelection(if (initialViewOptions.automatic) 1 else 0)
             launchMode = initialMode; windowMode?.setSelection(AppLaunch.modes.indexOf(initialMode))
             scaleFreeform = initialScale; scale?.setSelection(if (initialScale) 0 else 1)
@@ -391,6 +407,7 @@ object EdgeItemEditor {
                     values["view-refresh-button"] = if (viewRefreshButton.isChecked) "on" else "off"
                     values["view-expand-button"] = if (viewExpandButton.isChecked) "on" else "off"
                     values["view-find-button"] = if (viewFindButton.isChecked) "on" else "off"
+                    values["view-pinch"] = if (viewPinch.selectedItemPosition == 1) "page" else "text"
                 }
                 entries.forEach { (key, entry) ->
                     // Preserve hidden values; only visible fields are edited.

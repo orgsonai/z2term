@@ -325,7 +325,8 @@ object Z2ApiBridge {
             // 渡せず、サーバーを立てるのは常駐が増えるので、自前で開く ([ViewerActivity])。
             "view" -> {
                 require(args.size >= 1) { "view STAGE [TITLE]" }
-                doView(context, args[0], args.getOrNull(1).orEmpty(), args.getOrNull(2).orEmpty(), args.getOrNull(3).orEmpty()); null
+                doView(context, args[0], args.getOrNull(1).orEmpty(), args.getOrNull(2).orEmpty(), args.getOrNull(3).orEmpty(),
+                    args.getOrNull(4).orEmpty(), args.getOrNull(5).orEmpty()); null
             }
             // z2-qr (0.8.602): カメラで読み取る状態の QR ツール。タイルやエッジパネルから呼ぶ入口。
             "qr" -> { com.zerotoship.z2term.qr.QrToolsActivity.scan(context); null }
@@ -1512,7 +1513,10 @@ object Z2ApiBridge {
      * ⚠ **受け取るのは置き場の名前だけ**。パスをそのまま受けると、端末側から任意のファイルを
      * アプリに読ませる口になる (共有ストレージの外も含めて)。
      */
-    private fun doView(context: Context, stage: String, title: String, target: String, session: String) {
+    private fun doView(context: Context, stage: String, title: String, target: String, session: String,
+                       pinch: String = "", textSize: String = "") {
+        val pagePinch = pinch.isNotEmpty() && com.zerotoship.z2term.viewer.ViewerOptions.pagePinch(pinch, "--pinch")
+        val textZoom = if (textSize.isEmpty()) 0 else com.zerotoship.z2term.viewer.ViewerOptions.textZoom(textSize, "--text-size")
         require(stage.isNotBlank() && !stage.contains('/') && !stage.contains("..")) { "view: bad stage" }
         val staging = java.io.File(requireNotNull(context.getExternalFilesDir(null)), "z2api")
         val directory = java.io.File(staging, stage)
@@ -1530,7 +1534,7 @@ object Z2ApiBridge {
         val actions = if (controls.isFile) com.zerotoship.z2term.viewer.ViewerControls.parse(
             com.zerotoship.z2term.viewer.ViewerPage.read(controls, com.zerotoship.z2term.viewer.ViewerControls.LIMIT)) else null
         com.zerotoship.z2term.viewer.ViewerStore.publish(context,
-            com.zerotoship.z2term.viewer.ViewerPage(html, title, actions), target, session)
+            com.zerotoship.z2term.viewer.ViewerPage(html, title, actions), target, session, pagePinch, textZoom)
     }
 
     /**

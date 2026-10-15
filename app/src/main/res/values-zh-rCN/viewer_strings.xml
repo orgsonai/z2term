@@ -21,4 +21,9 @@
     <string name="viewer_find_close">关闭查找</string>
     <string name="viewer_show_find">显示“查找”按钮</string>
     <string name="viewer_number">%1$s请输入数字。</string>
+    <string name="viewer_pinch" formatted="false">双指缩放</string>
+    <string name="viewer_pinch_text" formatted="false">改变文字大小</string>
+    <string name="viewer_pinch_page" formatted="false">缩放整个页面</string>
+    <string name="viewer_text_size" formatted="false">文字大小（%）</string>
+    <string name="viewer_text_size_help" formatted="false">50～300，留空为 100。选“改变文字大小”时，双指缩放会自动填入。</string>
 </resources>
