@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-14 / Target version: 1.0.15 (versionCode 713)
+Last updated: 2026-10-15 / Target version: 1.0.19 (versionCode 717)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
