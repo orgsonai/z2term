@@ -53,9 +53,9 @@ internal object ViewerStore {
         }.forEach { it.delete() }
     }
 
-    /** pagePinch / textZoom come from `z2-view --pinch / --text-size` and apply only to a page opened full screen. */
+    /** pagePinch / textZoom / hidden come from `z2-view --pinch / --text-size / --no-*` and apply only to a page opened full screen. */
     @Synchronized fun publish(context: Context, page: ViewerPage, target: String, token: String,
-                              pagePinch: Boolean = false, textZoom: Int = 0) {
+                              pagePinch: Boolean = false, textZoom: Int = 0, hidden: Set<String> = emptySet()) {
         // A late result from a closed/replaced view must not reopen an Activity or overwrite its successor.
         val session = if (token.isNotEmpty()) sessions[token] ?: return else null
         val targetKey = if (target.isNotEmpty()) {
@@ -69,7 +69,8 @@ internal object ViewerStore {
         main.post {
             if (session != null && sessions[token] !== session) return@post
             sessions.values.filter { it.key == key }.forEach { it.receive(page) }
-            if (session == null && target.isEmpty()) ViewerActivity.open(context, key, pagePinch, textZoom)
+            if (session == null && target.isEmpty()) ViewerActivity.open(context, key, pagePinch, textZoom,
+                showRefresh = "refresh" !in hidden, showFind = "find" !in hidden)
         }
         // Keep recent standalone pages, while protecting every attached page and all panel snapshots.
         val active = sessions.values.map { it.key }.toSet()

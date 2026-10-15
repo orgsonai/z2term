@@ -34,6 +34,9 @@ class ViewerOptionsTest {
             try { ViewerOptions.textZoom(bad, "--text-size"); fail("Accepted $bad") } catch (_: IllegalArgumentException) { }
         }
         try { ViewerOptions.pagePinch("zoom", "--pinch"); fail("Accepted zoom") } catch (_: IllegalArgumentException) { }
+        assertEquals(emptySet<String>(), ViewerOptions.hiddenButtons(""))
+        assertEquals(setOf("refresh", "find"), ViewerOptions.hiddenButtons("find,refresh"))
+        try { ViewerOptions.hiddenButtons("expand"); fail("Accepted expand") } catch (_: IllegalArgumentException) { }
     }
 
     @Test fun controlsAreIndependentOfAutomaticUpdatesAndPersistInExports() {

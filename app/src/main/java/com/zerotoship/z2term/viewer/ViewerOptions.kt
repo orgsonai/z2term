@@ -38,6 +38,13 @@ internal data class ViewerOptions(
             return value == "page"
         }
 
+        /** `z2-view --no-refresh / --no-find`, sent as a comma list: the full screen shows both unless told not to. */
+        fun hiddenButtons(value: String): Set<String> {
+            val names = value.split(',').filter { it.isNotEmpty() }.toSet()
+            require(names.all { it in setOf("refresh", "find") }) { "hide: refresh|find" }
+            return names
+        }
+
         const val TEXT_ZOOM = 100
         const val MIN_TEXT_ZOOM = 50
         const val MAX_TEXT_ZOOM = 300

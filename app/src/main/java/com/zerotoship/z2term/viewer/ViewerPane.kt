@@ -346,7 +346,10 @@ internal class ViewerPane(context: Context, private val key: String, private val
     private fun themed(html: String): String {
         // The page follows the pane it is shown in: a panel with its own scheme hands over that palette.
         fun hex(color: Int) = "#%06X".format(color and 0xFFFFFF)
-        val style = "<style>:root{--z2-bg:%s;--z2-bg2:%s;--z2-fg:%s;--z2-dim:%s;--z2-line:%s;--z2-accent:%s}</style>".format(
+        // A page that sets no colours used to show black text on the dark pane. The defaults below follow the
+        // theme; :where() keeps them at zero specificity, so any colour the page sets still wins.
+        val style = ("<style>:root{--z2-bg:%s;--z2-bg2:%s;--z2-fg:%s;--z2-dim:%s;--z2-line:%s;--z2-accent:%s}" +
+            ":where(html){color:var(--z2-fg)}:where(a:link,a:visited){color:var(--z2-accent)}</style>").format(
             hex(EdgeSettingsUi.canvas(context)), hex(EdgeSettingsUi.raised(context)), hex(EdgeSettingsUi.foreground(context)),
             hex(EdgeSettingsUi.muted(context)), hex(EdgeSettingsUi.line(context)), hex(EdgeSettingsUi.accent(context)))
         val head = Regex("<head[^>]*>", RegexOption.IGNORE_CASE).find(html)

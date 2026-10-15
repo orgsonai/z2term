@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.19 (versionCode 717)**: In `z2-view`, a page that set no text colour showed black text on black under a dark theme. Without a colour from the page, text now uses the terminal theme's foreground and links its accent (colours the page sets are kept). The Refresh and Find buttons of the screen opened from the terminal can now be hidden: they still appear by default, and `z2-view --no-refresh` / `--no-find` removes them.
+
 **1.0.18 (versionCode 716)**: In `z2-view`, a pinch can now zoom the whole page instead of the text, which suits pages that break when re-wrapped, such as pictures and tables. The text size can also be set as a number. For the screen opened from the terminal, choose each time with `z2-view --pinch page` (zoom the page) and `--text-size 130` (this page's text size, 50–300%). For an edge panel view item, choose Pinch and Text size (%) under the item's Display (`view-pinch=page`, `view-text-size=130`). When a page is zoomed in a panel, a sideways move pans it while it can still move that way, and changes tabs at its edge. Without any choice, a pinch sizes the text as in 1.0.16.
 
 **1.0.17 (versionCode 715)**: When a program inside the OS started another program with long arguments (more than about 30 KB in total), it failed with "No such file or directory". It happened with programs that start others through posix_spawn, so Rust (cargo / rustc) and large C/C++ builds could not start the linker and similar tools. Typing the command in a shell was not affected. Arguments too long to start at all now give "Argument list too long".

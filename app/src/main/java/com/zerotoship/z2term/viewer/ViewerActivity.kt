@@ -43,12 +43,14 @@ class ViewerActivity : ComponentActivity() {
             val pad = (12 * resources.displayMetrics.density).toInt()
             setPadding(pad, pad / 2, pad, pad / 2)
         }, LinearLayout.LayoutParams(-1, -2))
-        // A full screen for reading: finding a word is always offered here; panels keep it opt-in.
+        // A full screen for reading: Refresh and Find are offered unless `z2-view --no-refresh / --no-find`; panels keep Find opt-in.
         // Pages opened from a terminal are new each time, so this screen keeps one text size for all of them.
         // `z2-view --text-size` picks the size for this page only; a text pinch still updates the remembered one.
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         val zoom = intent.getIntExtra(EXTRA_TEXT_ZOOM, 0).takeIf { it > 0 } ?: prefs.getInt(TEXT_ZOOM, ViewerOptions.TEXT_ZOOM)
-        pane = ViewerPane(this, key, options = ViewerOptions(showFind = true,
+        pane = ViewerPane(this, key, options = ViewerOptions(
+                showRefresh = intent.getBooleanExtra(EXTRA_SHOW_REFRESH, true),
+                showFind = intent.getBooleanExtra(EXTRA_SHOW_FIND, true),
                 textZoom = zoom.coerceIn(ViewerOptions.MIN_TEXT_ZOOM, ViewerOptions.MAX_TEXT_ZOOM),
                 pagePinch = intent.getBooleanExtra(EXTRA_PAGE_PINCH, false)),
             onTextZoom = { prefs.edit().putInt(TEXT_ZOOM, it).apply() }).also { root.addView(it, LinearLayout.LayoutParams(-1, 0, 1f)) }
@@ -82,10 +84,14 @@ class ViewerActivity : ComponentActivity() {
         private const val TEXT_ZOOM = "text-zoom"
         private const val EXTRA_PAGE_PINCH = "page-pinch"
         private const val EXTRA_TEXT_ZOOM = "text-size"
+        private const val EXTRA_SHOW_REFRESH = "show-refresh"
+        private const val EXTRA_SHOW_FIND = "show-find"
         /** textZoom 0 = the remembered size. */
-        internal fun open(context: Context, key: String, pagePinch: Boolean = false, textZoom: Int = 0) {
+        internal fun open(context: Context, key: String, pagePinch: Boolean = false, textZoom: Int = 0,
+                          showRefresh: Boolean = true, showFind: Boolean = true) {
             context.startActivity(Intent(context, ViewerActivity::class.java).putExtra("page", key)
                 .putExtra(EXTRA_PAGE_PINCH, pagePinch).putExtra(EXTRA_TEXT_ZOOM, textZoom)
+                .putExtra(EXTRA_SHOW_REFRESH, showRefresh).putExtra(EXTRA_SHOW_FIND, showFind)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP))
         }
     }

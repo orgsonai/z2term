@@ -189,7 +189,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     // z2-view (0.8.628): 端末で書いた HTML をアプリの中で読む。文字・標準入力は page.txt で渡す (1.0.15)。⚠ 受け渡しは z2-share と同じ
     // /storage/app/z2api の下へ写してから名前だけを渡す (アプリ側に任意のパスを読ませない)。
     val view = "#!/bin/sh\n" + m.viewHelp + "\n" + helpCaseDash + """
-        |target=${d}{Z2_VIEW_TARGET:-}; session=${d}{Z2_VIEW_SESSION:-}; controls=; kind=; pinch=; size=
+        |target=${d}{Z2_VIEW_TARGET:-}; session=${d}{Z2_VIEW_SESSION:-}; controls=; kind=; pinch=; size=; hide=
         |while [ ${d}# -gt 0 ]; do
         |  case ${d}1 in
         |    --edge) [ ${d}# -ge 2 ] || exit 1; target=${d}2; session=; shift 2 ;;
@@ -202,6 +202,9 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |      case ${d}2 in ''|*[!0-9]*) echo "${m.viewUsage}" >&2; exit 1 ;; esac
         |      [ "${d}2" -ge 50 ] && [ "${d}2" -le 300 ] || { echo 'z2-view: --text-size 50..300' >&2; exit 1; }
         |      size=${d}2; shift 2 ;;
+        |    # 全画面のボタンは既定で出し、要らないものだけ消す。
+        |    --no-refresh) hide=${d}{hide:+${d}hide,}refresh; shift ;;
+        |    --no-find) hide=${d}{hide:+${d}hide,}find; shift ;;
         |    --) shift; break ;;
         |    -) break ;;
         |    -*) echo "${m.viewUsage}" >&2; exit 1 ;;
@@ -231,7 +234,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |  head -c 262145 < "${d}controls" > "${d}stage/controls.json" || exit 1
         |  [ "${d}(wc -c < "${d}stage/controls.json")" -le 262144 ] || { echo 'z2-view: controls exceed 256 KiB' >&2; exit 1; }
         |fi
-        |out=${d}(Z2API_WAIT=5000 /usr/local/bin/z2api 1 view "${d}{stage##*/}" "${d}{2:-}" "${d}target" "${d}session" "${d}pinch" "${d}size") || exit 1
+        |out=${d}(Z2API_WAIT=5000 /usr/local/bin/z2api 1 view "${d}{stage##*/}" "${d}{2:-}" "${d}target" "${d}session" "${d}pinch" "${d}size" "${d}hide") || exit 1
         |[ -z "${d}out" ] || printf '%s\n' "${d}out"
     """.trimMargin() + "\n"
 

@@ -1,0 +1,6 @@
+1.0.19
+
+- z2-view: pages without a text colour were unreadable on a dark
+  theme; text now follows the theme.
+- The Refresh and Find buttons of the full screen can be hidden with
+  z2-view --no-refresh / --no-find.

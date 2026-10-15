@@ -71,7 +71,7 @@ z2-view notes.txt                   # a plain text file
 
 Since 1.0.15 a word can be found in the page being shown. Find opens an entry above the page; each keystroke highlights the matches and shows the position and total (such as `3/12`). ▲ and ▼ move between matches and ✕ closes. The keyboard's search key also moves to the next match.
 
-- The full-screen view (opened from the terminal with `z2-view`, or with Expand) always shows Find.
+- The full-screen view (opened from the terminal with `z2-view`, or with Expand) always shows Find. Since 1.0.19, `--no-find` hides it when opening from the terminal (`--no-refresh` does the same for Refresh).
 - Edge panel view items do not show it by default. Turn on Show Find button under the item's Display, or set `view-find-button=on`.
 - A page that arrives while finding is searched again for the same word. Opening a form closes Find.
 
@@ -99,6 +99,21 @@ A pinch can zoom the **page itself** instead of the text. This suits pages that 
 - For an edge panel view item, choose Pinch (Size the text / Zoom the whole page) and Text size (%) under the item's Display (`view-pinch=page`, `view-text-size=130`). Expand to full screen keeps the item's pinch behaviour.
 - The text size still applies while pinching zooms the page. The page zoom is not remembered (each opening starts fitted to the width).
 - In a panel, a sideways move pans a zoomed page while it can still move that way; at its edge the move changes tabs.
+
+## Default page colours (1.0.19)
+
+When a page sets no text colour, the text follows the terminal theme's foreground (links use the theme's accent). Before, the text stayed black and could not be read on a dark theme. A `color` the page sets still wins. A page that sets only a light background should set its text colour too (on a dark theme it would otherwise get light text on a light background).
+
+## Hiding the full-screen buttons (1.0.19)
+
+The screen opened from the terminal shows Refresh and Find from the start. Hide what you do not need with `z2-view` options:
+
+```sh
+z2-view --no-refresh page.html            # no Refresh
+z2-view --no-refresh --no-find page.html  # neither
+```
+
+Edge panel view items still choose under the item's Display.
 
 ## Define forms and actions in a macro
 
