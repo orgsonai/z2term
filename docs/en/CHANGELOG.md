@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.20 (versionCode 718)**: In split view, the built-in keyboard's conversion candidates appeared at the bottom of the focused pane instead of just above the keyboard. While typing into the upper pane they landed mid-screen, over the terminal text. Whichever pane has focus, the candidates now appear at the bottom of the whole split area, just above the keyboard. GUI tabs in a split behave the same.
+
 **1.0.19 (versionCode 717)**: In `z2-view`, a page that set no text colour showed black text on black under a dark theme. Without a colour from the page, text now uses the terminal theme's foreground and links its accent (colours the page sets are kept). The Refresh and Find buttons of the screen opened from the terminal can now be hidden: they still appear by default, and `z2-view --no-refresh` / `--no-find` removes them.
 
 **1.0.18 (versionCode 716)**: In `z2-view`, a pinch can now zoom the whole page instead of the text, which suits pages that break when re-wrapped, such as pictures and tables. The text size can also be set as a number. For the screen opened from the terminal, choose each time with `z2-view --pinch page` (zoom the page) and `--text-size 130` (this page's text size, 50–300%). For an edge panel view item, choose Pinch and Text size (%) under the item's Display (`view-pinch=page`, `view-text-size=130`). When a page is zoomed in a panel, a sideways move pans it while it can still move that way, and changes tabs at its edge. Without any choice, a pinch sizes the text as in 1.0.16.

@@ -750,7 +750,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     )
                 }
             }
-            com.zerotoship.z2term.workspace.SessionPanes(active, Modifier.weight(1f).fillMaxHeight()) {
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+            com.zerotoship.z2term.workspace.SessionPanes(active, Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize()) {
                 if (!com.zerotoship.z2term.workspace.Workspace.projected(active.id)) TerminalRenderer(
                     session = active,
@@ -805,12 +806,6 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         modifier = Modifier.align(Alignment.BottomStart)
                     )
                 }
-                // 変換候補バー: キーボードの上に浮かせて表示 (キーボード本体の高さは変えない)。
-                // 浮かせたキーボードでは、キーボードに付いて動く側で出す。
-                if (!floatingKeyboard) CandidateBar(
-                    composing = composing,
-                    modifier = Modifier.align(Alignment.BottomStart)
-                )
                 // 画面の明るさ (🔅 のダブルタップで開く)。同じ場所に出る帯の 3 つ目。
                 if (brightnessBarOpen) {
                     BrightnessBar(
@@ -868,6 +863,15 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     )
                 }
             }
+            }
+            // 変換候補バー: キーボードの上に浮かせて表示 (キーボード本体の高さは変えない)。
+            // 浮かせたキーボードでは、キーボードに付いて動く側で出す。
+            // ⚠ ペインの外 (全ペインの下端) に置く。操作中のペインの中だと、分割して上側の
+            // ペインを触っているとき候補がそのペインの下端に入り込み、キーボードから離れる。
+            if (!floatingKeyboard) CandidateBar(
+                composing = composing,
+                modifier = Modifier.align(Alignment.BottomStart)
+            )
             }
             if (isSideKB && landscapePos == AppSettings.LANDSCAPE_KB_RIGHT) {
                 key(active.id) {
@@ -1528,9 +1532,12 @@ private fun GuiTabScreen(
                                 onCtrlConsumed = { ctrlSticky = false },
                                 modifier = Modifier.fillMaxSize().onSizeChanged { guiAreaPx = it }
                             )
-                            if (split) CandidateBar(composing = composing, modifier = Modifier.align(Alignment.BottomStart))
                         }
                     }
+                    // 分割中の候補バーはペインの外 (= 全ペインの下端・キーボードのすぐ上) に出す。
+                    // 操作中のペインの中に置くと、上側のペインを触っているとき候補がそのペインの
+                    // 下端に入り込み、キーボードから離れてしまう (利用者の指摘)。
+                    if (split) CandidateBar(composing = composing, modifier = Modifier.align(Alignment.BottomStart))
                     if (brightnessBarOpen) {
                         BrightnessBar(
                             level = brightness,
