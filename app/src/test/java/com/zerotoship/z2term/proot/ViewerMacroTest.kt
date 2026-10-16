@@ -168,8 +168,9 @@ class ViewerMacroTest {
             // Keeping starts with what is already listed; thumbnails stay off so nothing is fetched.
             val kept = f.run("settings", "off", "on")
             assertEquals(kept.second, 0, kept.first)
-            f.jsonCheck("s=next(a for a in d['actions'] if a['id']=='settings'); assert [x['default'] for x in s['fields']]==['off','on']; " +
-                "assert [x['type'] for x in s['fields']]==['switch','switch']; " +
+            // The notification switches keep their defaults: the poll notifies, a fetch from the list does not.
+            f.jsonCheck("s=next(a for a in d['actions'] if a['id']=='settings'); assert [x['default'] for x in s['fields']]==['off','on','on','off']; " +
+                "assert [x['type'] for x in s['fields']]==['switch','switch','switch','switch']; " +
                 "assert [a['args'] for a in d['actions'] if a['args'][0]=='remove']==[['remove']]; " +
                 "assert next(a for a in d['actions'] if a['id']=='d')['param']; " +
                 "assert all(a.get('confirm') for a in d['actions'] if a['args'][0]=='remove-site')")
@@ -207,6 +208,35 @@ class ViewerMacroTest {
             assertEquals(0, f.run("archive-drop", months[0].nameWithoutExtension).first)
             assertFalse(months[0].exists())
             assertFalse(File(f.home, "calls").exists())
+        }
+    }
+
+    @Test fun rssNotificationsFollowTheirSwitchesInEveryLanguage() {
+        for (lang in listOf("ja", "en", "zh-CN", "zh-TW", "es", "ko")) Fixture(lang).use { f ->
+            f.macro.writeText(z2MacroSamples(lang).getValue("rss.sh"))
+            f.script("z2-notify", "printf '%s\\n' \"notify ${'$'}*\" >> \"${'$'}HOME/calls\"")
+            val rss = File(f.home, ".z2term/rss").apply { mkdirs() }
+            val feed = File(f.home, "feed.xml")
+            File(rss, "feeds.txt").writeText("file://${feed.path}\n")
+            fun poll(n: Int, vararg args: String): Int {
+                feed.writeText("<rss><channel><item><title>T$n</title><link>https://ex.test/$n</link></item></channel></rss>")
+                val result = f.run(*args)
+                assertEquals(result.second, 0, result.first)
+                return File(f.home, "calls").takeIf { it.exists() }?.readLines()?.count { it.startsWith("notify ") } ?: 0
+            }
+            // By default the scheduled poll notifies and Refresh / Articles on the list do not.
+            assertEquals(1, poll(1))
+            assertEquals(1, poll(2, "refresh-view"))
+            assertEquals(0, f.run("notify-view", "on").first)
+            assertEquals(2, poll(3, "refresh-view"))
+            assertEquals(0, f.run("notify", "off").first)
+            assertEquals(2, poll(4))
+            assertEquals("thumbs=off\narchive=off\nnotify=off\nnotify_view=on\n", File(rss, "settings.conf").readText())
+            // An older two-value Settings call keeps the notification choices.
+            assertEquals(0, f.run("settings", "off", "off").first)
+            assertEquals("thumbs=off\narchive=off\nnotify=off\nnotify_view=on\n", File(rss, "settings.conf").readText())
+            assertNotEquals(0, f.run("notify", "maybe").first)
+            assertNotEquals(0, f.run("settings", "off", "off", "maybe", "off").first)
         }
     }
 

@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.20.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.21.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -1595,9 +1595,12 @@ For a terminal list, use `sh ~/.z2term/macros/rss.sh list` (20 items) or `sh ~/.
 - Articles are **folded by site**; tap a site name to open it.
 - **Refresh** on the list screen, and Articles on the subscriptions screen, poll the feeds before rebuilding the list. List on a notification and `rss.sh view` from a terminal open what is already collected.
 - **Delete** on an article removes just that article from the list. "Delete all articles of this site", at the top of an opened site, removes that site's articles after a confirmation. Subscriptions stay, and a poll does not bring the removed articles back.
-- **Settings**, under the heading, switches two things.
+- **Settings**, under the heading, switches four things.
   - **Thumbnail images**: a small image left of each article — the one the feed names, else the article page's main image. The newest 60 articles are covered, and each poll fetches the article page and the image. Needs Pillow for Python (Alpine: `apk add py3-pillow` / Debian: `apt-get install -y python3-pil` / Arch: `pacman -S python-pillow`).
   - **Keep past articles**: keeps the title, URL, arrival time and thumbnail of every collected article by month (the list holds the newest 500; this is never trimmed). Turning it on also takes in what is on the list.
+  - **Notify new articles (scheduled poll)**: notifies new articles from the scheduled poll in Automation and from `rss.sh` typed in a terminal. On by default (1.0.21).
+  - **Notify new articles (fetched from the list)**: also notifies when Refresh or Articles on the list finds new articles. They already appear in the list on screen, so this is off by default (1.0.21).
+  - From a terminal, `sh ~/.z2term/macros/rss.sh notify off` (scheduled poll) and `sh ~/.z2term/macros/rss.sh notify-view on` (from the list) switch them too.
 - **Archive** reads what was kept, one month and 50 per page. Search looks through every month's titles and URLs (space-separated words must all appear). "Delete this month" removes that month after a confirmation.
 
 **Updating an older macro**: inspect `z2-macro diff rss.sh`, preserve any edits you need, then run `z2-macro install -f rss.sh` (this overwrites your changes). Edit the notification rule separately.

@@ -1155,6 +1155,7 @@ The macro installed by `z2-macro install rss` combines polling, keeping new item
 | Managing subscriptions | Use Subscriptions in the view to add, change or remove URLs; the next poll uses the changes and collected articles are kept |
 | Removing from the list | Delete per article and per site; `z2-action:` links in the page call `rss.sh remove` / `remove-site` (1.0.14; article deletes use the value-carrying link `z2-action:d/<key>` and appear on every article since 1.0.15) |
 | Images and keeping | Settings switches thumbnail images and keeping articles; images are embedded in the page, and kept articles are read and searched by month under Archive (1.0.14) |
+| Choosing notifications | Two switches in Settings choose notifications separately for the scheduled poll and for fetches from the list; by default only the poll notifies. Saved as `notify=` / `notify_view=` in `settings.conf`; `rss.sh notify` / `notify-view` from a terminal (1.0.21) |
 
 Register notification actions with:
 

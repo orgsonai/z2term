@@ -957,6 +957,7 @@
     <string name="guide_step_rss_permission">允許「顯示在其他應用程式上層」，以便從通知開啟頁面</string>
     <string name="guide_step_rss_poll">將定期巡查註冊到自動化（輸入間隔）</string>
     <string name="guide_step_rss_notifications">將通知操作註冊到自動化（開啟 → 文章，列表 → 已收集文章）</string>
+    <string name="guide_step_rss_quiet">不想收到新文章通知就按這裡（要通知就用 × 跳過；之後也可在列表的「設定」中變更）</string>
     <string name="guide_step_rss_view">開啟已收集文章的列表</string>
     <string name="guide_step_rss_manage">在「指令列表 → 自動化 → 自動化規則」中更改巡查時間和通知操作</string>
     <string name="guide_rss_poll_name">RSS 定期巡查</string>

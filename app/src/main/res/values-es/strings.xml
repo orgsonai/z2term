@@ -972,6 +972,7 @@ Elige uno en las pestañas de la derecha.</string>
     <string name="guide_step_rss_permission">Permitir mostrar sobre otras aplicaciones para abrir pantallas desde las notificaciones</string>
     <string name="guide_step_rss_poll">Añadir la consulta periódica a Automatización (introduce un intervalo)</string>
     <string name="guide_step_rss_notifications">Añadir las acciones de notificación a Automatización (Abrir → artículo, Lista → artículos reunidos)</string>
+    <string name="guide_step_rss_quiet">Desactivar los avisos de artículos nuevos (omite con × para mantenerlos; luego se cambia en Ajustes de la lista)</string>
     <string name="guide_step_rss_view">Abrir la lista de artículos reunidos</string>
     <string name="guide_step_rss_manage">Cambia los horarios y las acciones de notificación en Lista de comandos → Automatización → Reglas de automatización</string>
     <string name="guide_rss_poll_name">Consultas RSS</string>

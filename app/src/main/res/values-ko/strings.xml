@@ -956,6 +956,7 @@
     <string name="guide_step_rss_permission">알림에서 화면을 열 수 있도록 다른 앱 위에 표시 허용</string>
     <string name="guide_step_rss_poll">정기 확인을 자동화에 등록 (간격 입력)</string>
     <string name="guide_step_rss_notifications">알림 동작을 자동화에 등록 (열기 → 글, 목록 → 모은 글)</string>
+    <string name="guide_step_rss_quiet">새 글 알림을 받지 않으려면 누르세요 (알림을 받으려면 ×로 건너뛰기. 나중에 목록의 「설정」에서도 바꿀 수 있습니다)</string>
     <string name="guide_step_rss_view">모은 글의 목록 열기</string>
     <string name="guide_step_rss_manage">명령 목록 → 자동화 → 자동화 규칙에서 확인 시간과 알림 동작을 바꿀 수 있습니다</string>
     <string name="guide_rss_poll_name">RSS 정기 확인</string>

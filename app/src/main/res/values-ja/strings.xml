@@ -1028,6 +1028,7 @@
     <string name="guide_step_rss_permission">通知から画面を開くため「他のアプリの上に表示」を許可する</string>
     <string name="guide_step_rss_poll">定期巡回を自動化に登録する（間隔を入力）</string>
     <string name="guide_step_rss_notifications">通知の操作を自動化に登録する（開く → 記事、一覧 → 集めた記事）</string>
+    <string name="guide_step_rss_quiet">新着を通知しないなら押す（通知するなら × で省略。あとから一覧の「設定」でも変えられます）</string>
     <string name="guide_step_rss_view">集めた記事の一覧を開いてみる</string>
     <string name="guide_step_rss_manage">巡回日時や通知の動作は「コマンド一覧 → 自動化 → 自動化ルール」で変更できます</string>
     <string name="guide_rss_poll_name">RSS 定期巡回</string>

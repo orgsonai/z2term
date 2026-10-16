@@ -733,6 +733,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   5) Read the collected list: sh ~/.z2term/macros/rss.sh view
 #      Manage both rules in Command list -> Automation -> Automation rules.
 #      Edit an existing notification rule instead of adding another one.
+#   6) Notifications: by default the scheduled poll notifies and a fetch from the list does not.
+#        sh ~/.z2term/macros/rss.sh notify off        # scheduled poll: on / off
+#        sh ~/.z2term/macros/rss.sh notify-view on    # Refresh / Articles on the list: on / off
+#      Both are also switches under Settings on the list, to change at any time.
 #
 # Needs: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 #   Thumbnails (Settings on the list) also need Pillow (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
@@ -756,6 +760,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   5) 集めた記事の一覧を開く: sh ~/.z2term/macros/rss.sh view
 #      2 本のルールは「コマンド一覧 -> 自動化 -> 自動化ルール」で変更できる。
 #      通知のルールが登録済みなら、追加せず既存のルールを編集する。
+#   6) 新着の通知: 最初は、定期巡回では通知し、一覧から取りに行ったときは通知しない。
+#        sh ~/.z2term/macros/rss.sh notify off        # 定期巡回の通知: on / off
+#        sh ~/.z2term/macros/rss.sh notify-view on    # 一覧の「更新」「記事一覧」の通知: on / off
+#      どちらも一覧の「設定」のスイッチで、いつでも変えられる。
 #
 # 必要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 #   サムネイル画像 (一覧の「設定」) を使うなら Pillow も (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
@@ -779,6 +787,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   5) 打开已收集文章的列表: sh ~/.z2term/macros/rss.sh view
 #      在“命令列表 -> 自动化 -> 自动化规则”中管理这两条规则。
 #      如果通知规则已存在，请编辑原规则，不要重复添加。
+#   6) 新文章通知: 默认定期巡查会通知，从列表获取时不通知。
+#        sh ~/.z2term/macros/rss.sh notify off        # 定期巡查的通知: on / off
+#        sh ~/.z2term/macros/rss.sh notify-view on    # 列表的“刷新”“文章列表”的通知: on / off
+#      两者也都是列表“设置”里的开关，随时可以更改。
 #
 # 需要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 #   使用缩略图 (列表的“设置”) 还需要 Pillow (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
@@ -802,6 +814,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   5) 開啟已收集文章的列表: sh ~/.z2term/macros/rss.sh view
 #      在「指令列表 -> 自動化 -> 自動化規則」中管理這兩條規則。
 #      如果通知規則已存在，請編輯原規則，不要重複新增。
+#   6) 新文章通知: 預設定期巡查會通知，從列表取得時不通知。
+#        sh ~/.z2term/macros/rss.sh notify off        # 定期巡查的通知: on / off
+#        sh ~/.z2term/macros/rss.sh notify-view on    # 列表的「重新整理」「文章列表」的通知: on / off
+#      兩者也都是列表「設定」裡的開關，隨時可以變更。
 #
 # 需要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 #   使用縮圖 (列表的「設定」) 還需要 Pillow (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
@@ -825,6 +841,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   5) Abrir la lista de artículos reunidos: sh ~/.z2term/macros/rss.sh view
 #      Gestiona ambas reglas en Lista de comandos -> Automatización -> Reglas de automatización.
 #      Si ya existe una regla de notificaciones, edítala en lugar de añadir otra.
+#   6) Avisos: por defecto la consulta periódica avisa y lo traído desde la lista no.
+#        sh ~/.z2term/macros/rss.sh notify off        # consulta periódica: on / off
+#        sh ~/.z2term/macros/rss.sh notify-view on    # Actualizar / Artículos en la lista: on / off
+#      Ambos son también interruptores en Ajustes de la lista, para cambiarlos cuando quieras.
 #
 # Necesita: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 #   Las miniaturas (Ajustes en la lista) necesitan además Pillow (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
@@ -848,6 +868,10 @@ private fun rssBody(d: String, t: CliText): String {
 #   5) 모은 글의 목록 열기: sh ~/.z2term/macros/rss.sh view
 #      명령 목록 -> 자동화 -> 자동화 규칙에서 두 규칙을 관리합니다.
 #      알림 규칙이 이미 있으면 새로 추가하지 말고 기존 규칙을 편집하세요.
+#   6) 새 글 알림: 처음에는 정기 확인에서는 알리고, 목록에서 가져올 때는 알리지 않습니다.
+#        sh ~/.z2term/macros/rss.sh notify off        # 정기 확인 알림: on / off
+#        sh ~/.z2term/macros/rss.sh notify-view on    # 목록의 「새로 고침」「글 목록」 알림: on / off
+#      둘 다 목록의 「설정」 스위치로도 언제든 바꿀 수 있습니다.
 #
 # 필요: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 #   썸네일 이미지(목록의 설정)를 쓰려면 Pillow도 필요합니다 (Alpine: apk add py3-pillow / Debian: apt-get install -y python3-pil / Arch: pacman -S python-pillow)
@@ -1106,6 +1130,22 @@ private fun rssBody(d: String, t: CliText): String {
         "es" to "Conservar artículos anteriores",
         "ko" to "지난 글 보관"
     )
+    val cNotifyPoll = t(
+        en = "Notify new articles (scheduled poll)",
+        ja = "新着を通知（定期巡回）",
+        "zh-CN" to "通知新文章（定期巡查）",
+        "zh-TW" to "通知新文章（定期巡查）",
+        "es" to "Avisar de artículos nuevos (consulta periódica)",
+        "ko" to "새 글 알림 (정기 확인)"
+    )
+    val cNotifyView = t(
+        en = "Notify new articles (fetched from the list)",
+        ja = "新着を通知（一覧から取りに行ったとき）",
+        "zh-CN" to "通知新文章（从列表获取时）",
+        "zh-TW" to "通知新文章（從列表取得時）",
+        "es" to "Avisar de artículos nuevos (al traerlos desde la lista)",
+        "ko" to "새 글 알림 (목록에서 가져올 때)"
+    )
     val cDeleteSite = t(
         en = "Delete all articles of this site",
         ja = "このサイトの記事をすべて削除",
@@ -1258,6 +1298,16 @@ THUMBS=${d}(sed -n 's/^thumbs=//p' "${d}SETTINGS" 2>/dev/null | head -n 1)
 ARCHDIR="${d}DIR/archive"
 ARCHIVE=${d}(sed -n 's/^archive=//p' "${d}SETTINGS" 2>/dev/null | head -n 1)
 [ "${d}ARCHIVE" = on ] || ARCHIVE=off
+# Whether new articles are notified (also in Settings): from the scheduled poll (on by default),
+# and from a fetch inside the list screen, Refresh or Articles (off by default — the list is on screen).
+NOTIFY=${d}(sed -n 's/^notify=//p' "${d}SETTINGS" 2>/dev/null | head -n 1)
+[ "${d}NOTIFY" = off ] || NOTIFY=on
+NOTIFY_VIEW=${d}(sed -n 's/^notify_view=//p' "${d}SETTINGS" 2>/dev/null | head -n 1)
+[ "${d}NOTIFY_VIEW" = on ] || NOTIFY_VIEW=off
+save_settings() {
+  mkdir -p "${d}DIR" &&
+    printf 'thumbs=%s\narchive=%s\nnotify=%s\nnotify_view=%s\n' "${d}THUMBS" "${d}ARCHIVE" "${d}NOTIFY" "${d}NOTIFY_VIEW" > "${d}SETTINGS"
+}
 
 $feedManager
 
@@ -1274,13 +1324,14 @@ build_page() {
   python3 - "${d}ARTICLES" "${d}PAGE" "${d}THUMBDIR" "${d}THUMBS" "${d}ARCHIVE" "${d}{1:-}" "${d}{Z2RSS_OPEN:-}" \
     "$cPageTitle" "$cPageSites" "$cPageArticles" "$cOpen" "$cSubscriptions" "$cSettings" "$cArchive" "$cDelete" \
     "$cThumbs" "$cSave" \
-    "$cDeleteSite" "$cConfirmSite" <<'Z2RSS_HTML'
+    "$cDeleteSite" "$cConfirmSite" "${d}NOTIFY" "${d}NOTIFY_VIEW" "$cNotifyPoll" "$cNotifyView" <<'Z2RSS_HTML'
 import base64, hashlib, html, json, sys, time, os, tempfile
 
 src, dst, thumb_dir, thumbs, archive, controls, opened = sys.argv[1:8]
 (title, l_sites, l_articles, l_open, l_feeds, l_settings, l_archive, l_delete,
  l_thumbs, l_keep,
  l_delete_site, l_confirm_site) = sys.argv[8:20]
+notify, notify_view, l_notify, l_notify_view = sys.argv[20:24]
 
 def key(url):
     return hashlib.sha1(url.encode("utf-8")).hexdigest()
@@ -1321,7 +1372,8 @@ def switch(label, value):
 actions = [
     {"id": "feeds", "label": l_feeds, "args": ["feeds"]},
     {"id": "settings", "label": l_settings, "args": ["settings"],
-     "fields": [switch(l_thumbs, thumbs), switch(l_keep, archive)]},
+     "fields": [switch(l_thumbs, thumbs), switch(l_keep, archive),
+                switch(l_notify, notify), switch(l_notify_view, notify_view)]},
     {"id": "archive", "label": l_archive, "args": ["archive"]},
     # One action deletes any article: each link carries the article's key (z2-action:d/KEY).
     {"id": "d", "label": l_delete, "args": ["remove"], "param": True},
@@ -1874,18 +1926,31 @@ if [ "${d}1" = remove-site ]; then
   set -- show
 fi
 
-# Settings on the list: fetch thumbnails or not / keep collected articles or not.
+# Notifications from the shell: rss.sh notify on|off (scheduled poll) / notify-view on|off (from the list).
+# Only the choice is saved; nothing is shown or fetched.
+if [ "${d}1" = notify ] || [ "${d}1" = notify-view ]; then
+  case "${d}2" in on|off) ;; *) echo "$cOnOff" >&2; exit 1 ;; esac
+  if [ "${d}1" = notify ]; then NOTIFY=${d}2; label="$cNotifyPoll"; else NOTIFY_VIEW=${d}2; label="$cNotifyView"; fi
+  save_settings || exit 1
+  echo "${d}label: ${d}2"
+  exit 0
+fi
+
+# Settings on the list: thumbnails / keep collected articles / notify from the poll / notify from the list.
+# An older caller hands over only the first two; the notification choices then stay as saved.
 [ "${d}1" = set-thumbs ] && set -- settings "${d}2" "${d}ARCHIVE"
 if [ "${d}1" = settings ]; then
-  case "${d}2${d}3" in onon|onoff|offon|offoff) ;; *) echo "$cOnOff" >&2; exit 1 ;; esac
+  set -- settings "${d}2" "${d}3" "${d}{4:-${d}NOTIFY}" "${d}{5:-${d}NOTIFY_VIEW}"
+  for v in "${d}2" "${d}3" "${d}4" "${d}5"; do
+    case "${d}v" in on|off) ;; *) echo "$cOnOff" >&2; exit 1 ;; esac
+  done
   if [ "${d}2" = on ] && ! python3 -c 'import PIL' 2>/dev/null; then
     echo "$cNoPillow" >&2
     exit 1
   fi
-  mkdir -p "${d}DIR" || exit 1
-  printf 'thumbs=%s\narchive=%s\n' "${d}2" "${d}3" > "${d}SETTINGS" || exit 1
   was=${d}THUMBS
-  THUMBS=${d}2; ARCHIVE=${d}3
+  THUMBS=${d}2; ARCHIVE=${d}3; NOTIFY=${d}4; NOTIFY_VIEW=${d}5
+  save_settings || exit 1
   if [ "${d}3" = on ]; then archive_seed || exit 1; fi
   # Right after thumbnails are turned on, fetch them for the articles already listed.
   if [ "${d}2" = on ] && [ "${d}was" != on ]; then set -- refresh-view; else set -- show; fi
@@ -1895,7 +1960,7 @@ if [ "${d}1" = view ] || [ "${d}1" = refresh-view ] || [ "${d}1" = show ]; then
   # From inside the list screen (Refresh, Articles) the feeds are polled before the list is built.
   # view from a notification or a terminal opens what is already collected.
   if [ "${d}1" = refresh-view ] || { [ "${d}1" = view ] && [ -n "${d}Z2_VIEW_SESSION" ]; }; then
-    Z2RSS_NO_PAGE=1 sh "${d}0" || exit 1
+    Z2RSS_NO_PAGE=1 Z2RSS_FROM_VIEW=1 sh "${d}0" || exit 1
   fi
   # The first view on a fresh install comes before any poll: the folder may not exist yet.
   mkdir -p "${d}DIR" || exit 1
@@ -2011,33 +2076,37 @@ rm -f "${d}IMGHINTS"
 # When called from the list screen, the caller builds the page next.
 [ -n "${d}Z2RSS_NO_PAGE" ] || build_page || true
 
+# Notify only when chosen: a fetch from the list follows notify_view, every other run follows notify.
+if [ -n "${d}Z2RSS_FROM_VIEW" ]; then want=${d}NOTIFY_VIEW; else want=${d}NOTIFY; fi
+if [ "${d}want" = on ]; then
 $cSplitDoc
-: > "${d}HITS"
-if grep -q '^[^#]' "${d}IMPORTANT" 2>/dev/null; then
-  grep -v '^[[:space:]]*#' "${d}IMPORTANT" | grep . > "${d}DIR/.pat"
-  [ -s "${d}DIR/.pat" ] && grep -F -f "${d}DIR/.pat" "${d}NEW" | head -n "${d}HITMAX" > "${d}HITS"
-  rm -f "${d}DIR/.pat"
-fi
-if [ -s "${d}HITS" ]; then
-  grep -Fxv -f "${d}HITS" "${d}NEW" > "${d}REST"
-else
-  cat "${d}NEW" > "${d}REST"
-fi
+  : > "${d}HITS"
+  if grep -q '^[^#]' "${d}IMPORTANT" 2>/dev/null; then
+    grep -v '^[[:space:]]*#' "${d}IMPORTANT" | grep . > "${d}DIR/.pat"
+    [ -s "${d}DIR/.pat" ] && grep -F -f "${d}DIR/.pat" "${d}NEW" | head -n "${d}HITMAX" > "${d}HITS"
+    rm -f "${d}DIR/.pat"
+  fi
+  if [ -s "${d}HITS" ]; then
+    grep -Fxv -f "${d}HITS" "${d}NEW" > "${d}REST"
+  else
+    cat "${d}NEW" > "${d}REST"
+  fi
 
 $cNameDoc
-TAB=${d}(printf '\t')
-while IFS="${d}TAB" read -r u t; do
-  [ -n "${d}u" ] || continue
-  host=${d}{u#*://}; host=${d}{host%%/*}
-  z2-notify -h -n "rss:${d}u" -b "$cOpen" -b "$cList" "${d}{t:-${d}u}" "${d}host"
-done < "${d}HITS"
+  TAB=${d}(printf '\t')
+  while IFS="${d}TAB" read -r u t; do
+    [ -n "${d}u" ] || continue
+    host=${d}{u#*://}; host=${d}{host%%/*}
+    z2-notify -h -n "rss:${d}u" -b "$cOpen" -b "$cList" "${d}{t:-${d}u}" "${d}host"
+  done < "${d}HITS"
 
-rn=${d}(grep -c . "${d}REST" 2>/dev/null)
-if [ "${d}{rn:-0}" -gt 0 ]; then
-  z2-notify -h -n "rss:${d}(head -1 "${d}REST" | cut -f1)" -b "$cOpen" -b "$cList" \
-    "${d}(printf '$cNotify' "${d}rn")" "${d}(cut -f2 "${d}REST" | head -3)"
+  rn=${d}(grep -c . "${d}REST" 2>/dev/null)
+  if [ "${d}{rn:-0}" -gt 0 ]; then
+    z2-notify -h -n "rss:${d}(head -1 "${d}REST" | cut -f1)" -b "$cOpen" -b "$cList" \
+      "${d}(printf '$cNotify' "${d}rn")" "${d}(cut -f2 "${d}REST" | head -3)"
+  fi
+  rm -f "${d}HITS" "${d}REST"
 fi
-rm -f "${d}HITS" "${d}REST"
 
 # 端末から直に走らせたときだけ出し方を案内する (自動実行のログを汚さない)。
 # ⚠ ここを `[ -t 1 ] && echo` で終わらせない — 端末でないときに終了コードが 1 になり、

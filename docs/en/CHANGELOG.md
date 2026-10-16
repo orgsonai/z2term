@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.21 (versionCode 719)**: The bundled `rss.sh` lets you choose whether new articles are notified. Refresh and Articles on the list screen ran the whole feed poll, so new articles also raised a notification. Settings on the list gains two switches: "Notify new articles (scheduled poll)" and "Notify new articles (fetched from the list)". By default the scheduled poll notifies and a fetch from the list does not. From a terminal, `rss.sh notify on|off` (scheduled poll) and `rss.sh notify-view on|off` (from the list) switch them. The `rss` guide under ⚙ Settings › Maintenance › Show a guide has a new "Turn off new-article notifications" card (press it to stop the poll's notifications; skip it with × to keep them). For an installed macro, check with `z2-macro diff rss` and replace it with `z2-macro install -f rss`.
+
 **1.0.20 (versionCode 718)**: In split view, the built-in keyboard's conversion candidates appeared at the bottom of the focused pane instead of just above the keyboard. While typing into the upper pane they landed mid-screen, over the terminal text. Whichever pane has focus, the candidates now appear at the bottom of the whole split area, just above the keyboard. GUI tabs in a split behave the same.
 
 **1.0.19 (versionCode 717)**: In `z2-view`, a page that set no text colour showed black text on black under a dark theme. Without a colour from the page, text now uses the terminal theme's foreground and links its accent (colours the page sets are kept). The Refresh and Find buttons of the screen opened from the terminal can now be hidden: they still appear by default, and `z2-view --no-refresh` / `--no-find` removes them.

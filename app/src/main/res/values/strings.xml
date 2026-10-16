@@ -1047,6 +1047,7 @@ Pick one from the tabs on the right.</string>
     <string name="guide_step_rss_permission">Allow display over other apps to open screens from notifications</string>
     <string name="guide_step_rss_poll">Add scheduled polling to Automation (enter an interval)</string>
     <string name="guide_step_rss_notifications">Add notification actions to Automation (Open → article, List → collected articles)</string>
+    <string name="guide_step_rss_quiet">Turn off new-article notifications (skip with × to keep them; Settings on the list changes this later)</string>
     <string name="guide_step_rss_view">Open the list of collected articles</string>
     <string name="guide_step_rss_manage">Change polling times and notification actions in Command list → Automation → Automation rules</string>
     <string name="guide_rss_poll_name">RSS polling</string>

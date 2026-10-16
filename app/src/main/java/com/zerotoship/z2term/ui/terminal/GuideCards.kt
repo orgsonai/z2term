@@ -277,6 +277,9 @@ enum class Guide(
                 "z2-when event:notify_action name=$name run ${guideShellQuote(rssNotificationAction)}"
             }
         ),
+        // 通知するかどうかは利用者が選ぶ (1.0.20)。押せば定期巡回の通知を切り、× なら今までどおり通知する。
+        // 一覧から取りに行ったときは最初から通知しない。どちらも後から一覧の「設定」で変えられる。
+        GuideStep(R.string.guide_step_rss_quiet, "sh ~/.z2term/macros/rss.sh notify off"),
         GuideStep(R.string.guide_step_try, "sh ~/.z2term/macros/rss.sh"),
         GuideStep(R.string.guide_step_rss_view, "sh ~/.z2term/macros/rss.sh view"),
         GuideStep(R.string.guide_step_rss_manage),
