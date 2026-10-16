@@ -270,8 +270,8 @@ html.zoom-open{overflow:hidden}
 .zoom[hidden]{display:none}
 .zoom img{
   max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);
-  display:block;border:1px solid var(--line2);border-radius:8px;background:var(--bg2);
-  cursor:grab;user-select:none;-webkit-user-drag:none;will-change:transform;
+  display:block;flex:none;border:1px solid var(--line2);border-radius:8px;background:var(--bg2);
+  cursor:grab;user-select:none;-webkit-user-drag:none;
 }
 .zoom.zoomed img{border-radius:0;border-color:transparent}
 .zoom .zoom-x{

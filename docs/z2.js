@@ -417,27 +417,36 @@
     var img = $('img', box), xBtn = $('.zoom-x', box);
 
     var MIN = 1, MAX = 8;
-    var s = 1, tx = 0, ty = 0, back = null;
+    var s = 1, tx = 0, ty = 0, back = null, bw = 0, bh = 0;
     var ptrs = {}, last = null, pinch = null, moved = false;
 
+    /* 拡大は scale() ではなく幅と高さそのものを変える。scale() だと画面に収めた
+       小さな絵を引き伸ばすだけになりぼやけるので、元画像の画素から描き直させる。
+       bw / bh は等倍（画面に収めた）ときの大きさ。 */
     function apply() {
-      img.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')';
-      box.classList.toggle('zoomed', s > 1);
+      var z = s > 1;
+      img.style.maxWidth = img.style.maxHeight = z ? 'none' : '';
+      img.style.width = z ? bw * s + 'px' : '';
+      img.style.height = z ? bh * s + 'px' : '';
+      img.style.transform = 'translate(' + tx + 'px,' + ty + 'px)';
+      box.classList.toggle('zoomed', z);
     }
     /* 絵が画面の外へ逃げないように、はみ出した分だけ動けるようにする */
     function clamp() {
-      var mx = Math.max(0, (img.offsetWidth * s - innerWidth) / 2);
-      var my = Math.max(0, (img.offsetHeight * s - innerHeight) / 2);
+      var mx = Math.max(0, (img.offsetWidth - innerWidth) / 2);
+      var my = Math.max(0, (img.offsetHeight - innerHeight) / 2);
       tx = Math.max(-mx, Math.min(mx, tx));
       ty = Math.max(-my, Math.min(my, ty));
     }
     /* 画面上の点 (x, y) を動かさずに倍率を ns にする */
     function zoomAt(ns, x, y) {
       ns = Math.max(MIN, Math.min(MAX, ns));
+      if (s === 1) { bw = img.offsetWidth; bh = img.offsetHeight; }
       var cx = x - innerWidth / 2, cy = y - innerHeight / 2;
       tx = cx - (cx - tx) * ns / s;
       ty = cy - (cy - ty) * ns / s;
       s = ns;
+      apply();
       clamp();
       apply();
     }
@@ -547,7 +556,8 @@
     box.addEventListener('pointerup', up);
     box.addEventListener('pointercancel', up);
     addEventListener('resize', function () {
-      if (!box.hidden) { clamp(); apply(); }
+      /* 等倍の大きさが変わるので、等倍に戻して測り直させる */
+      if (!box.hidden) { s = 1; tx = 0; ty = 0; apply(); }
     }, { passive: true });
   }
 
