@@ -397,7 +397,162 @@
     }, { passive: true });
   }
 
+  /* ============================ 画像の拡大表示 ============================
+     ページ内のスクショを押すと全画面で開く。ホイール（2 本指のピンチ）で拡大縮小、
+     拡大中はドラッグで移動、ダブルクリックで 2.5 倍 ⇔ 等倍。
+     背景・× ボタン・Esc で閉じる。
+     端末デモの絵は後から差し込まれるので、クリックは document でまとめて拾う。 */
+  var ZOOM_SEL = '.term-img img, figure.shot img, .shots img';
+
+  function setupZoom() {
+    var ja = (document.documentElement.lang || '').indexOf('ja') === 0;
+    var box = document.createElement('div');
+    box.className = 'zoom';
+    box.hidden = true;
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.innerHTML = '<img alt=""><button type="button" class="zoom-x" aria-label="' +
+      (ja ? '閉じる' : 'Close') + '">×</button>';
+    document.body.appendChild(box);
+    var img = $('img', box), xBtn = $('.zoom-x', box);
+
+    var MIN = 1, MAX = 8;
+    var s = 1, tx = 0, ty = 0, back = null;
+    var ptrs = {}, last = null, pinch = null, moved = false;
+
+    function apply() {
+      img.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + s + ')';
+      box.classList.toggle('zoomed', s > 1);
+    }
+    /* 絵が画面の外へ逃げないように、はみ出した分だけ動けるようにする */
+    function clamp() {
+      var mx = Math.max(0, (img.offsetWidth * s - innerWidth) / 2);
+      var my = Math.max(0, (img.offsetHeight * s - innerHeight) / 2);
+      tx = Math.max(-mx, Math.min(mx, tx));
+      ty = Math.max(-my, Math.min(my, ty));
+    }
+    /* 画面上の点 (x, y) を動かさずに倍率を ns にする */
+    function zoomAt(ns, x, y) {
+      ns = Math.max(MIN, Math.min(MAX, ns));
+      var cx = x - innerWidth / 2, cy = y - innerHeight / 2;
+      tx = cx - (cx - tx) * ns / s;
+      ty = cy - (cy - ty) * ns / s;
+      s = ns;
+      clamp();
+      apply();
+    }
+
+    function open(src, alt, from) {
+      back = from;
+      s = 1; tx = 0; ty = 0; apply();
+      img.src = src;
+      img.alt = alt || '';
+      box.setAttribute('aria-label', alt || '');
+      box.hidden = false;
+      document.documentElement.classList.add('zoom-open');
+      xBtn.focus();
+    }
+    function close() {
+      box.hidden = true;
+      document.documentElement.classList.remove('zoom-open');
+      ptrs = {}; last = null; pinch = null;
+      if (back && back.focus) back.focus();
+    }
+
+    document.addEventListener('click', function (e) {
+      var t = e.target.closest && e.target.closest(ZOOM_SEL);
+      if (!t || box.contains(t)) return;
+      e.preventDefault();
+      open(t.currentSrc || t.src, t.alt, t);
+    });
+    /* キーボードでも開けるように、対象の絵をフォーカスできるようにする */
+    document.addEventListener('keydown', function (e) {
+      if (!box.hidden) {
+        if (e.key === 'Escape') close();
+        else if (e.key === '+' || e.key === '=') zoomAt(s * 1.25, innerWidth / 2, innerHeight / 2);
+        else if (e.key === '-') zoomAt(s / 1.25, innerWidth / 2, innerHeight / 2);
+        else if (e.key === '0') zoomAt(1, innerWidth / 2, innerHeight / 2);
+        return;
+      }
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches(ZOOM_SEL)) {
+        e.preventDefault();
+        open(e.target.currentSrc || e.target.src, e.target.alt, e.target);
+      }
+    });
+    new MutationObserver(markZoomable).observe(document.body, { childList: true, subtree: true });
+    markZoomable();
+    function markZoomable() {
+      $$(ZOOM_SEL).forEach(function (el) {
+        if (el.tabIndex < 0 && !box.contains(el)) el.tabIndex = 0;
+      });
+    }
+
+    xBtn.addEventListener('click', close);
+    /* 背景を押したら閉じる。ドラッグの終わりで閉じないよう、動いたかを見る */
+    box.addEventListener('click', function (e) {
+      if (e.target === box && !moved) close();
+    });
+
+    box.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var d = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1);
+      zoomAt(s * Math.exp(-d * 0.0018), e.clientX, e.clientY);
+    }, { passive: false });
+
+    img.addEventListener('dblclick', function (e) {
+      zoomAt(s > 1 ? 1 : 2.5, e.clientX, e.clientY);
+    });
+
+    function pts() { return Object.keys(ptrs).map(function (k) { return ptrs[k]; }); }
+    function startPinch() {
+      var p = pts();
+      pinch = {
+        d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) || 1, s: s,
+        x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2
+      };
+    }
+    box.addEventListener('pointerdown', function (e) {
+      if (e.target === xBtn) return;
+      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+      if (pts().length === 1) moved = false;
+      if (pts().length === 2) startPinch();
+      last = { x: e.clientX, y: e.clientY };
+      try { box.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    box.addEventListener('pointermove', function (e) {
+      if (!ptrs[e.pointerId]) return;
+      ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+      var p = pts();
+      if (p.length >= 2 && pinch) {
+        moved = true;
+        var d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+        var mx = (p[0].x + p[1].x) / 2, my = (p[0].y + p[1].y) / 2;
+        tx += mx - pinch.x; ty += my - pinch.y;
+        pinch.x = mx; pinch.y = my;
+        zoomAt(pinch.s * d / pinch.d, mx, my);
+      } else if (p.length === 1 && last) {
+        var dx = e.clientX - last.x, dy = e.clientY - last.y;
+        if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+        last = { x: e.clientX, y: e.clientY };
+        if (s > 1) { tx += dx; ty += dy; clamp(); apply(); }
+      }
+    });
+    function up(e) {
+      delete ptrs[e.pointerId];
+      var p = pts();
+      pinch = null;
+      if (p.length === 2) startPinch();
+      last = p.length === 1 ? { x: p[0].x, y: p[0].y } : null;
+    }
+    box.addEventListener('pointerup', up);
+    box.addEventListener('pointercancel', up);
+    addEventListener('resize', function () {
+      if (!box.hidden) { clamp(); apply(); }
+    }, { passive: true });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
+    setupZoom();
     setupHeader();
     setupMenu();
     setupReveal();
