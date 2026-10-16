@@ -2,6 +2,9 @@ package com.zerotoship.z2term.workspace
 
 import android.hardware.display.DisplayManager
 import android.view.Display
+import androidx.compose.animation.core.AnimationState
+import androidx.compose.animation.core.animateDecay
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -160,7 +163,12 @@ internal object Workspace {
                     if (id == active.id) content()
                     else {
                         PassiveSession(session)
-                        Box(Modifier.fillMaxSize().clickable { SessionManager.setActive(session.id) })
+                        // A tap still only moves focus; a vertical drag on a terminal pane scrolls its
+                        // scrollback without taking focus, so the other pane can be read while typing here.
+                        Box(Modifier.fillMaxSize()
+                            .then(if (session is TerminalSession && !Workspace.projected(session.id))
+                                Modifier.passiveScroll(session) else Modifier)
+                            .clickable { SessionManager.setActive(session.id) })
                     }
                 }
             }
@@ -185,6 +193,37 @@ internal object Workspace {
 
 /** Share of the split extent a title must be dragged toward the other pane before letting go swaps them. */
 private const val SWAP_DISTANCE = 0.15f
+
+/**
+ * Scrollback for a pane that is not focused: drag down for older lines, up for newer, with a fling.
+ * Only the scrollback moves — nothing is written to the terminal, so a full-screen program on the
+ * alternate screen (which has no scrollback) stays still until the pane is focused.
+ */
+@Composable private fun Modifier.passiveScroll(session: TerminalSession): Modifier {
+    var carry by remember(session.id) { mutableFloatStateOf(0f) }
+    fun scrollPixels(delta: Float) {
+        val lineHeight = session.cellMetrics.value.lineHeight
+        if (lineHeight <= 0f) return
+        carry += delta
+        val rows = (carry / lineHeight).toInt()
+        if (rows != 0) {
+            session.scrollBy(rows)
+            carry -= rows * lineHeight
+        }
+    }
+    return draggable(
+        state = rememberDraggableState { delta -> scrollPixels(delta) },
+        orientation = Orientation.Vertical,
+        onDragStopped = { velocity ->
+            var last = 0f
+            AnimationState(0f, velocity).animateDecay(exponentialDecay()) {
+                scrollPixels(value - last)
+                last = value
+            }
+            carry = 0f
+        },
+    )
+}
 
 @Composable private fun PassiveSession(session: AppSession) {
     if (Workspace.projected(session.id)) Text(stringResource(R.string.workspace_projected), Modifier.padding(16.dp))

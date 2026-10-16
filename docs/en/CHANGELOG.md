@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.22 (versionCode 720)**: In split view, a terminal pane that is not the input target can now scroll. Drag up or down to move through its scrollback, and flick to keep it going. Focus stays where it is, so you can type in one pane while reading back through the other. A tap still makes that pane the input target. A full-screen program (a screen with no scrollback) still needs its pane focused first.
+
 **1.0.21 (versionCode 719)**: The bundled `rss.sh` lets you choose whether new articles are notified. Refresh and Articles on the list screen ran the whole feed poll, so new articles also raised a notification. Settings on the list gains two switches: "Notify new articles (scheduled poll)" and "Notify new articles (fetched from the list)". By default the scheduled poll notifies and a fetch from the list does not. From a terminal, `rss.sh notify on|off` (scheduled poll) and `rss.sh notify-view on|off` (from the list) switch them. The `rss` guide under ⚙ Settings › Maintenance › Show a guide has a new "Turn off new-article notifications" card (press it to stop the poll's notifications; skip it with × to keep them). For an installed macro, check with `z2-macro diff rss` and replace it with `z2-macro install -f rss`.
 
 **1.0.20 (versionCode 718)**: In split view, the built-in keyboard's conversion candidates appeared at the bottom of the focused pane instead of just above the keyboard. While typing into the upper pane they landed mid-screen, over the terminal text. Whichever pane has focus, the candidates now appear at the bottom of the whole split area, just above the keyboard. GUI tabs in a split behave the same.
