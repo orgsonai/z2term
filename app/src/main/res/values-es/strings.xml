@@ -111,6 +111,10 @@
     <string name="settings_key_layout_width_fixed">Fijo</string>
     <string name="settings_key_layout_width_ratio">Ancho tomando como 1 un marco uniforme</string>
     <string name="settings_key_layout_width_slider">Ancho (pasos de 0,1)</string>
+    <string name="settings_key_layout_row_gap">Márgenes de la fila</string>
+    <string name="settings_key_layout_row_gap_start">Margen izquierdo</string>
+    <string name="settings_key_layout_row_gap_end">Margen derecho</string>
+    <string name="settings_key_layout_row_gap_desc">Deja espacio en los extremos de la fila de la tecla elegida (un marco uniforme = 1). Sirve para desplazar filas como en un teclado real. 0 = ancho completo.</string>
     <string name="settings_key_layout_appearance">Aspecto y respuesta</string>
     <string name="settings_key_layout_repeat">Repetir al mantener pulsada</string>
     <string name="settings_key_layout_press_feedback">Color al pulsar</string>

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.27 (versionCode 725)**: The key layout editor can now leave space at both ends of each row. Selecting a key shows "Row side margins", with sliders for the row's left and right ends (0–3 in 0.1 steps, where one even frame is 1). Use it to offset rows like a real keyboard. With multiple selection it applies to every selected row. Built-in layouts are unchanged (margin 0 = full width as before).
+
 **1.0.26 (versionCode 724)**: The snippet list now shows which group each snippet belongs to under "All". The group name appears in green on the small line above the command (ahead of the label, if any). Nothing is shown while a group is open, or for snippets in no group. The edge panel's snippet list also shows the group name above each row under "All".
 
 **1.0.25 (versionCode 723)**: Closing edge panel settings and moving to another panel take fewer taps. (1) Pressing Done with unsaved edits offers Save, Discard or Keep editing. Save saves and returns to the panel without pressing the Save button below. Every edit is checked before anything is written, so a mistake in any field saves nothing and keeps you in settings with its message. A tab or panel name typed without pressing Add is not saved. (2) Tapping the settings title ("Edit: … ▼") lists the panels; choosing one opens its settings on the same page (Layout, Panel, Actions or Manage). Before, Manage → Other panels → choosing the page again took up to three taps. With only one panel there is no ▼.

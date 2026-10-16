@@ -111,6 +111,10 @@
     <string name="settings_key_layout_width_fixed">고정</string>
     <string name="settings_key_layout_width_ratio">균등한 칸 하나를 1로 본 너비</string>
     <string name="settings_key_layout_width_slider">너비 (0.1 단위)</string>
+    <string name="settings_key_layout_row_gap">줄 좌우 여백</string>
+    <string name="settings_key_layout_row_gap_start">왼쪽 여백</string>
+    <string name="settings_key_layout_row_gap_end">오른쪽 여백</string>
+    <string name="settings_key_layout_row_gap_desc">선택한 키가 있는 줄의 양 끝을 비웁니다 (균등한 칸 하나 = 1). 실제 키보드처럼 줄을 어긋나게 둘 때 씁니다. 0이면 전체 너비.</string>
     <string name="settings_key_layout_appearance">모양과 느낌</string>
     <string name="settings_key_layout_repeat">누르고 있으면 반복</string>
     <string name="settings_key_layout_press_feedback">누를 때 색</string>

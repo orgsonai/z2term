@@ -24,7 +24,7 @@ package com.zerotoship.z2term.ui.terminal.keyboard
  */
 fun KeyLayout.asTemplate(id: String, name: String): KeyLayout {
     fun templateRows(source: List<KeyRow>): List<KeyRow> = source.map { row ->
-        KeyRow(row.slots.map { it.copy(width = it.width.toTemplateWidth()) })
+        row.copy(slots = row.slots.map { it.copy(width = it.width.toTemplateWidth()) })
     }
     val main = templateRows(rows)
     val symbols = symbolRows?.let(::templateRows)

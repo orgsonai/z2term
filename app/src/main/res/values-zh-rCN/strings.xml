@@ -111,6 +111,10 @@
     <string name="settings_key_layout_width_fixed">固定</string>
     <string name="settings_key_layout_width_ratio">以一个均分格子为 1 的宽度</string>
     <string name="settings_key_layout_width_slider">宽度（以 0.1 为步进）</string>
+    <string name="settings_key_layout_row_gap">行的左右留白</string>
+    <string name="settings_key_layout_row_gap_start">左侧留白</string>
+    <string name="settings_key_layout_row_gap_end">右侧留白</string>
+    <string name="settings_key_layout_row_gap_desc">在所选按键所在行的两端留出空间（一个均分格子 = 1）。可像实体键盘那样错开各行。0 = 占满整行。</string>
     <string name="settings_key_layout_appearance">外观与手感</string>
     <string name="settings_key_layout_repeat">长按连发</string>
     <string name="settings_key_layout_press_feedback">按下颜色</string>

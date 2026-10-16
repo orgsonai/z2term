@@ -116,6 +116,10 @@
     <string name="settings_key_layout_width_fixed">Fixed</string>
     <string name="settings_key_layout_width_ratio">Width where one even frame is 1</string>
     <string name="settings_key_layout_width_slider">Width (0.1 steps)</string>
+    <string name="settings_key_layout_row_gap">Row side margins</string>
+    <string name="settings_key_layout_row_gap_start">Left margin</string>
+    <string name="settings_key_layout_row_gap_end">Right margin</string>
+    <string name="settings_key_layout_row_gap_desc">Leaves space at the ends of the row that holds the selected key (one even frame = 1). Use it to offset rows like a real keyboard. 0 = full width.</string>
     <string name="settings_key_layout_appearance">Appearance and feel</string>
     <string name="settings_key_layout_repeat">Hold to repeat</string>
     <string name="settings_key_layout_press_feedback">Press colour</string>

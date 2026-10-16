@@ -297,6 +297,26 @@ class KeyLayoutCodecTest {
         assertEquals(setOf("label", "bind", "font"), key.keys)  // repeat / press などは書かない
     }
 
+    /** 段の左右の余白 (1.0.27) が往復し、0 なら書かれず、壊れた値は 0・上限へ丸まること。 */
+    @Test fun rowGaps_surviveAndSanitize() {
+        val gapped = KeyLayout("g", "g", listOf(KeyRow(listOf(KeySlot.of(KeyDef.text("a"))), startGap = 0.5f, endGap = 1.2f)))
+        assertEquals(gapped, roundTrip(gapped))
+
+        @Suppress("UNCHECKED_CAST")
+        val row = (KeyLayoutCodec.encode(oneKeyLayout(KeyDef.text("a")))["rows"] as List<Map<String, Any?>>)[0]
+        assertEquals(setOf("slots"), row.keys)
+
+        val broken = KeyLayoutCodec.decode(mapOf(
+            "id" to "b", "name" to "b",
+            "rows" to listOf(mapOf(
+                "gapStart" to -1.0, "gapEnd" to 99.0,
+                "slots" to listOf(mapOf("key" to mapOf("label" to "a"))),
+            )),
+        ))!!
+        assertEquals(0f, broken.rows[0].startGap, 0f)
+        assertEquals(KeyRow.MAX_GAP, broken.rows[0].endGap, 0f)
+    }
+
     // ---- 小道具 ------------------------------------------------------------------------------
 
     private fun oneKeyLayout(key: KeyDef) =

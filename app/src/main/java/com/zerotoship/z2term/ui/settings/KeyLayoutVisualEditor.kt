@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
@@ -57,6 +58,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.KeyFontRole
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyGesture
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyWidth
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyRow
 import com.zerotoship.z2term.ui.terminal.keyboard.LabelTone
 import com.zerotoship.z2term.ui.terminal.keyboard.ModKey
 import com.zerotoship.z2term.ui.terminal.keyboard.NamedKey
@@ -76,6 +78,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.splitKey
 import com.zerotoship.z2term.ui.terminal.keyboard.updateKey
 import com.zerotoship.z2term.ui.terminal.keyboard.updateKeys
 import com.zerotoship.z2term.ui.terminal.keyboard.updateSlotWidths
+import com.zerotoship.z2term.ui.terminal.keyboard.updateRowGaps
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
@@ -212,6 +215,7 @@ internal fun KeyLayoutVisualEditor(
                 onChange = { value -> publish(workingLayout.updateKey(path) { it.copy(label = value) }) },
             )
             WidthEditor(workingLayout, selected, path, ::publish)
+            if (layout.id != SPECIAL_KEY_LAYOUT_ID) RowGapEditor(workingLayout, selected, path, ::publish)
             BindingEditor(workingLayout, selected, path, key, ::publish)
             AppearanceEditor(workingLayout, selected, key, ::publish)
             if (selected.size == 1) {
@@ -311,6 +315,7 @@ private fun LayoutPreview(
                 ),
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
             ) {
+                if (!accessoryBar && row.startGap > 0f) Spacer(Modifier.weight(row.startGap))
                 row.slots.forEachIndexed { slotIndex, slot ->
                     val weight = weights.getOrElse(slotIndex) { 1f }
                     PreviewContent(
@@ -322,6 +327,7 @@ private fun LayoutPreview(
                             else Modifier.weight(weight)).fillMaxHeight(),
                     )
                 }
+                if (!accessoryBar && row.endGap > 0f) Spacer(Modifier.weight(row.endGap))
             }
         }
     }
@@ -530,6 +536,45 @@ private fun WidthEditor(
                 },
             )
         }
+    }
+}
+
+/**
+ * 段の左右の余白 (1.0.27)。選んだキーが属する段に掛かる (複数選択なら全部の段)。
+ * 単位は幅と同じ「均等な 1 枠を 1」。既定は 0 = 全幅。
+ */
+@Composable
+private fun RowGapEditor(
+    layout: KeyLayout,
+    paths: Set<KeyCellPath>,
+    path: KeyCellPath,
+    onChange: (KeyLayout) -> Unit,
+) {
+    val row = layout.rows.getOrNull(path.row) ?: return
+    EditorSection(stringResource(R.string.settings_key_layout_row_gap)) {
+        SliderField(
+            title = stringResource(R.string.settings_key_layout_row_gap_start),
+            value = row.startGap.coerceIn(0f, KeyRow.MAX_GAP),
+            range = 0f..KeyRow.MAX_GAP,
+            steps = 29,
+            valueLabel = { formatKeyWidthSliderValue(it) },
+            onChange = { onChange(layout.updateRowGaps(paths, start = snapKeyWidthToTenth(it))) },
+        )
+        SliderField(
+            title = stringResource(R.string.settings_key_layout_row_gap_end),
+            value = row.endGap.coerceIn(0f, KeyRow.MAX_GAP),
+            range = 0f..KeyRow.MAX_GAP,
+            steps = 29,
+            valueLabel = { formatKeyWidthSliderValue(it) },
+            onChange = { onChange(layout.updateRowGaps(paths, end = snapKeyWidthToTenth(it))) },
+        )
+        Text(
+            text = stringResource(R.string.settings_key_layout_row_gap_desc),
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+            fontFamily = FontFamily.Monospace,
+        )
     }
 }
 

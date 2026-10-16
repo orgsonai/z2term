@@ -114,6 +114,10 @@
     <string name="settings_key_layout_width_fixed">固定</string>
     <string name="settings_key_layout_width_ratio">均等な 1 枠を 1 とした幅</string>
     <string name="settings_key_layout_width_slider">幅（0.1 刻み）</string>
+    <string name="settings_key_layout_row_gap">段の左右の余白</string>
+    <string name="settings_key_layout_row_gap_start">左の余白</string>
+    <string name="settings_key_layout_row_gap_end">右の余白</string>
+    <string name="settings_key_layout_row_gap_desc">選んだキーの段の両端を空けます（均等な 1 枠を 1）。実物のキーボードのように段をずらすときに使います。0 で全幅。</string>
     <string name="settings_key_layout_appearance">見た目と手触り</string>
     <string name="settings_key_layout_repeat">長押し連打</string>
     <string name="settings_key_layout_press_feedback">押下色</string>

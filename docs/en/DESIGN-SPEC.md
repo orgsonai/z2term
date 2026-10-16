@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-16 / Target version: 1.0.26 (versionCode 724)
+Last updated: 2026-10-16 / Target version: 1.0.27 (versionCode 725)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3218,6 +3218,8 @@ space = 2.0. Digits, letters, punctuation and arrows use `Auto`, sharing what re
 The symbol sheet is still separate because its fourth row has eight keys, but it is built with the
 same row/role width rules, so switching to `?#` no longer restores the older wider modifiers and space.
 No labels, flick destinations or actions changed.
+
+**Row side margins (1.0.27).** `KeyRow.startGap` / `endGap` (row `gapStart` / `gapEnd` in JSON, omitted at 0). The unit matches `KeyWidth.Fixed` ("multiples of one even frame"), clamped to 0..`KeyRow.MAX_GAP` (3); negative or NaN becomes 0. Rendering just puts weighted empty space at each end of the row; ⚠ **the margins are kept out of the key-weight budget (`KeyRow.weights`)** — mixing them in would change the width of pinned keys too. Real keyboards offset each row, so margins are per row. In the editor they apply to the selected key's row (every selected row in multiple selection). All built-in layouts keep 0, so nothing changes visually. The horizontally scrolling accessory bar does not use them (its width is not fixed, so the editor hides the controls there).
 
 **Settings layout editor (0.8.413; editing-area improvements in 0.8.633, bottom-fixed preview in 0.8.634).** The editor is a page in the existing Settings
 window rather than another dialog. The heading, mode controls and form scroll above the fixed keyboard preview. Multiple selection stays beside the keys; Save

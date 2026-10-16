@@ -42,6 +42,7 @@ package com.zerotoship.z2term.ui.terminal.keyboard
  * ```
  *
  * - `w` が無い枠 = [KeyWidth.Auto]（段の残りを均等に分ける）
+ * - 段の `gapStart` / `gapEnd` = 左右の余白（均等 1 枠分の何倍か。無ければ 0）
  * - `split` がある枠 = [SlotContent.Split]。無ければ `key` を見る
  * - `parts` の `r` が無ければ取り分 1.0
  */
@@ -74,7 +75,12 @@ object KeyLayoutCodec {
     fun encodeAll(layouts: List<KeyLayout>): List<Map<String, Any?>> = layouts.map { encode(it) }
 
     private fun encodeRow(row: KeyRow): Map<String, Any?> =
-        linkedMapOf("slots" to row.slots.map { encodeSlot(it) })
+        linkedMapOf<String, Any?>().apply {
+            // 余白は 0 (既定) なら書かない。
+            if (row.startGap > 0f) put("gapStart", row.startGap.toDouble())
+            if (row.endGap > 0f) put("gapEnd", row.endGap.toDouble())
+            put("slots", row.slots.map { encodeSlot(it) })
+        }
 
     private fun encodeSlot(slot: KeySlot): Map<String, Any?> {
         val m = LinkedHashMap<String, Any?>()
@@ -209,7 +215,11 @@ object KeyLayoutCodec {
         val slots = (node.list("slots") ?: return null).mapNotNull { s ->
             (s as? Map<*, *>)?.let { decodeSlot(it) }
         }
-        return if (slots.isEmpty()) null else KeyRow(slots)
+        return if (slots.isEmpty()) null else KeyRow(
+            slots,
+            startGap = KeyRow.sanitizeGap(node.num("gapStart")?.toFloat() ?: 0f),
+            endGap = KeyRow.sanitizeGap(node.num("gapEnd")?.toFloat() ?: 0f),
+        )
     }
 
     private fun decodeSlot(node: Map<*, *>): KeySlot? {

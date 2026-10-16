@@ -321,8 +321,20 @@ data class KeySlot(val content: SlotContent, val width: KeyWidth = KeyWidth.Auto
     }
 }
 
-/** 1 段。 */
-data class KeyRow(val slots: List<KeySlot>) {
+/**
+ * 1 段。
+ *
+ * @param startGap 段の左端に空ける余白（1.0.27）。単位は [KeyWidth.Fixed] と同じ「均等 1 枠分の何倍か」。
+ * @param endGap 段の右端に空ける余白。
+ *   ⭐ 実物のキーボードは段ごとに左右がずれている（整列していない）ので、段単位で空けられる
+ *   ようにした。⚠ 余白はキーの重み ([weights]) の外に足す — 枠の予算に混ぜると、固定幅の
+ *   キーまで余白のぶん太さが変わり「固定したキーは動かない」が崩れる。既定は 0 = 今までどおり全幅。
+ */
+data class KeyRow(
+    val slots: List<KeySlot>,
+    val startGap: Float = 0f,
+    val endGap: Float = 0f,
+) {
 
     /**
      * 各枠の重み（Compose の `Modifier.weight` にそのまま渡せる）。
@@ -347,6 +359,13 @@ data class KeyRow(val slots: List<KeySlot>) {
     companion object {
         /** 枠 1 つの最小の重み。これ以上細くすると指で押せない。 */
         const val MIN_WEIGHT = 0.2f
+
+        /** 段の左右の余白の上限（均等 1 枠分の何倍か）。これより空けるとキーが押せない細さになる。 */
+        const val MAX_GAP = 3f
+
+        /** 保存値・入力値を余白として使える値へ丸める（負・NaN は 0）。 */
+        fun sanitizeGap(value: Float): Float =
+            if (!value.isFinite() || value <= 0f) 0f else value.coerceAtMost(MAX_GAP)
     }
 }
 

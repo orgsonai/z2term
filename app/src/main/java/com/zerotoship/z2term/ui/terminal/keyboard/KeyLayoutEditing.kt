@@ -65,6 +65,17 @@ fun KeyLayout.updateSlotWidths(paths: Collection<KeyCellPath>, width: KeyWidth):
         .distinctBy { it.row to it.slot }
         .fold(this) { current, path -> current.updateSlotWidth(path, width) }
 
+/** 選択したキーが属する段すべての左右の余白を変える。[start] / [end] が null の側は変えない。 */
+fun KeyLayout.updateRowGaps(paths: Collection<KeyCellPath>, start: Float? = null, end: Float? = null): KeyLayout {
+    val targets = paths.map { it.row }.toSet()
+    return copy(rows = rows.mapIndexed { index, row ->
+        if (index !in targets) row else row.copy(
+            startGap = start?.let(KeyRow::sanitizeGap) ?: row.startGap,
+            endGap = end?.let(KeyRow::sanitizeGap) ?: row.endGap,
+        )
+    })
+}
+
 /** 選択キーを 2 区画へ割る。新しい側は何も送らない空キー。 */
 fun KeyLayout.splitKey(path: KeyCellPath, dir: SplitDir): KeyLayout {
     // top-level Single の parts.size=0、1 段割った中は 1。2 段割った中はもう割れない。

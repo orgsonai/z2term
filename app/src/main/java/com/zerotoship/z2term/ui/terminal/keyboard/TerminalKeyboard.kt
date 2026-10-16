@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -481,6 +482,8 @@ fun TerminalKeyboard(
                 ),
                 horizontalArrangement = Arrangement.spacedBy(rowSpacing),
             ) {
+                // 段の左右の余白 (1.0.27)。横スクロールする補助バーには使わない (幅が決まらない)。
+                if (!accessoryBar && keyRow.startGap > 0f) Spacer(Modifier.weight(keyRow.startGap))
                 keyRow.slots.forEachIndexed { index, keySlot ->
                     LayoutSlot(
                         content = keySlot.content,
@@ -499,6 +502,7 @@ fun TerminalKeyboard(
                         onGesture = { key, g -> runActions(key.actionsFor(g), g) },
                     )
                 }
+                if (!accessoryBar && keyRow.endGap > 0f) Spacer(Modifier.weight(keyRow.endGap))
             }
         }
     }
