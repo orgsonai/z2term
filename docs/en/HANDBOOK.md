@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.27.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.28.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -191,6 +191,7 @@ Use **Settings › Key layout (your own)** to enable faces and change their orde
   - Right after typing a **long sentence** the cursor sits at the **end** (the whole thing is the leading chunk). **Move ◀ to shrink the cursor leftward and that prefix becomes the conversion target**, changing the candidates (particles and endings like "です・ました" stay in kana).
   - The **light-green chunk** in the candidate bar is the "whole-sentence" conversion (e.g. 明日の天気はいかがでしょうか). Tap it to confirm the entire sentence at once. Moving the cursor with ◀ ▶ rebuilds it to match.
   - **Fix a typo in the middle**: move the cursor (the thin bar) to the spot with ◀ ▶, and you can **insert kana there or delete the char before it with ⌫** (the "小゛゜" key targets that position too). The cursor can reach the line start.
+  - **Proverbs convert too** (1.0.28): type the whole reading without breaks, e.g. ねこにこばん → 猫に小判 or あつものにこりてなますをふく → 羹に懲りて膾を吹く. Typing part of it (いしのうえに) shows it as a prediction. Four-character idioms (こしたんたん → 虎視眈々) were already in the dictionary.
   - **Predictive conversion from what you've typed**: as you start typing a reading, previously confirmed phrases whose reading begins with it appear at the head of the candidate bar. For example, typing お surfaces phrases you confirmed before such as お願いします / 概ね as predictions you can tap directly. When you pick a prediction it is learned under its actual reading, so it keeps showing up under the same reading next time.
   - **Chunk boundaries are learned too**: e.g. if こまんど first splits into 「こ」「まんど」, merge it into 「こまんど」 with ◀ ▶ and confirm — from the next time it's auto-recognized as a single chunk (コマンド). The more often you use a reading-chunk, the higher its priority.
   - **One confirmation is enough for a boundary to stick** (0.8.493): ⚠ **some chunks previously never changed no matter how often you confirmed the same split.** They were being remembered, but where the dictionary happened to segment that reading cheaply, learning could not outweigh it — which is why the same phrasing had to be re-split with ◀ ▶ every single time. **Now one confirmation takes effect from the next time.** A chunk you have learned is reused even in sentences that share the beginning and differ later (a different ending on the same phrasing).

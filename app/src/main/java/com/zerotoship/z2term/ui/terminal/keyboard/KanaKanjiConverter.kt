@@ -73,9 +73,16 @@ object KanaKanjiConverter {
         //
         // 記号は [SYMBOL_ENTRIES] で補う。辞書が同じ読みに持つ語 (まる → 丸/円) を押し下げない
         // よう、こちらだけは辞書候補の後ろへ足す。
+        //
+        // ことわざ ([PROVERB_ENTRIES]) も同じく辞書候補の後ろへ足す (1.0.28)。SKK 辞書は四字熟語は
+        // 持つが、文の形のことわざ (ねこにこばん 等) を持たない。
         lines = mergeDict(
-            mergeDict(mergeDict(result, buildSupplement()), buildLoanwords()),
-            buildSymbols(),
+            mergeDict(
+                mergeDict(mergeDict(result, buildSupplement()), buildLoanwords()),
+                buildSymbols(),
+                extraFirst = false,
+            ),
+            buildProverbs(),
             extraFirst = false,
         )
         loaded = true
@@ -884,6 +891,17 @@ object KanaKanjiConverter {
         return map.entries
             .sortedBy { it.key }
             .map { (r, ss) -> "$r /" + ss.joinToString("/") + "/" }
+    }
+
+    /** [PROVERB_ENTRIES] を辞書行へ変換し、見出し順にソートして返す。同じ読みは表記を結合する。 */
+    private fun buildProverbs(): List<String> {
+        val map = LinkedHashMap<String, LinkedHashSet<String>>()
+        for ((r, text) in PROVERB_ENTRIES) {
+            map.getOrPut(r) { LinkedHashSet() }.addAll(text.split('/').filter { it.isNotEmpty() })
+        }
+        return map.entries
+            .sortedBy { it.key }
+            .map { (r, ws) -> "$r /" + ws.joinToString("/") + "/" }
     }
 
     /** 常用語テーブルを活用展開し、見出し順にソートした辞書行 ("よみ /漢字/…") を返す。 */
