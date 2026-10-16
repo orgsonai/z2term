@@ -104,6 +104,10 @@ A pinch can zoom the **page itself** instead of the text. This suits pages that 
 
 When a page sets no text colour, the text follows the terminal theme's foreground (links use the theme's accent). Before, the text stayed black and could not be read on a dark theme. A `color` the page sets still wins. A page that sets only a light background should set its text colour too (on a dark theme it would otherwise get light text on a light background).
 
+## Closing the full screen (1.0.23)
+
+Tap the title bar at the top to close the screen. The ✕ at its right end is a marker; anywhere on the bar works the same (Android's Back closes it too). With a form half filled in, it asks before discarding. The bar is always shown, with no option to hide it.
+
 ## Hiding the full-screen buttons (1.0.19)
 
 The screen opened from the terminal shows Refresh and Find from the start. Hide what you do not need with `z2-view` options:

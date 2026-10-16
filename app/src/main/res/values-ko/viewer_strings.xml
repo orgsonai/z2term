@@ -3,6 +3,7 @@
     <string name="viewer_missing">그 페이지는 더 이상 없습니다.</string>
     <string name="viewer_no_browser">그 링크를 열 수 있는 앱이 이 휴대전화에 없습니다.</string>
     <string name="viewer_expand">확대</string>
+    <string name="viewer_close">닫기</string>
     <string name="viewer_component">뷰 (z2-view)</string>
     <string name="viewer_empty">아직 페이지가 없습니다. z2-view를 호출하는 명령을 설정하거나 이 항목으로 페이지를 보내세요.</string>
     <string name="viewer_required">%1$s 항목을 입력하세요.</string>

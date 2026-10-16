@@ -3,6 +3,7 @@
     <string name="viewer_missing">该页面已不存在。</string>
     <string name="viewer_no_browser">此手机上没有可以打开该链接的应用。</string>
     <string name="viewer_expand">展开</string>
+    <string name="viewer_close">关闭</string>
     <string name="viewer_component">视图（z2-view）</string>
     <string name="viewer_empty">还没有页面。请设置调用 z2-view 的命令，或向此项目发送页面。</string>
     <string name="viewer_required">请输入%1$s。</string>

@@ -3,6 +3,7 @@
     <string name="viewer_missing">Esa página ya no está.</string>
     <string name="viewer_no_browser">Ninguna aplicación de este teléfono puede abrir ese enlace.</string>
     <string name="viewer_expand">Ampliar</string>
+    <string name="viewer_close">Cerrar</string>
     <string name="viewer_component">Vista (z2-view)</string>
     <string name="viewer_empty">Todavía no hay página. Configura un comando que llame a z2-view o envía una página a este elemento.</string>
     <string name="viewer_required">Introduce %1$s.</string>
