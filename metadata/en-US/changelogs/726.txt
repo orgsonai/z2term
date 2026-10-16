@@ -1,0 +1,5 @@
+1.0.28
+
+- Japanese input converts about 300 proverbs, e.g. ねこにこばん → 猫に小判.
+- Key layout editor: leave space at the left and right of each row.
+- Snippets: under "All", each row shows its group name.
