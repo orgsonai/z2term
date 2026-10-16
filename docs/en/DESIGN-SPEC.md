@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-16 / Target version: 1.0.25 (versionCode 723)
+Last updated: 2026-10-16 / Target version: 1.0.26 (versionCode 724)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -1082,6 +1082,7 @@ An Android app UID cannot directly `open` `/dev/bus/usb/...`, while `UsbManager.
 
 - **A snippet holds an id, not a name** (`Snippet.groupId`; empty = ungrouped = only ever listed under "All"). Holding the name would mean rewriting every member whenever a group is renamed, and a crash mid-rewrite would leave **snippets that appear nowhere**.
 - ⚠ **Deleting a group never deletes what is in it.** The members go back to ungrouped and show up under "All". Losing the contents while tidying a shelf is the worst outcome, so the delete row says so out loud — without that line the button is too scary to press and shelves just accumulate.
+- **Under "All", every row names its group** (1.0.26): in green, ahead of the label on the small line above the command (rows are fixed-height, so it stays two lines). With a group open every row is on the same shelf, so nothing is shown; ungrouped rows show nothing. The edge panel's snippet list does the same under "All", in the accent colour above each row.
 - ⚠ **A reorder made while filtered must not go to `replaceAll`** (`SnippetStore.replaceVisible` / `reorderWithin`): that would **wipe every group that is not on screen**. The new order is poured only into the slots the visible rows occupy, so **reordering inside a group leaves the relative order of everything else untouched**. `SnippetGroupTest` pins this down.
 - **Renaming and deleting live behind the `✎` on the open group's chip.** Not a long-press: an invisible gesture is the same as no gesture.
 - **A new snippet lands in the open group.** That is what someone who just opened a group expects, and dropping it into "ungrouped" would mean moving it every time. Editing one into a different group **opens that group** — vanishing from the list on save reads as deletion, not as a move.

@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -417,6 +418,11 @@ private fun SnippetsBody(
                         val dragging = s.id == draggingId || s.id == settlingId
                         SnippetRow(
                             snippet = s,
+                            // 「すべて」では行ごとに棚の名前を出す (1.0.26)。グループを開いて
+                            // いるときは全部同じ棚なので出さない。未分類は何も出さない。
+                            groupName = if (selectedGroup.isEmpty()) {
+                                groups.firstOrNull { it.id == s.groupId }?.name?.ifBlank { null }
+                            } else null,
                             dragging = dragging,
                             dragOffsetY = if (dragging) dragDy else 0f,
                             onRun = {
@@ -881,6 +887,7 @@ private fun GroupEditForm(
 @Composable
 private fun SnippetRow(
     snippet: Snippet,
+    groupName: String?,
     dragging: Boolean,
     dragOffsetY: Float,
     onRun: () -> Unit,
@@ -911,14 +918,31 @@ private fun SnippetRow(
                 .padding(horizontal = 12.dp),
             verticalArrangement = Arrangement.Center
         ) {
-            if (snippet.label.isNotBlank()) {
-                Text(
-                    text = snippet.label,
-                    color = ZtsTextSecondary,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    maxLines = 1
-                )
+            // 上の小さい行 = 「グループ名  ラベル」。行の高さは固定なので 2 行に収める。
+            if (groupName != null || snippet.label.isNotBlank()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (groupName != null) {
+                        Text(
+                            text = groupName,
+                            color = ZtsGreen,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 120.dp)
+                        )
+                    }
+                    if (snippet.label.isNotBlank()) {
+                        Text(
+                            text = snippet.label,
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
             Text(
                 text = snippet.command.ifBlank { stringResource(R.string.snippets_empty_command) },

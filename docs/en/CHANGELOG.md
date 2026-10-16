@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.26 (versionCode 724)**: The snippet list now shows which group each snippet belongs to under "All". The group name appears in green on the small line above the command (ahead of the label, if any). Nothing is shown while a group is open, or for snippets in no group. The edge panel's snippet list also shows the group name above each row under "All".
+
 **1.0.25 (versionCode 723)**: Closing edge panel settings and moving to another panel take fewer taps. (1) Pressing Done with unsaved edits offers Save, Discard or Keep editing. Save saves and returns to the panel without pressing the Save button below. Every edit is checked before anything is written, so a mistake in any field saves nothing and keeps you in settings with its message. A tab or panel name typed without pressing Add is not saved. (2) Tapping the settings title ("Edit: … ▼") lists the panels; choosing one opens its settings on the same page (Layout, Panel, Actions or Manage). Before, Manage → Other panels → choosing the page again took up to three taps. With only one panel there is no ▼.
 
 **1.0.24 (versionCode 722)**: The title bar of the `z2-view` full screen now looks like the bar at the top of the app's Settings: a green ← at the left and the title in green monospace. The ✕ added at the right in 1.0.23 is gone. A tap anywhere on the bar still closes it, and the bar keeps its height.

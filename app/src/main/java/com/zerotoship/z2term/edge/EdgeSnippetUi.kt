@@ -94,6 +94,13 @@ internal class EdgeSnippetUi(context: Context, private val draft: () -> String,
             val row = LinearLayout(context).apply { gravity = android.view.Gravity.CENTER_VERTICAL }
             val label = LinearLayout(context).apply {
                 orientation = VERTICAL
+                // Under "All", each row names its group; ungrouped rows name nothing.
+                if (selectedGroup == null) groups.firstOrNull { it.id == snippet.groupId }?.name?.takeIf { it.isNotBlank() }?.let {
+                    addView(EdgeSettingsUi.caption(context, it).apply {
+                        setTextColor(EdgeSettingsUi.accent(context)); maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                    })
+                }
                 addView(EdgeSettingsUi.body(context, snippet.label.ifBlank { snippet.command }).apply { maxLines = 2 })
                 if (snippet.label.isNotBlank()) addView(EdgeSettingsUi.caption(context, snippet.command).apply {
                     typeface = Typeface.MONOSPACE; maxLines = 2
