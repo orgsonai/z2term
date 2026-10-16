@@ -850,11 +850,34 @@ object EdgeRuntime {
                     gravity = Gravity.CENTER_VERTICAL
                     setPadding(dp(EdgeSettingsUi.GUTTER), dp(10), dp(10), dp(10))
                 }
-                bar.addView(EdgeSettingsUi.title(ui(),
-                    app!!.getString(R.string.edge_edit_panel, root.fields["label"] ?: root.id)),
-                    LinearLayout.LayoutParams(0, -2, 1f))
+                // The title picks which panel to edit: one tap opens the list, the next opens that
+                // panel on this same page. With unsaved edits it asks Save / Discard first, like Done.
+                val roots = panels.filter { candidate -> panels.none { candidate.id in it.tabs } }
+                val heading = app!!.getString(R.string.edge_edit_panel, root.fields["label"] ?: root.id)
+                bar.addView(EdgeSettingsUi.title(ui(), if (roots.size > 1) "$heading ▼" else heading).apply {
+                    if (roots.size > 1) {
+                        contentDescription = app!!.getString(R.string.edge_choose_panel)
+                        setOnClickListener { anchor ->
+                            val menu = android.widget.PopupMenu(ui(), anchor)
+                            roots.forEachIndexed { index, other ->
+                                menu.menu.add(0, index, index, other.fields["label"] ?: other.id).apply {
+                                    isCheckable = true; isChecked = other.id == root.id
+                                }
+                            }
+                            menu.setOnMenuItemClickListener { choice ->
+                                val other = roots[choice.itemId]
+                                if (other.id != root.id) session.finish(saved = { reload(app!!) }) {
+                                    runCatching { open(other.id, settings = true, page = page) }.onFailure { fail(it) }
+                                }
+                                true
+                            }
+                            menu.show()
+                        }
+                    }
+                }, LinearLayout.LayoutParams(0, -2, 1f))
+                // Done leaves the settings; unsaved edits are saved or discarded on the way out.
                 bar.addView(EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_done)) {
-                    session.leave { open(root.id, tabId = panel.id) }
+                    session.finish(saved = { reload(app!!) }) { open(root.id, tabId = panel.id) }
                 }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(10) })
                 body.addView(bar)
                 // The page is the first decision on this screen, so it sits on the rule under the title.

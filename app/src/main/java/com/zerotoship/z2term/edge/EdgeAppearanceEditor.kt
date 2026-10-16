@@ -262,19 +262,23 @@ object EdgeAppearanceEditor {
                 setMargins(EdgeEditorUi.dp(context, EdgeSettingsUi.GUTTER), EdgeEditorUi.dp(context, 14),
                     EdgeEditorUi.dp(context, EdgeSettingsUi.GUTTER), EdgeEditorUi.dp(context, 16))
             })
-        session.track(outer) {
+        // What Save writes, checked first; Done's Save goes through the same two steps.
+        fun prepareSave(): () -> Unit {
+            val draft = values()
+            EdgeStore.validatePanel(panel.fields + draft)
+            val changed = draft.filter { (key, value) -> value != (panel.fields[key] ?: defaults[key]) }
+            val current = store.panel(panel.id)
+            check(changed.keys.all { current.fields[it] == panel.fields[it] }) {
+                context.getString(R.string.edge_edit_conflict)
+            }
+            return { store.setPanel(panel.id, changed) }
+        }
+        session.track(outer, prepare = { prepareSave() }) {
             values().any { (key, value) -> value != (panel.fields[key] ?: defaults[key]) }
         }
         save.setOnClickListener {
             runCatching {
-                val draft = values()
-                EdgeStore.validatePanel(panel.fields + draft)
-                val changed = draft.filter { (key, value) -> value != (panel.fields[key] ?: defaults[key]) }
-                val current = store.panel(panel.id)
-                check(changed.keys.all { current.fields[it] == panel.fields[it] }) {
-                    context.getString(R.string.edge_edit_conflict)
-                }
-                store.setPanel(panel.id, changed)
+                prepareSave()()
                 finish()
             }.onFailure { Toast.makeText(context, it.message, Toast.LENGTH_LONG).show() }
         }

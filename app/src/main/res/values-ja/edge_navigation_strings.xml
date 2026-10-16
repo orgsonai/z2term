@@ -5,4 +5,7 @@
     <string name="edge_discard">破棄する</string>
     <string name="edge_keep_editing">編集を続ける</string>
     <string name="edge_select_tab">タブを選択</string>
+    <string name="edge_finish_title">変更を保存しますか？</string>
+    <string name="edge_finish_message">保存していない編集があります。追加ボタンを押していないタブ名・パネル名は保存されません。</string>
+    <string name="edge_choose_panel">パネルを選ぶ</string>
 </resources>

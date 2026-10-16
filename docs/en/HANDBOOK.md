@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.24.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.25.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -961,7 +961,7 @@ when a `z2-when` rule fired **without opening the app**.
 2. Open Layout → Add custom slot (macro / command).
 3. Choose Display, then View (z2-view). In 0.8.640, the component is called Text display.
 4. Enter a label and a command that produces HTML and calls `z2-view`. With the updated macros installed, use `rss.sh view` or `remind.sh view`. For your own prepared HTML, use `z2-view "$HOME/page.html"`.
-5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done. In manual mode, press Refresh the first time.
+5. Choose Manual only or Automatic in View refresh mode. Under Display, you can hide Refresh and Expand individually. Set the automatic interval or timeout in Advanced settings if needed, then Save → Done (or choose Save after Done). In manual mode, press Refresh the first time.
 
 Since 0.8.641, the editor includes Choosing a component, guidance for the selected behavior, and field examples. Buttons, entries, choices, switches and lists are covered along with views. Use example only fills an empty draft field; it does not save or execute it.
 
@@ -1162,7 +1162,7 @@ Fields: `actions-tap`, `actions-double-tap`, `actions-up`, `actions-down`, `acti
 Since 0.8.568, the edge-panel ongoing notification does not contribute to the app icon count or notification dot. The next service start after updating migrates to a new channel with badging disabled, preserving the old channel’s notification preferences, including blocked status and importance. The running indicator and stop action remain available in the notification shade.
 
 From 0.8.562, panels show only their items by default. Empty panels have no message or controls. Existing definitions are retained and use the new defaults.
-**Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before. A tap-to-open button moves as soon as you drag it (0.8.565).** Done or Back returns to the panel, asking before discarding unsaved edits (0.8.567). If the keyboard is visible, Back hides only the keyboard and keeps settings open.
+**Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before. A tap-to-open button moves as soon as you drag it (0.8.565).** Done or Back returns to the panel. With unsaved edits, Back asks before discarding them (0.8.567). Done offers Save, Discard or Keep editing; Save saves and returns without pressing the Save button below. Every edit is checked before anything is written, and a mistake in any field saves nothing and stays in settings (1.0.25). To edit another panel, tap the title at the top (marked ▼) and choose it; it opens on the same page (Layout, Panel, Actions or Manage) (1.0.25). If the keyboard is visible, Back hides only the keyboard and keeps settings open.
 Settings use a separate screen independent of panel width. Opening settings does not execute item commands or periodic readers.
 From 0.8.566, the editor has Items, Appearance and Manage pages. Items show icons and names; tap a row or Edit to change it. Move items with the up/down arrows or hold and drag. App launch mode and label are in the basic form; commands and polling options are under Advanced settings. Removing an item requires confirmation in its editor and preserves note files.
 Appearance groups size/position, icons/layout, title/controls and handles into collapsible sections. The size diagram and Save/Cancel buttons stay visible while the form scrolls; handle changes preview on the actual handles. While the IME is visible, the diagram collapses and fields scroll in the remaining space above the keyboard. Only Save writes definitions. Cancel, close and page/tab changes ask before discarding unsaved edits; screen-off and external reload still discard drafts. Items/Appearance/Manage and panel tabs replace content within the same overlay window, without exposing the app behind it (0.8.567). Manage contains names, panel/tab creation and deletion.

@@ -5,4 +5,7 @@
     <string name="edge_discard">Descartar</string>
     <string name="edge_keep_editing">Seguir editando</string>
     <string name="edge_select_tab">Seleccionar pestaña</string>
+    <string name="edge_finish_title">¿Guardar los cambios?</string>
+    <string name="edge_finish_message">Hay ediciones sin guardar. El nombre de una pestaña o panel escrito sin pulsar Añadir no se guarda.</string>
+    <string name="edge_choose_panel">Elegir un panel</string>
 </resources>

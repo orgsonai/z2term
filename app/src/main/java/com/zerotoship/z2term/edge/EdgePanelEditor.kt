@@ -29,13 +29,22 @@ object EdgePanelEditor {
                 LinearLayout.LayoutParams(-2, -2).apply { rightMargin = EdgeEditorUi.dp(context, 8) })
         }
         // A name and its Save belong on one line: the button is what the entry is for.
-        fun nameEntry(label: Int, initial: String, saveLabel: Int, save: (String) -> Unit) {
+        // [rename] is what Done's Save writes; a name for something new is only added by its own button.
+        fun nameEntry(label: Int, initial: String, saveLabel: Int, rename: ((String) -> Unit)? = null, save: (String) -> Unit) {
             section.addView(EdgeSettingsUi.caption(context, context.getString(label)))
             val line = EdgeSettingsUi.row(context)
             val entry = EdgeSettingsUi.field(context).apply {
                 setText(initial); contentDescription = context.getString(label)
             }
-            session.track(entry) { entry.text.toString() != initial }
+            val prepare: (() -> () -> Unit)? = rename?.let { write ->
+                {
+                    val name = entry.text.toString().trim()
+                    require(name.isNotEmpty()) { context.getString(R.string.edge_name_required) }
+                    val commit: () -> Unit = { write(name) }
+                    commit
+                }
+            }
+            session.track(entry, prepare) { entry.text.toString() != initial }
             line.addView(entry, LinearLayout.LayoutParams(0, -2, 1f))
             line.addView(EdgeSettingsUi.button(context, context.getString(saveLabel), EdgeSettingsUi.Kind.PRIMARY) {
                 val name = entry.text.toString().trim()
@@ -46,7 +55,8 @@ object EdgePanelEditor {
                 bottomMargin = EdgeEditorUi.dp(context, 12)
             })
         }
-        nameEntry(R.string.edge_panel_name, panel.fields["label"] ?: panel.id, R.string.edge_save) { name ->
+        nameEntry(R.string.edge_panel_name, panel.fields["label"] ?: panel.id, R.string.edge_save,
+            rename = { name -> store.setPanel(panel.id, mapOf("label" to name)) }) { name ->
             store.setPanel(panel.id, mapOf("label" to name))
             reopen(panel.id)
         }

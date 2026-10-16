@@ -5,4 +5,7 @@
     <string name="edge_discard">Discard</string>
     <string name="edge_keep_editing">Keep editing</string>
     <string name="edge_select_tab">Select tab</string>
+    <string name="edge_finish_title">Save your changes?</string>
+    <string name="edge_finish_message">Some edits are not saved yet. A tab or panel name typed but not added is not saved.</string>
+    <string name="edge_choose_panel">Choose a panel</string>
 </resources>

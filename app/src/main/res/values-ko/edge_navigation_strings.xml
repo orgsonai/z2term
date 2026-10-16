@@ -5,4 +5,7 @@
     <string name="edge_discard">버리기</string>
     <string name="edge_keep_editing">계속 편집</string>
     <string name="edge_select_tab">탭 선택</string>
+    <string name="edge_finish_title">변경 내용을 저장할까요?</string>
+    <string name="edge_finish_message">저장하지 않은 편집이 있습니다. 입력했지만 추가를 누르지 않은 탭 이름이나 패널 이름은 저장되지 않습니다.</string>
+    <string name="edge_choose_panel">패널 선택</string>
 </resources>

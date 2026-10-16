@@ -5,4 +5,7 @@
     <string name="edge_discard">捨棄</string>
     <string name="edge_keep_editing">繼續編輯</string>
     <string name="edge_select_tab">選擇分頁</string>
+    <string name="edge_finish_title">儲存變更嗎？</string>
+    <string name="edge_finish_message">有尚未儲存的編輯。輸入了但未按新增的分頁名稱或面板名稱不會被儲存。</string>
+    <string name="edge_choose_panel">選擇面板</string>
 </resources>

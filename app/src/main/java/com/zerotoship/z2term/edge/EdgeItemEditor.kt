@@ -340,7 +340,54 @@ object EdgeItemEditor {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { showFields() }
         }
         showFields()
-        session.track(outer) {
+        // What Save writes, checked; Done's Save goes through the same two steps.
+        fun draftValues(): Map<String, String> {
+            val values = item?.fields.orEmpty().toMutableMap()
+            EdgeItemComponent.apply(selection, item, values)
+            if (values["type"] == "run") values["button-state"] = if (selection.action == "state_button") "on" else "off"
+            if (values["type"] == "run" && (selection.action == "state_button")) {
+                val selected = EdgeButtonSource.choices[source.selectedItemPosition]
+                if (selected == "auto") values.remove("button-source") else values["button-source"] = selected
+            }
+            if (values["type"] == "note") values["note-lines"] = if (noteLines.isChecked) "on" else "off"
+            if (values["type"] == "view") {
+                values["view-refresh"] = if (viewUpdateMode.selectedItemPosition == 1) "auto" else "manual"
+                values["view-refresh-button"] = if (viewRefreshButton.isChecked) "on" else "off"
+                values["view-expand-button"] = if (viewExpandButton.isChecked) "on" else "off"
+                values["view-find-button"] = if (viewFindButton.isChecked) "on" else "off"
+                values["view-pinch"] = if (viewPinch.selectedItemPosition == 1) "page" else "text"
+            }
+            entries.forEach { (key, entry) ->
+                // Preserve hidden values; only visible fields are edited.
+                if (groups.getValue(key).isVisible) {
+                    val value = if (key in setOf("note-background", "note-color")) entry.text.toString().trim() else entry.text.toString()
+                    if (key == "label") values[key] = value.trim()
+                    else if (value.isEmpty()) values.remove(key) else values[key] = value
+                }
+            }
+            if (appCommand != null && AppLaunchCommand.packageFrom(values["run"].orEmpty()) != null) {
+                val modeCommand = AppLaunchCommand.withMode(values.getValue("run"), launchMode)
+                values["run"] = if (launchMode == "freeform")
+                    AppLaunchCommand.withFreeformScale(modeCommand, scaleFreeform) else modeCommand
+            }
+            if (resultControls.isVisible) values["result-controls"] = if (resultControls.isChecked) "on" else "off"
+            if (values["type"] == "run" && values["label"].isNullOrBlank() && values["icon"].isNullOrBlank() &&
+                AppLaunchCommand.packageFrom(values["run"].orEmpty()) == null) {
+                values["label"] = context.getString(R.string.edge_run)
+            }
+            EdgeStore.validateItem(values)
+            return values
+        }
+        fun write(values: Map<String, String>) {
+            beforeSave()
+            val id = item?.id ?: "item_" + UUID.randomUUID().toString().replace("-", "")
+            store.saveItemDraft("$panelId:$id", values, item?.fields)
+        }
+        session.track(outer, prepare = {
+            val values = draftValues()
+            val commit: () -> Unit = { write(values) }
+            commit
+        }) {
             selection != initial ||
                 EdgeButtonSource.choices[source.selectedItemPosition] != (item?.fields?.get("button-source") ?: "auto") ||
                 launchMode != initialMode ||
@@ -394,45 +441,10 @@ object EdgeItemEditor {
         }, LinearLayout.LayoutParams(0, -2, 1f))
         commit.addView(EdgeSettingsUi.button(context, context.getString(R.string.edge_save), EdgeSettingsUi.Kind.PRIMARY) {
             runCatching {
-                val values = item?.fields.orEmpty().toMutableMap()
-                EdgeItemComponent.apply(selection, item, values)
-                if (values["type"] == "run") values["button-state"] = if (selection.action == "state_button") "on" else "off"
-                if (values["type"] == "run" && (selection.action == "state_button")) {
-                    val selected = EdgeButtonSource.choices[source.selectedItemPosition]
-                    if (selected == "auto") values.remove("button-source") else values["button-source"] = selected
-                }
-                if (values["type"] == "note") values["note-lines"] = if (noteLines.isChecked) "on" else "off"
-                if (values["type"] == "view") {
-                    values["view-refresh"] = if (viewUpdateMode.selectedItemPosition == 1) "auto" else "manual"
-                    values["view-refresh-button"] = if (viewRefreshButton.isChecked) "on" else "off"
-                    values["view-expand-button"] = if (viewExpandButton.isChecked) "on" else "off"
-                    values["view-find-button"] = if (viewFindButton.isChecked) "on" else "off"
-                    values["view-pinch"] = if (viewPinch.selectedItemPosition == 1) "page" else "text"
-                }
-                entries.forEach { (key, entry) ->
-                    // Preserve hidden values; only visible fields are edited.
-                    if (groups.getValue(key).isVisible) {
-                        val value = if (key in setOf("note-background", "note-color")) entry.text.toString().trim() else entry.text.toString()
-                        if (key == "label") values[key] = value.trim()
-                        else if (value.isEmpty()) values.remove(key) else values[key] = value
-                    }
-                }
-                if (appCommand != null && AppLaunchCommand.packageFrom(values["run"].orEmpty()) != null) {
-                    val modeCommand = AppLaunchCommand.withMode(values.getValue("run"), launchMode)
-                    values["run"] = if (launchMode == "freeform")
-                        AppLaunchCommand.withFreeformScale(modeCommand, scaleFreeform) else modeCommand
-                }
-                if (resultControls.isVisible) values["result-controls"] = if (resultControls.isChecked) "on" else "off"
-                if (values["type"] == "run" && values["label"].isNullOrBlank() && values["icon"].isNullOrBlank() &&
-                    AppLaunchCommand.packageFrom(values["run"].orEmpty()) == null) {
-                    values["label"] = context.getString(R.string.edge_run)
-                }
-                EdgeStore.validateItem(values)
+                val values = draftValues()
                 session.leave(except = outer) {
                     runCatching {
-                        beforeSave()
-                        val id = item?.id ?: "item_" + UUID.randomUUID().toString().replace("-", "")
-                        store.saveItemDraft("$panelId:$id", values, item?.fields)
+                        write(values)
                         saved()
                     }.onFailure { Toast.makeText(context, it.message, Toast.LENGTH_LONG).show() }
                 }

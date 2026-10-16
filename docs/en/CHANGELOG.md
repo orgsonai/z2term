@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.25 (versionCode 723)**: Closing edge panel settings and moving to another panel take fewer taps. (1) Pressing Done with unsaved edits offers Save, Discard or Keep editing. Save saves and returns to the panel without pressing the Save button below. Every edit is checked before anything is written, so a mistake in any field saves nothing and keeps you in settings with its message. A tab or panel name typed without pressing Add is not saved. (2) Tapping the settings title ("Edit: … ▼") lists the panels; choosing one opens its settings on the same page (Layout, Panel, Actions or Manage). Before, Manage → Other panels → choosing the page again took up to three taps. With only one panel there is no ▼.
+
 **1.0.24 (versionCode 722)**: The title bar of the `z2-view` full screen now looks like the bar at the top of the app's Settings: a green ← at the left and the title in green monospace. The ✕ added at the right in 1.0.23 is gone. A tap anywhere on the bar still closes it, and the bar keeps its height.
 
 **1.0.23 (versionCode 721)**: The screen `z2-view` opens from a terminal can now be closed on screen; before, only Android's Back closed it. The title bar at the top has ✕ at its right end, and a tap anywhere on the bar closes the screen (like the bar at the top of the app's Settings). The bar keeps its height, so the page has no less room. With a form half filled in, it asks before discarding, as Back does.

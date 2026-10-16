@@ -5,4 +5,7 @@
     <string name="edge_discard">放弃</string>
     <string name="edge_keep_editing">继续编辑</string>
     <string name="edge_select_tab">选择标签页</string>
+    <string name="edge_finish_title">保存更改吗？</string>
+    <string name="edge_finish_message">有尚未保存的编辑。输入了但未按添加的标签名或面板名不会被保存。</string>
+    <string name="edge_choose_panel">选择面板</string>
 </resources>
