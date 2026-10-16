@@ -106,7 +106,7 @@ When a page sets no text colour, the text follows the terminal theme's foregroun
 
 ## Closing the full screen (1.0.23)
 
-Tap the title bar at the top to close the screen. The ✕ at its right end is a marker; anywhere on the bar works the same (Android's Back closes it too). With a form half filled in, it asks before discarding. The bar is always shown, with no option to hide it.
+Tap the title bar at the top to close the screen. It looks like the bar at the top of the app's Settings, and the ← at its left end is a marker; anywhere on the bar works the same (1.0.24) (Android's Back closes it too). With a form half filled in, it asks before discarding. The bar is always shown, with no option to hide it.
 
 ## Hiding the full-screen buttons (1.0.19)
 

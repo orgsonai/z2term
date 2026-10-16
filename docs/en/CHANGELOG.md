@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.24 (versionCode 722)**: The title bar of the `z2-view` full screen now looks like the bar at the top of the app's Settings: a green ← at the left and the title in green monospace. The ✕ added at the right in 1.0.23 is gone. A tap anywhere on the bar still closes it, and the bar keeps its height.
+
 **1.0.23 (versionCode 721)**: The screen `z2-view` opens from a terminal can now be closed on screen; before, only Android's Back closed it. The title bar at the top has ✕ at its right end, and a tap anywhere on the bar closes the screen (like the bar at the top of the app's Settings). The bar keeps its height, so the page has no less room. With a form half filled in, it asks before discarding, as Back does.
 
 **1.0.22 (versionCode 720)**: In split view, a terminal pane that is not the input target can now scroll. Drag up or down to move through its scrollback, and flick to keep it going. Focus stays where it is, so you can type in one pane while reading back through the other. A tap still makes that pane the input target. A full-screen program (a screen with no scrollback) still needs its pane focused first.

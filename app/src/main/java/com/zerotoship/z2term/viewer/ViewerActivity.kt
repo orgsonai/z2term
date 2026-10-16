@@ -36,27 +36,32 @@ class ViewerActivity : ComponentActivity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setBackgroundColor(AppColors.bgPrimary.toArgb())
         }
-        // The title bar closes the screen: a tap anywhere on it, like the Settings bar, with ✕ at the end
-        // as the visible sign. It goes through Back, so a form being edited still asks first. The ✕ shares
-        // the title's size and padding, so the bar is no taller than the title alone and the page keeps its room.
-        val pad = (12 * resources.displayMetrics.density).toInt()
+        // The title bar closes the screen and looks like the Settings bar (SettingsPageTopBar): a green ← and
+        // a green monospace title on the primary background inside a border, and a tap anywhere on it goes Back,
+        // so a form being edited still asks first. ⚠ It keeps the old title row's height (15sp, 6dp above and
+        // below) rather than the Settings sizes, so the page has no less room than before.
+        val density = resources.displayMetrics.density
+        val pad = (12 * density).toInt()
+        val accent = AppColors.accent.toArgb()
         root.addView(LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
-            setBackgroundColor(AppColors.bgSecondary.toArgb())
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(AppColors.bgPrimary.toArgb()); setStroke(density.toInt().coerceAtLeast(1), AppColors.border.toArgb())
+            }
             isClickable = true; contentDescription = getString(R.string.viewer_close)
             setOnClickListener { onBackPressedDispatcher.onBackPressed() }
             addView(TextView(this@ViewerActivity).apply {
-                text = page.title; textSize = 15f; maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                setTextColor(AppColors.textSecondary.toArgb())
-                setPadding(pad, pad / 2, pad / 2, pad / 2)
-            }, LinearLayout.LayoutParams(0, -2, 1f))
-            addView(TextView(this@ViewerActivity).apply {
-                text = "✕"; textSize = 15f; maxLines = 1
-                setTextColor(AppColors.textSecondary.toArgb())
+                text = "←"; textSize = 15f; maxLines = 1; setTextColor(accent)
+                typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
                 importantForAccessibility = android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                setPadding(pad, pad / 2, pad, pad / 2)
+                setPadding(pad, pad / 2, pad / 2, pad / 2)
             }, LinearLayout.LayoutParams(-2, -2))
+            addView(TextView(this@ViewerActivity).apply {
+                text = page.title; textSize = 15f; maxLines = 1; setTextColor(accent)
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, 600, false)
+                setPadding(pad / 2, pad / 2, pad, pad / 2)
+            }, LinearLayout.LayoutParams(0, -2, 1f))
         }, LinearLayout.LayoutParams(-1, -2))
         // A full screen for reading: Refresh and Find are offered unless `z2-view --no-refresh / --no-find`; panels keep Find opt-in.
         // Pages opened from a terminal are new each time, so this screen keeps one text size for all of them.
