@@ -75,6 +75,7 @@ import com.zerotoship.z2term.snippets.SnippetStore
 import com.zerotoship.z2term.ui.components.REORDER_SETTLE_MS
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.settings.ServersBody
+import com.zerotoship.z2term.ui.settings.UiBridgeBody
 import com.zerotoship.z2term.ui.settings.WhenRulesBody
 import com.zerotoship.z2term.ui.ssh.SshProfilesBody
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
@@ -99,7 +100,7 @@ import java.util.UUID
 
 /** ツールシートのタブ。スニペット / SSH・SFTP / 常駐サーバーを 1 枚にまとめる。 */
 private enum class ToolsTab { SNIPPETS, HISTORY, SSH, SERVERS, WHEN }
-private enum class AutomationTab { ACTIONS, RULES }
+private enum class AutomationTab { ACTIONS, RULES, AI }
 
 /**
  * ツールシート (ツールバーの 📜 から開く)。
@@ -110,7 +111,7 @@ private enum class AutomationTab { ACTIONS, RULES }
  *    シェルの履歴ファイル (`~/.bash_history` / `~/.zsh_history`) をそのまま見る。
  *  - 接続先: SSH / SFTP と、その SSH に追加した FTP / SMB / WebDAV / VNC を開く。
  *  - サーバー: 常駐サーバーの起動/停止・ON/OFF・編集 ([ServersBody])。
- *  - 自動化: 画面操作の管理画面と、自動化ルールを切り替える。
+ *  - 自動化: 自動化ルール・画面操作の管理画面・AI 操作 (z2-ui の許可) を切り替える。
  *
  * [showSshTab] は呼び出し元が接続先機能を提供できない特殊画面だけ false にできる。
  * サーバータブは [serverSession] が渡されたときだけ出す。
@@ -172,9 +173,13 @@ fun SnippetsSheet(
             )
             if (tab == ToolsTab.WHEN) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(AutomationTab.RULES, AutomationTab.ACTIONS).forEach { option ->
+                    listOf(AutomationTab.RULES, AutomationTab.ACTIONS, AutomationTab.AI).forEach { option ->
                         AutomationTabChip(
-                            label = stringResource(if (option == AutomationTab.ACTIONS) R.string.tools_automation_actions else R.string.tools_automation_rules),
+                            label = stringResource(when (option) {
+                                AutomationTab.ACTIONS -> R.string.tools_automation_actions
+                                AutomationTab.RULES -> R.string.tools_automation_rules
+                                AutomationTab.AI -> R.string.tools_automation_ai
+                            }),
                             selected = automationTab == option, modifier = Modifier.weight(1f),
                             onSelect = {
                                 if (option != automationTab) actionMacros.requestLeave {
@@ -202,7 +207,7 @@ fun SnippetsSheet(
                             onService = { p, service -> onService(p, service); onDismiss() }
                         )
                         ToolsTab.SERVERS -> serverSession?.let { ServersBody(session = it) }
-                        ToolsTab.WHEN -> WhenRulesBody()
+                        ToolsTab.WHEN -> if (automationTab == AutomationTab.AI) UiBridgeBody() else WhenRulesBody()
                     }
                 }
             }

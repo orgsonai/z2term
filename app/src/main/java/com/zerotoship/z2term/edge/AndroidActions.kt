@@ -231,6 +231,15 @@ class AndroidActions : AccessibilityService() {
             return service.windowPackages[target.id]
         }
 
+        /** z2-ui の相手にする前面の窓。キーボードより下は除いた範囲。メインスレッドから呼ぶ。 */
+        internal class Foreground(val service: AndroidActions, val windowId: Int, val bounds: Rect, val packageName: String?)
+
+        internal fun foreground(): Foreground? {
+            val service = active ?: return null
+            val target = service.focusedTarget() ?: return null
+            return Foreground(service, target.id, Rect(target.bounds), service.windowPackages[target.id])
+        }
+
         internal fun targetMatches(packageName: String): Boolean {
             val service = active ?: return false
             val target = service.focusedTarget() ?: return false

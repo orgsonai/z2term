@@ -58,6 +58,7 @@ internal object ActionRuntime {
         return EdgeRuntime.onMain {
             check(!ActionCoordinatePicker.active) { context.getString(com.zerotoship.z2term.R.string.action_pick_busy) }
             check(current == null) { "An action macro is already running; use z2-action status or stop" }
+            check(!UiBridge.busy) { "z2-ui is sending an operation; try again after it finishes" }
             check(retiringService == null) { "Wait for the previous execution service to stop" }
             check(AndroidActions.connected()) { "Enable z2term Android actions using z2-key permission" }
             check(!AndroidActions.gesturesInFlight()) { "Wait for the previous gesture to finish" }

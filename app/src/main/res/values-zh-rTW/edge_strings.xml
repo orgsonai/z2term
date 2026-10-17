@@ -13,7 +13,7 @@
     <string name="edge_no_command">未指派命令。</string>
     <string name="edge_overlay_help">用 z2-edge permission 允許 z2term 顯示於其他應用程式上層，再執行 z2-edge on。</string>
     <string name="edge_accessibility_label">z2term Android操作</string>
-    <string name="edge_accessibility_description">依命令、巨集或手勢要求，利用視窗邊界、焦點和套件資訊執行Android操作。明確的元素要求還讀取顯示文字、說明和ID，排除可編輯及密碼節點。自動色彩觸發條顯示時，會定期取得螢幕影像以判斷附近亮度。影像不儲存、不傳送，分析後立即釋放。</string>
+    <string name="edge_accessibility_description">依命令、巨集或手勢要求，利用視窗邊界、焦點和套件資訊執行Android操作。明確的元素要求還讀取顯示文字、說明和ID，排除可編輯及密碼節點。自動色彩觸發條顯示時，會定期取得螢幕影像以判斷附近亮度。影像不儲存、不傳送，分析後立即釋放。僅在開啟「AI 操作應用程式」時，z2-ui 要求還會讀取輸入欄位的內容和提示並輸入文字。不讀取密碼欄位的內容，也不輸入。</string>
     <string name="edge_accessibility_help">此操作需要無障礙權限，與顯示於其他應用程式上層的權限不同。用 z2-key permission 啟用 z2term Android操作。若受限制，用 z2-key app-info 並在選單中允許受限制的設定。</string>
     <string name="edge_add_app">+ 應用程式</string>
     <string name="edge_pick_app">選擇應用程式</string>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- z2-ui (AI からのアプリ操作)。設計は docs/ja/AI-BRIDGE.md。 -->
+<resources>
+    <string name="tools_automation_ai">AI 조작</string>
+    <string name="ui_bridge_title">AI 앱 조작</string>
+    <string name="ui_bridge_desc">켜면 터미널에서 실행 중인 AI가 z2-ui 명령으로 다른 앱의 화면을 읽고, 누르고, 글자를 입력할 수 있습니다. 조작 중에는 알림에서 일시정지·지시·정지할 수 있습니다.</string>
+    <string name="ui_bridge_enable">AI 앱 조작 허용</string>
+    <string name="ui_bridge_stopped_note">알림의 \"정지\"로 멈췄습니다. 다시 켜면 재개됩니다.</string>
+    <string name="ui_bridge_paused_note">일시정지 중입니다. AI는 화면을 읽을 수 있지만 조작할 수 없습니다.</string>
+    <string name="ui_bridge_accessibility_needed">접근성 서비스 \"z2term Android 동작\"이 필요합니다.</string>
+    <string name="ui_bridge_open_accessibility">접근성 설정 열기</string>
+    <string name="ui_bridge_apps_title">앱별 허용</string>
+    <string name="ui_bridge_add_app">+ 앱 추가</string>
+    <string name="ui_bridge_grant_title">일괄 허용 시간</string>
+    <string name="ui_bridge_grant_value">%1$d분</string>
+    <string name="ui_bridge_grant_desc">\"매번 확인\" 앱에서 \"앞으로 %1$d분 허용\"을 누르면 그 시간 동안 확인 없이 진행합니다.</string>
+    <string name="ui_bridge_grant_input_title">분 입력</string>
+    <string name="ui_bridge_grant_input_hint">1–1440</string>
+    <string name="ui_bridge_set">설정</string>
+    <string name="ui_bridge_protected_note">z2term·Android 설정·설치 프로그램·알림창은 허용과 관계없이 AI가 조작할 수 없습니다.</string>
+    <string name="ui_bridge_log_note">조작 기록: ~/.z2term/ui/log.jsonl (입력한 글자는 기록하지 않습니다)</string>
+    <string name="ui_bridge_channel">AI 앱 조작</string>
+    <string name="ui_bridge_ask_channel">AI 조작 확인</string>
+    <string name="ui_bridge_running_title">AI가 앱을 조작하는 중</string>
+    <string name="ui_bridge_paused_title">AI 조작 일시정지 중</string>
+    <string name="ui_bridge_grant_left">확인 없음 · %1$d분 남음</string>
+    <string name="ui_bridge_pause">일시정지</string>
+    <string name="ui_bridge_resume">재개</string>
+    <string name="ui_bridge_say">지시 보내기</string>
+    <string name="ui_bridge_say_hint">AI에게 보낼 지시</string>
+    <string name="ui_bridge_stop">정지</string>
+    <string name="ui_bridge_ask_title">이 AI 조작을 허용할까요?</string>
+    <string name="ui_bridge_allow">허용</string>
+    <string name="ui_bridge_deny">거부</string>
+    <string name="ui_bridge_allow_for">앞으로 %1$d분 허용</string>
+    <string name="ui_bridge_change_title">AI가 허용 변경을 요청합니다</string>
+    <string name="ui_bridge_change_level">%1$s을(를) \"%2$s\"(으)로 설정</string>
+    <string name="ui_bridge_change_grant">일괄 허용 시간을 %1$d분으로 설정</string>
+    <string name="ui_bridge_default_apps">목록에 없는 앱</string>
+    <string name="ui_bridge_level_off">안 함</string>
+    <string name="ui_bridge_level_look">읽기만</string>
+    <string name="ui_bridge_level_ask">매번 확인</string>
+    <string name="ui_bridge_level_auto">확인 없음</string>
+    <string name="ui_bridge_op_tap">%1$s의 \"%2$s\" 누르기</string>
+    <string name="ui_bridge_op_long">%1$s의 \"%2$s\" 길게 누르기</string>
+    <string name="ui_bridge_op_type">%1$s의 \"%2$s\"에 \"%3$s\" 입력</string>
+    <string name="ui_bridge_op_enter">%1$s의 \"%2$s\"에서 확인 키 누르기</string>
+    <string name="ui_bridge_op_back">%1$s에서 뒤로 누르기</string>
+    <string name="ui_bridge_op_open">%1$s에서 열기: %2$s</string>
+    <string name="ui_bridge_point">위치 (%1$d, %2$d)</string>
+</resources>

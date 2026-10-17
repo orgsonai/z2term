@@ -280,6 +280,13 @@ object Z2ApiBridge {
                 }.apply { isDaemon = true; name = "z2-ui-inspector"; start() }
                 return // Keep stop and shell commands responsive while an app supplies its UI tree.
             }
+            // z2-ui (AI からのアプリ操作) は承認待ち・wait で数十秒かかる。受付の専用スレッドへ渡し、
+            // この worker は z2-notify や z2-ui stop のために空けておく。
+            if (cmd == "ui") {
+                require(needResp) { "z2-ui requires a response" }
+                com.zerotoship.z2term.automation.UiBridge.submit(context, args) { ok, data -> writeResponse(id, ok, data) }
+                return
+            }
             if (cmd == "action" && args.firstOrNull() == "wait") {
                 require(needResp && args.size == 2) { "action wait RUN_ID requires a response" }
                 com.zerotoship.z2term.automation.ActionRuntime.waitFor(args[1]) { result ->

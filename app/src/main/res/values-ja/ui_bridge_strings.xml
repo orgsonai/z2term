@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- z2-ui (AI からのアプリ操作)。設計は docs/ja/AI-BRIDGE.md。 -->
+<resources>
+    <string name="tools_automation_ai">AI 操作</string>
+    <string name="ui_bridge_title">AI からのアプリ操作</string>
+    <string name="ui_bridge_desc">ON にすると、ターミナルで動く AI が z2-ui コマンドで、ほかのアプリの画面を読み、押し、文字を入れられます。操作中は通知から一時停止・指示・停止ができます。</string>
+    <string name="ui_bridge_enable">AI からのアプリ操作を許可</string>
+    <string name="ui_bridge_stopped_note">通知の「停止」で止まっています。ON にし直すと再開できます。</string>
+    <string name="ui_bridge_paused_note">一時停止中です。AI は画面を読めますが、操作はできません。</string>
+    <string name="ui_bridge_accessibility_needed">ユーザー補助「z2term Android 操作」が必要です。</string>
+    <string name="ui_bridge_open_accessibility">ユーザー補助を開く</string>
+    <string name="ui_bridge_apps_title">アプリごとの許可</string>
+    <string name="ui_bridge_add_app">+ アプリを追加</string>
+    <string name="ui_bridge_grant_title">まとめて許可する時間</string>
+    <string name="ui_bridge_grant_value">%1$d 分</string>
+    <string name="ui_bridge_grant_desc">「毎回確認」のアプリで「このあと %1$d 分は許可」を押すと、その時間は確認なしで進みます。</string>
+    <string name="ui_bridge_grant_input_title">分数を入力</string>
+    <string name="ui_bridge_grant_input_hint">1〜1440</string>
+    <string name="ui_bridge_set">設定</string>
+    <string name="ui_bridge_protected_note">z2term・Android の設定・インストーラー・通知欄は、許可に関係なく AI に操作させません。</string>
+    <string name="ui_bridge_log_note">操作の記録: ~/.z2term/ui/log.jsonl（入れた文字は記録しません）</string>
+    <string name="ui_bridge_channel">AI からのアプリ操作</string>
+    <string name="ui_bridge_ask_channel">AI の操作の確認</string>
+    <string name="ui_bridge_running_title">AI がアプリを操作中</string>
+    <string name="ui_bridge_paused_title">AI の操作を一時停止中</string>
+    <string name="ui_bridge_grant_left">確認なし 残り %1$d 分</string>
+    <string name="ui_bridge_pause">一時停止</string>
+    <string name="ui_bridge_resume">再開</string>
+    <string name="ui_bridge_say">指示を送る</string>
+    <string name="ui_bridge_say_hint">AI への指示</string>
+    <string name="ui_bridge_stop">停止</string>
+    <string name="ui_bridge_ask_title">AI の操作を許可しますか</string>
+    <string name="ui_bridge_allow">許可</string>
+    <string name="ui_bridge_deny">拒否</string>
+    <string name="ui_bridge_allow_for">このあと %1$d 分は許可</string>
+    <string name="ui_bridge_change_title">AI が許可の変更を求めています</string>
+    <string name="ui_bridge_change_level">%1$s を「%2$s」にする</string>
+    <string name="ui_bridge_change_grant">まとめて許可する時間を %1$d 分にする</string>
+    <string name="ui_bridge_default_apps">一覧に無いアプリ</string>
+    <string name="ui_bridge_level_off">させない</string>
+    <string name="ui_bridge_level_look">読むだけ</string>
+    <string name="ui_bridge_level_ask">毎回確認</string>
+    <string name="ui_bridge_level_auto">確認なし</string>
+    <string name="ui_bridge_op_tap">%1$s の「%2$s」を押す</string>
+    <string name="ui_bridge_op_long">%1$s の「%2$s」を長押しする</string>
+    <string name="ui_bridge_op_type">%1$s の「%2$s」に「%3$s」を入れる</string>
+    <string name="ui_bridge_op_enter">%1$s の「%2$s」で確定キーを押す</string>
+    <string name="ui_bridge_op_back">%1$s で「戻る」を押す</string>
+    <string name="ui_bridge_op_open">%1$s で開く: %2$s</string>
+    <string name="ui_bridge_point">位置 (%1$d, %2$d)</string>
+</resources>

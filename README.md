@@ -16,6 +16,7 @@ notification shade, or run a script when the battery, the network or an incoming
 - **The shell can talk to Android.** Around 40 `z2-*` helpers (notifications, clipboard, sensors, torch, intents, alarms, wireless `adb` to the device itself) plus `z2-when` — an automation hub that runs scripts on device events and keeps working after a reboot without the app being opened.
 - **Press a command without opening the terminal.** `z2-edge` builds edge panels that float over other apps: commands, macros and app launches as buttons, plus notes and a mini terminal. The handle at the screen edge takes a sequence of actions for each of six gestures. Both can be edited on screen. See [the handbook](docs/en/HANDBOOK.md#96-floating-edge-panels).
 - **The shell can drive the screen.** `z2-action` sends taps, swipes and gestures. Steps live in a plain text file with repeats and conditions, and can also be edited on screen or recorded by tracing with a finger. See [the format and examples](docs/en/ACTION-MACROS.md).
+- **An AI can operate other apps.** `z2-ui` reads the foreground app's screen as JSON, taps elements by number and enters text, even in apps without an API. It is off by default; each app can be set to read only, ask each time and so on, and a notification lets you pause, instruct or stop the AI while it works. [How it works](docs/en/AI-BRIDGE.md).
 - **Usable in Japanese.** A built-in kana-kanji IME with prediction and learning, which can also be turned on as an OS-wide input method.
 
 > The 5th project of the Zero to Ship initiative.

@@ -578,6 +578,12 @@
             android:name=".service.NotifyActionReceiver"
             android:exported="false" />
 
+        <!-- z2-ui (AI からのアプリ操作) の通知のボタン・返信欄の受け口。自アプリの PendingIntent からのみ届き、
+             さらに UiBridge がプロセス内の印を確かめる (AI が同じ uid で打つ放送で「許可」「再開」を押させない)。 -->
+        <receiver
+            android:name=".automation.UiBridgeReceiver"
+            android:exported="false" />
+
         <!-- z2-ask の返信欄 (RemoteInput) の受け口。自アプリの PendingIntent からのみ届く。 -->
         <receiver
             android:name=".service.AskReplyReceiver"

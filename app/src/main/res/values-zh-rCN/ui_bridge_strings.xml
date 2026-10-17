@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- z2-ui (AI からのアプリ操作)。設計は docs/ja/AI-BRIDGE.md。 -->
+<resources>
+    <string name="tools_automation_ai">AI 操作</string>
+    <string name="ui_bridge_title">AI 操作应用</string>
+    <string name="ui_bridge_desc">开启后，在终端中运行的 AI 可以用 z2-ui 命令读取其他应用的屏幕、点击并输入文字。操作期间可在通知中暂停、发送指示或停止。</string>
+    <string name="ui_bridge_enable">允许 AI 操作应用</string>
+    <string name="ui_bridge_stopped_note">已通过通知中的“停止”停止。重新开启即可继续。</string>
+    <string name="ui_bridge_paused_note">已暂停。AI 可以读取屏幕，但不能操作。</string>
+    <string name="ui_bridge_accessibility_needed">需要无障碍服务“z2term Android 操作”。</string>
+    <string name="ui_bridge_open_accessibility">打开无障碍设置</string>
+    <string name="ui_bridge_apps_title">按应用授权</string>
+    <string name="ui_bridge_add_app">+ 添加应用</string>
+    <string name="ui_bridge_grant_title">批量允许时长</string>
+    <string name="ui_bridge_grant_value">%1$d 分钟</string>
+    <string name="ui_bridge_grant_desc">对设为“每次确认”的应用，按“接下来 %1$d 分钟允许”后，在这段时间内不再确认。</string>
+    <string name="ui_bridge_grant_input_title">输入分钟数</string>
+    <string name="ui_bridge_grant_input_hint">1–1440</string>
+    <string name="ui_bridge_set">设置</string>
+    <string name="ui_bridge_protected_note">z2term、Android 设置、安装程序和通知栏无论授权如何都不允许 AI 操作。</string>
+    <string name="ui_bridge_log_note">操作记录：~/.z2term/ui/log.jsonl（不记录输入的文字）</string>
+    <string name="ui_bridge_channel">AI 操作应用</string>
+    <string name="ui_bridge_ask_channel">AI 操作确认</string>
+    <string name="ui_bridge_running_title">AI 正在操作应用</string>
+    <string name="ui_bridge_paused_title">AI 操作已暂停</string>
+    <string name="ui_bridge_grant_left">无需确认 · 剩余 %1$d 分钟</string>
+    <string name="ui_bridge_pause">暂停</string>
+    <string name="ui_bridge_resume">继续</string>
+    <string name="ui_bridge_say">发送指示</string>
+    <string name="ui_bridge_say_hint">给 AI 的指示</string>
+    <string name="ui_bridge_stop">停止</string>
+    <string name="ui_bridge_ask_title">允许此 AI 操作吗？</string>
+    <string name="ui_bridge_allow">允许</string>
+    <string name="ui_bridge_deny">拒绝</string>
+    <string name="ui_bridge_allow_for">接下来 %1$d 分钟允许</string>
+    <string name="ui_bridge_change_title">AI 请求更改授权</string>
+    <string name="ui_bridge_change_level">将 %1$s 设为“%2$s”</string>
+    <string name="ui_bridge_change_grant">将批量允许时长设为 %1$d 分钟</string>
+    <string name="ui_bridge_default_apps">不在列表中的应用</string>
+    <string name="ui_bridge_level_off">不允许</string>
+    <string name="ui_bridge_level_look">只读</string>
+    <string name="ui_bridge_level_ask">每次确认</string>
+    <string name="ui_bridge_level_auto">无需确认</string>
+    <string name="ui_bridge_op_tap">点击 %1$s 中的“%2$s”</string>
+    <string name="ui_bridge_op_long">长按 %1$s 中的“%2$s”</string>
+    <string name="ui_bridge_op_type">在 %1$s 的“%2$s”中输入“%3$s”</string>
+    <string name="ui_bridge_op_enter">在 %1$s 的“%2$s”中按确认键</string>
+    <string name="ui_bridge_op_back">在 %1$s 中按返回</string>
+    <string name="ui_bridge_op_open">在 %1$s 中打开：%2$s</string>
+    <string name="ui_bridge_point">位置 (%1$d, %2$d)</string>
+</resources>

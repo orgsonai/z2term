@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- z2-ui (AI からのアプリ操作)。設計は docs/ja/AI-BRIDGE.md。 -->
+<resources>
+    <string name="tools_automation_ai">IA</string>
+    <string name="ui_bridge_title">Control de apps por IA</string>
+    <string name="ui_bridge_desc">Si está activado, una IA que se ejecuta en la terminal puede usar el comando z2-ui para leer la pantalla de otras apps, tocar e introducir texto. Mientras trabaja, la notificación permite pausarla, enviarle una instrucción o detenerla.</string>
+    <string name="ui_bridge_enable">Permitir que la IA controle apps</string>
+    <string name="ui_bridge_stopped_note">Detenido desde la notificación. Actívalo de nuevo para continuar.</string>
+    <string name="ui_bridge_paused_note">En pausa. La IA puede leer la pantalla, pero no actuar.</string>
+    <string name="ui_bridge_accessibility_needed">Requiere el servicio de accesibilidad “z2term Android actions”.</string>
+    <string name="ui_bridge_open_accessibility">Abrir accesibilidad</string>
+    <string name="ui_bridge_apps_title">Permiso por app</string>
+    <string name="ui_bridge_add_app">+ Añadir app</string>
+    <string name="ui_bridge_grant_title">Duración de la aprobación</string>
+    <string name="ui_bridge_grant_value">%1$d min</string>
+    <string name="ui_bridge_grant_desc">En las apps con “Preguntar siempre”, pulsar “Permitir %1$d min” deja que la IA continúe sin preguntar durante ese tiempo.</string>
+    <string name="ui_bridge_grant_input_title">Introduce los minutos</string>
+    <string name="ui_bridge_grant_input_hint">1–1440</string>
+    <string name="ui_bridge_set">Aplicar</string>
+    <string name="ui_bridge_protected_note">z2term, los ajustes de Android, los instaladores y el panel de notificaciones nunca están disponibles para la IA, sea cual sea el permiso.</string>
+    <string name="ui_bridge_log_note">Registro: ~/.z2term/ui/log.jsonl (no se guarda el texto escrito)</string>
+    <string name="ui_bridge_channel">Control de apps por IA</string>
+    <string name="ui_bridge_ask_channel">Aprobación de acciones de IA</string>
+    <string name="ui_bridge_running_title">La IA está controlando una app</string>
+    <string name="ui_bridge_paused_title">Control de IA en pausa</string>
+    <string name="ui_bridge_grant_left">Sin aprobación · quedan %1$d min</string>
+    <string name="ui_bridge_pause">Pausar</string>
+    <string name="ui_bridge_resume">Reanudar</string>
+    <string name="ui_bridge_say">Enviar instrucción</string>
+    <string name="ui_bridge_say_hint">Instrucción para la IA</string>
+    <string name="ui_bridge_stop">Detener</string>
+    <string name="ui_bridge_ask_title">¿Permitir esta acción de la IA?</string>
+    <string name="ui_bridge_allow">Permitir</string>
+    <string name="ui_bridge_deny">Denegar</string>
+    <string name="ui_bridge_allow_for">Permitir %1$d min</string>
+    <string name="ui_bridge_change_title">La IA pide cambiar su permiso</string>
+    <string name="ui_bridge_change_level">Poner %1$s en “%2$s”</string>
+    <string name="ui_bridge_change_grant">Poner la duración de la aprobación en %1$d min</string>
+    <string name="ui_bridge_default_apps">Apps que no están en la lista</string>
+    <string name="ui_bridge_level_off">Desactivado</string>
+    <string name="ui_bridge_level_look">Solo lectura</string>
+    <string name="ui_bridge_level_ask">Preguntar siempre</string>
+    <string name="ui_bridge_level_auto">Sin aprobación</string>
+    <string name="ui_bridge_op_tap">Tocar “%2$s” en %1$s</string>
+    <string name="ui_bridge_op_long">Mantener pulsado “%2$s” en %1$s</string>
+    <string name="ui_bridge_op_type">Escribir “%3$s” en “%2$s” de %1$s</string>
+    <string name="ui_bridge_op_enter">Pulsar Intro en “%2$s” de %1$s</string>
+    <string name="ui_bridge_op_back">Pulsar Atrás en %1$s</string>
+    <string name="ui_bridge_op_open">Abrir en %1$s: %2$s</string>
+    <string name="ui_bridge_point">punto (%1$d, %2$d)</string>
+</resources>

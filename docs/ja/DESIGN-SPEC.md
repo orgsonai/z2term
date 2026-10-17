@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-18 / 対象バージョン: 1.0.29 (versionCode 727)
+最終更新: 2026-10-18 / 対象バージョン: 1.0.30 (versionCode 728)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -2531,6 +2531,21 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - `ProotLauncher.ensureZ2ApiScripts` が launch 毎に `/usr/local/bin` へ書き出す。req/resp は `getExternalFilesDir/z2api` を `FileObserver` で監視、引数は base64、atomic rename。
 
 ---
+
+#### AI からのアプリ操作（`z2-ui` / `UiBridge`、1.0.30）
+
+利用者向けの説明・コマンド一覧は [AI-BRIDGE.md](AI-BRIDGE.md)。ここは作りだけを書く。
+
+- **経路**: `z2-ui`（`Z2UiScript`）→ `z2api 1 ui …` → `Z2ApiBridge` が `cmd == "ui"` を `UiBridge.submit` へ渡す。承認待ち（最大 60 秒）と `wait`（最大 30 秒）があるので、ブリッジの worker では処理しない。`UiBridge` は 2 本のスレッドを持ち、`pause` / `say` / `stop` / `status` は塞がっている worker の後ろに並ばない専用の 1 本で受ける。スクリプト側は `Z2API_WAIT=1000`（100 秒）で待ち、失敗の本文（z2api は stderr へ出す）も 2>&1 で標準出力へまとめる。アプリが答えないときは決まった JSON（`no_response`）に置き換える。
+- **判定は `UiBridge` の 1 か所**: 入口 `enter()` で、溜まった指示（`interrupted`、1 回だけ）→ `stopped` → `disabled` → ユーザー補助の接続 → 操作なら `paused` の順に見る。段階は `UiBridgePolicy.level()`（Android 非依存・`UiBridgePolicyTest`）。常に OFF の画面は固定の名簿に、`Settings.ACTION_SETTINGS` / `ACTION_ACCESSIBILITY_SETTINGS` / アプリ情報 / APK を開く Intent の解決先を足したもの（機種ごとに名前の違う設定画面・インストーラーを拾うため）。
+- **許可の保存先は SharedPreferences（`UiBridgeSettings`）**。共有ホームのファイルにすると、ターミナルで root として動く AI が自分で書き換えられる。⚠ 同じ uid のプロセスに対する防壁ではないので、「うっかり広げない」までが保証の範囲。
+- **通知のボタンは `controlToken`（プロセス内の乱数）を持つ**。`UiBridgeReceiver` は exported=false だが、AI は同じ uid で `cmd activity broadcast` を打てるので、印の無い放送は捨てる。承認はさらに要求ごとの nonce を持つ。再開は CLI に置かない（AI が自分で一時停止を解けないように）。
+- **割り込み**: 一時停止・指示・停止は `generation` を進める。承認待ち・`wait` の待ちループは 250 ミリ秒ごとに `alive(gen)` で確かめ、変わっていれば理由ごと投げる。指示は次の呼び出しの返事（`interrupted` + `message`）として 1 回だけ渡し、`events.jsonl` にも `ui_interrupt` を書く。
+- **z2-action との排他**: `tap` / `long` / `type` / `enter` / `key` / `open` / `allow` は承認待ちを含めて `busy` を立てる（`exclusive`）。`ActionRuntime.start` は `UiBridge.busy` の間は始めない。前面に出た承認のバナーを、AI が z2-action の座標操作で押せないようにするため。
+- **読み取り（`AndroidUiLook`）**: 前面の窓は `AndroidActions.foreground()`（`focusedTarget` と同じ選び方。キーボードより下は除く）。木は幅優先で最大 3000 ノード・1.5 秒、別パッケージとパスワード欄の中には入らない。要素は最大 512 件。押せるかは、自分か 8 階層以内の祖先が `ACTION_CLICK` を持つかで決め、押すときもその祖先へ送る。入力欄はヒント表示中なら中身を空とする（`isShowingHintText`）。
+- **番号（`#n`）**: `look` の結果（窓 id・パッケージ・各要素の子の添字の道筋）を 1 つだけ覚える。操作の直前に根から道筋をたどり直し、種類・文字・説明・ID・位置が同じかを比べる（入力欄の中身は打てば変わるので比べない）。違えば `stale`。`text=` などの指定は入力欄では中身ではなくヒントと比べる。
+- **`changed`**: 操作の前後で画面の印（窓 id と要素の並び）を比べ、150 ミリ秒ごとに 1 秒まで見る。
+- **記録**: `~/.z2term/ui/log.jsonl`。`type` は対象と文字数だけ、`look` は中身を書かない。1 MB で `log.1.jsonl` へ回す。
 
 ### 4.14 エッジパネル (`edge/`、0.8.549)
 

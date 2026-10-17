@@ -1110,6 +1110,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     return linkedMapOf(
         *z2EdgeScripts(lang).toList().toTypedArray(),
         "z2-action" to z2ActionScript(lang),
+        "z2-ui" to z2UiScript(lang),
         "z2-audio" to z2AudioScript(lang),
         "z2api" to dispatcher,
         "z2-session" to session,

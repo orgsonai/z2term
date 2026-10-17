@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-18 / Target version: 1.0.29 (versionCode 727)
+Last updated: 2026-10-18 / Target version: 1.0.30 (versionCode 728)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -2562,6 +2562,21 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
 - `ProotLauncher.ensureZ2ApiScripts` writes them to `/usr/local/bin` on every launch. req/resp watch `getExternalFilesDir/z2api` with a `FileObserver`, args are base64, atomic rename.
 
 ---
+
+#### AI app control (`z2-ui` / `UiBridge`, 1.0.30)
+
+User-facing description and commands: [AI-BRIDGE.md](AI-BRIDGE.md). This section covers the internals only.
+
+- **Path**: `z2-ui` (`Z2UiScript`) → `z2api 1 ui …` → `Z2ApiBridge` hands `cmd == "ui"` to `UiBridge.submit`. Approval (up to 60 s) and `wait` (up to 30 s) can take long, so the bridge worker does not run them. `UiBridge` has two threads; `pause` / `say` / `stop` / `status` use a dedicated one so they never queue behind a blocked worker. The script waits with `Z2API_WAIT=1000` (100 s) and merges the failure text (z2api prints it on stderr) into stdout with 2>&1; when the app does not answer, it prints a fixed JSON (`no_response`).
+- **One decision point, `UiBridge`**: `enter()` checks, in order, a pending instruction (`interrupted`, once), `stopped`, `disabled`, the accessibility connection, and `paused` for operations. Levels come from `UiBridgePolicy.level()` (Android-free, `UiBridgePolicyTest`). Always-off screens are a fixed list plus whatever resolves `Settings.ACTION_SETTINGS`, `ACTION_ACCESSIBILITY_SETTINGS`, app details and APK installs, to catch device-specific settings apps and installers.
+- **Permissions live in SharedPreferences (`UiBridgeSettings`).** A file in the shared home could be rewritten by the AI, which runs as root in the terminal. ⚠ It is not a wall against processes with the same uid; the guarantee is "not widened by mistake".
+- **Notification buttons carry `controlToken` (an in-process random value).** `UiBridgeReceiver` is not exported, but the AI can send `cmd activity broadcast` under the same uid, so broadcasts without the token are dropped. Approvals also carry a per-request nonce. There is no resume command, so the AI cannot lift a pause itself.
+- **Interruptions**: pause, instruct and stop advance `generation`. Approval and `wait` loops call `alive(gen)` every 250 ms and throw with the reason when it changed. An instruction is delivered once as the reply to the next call (`interrupted` + `message`) and also written to `events.jsonl` as `ui_interrupt`.
+- **Exclusion with z2-action**: `tap` / `long` / `type` / `enter` / `key` / `open` / `allow` hold `busy` for their whole duration, approval included (`exclusive`), and `ActionRuntime.start` refuses while `UiBridge.busy` is set, so the AI cannot tap the approval banner with a z2-action coordinate macro.
+- **Reading (`AndroidUiLook`)**: the foreground window comes from `AndroidActions.foreground()` (chosen like `focusedTarget`, excluding the area below the keyboard). The tree is walked breadth-first up to 3000 nodes / 1.5 s without entering other packages or password fields; at most 512 elements are returned. An element is tappable when it or an ancestor within eight levels offers `ACTION_CLICK`, and the tap is sent to that ancestor. An input field showing its hint (`isShowingHintText`) reports empty content.
+- **Numbers (`#n`)**: one `look` result is kept (window id, package, and each element's path of child indices). Right before an operation the path is walked again from the root and the kind, text, description, ID and position are compared (field content is not, since typing changes it); any difference gives `stale`. Selectors such as `text=` match an input field's hint rather than its content.
+- **`changed`**: a screen fingerprint (window id and element list) is compared every 150 ms for up to one second after the operation.
+- **Log**: `~/.z2term/ui/log.jsonl`. `type` records only the target and the length; `look` contents are not written. Rotated to `log.1.jsonl` at 1 MB.
 
 ### 4.14 Edge panels (`edge/`, 0.8.549)
 
