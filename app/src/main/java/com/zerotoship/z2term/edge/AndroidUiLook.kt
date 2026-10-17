@@ -534,25 +534,45 @@ internal object AndroidUiLook {
         }
     }
 
-    /** [sample] の結果。[rgb] は点ごとの 0xRRGGBB。 */
-    class Sample(val rgb: IntArray, val stable: Boolean?)
+    /**
+     * [sample] の結果。[rgb] は点ごとの 0xRRGGBB。[met] は条件を満たしたか (条件が無ければ null)、
+     * [waitedMs] は条件を待った時間。
+     */
+    class Sample(val rgb: IntArray, val stable: Boolean?, val met: Boolean? = null, val waitedMs: Long = 0)
 
     /**
      * 画面の点の色を読む (`z2-ui colors`)。画像を保存せず、AI には色の名前を文字で返す (画像を読ませるより速い)。
      * 止まったかは点のまわり (点をすべて囲む範囲) だけで見る。
+     *
+     * [until] があれば、色がそれを満たすまで最大 [withinMs] 撮り直して待つ (撮影の間隔は Android の下限の
+     * 約 1/3 秒)。満たしたら、[stableMs] > 0 のときは続けて止まるのを待ってから読む。満たさないまま時間が
+     * 来たら、最後に読んだ色を [Sample.met] = false で返す。[alive] は待つ間の一時停止・停止の確かめ。
      */
     @androidx.annotation.RequiresApi(30)
-    suspend fun sample(at: Points, gate: (String) -> Unit, stableMs: Long): Sample {
+    suspend fun sample(at: Points, gate: (String) -> Unit, stableMs: Long, until: UiBridgePolicy.Until? = null,
+        withinMs: Long = 0, alive: () -> Unit = {}): Sample {
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
         if (at.points.any { (x, y) -> !window.bounds.contains(x, y) })
             throw Refusal("outside", "All points must be inside the foreground app window")
         val around = Rect(at.points.minOf { it.first } - at.radius, at.points.minOf { it.second } - at.radius,
             at.points.maxOf { it.first } + at.radius + 1, at.points.maxOf { it.second } + at.radius + 1)
-        val f = frame(gate, stableMs, 0L, settleArea = around)
-        try {
+        fun read(f: Frame): IntArray = try {
             if (f.window.id != window.id) throw Refusal("changed", "The screen changed; try again")
-            return Sample(pick(f.image, f.window, at), f.stable)
+            pick(f.image, f.window, at)
         } finally { f.image.recycle() }
+        if (until == null) return frame(gate, stableMs, 0L, settleArea = around).let { Sample(read(it), it.stable) }
+        val started = SystemClock.uptimeMillis()
+        val first = read(frame(gate, 0L, 0L))
+        var rgb = first
+        while (!until.met(rgb, first)) {
+            if (SystemClock.uptimeMillis() - started >= withinMs) return Sample(rgb, null, met = false, waitedMs = SystemClock.uptimeMillis() - started)
+            alive()
+            rgb = read(frame(gate, 0L, 0L))
+        }
+        val waited = SystemClock.uptimeMillis() - started
+        if (stableMs <= 0) return Sample(rgb, null, met = true, waitedMs = waited)
+        val f = frame(gate, stableMs, 0L, settleArea = around)
+        return Sample(read(f), f.stable, met = true, waitedMs = waited)
     }
 
     /**

@@ -154,6 +154,47 @@ internal object UiBridgePolicy {
 
     fun hex(rgb: Int) = "#%06x".format(rgb and 0xffffff)
 
+    /** 点の色 (0xRRGGBB) の明るさの平均 (0..255)。重みは [settled] の縮小画像と同じ。 */
+    fun brightness(rgb: IntArray): Double = if (rgb.isEmpty()) 0.0 else rgb.sumOf { c ->
+        (((c shr 16) and 0xff) * 3 + ((c shr 8) and 0xff) * 6 + (c and 0xff)) / 10.0
+    } / rgb.size
+
+    /**
+     * `colors --until` の条件。画面の色が条件を満たすまで、撮り直しながら待つ (画像は作らない)。
+     * 操作できる番になると盤面が明るくなる・ランプが緑になる・読み込みの印が消える、のような
+     * 「決まった場所の色」で分かる状態を、AI が画像を読まずに待つためのもの。
+     */
+    sealed interface Until {
+        /** 判定する。[first] は最初に読んだ色 ([Changed] が比べる相手)。 */
+        fun met(rgb: IntArray, first: IntArray): Boolean
+
+        data class Brighter(val level: Int) : Until { override fun met(rgb: IntArray, first: IntArray) = brightness(rgb) > level }
+        data class Darker(val level: Int) : Until { override fun met(rgb: IntArray, first: IntArray) = brightness(rgb) < level }
+        /** どれかの点の色の名前が、最初に読んだときから変わった。 */
+        object Changed : Until {
+            override fun met(rgb: IntArray, first: IntArray) = rgb.indices.any { colorName(rgb[it]) != colorName(first[it]) }
+        }
+        /** すべての点が [name] の色。 */
+        data class Named(val name: String) : Until { override fun met(rgb: IntArray, first: IntArray) = rgb.all { colorName(it) == name } }
+
+        companion object {
+            /** `brighter N` / `darker N` / `changed` / 色の名前。読めなければ null。読んだ語の数も返す。 */
+            fun parse(words: List<String>): Pair<Until, Int>? {
+                val level = words.getOrNull(1)?.toIntOrNull()?.takeIf { it in 0..255 }
+                return when (val head = words.firstOrNull()) {
+                    "brighter" -> level?.let { Brighter(it) to 2 }
+                    "darker" -> level?.let { Darker(it) to 2 }
+                    "changed" -> Changed to 1
+                    in COLOR_NAMES -> Named(head!!) to 1
+                    else -> null
+                }
+            }
+        }
+    }
+
+    const val UNTIL_DEFAULT_MS = 10_000L
+    const val UNTIL_MAX_MS = 30_000L
+
     /** 操作の相手の指定。 */
     sealed interface Target {
         /** 直前の `look` の要素番号（`#2`）。 */

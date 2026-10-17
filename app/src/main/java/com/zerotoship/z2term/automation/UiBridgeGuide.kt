@@ -201,6 +201,15 @@ Two commands cut both:
   distance between cells (may be negative); `grid` is one string per row, left to right, top row first,
   e.g. `["red blue green blue pink yellow", ...]`. `--hex` adds `#rrggbb` per cell. At most 400 points.
 - `--stable` waits until the screen stops moving first (as `shot --stable`). Same permission as shot (level look).
+- `--until COND [--within MS]` waits INSIDE z2term until the colours meet COND, checking about three times a second
+  (Android's capture limit), with no image at all. COND is `brighter N` / `darker N` (mean brightness of the points,
+  0 to 255), `changed` (any point's colour name differs from the first reading) or a colour name (every point has
+  it). `--within` is the limit, 1 to 30000 ms (default 10000). With `--stable` it then also waits for the area to
+  stop moving. The reply adds `waited_ms`. On timeout the error is `not_met`, and the reply still carries the last
+  colours. This replaces the loop "shot, read the image, decide to wait, shot again", which costs you 5 to 10 s per
+  round, with a wait of about a third of a second.
+- Thresholds depend on the app. Measure once with `--hex` in each state (for example the board while you may move and
+  while it is dimmed), pick N between them, and write it in your notes.
 - Use it whenever the state you need is a colour at a known place: board cells, a status lamp, a toggle drawn
   without an element, whether a progress mark has gone. Take ONE shot to learn the layout (cell centres, where
   the lamp is), write it in your notes, then use colors instead of shots. Names are coarse; when two things share
@@ -219,8 +228,8 @@ Two commands cut both:
 - Every step is checked and logged exactly as if called alone: approvals with `ask`, pause, instructions and stop
   still apply, and `mark`/`save` record the steps. A seq stops starting new steps after 60 s (`timeout`).
 - Use it when you already know the next steps: filling a form (type, type, tap), walking through known dialogs,
-  a fixed path through menus, or "do the move, wait, read the board" in a game:
-  `z2-ui seq drag ... -- colors --grid ... --stable`.
+  a fixed path through menus, or "do the move, wait until it is your turn again, read the board" in a game:
+  `z2-ui seq drag ... -- colors --grid ... --until brighter N --within 20000 --stable`.
 
 ## 10. Speed, games and time limits
 
@@ -242,6 +251,8 @@ Design your moves so that time limits do not depend on your thinking time:
   of 40 to 50 ms usually works then.
 - After the move, one `--shot --stable --grid ...` (or `seq drag ... -- shot --stable --grid ...`) returns the
   picture and the next board together; you do not need a separate `colors` call.
+- Faster still, without any image: `seq drag ... -- colors --grid ... --until brighter N --stable` returns the next
+  board as text the moment your turn starts (section 9). Take a shot only when the colours look unexpected.
   For a board, compute each cell centre from the shot once (box, scale and the grid) and reuse it.
 - Use `shot --jpeg --scale 0.5` (or smaller) when you only need to recognise colours and positions, and `--box` to
   capture only the area you need. Add `--if-changed` so an unchanged screen costs you no image.
@@ -308,7 +319,7 @@ notification. You learn about it as the reply to your next call:
 
 - Start: `z2-ui mcp` (stdio). From a PC, register `ssh <phone> z2-ui mcp` as a stdio MCP server.
 - Tools: front, look (all, tree, in), shot (scale, format, stable, box, if_changed; also returns the image), colors (points or grid
-  {origin, step, cols, rows}, radius, hex, stable), seq (steps as [["tap", "@540,700"], ["sleep", "500"], ...]; the image of
+  {origin, step, cols, rows}, radius, hex, stable, until as one string such as "brighter 120", within_ms), seq (steps as [["tap", "@540,700"], ["sleep", "500"], ...]; the image of
   a last shot step and of a --peek in any step are returned), tap, long, enter (target), type (target, text,
   append), key (name), open (target), wait (selector, ms), wait_change (ms), scroll (target, direction),
   swipe (x1, y1, x2, y2, ms), drag (points as [[x, y], ...], step, hold_ms), notes (package), write_notes (package, text), mark, save (name), notifications,
@@ -356,6 +367,7 @@ notification. You learn about it as the reply to your next call:
 | unsupported_step / exists / nothing_recorded / too_long | save could not be done | see section 13 |
 | no_notification_access | notification access missing | ask the user |
 | timeout | a seq ran over 60 s; later steps were not run | look, then continue with fewer steps |
+| not_met | colors --until did not see the condition in time | read the colours in the reply; shot if unsure |
 | bad_args | wrong command or arguments | read this guide and fix the call |
 | no_response | z2term did not answer | check that z2term is running; ask the user |
 """.trim()

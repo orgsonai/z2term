@@ -508,25 +508,50 @@ internal object UiBridge {
     }
 
     /**
-     * `colors X,Y … | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex]`。
+     * `colors X,Y … | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex] [--until COND [--within MS]]`。
      * 画面の点の色を名前 (と `--hex` で #rrggbb) の文字で返す。画像を読ませるより AI がずっと速く判断できる。
      * 盤面・色で状態を示す画面 (ランプ・スイッチ・読み込み中の印など) を、撮らずに見分けるためのもの。
+     *
+     * `--until` (brighter N / darker N / changed / 色の名前) は、色が条件を満たすまでアプリの中で待つ。
+     * AI が撮って読んで判断する往復 (1 回 5〜10 秒) を、撮影の間隔 (約 1/3 秒) ごとの確かめに置き換える。
+     * 満たさないまま `--within` (既定 10 秒、最大 30 秒) が過ぎたら `not_met` (最後に読んだ色も付ける)。
      */
     private fun colors(app: Context, settings: UiBridgeSettings, args: List<String>): JSONObject {
         if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
-        val usage = "z2-ui colors X,Y ... | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex]"
+        val usage = "z2-ui colors X,Y ... | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex] " +
+            "[--until brighter N|darker N|changed|COLOR [--within MS]]"
         val (spec, rest) = takeColors(args, positional = true)
         if (spec == null) throw Refusal("bad_args", usage)
         var stable = 0L
+        var until: UiBridgePolicy.Until? = null
+        var within = UiBridgePolicy.UNTIL_DEFAULT_MS
         var i = 0
         while (i < rest.size) {
-            if (rest[i] == "--stable") stableArg(rest, i).let { (ms, at) -> stable = ms; i = at }
-            else throw Refusal("bad_args", usage)
+            when (rest[i]) {
+                "--stable" -> stableArg(rest, i).let { (ms, at) -> stable = ms; i = at }
+                "--until" -> {
+                    val (condition, used) = UiBridgePolicy.Until.parse(rest.drop(i + 1))
+                        ?: throw Refusal("bad_args", "--until takes brighter N, darker N (0..255), changed or a colour name")
+                    until = condition
+                    i += used
+                }
+                "--within" -> within = rest.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 1..UiBridgePolicy.UNTIL_MAX_MS }
+                    ?: throw Refusal("bad_args", "--within takes 1..${UiBridgePolicy.UNTIL_MAX_MS} ms")
+                else -> throw Refusal("bad_args", usage)
+            }
             i++
         }
-        val sample = runBlocking { AndroidUiLook.sample(spec.at, { gateLook(app, settings, it) }, stable) }
+        val gen = generation.get()
+        val sample = runBlocking {
+            AndroidUiLook.sample(spec.at, { gateLook(app, settings, it) }, stable, until, within) { alive(app, gen) }
+        }
         lastPackage?.let { touch(app, it) }
-        return success().putColors(spec, sample.rgb).apply { sample.stable?.let { put("stable", it) } }
+        val result = if (sample.met == false) failure("not_met", "The colours did not meet --until within $within ms")
+            else success()
+        return result.putColors(spec, sample.rgb).apply {
+            sample.stable?.let { put("stable", it) }
+            if (sample.met != null) put("waited_ms", sample.waitedMs)
+        }
     }
 
     /**

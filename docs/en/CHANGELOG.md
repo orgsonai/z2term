@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.43 (versionCode 741)**: AI app control can now wait until the screen's colours meet a condition, without any image (`z2-ui colors ... --until`). For example "until the board brightens (it is my turn)", "until the lamp is green" or "until any colour changes": z2term checks about every third of a second and returns the colours as text the moment the condition holds. Before, the AI kept capturing, reading the image and deciding to wait again, at 5–10 s per round.
+
 **1.0.42 (versionCode 740)**: AI app control waits less and needs fewer calls. (1) A screen where only a part is still moving is no longer reported as stopped too early, and with `--box` only movement inside the box counts (effects elsewhere no longer keep it waiting). (2) `--expect-change` waits for a late-reacting screen to change before waiting for it to stop. (3) `--grid` on `shot` / `--shot` returns the image and a colour grid in one call. (4) `--peek` may be used in any one step of a `seq`. (5) `drag --hold MS` keeps the finger on the start point before moving, so screens that ignore an immediate move can be dragged faster.
 
 **1.0.41 (versionCode 739)**: Background tabs that call for you now show a notification, so you notice an AI command-line tool (or anything else) waiting for your reply. (1) When a tab you are not looking at rings its bell or asks for a notification (OSC 9 / OSC 777) (on by default). (2) When such a tab printed for a while and then stays quiet for the chosen time (off by default, 10–600 s). Both are in Settings > Display. Tapping the notification opens the tab, and looking at the tab clears it.

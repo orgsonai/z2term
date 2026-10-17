@@ -242,6 +242,9 @@ internal object UiBridgeMcp {
                         }
                     }
                     if (a.optBoolean("stable")) add("--stable")
+                    // 「brighter 120」のような 1 つの文字列で受け、CLI と同じ語に分ける。
+                    optional("until")?.let { add("--until"); addAll(it.trim().split(Regex("\\s+"))) }
+                    optional("within_ms")?.let { add("--within"); add(it) }
                 }
                 // 1 手は CLI と同じ語の並び (["tap", "@540,700"])。CLI の区切り `--` でつなぐ。
                 "seq" -> "seq" to buildList {
@@ -349,7 +352,11 @@ internal object UiBridgeMcp {
                         "step [dx, dy] between cells, cols, rows (at most 400 cells). Returns one string per row"),
                     "radius" to prop("integer", "Median over a square of this radius, 0..20, default 4"),
                     "hex" to prop("boolean", "Grid: also return #rrggbb per cell"),
-                    "stable" to prop("boolean", "Wait until the screen stops moving (up to 3 s) first"))),
+                    "stable" to prop("boolean", "Wait until the screen stops moving (up to 3 s) first"),
+                    "until" to prop("string", "Wait inside z2term until the colours meet this, without images: \"brighter N\" / " +
+                        "\"darker N\" (mean brightness 0..255), \"changed\" (any point's colour name changes) or a colour name " +
+                        "(all points). Checked about 3 times a second. Error not_met (with the last colours) on timeout"),
+                    "within_ms" to prop("integer", "With until: give up after this long, 1..30000, default 10000"))),
             tool("seq", "Run several steps in one call, without thinking between them. Each step is the CLI words, " +
                 "e.g. [\"tap\", \"@540,700\"], [\"sleep\", \"500\"], [\"wait\", \"text=OK\"]. Stops at the first failure " +
                 "(failed_step). shot and --shot only in the last step; --peek in any one step.",

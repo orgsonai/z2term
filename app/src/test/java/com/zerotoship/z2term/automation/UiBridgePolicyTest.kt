@@ -120,6 +120,24 @@ class UiBridgePolicyTest {
         assertTrue(UiBridgePolicy.settled(still, sparkle, width))
     }
 
+    @Test fun untilConditions() {
+        fun until(vararg w: String) = UiBridgePolicy.Until.parse(w.toList())
+        val dark = intArrayOf(0x202020, 0x302010)
+        val bright = intArrayOf(0xe03020, 0x30c040)
+        val brighter = until("brighter", "60")!!
+        assertEquals(2, brighter.second)
+        assertFalse(brighter.first.met(dark, dark))
+        assertTrue(brighter.first.met(bright, dark))
+        assertTrue(until("darker", "60")!!.first.met(dark, bright))
+        // 色の名前がどこか 1 点でも変われば changed。
+        assertFalse(until("changed")!!.first.met(dark, dark))
+        assertTrue(until("changed")!!.first.met(intArrayOf(0x202020, 0x30c040), dark))
+        assertTrue(until("green")!!.first.met(intArrayOf(0x30c040, 0x20b030), dark))
+        assertFalse(until("green")!!.first.met(bright, dark))
+        assertNull(until("brighter", "300"))
+        assertNull(until("shiny"))
+    }
+
     @Test fun medianIgnoresAHighlight() {
         // 赤い 8 点に白い光沢が 1 点。平均なら薄まるが、中央値は赤のまま。
         val red = 0xe03020
