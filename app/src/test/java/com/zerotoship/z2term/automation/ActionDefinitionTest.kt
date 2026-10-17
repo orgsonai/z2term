@@ -27,6 +27,21 @@ class ActionDefinitionTest {
             "long-press px 1 2 3001", "swipe percent 0 0 50 50 0", "scroll 0 1000 50 50",
             "scroll -600 30001 50 50", "wait 30001")) rejects { parse(line) }
     }
+    @Test fun dragPassesEveryPointWithoutLiftingAtAnEvenPace() {
+        val definition = parse("drag px 80 100,200 300,200 300,600")
+        assertEquals(definition, ActionDefinition.parse(definition.text))
+        val stroke = definition.steps.single() as ActionDefinition.Step.Stroke
+        assertEquals(160L, stroke.ms)
+        assertEquals(listOf(ActionGesture.Point(100f, 200f, 0), ActionGesture.Point(300f, 200f, 80), ActionGesture.Point(300f, 600f, 160)),
+            stroke.timedPoints(screen))
+        assertEquals(1, stroke.tracks(screen).size)
+        // 百分率でも同じ場所を指す。
+        val percent = (parse("drag percent 100 0,0 100,100").steps.single() as ActionDefinition.Step.Stroke).timedPoints(screen)
+        assertEquals(listOf(0f, 0f, 1079f, 2399f), listOf(percent[0].x, percent[0].y, percent[1].x, percent[1].y))
+        for (line in listOf("drag px 80 1,2", "drag px 19 1,2 3,4", "drag px 1001 1,2 3,4", "drag dp 80 1,2 3,4",
+            "drag px 80 1,2 3", "drag px 80 1,2 1080,4", "drag px 1000 " + List(32) { "1,$it" }.joinToString(" "),
+            "drag px 20 " + List(257) { "1,$it" }.joinToString(" "))) rejects { parse(line) }
+    }
     @Test fun geometryIsRequiredForCoordinateActions() {
         rejects { ActionDefinition.parse("version=1\ntap px 1 2") }
         rejects { ActionDefinition.parse("version=1\ntarget org.example.app\ntap px 1 2") }

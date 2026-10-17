@@ -159,4 +159,14 @@
     <string name="action_place_no_panels">Crea primero un panel lateral y selecciónalo como destino.</string>
     <string name="action_place_tile_done">Macro asignada. Si el mosaico no aparece, añádelo editando los Ajustes rápidos.</string>
     <string name="action_place_done">Macro de acciones añadida al panel lateral.</string>
+    <!-- 点を順になぞる (drag)。指を離さずに、決めた点を同じ速さで通る。 -->
+    <string name="action_edit_drag">Arrastrar por puntos</string>
+    <string name="action_edit_step_ms">Tiempo por tramo (ms, 20–1000)</string>
+    <string name="action_edit_points">Puntos (X,Y separados por espacios)</string>
+    <string name="action_points_hint">Recorre los puntos en orden sin levantar el dedo. Con Elegir coordenadas puedes tocar los puntos en la pantalla en orden. 2–256 puntos, 30 segundos como máximo.</string>
+    <string name="action_drag_summary">%1$d puntos · %2$d ms en total</string>
+    <string name="action_pick_points">Toca los puntos en orden; cada vez que levantas el dedo se añade uno. Deshacer corrige y Aplicar funciona con 2 o más. No se envía nada a la app de detrás.</string>
+    <string name="action_pick_points_summary">%1$d puntos</string>
+    <string name="action_pick_undo">Deshacer</string>
+    <string name="action_pick_points_full">Como máximo %1$d puntos</string>
 </resources>

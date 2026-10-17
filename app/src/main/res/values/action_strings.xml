@@ -159,4 +159,14 @@
     <string name="action_place_no_panels">Create an edge panel first, then select it as the destination.</string>
     <string name="action_place_tile_done">Action macro assigned. If a tile is not visible, add it from Quick Settings editing.</string>
     <string name="action_place_done">Action macro added to the edge panel.</string>
+    <!-- 点を順になぞる (drag)。指を離さずに、決めた点を同じ速さで通る。 -->
+    <string name="action_edit_drag">Drag through points</string>
+    <string name="action_edit_step_ms">Time per segment (ms, 20–1000)</string>
+    <string name="action_edit_points">Points (X,Y separated by spaces)</string>
+    <string name="action_points_hint">Moves through the points in order without lifting the finger. Use Pick coordinates to tap the points on screen in order. 2–256 points, 30 seconds at most.</string>
+    <string name="action_drag_summary">%1$d points · %2$d ms in total</string>
+    <string name="action_pick_points">Tap the points in order; each lift adds one. Use Undo to fix, and Apply once there are at least 2. Nothing is sent to the app behind.</string>
+    <string name="action_pick_points_summary">%1$d points</string>
+    <string name="action_pick_undo">Undo</string>
+    <string name="action_pick_points_full">At most %1$d points</string>
 </resources>

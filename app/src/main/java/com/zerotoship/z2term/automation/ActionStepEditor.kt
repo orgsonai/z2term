@@ -31,6 +31,7 @@ internal object ActionStepEditor {
         Kind("pinch-in", R.string.action_edit_pinch_in, listOf(R.string.action_edit_unit, R.string.action_edit_center_x, R.string.action_edit_center_y, R.string.action_edit_span_start, R.string.action_edit_span_end, R.string.action_edit_ms, R.string.action_edit_easing), listOf("percent", "50", "50", "60", "20", "450", "linear")),
         Kind("pinch-out", R.string.action_edit_pinch_out, listOf(R.string.action_edit_unit, R.string.action_edit_center_x, R.string.action_edit_center_y, R.string.action_edit_span_start, R.string.action_edit_span_end, R.string.action_edit_ms, R.string.action_edit_easing), listOf("percent", "50", "50", "20", "60", "450", "linear")),
         Kind("swipe-two", R.string.action_edit_swipe_two, listOf(R.string.action_edit_unit, R.string.action_edit_x, R.string.action_edit_y, R.string.action_edit_x2, R.string.action_edit_y2, R.string.action_edit_offset_x, R.string.action_edit_offset_y, R.string.action_edit_ms, R.string.action_edit_easing), listOf("percent", "35", "75", "35", "25", "30", "0", "450", "linear")),
+        Kind("drag", R.string.action_edit_drag, listOf(R.string.action_edit_unit, R.string.action_edit_step_ms, R.string.action_edit_points), listOf("percent", "100", "")),
         Kind("touch", R.string.action_record_step_title, listOf(R.string.action_edit_unit, R.string.action_edit_path_data), listOf("percent", "")),
         Kind("swipe-path", R.string.action_edit_path, listOf(R.string.action_edit_unit, R.string.action_edit_path_data), listOf("percent", "")),
         Kind("swipe-two-path", R.string.action_edit_two_path, listOf(R.string.action_edit_unit, R.string.action_edit_path_data), listOf("percent", "")),
@@ -38,10 +39,13 @@ internal object ActionStepEditor {
         Kind("command", R.string.action_edit_command, listOf(R.string.action_edit_command), listOf("")),
     )
 
+    private fun Float.round3(): String =
+        java.math.BigDecimal(toString()).setScale(3, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+
     fun supports(line: String): Boolean {
         val words = line.trim().split(Regex("\\s+"))
         val kind = kinds.firstOrNull { it.verb == words.first() } ?: return false
-        return kind.verb in listOf("command", "if", "repeat", "click", "long-click", "wait-ui", "touch", "swipe-path", "swipe-two-path") ||
+        return kind.verb in listOf("command", "if", "repeat", "click", "long-click", "wait-ui", "touch", "swipe-path", "swipe-two-path", "drag") ||
             words.size == kind.fields.size + 1 || (kind.fields.lastOrNull() == R.string.action_edit_easing && words.size == kind.fields.size)
     }
 
@@ -60,6 +64,8 @@ internal object ActionStepEditor {
             ?: kinds.first { it.verb == "wait" }
         var values = if (kind.verb in listOf("command", "if", "click", "long-click")) listOf(trimmed.removePrefix(kind.verb).trimStart())
             else if (kind.verb in listOf("wait-ui", "touch", "swipe-path", "swipe-two-path")) trimmed.split(Regex("\\s+"), limit = 3).drop(1)
+            // drag は「単位・1 区間の時間・点の並び (空白区切り)」の 3 欄。点は 1 つの欄にまとめる。
+            else if (kind.verb == "drag") trimmed.split(Regex("\\s+"), limit = 4).drop(1).let { if (it.size == 2) it + "" else it }
             else trimmed.split(Regex("\\s+")).drop(1)
         if (kind.fields.lastOrNull() == R.string.action_edit_easing && values.size == kind.fields.size - 1) values = values + "linear"
         if (values.size != kind.fields.size) values = kind.defaults
@@ -113,6 +119,17 @@ internal object ActionStepEditor {
                             override fun onNothingSelected(parent: AdapterView<*>?) = Unit
                             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                                 if (revision != renderedRevision || values[index] == options[position]) return
+                                if (label == R.string.action_edit_unit && kind.verb == "drag") {
+                                    // 単位を変えたら点も換算する (同じ場所を指したまま)。
+                                    val converted = runCatching {
+                                        values[2].trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ") { token ->
+                                            val (x, y) = token.split(',').map { it.toFloat() }
+                                            ActionGesture.convert(listOf(ActionGesture.Point(x, y, 0)), values[0], options[position], screen)
+                                                .first().let { "${it.x.round3()},${it.y.round3()}" }
+                                        }
+                                    }.getOrNull()
+                                    if (converted != null) values = values.toMutableList().apply { this[2] = converted }
+                                }
                                 if (label == R.string.action_edit_unit && kind.verb in listOf("touch", "swipe-path", "swipe-two-path")) {
                                     val converted = runCatching {
                                         values[1].split('|').joinToString(" | ") {
@@ -122,7 +139,7 @@ internal object ActionStepEditor {
                                     if (converted != null) values = values.toMutableList().apply { this[1] = converted }
                                 }
                                 values = values.toMutableList().apply { this[index] = options[position] }; publish()
-                                if (label == R.string.action_edit_unit && kind.verb in listOf("touch", "swipe-path", "swipe-two-path")) render()
+                                if (label == R.string.action_edit_unit && kind.verb in listOf("touch", "swipe-path", "swipe-two-path", "drag")) render()
                             }
                         }
                     }
@@ -131,7 +148,7 @@ internal object ActionStepEditor {
                     val input = ActionUi.field(context).apply {
                         contentDescription = context.getString(label)
                         inputType = if (label in listOf(R.string.action_edit_package, R.string.action_edit_command, R.string.action_edit_macro_name,
-                            R.string.action_ui_selector, R.string.action_block_count, R.string.action_block_condition))
+                            R.string.action_ui_selector, R.string.action_block_count, R.string.action_block_condition, R.string.action_edit_points))
                             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
                         else InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
                         filters = arrayOf(InputFilter.LengthFilter(ActionDefinition.MAX_BYTES))
@@ -146,6 +163,13 @@ internal object ActionStepEditor {
                     fun hint(text: Int) = ActionUi.add(fields, ActionUi.note(context, context.getString(text)), gap = 6)
                     fun below(view: View) = ActionUi.add(fields, view, gap = 6)
                     if (label == R.string.action_block_count) hint(R.string.action_block_count_hint)
+                    if (label == R.string.action_edit_points) {
+                        hint(R.string.action_points_hint)
+                        val count = values[index].trim().split(Regex("\\s+")).count { it.isNotEmpty() }
+                        val step = values.getOrNull(1)?.toLongOrNull()
+                        if (count >= 2 && step != null) ActionUi.add(fields, ActionUi.note(context,
+                            context.getString(R.string.action_drag_summary, count, step * (count - 1))), gap = 6)
+                    }
                     if (label == R.string.action_block_condition) hint(R.string.action_block_condition_hint)
                     if (label == R.string.action_ui_selector) {
                         hint(R.string.action_ui_hint)
@@ -200,7 +224,7 @@ internal object ActionStepEditor {
                     }
                 }
             }
-            if (kind.verb in listOf("tap", "long-press", "swipe", "double-tap", "pinch-in", "pinch-out", "swipe-two", "swipe-path", "swipe-two-path")) {
+            if (kind.verb in listOf("tap", "long-press", "swipe", "double-tap", "pinch-in", "pinch-out", "swipe-two", "swipe-path", "swipe-two-path", "drag")) {
                 ActionUi.add(fields, ActionUi.pill(context, context.getString(R.string.action_edit_pick)) {
                     try { pick(current); dialog.dismiss() }
                     catch (e: Exception) { error.text = e.message }

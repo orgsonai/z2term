@@ -159,4 +159,14 @@
     <string name="action_place_no_panels">先にエッジパネルを作成してから、配置先を選んでください。</string>
     <string name="action_place_tile_done">操作マクロを配置しました。タイルが見えない場合はクイック設定の編集から追加してください。</string>
     <string name="action_place_done">操作マクロをエッジパネルに追加しました。</string>
+    <!-- 点を順になぞる (drag)。指を離さずに、決めた点を同じ速さで通る。 -->
+    <string name="action_edit_drag">点を順になぞる</string>
+    <string name="action_edit_step_ms">1 区間の時間（ミリ秒、20〜1000）</string>
+    <string name="action_edit_points">通る点（X,Y を空白区切り）</string>
+    <string name="action_points_hint">指を離さずに、書いた順に点を通ります。「座標を取得」で画面の点を順にタップして決められます。2〜256 点、全体で 30 秒まで。</string>
+    <string name="action_drag_summary">%1$d 点・合計 %2$d ミリ秒</string>
+    <string name="action_pick_points">通る点を順にタップします。指を離すたびに 1 点増えます。「1 つ戻す」で直し、2 点以上で「反映」。背後のアプリには送りません。</string>
+    <string name="action_pick_points_summary">%1$d 点</string>
+    <string name="action_pick_undo">1 つ戻す</string>
+    <string name="action_pick_points_full">点は %1$d 個までです</string>
 </resources>

@@ -150,6 +150,18 @@ internal class ActionMacrosEditor(
                 val prefix = if (words.firstOrNull() == "wait-ui" && words.size >= 2) "wait-ui " + words[1]
                     else words.firstOrNull() ?: "click"
                 stepDraft = prefix + " " + result.selector
+            } else if (result?.points != null && stepDraft.orEmpty().trim().startsWith("drag ")) {
+                // 点を順になぞる: 単位と 1 区間の時間は下書きのまま、点だけを取り直したものに替える。
+                val words = stepDraft.orEmpty().trim().split(Regex("\\s+"))
+                val unit = words.getOrNull(1) ?: "percent"
+                fun coordinate(value: Float, extent: Int): String {
+                    val converted = if (unit == "percent") value * 100 / (extent - 1).coerceAtLeast(1) else value
+                    return java.math.BigDecimal(converted.toString()).setScale(3, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+                }
+                val points = result.points.chunked(2).joinToString(" ") { (x, y) ->
+                    coordinate(x, result.screen.width) + "," + coordinate(y, result.screen.height)
+                }
+                stepDraft = "drag $unit ${words.getOrNull(2) ?: "100"} $points"; pickedScreen = result.screen.toString()
             } else if (result?.points != null) {
                 val words = stepDraft.orEmpty().trim().split(Regex("\\s+")).toMutableList()
                 if (words.size >= 2 && (words[0] in listOf("touch", "swipe-path", "swipe-two-path", "pinch-in", "pinch-out", "swipe-two")) && result.paths != null) {
@@ -427,7 +439,7 @@ internal class ActionMacrosEditor(
                     else ActionEditorDocument(raw).replace(stepLine, source)
                 if (verb in listOf("call", "repeat", "if", "click", "long-click", "wait-ui", "touch", "swipe-path", "swipe-two-path"))
                     updated = ActionEditorDocument(updated).withHeader("version", "2")
-                if (verb in listOf("tap", "long-press", "swipe", "scroll", "double-tap", "pinch-in", "pinch-out", "swipe-two", "touch", "swipe-path", "swipe-two-path") && ActionEditorDocument(updated).header("screen") == null)
+                if (verb in listOf("tap", "long-press", "swipe", "scroll", "double-tap", "pinch-in", "pinch-out", "swipe-two", "touch", "swipe-path", "swipe-two-path", "drag") && ActionEditorDocument(updated).header("screen") == null)
                     updated = ActionEditorDocument(updated).withHeader("screen", geometry.toString())
                 pickedScreen?.let { screen -> updated = ActionEditorDocument(updated).withHeader("screen", screen) }
                 raw = updated; stepDraft = null; pickedScreen = null; render()
@@ -451,11 +463,16 @@ internal class ActionMacrosEditor(
                 ActionEditorDocument.singleLine(line)
                 // Validate the form values without requiring an execution target in the draft.
                 val verb = line.trim().split(Regex("\\s+")).first()
-                if (verb !in listOf("swipe-path", "swipe-two-path"))
+                // drag は点を取る前なので点が足りない。単位と 1 区間の時間だけを確かめる。
+                if (verb == "drag") {
+                    val words = line.trim().split(Regex("\\s+"))
+                    require(words.getOrNull(1) in listOf("px", "percent")) { "Coordinate unit must be px or percent" }
+                    require(words.getOrNull(2)?.toLongOrNull() in 20L..1000L) { "Milliseconds per segment must be 20..1000" }
+                } else if (verb !in listOf("swipe-path", "swipe-two-path"))
                     ActionDefinition.parse("version=2\nscreen=$screen\ntarget org.example.target\n$line")
                 AndroidActions.pickCoordinates(request, verb !in listOf("tap", "long-press", "double-tap"),
                     fingers = if (verb in listOf("pinch-in", "pinch-out", "swipe-two", "swipe-two-path")) 2 else 1,
-                    freehand = verb in listOf("swipe-path", "swipe-two-path"))
+                    freehand = verb in listOf("swipe-path", "swipe-two-path"), multi = verb == "drag")
                 ActionCoordinatePicker.returnTo(request, activity)
                 stepDraft = line; pickRequest = request
                 moveBehindForPick(request)

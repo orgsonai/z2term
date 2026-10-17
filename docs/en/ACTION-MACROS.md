@@ -71,6 +71,16 @@ Placement stores `z2-action start NAME`. An exact standalone reference in a tile
 
 **Build and device behavior are not verified.**
 
+### Drag through points (1.0.35)
+
+New step type **Drag through points** (`drag`): the finger moves through the chosen points in order without lifting, spending the same time on each segment. It is for screens where lifting the finger ends the move (board puzzles, drawing and so on).
+
+- **Choosing points**: press Pick coordinates and tap the points on screen in order. Each lift adds a point, shown with its number and a line. Undo removes the last one; Apply works once there are at least 2. Nothing is sent to the app behind. You can also type `X,Y` pairs separated by spaces in the points field.
+- **Speed**: set Time per segment (20–1000 ms). The whole move takes time per segment × (points − 1), shown in the editor.
+- **Limits**: 2–256 points, 30 seconds at most.
+- Compared with recorded paths: a recorded path replays your finger's movement and speed as traced; Drag through points places points exactly and moves at a constant pace.
+- Operations made with AI app control (`z2-ui drag`) and saved with `z2-ui save` become this step.
+
 ### Run on the foreground screen without choosing an app
 
 Taps, holds, swipes, scrolling and UI-element steps can be saved without an app target. For example:
@@ -244,6 +254,7 @@ Headers precede the body. Use one step per line. Blank lines and lines starting 
 | `swipe-two UNIT X1 Y1 X2 Y2 DX DY MS [EASING]` | Simultaneous swipe; second finger is offset by DX/DY |
 | `touch UNIT X,Y,MS ...` | Recorded touch; optional second track separated by `\|`, with its own down/up times; version 2 |
 | `swipe-path` / `swipe-two-path UNIT X,Y,MS ...` | Recorded paths; two tracks require matching timestamps; version 2 |
+| `drag UNIT MS X,Y X,Y ...` | Move through the points in order without lifting; MS (20–1000) per segment, 2–256 points, 30 s at most (1.0.35) |
 | `scroll SPEED MS X Y` | Timed auto-scroll: signed 50–40000dp/s for 1–30000ms, X/Y at 10–90% of the target window |
 | `command SHELL_TEXT` | Run through the existing Linux execution path and wait for exit |
 

@@ -40,6 +40,7 @@ fun z2ActionScript(lang: String): String {
         |# double-tap UNIT X Y GAP_MS / pinch-in|pinch-out UNIT CX CY START_SPAN END_SPAN MS [EASING]
         |# swipe-two UNIT X1 Y1 X2 Y2 OFFSET_X OFFSET_Y MS [EASING]
         |# touch UNIT X,Y,MS ... [| X,Y,MS ...] (version=2; recorded contacts and timing)
+        |# drag px|percent MS_PER_SEGMENT X,Y X,Y ... (one touch through 2..256 points without lifting; 30 s at most)
         |# command SHELL_TEXT
         |# scroll SIGNED_DP_PER_SECOND MILLISECONDS X_PERCENT Y_PERCENT
         |# click SELECTOR / long-click SELECTOR / wait-ui MILLISECONDS SELECTOR (version=2)

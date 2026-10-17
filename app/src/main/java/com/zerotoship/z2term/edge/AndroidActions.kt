@@ -278,9 +278,9 @@ class AndroidActions : AccessibilityService() {
             com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, swipe = false, target = target)
         }
 
-        internal fun pickCoordinates(request: String, swipe: Boolean, fingers: Int = 1, freehand: Boolean = false) {
+        internal fun pickCoordinates(request: String, swipe: Boolean, fingers: Int = 1, freehand: Boolean = false, multi: Boolean = false) {
             val service = active ?: error("Enable z2term Android actions in Accessibility settings")
-            com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, swipe, fingers = fingers, freehand = freehand)
+            com.zerotoship.z2term.automation.ActionCoordinatePicker.start(service, request, swipe, fingers = fingers, freehand = freehand, multi = multi)
         }
 
         internal fun recordTouches(request: String, live: Boolean) {

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.35 (versionCode 733)**: Screen-action macros (`z2-action`) gained Drag through points, a step that moves through several points without lifting the finger. Tap the points in order with Pick coordinates (they are numbered and joined, and Undo fixes mistakes), then choose the time per segment; on replay all points are joined at an even pace. In text: `drag percent 100 20,30 50,30 50,60`. Sequences using `z2-ui drag` saved with `z2-ui save` become this step.
+
 **1.0.34 (versionCode 732)**: AI app control (`z2-ui`) is fast enough for timed games. (1) `z2-ui drag` sends a move through many points without lifting the finger in one call; the AI thinks before touching, so the move itself takes points × step time. (2) Coordinate taps and swipes no longer watch the screen for up to a second and return as soon as the gesture ends (on game screens without elements no change could be detected, so every call waited a full second). (3) Consecutive captures wait about 0.34 s instead of about 1 s, and can be saved as lighter JPEG (the MCP default). Set games to No approval.
 
 **1.0.33 (versionCode 731)**: `z2-ui --help` is now a detailed guide written for AIs (in English): how to use every command, what to do for each error, and the rules to follow (put the user's instructions first, never repeat a refused operation, never work around permissions, and so on). A freshly started AI can operate the phone after reading `z2-ui --help`, and MCP connections receive the same guide up front. People see the same text, so you can check what the AI is told.

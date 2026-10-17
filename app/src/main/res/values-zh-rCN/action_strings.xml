@@ -159,4 +159,14 @@
     <string name="action_place_no_panels">请先创建边缘面板，再将其选为目标。</string>
     <string name="action_place_tile_done">已分配操作宏。如果看不到磁贴，请在快捷设置编辑中添加。</string>
     <string name="action_place_done">已将操作宏添加到边缘面板。</string>
+    <!-- 点を順になぞる (drag)。指を離さずに、決めた点を同じ速さで通る。 -->
+    <string name="action_edit_drag">按顺序拖过各点</string>
+    <string name="action_edit_step_ms">每段时间（毫秒，20–1000）</string>
+    <string name="action_edit_points">经过的点（X,Y 以空格分隔）</string>
+    <string name="action_points_hint">不松开手指，按写下的顺序经过各点。可用“获取坐标”在屏幕上依次点击来确定。2–256 个点，全程最多 30 秒。</string>
+    <string name="action_drag_summary">%1$d 个点 · 共 %2$d 毫秒</string>
+    <string name="action_pick_points">按顺序点击要经过的点，每次松开增加 1 个。用“撤销一个”修改，至少 2 个点后点“应用”。不会发送到后面的应用。</string>
+    <string name="action_pick_points_summary">%1$d 个点</string>
+    <string name="action_pick_undo">撤销一个</string>
+    <string name="action_pick_points_full">最多 %1$d 个点</string>
 </resources>

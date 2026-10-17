@@ -159,4 +159,14 @@
     <string name="action_place_no_panels">먼저 엣지 패널을 만든 뒤 대상으로 선택하세요.</string>
     <string name="action_place_tile_done">동작 매크로를 할당했습니다. 타일이 보이지 않으면 빠른 설정 편집에서 추가하세요.</string>
     <string name="action_place_done">엣지 패널에 동작 매크로를 추가했습니다.</string>
+    <!-- 点を順になぞる (drag)。指を離さずに、決めた点を同じ速さで通る。 -->
+    <string name="action_edit_drag">점을 순서대로 따라 끌기</string>
+    <string name="action_edit_step_ms">구간당 시간(ms, 20–1000)</string>
+    <string name="action_edit_points">지나는 점(X,Y를 공백으로 구분)</string>
+    <string name="action_points_hint">손가락을 떼지 않고 적은 순서대로 점을 지납니다. \"좌표 선택\"로 화면의 점을 순서대로 눌러 정할 수 있습니다. 2–256개 점, 전체 30초까지.</string>
+    <string name="action_drag_summary">%1$d개 점 · 합계 %2$dms</string>
+    <string name="action_pick_points">지나는 점을 순서대로 누르세요. 손가락을 뗄 때마다 1개가 늘어납니다. \"하나 되돌리기\"로 고치고, 2개 이상이면 \"적용\". 뒤의 앱에는 보내지 않습니다.</string>
+    <string name="action_pick_points_summary">%1$d개 점</string>
+    <string name="action_pick_undo">하나 되돌리기</string>
+    <string name="action_pick_points_full">점은 %1$d개까지입니다</string>
 </resources>

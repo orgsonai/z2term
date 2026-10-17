@@ -159,4 +159,14 @@
     <string name="action_place_no_panels">請先建立邊緣面板，再將其選為目標。</string>
     <string name="action_place_tile_done">已指派操作巨集。如果看不到圖塊，請在快速設定編輯中新增。</string>
     <string name="action_place_done">已將操作巨集新增至邊緣面板。</string>
+    <!-- 点を順になぞる (drag)。指を離さずに、決めた点を同じ速さで通る。 -->
+    <string name="action_edit_drag">依序拖過各點</string>
+    <string name="action_edit_step_ms">每段時間（毫秒，20–1000）</string>
+    <string name="action_edit_points">經過的點（X,Y 以空格分隔）</string>
+    <string name="action_points_hint">不放開手指，依寫下的順序經過各點。可用「取得座標」在畫面上依序點按來決定。2–256 個點，全程最多 30 秒。</string>
+    <string name="action_drag_summary">%1$d 個點 · 共 %2$d 毫秒</string>
+    <string name="action_pick_points">依序點按要經過的點，每次放開增加 1 個。用「復原一個」修改，至少 2 個點後按「套用」。不會傳送到後面的應用程式。</string>
+    <string name="action_pick_points_summary">%1$d 個點</string>
+    <string name="action_pick_undo">復原一個</string>
+    <string name="action_pick_points_full">最多 %1$d 個點</string>
 </resources>

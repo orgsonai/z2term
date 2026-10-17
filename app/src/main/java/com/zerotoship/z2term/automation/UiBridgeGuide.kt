@@ -197,7 +197,7 @@ notification. You learn about it as the reply to your next call:
   z2-action macro (`/root/.z2term/actions/<name>.actions`) that the user can run from tiles and panels without you.
 - `#N` targets are rewritten as id, then text, then desc, then coordinates. Waits between steps keep the real
   intervals (up to 2 s).
-- `drag` is saved as a timed path and replays at the same speed.
+- `drag` is saved as the macro step "drag" and replays at the same speed.
 - Refused with `unsupported_step` if the range includes type, enter, scroll, wait-change, open with a URI or noti press,
   because z2-action cannot replay them. Mark again and record a range without them.
 - `exists`: a macro with that name already exists. Choose another name; never ask to overwrite the user's macros.

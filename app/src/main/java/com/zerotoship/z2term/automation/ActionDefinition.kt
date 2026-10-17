@@ -55,6 +55,8 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         const val MAX_BYTES = 65536
         const val MAX_STEPS = 64
         const val MAX_NESTING = 8
+        /** `drag` の点の数の上限。z2-ui の drag と揃える。 */
+        const val MAX_DRAG_POINTS = 256
         fun macroName(value: String): String {
             require(value.matches(Regex("[A-Za-z0-9_-]{1,64}"))) { "Macro names use 1..64 letters, digits, _ or -" }
             return value
@@ -215,6 +217,29 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                         require((first + second).all { it.x in 0f..max && it.y in 0f..max }) { "Finger coordinates are outside the coordinate range" }
                         steps += Step.Stroke(destination(), words[1], first.first().x, first.first().y,
                             first.last().x, first.last().y, ms, first, easing, second)
+                    }
+                    // 指を離さずに点を順に通る (各区間を同じ時間で)。パズルのように、離すと終わる画面のためのもの。
+                    // 記録した軌跡 (swipe-path) と違い、点は手で決めて速さは一定。再生は同じ時刻つきの軌跡で行う。
+                    "drag" -> {
+                        require(words.size >= 5) { "drag requires a unit, milliseconds per segment and at least two X,Y points" }
+                        require(words[1] in setOf("px", "percent")) { "Coordinate unit must be px or percent" }
+                        val step = millis(2, 20, 1000)
+                        val maximum = if (words[1] == "percent") 100f else 32767f
+                        val coordinates = words.drop(3).map { token ->
+                            val parts = token.split(',')
+                            val x = parts.getOrNull(0)?.toFloatOrNull()
+                            val y = parts.getOrNull(1)?.toFloatOrNull()
+                            require(parts.size == 2 && x != null && y != null && x in 0f..maximum && y in 0f..maximum) {
+                                "drag points use X,Y within the coordinate range"
+                            }
+                            x to y
+                        }
+                        require(coordinates.size in 2..MAX_DRAG_POINTS) { "drag takes 2..$MAX_DRAG_POINTS points" }
+                        val total = step * (coordinates.size - 1)
+                        require(total <= ActionGesture.MAX_MS) { "The whole drag must finish within ${ActionGesture.MAX_MS} ms" }
+                        val path = coordinates.mapIndexed { i, (x, y) -> ActionGesture.Point(x, y, i * step) }
+                        steps += Step.Stroke(destination(), words[1], path.first().x, path.first().y,
+                            path.last().x, path.last().y, total, path)
                     }
                     "swipe-path", "swipe-two-path", "touch" -> {
                         require(headers["version"] == "2") { "Freehand swipes require version=2" }

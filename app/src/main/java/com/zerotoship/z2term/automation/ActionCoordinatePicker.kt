@@ -40,7 +40,8 @@ internal object ActionCoordinatePicker {
     fun isActive(request: String) = session?.request == request
     fun consume(request: String): Result? = result?.takeIf { it.request == request }?.also { result = null }
 
-    fun start(service: AndroidActions, request: String, swipe: Boolean, target: String? = null, fingers: Int = 1, freehand: Boolean = false, recording: Boolean = false, live: Boolean = false) {
+    /** [multi] は「点を順になぞる」(drag) 用。タップした点を順に集め、指を離すたびに 1 点増える。 */
+    fun start(service: AndroidActions, request: String, swipe: Boolean, target: String? = null, fingers: Int = 1, freehand: Boolean = false, recording: Boolean = false, live: Boolean = false, multi: Boolean = false) {
         check(!active && !ActionRuntime.running && !AndroidActions.gesturesInFlight()) { service.getString(R.string.action_pick_busy) }
         // Only UI-element selection has an app target. Coordinate selection measures the screen.
         val launch = target?.takeUnless { it == ActionDefinition.CURRENT_TARGET }?.let {
@@ -48,7 +49,7 @@ internal object ActionCoordinatePicker {
             service.packageManager.getLaunchIntentForPackage(it)
                 ?: error(service.getString(R.string.action_pick_launch_failed, it))
         }
-        val next = Session(service, request, target, swipe, ActionRuntime.screen(service), fingers, freehand, recording, live)
+        val next = Session(service, request, target, swipe, ActionRuntime.screen(service), fingers, freehand, recording, live, multi)
         EdgeRuntime.suspendForActions(true)
         result = null; session = next
         try {
@@ -70,7 +71,8 @@ internal object ActionCoordinatePicker {
     }
 
     private class Session(val service: AndroidActions, val request: String, val target: String?,
-        val swipe: Boolean, val screen: ActionDefinition.Screen, val fingers: Int, val freehand: Boolean, val recording: Boolean, val live: Boolean) {
+        val swipe: Boolean, val screen: ActionDefinition.Screen, val fingers: Int, val freehand: Boolean, val recording: Boolean, val live: Boolean,
+        val multi: Boolean = false) {
         var returnIntent = Intent(service, ActionMacrosActivity::class.java)
         private val elements = target != null
         private val main = Handler(Looper.getMainLooper())
@@ -93,7 +95,14 @@ internal object ActionCoordinatePicker {
         private val excludedIds = mutableSetOf<Int>()
         private var seenIds = emptySet<Int>()
         private var ready = false
-        private fun clearSelection() { points = null; durationMs = null; paths = null; ready = false }
+        /** 「点を順になぞる」で集めた点 (画面の px)。画面を作り直しても残す。 */
+        private val taps = mutableListOf<Pair<Float, Float>>()
+        private fun clearSelection() { points = null; durationMs = null; paths = null; ready = false; taps.clear() }
+        private fun showTaps() {
+            paths = taps.mapIndexed { i, (x, y) -> ActionGesture.Point(x, y, i.toLong()) }.takeIf { it.isNotEmpty() }?.let { listOf(it) }
+            ready = taps.size >= 2
+            points = taps.flatMap { listOf(it.first, it.second) }.takeIf { ready }
+        }
         private val deadline = SystemClock.elapsedRealtime() + 120_000
         private val monitor = object : Runnable {
             override fun run() {
@@ -163,7 +172,7 @@ internal object ActionCoordinatePicker {
                     EdgeSettingsUi.dp(service, 12), EdgeSettingsUi.dp(service, 10))
             }
             controls.addView(EdgeSettingsUi.body(service, service.getString(
-                if (recording) { if (live) R.string.action_record_live_hint else R.string.action_record_overlay_hint } else if (elements) R.string.action_ui_prepare else if (!capturing) R.string.action_pick_prepare else if (fingers == 2) R.string.action_pick_two else if (freehand) R.string.action_pick_freehand else if (swipe) R.string.action_pick_swipe else R.string.action_pick_point)).apply {
+                if (recording) { if (live) R.string.action_record_live_hint else R.string.action_record_overlay_hint } else if (elements) R.string.action_ui_prepare else if (!capturing) R.string.action_pick_prepare else if (multi) R.string.action_pick_points else if (fingers == 2) R.string.action_pick_two else if (freehand) R.string.action_pick_freehand else if (swipe) R.string.action_pick_swipe else R.string.action_pick_point)).apply {
                 textSize = 13f
                 setLineSpacing(EdgeSettingsUi.dp(service, 3).toFloat(), 1f)
             }, LinearLayout.LayoutParams(-1, -2))
@@ -173,7 +182,8 @@ internal object ActionCoordinatePicker {
                 summary.text = if (recording) {
                     if (!recordReady) service.getString(R.string.action_record_connecting)
                     else service.getString(R.string.action_record_summary, sequence.count, sequence.durationMs)
-                } else if (ready && swipe) service.getString(R.string.action_gesture_summary,
+                } else if (multi) { if (taps.isEmpty()) "" else service.getString(R.string.action_pick_points_summary, taps.size) }
+                else if (ready && swipe) service.getString(R.string.action_gesture_summary,
                     durationMs ?: 0L, paths?.firstOrNull()?.let { ActionGesture.speed(it).toInt() } ?: 0) else ""
                 summary.visibility = if (summary.text.isEmpty()) View.GONE else View.VISIBLE
             }
@@ -216,6 +226,10 @@ internal object ActionCoordinatePicker {
                 accept.isEnabled = recordReady && sequence.count > 0 && !sequence.touching
             }
             controlsView = controls
+            if (capturing && multi) button(R.string.action_pick_undo, enabled = taps.isNotEmpty()) {
+                taps.removeAt(taps.lastIndex); showTaps()
+                try { render() } catch (e: Exception) { finish(null, e.message) }
+            }
             if (capturing && !recording) button(R.string.action_pick_navigate) {
                 capturing = false; clearSelection()
                 try { render() } catch (e: Exception) { finish(null, e.message) }
@@ -249,6 +263,9 @@ internal object ActionCoordinatePicker {
                     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                         color = EdgeSettingsUi.accent(service); strokeWidth = 4f
                     }
+                    private val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = EdgeSettingsUi.accent(service); textSize = EdgeSettingsUi.dp(service, 14).toFloat()
+                    }
                     private var ignoreRecordTouch = false
                     private var tracking = false
                     private var startedAt = 0L
@@ -259,9 +276,14 @@ internal object ActionCoordinatePicker {
                         getLocationOnScreen(origin)
                         val traces = paths ?: return
                         traces.forEach { trace ->
-                            val shown = if (recording || freehand || fingers == 2) trace else listOf(trace.first(), trace.last())
+                            val shown = if (recording || freehand || fingers == 2 || multi) trace else listOf(trace.first(), trace.last())
                             shown.zipWithNext().forEach { (a, b) ->
                                 canvas.drawLine(a.x - origin[0], a.y - origin[1], b.x - origin[0], b.y - origin[1], paint)
+                            }
+                            // 点を順になぞるときは、通る点すべてに印と順番を付ける (どこを何番目に通るかが分かるように)。
+                            if (multi) shown.forEachIndexed { i, point ->
+                                canvas.drawCircle(point.x - origin[0], point.y - origin[1], 10f, paint)
+                                canvas.drawText((i + 1).toString(), point.x - origin[0] + 14f, point.y - origin[1] - 14f, label)
                             }
                             canvas.drawCircle(shown.first().x - origin[0], shown.first().y - origin[1], 10f, paint)
                             canvas.drawCircle(shown.last().x - origin[0], shown.last().y - origin[1], 10f, paint)
@@ -296,6 +318,20 @@ internal object ActionCoordinatePicker {
                                 sequence.cancelTouch(); ignoreRecordTouch = true; paths = sequence.preview(); invalidate()
                                 Toast.makeText(service, e.message, Toast.LENGTH_LONG).show()
                                 updateRecording?.invoke()
+                            }
+                            return true
+                        }
+                        if (multi) {
+                            // 指を離すたびに 1 点。複数の指や取り消しは数えない。
+                            if (event.actionMasked == MotionEvent.ACTION_UP && event.pointerCount == 1) {
+                                val at = IntArray(2).also { getLocationOnScreen(it) }
+                                if (taps.size < ActionDefinition.MAX_DRAG_POINTS) {
+                                    taps += (event.x + at[0]).coerceIn(0f, (screen.width - 1).toFloat()) to
+                                        (event.y + at[1]).coerceIn(0f, (screen.height - 1).toFloat())
+                                    showTaps(); accept.isEnabled = ready; updateSummary(); performClick()
+                                } else Toast.makeText(service, service.getString(R.string.action_pick_points_full,
+                                    ActionDefinition.MAX_DRAG_POINTS), Toast.LENGTH_LONG).show()
+                                invalidate()
                             }
                             return true
                         }
