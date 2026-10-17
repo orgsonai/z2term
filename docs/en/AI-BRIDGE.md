@@ -96,7 +96,7 @@ Elements are addressed in one of these ways.
 | `z2-ui tap <element>` | Tap | |
 | `z2-ui long <element> [--hold MS]` | Long-press. With coordinates (`@X,Y`), `--hold` sets how long the finger stays down (100–10000 ms, default 600, 1.0.37) | |
 | `z2-ui type <element> "text" [--append]` | Replace the field's content (`--append` adds to the end); up to 4096 characters | |
-| `z2-ui enter <element>` | Press the field's Enter action (search, send…); focuses the field first | |
+| `z2-ui enter <element>` | Press the field's Enter action (search, send…); focuses the field first. Android 11 and later (`unsupported` on 10) | |
 | `z2-ui key back\|home\|recents` | Android global action. `back` acts inside the foreground app, so it counts as an operation (subject to levels and approval) | |
 | `z2-ui open <package\|URI>` | Open an app or a specific screen. A package can be opened at `look` or above; a URI can make the target app do something, so it counts as an operation. Returning to z2term itself is always allowed | |
 | `z2-ui wait <text=\|desc=\|id=> [MS]` | Wait until the element appears (default 5000, max 30000). `#N` and coordinates are not accepted | |

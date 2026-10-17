@@ -302,6 +302,8 @@ internal object AndroidUiLook {
                 }
                 "enter" -> {
                     if (located.element.role != "input") throw Refusal("not_input", "The element is not an input field")
+                    // 確定キーの操作は Android 11 から。10 では無い操作を呼ぶと落ちる。
+                    if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "enter requires Android 11")
                     // 確定キーはキーボードが付いている間だけ使える。先にフォーカスを移す。
                     if (!node.isFocused) runCatching { perform(window, node, AccessibilityNodeInfo.ACTION_FOCUS, null) }
                     perform(window, node, AccessibilityAction.ACTION_IME_ENTER.id, null)

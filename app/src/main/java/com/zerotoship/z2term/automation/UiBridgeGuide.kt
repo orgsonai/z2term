@@ -117,7 +117,7 @@ Safety checks you will meet:
 | `z2-ui tap <target>` | Tap. |
 | `z2-ui long <target> [--hold MS]` | Long-press. With `@X,Y`, `--hold` sets how long the finger stays down, 100 to 10000 ms (default 600). |
 | `z2-ui type <target> <text> [--append]` | Replace the input's content with text (up to 4096 characters). `--append` adds to the end. Not for password fields (`password`). `not_input` if the element is not an input. |
-| `z2-ui enter <target>` | Press the keyboard's Enter/Search/Send action of an input. Focuses it first. |
+| `z2-ui enter <target>` | Press the keyboard's Enter/Search/Send action of an input. Focuses it first. Requires Android 11 (`unsupported` before). |
 | `z2-ui key back` / `home` / `recents` | Global keys. `back` counts as an operation on the foreground app. |
 | `z2-ui open <package>` | Bring an app to the front (allowed at level look). Opening z2term itself is always allowed. |
 | `z2-ui open <uri>` | Open a URI in the app that handles it; counts as an operation. `ambiguous` if several apps could open it: open by package instead. |
