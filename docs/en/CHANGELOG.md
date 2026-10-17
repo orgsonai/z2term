@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.45 (versionCode 743)**: The AI guide (`z2-ui --help`) now describes handing a repeating procedure to a small script that calls z2-ui, with the AI deciding only when the script meets something unknown. This removes the AI round trip (5–10 s each) during the repetition. Permissions, pause and stop still apply to the script.
+
 **1.0.44 (versionCode 742)**: The AI operation settings gained "Catch small moving parts" (on by default). Since 1.0.42 the "has it stopped" check is stricter, so a screen with a part that never stops may wait up to the limit every time; turning this off restores the check up to 1.0.41. The AI can also choose per call with `--settle-check strict|loose`.
 
 **1.0.43 (versionCode 741)**: AI app control can now wait until the screen's colours meet a condition, without any image (`z2-ui colors ... --until`). For example "until the board brightens (it is my turn)", "until the lamp is green" or "until any colour changes": z2term checks about every third of a second and returns the colours as text the moment the condition holds. Before, the AI kept capturing, reading the image and deciding to wait again, at 5–10 s per round.

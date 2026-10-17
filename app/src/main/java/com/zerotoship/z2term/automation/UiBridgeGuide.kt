@@ -267,6 +267,22 @@ Design your moves so that time limits do not depend on your thinking time:
 - Set expectations with the user: games that need reactions within a second are not playable through this interface.
 - The user must set the game to level `auto`; with `ask` every move waits for an approval.
 
+Hand repeated loops to a local script. Your round trip (5 to 10 s) is the slowest part, and a loop whose next step
+can be computed does not need you:
+- When the same cycle repeats (read the state, compute the next action, act, wait for the result), write a small
+  script in the terminal that calls z2-ui itself and runs the cycle without you. Typical shape, in any language:
+  `z2-ui colors ... --until ... --stable` → compute → `z2-ui drag ...` (or `tap`, `seq`) → repeat.
+  Each call still takes about 0.2 s plus the capture interval (about a third of a second); there is no faster pipe.
+- The script must stop and hand back to you on anything it does not recognise: a non-zero exit status, any `ok`
+  false (`not_met`, `stale`, `changed`, ...), colours it does not expect, or a limit on rounds or time. Then you take
+  a `shot`, decide, and start the script again. Print a short reason when it stops so you know where it was.
+- The script is held to the same rules as you: levels, approvals, pause, instructions and stop apply to every call,
+  and it must stop at once on `paused`, `interrupted` or `stopped` and pass the message on. Never use the script to
+  do what z2-ui refused.
+- Write it only when the user asked for the repetition, tell the user what it does before running it, and keep it
+  in a file the user can read (for example in your notes or the home directory). Many apps and online services
+  forbid automated play or repeated automated actions in their terms; say so to the user when that may apply.
+
 ## 11. Interruptions from the user (highest priority)
 
 While you work, the target app is in front and the user cannot type into your terminal. They control you through a
