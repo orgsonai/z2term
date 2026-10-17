@@ -989,6 +989,19 @@
     <string name="hint_storage">要看到 /sdcard，需要在 ⚙设置 里“授予全部存储权限”</string>
     <string name="settings_terminal_hints">把常见的卡点换成人话</string>
     <string name="settings_terminal_hints_desc">出现常见错误时，在画面下方只显示一行“下一步该怎么办”。终端本身的输出不会被改写。</string>
+    <string name="settings_attention_signal">后台标签页呼叫时通知</string>
+    <string name="settings_attention_signal_desc">你没在看的标签页响铃或请求通知（OSC 9 / OSC 777）时显示通知。很多 AI 命令行工具在等待输入时会这样做。点按通知可打开该标签页。</string>
+    <string name="settings_attention_silence">后台标签页停止输出时通知</string>
+    <string name="settings_attention_silence_desc">你没在看的标签页持续输出一段时间后安静下来时显示通知。程序那边不需要设置，但长任务中途暂停时也会通知。</string>
+    <string name="settings_attention_silence_sec">视为停止的秒数</string>
+    <string name="settings_attention_silence_sec_unit">秒</string>
+    <string name="attention_channel">标签页呼叫</string>
+    <string name="attention_waiting_title">“%1$s”在等待输入</string>
+    <string name="attention_waiting_text">标签页响铃了。点按可打开此标签页。</string>
+    <string name="attention_silent_title">“%1$s”停止输出了</string>
+    <plurals name="attention_silent_text">
+        <item quantity="other">已有 %1$d 秒没有输出。可能在等你的回复。</item>
+    </plurals>
     <string name="ssh_key_generate">创建密钥（ed25519）</string>
     <string name="ssh_key_regenerate">重新创建密钥</string>
     <string name="ssh_key_public_hint">请把这个公钥登记到你要连接的服务器上（私钥不会离开这台设备）</string>

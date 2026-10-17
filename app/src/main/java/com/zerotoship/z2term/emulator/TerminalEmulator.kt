@@ -30,6 +30,13 @@ class TerminalEmulator(
     private val titleSetter: ((String) -> Unit)? = null,
     /** OSC 7 (current working directory) のハンドラ。null なら無視。 */
     private val cwdSetter: ((String) -> Unit)? = null,
+    /** BEL (0x07、OSC などの終端ではないもの) のハンドラ。null なら無視。 */
+    private val bellHandler: (() -> Unit)? = null,
+    /**
+     * 通知の要求 (OSC 9 ; 本文 / OSC 777 ; notify ; 題 ; 本文) のハンドラ。引数は題 (無ければ null) と本文。
+     * 入力待ちになった CLI が「呼んでいる」合図に使う。null なら無視。
+     */
+    private val notifyHandler: ((String?, String) -> Unit)? = null,
     /**
      * DA2 / XTVERSION で名乗る版数。アプリ側は `BuildConfig` の値を渡す。
      *
@@ -241,7 +248,7 @@ class TerminalEmulator(
         if (b < 0x80) {
             utf8.reset()
             when (b) {
-                0x07 -> { /* BEL */ }
+                0x07 -> bellHandler?.invoke()
                 0x08 -> { if (cursorCol > 0) cursorCol-- }
                 0x09 -> {
                     cursorCol = ((cursorCol / 8) + 1) * 8
@@ -1358,8 +1365,25 @@ class TerminalEmulator(
                 colors.setCursorColor(it)
             }
             52 -> handleOscClipboard(arg)
+            9 -> handleOscNotify(arg)
+            777 -> {
+                // OSC 777 ; notify ; 題 ; 本文。notify 以外の種類は知らないので捨てる。
+                val parts = arg.split(';', limit = 3)
+                if (parts[0] == "notify" && parts.size >= 2) {
+                    notifyHandler?.invoke(parts[1].takeIf { it.isNotBlank() && parts.size == 3 }, parts.getOrElse(2) { parts[1] })
+                }
+            }
             else -> {}
         }
+    }
+
+    /**
+     * OSC 9 ; 本文 — 通知の要求。⚠ `9;4;…` は進み具合の表示 (ConEmu 方式) で、通知ではないので捨てる
+     * (処理中に何度も出すので、通知にすると鳴り続ける)。
+     */
+    private fun handleOscNotify(arg: String) {
+        if (arg.startsWith("4;") || arg == "4") return
+        if (arg.isNotBlank()) notifyHandler?.invoke(null, arg)
     }
 
     /**

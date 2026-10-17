@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.41 (versionCode 739)**: Background tabs that call for you now show a notification, so you notice an AI command-line tool (or anything else) waiting for your reply. (1) When a tab you are not looking at rings its bell or asks for a notification (OSC 9 / OSC 777) (on by default). (2) When such a tab printed for a while and then stays quiet for the chosen time (off by default, 10–600 s). Both are in Settings > Display. Tapping the notification opens the tab, and looking at the tab clears it.
+
 **1.0.40 (versionCode 738)**: On Android 10, `z2-ui enter` (the Enter action of an input in AI app control) could crash the app. The Enter action exists from Android 11, so on 10 it now returns `unsupported`.
 
 **1.0.39 (versionCode 737)**: AI app control sends the AI fewer and smaller images. (1) `--box X,Y,W,H` captures only the part of the screen that is needed; smaller images are faster for the AI to read. (2) With `--if-changed`, an unchanged screen returns just "unchanged" instead of an image, so the AI does not re-read the same picture after an operation that changed nothing. The comparison is strict so that small text changes are not missed.

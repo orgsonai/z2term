@@ -1082,6 +1082,20 @@ Pick one from the tabs on the right.</string>
     <string name="hint_storage">Seeing /sdcard needs Settings > allow access to all files</string>
     <string name="settings_terminal_hints">Explain common stumbles</string>
     <string name="settings_terminal_hints_desc">When a well-known error appears, show one line at the bottom with the next step. The terminal output itself is never altered.</string>
+    <string name="settings_attention_signal">Notify when a background tab calls</string>
+    <string name="settings_attention_signal_desc">When a tab you are not looking at rings its bell or asks for a notification (OSC 9 / OSC 777), show a notification. Many AI command-line tools do this when they wait for input. Tap it to open the tab.</string>
+    <string name="settings_attention_silence">Notify when a background tab stops printing</string>
+    <string name="settings_attention_silence_desc">When a tab you are not looking at printed for a while and then stays quiet, show a notification. Works without any setting on the program side, but also fires when a long job simply pauses.</string>
+    <string name="settings_attention_silence_sec">Seconds without output</string>
+    <string name="settings_attention_silence_sec_unit">s</string>
+    <string name="attention_channel">Tab calls</string>
+    <string name="attention_waiting_title">“%1$s” is waiting for input</string>
+    <string name="attention_waiting_text">The tab rang its bell. Tap to open it.</string>
+    <string name="attention_silent_title">“%1$s” stopped printing</string>
+    <plurals name="attention_silent_text">
+        <item quantity="one">Nothing for %1$d second. It may be waiting for your reply.</item>
+        <item quantity="other">Nothing for %1$d seconds. It may be waiting for your reply.</item>
+    </plurals>
     <string name="ssh_key_generate">Create a key (ed25519)</string>
     <string name="ssh_key_regenerate">Create a new key</string>
     <string name="ssh_key_public_hint">Register this public key on the server you connect to (the private key never leaves this device)</string>

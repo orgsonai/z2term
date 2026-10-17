@@ -361,6 +361,17 @@ class AppSettings(private val context: Context) {
          */
         val terminalHintsEnabled: Boolean = true,
         /**
+         * 見ていないタブが合図 (BEL / OSC 9 / OSC 777) を出したら通知する (1.0.41)。既定 ON:
+         * 合図は CLI が「呼んでいる」ときにだけ出すもので、誤報がほとんど無い。
+         */
+        val attentionSignal: Boolean = true,
+        /**
+         * 見ていないタブの出力が続いたあと [attentionSilenceSec] 秒止まったら通知する (1.0.41)。
+         * 合図を出さない CLI 向け。長い処理の途中で出力が止まっただけでも出るので既定 OFF。
+         */
+        val attentionSilence: Boolean = false,
+        val attentionSilenceSec: Int = DEFAULT_ATTENTION_SILENCE_SEC,
+        /**
          * システムイベントログの出力フォーマット **テンプレート**。プレースホルダ `{time}` `{ts}`
          * `{event}` `{level}` `{ssid}` と、改行 `\n`・タブ `\t` が使える。**空文字なら JSONL** (既定)。
          * 置換は [com.zerotoship.z2term.service.SystemEventService.render] が行う。
@@ -622,6 +633,10 @@ class AppSettings(private val context: Context) {
             systemEventCaptureEnabled = p[KEY_SYSTEM_EVENT_CAPTURE] ?: DEFAULT_SYSTEM_EVENT_CAPTURE,
             introDone = p[KEY_INTRO_DONE] ?: false,
             terminalHintsEnabled = p[KEY_TERMINAL_HINTS] ?: true,
+            attentionSignal = p[KEY_ATTENTION_SIGNAL] ?: true,
+            attentionSilence = p[KEY_ATTENTION_SILENCE] ?: false,
+            attentionSilenceSec = (p[KEY_ATTENTION_SILENCE_SEC] ?: DEFAULT_ATTENTION_SILENCE_SEC)
+                .coerceIn(MIN_ATTENTION_SILENCE_SEC, MAX_ATTENTION_SILENCE_SEC),
             systemEventLogFormat = p[KEY_SYSTEM_EVENT_LOG_FORMAT] ?: DEFAULT_SYSTEM_EVENT_LOG_FORMAT,
             systemEventLogPrepend = p[KEY_SYSTEM_EVENT_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND,
             unlockWatchEnabled = p[KEY_UNLOCK_WATCH] ?: DEFAULT_UNLOCK_WATCH,
@@ -762,6 +777,18 @@ class AppSettings(private val context: Context) {
 
     suspend fun setTerminalHintsEnabled(enabled: Boolean) {
         context.dataStore.edit { it[KEY_TERMINAL_HINTS] = enabled }
+    }
+
+    suspend fun setAttentionSignal(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_ATTENTION_SIGNAL] = enabled }
+    }
+
+    suspend fun setAttentionSilence(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_ATTENTION_SILENCE] = enabled }
+    }
+
+    suspend fun setAttentionSilenceSec(seconds: Int) {
+        context.dataStore.edit { it[KEY_ATTENTION_SILENCE_SEC] = seconds.coerceIn(MIN_ATTENTION_SILENCE_SEC, MAX_ATTENTION_SILENCE_SEC) }
     }
 
     /** 設定をまるごと JSON にする (持ち出し用・0.8.239)。 */
@@ -1177,6 +1204,13 @@ class AppSettings(private val context: Context) {
         private val KEY_SYSTEM_EVENT_CAPTURE = booleanPreferencesKey("system_event_capture_enabled")
         private val KEY_INTRO_DONE = booleanPreferencesKey("intro_done")
         private val KEY_TERMINAL_HINTS = booleanPreferencesKey("terminal_hints")
+        private val KEY_ATTENTION_SIGNAL = booleanPreferencesKey("attention_signal")
+        private val KEY_ATTENTION_SILENCE = booleanPreferencesKey("attention_silence")
+        private val KEY_ATTENTION_SILENCE_SEC = intPreferencesKey("attention_silence_sec")
+        /** 「出力が止まった」とみなす秒数。短すぎると考えている途中で鳴る。 */
+        const val DEFAULT_ATTENTION_SILENCE_SEC = 30
+        const val MIN_ATTENTION_SILENCE_SEC = 10
+        const val MAX_ATTENTION_SILENCE_SEC = 600
         private val KEY_SYSTEM_EVENT_LOG_FORMAT = stringPreferencesKey("system_event_log_format")
         private val KEY_NOTIFICATION_LOG_PREPEND = booleanPreferencesKey("notification_log_prepend")
         private val KEY_SYSTEM_EVENT_LOG_PREPEND = booleanPreferencesKey("system_event_log_prepend")

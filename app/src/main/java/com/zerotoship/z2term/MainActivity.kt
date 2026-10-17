@@ -145,6 +145,7 @@ class MainActivity : ComponentActivity() {
 
         // 共有シートから起動されたとき (アプリが動いていなかった場合はこちらに来る)。
         handleShareIntent(intent)
+        openSessionFromIntent(intent)
     }
 
     /** 既にアプリが動いている状態で共有された場合 (`singleTask` なのでここに届く)。 */
@@ -153,6 +154,14 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         window.decorView.post { com.zerotoship.z2term.edge.AppLaunch.resumePendingSplit(this) }
         handleShareIntent(intent)
+        openSessionFromIntent(intent)
+    }
+
+    /** 「タブが呼んでいる」通知 ([com.zerotoship.z2term.core.TabAttention]) から来たら、そのタブを開く。 */
+    private fun openSessionFromIntent(intent: Intent?) {
+        val id = intent?.getStringExtra(com.zerotoship.z2term.core.TabAttention.EXTRA_SESSION) ?: return
+        intent.removeExtra(com.zerotoship.z2term.core.TabAttention.EXTRA_SESSION)
+        com.zerotoship.z2term.core.SessionManager.setActive(id)
     }
 
     /**
@@ -176,6 +185,7 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         // 離れていた時間が猶予を超えていたら掛け直す (判断は [AppLock] が持つ)。
         AppLock.onEnterForeground()
+        com.zerotoship.z2term.core.TabAttention.setAppVisible(true)
     }
 
     /**
@@ -186,6 +196,8 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         if (!isChangingConfigurations) {
             AppLock.onLeaveForeground()
+            // ここから先は、選んでいるタブも「見ていない」。呼ばれたら通知する。
+            com.zerotoship.z2term.core.TabAttention.setAppVisible(false)
             // 失敗の跡は持ち越さない。次に戻ってきたときは自動でもう一度尋ねる。
             unlockFailed = false
         }

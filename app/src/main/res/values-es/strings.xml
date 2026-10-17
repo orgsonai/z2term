@@ -1006,6 +1006,20 @@ Elige uno en las pestañas de la derecha.</string>
     <string name="hint_storage">Para ver /sdcard hace falta ir a Ajustes > permitir el acceso a todos los archivos</string>
     <string name="settings_terminal_hints">Explicar los tropiezos habituales</string>
     <string name="settings_terminal_hints_desc">Cuando aparece un error conocido, muestra abajo una línea con el siguiente paso. La salida de la terminal nunca se altera.</string>
+    <string name="settings_attention_signal">Avisar cuando una pestaña de fondo llama</string>
+    <string name="settings_attention_signal_desc">Cuando una pestaña que no estás mirando hace sonar la campana o pide una notificación (OSC 9 / OSC 777), muestra una notificación. Muchas herramientas de IA de línea de comandos lo hacen al esperar una entrada. Tócala para abrir la pestaña.</string>
+    <string name="settings_attention_silence">Avisar cuando una pestaña de fondo deja de mostrar salida</string>
+    <string name="settings_attention_silence_desc">Cuando una pestaña que no estás mirando muestra salida un rato y luego se queda en silencio, muestra una notificación. No requiere ajustes en el programa, pero también avisa cuando un proceso largo solo se detiene un momento.</string>
+    <string name="settings_attention_silence_sec">Segundos sin salida</string>
+    <string name="settings_attention_silence_sec_unit">s</string>
+    <string name="attention_channel">Llamadas de pestañas</string>
+    <string name="attention_waiting_title">«%1$s» espera una entrada</string>
+    <string name="attention_waiting_text">La pestaña hizo sonar la campana. Toca para abrirla.</string>
+    <string name="attention_silent_title">«%1$s» dejó de mostrar salida</string>
+    <plurals name="attention_silent_text">
+        <item quantity="one">Nada durante %1$d segundo. Puede que espere tu respuesta.</item>
+        <item quantity="other">Nada durante %1$d segundos. Puede que espere tu respuesta.</item>
+    </plurals>
     <string name="ssh_key_generate">Crear una clave (ed25519)</string>
     <string name="ssh_key_regenerate">Crear una clave nueva</string>
     <string name="ssh_key_public_hint">Registra esta clave pública en el servidor al que te conectas (la clave privada nunca sale de este dispositivo)</string>

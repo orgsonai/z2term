@@ -3,6 +3,7 @@ package com.zerotoship.z2term.core
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.R
@@ -222,6 +223,10 @@ class TerminalSession(
         if (screenRows > 0 && screenCols > 0) applySize(screenRows, screenCols)
     }
 
+    /** 見ていないときの「出力が止まった」の判定 ([TabAttention])。 */
+    private val attention = AttentionState().also { TabAttention.start(appContext) }
+    @Volatile private var silenceJob: Job? = null
+
     val emulator = TerminalEmulator(
         output = { bytes -> writeToPty(bytes) },
         initialRows = 24,
@@ -237,6 +242,9 @@ class TerminalSession(
         // 名前を明示的に付けたタブ (labelPinned) は、シェルが出すタイトルでも上書きしない。
         titleSetter = { title -> if (title.isNotBlank() && !labelPinned) _label.value = title.take(20) },
         cwdSetter = { path -> _cwd.value = path },
+        // 入力待ちになった CLI の合図 (BEL / OSC 9 / OSC 777)。見ていないタブなら通知する。
+        bellHandler = { signal(null, null) },
+        notifyHandler = { title, body -> signal(title, body) },
         // DA2 / XTVERSION で名乗る版数。エミュレータ側は Android に依存しないので here で渡す。
         versionName = BuildConfig.VERSION_NAME,
         versionCode = BuildConfig.VERSION_CODE
@@ -510,6 +518,9 @@ class TerminalSession(
     /** 初回ガイド (最初の 3 枚) を出し終えたことを覚える。 */
     fun setIntroDone(done: Boolean) { scope.launch { settings.setIntroDone(done) } }
     fun setTerminalHintsEnabled(enabled: Boolean) { scope.launch { settings.setTerminalHintsEnabled(enabled) } }
+    fun setAttentionSignal(enabled: Boolean) { scope.launch { settings.setAttentionSignal(enabled) } }
+    fun setAttentionSilence(enabled: Boolean) { scope.launch { settings.setAttentionSilence(enabled) } }
+    fun setAttentionSilenceSec(seconds: Int) { scope.launch { settings.setAttentionSilenceSec(seconds) } }
     fun setKeepScreenOn(enabled: Boolean) { scope.launch { settings.setKeepScreenOn(enabled) } }
     fun setScreenBrightness(level: Float?) { scope.launch { settings.setScreenBrightness(level) } }
     fun setSpecialKeyLayoutJson(json: String) { scope.launch { settings.setSpecialKeyLayoutJson(json) } }
@@ -1002,6 +1013,7 @@ class TerminalSession(
                             if (settingsFlow.value.terminalHintsEnabled && emulator.buffer.primaryActive) {
                                 scanForHint(chunk)
                             }
+                            noteOutput(read)
                             emulator.buffer.scrollbackSize - before
                         }
                         if (deltaScrollback > 0) {
@@ -1401,6 +1413,7 @@ class TerminalSession(
     }
 
     override fun shutdown() {
+        TabAttention.forget(appContext, id)
         // タブを閉じるときは書き残しを必ず吐き出す (バッファは数百 ms 分だけ残っている)。
         stopLogging()
         closeChannel()
@@ -1408,6 +1421,38 @@ class TerminalSession(
         // 専用スレッドも片付ける (FG service 終了時のリーク防止)
         runCatching { emulatorDispatcher.close() }
         runCatching { emulatorExecutor.shutdownNow() }
+    }
+
+    /** 合図を受けた (エミュレータのスレッドから)。 */
+    private fun signal(title: String?, body: String?) {
+        if (!settingsFlow.value.attentionSignal) return
+        TabAttention.alert(appContext, this, TabAttention.Reason.SIGNAL, title, body)
+    }
+
+    /**
+     * 出力が来た (エミュレータのスレッドから)。見ていないタブなら [AttentionState] に数え、止まったかを
+     * 確かめる予定を 1 つだけ入れる。⚠ 塊ごとに予定を作り直さない (大量の出力で毎回作ると重い)。
+     * 予定の時刻に出力が続いていたら、最後の出力から数え直して待ち直す。
+     */
+    private fun noteOutput(bytes: Int) {
+        val snap = settingsFlow.value
+        if (!snap.attentionSilence || TabAttention.visible(id)) { attention.seen(); return }
+        attention.output(SystemClock.elapsedRealtime(), bytes)
+        if (silenceJob?.isActive == true) return
+        val silenceMs = snap.attentionSilenceSec * 1000L
+        silenceJob = scope.launch {
+            while (true) {
+                val due = attention.dueAt(silenceMs) ?: return@launch
+                val wait = due - SystemClock.elapsedRealtime()
+                if (wait > 0) { delay(wait); continue }
+                if (attention.silent(SystemClock.elapsedRealtime(), silenceMs) && !TabAttention.visible(id) &&
+                    settingsFlow.value.attentionSilence) {
+                    TabAttention.alert(appContext, this@TerminalSession, TabAttention.Reason.SILENT,
+                        silenceSec = snap.attentionSilenceSec)
+                }
+                return@launch
+            }
+        }
     }
 
     private fun writeToPty(bytes: ByteArray) {

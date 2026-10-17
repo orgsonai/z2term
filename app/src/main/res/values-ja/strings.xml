@@ -1062,6 +1062,19 @@
     <string name="hint_storage">/sdcard を見るには ⚙設定「ストレージ全体を許可」が要ります</string>
     <string name="settings_terminal_hints">つまずきの言い換え</string>
     <string name="settings_terminal_hints_desc">よくあるエラーが出たとき、画面の下に「次の一手」を1行だけ出します。端末の出力は書き換えません。</string>
+    <string name="settings_attention_signal">裏のタブが呼んだら通知する</string>
+    <string name="settings_attention_signal_desc">見ていないタブがベルを鳴らしたり、通知を求めたり（OSC 9 / OSC 777）したら通知を出します。AI のコマンドラインツールの多くは、入力を待つときにこれを出します。通知を押すとそのタブを開きます。</string>
+    <string name="settings_attention_silence">裏のタブの出力が止まったら通知する</string>
+    <string name="settings_attention_silence_desc">見ていないタブで出力が続いたあと、しばらく何も出なくなったら通知を出します。相手のプログラム側の設定は要りませんが、長い処理の途中で止まっただけでも出ます。</string>
+    <string name="settings_attention_silence_sec">止まったとみなす秒数</string>
+    <string name="settings_attention_silence_sec_unit">秒</string>
+    <string name="attention_channel">タブからの呼び出し</string>
+    <string name="attention_waiting_title">「%1$s」が入力を待っています</string>
+    <string name="attention_waiting_text">タブがベルを鳴らしました。押すとこのタブを開きます。</string>
+    <string name="attention_silent_title">「%1$s」の出力が止まりました</string>
+    <plurals name="attention_silent_text">
+        <item quantity="other">%1$d 秒間なにも出ていません。返事を待っているかもしれません。</item>
+    </plurals>
     <string name="ssh_key_generate">鍵を作る（ed25519）</string>
     <string name="ssh_key_regenerate">鍵を作り直す</string>
     <string name="ssh_key_public_hint">この公開鍵を接続先に登録してください（秘密鍵はこの端末から出ません）</string>

@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.40.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.41.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -277,6 +277,13 @@ Use **Settings › Key layout (your own)** to enable faces and change their orde
 When you hit one of the usual walls — `ping` not working, a port below 1024, `/sdcard` looking empty — **one line with the next step** appears at the bottom of the screen (it fades after a few seconds, or tap it to dismiss).
 The terminal output itself is **never modified**; this is just an extra line elsewhere.
 If you find it noisy, turn off Settings > Display > "Explain common stumbles".
+
+### Notifications when a background tab calls (1.0.41)
+
+So that you notice when something running in a background tab, such as an AI command-line tool, is waiting for your reply. "Not looking" means the tab is not selected, or z2term is not in front. Tapping the notification opens the tab, and looking at the tab clears it.
+
+- **Notify when a background tab calls** (Settings > Display, on by default): when a tab rings its bell or asks for a notification (OSC 9 / OSC 777). Many tools do this while waiting for input, so false alarms are rare. If the tool lets you choose how it notifies, pick the terminal bell or OSC 9. At most once every 10 seconds per tab.
+- **Notify when a background tab stops printing** (off by default): when a tab that kept printing stays quiet for the chosen time (10–600 s, default 30). Needs no setting in the tool, but also fires when a long job merely pauses. Small output (a redrawn prompt and the like) does not count, and after one notification it waits until output flows again.
 
 ### Showing a guide (0.8.314)
 

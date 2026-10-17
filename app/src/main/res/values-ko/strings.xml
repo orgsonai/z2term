@@ -988,6 +988,19 @@
     <string name="hint_storage">/sdcard를 보려면 설정 > 모든 파일에 대한 접근을 허용해야 합니다</string>
     <string name="settings_terminal_hints">자주 걸리는 것 알려 주기</string>
     <string name="settings_terminal_hints_desc">잘 알려진 오류가 나오면 아래에 다음 할 일을 한 줄로 보여 줍니다. 터미널 출력 자체는 절대 건드리지 않습니다.</string>
+    <string name="settings_attention_signal">뒤쪽 탭이 부르면 알림</string>
+    <string name="settings_attention_signal_desc">보고 있지 않은 탭이 벨을 울리거나 알림을 요청하면(OSC 9 / OSC 777) 알림을 띄웁니다. 많은 AI 명령줄 도구가 입력을 기다릴 때 이렇게 합니다. 누르면 그 탭을 엽니다.</string>
+    <string name="settings_attention_silence">뒤쪽 탭의 출력이 멈추면 알림</string>
+    <string name="settings_attention_silence_desc">보고 있지 않은 탭에서 출력이 이어지다가 한동안 조용해지면 알림을 띄웁니다. 프로그램 쪽 설정은 필요 없지만, 긴 작업이 잠깐 멈춘 경우에도 알립니다.</string>
+    <string name="settings_attention_silence_sec">멈춤으로 볼 초</string>
+    <string name="settings_attention_silence_sec_unit">초</string>
+    <string name="attention_channel">탭 호출</string>
+    <string name="attention_waiting_title">“%1$s”이(가) 입력을 기다립니다</string>
+    <string name="attention_waiting_text">탭에서 벨이 울렸습니다. 누르면 이 탭을 엽니다.</string>
+    <string name="attention_silent_title">“%1$s”의 출력이 멈췄습니다</string>
+    <plurals name="attention_silent_text">
+        <item quantity="other">%1$d초 동안 아무것도 나오지 않았습니다. 답을 기다리는 중일 수 있습니다.</item>
+    </plurals>
     <string name="ssh_key_generate">키 만들기 (ed25519)</string>
     <string name="ssh_key_regenerate">새 키 만들기</string>
     <string name="ssh_key_public_hint">이 공개 키를 접속할 서버에 등록하세요 (개인 키는 이 기기 밖으로 나가지 않습니다)</string>

@@ -469,6 +469,31 @@ fun SettingsSheet(
                     onChange = { session.setTerminalHintsEnabled(it) }
                 )
 
+                // 見ていないタブが呼んでいるのを通知で知らせる (1.0.41)。
+                ToggleField(
+                    title = stringResource(R.string.settings_attention_signal),
+                    description = stringResource(R.string.settings_attention_signal_desc),
+                    checked = settings.attentionSignal,
+                    onChange = { session.setAttentionSignal(it) }
+                )
+                ToggleField(
+                    title = stringResource(R.string.settings_attention_silence),
+                    description = stringResource(R.string.settings_attention_silence_desc),
+                    checked = settings.attentionSilence,
+                    onChange = { session.setAttentionSilence(it) }
+                )
+                if (settings.attentionSilence) {
+                    val secondsUnit = stringResource(R.string.settings_attention_silence_sec_unit)
+                    SliderField(
+                        title = stringResource(R.string.settings_attention_silence_sec),
+                        value = settings.attentionSilenceSec.toFloat(),
+                        range = AppSettings.MIN_ATTENTION_SILENCE_SEC.toFloat()..AppSettings.MAX_ATTENTION_SILENCE_SEC.toFloat(),
+                        steps = (AppSettings.MAX_ATTENTION_SILENCE_SEC - AppSettings.MIN_ATTENTION_SILENCE_SEC) / 10 - 1,  // 10 秒刻み
+                        valueLabel = { "${it.toInt()} $secondsUnit" },
+                        onChange = { session.setAttentionSilenceSec((it / 10f).toInt() * 10) }
+                    )
+                }
+
                 // ツールバー (端末上部バー) に出すボタンを選ぶ。使わないボタンを消せるので、
                 // 機能追加でボタンが増えても各自の画面は増えない (要望)。
                 // 並べ替えもここでできる (チップを長押し→左右ドラッグ・0.8.509)。端末画面で

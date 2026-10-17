@@ -989,6 +989,19 @@
     <string name="hint_storage">要看到 /sdcard，需要在 ⚙設定 裡“授予全部儲存權限”</string>
     <string name="settings_terminal_hints">把常見的卡點換成人話</string>
     <string name="settings_terminal_hints_desc">出現常見錯誤時，在畫面下方只顯示一行“下一步該怎麼辦”。終端機本身的輸出不會被改寫。</string>
+    <string name="settings_attention_signal">背景分頁呼叫時通知</string>
+    <string name="settings_attention_signal_desc">你沒在看的分頁響鈴或要求通知（OSC 9 / OSC 777）時顯示通知。許多 AI 命令列工具在等待輸入時會這樣做。點按通知可開啟該分頁。</string>
+    <string name="settings_attention_silence">背景分頁停止輸出時通知</string>
+    <string name="settings_attention_silence_desc">你沒在看的分頁持續輸出一段時間後安靜下來時顯示通知。程式那邊不需要設定，但長工作中途暫停時也會通知。</string>
+    <string name="settings_attention_silence_sec">視為停止的秒數</string>
+    <string name="settings_attention_silence_sec_unit">秒</string>
+    <string name="attention_channel">分頁呼叫</string>
+    <string name="attention_waiting_title">「%1$s」正在等待輸入</string>
+    <string name="attention_waiting_text">分頁響鈴了。點按可開啟此分頁。</string>
+    <string name="attention_silent_title">「%1$s」停止輸出了</string>
+    <plurals name="attention_silent_text">
+        <item quantity="other">已有 %1$d 秒沒有輸出。可能在等你的回覆。</item>
+    </plurals>
     <string name="ssh_key_generate">建立金鑰（ed25519）</string>
     <string name="ssh_key_regenerate">重新建立金鑰</string>
     <string name="ssh_key_public_hint">請把這個公鑰登記到你要連線的伺服器上（私鑰不會離開這台裝置）</string>

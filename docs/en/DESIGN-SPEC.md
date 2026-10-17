@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-18 / Target version: 1.0.40 (versionCode 738)
+Last updated: 2026-10-18 / Target version: 1.0.41 (versionCode 739)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -980,6 +980,8 @@ An Android app UID cannot directly `open` `/dev/bus/usb/...`, while `UsbManager.
   - It is written **once, when the finger lifts** (`Slider.onValueChangeFinished`). While dragging, a local state drives the window directly so a DataStore round-trip never sits between the thumb and the screen.
   - Brightness is a window-level setting, so it is **shared by terminal and GUI tabs**. `GuiTabScreen` applies the stored value as well, so launching straight into a GUI tab is not left at full backlight (the bar itself is still opened by double-tapping 🔅 on a terminal tab).
 - ⚠ Floor of 10%. The worst outcome is a screen too dark to find the way back, so Reset always sits in the bar (without an exit, nobody dares touch the slider). **Persisting makes that floor matter more than before**, since a too-dark value would come back on the next launch.
+
+**Background tab calls (`core/TabAttention`, 1.0.41)**: "looking" means the app is in front (`MainActivity` between onStart and onStop, ignoring recreation on rotation) and the tab is `SessionManager.activeId`. Signals come from `TerminalEmulator`'s `bellHandler` (a BEL in normal text; a BEL that ends an OSC does not count) and `notifyHandler` (OSC 9 ; body, OSC 777 ; notify ; title ; body; `9;4;…` is a progress report and is dropped). At most once every 10 s per tab. The silence check is `AttentionState` (`AttentionStateTest`): it arms once 256 bytes arrive while not looking and alerts once N s after the last output. Only one check is scheduled; if output continued, it waits again from the last output (never rescheduled per chunk). One notification per tab (number derived from the tab id); tapping it selects the tab via `EXTRA_SESSION`; it is cleared when the tab is looked at or closed.
 
 **Explaining common stumbles (`core/TerminalHints`, 0.8.237)**: the handbook FAQ has the answers, but **the person who is stuck does not read it at that moment**. When a known pattern appears in the output, one line with the next step is shown at the **bottom** of the terminal.
 
