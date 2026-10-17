@@ -1,6 +1,6 @@
 # `z2-ui`: letting an AI operate Android apps
 
-Status: **stage 1 implemented in 1.0.30** (§10). Stages 2 and 3 are not implemented yet. Rows whose "Stage" column is empty are available in stage 1.
+Status: **stage 1 implemented in 1.0.30, stage 2 in 1.0.31** (§10). Stage 3 is not implemented yet. Rows whose "Stage" column is empty are available.
 
 ## 1. Purpose
 
@@ -40,7 +40,7 @@ Foreground Android app
 ```
 
 - No new permission is needed; the existing accessibility service is used.
-- `AndroidUiLook` reads and operates the screen. Like `AndroidUiElements` (z2-action) it checks the foreground window and package and does not enter content embedded from other apps. The differences: it reads input fields (except passwords) and returns position, kind and available operations. Capturing (stage 2) will use the same `takeScreenshot` as `RegionShot`.
+- `AndroidUiLook` reads and operates the screen. Like `AndroidUiElements` (z2-action) it checks the foreground window and package and does not enter content embedded from other apps. The differences: it reads input fields (except passwords) and returns position, kind and available operations. Capturing uses the same `takeScreenshot` as `RegionShot` and respects Android's capture interval by sharing its timestamp with the edge bar's automatic colouring.
 - `z2-action` is unchanged. Saved, replayable steps stay with `z2-action`; the AI's one-move-at-a-time work goes through `z2-ui`. The two never run at the same time (while one is busy, the other answers `busy`).
 
 ## 4. Commands
@@ -53,10 +53,12 @@ Every output is one line of JSON. Success exits with 0, failure with non-zero. F
 |---|---|---|
 | `z2-ui front` | Foreground package, app name, that app's level, screen size, rotation, whether locked | |
 | `z2-ui look` | Elements on the foreground screen (example below). `--all` includes meaningless containers too | |
+| `z2-ui look --tree` | The same with parent/child structure (`children` inside `tree`). Numbers match the flat list, so `#N` still works. Omitted containers are skipped and elements hang on the nearest listed ancestor | |
+| `z2-ui look --in N` | Read only inside element N of the last `look`, so a busy screen can be read part by part within the 512-element limit | |
+| `z2-ui shot [--scale 0.1..1]` | Save only the foreground app window to `/root/.z2term/ui/shot.png` and return `path`, image `size`, on-screen `box` and `scale`. Image (x, y) is screen (box.x + x / scale, box.y + y / scale). Everything outside the window is cut off so the notification shade and other apps are not captured | |
 | `z2-ui status` | Permission state (on/off, stopped, paused, default level, per-app levels, seconds left on approve-for, apps that are always refused) | |
-| `z2-ui look --tree` | The same with parent/child structure | 2 |
-| `z2-ui shot [FILE]` | Save the screen as PNG and return the path; default `~/.z2term/ui/shot.png`; `--scale 0.5` shrinks it | 2 |
-| `z2-ui apps` | Launchable apps (use `z2-app list` for now) | 2 |
+
+Use `z2-app list` for launchable apps (there is no `z2-ui apps`). `--all`, `--tree` and `--in N` can be combined.
 
 Example `look` output:
 
@@ -77,7 +79,7 @@ Example `look` output:
 - `can` lists the operations Android allows on the element. If the element itself is not tappable but a parent within eight levels is, `tap` is listed (the tap goes to that parent). Fields without a value (such as `desc`) are omitted. Disabled elements carry `"enabled":false`.
 - Meaningless containers (no text, description or operation) are omitted to keep the output small; `--all` includes everything.
 - Input fields report position, hint and content. **Password fields report only their kind and position, never their content.**
-- Limits are 512 elements, 3000 nodes and 1.5 seconds per screen; beyond that `error:"too_many"` / `"too_large"` is returned. Narrowing with `look --in <n>` is stage 2.
+- Limits are 512 elements, 3000 nodes and 1.5 seconds per screen; beyond that `error:"too_many"` / `"too_large"` is returned; narrow the read with `look --in <n>` (the node and time limits stay the same).
 
 ### 4.2 Operating
 
@@ -99,8 +101,10 @@ Elements are addressed in one of these ways.
 | `z2-ui open <package\|URI>` | Open an app or a specific screen. A package can be opened at `look` or above; a URI can make the target app do something, so it counts as an operation. Returning to z2term itself is always allowed | |
 | `z2-ui wait <text=\|desc=\|id=> [MS]` | Wait until the element appears (default 5000, max 30000). `#N` and coordinates are not accepted | |
 | `z2-ui wait-change [MS]` | Wait until the screen changes from the last `look` | |
-| `z2-ui scroll <element> up\|down\|left\|right` | Scroll by one screen | 2 |
-| `z2-ui swipe X1 Y1 X2 Y2 [MS]` | Swipe by coordinates | 2 |
+| `z2-ui scroll <element> up\|down\|left\|right` | Scroll by one screen, using the directional scroll of the element or an ancestor within eight levels (falling back to backward/forward). Coordinates are not accepted (use `swipe`) | |
+| `z2-ui swipe X1 Y1 X2 Y2 [MS]` | Swipe by coordinates (default 300, 50–3000 ms); both points must be inside the foreground app window | |
+
+`scroll` and `swipe` count as operations too (subject to levels and approval): some apps mark items as read just by scrolling, which would break the promise that Read only changes nothing.
 
 There is no `key shade`: the notification shade (system UI) is never available to the AI, so opening it would let the AI do nothing.
 
@@ -113,7 +117,7 @@ There is no `key shade`: the notification shade (system UI) is never available t
 ### 4.3 Passwords and protected screens
 
 - `type` never targets password fields (`error:"password"`). A person enters credentials.
-- On screens that forbid capture (banking apps and so on, Android `FLAG_SECURE`), `shot` (stage 2) will return `error:"secure"`.
+- On screens that forbid capture (banking apps and so on, Android `FLAG_SECURE`), Android returns the image blacked out. `shot` needs Android 11 or later (`error:"unsupported"` before that).
 
 ## 5. Safety
 
@@ -238,10 +242,10 @@ The virtual display is left for investigation in stage 3 or later.
 
 ## 9. Limits
 
-- On screens that expose no elements (games, apps that draw everything themselves), the AI can only read an image from `shot` and operate by coordinates; accuracy depends on the AI's image reading.
+- On screens that expose no elements (games, apps that draw everything themselves), the AI can only read an image from `shot` and operate by coordinates with `tap @X,Y` and `swipe`; accuracy depends on the AI's image reading.
 - WebView (browser screens embedded in apps) exposes elements differently depending on the app and the OS version.
 - On Google Play, using accessibility for automation requires a declaration and review. F-Droid builds are not affected.
-- One `look` stays within the existing 1.5-second search budget. Narrowing busy screens with `--in` is stage 2.
+- One `look` stays within the existing 1.5-second search budget. Narrow busy screens with `--in`.
 - The `z2-ui` safety measures apply as long as the AI goes through `z2-ui` (start of §5).
 
 ## 10. Stages
@@ -249,7 +253,7 @@ The virtual display is left for investigation in stage 3 or later.
 | Stage | Contents |
 |---|---|
 | Stage 1 (implemented in 1.0.30) | `front` / `look` / `status` / `tap` / `long` / `type` / `enter` / `key` / `open` / `wait` / `wait-change` / `allow`, all safety measures in §5, the log |
-| Stage 2 | `shot` / `scroll` / `swipe` / `look --tree` / `look --in` |
+| Stage 2 (implemented in 1.0.31) | `shot` / `scroll` / `swipe` / `look --tree` / `look --in` |
 | Stage 3 | `z2-ui mcp`, notes (§7), `z2-ui save`, pressing notification buttons (§8) |
 
 ## 11. Decisions (2026-10-18)

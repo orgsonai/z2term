@@ -92,6 +92,20 @@ internal object UiBridgePolicy {
         })
     }
 
+    /**
+     * `look --tree` の親。各要素について、一覧の中で一番近い祖先の添字 (無ければ -1)。
+     * [paths] は根からの子の添字の道筋で、幅優先の順 (祖先が子孫より先) に並んでいること。
+     */
+    fun parents(paths: List<List<Int>>): IntArray {
+        val index = HashMap<List<Int>, Int>()
+        return IntArray(paths.size) { i ->
+            val path = paths[i]
+            val parent = (path.size - 1 downTo 0).firstNotNullOfOrNull { index[path.take(it)] } ?: -1
+            index[path] = i
+            parent
+        }
+    }
+
     /** 要素の種類。AI が意味を読み取れる最小限の語彙に畳む。 */
     fun role(className: String?, editable: Boolean, password: Boolean, checkable: Boolean,
         clickable: Boolean, scrollable: Boolean): String {

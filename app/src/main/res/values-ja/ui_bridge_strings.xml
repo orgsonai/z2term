@@ -48,4 +48,6 @@
     <string name="ui_bridge_op_back">%1$s で「戻る」を押す</string>
     <string name="ui_bridge_op_open">%1$s で開く: %2$s</string>
     <string name="ui_bridge_point">位置 (%1$d, %2$d)</string>
+    <string name="ui_bridge_op_scroll">%1$s の「%2$s」をスクロールする（%3$s）</string>
+    <string name="ui_bridge_op_swipe">%1$s でスワイプする（%2$d, %3$d）→（%4$d, %5$d）</string>
 </resources>

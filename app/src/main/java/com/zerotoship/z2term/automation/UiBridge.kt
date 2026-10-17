@@ -132,15 +132,46 @@ internal object UiBridge {
             "allow" -> if (args.isEmpty()) status(app, settings) else exclusive { allow(app, settings, args) }
             "front" -> { count(args, 0); enter(settings, false); front(app, settings) }
             "look" -> {
-                require(args.isEmpty() || args == listOf("--all")) { "z2-ui look [--all]" }
+                val flags = lookFlags(args)
                 enter(settings, false)
                 device(app)
-                val snapshot = runBlocking { AndroidUiLook.look(args.isNotEmpty()) { gateLook(app, settings, it) } }
+                val snapshot = runBlocking { AndroidUiLook.look(flags.all, flags.within) { gateLook(app, settings, it) } }
                 touch(app, snapshot.pkg)
                 val screen = ActionRuntime.screen(app)
                 success().put("screen", snapshot.screen).put("package", snapshot.pkg).put("app", label(app, snapshot.pkg))
-                    .put("size", JSONArray(listOf(screen.width, screen.height))).put("rotation", screen.rotation)
-                    .put("elements", JSONArray(snapshot.elements.mapIndexed { i, e -> e.json(i + 1) }))
+                    .put("size", JSONArray(listOf(screen.width, screen.height))).put("rotation", screen.rotation).apply {
+                        if (flags.tree) put("tree", AndroidUiLook.tree(snapshot))
+                        else put("elements", JSONArray(snapshot.elements.mapIndexed { i, e -> e.json(i + 1) }))
+                    }
+            }
+            "shot" -> {
+                val scale = when {
+                    args.isEmpty() -> 1f
+                    args.size == 2 && args[0] == "--scale" -> args[1].toFloatOrNull()?.takeIf { it in 0.1f..1f }
+                        ?: throw Refusal("bad_args", "Scale must be 0.1..1")
+                    else -> throw Refusal("bad_args", "z2-ui shot [--scale 0.1..1]")
+                }
+                if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
+                enter(settings, false)
+                device(app)
+                val file = File(app.filesDir, "shared_home/.z2term/ui/shot.png")
+                val (box, size) = runBlocking { AndroidUiLook.shot(file, scale) { gateLook(app, settings, it) } }
+                lastPackage?.let { touch(app, it) }
+                // 画像の (x, y) は画面の (box.x + x / scale, box.y + y / scale)。
+                success().put("path", "/root/.z2term/ui/shot.png").put("size", JSONArray(listOf(size.width, size.height)))
+                    .put("box", JSONArray(listOf(box.left, box.top, box.width(), box.height()))).put("scale", scale.toDouble())
+            }
+            "scroll" -> {
+                count(args, 2)
+                val target = UiBridgePolicy.target(args[0])
+                if (target is Target.Point) throw Refusal("bad_args", "scroll takes #N, text=, desc= or id=; use swipe for coordinates")
+                exclusive { operate(app, settings, verb, target, args[1], false) }
+            }
+            "swipe" -> {
+                require(args.size in 4..5) { "z2-ui swipe X1 Y1 X2 Y2 [MS]" }
+                val points = args.take(4).map { it.toIntOrNull()?.takeIf { v -> v >= 0 } ?: throw Refusal("bad_args", "Coordinates are pixels (0 or more)") }
+                val ms = args.getOrNull(4)?.let { it.toLongOrNull()?.takeIf { v -> v in 50..3000 } ?: throw Refusal("bad_args", "Duration must be 50..3000 ms") } ?: 300L
+                exclusive { swipe(app, settings, points, ms) }
             }
             "tap", "long", "enter" -> { count(args, 1); exclusive { operate(app, settings, verb, UiBridgePolicy.target(args[0]), null, false) } }
             "type" -> {
@@ -170,6 +201,46 @@ internal object UiBridge {
             }
             else -> throw Refusal("bad_args", "See z2-ui --help")
         }
+    }
+
+    private class LookFlags(val all: Boolean, val tree: Boolean, val within: Int?)
+
+    /** `look [--all] [--tree] [--in N]` (順不同)。 */
+    private fun lookFlags(args: List<String>): LookFlags {
+        var all = false
+        var tree = false
+        var within: Int? = null
+        var i = 0
+        while (i < args.size) {
+            when (args[i]) {
+                "--all" -> all = true
+                "--tree" -> tree = true
+                "--in" -> within = args.getOrNull(++i)?.removePrefix("#")?.toIntOrNull()?.takeIf { it >= 1 }
+                    ?: throw Refusal("bad_args", "--in takes an element number from the last look")
+                else -> throw Refusal("bad_args", "z2-ui look [--all] [--tree] [--in N]")
+            }
+            i++
+        }
+        return LookFlags(all, tree, within)
+    }
+
+    private fun swipe(app: Context, settings: UiBridgeSettings, points: List<Int>, ms: Long): JSONObject {
+        val gen = enter(settings, true)
+        device(app)
+        val window = runBlocking { AndroidUiLook.window() } ?: throw Refusal("no_window", "No foreground app window")
+        gateOperate(app, settings, window.pkg,
+            app.getString(R.string.ui_bridge_op_swipe, label(app, window.pkg), points[0], points[1], points[2], points[3]), gen)
+        alive(app, gen)
+        device(app)
+        val changed = runBlocking {
+            val before = AndroidUiLook.fingerprint()
+            AndroidUiLook.swipe(points[0], points[1], points[2], points[3], ms) { pkg ->
+                if (pkg != window.pkg) throw Refusal("changed", "The foreground app changed; look again")
+            }
+            changedAfter(before)
+        }
+        touch(app, window.pkg)
+        return success().put("changed", changed)
     }
 
     /**
@@ -411,6 +482,7 @@ internal object UiBridge {
             "tap" -> app.getString(R.string.ui_bridge_op_tap, name, what)
             "long" -> app.getString(R.string.ui_bridge_op_long, name, what)
             "type" -> app.getString(R.string.ui_bridge_op_type, name, what, text.orEmpty().let { if (it.length > 80) it.take(80) + "…" else it })
+            "scroll" -> app.getString(R.string.ui_bridge_op_scroll, name, what, text.orEmpty())
             else -> app.getString(R.string.ui_bridge_op_enter, name, what)
         }
     }

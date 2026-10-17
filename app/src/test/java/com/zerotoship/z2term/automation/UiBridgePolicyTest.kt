@@ -72,6 +72,13 @@ class UiBridgePolicyTest {
         assertEquals("other", role(null))
     }
 
+    @Test fun treeHangsElementsOnTheNearestListedAncestor() {
+        // 0 = 根の直下の一覧、その中の 2 行 (間の入れ物は出していない)、別の枝のボタン
+        val paths = listOf(listOf(0), listOf(1), listOf(0, 0, 3), listOf(0, 1, 0, 2))
+        assertEquals(listOf(-1, -1, 0, 0), UiBridgePolicy.parents(paths).toList())
+        assertEquals(listOf(-1, 0), UiBridgePolicy.parents(listOf(emptyList(), listOf(4))).toList())
+    }
+
     @Test fun textIsCleanedAndCut() {
         assertNull(UiBridgePolicy.clean("  "))
         assertEquals("a b", UiBridgePolicy.clean("a\nb"))

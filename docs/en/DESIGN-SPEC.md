@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-18 / Target version: 1.0.30 (versionCode 728)
+Last updated: 2026-10-18 / Target version: 1.0.31 (versionCode 729)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -2577,6 +2577,7 @@ User-facing description and commands: [AI-BRIDGE.md](AI-BRIDGE.md). This section
 - **Numbers (`#n`)**: one `look` result is kept (window id, package, and each element's path of child indices). Right before an operation the path is walked again from the root and the kind, text, description, ID and position are compared (field content is not, since typing changes it); any difference gives `stale`. Selectors such as `text=` match an input field's hint rather than its content.
 - **`changed`**: a screen fingerprint (window id and element list) is compared every 150 ms for up to one second after the operation.
 - **Log**: `~/.z2term/ui/log.jsonl`. `type` records only the target and the length; `look` contents are not written. Rotated to `log.1.jsonl` at 1 MB.
+- **Stage 2 (1.0.31)**: `shot` crops the `takeScreenshot` result to the foreground window before scaling and saving, so the shade and other apps are never captured. The capture interval is kept by sharing `EdgeHandleContrast.lastRequestAt`, retrying once only when Android refuses for interval reasons. `look --in N` filters by the last look's path before counting the limit. `look --tree` parents come from `UiBridgePolicy.parents` (nearest listed ancestor, `UiBridgePolicyTest`). `scroll` prefers directional actions (`ACTION_SCROLL_UP` and so on), falls back to backward/forward and searches ancestors within eight levels. `scroll` / `swipe` count as operations, because some apps mark items read on scrolling and `look` promises to change nothing.
 
 ### 4.14 Edge panels (`edge/`, 0.8.549)
 

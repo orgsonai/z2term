@@ -66,6 +66,8 @@ internal object AndroidUiLook {
     }
 
     private val counter = AtomicInteger()
+    /** 撮影の結果を受け取るスレッド。撮るたびに作ると残り続けるので 1 本を使い回す。 */
+    private val shotExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "z2-ui-shot").apply { isDaemon = true } }
     @Volatile private var last: Snapshot? = null
 
     /** 前面の窓。読めなければ null。メインスレッドで窓の情報だけを見る。 */
@@ -146,10 +148,12 @@ internal object AndroidUiLook {
             node.isEnabled, box, can)
     }
 
-    private suspend fun read(window: Window, all: Boolean): List<Element> {
+    private suspend fun read(window: Window, all: Boolean, within: List<Int>? = null): List<Element> {
         val visits = collect(window)
         try {
-            val elements = visits.mapNotNull { element(it, window, all) }
+            // 範囲を絞るときは、上限を数える前に絞る (広い画面でも一部なら読めるように)。
+            val inside = if (within == null) visits else visits.filter { it.path.size >= within.size && it.path.take(within.size) == within }
+            val elements = inside.mapNotNull { element(it, window, all) }
             if (elements.size > MAX_ELEMENTS) throw Refusal("too_many", "The screen has more than $MAX_ELEMENTS elements")
             return elements
         } finally { release(visits) }
@@ -159,10 +163,16 @@ internal object AndroidUiLook {
         "$windowId\n" + elements.joinToString("\n") { it.fingerprint() }
 
     /** 前面の画面を読み、番号を振り直す。 */
-    suspend fun look(all: Boolean, gate: (String) -> Unit): Snapshot {
+    suspend fun look(all: Boolean, within: Int? = null, gate: (String) -> Unit): Snapshot {
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
         gate(window.pkg)
-        val elements = read(window, all)
+        // `--in N` は直前の look の要素 N の中だけ。窓が変わっていたら道筋は通じない。
+        val prefix = within?.let { n ->
+            val snapshot = last ?: throw Refusal("no_look", "Run z2-ui look before using --in")
+            if (snapshot.windowId != window.id || snapshot.pkg != window.pkg) throw Refusal("stale", "The screen changed; look again")
+            snapshot.elements.getOrNull(n - 1)?.path ?: throw Refusal("stale", "No element #$n in the last look")
+        }
+        val elements = read(window, all, prefix)
         if (window()?.id != window.id) throw Refusal("changed", "The screen changed while reading; look again")
         return Snapshot("s${counter.incrementAndGet()}", window.id, window.pkg, elements).also { last = it }
     }
@@ -174,6 +184,20 @@ internal object AndroidUiLook {
     }
 
     fun forget() { last = null }
+
+    /**
+     * 要素を親子関係つきで並べ直す (`look --tree`)。番号 `n` は平らな一覧と同じなので、`#n` はそのまま使える。
+     * 間の入れ物を省いた要素は、出している一番近い祖先の子として並べる。
+     */
+    fun tree(snapshot: Snapshot): JSONArray {
+        val roots = JSONArray()
+        val nodes = snapshot.elements.mapIndexed { i, element -> element.json(i + 1) }
+        UiBridgePolicy.parents(snapshot.elements.map { it.path }).forEachIndexed { i, parent ->
+            if (parent < 0) roots.put(nodes[i])
+            else (nodes[parent].optJSONArray("children") ?: JSONArray().also { nodes[parent].put("children", it) }).put(nodes[i])
+        }
+        return roots
+    }
 
     /** 直前の look の要素。承認の通知に「何を押すか」を書くためだけに使う。 */
     fun lastElement(n: Int): Element? = last?.elements?.getOrNull(n - 1)
@@ -229,7 +253,7 @@ internal object AndroidUiLook {
             if (op != "tap" && op != "long") throw Refusal("bad_args", "Coordinates are only for tap and long")
             if (!window.bounds.contains(target.x, target.y)) throw Refusal("outside", "The point is outside the foreground app window")
             if (AndroidActions.gesturesInFlight()) throw Refusal("busy", "Wait for the previous gesture to finish")
-            gesture(window.service, target.x.toFloat(), target.y.toFloat(), if (op == "long") 600 else 80)
+            gesture(window.service, Path().apply { moveTo(target.x.toFloat(), target.y.toFloat()) }, if (op == "long") 600 else 80)
             return
         }
         val located = locate(window, target)
@@ -254,6 +278,10 @@ internal object AndroidUiLook {
                         perform(window, node, AccessibilityNodeInfo.ACTION_FOCUS, null)
                         perform(window, node, AccessibilityNodeInfo.ACTION_SET_TEXT, args)
                     }
+                }
+                "scroll" -> {
+                    val (recipient, action) = scroller(node, text.orEmpty(), window, located)
+                    perform(window, recipient, action, null)
                 }
                 "enter" -> {
                     if (located.element.role != "input") throw Refusal("not_input", "The element is not an input field")
@@ -286,9 +314,111 @@ internal object AndroidUiLook {
             if (!node.performAction(action, args)) throw Refusal("rejected", "Android rejected the operation")
         }
 
-    private suspend fun gesture(service: AccessibilityService, x: Float, y: Float, ms: Long) = withContext(Dispatchers.Main) {
+    /** 座標でスワイプする。始点・終点とも前面のアプリの窓の中だけ。 */
+    suspend fun swipe(x1: Int, y1: Int, x2: Int, y2: Int, ms: Long, gate: (String) -> Unit) {
+        val window = window() ?: throw Refusal("no_window", "No foreground app window")
+        gate(window.pkg)
+        if (!window.bounds.contains(x1, y1) || !window.bounds.contains(x2, y2))
+            throw Refusal("outside", "Both points must be inside the foreground app window")
+        if (AndroidActions.gesturesInFlight()) throw Refusal("busy", "Wait for the previous gesture to finish")
+        gesture(window.service, Path().apply { moveTo(x1.toFloat(), y1.toFloat()); lineTo(x2.toFloat(), y2.toFloat()) }, ms)
+    }
+
+    /**
+     * スクロールを引き受ける要素と操作。向きのある操作 (上・下・左・右) を先に探し、無ければ
+     * 前後 (下・右 = 先へ、上・左 = 前へ) で代える。8 階層以内の祖先まで探す。
+     */
+    private suspend fun scroller(node: AccessibilityNodeInfo, direction: String, window: Window, located: Located): Pair<AccessibilityNodeInfo, Int> =
+        withContext(Dispatchers.IO) {
+            val wanted = when (direction) {
+                "up" -> listOf(AccessibilityAction.ACTION_SCROLL_UP.id, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+                "down" -> listOf(AccessibilityAction.ACTION_SCROLL_DOWN.id, AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                "left" -> listOf(AccessibilityAction.ACTION_SCROLL_LEFT.id, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+                "right" -> listOf(AccessibilityAction.ACTION_SCROLL_RIGHT.id, AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                else -> throw Refusal("bad_args", "Direction must be up, down, left or right")
+            }
+            var current = node
+            var depth = 0
+            while (true) {
+                wanted.firstOrNull { offers(current, it) }?.let { return@withContext current to it }
+                if (depth++ >= 8) throw Refusal("not_scrollable", "No element within eight ancestors scrolls $direction")
+                current = current.parent ?: throw Refusal("not_scrollable", "The element does not scroll $direction")
+                located.retained += current
+                if (current.windowId != window.id || current.packageName?.toString() != window.pkg)
+                    throw Refusal("not_scrollable", "The scroll would reach outside the foreground app")
+            }
+            @Suppress("UNREACHABLE_CODE") error("unreachable")
+        }
+
+    /**
+     * 前面のアプリの窓の範囲だけを PNG に書く。通知欄やほかのアプリが写らないよう、窓の外は切り落とす。
+     * 撮影を禁じている画面 (FLAG_SECURE) は Android が黒く塗った画像を返す。
+     *
+     * ⚠ Android は画面取得の間隔に下限がある。バーの自動配色 ([EdgeHandleContrast]) と時刻を共有し、
+     * 間隔が空くまで待ってから撮る ([RegionShot] と同じ)。
+     */
+    @androidx.annotation.RequiresApi(30)
+    suspend fun shot(file: java.io.File, scale: Float, gate: (String) -> Unit): Pair<Rect, android.util.Size> {
+        val window = window() ?: throw Refusal("no_window", "No foreground app window")
+        gate(window.pkg)
+        val image = capture(window.service)
+        try {
+            if (window()?.id != window.id) throw Refusal("changed", "The screen changed while capturing; try again")
+            val area = Rect(window.bounds)
+            if (!area.intersect(0, 0, image.width, image.height)) throw Refusal("no_window", "The window is outside the captured screen")
+            val cropped = android.graphics.Bitmap.createBitmap(image, area.left, area.top, area.width(), area.height())
+            val out = if (scale < 1f) android.graphics.Bitmap.createScaledBitmap(cropped,
+                (area.width() * scale).toInt().coerceAtLeast(1), (area.height() * scale).toInt().coerceAtLeast(1), true) else cropped
+            try {
+                withContext(Dispatchers.IO) {
+                    file.parentFile?.mkdirs()
+                    val tmp = java.io.File(file.parentFile, ".${file.name}.tmp")
+                    tmp.outputStream().use { out.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                    if (!tmp.renameTo(file)) throw Refusal("error", "Could not write ${file.name}")
+                }
+                return area to android.util.Size(out.width, out.height)
+            } finally {
+                if (out !== cropped) out.recycle()
+                if (cropped !== image) cropped.recycle()
+            }
+        } finally { image.recycle() }
+    }
+
+    @androidx.annotation.RequiresApi(30)
+    private suspend fun capture(service: AccessibilityService): android.graphics.Bitmap {
+        repeat(2) { attempt ->
+            val since = SystemClock.uptimeMillis() - EdgeHandleContrast.lastRequestAt
+            delay((EdgeHandleContrast.MIN_INTERVAL_MS - since).coerceAtLeast(0L))
+            EdgeHandleContrast.lastRequestAt = SystemClock.uptimeMillis()
+            val result = withContext(Dispatchers.Main) {
+                suspendCancellableCoroutine<Any> { cont ->
+                    service.takeScreenshot(android.view.Display.DEFAULT_DISPLAY, shotExecutor,
+                        object : AccessibilityService.TakeScreenshotCallback {
+                            override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
+                                val buffer = screenshot.hardwareBuffer
+                                var hardware: android.graphics.Bitmap? = null
+                                val copy = try {
+                                    hardware = android.graphics.Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)
+                                    // ハードウェア面のままでは画素を切り出せないので 1 度だけ複製する。
+                                    hardware?.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                                } catch (_: Exception) { null } finally { hardware?.recycle(); buffer.close() }
+                                if (cont.isActive) cont.resume(copy ?: -1)
+                            }
+                            override fun onFailure(errorCode: Int) { if (cont.isActive) cont.resume(errorCode) }
+                        })
+                }
+            }
+            if (result is android.graphics.Bitmap) return result
+            // 撮影間隔の制限に当たったときだけ、間を空けてもう 1 度撮る。
+            if (result != AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT || attempt == 1)
+                throw Refusal("capture_failed", "Android could not capture the screen (code $result)")
+        }
+        throw Refusal("capture_failed", "Android could not capture the screen")
+    }
+
+    private suspend fun gesture(service: AccessibilityService, path: Path, ms: Long) = withContext(Dispatchers.Main) {
         suspendCancellableCoroutine { cont ->
-            val stroke = GestureDescription.StrokeDescription(Path().apply { moveTo(x, y) }, 0, ms)
+            val stroke = GestureDescription.StrokeDescription(path, 0, ms)
             val sent = service.dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(),
                 object : AccessibilityService.GestureResultCallback() {
                     override fun onCompleted(gestureDescription: GestureDescription?) { if (cont.isActive) cont.resume(Unit) }

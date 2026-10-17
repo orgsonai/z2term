@@ -48,4 +48,6 @@
     <string name="ui_bridge_op_back">在 %1$s 中按返回</string>
     <string name="ui_bridge_op_open">在 %1$s 中開啟：%2$s</string>
     <string name="ui_bridge_point">位置 (%1$d, %2$d)</string>
+    <string name="ui_bridge_op_scroll">捲動 %1$s 中的「%2$s」（%3$s）</string>
+    <string name="ui_bridge_op_swipe">在 %1$s 中滑動（%2$d, %3$d）→（%4$d, %5$d）</string>
 </resources>

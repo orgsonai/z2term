@@ -23,8 +23,10 @@ fun z2UiScript(lang: String): String {
     )
     val header = description.lines().joinToString("\n") { "# $it" }
     return "#!/bin/sh\n$header\n" + """
-        |# z2-ui front | look [--all] | status
+        |# z2-ui front | look [--all] [--tree] [--in N] | status
+        |# z2-ui shot [--scale 0.1..1]   (writes /root/.z2term/ui/shot.png; screen = box.x,y + image.x,y / scale)
         |# z2-ui tap|long|enter TARGET / type TARGET TEXT [--append]
+        |# z2-ui scroll TARGET up|down|left|right / swipe X1 Y1 X2 Y2 [MS]   (MS 50..3000, default 300)
         |# z2-ui key back|home|recents / open PACKAGE|URI
         |# z2-ui wait SELECTOR [MS] / wait-change [MS]   (MS 1..30000, default 5000)
         |# z2-ui allow [PACKAGE|* off|look|ask|auto|default]
