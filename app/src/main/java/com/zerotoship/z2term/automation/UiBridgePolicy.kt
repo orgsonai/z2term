@@ -161,6 +161,13 @@ internal object UiBridgeReplay {
             "key" -> Step("key ${args[0]}", null)
             "swipe" -> Step("swipe px ${args.take(4).joinToString(" ")} ${args.getOrNull(4) ?: 300}", null, coordinates = true)
             "wait" -> Step("wait-ui ${args.getOrNull(1) ?: UiBridgePolicy.WAIT_DEFAULT_MS} ${args[0]}", null)
+            // なぞる操作は z2-action の時刻つきの軌跡にする。各点を同じ間隔で通る。
+            "drag" -> {
+                val step = args.indexOf("--step").takeIf { it >= 0 }?.let { args[it + 1].toLong() } ?: 100L
+                val points = args.filterIndexed { i, v -> v != "--step" && (i == 0 || args[i - 1] != "--step") }
+                    .map { it.removePrefix("@") }
+                Step("swipe-path px " + points.mapIndexed { i, xy -> "$xy,${i * step}" }.joinToString(" "), null, coordinates = true)
+            }
             "tap", "long" -> {
                 val press = if (verb == "tap") "click" else "long-click"
                 fun at(x: Int, y: Int) = Step(if (verb == "tap") "tap px $x $y" else "long-press px $x $y 600", null, coordinates = true)

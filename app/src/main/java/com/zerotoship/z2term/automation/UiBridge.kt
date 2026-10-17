@@ -162,20 +162,27 @@ internal object UiBridge {
                     }
             }
             "shot" -> {
-                val scale = when {
-                    args.isEmpty() -> 1f
-                    args.size == 2 && args[0] == "--scale" -> args[1].toFloatOrNull()?.takeIf { it in 0.1f..1f }
-                        ?: throw Refusal("bad_args", "Scale must be 0.1..1")
-                    else -> throw Refusal("bad_args", "z2-ui shot [--scale 0.1..1]")
+                var scale = 1f
+                var jpeg = false
+                var i = 0
+                while (i < args.size) {
+                    when (args[i]) {
+                        "--scale" -> scale = args.getOrNull(++i)?.toFloatOrNull()?.takeIf { it in 0.1f..1f }
+                            ?: throw Refusal("bad_args", "Scale must be 0.1..1")
+                        "--jpeg" -> jpeg = true
+                        else -> throw Refusal("bad_args", "z2-ui shot [--scale 0.1..1] [--jpeg]")
+                    }
+                    i++
                 }
                 if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
                 enter(settings, false)
                 device(app)
-                val file = File(app.filesDir, "shared_home/.z2term/ui/shot.png")
-                val (box, size) = runBlocking { AndroidUiLook.shot(file, scale) { gateLook(app, settings, it) } }
+                val name = if (jpeg) "shot.jpg" else "shot.png"
+                val file = File(app.filesDir, "shared_home/.z2term/ui/$name")
+                val (box, size) = runBlocking { AndroidUiLook.shot(file, scale, jpeg) { gateLook(app, settings, it) } }
                 lastPackage?.let { touch(app, it) }
                 // 画像の (x, y) は画面の (box.x + x / scale, box.y + y / scale)。
-                success().put("path", "/root/.z2term/ui/shot.png").put("size", JSONArray(listOf(size.width, size.height)))
+                success().put("path", "/root/.z2term/ui/$name").put("size", JSONArray(listOf(size.width, size.height)))
                     .put("box", JSONArray(listOf(box.left, box.top, box.width(), box.height()))).put("scale", scale.toDouble())
             }
             "scroll" -> {
@@ -189,6 +196,27 @@ internal object UiBridge {
                 val points = args.take(4).map { it.toIntOrNull()?.takeIf { v -> v >= 0 } ?: throw Refusal("bad_args", "Coordinates are pixels (0 or more)") }
                 val ms = args.getOrNull(4)?.let { it.toLongOrNull()?.takeIf { v -> v in 50..3000 } ?: throw Refusal("bad_args", "Duration must be 50..3000 ms") } ?: 300L
                 exclusive { swipe(app, settings, points, ms) }
+            }
+            "drag" -> {
+                var step = 100L
+                val points = mutableListOf<Pair<Int, Int>>()
+                var i = 0
+                while (i < args.size) {
+                    val arg = args[i]
+                    if (arg == "--step") {
+                        step = args.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 20..1000 }
+                            ?: throw Refusal("bad_args", "--step must be 20..1000 ms")
+                    } else {
+                        val xy = arg.removePrefix("@").split(',').map { it.toIntOrNull() }
+                        if (xy.size != 2 || xy.any { it == null || it < 0 }) throw Refusal("bad_args", "Points look like 540,1200")
+                        points += xy[0]!! to xy[1]!!
+                    }
+                    i++
+                }
+                if (points.size !in 2..256) throw Refusal("bad_args", "drag takes 2..256 points")
+                val ms = step * (points.size - 1)
+                if (ms > 30_000) throw Refusal("bad_args", "The whole drag must finish within 30000 ms")
+                exclusive { drag(app, settings, points, ms) }
             }
             "tap", "long", "enter" -> { count(args, 1); exclusive { operate(app, settings, verb, UiBridgePolicy.target(args[0]), null, false) } }
             "type" -> {
@@ -262,6 +290,10 @@ internal object UiBridge {
         return LookFlags(all, tree, within)
     }
 
+    /**
+     * 座標の操作 (swipe / drag) は画面の変化を見張らない。座標で操作する画面 (ゲームなど) は要素を
+     * 持たない 1 枚の絵で変化を検出できず、見張ると毎回 1 秒まるまる待つことになる。結果は shot で見る。
+     */
     private fun swipe(app: Context, settings: UiBridgeSettings, points: List<Int>, ms: Long): JSONObject {
         val gen = enter(settings, true)
         device(app)
@@ -270,15 +302,29 @@ internal object UiBridge {
             app.getString(R.string.ui_bridge_op_swipe, label(app, window.pkg), points[0], points[1], points[2], points[3]), gen)
         alive(app, gen)
         device(app)
-        val changed = runBlocking {
-            val before = AndroidUiLook.fingerprint()
+        runBlocking {
             AndroidUiLook.swipe(points[0], points[1], points[2], points[3], ms) { pkg ->
                 if (pkg != window.pkg) throw Refusal("changed", "The foreground app changed; look again")
             }
-            changedAfter(before)
         }
         touch(app, window.pkg)
-        return success().put("changed", changed)
+        return success()
+    }
+
+    private fun drag(app: Context, settings: UiBridgeSettings, points: List<Pair<Int, Int>>, ms: Long): JSONObject {
+        val gen = enter(settings, true)
+        device(app)
+        val window = runBlocking { AndroidUiLook.window() } ?: throw Refusal("no_window", "No foreground app window")
+        gateOperate(app, settings, window.pkg, app.getString(R.string.ui_bridge_op_drag, label(app, window.pkg), points.size), gen)
+        alive(app, gen)
+        device(app)
+        runBlocking {
+            AndroidUiLook.drag(points, ms) { pkg ->
+                if (pkg != window.pkg) throw Refusal("changed", "The foreground app changed; look again")
+            }
+        }
+        touch(app, window.pkg)
+        return success().put("ms", ms)
     }
 
     /**
@@ -440,15 +486,17 @@ internal object UiBridge {
         gateOperate(app, settings, window.pkg, describe(app, op, window.pkg, target, text), gen)
         alive(app, gen)
         device(app)
+        // 座標で押すときは変化を見張らない (swipe と同じ理由)。
+        val watch = target !is Target.Point
         val changed = runBlocking {
-            val before = AndroidUiLook.fingerprint()
+            val before = if (watch) AndroidUiLook.fingerprint() else null
             AndroidUiLook.act(op, target, text, append) { pkg ->
                 if (pkg != window.pkg) throw Refusal("changed", "The foreground app changed; look again")
             }
-            changedAfter(before)
+            if (watch) changedAfter(before) else null
         }
         touch(app, window.pkg)
-        return success().put("changed", changed)
+        return success().apply { changed?.let { put("changed", it) } }
     }
 
     /** 操作の後 1 秒以内に画面が変わったか。遷移の完了までは保証しない。 */

@@ -36,6 +36,8 @@ internal object AndroidUiLook {
     private const val MAX_NODES = 3000
     private const val MAX_ELEMENTS = 512
     private const val BUDGET_MS = 1500L
+    /** z2-ui が続けて撮るときの間隔。Android の撮影間隔の下限 (333 ミリ秒) に少し足したもの。 */
+    private const val SHOT_INTERVAL_MS = 340L
 
     class Window(val service: AndroidActions, val id: Int, val bounds: Rect, val pkg: String)
 
@@ -325,6 +327,23 @@ internal object AndroidUiLook {
     }
 
     /**
+     * 指を離さずに [points] を順に通る 1 本の操作 (`z2-ui drag`)。パズルのように、なぞる途中で指を
+     * 離すと終わる画面のためのもの。点はすべて前面のアプリの窓の中。速さは道のり全体で一定 ([ms] で通り切る)。
+     */
+    suspend fun drag(points: List<Pair<Int, Int>>, ms: Long, gate: (String) -> Unit) {
+        val window = window() ?: throw Refusal("no_window", "No foreground app window")
+        gate(window.pkg)
+        if (points.any { (x, y) -> !window.bounds.contains(x, y) })
+            throw Refusal("outside", "All points must be inside the foreground app window")
+        if (AndroidActions.gesturesInFlight()) throw Refusal("busy", "Wait for the previous gesture to finish")
+        val path = Path().apply {
+            moveTo(points[0].first.toFloat(), points[0].second.toFloat())
+            points.drop(1).forEach { (x, y) -> lineTo(x.toFloat(), y.toFloat()) }
+        }
+        gesture(window.service, path, ms)
+    }
+
+    /**
      * スクロールを引き受ける要素と操作。向きのある操作 (上・下・左・右) を先に探し、無ければ
      * 前後 (下・右 = 先へ、上・左 = 前へ) で代える。8 階層以内の祖先まで探す。
      */
@@ -358,7 +377,7 @@ internal object AndroidUiLook {
      * 間隔が空くまで待ってから撮る ([RegionShot] と同じ)。
      */
     @androidx.annotation.RequiresApi(30)
-    suspend fun shot(file: java.io.File, scale: Float, gate: (String) -> Unit): Pair<Rect, android.util.Size> {
+    suspend fun shot(file: java.io.File, scale: Float, jpeg: Boolean, gate: (String) -> Unit): Pair<Rect, android.util.Size> {
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
         gate(window.pkg)
         val image = capture(window.service)
@@ -373,7 +392,11 @@ internal object AndroidUiLook {
                 withContext(Dispatchers.IO) {
                     file.parentFile?.mkdirs()
                     val tmp = java.io.File(file.parentFile, ".${file.name}.tmp")
-                    tmp.outputStream().use { out.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                    // JPEG は PNG より書き出しが速く小さい (画面の写真なら AI が読むのに十分)。
+                    tmp.outputStream().use {
+                        if (jpeg) out.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, it)
+                        else out.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+                    }
                     if (!tmp.renameTo(file)) throw Refusal("error", "Could not write ${file.name}")
                 }
                 return area to android.util.Size(out.width, out.height)
@@ -387,8 +410,10 @@ internal object AndroidUiLook {
     @androidx.annotation.RequiresApi(30)
     private suspend fun capture(service: AccessibilityService): android.graphics.Bitmap {
         repeat(2) { attempt ->
+            // Android の下限 (約 1/3 秒) だけ空ける。バーの配色が使う 1 秒はあちらの都合で、z2-ui が続けて
+            // 撮るときまで 1 秒待つ理由にはならない。下限に当たったときは下で 1 度だけ撮り直す。
             val since = SystemClock.uptimeMillis() - EdgeHandleContrast.lastRequestAt
-            delay((EdgeHandleContrast.MIN_INTERVAL_MS - since).coerceAtLeast(0L))
+            delay(((if (attempt == 0) SHOT_INTERVAL_MS else EdgeHandleContrast.MIN_INTERVAL_MS) - since).coerceAtLeast(0L))
             EdgeHandleContrast.lastRequestAt = SystemClock.uptimeMillis()
             val result = withContext(Dispatchers.Main) {
                 suspendCancellableCoroutine<Any> { cont ->

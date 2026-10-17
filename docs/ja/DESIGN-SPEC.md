@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-18 / 対象バージョン: 1.0.33 (versionCode 731)
+最終更新: 2026-10-18 / 対象バージョン: 1.0.34 (versionCode 732)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -2547,6 +2547,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - **`changed`**: 操作の前後で画面の印（窓 id と要素の並び）を比べ、150 ミリ秒ごとに 1 秒まで見る。
 - **記録**: `~/.z2term/ui/log.jsonl`。`type` は対象と文字数だけ、`look` は中身を書かない。1 MB で `log.1.jsonl` へ回す。
 - **第 2 段（1.0.31）**: `shot` は `takeScreenshot` の結果を前面の窓の範囲で切り出してから縮小・保存する（通知欄やほかのアプリを写さない）。撮影の間隔は `EdgeHandleContrast.lastRequestAt` を共有して空け、間隔の制限で断られたときだけ 1 度撮り直す。`look --in N` は直前の look の道筋で絞ってから上限を数える。`look --tree` の親は `UiBridgePolicy.parents`（一覧に出した一番近い祖先、`UiBridgePolicyTest`）。`scroll` は向きのある操作（`ACTION_SCROLL_UP` 等）を先に、無ければ前後で代え、8 階層以内の祖先まで探す。`scroll` / `swipe` は操作として扱う（スクロールで既読になるアプリがあり、`look` の「何も変えない」を守れないため）。
+- **速さ（1.0.34）**: 座標の操作（`tap @` / `long @` / `swipe` / `drag`）は前後の画面の印を取らない（要素を持たない画面では変化を検出できず、`changedAfter` が毎回 1 秒まるまる待っていた）。`drag` は 1 本の `Path`（`moveTo` + `lineTo`）を 1 回の `dispatchGesture` で送る。z2-ui 自身の撮影は `EdgeHandleContrast.lastRequestAt` から 340 ミリ秒（Android の下限 333 ミリ秒）だけ空け、断られたときだけ 1 秒空けて撮り直す。`--jpeg` は品質 85 の JPEG で書く（MCP の既定）。手順の保存では `drag` を `swipe-path`（各点を同じ間隔）にする。
 - **AI 用ガイド（1.0.33、`UiBridgeGuide`）**: `z2-ui --help` は AI 向けの英語のガイドを出す（人向けの短い説明は持たない）。文面は `UiBridgeGuide.TEXT` 1 か所で、`Z2UiScript` がそのままスクリプトの先頭コメントに書き出し（空行は `#` だけの行）、MCP は `instructions` と `guide` 道具で同じものを返す。`UiBridgeGuideTest` が、`handle()` の受ける命令と `UiBridgeGuide.VERBS` が一致すること・各命令がガイドに載っていること・`--help` がガイドと一字一句同じことを確かめる。
 - **第 3 段（1.0.32、`UiBridgeExtras.kt`）**: `z2-ui mcp` はスクリプトが 1 行ずつ `z2api 1 ui mcp <行>` へ渡し、`UiBridgeMcp` が JSON-RPC を解いて道具を `UiBridge.execute` へ流す（CLI と同じ判定・記録・控え）。id の無い通知には返事を書かない。アプリが答えないときは、スクリプトが行から id を拾って `-32000` のエラーを返す。手順の保存は `UiBridgeRecorder` が成功した操作を控え、`UiBridgeReplay`（Android 非依存・`UiBridgePolicyTest`）が z2-action の行へ書き直す。書き直せない操作を含む区間は断り、同名のマクロは上書きしない。覚え書きは `~/.z2term/ui/notes/<パッケージ名>.md` の 1 行目に `<!-- z2-ui app-version: … -->` を置き、`look` が今の版と比べる。通知の一覧・ボタンは `NotificationLogService.uiNotifications` / `pressUiAction`（z2term 自身の通知は出さない・押す直前にボタン名を照らし合わせる・Android 14 以降は裏からの起動を許す指定を付けて送る）。
 

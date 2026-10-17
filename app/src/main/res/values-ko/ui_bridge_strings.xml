@@ -52,4 +52,5 @@
     <string name="ui_bridge_op_swipe">%1$s에서 스와이프 (%2$d, %3$d) → (%4$d, %5$d)</string>
     <string name="ui_bridge_op_noti">%1$s 알림의 \"%2$s\" 누르기</string>
     <string name="ui_bridge_op_noti_reply">%1$s 알림의 \"%2$s\"(으)로 \"%3$s\" 보내기</string>
+    <string name="ui_bridge_op_drag">%1$s에서 %2$d개 점을 따라 끌기</string>
 </resources>

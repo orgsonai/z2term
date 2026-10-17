@@ -95,6 +95,8 @@ class UiBridgePolicyTest {
         assertEquals("type", step("type", "#1", "abc").unsupported)
         assertEquals("wait-ui 5000 text=完了", step("wait", "text=完了").line)
         assertEquals("swipe px 1 2 3 4 300", step("swipe", "1", "2", "3", "4").line)
+        assertEquals("swipe-path px 10,20,0 30,40,80 50,60,160", step("drag", "10,20", "30,40", "--step", "80", "@50,60").line)
+        assertEquals("swipe-path px 1,2,0 3,4,100", step("drag", "1,2", "3,4").line)
         assertNull(step("look").line)
         assertNull(step("look").unsupported)
         assertEquals("tap #9", step("tap", "#9").unsupported)

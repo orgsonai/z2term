@@ -52,4 +52,5 @@
     <string name="ui_bridge_op_swipe">在 %1$s 中滑動（%2$d, %3$d）→（%4$d, %5$d）</string>
     <string name="ui_bridge_op_noti">點按 %1$s 通知中的「%2$s」</string>
     <string name="ui_bridge_op_noti_reply">透過 %1$s 通知中的「%2$s」傳送「%3$s」</string>
+    <string name="ui_bridge_op_drag">在 %1$s 中拖曳經過 %2$d 個點</string>
 </resources>

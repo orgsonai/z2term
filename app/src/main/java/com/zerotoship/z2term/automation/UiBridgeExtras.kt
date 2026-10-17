@@ -198,8 +198,16 @@ internal object UiBridgeMcp {
                     if (a.optBoolean("tree")) add("--tree")
                     optional("in")?.let { add("--in"); add(it) }
                 }
-                // 画像は会話に入るので、既定は半分の大きさにする。
-                "shot" -> "shot" to listOf("--scale", optional("scale") ?: "0.5")
+                // 画像は会話に入るので、既定は半分の大きさの JPEG にする (小さく、書き出しも速い)。
+                "shot" -> "shot" to listOfNotNull("--scale", optional("scale") ?: "0.5", "--jpeg".takeIf { a.optString("format", "jpeg") != "png" })
+                "drag" -> "drag" to buildList {
+                    val points = a.optJSONArray("points") ?: throw Refusal("bad_args", "drag needs points")
+                    for (i in 0 until points.length()) {
+                        val xy = points.optJSONArray(i) ?: throw Refusal("bad_args", "Each point is [x, y]")
+                        add("${xy.optInt(0, -1)},${xy.optInt(1, -1)}")
+                    }
+                    optional("step")?.let { add("--step"); add(it) }
+                }
                 "tap", "long", "enter" -> name to listOf(text("target"))
                 "type" -> "type" to listOfNotNull(text("target"), a.optString("text"), "--append".takeIf { a.optBoolean("append") })
                 "key" -> "key" to listOf(text("name"))
@@ -219,8 +227,10 @@ internal object UiBridgeMcp {
         } catch (e: Refusal) { UiBridge.failure(e.code, e.message.orEmpty()) }
         val content = JSONArray().put(JSONObject().put("type", "text").put("text", result.toString()))
         if (name == "shot" && result.optBoolean("ok")) runCatching {
-            val png = File(app.filesDir, "shared_home/.z2term/ui/shot.png").readBytes()
-            content.put(JSONObject().put("type", "image").put("mimeType", "image/png").put("data", Base64.encodeToString(png, Base64.NO_WRAP)))
+            val file = result.getString("path").substringAfterLast('/')
+            val bytes = File(app.filesDir, "shared_home/.z2term/ui/$file").readBytes()
+            content.put(JSONObject().put("type", "image").put("mimeType", if (file.endsWith(".jpg")) "image/jpeg" else "image/png")
+                .put("data", Base64.encodeToString(bytes, Base64.NO_WRAP)))
         }
         return JSONObject().put("content", content).put("isError", !result.optBoolean("ok"))
     }
@@ -239,7 +249,12 @@ internal object UiBridgeMcp {
                     "tree" to prop("boolean", "Nest elements by parent/child"),
                     "in" to prop("integer", "Only inside element N of the last look"))),
             tool("shot", "Capture only the foreground app window as an image. Screen = box.x,y + image.x,y / scale.",
-                mapOf("scale" to prop("number", "0.1..1, default 0.5"))),
+                mapOf("scale" to prop("number", "0.1..1, default 0.5"), "format" to prop("string", "jpeg (default) or png", listOf("jpeg", "png")))),
+            tool("drag", "Touch the first point and move through all points without lifting, as one gesture (puzzle games and drawing). " +
+                "Plan the whole path before calling; the move takes step ms per segment.",
+                mapOf("points" to JSONObject().put("type", "array").put("description", "2..256 points [x, y] in screen pixels")
+                    .put("items", JSONObject().put("type", "array").put("items", JSONObject().put("type", "integer"))),
+                    "step" to prop("integer", "Milliseconds per segment, 20..1000, default 100")), listOf("points")),
             tool("tap", "Tap an element.", mapOf("target" to target), listOf("target")),
             tool("long", "Long-press an element.", mapOf("target" to target), listOf("target")),
             tool("type", "Replace (or append to) the text of an input field. Never works on password fields.",

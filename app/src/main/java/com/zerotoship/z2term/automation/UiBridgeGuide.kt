@@ -13,7 +13,7 @@ package com.zerotoship.z2term.automation
 internal object UiBridgeGuide {
     /** ガイドに必ず載っている CLI の命令。UiBridgeGuideTest が照らし合わせる。 */
     val VERBS = listOf("front", "look", "status", "shot", "tap", "long", "type", "enter", "key", "open", "wait", "wait-change",
-        "scroll", "swipe", "notes", "note", "mark", "save", "noti", "allow", "pause", "say", "stop", "mcp")
+        "scroll", "swipe", "drag", "notes", "note", "mark", "save", "noti", "allow", "pause", "say", "stop", "mcp")
 
     val TEXT = """
 # z2-ui guide for AI agents
@@ -25,7 +25,7 @@ through z2term (a terminal app). This guide is written for you, the AI. Follow i
 
 - Inside z2term on the phone: run `z2-ui ...` as a shell command.
 - From a PC: run `ssh <phone> z2-ui ...`. The user tells you the host name.
-- As an MCP server: the same operations are tools (section 13). You received this guide as the server instructions.
+- As an MCP server: the same operations are tools (section 14). You received this guide as the server instructions.
 - This guide is what `z2-ui --help` prints. It is the complete reference; you do not need any other document.
 - Every call prints exactly one line of JSON on stdout. Success: `{"ok":true,...}`, exit status 0.
   Failure: `{"ok":false,"error":"<code>","message":"..."}`, non-zero exit status. Always parse the JSON;
@@ -40,7 +40,7 @@ through z2term (a terminal app). This guide is written for you, the AI. Follow i
    - `accessibility` false or error `no_accessibility`: the user must enable the accessibility service
      "z2term Android actions" (`z2-key permission` opens the screen). Ask the user.
 2. Look at `default`, `apps` and `protected` in the status to know which apps you may read or operate.
-3. Before working in an app, run `z2-ui notes <package>` and read your notes if they exist (section 10).
+3. Before working in an app, run `z2-ui notes <package>` and read your notes if they exist (section 11).
 
 ## 3. Permission levels (decided by the user, never by you)
 
@@ -123,22 +123,45 @@ Safety checks you will meet:
 | `z2-ui open <uri>` | Open a URI in the app that handles it; counts as an operation. `ambiguous` if several apps could open it: open by package instead. |
 | `z2-ui scroll <target> up/down/left/right` | Scroll the list containing the element by one page. `not_scrollable` if none. Counts as an operation. |
 | `z2-ui swipe X1 Y1 X2 Y2 [MS]` | Swipe in pixels, 50 to 3000 ms (default 300). Both points inside the foreground app window (`outside`). |
+| `z2-ui drag X1,Y1 X2,Y2 ... [--step MS]` | Touch the first point and move through every point without lifting, as ONE gesture. 2 to 256 points, `--step` 20 to 1000 ms per segment (default 100), whole drag at most 30000 ms. Speed is constant along the path. For puzzle games, drawing, and anything that ends when the finger lifts. |
 | `z2-ui wait <selector> [MS]` | Wait until an element matching text=/desc=/id= appears, 1 to 30000 ms (default 5000). `not_found` on timeout. |
 | `z2-ui wait-change [MS]` | Wait until the screen differs from the latest look. `unchanged` on timeout. |
 
-Operation results: `{"ok":true,"changed":true|false}`.
+Operation results: `{"ok":true,"changed":true|false}` for element operations. Coordinate operations (`tap @X,Y`,
+`long @X,Y`, `swipe`, `drag`) return `{"ok":true}` without `changed` and return as soon as the gesture ends:
+screens operated by coordinates are usually a single drawn surface where changes cannot be detected, so waiting
+would only add a second. Check the result with `shot`.
 
 ## 8. Screens without elements: shot
 
-`z2-ui shot [--scale S]` (S from 0.1 to 1, default 1; the MCP tool defaults to 0.5).
-- Saves only the foreground app window to `/root/.z2term/ui/shot.png`. The status bar, notification shade and other apps are cut off.
+`z2-ui shot [--scale S] [--jpeg]` (S from 0.1 to 1, default 1; the MCP tool defaults to 0.5 and JPEG).
+- Saves only the foreground app window to `/root/.z2term/ui/shot.png` (or `shot.jpg` with `--jpeg`, which is faster to
+  write and smaller). The status bar, notification shade and other apps are cut off.
+- Shots can be taken about three times per second (Android's limit); a shot right after another waits for that gap.
 - Returns `path`, image `size`, `box` (the window on screen) and `scale`.
 - Convert image coordinates to screen coordinates: screen_x = box[0] + image_x / scale, screen_y = box[1] + image_y / scale.
   Then use `z2-ui tap @screen_x,screen_y` or `swipe`.
 - Screens that forbid capture come back black. Requires Android 11 (`unsupported` before).
 - Prefer look whenever it returns usable elements; shot is slower and coordinates break when the layout moves.
 
-## 9. Interruptions from the user (highest priority)
+## 9. Speed, games and time limits
+
+Your own thinking time between calls is the slowest part, and z2-ui cannot shorten it. Design your moves so that
+time limits do not depend on it:
+- Decide the whole move first, then send it in one call. Do not split a continuous move into several swipes:
+  lifting the finger usually ends the move.
+- In many puzzle games the timer starts when the finger touches the board. Take the `shot`, plan the full path
+  while nothing is touched, then send one `drag` with every point of the path. The path then runs in
+  step x (points - 1) ms regardless of how long you thought.
+- Use `--step` between 60 and 150 ms for board games: too fast may be ignored by the game, too slow may hit its timer.
+  For a board, compute each cell centre from the shot once (box, scale and the grid) and reuse it.
+- Use `shot --jpeg --scale 0.5` (or smaller) when you only need to recognise colours and positions.
+- Coordinate operations do not wait for screen changes (section 7), so a following `shot` shows the result as soon as
+  the game has drawn it; if the game animates, take the shot after a short pause or take it again.
+- Set expectations with the user: games that need reactions within a second are not playable through this interface.
+- The user must set the game to level `auto`; with `ask` every move waits for an approval.
+
+## 10. Interruptions from the user (highest priority)
 
 While you work, the target app is in front and the user cannot type into your terminal. They control you through a
 notification. You learn about it as the reply to your next call:
@@ -155,7 +178,7 @@ notification. You learn about it as the reply to your next call:
 - `z2-ui pause`, `z2-ui say <text>` and `z2-ui stop` exist for the user (tiles and panels do the same as the
   notification). Do not call them yourself.
 
-## 10. Notes per app (your memory across sessions)
+## 11. Notes per app (your memory across sessions)
 
 - `z2-ui notes <package>`: returns `exists`, `text`, `noted_version` and `app_version`.
 - `z2-ui note <package> <text>` or `z2-ui note <package> -` (text from stdin): replaces your notes, up to 64 KiB.
@@ -168,19 +191,20 @@ notification. You learn about it as the reply to your next call:
   - Pitfalls: dialogs, delays, things that need wait.
 - Never write secrets (passwords, codes, personal data the user did not ask you to keep) into notes.
 
-## 11. Saving a routine as a macro
+## 12. Saving a routine as a macro
 
 - `z2-ui mark` starts a recording. Then operate. `z2-ui save <name>` saves the successful operations since mark as a
   z2-action macro (`/root/.z2term/actions/<name>.actions`) that the user can run from tiles and panels without you.
 - `#N` targets are rewritten as id, then text, then desc, then coordinates. Waits between steps keep the real
   intervals (up to 2 s).
+- `drag` is saved as a timed path and replays at the same speed.
 - Refused with `unsupported_step` if the range includes type, enter, scroll, wait-change, open with a URI or noti press,
   because z2-action cannot replay them. Mark again and record a range without them.
 - `exists`: a macro with that name already exists. Choose another name; never ask to overwrite the user's macros.
 - `nothing_recorded`: nothing succeeded since mark. Names: 1 to 64 letters, digits, `_` or `-`. At most 64 steps (`too_long`).
 - Only save when the user wants a reusable routine.
 
-## 12. Notifications
+## 13. Notifications
 
 - `z2-ui noti list`: notifications of apps at level look or above, each with `key`, `package`, `app`, `title`, `text`
   and `actions` (`label`, `reply` = whether the button takes text).
@@ -189,17 +213,17 @@ notification. You learn about it as the reply to your next call:
 - `no_notification_access`: the user has not granted notification access to z2term. Ask the user.
 - z2term's own notifications (including approvals) are never listed. You cannot and must not approve your own requests.
 
-## 13. MCP
+## 14. MCP
 
 - Start: `z2-ui mcp` (stdio). From a PC, register `ssh <phone> z2-ui mcp` as a stdio MCP server.
-- Tools: front, look (all, tree, in), shot (scale; also returns the image), tap, long, enter (target), type (target, text,
+- Tools: front, look (all, tree, in), shot (scale, format; also returns the image), tap, long, enter (target), type (target, text,
   append), key (name), open (target), wait (selector, ms), wait_change (ms), scroll (target, direction),
-  swipe (x1, y1, x2, y2, ms), notes (package), write_notes (package, text), mark, save (name), notifications,
+  swipe (x1, y1, x2, y2, ms), drag (points as [[x, y], ...], step), notes (package), write_notes (package, text), mark, save (name), notifications,
   press_notification (key, label, reply), status, guide.
 - Each tool result is the same JSON as the CLI, as text. `isError` is true when `ok` is false.
 - Pause, instruction, stop and permission changes are not tools; they belong to the user.
 
-## 14. Conduct
+## 15. Conduct
 
 - Do only what the user asked. Before irreversible actions (sending messages, posting, purchases, deleting,
   changing account settings), make sure the user explicitly asked for that exact action. If in doubt, ask first.
@@ -209,7 +233,7 @@ notification. You learn about it as the reply to your next call:
 - When you finish, tell the user what you did in which app, and anything you could not do.
 - The log at `/root/.z2term/ui/log.jsonl` records your calls (typed text is recorded only as a length). The user can read it.
 
-## 15. Error codes
+## 16. Error codes
 
 | error | meaning | what to do |
 |---|---|---|
@@ -231,7 +255,7 @@ notification. You learn about it as the reply to your next call:
 | too_many / too_large | screen too big to read at once | use `look --in N` |
 | rejected | Android refused the operation | look and try another way |
 | unsupported / capture_failed | feature not available or capture failed | use look instead of shot |
-| unsupported_step / exists / nothing_recorded / too_long | save could not be done | see section 11 |
+| unsupported_step / exists / nothing_recorded / too_long | save could not be done | see section 12 |
 | no_notification_access | notification access missing | ask the user |
 | bad_args | wrong command or arguments | read this guide and fix the call |
 | no_response | z2term did not answer | check that z2term is running; ask the user |

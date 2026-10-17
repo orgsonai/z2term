@@ -55,7 +55,7 @@ Every output is one line of JSON. Success exits with 0, failure with non-zero. F
 | `z2-ui look` | Elements on the foreground screen (example below). `--all` includes meaningless containers too | |
 | `z2-ui look --tree` | The same with parent/child structure (`children` inside `tree`). Numbers match the flat list, so `#N` still works. Omitted containers are skipped and elements hang on the nearest listed ancestor | |
 | `z2-ui look --in N` | Read only inside element N of the last `look`, so a busy screen can be read part by part within the 512-element limit | |
-| `z2-ui shot [--scale 0.1..1]` | Save only the foreground app window to `/root/.z2term/ui/shot.png` and return `path`, image `size`, on-screen `box` and `scale`. Image (x, y) is screen (box.x + x / scale, box.y + y / scale). Everything outside the window is cut off so the notification shade and other apps are not captured | |
+| `z2-ui shot [--scale 0.1..1] [--jpeg]` | Save only the foreground app window to `/root/.z2term/ui/shot.png` (or `shot.jpg` with `--jpeg`, faster to write and smaller) and return `path`, image `size`, on-screen `box` and `scale`. Image (x, y) is screen (box.x + x / scale, box.y + y / scale). Everything outside the window is cut off so the notification shade and other apps are not captured | |
 | `z2-ui status` | Permission state (on/off, stopped, paused, default level, per-app levels, seconds left on approve-for, apps that are always refused) | |
 
 Use `z2-app list` for launchable apps (there is no `z2-ui apps`). `--all`, `--tree` and `--in N` can be combined.
@@ -103,6 +103,9 @@ Elements are addressed in one of these ways.
 | `z2-ui wait-change [MS]` | Wait until the screen changes from the last `look` | |
 | `z2-ui scroll <element> up\|down\|left\|right` | Scroll by one screen, using the directional scroll of the element or an ancestor within eight levels (falling back to backward/forward). Coordinates are not accepted (use `swipe`) | |
 | `z2-ui swipe X1 Y1 X2 Y2 [MS]` | Swipe by coordinates (default 300, 50–3000 ms); both points must be inside the foreground app window | |
+| `z2-ui drag X1,Y1 X2,Y2 … [--step MS]` | One gesture that moves through every point without lifting (1.0.34). 2–256 points, 20–1000 ms per segment (default 100), 30 s at most; constant speed along the path. For screens where lifting the finger ends the move (puzzles, drawing) | |
+
+Coordinate operations (`tap @X,Y` / `long @X,Y` / `swipe` / `drag`) return as soon as the gesture ends and carry no `changed` (1.0.34): screens operated by coordinates (games and so on) are a single drawn surface where changes cannot be detected, so watching would cost a full second every time. Check the result with `shot`.
 
 `scroll` and `swipe` count as operations too (subject to levels and approval): some apps mark items as read just by scrolling, which would break the promise that Read only changes nothing.
 
