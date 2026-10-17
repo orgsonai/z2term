@@ -50,4 +50,6 @@
     <string name="ui_bridge_point">point (%1$d, %2$d)</string>
     <string name="ui_bridge_op_scroll">Scroll “%2$s” in %1$s (%3$s)</string>
     <string name="ui_bridge_op_swipe">Swipe in %1$s from (%2$d, %3$d) to (%4$d, %5$d)</string>
+    <string name="ui_bridge_op_noti">Press “%2$s” on the %1$s notification</string>
+    <string name="ui_bridge_op_noti_reply">Send “%3$s” with “%2$s” on the %1$s notification</string>
 </resources>

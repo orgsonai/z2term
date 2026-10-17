@@ -218,6 +218,54 @@ class NotificationLogService : NotificationListenerService() {
                 }
         }
 
+        /** z2-ui に見せる通知 1 件。ボタンは並び順の番号で押す。 */
+        internal class UiNotification(val key: String, val pkg: String, val title: String, val text: String,
+            val actions: List<String>, val replies: List<Boolean>)
+
+        /**
+         * z2-ui (AI からのアプリ操作) 用の一覧。**z2term 自身の通知は出さない** — 承認の通知を
+         * AI が押せないようにするため (可否の判定は UiBridge が、通知を出したアプリの段階でかける)。
+         */
+        internal fun uiNotifications(): List<UiNotification>? {
+            val svc = instance ?: return null
+            if (!svc.connected) return null
+            val list = runCatching { svc.activeNotifications }.getOrNull() ?: return null
+            return list.filter { it.packageName != svc.applicationContext.packageName }.map { sbn ->
+                val n = sbn.notification
+                val ex = n?.extras
+                UiNotification(sbn.key.orEmpty(), sbn.packageName,
+                    stripBidi(ex?.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()),
+                    stripBidi(if (n != null && ex != null) svc.extractBody(n, ex).text else ""),
+                    n?.actions.orEmpty().map { stripBidi(it.title?.toString().orEmpty()) },
+                    n?.actions.orEmpty().map { a -> a.remoteInputs.orEmpty().any { it.allowFreeFormInput } })
+            }
+        }
+
+        /**
+         * 通知のボタン [index] を押す。返信欄のあるボタンには [reply] を入れて送る。
+         * ⚠ 押す前に、同じ通知がまだ出ていて、ボタンの名前が [expectedTitle] のままかを確かめる
+         * (一覧を見てから押すまでに通知が差し替わると、別のボタンを押してしまう)。
+         */
+        internal fun pressUiAction(key: String, index: Int, expectedTitle: String, reply: String?) {
+            val svc = instance ?: error("Notification access is not connected")
+            val sbn = svc.activeNotifications.firstOrNull { it.key == key && it.packageName != svc.applicationContext.packageName }
+                ?: throw IllegalStateException("The notification is no longer shown")
+            val action = sbn.notification.actions?.getOrNull(index) ?: throw IllegalStateException("No such button")
+            check(stripBidi(action.title?.toString().orEmpty()) == expectedTitle) { "The notification changed; list it again" }
+            val inputs = action.remoteInputs.orEmpty().filter { it.allowFreeFormInput }
+            val fill = android.content.Intent()
+            if (reply != null) {
+                check(inputs.isNotEmpty()) { "This button has no reply field" }
+                val results = Bundle().apply { inputs.forEach { putCharSequence(it.resultKey, reply) } }
+                android.app.RemoteInput.addResultsToIntent(inputs.toTypedArray(), fill, results)
+            } else check(inputs.isEmpty()) { "This button needs reply text" }
+            // 画面を開くボタンもあるので、裏からの起動を許す指定を付ける (ユーザー補助を持つアプリは許される)。
+            val options = if (android.os.Build.VERSION.SDK_INT >= 34) android.app.ActivityOptions.makeBasic()
+                .setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                .toBundle() else null
+            action.actionIntent.send(svc, 0, fill, null, null, null, options)
+        }
+
         /** 共有ホーム (= ターミナルの HOME `/root`) 配下の相対パス。ターミナルからは `~/.z2term/notifications.jsonl`。 */
         const val LOG_REL = ".z2term/notifications.jsonl"
 

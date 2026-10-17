@@ -50,4 +50,6 @@
     <string name="ui_bridge_point">位置 (%1$d, %2$d)</string>
     <string name="ui_bridge_op_scroll">捲動 %1$s 中的「%2$s」（%3$s）</string>
     <string name="ui_bridge_op_swipe">在 %1$s 中滑動（%2$d, %3$d）→（%4$d, %5$d）</string>
+    <string name="ui_bridge_op_noti">點按 %1$s 通知中的「%2$s」</string>
+    <string name="ui_bridge_op_noti_reply">透過 %1$s 通知中的「%2$s」傳送「%3$s」</string>
 </resources>

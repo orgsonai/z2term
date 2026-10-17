@@ -1,6 +1,6 @@
 # `z2-ui`: letting an AI operate Android apps
 
-Status: **stage 1 implemented in 1.0.30, stage 2 in 1.0.31** (§10). Stage 3 is not implemented yet. Rows whose "Stage" column is empty are available.
+Status: **stage 1 implemented in 1.0.30, stage 2 in 1.0.31, stage 3 in 1.0.32** (§10). Only the virtual display (§8) remains to be investigated.
 
 ## 1. Purpose
 
@@ -196,9 +196,12 @@ While operations continue, the notification "AI is controlling an app (org.examp
 |---|---|
 | AI inside z2term | Run `z2-ui …` as shell commands |
 | AI on a PC | `ssh <phone> z2-ui …` |
-| MCP-capable AI (stage 3) | `z2-ui mcp` speaks MCP over stdin/stdout and exposes §4 as tools. On a PC, register `ssh <phone> z2-ui mcp` as an MCP server |
+| MCP-capable AI | `z2-ui mcp` speaks MCP over stdin/stdout and exposes §4 as tools. On a PC, register `ssh <phone> z2-ui mcp` as a (stdio) MCP server |
 
-- MCP only exchanges JSON line by line, so it will be written without external libraries; no new license is expected.
+- MCP only exchanges JSON line by line, so it is written without external libraries; no license was added.
+- Tools: `front` / `look` / `shot` / `tap` / `long` / `type` / `enter` / `key` / `open` / `wait` / `wait_change` / `scroll` / `swipe` / `notes` / `write_notes` / `mark` / `save` / `notifications` / `press_notification` / `status`. They do the same as the CLI and go through the same checks, approvals and log. Pause, instruct, stop and permission changes are not tools, because they are for people.
+- `shot` also returns the image, so AIs that read images can look at it directly. It defaults to scale 0.5 to keep the conversation small.
+- The `instructions` sent on connection carry the same guidance and error meanings as `--help`.
 - Guidance for the AI ("`look` first, operate by number, `look` again on `stale`", and the meaning of each error) is in `z2-ui --help` (stage 1), meant to be read by the AI first.
 
 ## 7. How the AI learns an app
@@ -208,12 +211,20 @@ The AI can start without a manual, just as a person using an app for the first t
 | Stage | Mechanism |
 |---|---|
 | First time | The AI repeats `look` → operate → `look`, exploring as it goes |
-| Notes | The AI writes what it learned to `~/.z2term/ui/notes/<package>.md` (e.g. "search is the magnifier at top right, `id=…/search`", "settings: ⋮ → Settings"). `z2-ui look` reports whether notes exist and the app's version |
-| Saved steps | A sequence that has become routine is saved as a `z2-action` definition with `z2-ui save NAME`, then replayed from tiles, panels or `z2-when` without the AI |
+| Notes | The AI writes what it learned with `z2-ui note <package> text` (`-` reads stdin) to `~/.z2term/ui/notes/<package>.md` (e.g. "search is the magnifier at top right, `id=…/search`", "settings: ⋮ → Settings"). The first line records the app version at that time. Read them with `z2-ui notes <package>`. `look` reports in `notes` whether notes exist (`exists`) and match the current version (`current`) |
+| Saved steps | Run `z2-ui mark`, operate, then `z2-ui save NAME` to save the operations that succeeded in between as a `z2-action` definition, replayed from tiles, panels or `z2-when` without the AI |
 
 - Notes and saved steps are plain text that people can read and fix.
 - When the app is updated (its version changes), `look` says the notes are for an older version; the AI uses them while double-checking.
-- Resource IDs (`id=`) survive app updates better than labels; `z2-ui --help` asks the AI to prefer IDs in notes.
+- Resource IDs (`id=`) survive app updates better than labels; the MCP instructions ask the AI to prefer IDs in notes.
+
+**Rules for saving steps (`save`):**
+
+- Element numbers mean nothing at replay time, so an element pressed by `#N` is replaced by its resource ID, then its label, then its description, then its coordinates. Truncated labels (ending in "…") do not match the real label and are not used.
+- Between operations, `wait` waits the interval that actually passed (up to 2 seconds).
+- **A range that includes an operation z2-action cannot do (typing, Enter, scrolling, waiting for a change, opening a URI, notification buttons) is refused** (`unsupported_step`). Dropping it silently would save a different sequence with a step missing. Run `mark` again and record without it.
+- An existing macro with the same name is never overwritten (`exists`), so the AI cannot replace macros you wrote.
+- The record lives in memory only; it is cleared when z2term stops or by the notification's Stop. Read-only calls (`look` and so on) are not recorded.
 
 ## 8. Operating in the background
 
@@ -234,7 +245,7 @@ Notification  : "AI is controlling an app" + Pause / Send instruction / Stop (§
 | Means | Scope |
 |---|---|
 | Intents, sharing, URIs (part of `z2-ui open`) | Only what the app accepts |
-| Notification buttons ("Reply", "Mark as read"…) | Only what the notification offers; a "press" for `z2-noti` will be added (new) |
+| Notification buttons ("Reply", "Mark as read"…) | Only what the notification offers. `z2-ui noti list` lists notifications from apps at `look` or above; `z2-ui noti press <key> <label> [reply]` presses a button. Pressing counts as an operation (subject to levels and approval). z2term's own notifications (approvals and so on) are never listed |
 | Media control (`z2-media`) | Playback only |
 | Virtual display (rooted devices only) | Launch the target app on an invisible virtual display and operate it there. Launching apps on another display needs root; to be investigated |
 
@@ -254,7 +265,7 @@ The virtual display is left for investigation in stage 3 or later.
 |---|---|
 | Stage 1 (implemented in 1.0.30) | `front` / `look` / `status` / `tap` / `long` / `type` / `enter` / `key` / `open` / `wait` / `wait-change` / `allow`, all safety measures in §5, the log |
 | Stage 2 (implemented in 1.0.31) | `shot` / `scroll` / `swipe` / `look --tree` / `look --in` |
-| Stage 3 | `z2-ui mcp`, notes (§7), `z2-ui save`, pressing notification buttons (§8) |
+| Stage 3 (implemented in 1.0.32) | `z2-ui mcp`, notes (§7), `mark` / `save`, pressing notification buttons (§8) |
 
 ## 11. Decisions (2026-10-18)
 

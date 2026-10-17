@@ -131,5 +131,70 @@ internal object UiBridgePolicy {
     }
 }
 
+/**
+ * `z2-ui save` の材料。成功した操作を z2-action の 1 行へ書き直す (Android 非依存・UiBridgePolicyTest)。
+ *
+ * ⚠ **書き直せない操作は黙って落とさない。** 文字入力・確定キー・スクロール・画面の変化待ち・URI を開く
+ * ・通知は z2-action に同じ命令が無い。落として保存すると、再生したときに途中が抜けた別の手順になる。
+ * そうした操作を含む区間は保存を断り、`mark` で区切り直してもらう。
+ */
+internal object UiBridgeReplay {
+    /** `#N` で押した要素の呼び名と中心。番号は再生時には通じないので、ID → 文字 → 説明 → 座標の順に置き換える。 */
+    data class Named(val id: String?, val text: String?, val desc: String?, val x: Int, val y: Int)
+
+    /** [line] が z2-action の 1 行。書き直せないときは [unsupported] に操作名。読むだけの操作は両方 null。 */
+    data class Step(val line: String?, val unsupported: String?, val coordinates: Boolean = false)
+
+    private val READ_ONLY = setOf("front", "look", "status", "shot", "notes", "note", "mark", "save", "allow", "pause", "say", "stop")
+
+    private fun selector(named: Named): String? = listOfNotNull(
+        named.id?.let { "id=$it" },
+        // 切り詰めた文字 (…) は元の表示と一致しないので使わない。
+        named.text?.takeIf { !it.endsWith("…") }?.let { "text=$it" },
+        named.desc?.takeIf { !it.endsWith("…") }?.let { "desc=$it" },
+    ).firstOrNull { runCatching { ActionSelector.parse(it) }.isSuccess }
+
+    fun step(verb: String, args: List<String>, named: (Int) -> Named?): Step {
+        if (verb in READ_ONLY) return Step(null, null)
+        return when (verb) {
+            "open" -> if (':' in args[0]) Step(null, "open URI") else Step("launch ${args[0]}", null)
+            "key" -> Step("key ${args[0]}", null)
+            "swipe" -> Step("swipe px ${args.take(4).joinToString(" ")} ${args.getOrNull(4) ?: 300}", null, coordinates = true)
+            "wait" -> Step("wait-ui ${args.getOrNull(1) ?: UiBridgePolicy.WAIT_DEFAULT_MS} ${args[0]}", null)
+            "tap", "long" -> {
+                val press = if (verb == "tap") "click" else "long-click"
+                fun at(x: Int, y: Int) = Step(if (verb == "tap") "tap px $x $y" else "long-press px $x $y 600", null, coordinates = true)
+                when (val target = UiBridgePolicy.target(args[0])) {
+                    is UiBridgePolicy.Target.Find -> Step("$press ${target.selector}", null)
+                    is UiBridgePolicy.Target.Point -> at(target.x, target.y)
+                    is UiBridgePolicy.Target.Ref -> {
+                        val element = named(target.n) ?: return Step(null, "$verb #${target.n}")
+                        selector(element)?.let { Step("$press $it", null) } ?: at(element.x, element.y)
+                    }
+                }
+            }
+            else -> Step(null, verb)
+        }
+    }
+
+    /** 記録した手順 ([steps] と各操作の時刻) から z2-action の定義を作る。間は実際の間隔 (最大 2 秒) を待つ。 */
+    fun definition(steps: List<Pair<Step, Long>>): String {
+        val lines = mutableListOf<String>()
+        var previous: Long? = null
+        for ((step, at) in steps) {
+            val line = step.line ?: continue
+            val gap = previous?.let { (at - it).coerceIn(0, 2000) }
+            if (gap != null && gap >= 200) lines += "wait $gap"
+            lines += line
+            previous = at
+        }
+        if (lines.size > 64) throw Refusal("too_long", "z2-action allows 64 steps; mark and save shorter parts")
+        val waits = lines.filter { it.startsWith("wait ") }.sumOf { it.substringAfter(' ').toLong() }
+        val timeout = (waits / 1000 + lines.size * 5 + 10).coerceIn(30, 300)
+        val header = listOfNotNull("version=2", "timeout=$timeout", "screen=current".takeIf { steps.any { it.first.coordinates } })
+        return (header + lines).joinToString("\n") + "\n"
+    }
+}
+
 /** AI が理由で次の手を分けられるよう、決まった [code] を持つ失敗。 */
 internal class Refusal(val code: String, message: String) : Exception(message)

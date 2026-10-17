@@ -50,4 +50,6 @@
     <string name="ui_bridge_point">위치 (%1$d, %2$d)</string>
     <string name="ui_bridge_op_scroll">%1$s의 \"%2$s\" 스크롤 (%3$s)</string>
     <string name="ui_bridge_op_swipe">%1$s에서 스와이프 (%2$d, %3$d) → (%4$d, %5$d)</string>
+    <string name="ui_bridge_op_noti">%1$s 알림의 \"%2$s\" 누르기</string>
+    <string name="ui_bridge_op_noti_reply">%1$s 알림의 \"%2$s\"(으)로 \"%3$s\" 보내기</string>
 </resources>

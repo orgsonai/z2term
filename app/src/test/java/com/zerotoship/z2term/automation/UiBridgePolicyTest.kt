@@ -79,6 +79,36 @@ class UiBridgePolicyTest {
         assertEquals(listOf(-1, 0), UiBridgePolicy.parents(listOf(emptyList(), listOf(4))).toList())
     }
 
+    @Test fun replayPrefersIdsThenTextThenCoordinates() {
+        val named = mapOf(1 to UiBridgeReplay.Named("org.example.app:id/next", "次へ", null, 10, 20),
+            2 to UiBridgeReplay.Named(null, "送信", null, 30, 40),
+            3 to UiBridgeReplay.Named(null, "とても長い文…", null, 50, 60))
+        fun step(verb: String, vararg args: String) = UiBridgeReplay.step(verb, args.toList()) { named[it] }
+        assertEquals("click id=org.example.app:id/next", step("tap", "#1").line)
+        assertEquals("long-click text=送信", step("long", "#2").line)
+        // 切り詰めた文字は元の表示と一致しないので座標にする。
+        assertEquals("tap px 50 60", step("tap", "#3").line)
+        assertTrue(step("tap", "#3").coordinates)
+        assertEquals("click desc=戻る", step("tap", "desc=戻る").line)
+        assertEquals("launch org.example.app", step("open", "org.example.app").line)
+        assertEquals("open URI", step("open", "https://example.org").unsupported)
+        assertEquals("type", step("type", "#1", "abc").unsupported)
+        assertEquals("wait-ui 5000 text=完了", step("wait", "text=完了").line)
+        assertEquals("swipe px 1 2 3 4 300", step("swipe", "1", "2", "3", "4").line)
+        assertNull(step("look").line)
+        assertNull(step("look").unsupported)
+        assertEquals("tap #9", step("tap", "#9").unsupported)
+    }
+
+    @Test fun definitionWaitsTheRealGapsUpToTwoSeconds() {
+        val text = UiBridgeReplay.definition(listOf(
+            UiBridgeReplay.Step("launch org.example.app", null) to 1000L,
+            UiBridgeReplay.Step("click text=次へ", null) to 1100L,
+            UiBridgeReplay.Step("tap px 5 6", null, coordinates = true) to 9000L))
+        assertEquals("version=2\ntimeout=32\nscreen=current\nlaunch org.example.app\nclick text=次へ\nwait 2000\ntap px 5 6\n", text)
+        assertEquals("too_long", refusal { UiBridgeReplay.definition(List(65) { UiBridgeReplay.Step("key back", null) to 0L }) })
+    }
+
     @Test fun textIsCleanedAndCut() {
         assertNull(UiBridgePolicy.clean("  "))
         assertEquals("a b", UiBridgePolicy.clean("a\nb"))

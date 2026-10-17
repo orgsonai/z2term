@@ -31,10 +31,35 @@ fun z2UiScript(lang: String): String {
         |# z2-ui wait SELECTOR [MS] / wait-change [MS]   (MS 1..30000, default 5000)
         |# z2-ui allow [PACKAGE|* off|look|ask|auto|default]
         |# z2-ui pause / say TEXT / stop
+        |# z2-ui notes PACKAGE / note PACKAGE TEXT|-   (/root/.z2term/ui/notes/PACKAGE.md; look reports whether notes match the app version)
+        |# z2-ui mark / save NAME   (operations since mark become a z2-action macro; typing, scrolling and URIs cannot be saved)
+        |# z2-ui noti list / noti press KEY LABEL [REPLY]
+        |# z2-ui mcp   (MCP server over stdin/stdout, e.g. ssh PHONE z2-ui mcp)
         |# TARGET: #N | text=TEXT | desc=DESCRIPTION | id=PACKAGE:id/NAME | @X,Y (pixels)
         |case "${d}{1:-}" in
         |  ''|-h|--help|help)
         |    awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 && NF { exit }' "${d}0"; exit 0 ;;
+        |  mcp)
+        |    # 1 行の JSON-RPC をそのままアプリへ渡し、返事 (あれば 1 行) を出す。アプリが答えないときは
+        |    # id を拾って JSON-RPC のエラーにする (待っている側を宙吊りにしない)。
+        |    while IFS= read -r line || [ -n "${d}line" ]; do
+        |      [ -n "${d}line" ] || continue
+        |      if out=${d}(Z2API_WAIT=1000 z2api 1 ui mcp "${d}line" 2>/dev/null); then
+        |        [ -z "${d}out" ] || printf '%s
+' "${d}out"
+        |      else
+        |        id=${d}(printf '%s' "${d}line" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\("[^"]*"\).*/\1/p')
+        |        [ -n "${d}id" ] || id=${d}(printf '%s' "${d}line" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p')
+        |        [ -z "${d}id" ] || printf '{"jsonrpc":"2.0","id":%s,"error":{"code":-32000,"message":"z2term did not answer"}}
+' "${d}id"
+        |      fi
+        |    done
+        |    exit 0 ;;
+        |  note)
+        |    if [ "${d}#" -eq 3 ] && [ "${d}3" = - ]; then
+        |      text=${d}(cat; printf .) || exit 1
+        |      set -- note "${d}2" "${d}{text%.}"
+        |    fi ;;
         |esac
         |out=${d}(Z2API_WAIT=1000 z2api 1 ui "${d}@" 2>&1)
         |rc=${d}?

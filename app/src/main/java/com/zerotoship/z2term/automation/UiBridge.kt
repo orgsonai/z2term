@@ -101,21 +101,36 @@ internal object UiBridge {
         val app = context.applicationContext
         val verb = args.firstOrNull().orEmpty()
         (if (verb in CONTROL) control else worker).execute {
-            val result = try {
-                handle(app, verb, args.drop(1))
-            } catch (e: Refusal) {
-                failure(e.code, e.message.orEmpty())
-            } catch (e: Exception) {
-                Log.w(TAG, "z2-ui $verb failed", e)
-                failure("error", e.message ?: e.javaClass.simpleName)
+            // MCP は 1 行の JSON-RPC を受けて 1 行を返す (通知には何も返さない)。中で execute() を呼ぶ。
+            if (verb == "mcp") {
+                val out = try { UiBridgeMcp.handle(app, args.getOrNull(1).orEmpty()) } catch (e: Exception) {
+                    Log.w(TAG, "z2-ui mcp failed", e); ""
+                }
+                reply(true, out)
+                return@execute
             }
-            if (verb !in setOf("status", "")) log(app, verb, args.drop(1), result)
+            val result = execute(app, verb, args.drop(1))
             reply(result.optBoolean("ok"), result.toString())
         }
     }
 
-    private fun failure(code: String, text: String) = JSONObject().put("ok", false).put("error", code).put("message", text)
-    private fun success() = JSONObject().put("ok", true)
+    /** 1 回の呼び出し。判定・実行・記録・手順の控えまで。CLI と MCP で共通。 */
+    internal fun execute(app: Context, verb: String, args: List<String>): JSONObject {
+        val result = try {
+            handle(app, verb, args)
+        } catch (e: Refusal) {
+            failure(e.code, e.message.orEmpty())
+        } catch (e: Exception) {
+            Log.w(TAG, "z2-ui $verb failed", e)
+            failure("error", e.message ?: e.javaClass.simpleName)
+        }
+        if (verb !in setOf("status", "")) log(app, verb, args, result)
+        if (result.optBoolean("ok")) UiBridgeRecorder.record(verb, args)
+        return result
+    }
+
+    internal fun failure(code: String, text: String) = JSONObject().put("ok", false).put("error", code).put("message", text)
+    internal fun success() = JSONObject().put("ok", true)
 
     private fun handle(app: Context, verb: String, args: List<String>): JSONObject {
         val settings = UiBridgeSettings(app)
@@ -139,6 +154,8 @@ internal object UiBridge {
                 touch(app, snapshot.pkg)
                 val screen = ActionRuntime.screen(app)
                 success().put("screen", snapshot.screen).put("package", snapshot.pkg).put("app", label(app, snapshot.pkg))
+                    .put("app_version", UiBridgeNotes.appVersion(app, snapshot.pkg) ?: JSONObject.NULL)
+                    .put("notes", UiBridgeNotes.summary(app, snapshot.pkg))
                     .put("size", JSONArray(listOf(screen.width, screen.height))).put("rotation", screen.rotation).apply {
                         if (flags.tree) put("tree", AndroidUiLook.tree(snapshot))
                         else put("elements", JSONArray(snapshot.elements.mapIndexed { i, e -> e.json(i + 1) }))
@@ -198,6 +215,27 @@ internal object UiBridge {
                 val gen = enter(settings, false)
                 val changed = runBlocking { AndroidUiLook.waitChange(UiBridgePolicy.waitMs(args.getOrNull(0))) { alive(app, gen) } }
                 if (changed) success().put("changed", true) else throw Refusal("unchanged", "The screen did not change in time")
+            }
+            "notes" -> { count(args, 1); enter(settings, false); UiBridgeNotes.read(app, args[0]) }
+            "note" -> {
+                count(args, 2)
+                enter(settings, false)
+                UiBridgeNotes.write(app, args[0], args[1])
+            }
+            "mark" -> { count(args, 0); enter(settings, false); UiBridgeRecorder.mark(); success() }
+            "save" -> { count(args, 1); enter(settings, false); UiBridgeRecorder.save(app, args[0]) }
+            "noti" -> when (args.firstOrNull()) {
+                "list" -> { count(args, 1); enter(settings, false); UiBridgeNotifications.list(app) { level(app, settings, it) } }
+                "press" -> {
+                    require(args.size in 3..4) { "z2-ui noti press KEY LABEL [REPLY]" }
+                    exclusive { UiBridgeNotifications.press(app, args[1], args[2], args.getOrNull(3)) { pkg, what ->
+                        val gen = enter(settings, true)
+                        device(app)
+                        gateOperate(app, settings, pkg, what, gen)
+                        alive(app, gen)
+                    } }
+                }
+                else -> throw Refusal("bad_args", "z2-ui noti list | press KEY LABEL [REPLY]")
             }
             else -> throw Refusal("bad_args", "See z2-ui --help")
         }
@@ -304,6 +342,7 @@ internal object UiBridge {
     }
 
     fun stop(app: Context) {
+        UiBridgeRecorder.mark()
         val settings = UiBridgeSettings(app)
         settings.enabled = false
         settings.stopped = true
