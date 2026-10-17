@@ -236,6 +236,12 @@ fun WhenRulesBody() {
                 fontFamily = FontFamily.Monospace
             )
             Spacer(modifier = Modifier.width(8.dp))
+            // 並び替えは押している間だけ (≡ を常に出すと、スクロールの指で順番が変わる)。
+            if (rules.size >= 2 || reorder.arranging) {
+                PillButton(label = stringResource(if (reorder.arranging) R.string.list_reorder_done else R.string.list_reorder),
+                    accent = reorder.arranging) { reorder.arranging = !reorder.arranging }
+                Spacer(modifier = Modifier.width(8.dp))
+            }
             PillButton(label = stringResource(R.string.when_new), accent = true) {
                 isNew = true
                 editing = WhenRule(id = "", trigger = "", run = "")
@@ -273,6 +279,7 @@ fun WhenRulesBody() {
                         rule = rule,
                         lastFiredAt = lastFired[rule.id],
                         modifier = Modifier.reorderItem(reorder, rule.id),
+                        arranging = reorder.arranging,
                         handle = { ReorderHandle(reorder, rule.id) },
                         onToggle = { checked ->
                             scope.launch(Dispatchers.IO) {
@@ -381,6 +388,7 @@ private fun WhenRuleRow(
     rule: WhenRule,
     lastFiredAt: String?,
     modifier: Modifier = Modifier,
+    arranging: Boolean = false,
     handle: @Composable () -> Unit = {},
     onToggle: (Boolean) -> Unit,
     onRunNow: () -> Unit,
@@ -476,11 +484,13 @@ private fun WhenRuleRow(
             }
             // ▶ = トリガーを待たずに 1 回試す。「充電したら…」を確かめるのに充電を
             // 抜き差しさせないための出口 (一時停止中でも動く)。
-            handle()
-            IconCell(label = "▶", onClick = onRunNow)
-            IconCell(label = "▤", onClick = { logOpen = !logOpen })
-            IconCell(label = "✎", onClick = onEdit)
-            IconCell(label = "✕", danger = true, onClick = onDelete)
+            // 並び替え中は ≡ だけにする (隣の ✕ を動かす指で押さないように)。
+            if (arranging) handle() else {
+                IconCell(label = "▶", onClick = onRunNow)
+                IconCell(label = "▤", onClick = { logOpen = !logOpen })
+                IconCell(label = "✎", onClick = onEdit)
+                IconCell(label = "✕", danger = true, onClick = onDelete)
+            }
         }
 
         if (logOpen) {

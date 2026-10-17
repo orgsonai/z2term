@@ -365,6 +365,9 @@
     <string name="clip_history_sensitive">🔒 敏感内容 — 30 秒后自动消失</string>
     <string name="snippets_title">代码片段</string>
     <string name="snippets_new">+ 新建</string>
+    <!-- 一覧の並び替え。押している間だけ ≡ を出して動かせる (スクロールで誤って動かさないため)。 -->
+    <string name="list_reorder">排序</string>
+    <string name="list_reorder_done">完成</string>
     <string name="snippets_empty">还没有登记。点击“+ 新建”来添加命令。</string>
     <string name="snippets_hint">▸ 点击某一行 → 插入到终端 (不带回车)\n▸ 按住 ≡ 上下拖动可重新排序\n▸ ✎ 编辑 / ✕ 删除</string>
     <string name="snippets_empty_command">(空)</string>

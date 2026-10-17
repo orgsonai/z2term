@@ -383,6 +383,9 @@
     <!-- スニペットシート (D3 バッチ 2) -->
     <string name="snippets_title">スニペット</string>
     <string name="snippets_new">+ 新規</string>
+    <!-- 一覧の並び替え。押している間だけ ≡ を出して動かせる (スクロールで誤って動かさないため)。 -->
+    <string name="list_reorder">並び替え</string>
+    <string name="list_reorder_done">完了</string>
     <string name="snippets_empty">未登録。「+ 新規」でコマンドを追加してください。</string>
     <string name="snippets_hint">▸ 行をタップ → ターミナルに挿入 (Enter は付けない)\n▸ ≡ を掴んで上下ドラッグで並べ替え\n▸ ✎ 編集 / ✕ 削除</string>
     <string name="snippets_empty_command">(空)</string>

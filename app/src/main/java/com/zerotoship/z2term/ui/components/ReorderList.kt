@@ -86,6 +86,15 @@ class ReorderState internal constructor(
     var order by mutableStateOf<List<String>>(emptyList())
         private set
 
+    /**
+     * 並び替え中か (見出しの「並び替え」で切り替える)。false の間は [ReorderHandle] を出さない。
+     *
+     * ⚠ ≡ は行の右端にあり、指が少し動いただけでドラッグが始まる。常に出しておくと、
+     * 上下にスクロールしようとした指が ≡ に触れて順番が変わってしまう (利用者の指摘)。
+     * 長押しで掴む方式は項目が増えるほど手間が増えるので採らない (利用者の判断)。
+     */
+    var arranging by mutableStateOf(false)
+
     /** 掴んでいる行の id。掴んでいなければ null。 */
     var draggingId by mutableStateOf<String?>(null)
         private set
@@ -369,9 +378,10 @@ fun Modifier.reorderLongPressHandle(state: ReorderState, id: String): Modifier =
         )
     }
 
-/** ドラッグハンドル `≡`（見た目もスニペットタブと揃える）。 */
+/** ドラッグハンドル `≡`（見た目もスニペットタブと揃える）。並び替え中 ([ReorderState.arranging]) だけ出る。 */
 @Composable
 fun ReorderHandle(state: ReorderState, id: String, modifier: Modifier = Modifier) {
+    if (!state.arranging) return
     Box(
         modifier = modifier
             .fillMaxHeight()

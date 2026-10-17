@@ -36,7 +36,7 @@ Review content before choosing an action. Scanning alone never executes commands
 
 Insertion does not send Enter. Review before executing. Edge imports create a new hidden panel; enable its handle in panel management. Existing settings are not overwritten. Referenced scripts, images, note contents and entire panels are not bundled.
 
-Saved SSH profiles and single-line snippets have **QR** buttons. Connection buttons appear in this order: SSH, SFTP, added services, then QR at the end. Ordinary edge run-button editors also offer **Create command QR**. State buttons, toggles and app-launch configurations are excluded.
+Single-line snippets have a **QR** button. The QR button on saved SSH profiles was removed in 1.0.29. Ordinary edge run-button editors also offer **Create command QR**. State buttons, toggles and app-launch configurations are excluded.
 
 SSH uses `ssh://demo@host.example:2222`, with an optional username and brackets for IPv6. Passwords, private keys, initialization commands, jump hosts and forwarding settings are excluded. Edit authentication/routing after importing and verify the host key when connecting.
 

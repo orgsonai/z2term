@@ -366,6 +366,9 @@
     <string name="clip_history_sensitive">🔒 Copia sensible: se borra sola a los 30 segundos</string>
     <string name="snippets_title">Fragmentos</string>
     <string name="snippets_new">+ Nuevo</string>
+    <!-- 一覧の並び替え。押している間だけ ≡ を出して動かせる (スクロールで誤って動かさないため)。 -->
+    <string name="list_reorder">Reordenar</string>
+    <string name="list_reorder_done">Listo</string>
     <string name="snippets_empty">No hay ninguno. Toca \"+ Nuevo\" para añadir un comando.</string>
     <string name="snippets_hint">▸ Toca una fila → se inserta en la terminal (sin Intro)\n▸ Mantén pulsado ≡ y arrastra arriba o abajo para reordenar\n▸ ✎ editar / ✕ eliminar</string>
     <string name="snippets_empty_command">(vacío)</string>

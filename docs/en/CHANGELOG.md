@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.29 (versionCode 727)**: Scrolling the snippet, server and automation lists no longer reorders them by accident. The ≡ handles appear only while **Reorder** in the header is on: drag ≡, then press **Done**. While reordering, ✎, ✕ and the other row buttons are hidden and tapping a row does not run it. The **QR** button was also removed from each connection's action row, which now lists only connection types: SSH, SFTP and added services.
+
 **1.0.28 (versionCode 726)**: Japanese input can now convert proverbs. Type the whole reading without breaks, e.g. ねこにこばん → 猫に小判 or あつものにこりてなますをふく → 羹に懲りて膾を吹く; typing part of it shows it as a prediction. About 300 entries, focusing on common proverbs and classical sayings with unusual kanji. Four-character idioms were already in the dictionary (こしたんたん → 虎視眈々 and so on).
 
 **1.0.27 (versionCode 725)**: The key layout editor can now leave space at both ends of each row. Selecting a key shows "Row side margins", with sliders for the row's left and right ends (0–3 in 0.1 steps, where one even frame is 1). Use it to offset rows like a real keyboard. With multiple selection it applies to every selected row. Built-in layouts are unchanged (margin 0 = full width as before).

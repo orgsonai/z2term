@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.28.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.29.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -381,7 +381,7 @@ tunnel cannot show the confirmation screen, so a single unapproved hop stops it 
 
 In an SSH destination’s editor you can add **FTP, SMB, WebDAV, VNC and RDP** services. After saving, each gets its own button outside SSH/SFTP and opens either the shared file browser or a screen tab (VNC / RDP). The default is a local port forward through that SSH destination. Set the service port and, optionally, a local port; leaving the local side blank chooses a free port automatically. FTP passive data ports are forwarded automatically for each transfer. Clearing “SSH port forwarding” connects directly to the SSH destination’s host, not the service-specific host, and first warns that SSH encryption will be lost. WebDAV supports HTTP/HTTPS; SMB supports SMB2/3 with SMB1 disabled. Plain `http://` WebDAV works too (0.8.452; before that the app blocked every cleartext HTTP request, so choosing HTTP always ended in “failed to list”).
 
-**Connection QR button (0.8.604)**: QR is at the end of the action row, after SSH, SFTP and any added services.
+**Connection QR button**: removed in 1.0.29. A connection's action row now shows only connection types: SSH, SFTP and any added services.
 
 ⚠ **Delete on a destination, and the ✕ on a service or a port forward, now ask first** (0.8.452). Each sits right next to Edit, and a mistap used to take the host, user and password with it. Deleting from the terminal (`z2-ssh` and friends) is not intercepted — a typed command is explicit already.
 
@@ -511,7 +511,7 @@ A **group bar** sits at the top of the **snippet tab in 📜**.
 - **`+ Group`** makes a shelf ("daily", "git", …); tapping it lists only the snippets on that shelf. **"All"** brings everything back. Under "All", each row shows its group name in green above the command (ungrouped ones show none; 1.0.26). The group you picked last is selected again the next time you open the tab (0.9.4).
 - Which shelf a snippet sits on is chosen in the **Group field inside ✎ (edit)**. With a group open, "+ New" creates the snippet **already on that shelf**.
 - **Tap the name of the open shelf again** (it carries a `✎`) to rename or delete it. ⚠ **Deleting a shelf never deletes the snippets on it** — they go back to "Ungrouped" and stay listed under "All".
-- You can still **reorder with ≡** while a shelf is open. ⚠ Doing so leaves the order of snippets on other shelves untouched.
+- You can still reorder while a shelf is open. Press **Reorder** in the header to show **≡** on each row, drag it up or down, then press **Done** (1.0.29). While reordering, ✎, ✕ and QR are hidden and tapping a row does not insert the command. ⚠ Doing so leaves the order of snippets on other shelves untouched.
 - Shelves travel in the backup, so a new phone gets the same shelves back.
 
 ### Reusing a command you typed before (History)
@@ -797,7 +797,7 @@ Open Command list → Servers to register, edit, start and stop resident servers
    - **You can add, edit and delete servers while they stay resident** (applied within a few seconds). Previously, running something you had just added meant restarting everything — taking the other servers down with it. ⚠ **Deleting with ✕ asks for confirmation** (0.8.452).
    - The **▤ button** on a row shows what that server printed (its log). When something won't work, the reason is usually there. "Clear log" empties it at any time.
    - If a server keeps dying and restarting, the row shows "**restarted N× / last exit code**". A number that keeps climbing means it fails to start every time — open ▤ and read the log.
-   - **Grab ≡ and drag a row up or down to reorder** the list (the same gesture as snippets). The order is remembered, and running servers keep running while you rearrange them.
+   - Press **Reorder** in the header to show **≡** on each row, **grab ≡ and drag a row up or down to reorder**, then press **Done** (the same as snippets and automation; 1.0.29). The order is remembered, and running servers keep running while you rearrange them.
 4. Turn on "**Auto-start on boot**" and the servers **come up automatically after the device boots, without opening the app**.
 5. To stop, use the "**Stop servers**" notification action or "**Stop**" on this screen (stops them all at once).
 

@@ -364,6 +364,9 @@
     <string name="clip_history_sensitive">🔒 민감한 복사 — 30초 뒤에 스스로 지워집니다</string>
     <string name="snippets_title">스니펫</string>
     <string name="snippets_new">+ 새로 만들기</string>
+    <!-- 一覧の並び替え。押している間だけ ≡ を出して動かせる (スクロールで誤って動かさないため)。 -->
+    <string name="list_reorder">순서 변경</string>
+    <string name="list_reorder_done">완료</string>
     <string name="snippets_empty">항목이 없습니다. "+ 새로 만들기"를 눌러 명령을 추가하세요.</string>
     <string name="snippets_hint">▸ 줄을 누르면 → 터미널에 넣습니다 (Enter는 치지 않습니다)\n▸ ≡를 누른 채 위아래로 끌면 순서가 바뀝니다\n▸ ✎ 편집 / ✕ 삭제</string>
     <string name="snippets_empty_command">(비어 있음)</string>

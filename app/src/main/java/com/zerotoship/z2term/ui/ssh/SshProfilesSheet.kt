@@ -264,7 +264,6 @@ private fun ProfileRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -319,9 +318,6 @@ private fun ProfileRow(
                 profile.services.forEach { service ->
                     SmallButton(label = service.label, onClick = { onService(service) })
                 }
-                SmallButton(label = "QR", onClick = {
-                    com.zerotoship.z2term.qr.QrToolsActivity.showSsh(context, profile.host, profile.port, profile.user)
-                })
             } else {
                 SmallButton(label = profile.fileProtocolLabel, accent = true, onClick = onSftp)
             }

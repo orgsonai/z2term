@@ -390,6 +390,9 @@
     <!-- Snippets sheet (D3 batch 2) -->
     <string name="snippets_title">Snippets</string>
     <string name="snippets_new">+ New</string>
+    <!-- 一覧の並び替え。押している間だけ ≡ を出して動かせる (スクロールで誤って動かさないため)。 -->
+    <string name="list_reorder">Reorder</string>
+    <string name="list_reorder_done">Done</string>
     <string name="snippets_empty">No entries. Tap "+ New" to add a command.</string>
     <string name="snippets_hint">▸ Tap a row → inserted into the terminal (no Enter)\n▸ Hold ≡ and drag up/down to reorder\n▸ ✎ edit / ✕ delete</string>
     <string name="snippets_empty_command">(empty)</string>

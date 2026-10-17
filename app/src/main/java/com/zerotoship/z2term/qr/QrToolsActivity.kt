@@ -312,10 +312,6 @@ internal open class QrToolsActivity : QrActivityBase() {
             runCatching { open(context, QrContent.command(name, command), show = true) }
                 .onFailure { Toast.makeText(context, R.string.qr_tools_failed, Toast.LENGTH_LONG).show() }
         }
-        fun showSsh(context: Context, host: String, port: Int, user: String) {
-            runCatching { open(context, QrContent.ssh(host, port, user), show = true) }
-                .onFailure { Toast.makeText(context, R.string.qr_tools_failed, Toast.LENGTH_LONG).show() }
-        }
         /** `z2-qr`: open with the camera already scanning. */
         fun scan(context: Context) {
             context.startActivity(Intent(context, QrToolsActivity::class.java).putExtra("camera", true)

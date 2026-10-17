@@ -202,6 +202,12 @@ fun ServersBody(session: TerminalSession) {
                 fontFamily = FontFamily.Monospace
             )
             Box(modifier = Modifier.weight(1f))
+            // 並び替えは押している間だけ (≡ を常に出すと、スクロールの指で順番が変わる)。
+            if (entries.size >= 2 || reorder.arranging) {
+                PillButton(label = stringResource(if (reorder.arranging) R.string.list_reorder_done else R.string.list_reorder),
+                    accent = reorder.arranging) { reorder.arranging = !reorder.arranging }
+                Spacer(modifier = Modifier.width(8.dp))
+            }
             PillButton(label = stringResource(R.string.servers_new), accent = true) {
                 isNew = true
                 editing = ServerEntry(id = ServerEntry.newId(), name = "", command = "", enabled = true)
@@ -257,6 +263,7 @@ fun ServersBody(session: TerminalSession) {
                         stateLabel = if (running && e.enabled) st?.state else null,
                         status = if (running) st else null,
                         modifier = Modifier.reorderItem(reorder, e.id),
+                        arranging = reorder.arranging,
                         handle = { ReorderHandle(reorder, e.id) },
                         onToggle = { checked ->
                             // 設定を永続化しつつ、稼働中なら該当サーバーだけを即時 起動/停止する
@@ -333,6 +340,7 @@ private fun ServerRow(
     stateLabel: String?,
     status: ServerDaemonManager.ServerStatus?,
     modifier: Modifier = Modifier,
+    arranging: Boolean = false,
     handle: @Composable () -> Unit = {},
     onToggle: (Boolean) -> Unit,
     onEdit: () -> Unit,
@@ -416,10 +424,12 @@ private fun ServerRow(
                     )
                 }
             }
-            handle()
-            IconCell(label = "▤", onClick = { logOpen = !logOpen })
-            IconCell(label = "✎", onClick = onEdit)
-            IconCell(label = "✕", danger = true, onClick = onDelete)
+            // 並び替え中は ≡ だけにする (隣の ✕ を動かす指で押さないように)。
+            if (arranging) handle() else {
+                IconCell(label = "▤", onClick = { logOpen = !logOpen })
+                IconCell(label = "✎", onClick = onEdit)
+                IconCell(label = "✕", danger = true, onClick = onDelete)
+            }
         }
 
         if (logOpen) {

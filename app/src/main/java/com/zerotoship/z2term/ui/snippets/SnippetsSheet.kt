@@ -362,6 +362,8 @@ private fun SnippetsBody(
     // ⚠ 考え方は共通部品の ReorderState と同じ (自動化タブ・常駐サーバータブが使っている方)。
     // こちらは行が固定高なので独自のままだが、直すときは両方を見ること。
     var draggingId by remember { mutableStateOf<String?>(null) }
+    // 並び替え中か。≡ はこの間だけ出す (常に出すと、スクロールの指が触れて順番が変わる)。
+    var arranging by remember { mutableStateOf(false) }
     var dragDy by remember { mutableStateOf(0f) }
     var order by remember { mutableStateOf<List<Snippet>>(emptyList()) }
     // 指を離したあと、半端に残ったズレを 0 まで滑らせている最中の行 (0.8.272)。
@@ -399,7 +401,11 @@ private fun SnippetsBody(
         if (currentEdit == null && currentGroupEdit == null) {
             // 新規は**開いているグループへ入れる**。開いてから「+ 新規」を押した人にとっては
             // それが自然で、未分類へ落ちると毎回移し替える羽目になる。
-            ListHeader(onNew = { editing = newSnippet(selectedGroup) })
+            ListHeader(
+                onNew = { editing = newSnippet(selectedGroup) },
+                arranging = arranging,
+                onArrange = (order.size >= 2 || arranging).takeIf { it }?.let { { arranging = !arranging } }
+            )
             GroupBar(
                 groups = groups,
                 selected = selectedGroup,
@@ -424,6 +430,7 @@ private fun SnippetsBody(
                                 groups.firstOrNull { it.id == s.groupId }?.name?.ifBlank { null }
                             } else null,
                             dragging = dragging,
+                            arranging = arranging,
                             dragOffsetY = if (dragging) dragDy else 0f,
                             onRun = {
                                 if (s.inputForm) inputId = s.id
@@ -666,7 +673,7 @@ private const val HISTORY_RENDER_LIMIT = 50
 private val SNIPPET_ROW_HEIGHT = 52.dp
 
 @Composable
-private fun ListHeader(onNew: () -> Unit) {
+private fun ListHeader(onNew: () -> Unit, arranging: Boolean = false, onArrange: (() -> Unit)? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -681,6 +688,25 @@ private fun ListHeader(onNew: () -> Unit) {
             fontFamily = FontFamily.Monospace
         )
         Box(modifier = Modifier.weight(1f))
+        if (onArrange != null) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (arranging) ZtsGreen.copy(alpha = 0.18f) else ZtsBgCard)
+                    .border(1.dp, if (arranging) ZtsGreen else ZtsBorder, RoundedCornerShape(8.dp))
+                    .clickable(onClick = onArrange)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = stringResource(if (arranging) R.string.list_reorder_done else R.string.list_reorder),
+                    color = if (arranging) ZtsGreen else ZtsTextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
@@ -881,7 +907,7 @@ private fun GroupEditForm(
 /**
  * スニペット 1 行 (固定高 [SNIPPET_ROW_HEIGHT])。
  *  - 左側のテキスト領域をタップ → 挿入 (onRun)。コマンドを主表示、ラベルは上に薄く添える。
- *  - 右側に ≡ (ドラッグして並べ替え) / ✎ (編集) / ✕ (削除)。
+ *  - 右側に ✎ (編集) / ✕ (削除)。並び替え中 ([arranging]) はそれらの代わりに ≡ (ドラッグして並べ替え) だけを出す。
  *  - ドラッグ中は緑枠 + 前面 (zIndex) + 指追従 (translationY) で表示。
  */
 @Composable
@@ -889,6 +915,7 @@ private fun SnippetRow(
     snippet: Snippet,
     groupName: String?,
     dragging: Boolean,
+    arranging: Boolean,
     dragOffsetY: Float,
     onRun: () -> Unit,
     onEdit: () -> Unit,
@@ -914,7 +941,8 @@ private fun SnippetRow(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .clickable(onClick = onRun)
+                // 並び替え中は挿入しない (並べている最中のタップでコマンドが入るのを防ぐ)。
+                .clickable(enabled = !arranging, onClick = onRun)
                 .padding(horizontal = 12.dp),
             verticalArrangement = Arrangement.Center
         ) {
@@ -952,8 +980,8 @@ private fun SnippetRow(
                 maxLines = 1
             )
         }
-        // ドラッグハンドル (≡)。ここを掴んで上下に動かすと並べ替え。
-        Box(
+        // ドラッグハンドル (≡)。並び替え中だけ出す。ここを掴んで上下に動かすと並べ替え。
+        if (arranging) Box(
             modifier = Modifier
                 .fillMaxHeight()
                 .pointerInput(snippet.id) {
@@ -977,13 +1005,15 @@ private fun SnippetRow(
                 fontFamily = FontFamily.Monospace
             )
         }
-        if (com.zerotoship.z2term.qr.QrContent.singleLine(snippet.command)) {
-            IconCell(label = "QR", onClick = {
-                com.zerotoship.z2term.qr.QrToolsActivity.showCommand(context, snippet.label, snippet.command)
-            })
+        if (!arranging) {
+            if (com.zerotoship.z2term.qr.QrContent.singleLine(snippet.command)) {
+                IconCell(label = "QR", onClick = {
+                    com.zerotoship.z2term.qr.QrToolsActivity.showCommand(context, snippet.label, snippet.command)
+                })
+            }
+            IconCell(label = "✎", onClick = onEdit)
+            IconCell(label = "✕", danger = true, onClick = onDelete)
         }
-        IconCell(label = "✎", onClick = onEdit)
-        IconCell(label = "✕", danger = true, onClick = onDelete)
     }
 }
 
