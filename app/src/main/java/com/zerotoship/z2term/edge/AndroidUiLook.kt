@@ -40,6 +40,8 @@ internal object AndroidUiLook {
     private const val BUDGET_MS = 1500L
     /** z2-ui が続けて撮るときの間隔。Android の撮影間隔の下限 (333 ミリ秒) に少し足したもの。 */
     private const val SHOT_INTERVAL_MS = 340L
+    /** 「前と同じ画像か」を比べる縮小の幅。動きの判定 (48 px) より細かくし、小さな文字の変化も拾う。 */
+    private const val PRINT_WIDTH = 160
 
     class Window(val service: AndroidActions, val id: Int, val bounds: Rect, val pkg: String)
 
@@ -390,7 +392,11 @@ internal object AndroidUiLook {
      * 間隔が空くまで待ってから撮る ([RegionShot] と同じ)。
      */
     @androidx.annotation.RequiresApi(30)
-    class Shot(val box: Rect, val size: android.util.Size, val stable: Boolean?, val waitedMs: Long)
+    class Shot(val box: Rect, val size: android.util.Size, val stable: Boolean?, val waitedMs: Long, val unchanged: Boolean = false)
+
+    /** 直前に保存した画像の印 ([shot] の `ifChanged`)。ファイル名・窓・範囲・縮小が同じときだけ比べる。 */
+    private class Saved(val key: String, val print: IntArray)
+    @Volatile private var saved: Saved? = null
 
     /**
      * [stableMs] > 0 なら、画面の動きが止まるまで (続けて撮った 2 枚がほぼ同じになるまで) 撮り続け、
@@ -399,12 +405,21 @@ internal object AndroidUiLook {
      */
     @androidx.annotation.RequiresApi(30)
     suspend fun shot(file: java.io.File, scale: Float, jpeg: Boolean, gate: (String) -> Unit,
-        stableMs: Long = 0, delayMs: Long = 0): Shot {
+        stableMs: Long = 0, delayMs: Long = 0, box: Rect? = null, ifChanged: Boolean = false): Shot {
         val started = SystemClock.uptimeMillis()
         val (window, image, stable) = frame(gate, stableMs, delayMs)
         try {
             val area = Rect(window.bounds)
             if (!area.intersect(0, 0, image.width, image.height)) throw Refusal("no_window", "The window is outside the captured screen")
+            // `--box` は窓の中の一部だけ。窓の外へはみ出した分は切り落とす。
+            if (box != null && !area.intersect(box)) throw Refusal("outside", "The box is outside the foreground app window")
+            // 直前と同じ画面なら書かずに返す (AI に同じ画像をもう 1 度読ませない)。
+            val key = "${file.name}|${window.id}|${area.flattenToString()}|$scale"
+            val print = thumbnail(image, area, PRINT_WIDTH)
+            val previous = saved
+            if (ifChanged && previous != null && previous.key == key && UiBridgePolicy.same(previous.print, print))
+                return Shot(area, android.util.Size((area.width() * scale).toInt().coerceAtLeast(1),
+                    (area.height() * scale).toInt().coerceAtLeast(1)), stable, SystemClock.uptimeMillis() - started, unchanged = true)
             val cropped = android.graphics.Bitmap.createBitmap(image, area.left, area.top, area.width(), area.height())
             val out = if (scale < 1f) android.graphics.Bitmap.createScaledBitmap(cropped,
                 (area.width() * scale).toInt().coerceAtLeast(1), (area.height() * scale).toInt().coerceAtLeast(1), true) else cropped
@@ -419,6 +434,7 @@ internal object AndroidUiLook {
                     }
                     if (!tmp.renameTo(file)) throw Refusal("error", "Could not write ${file.name}")
                 }
+                saved = Saved(key, print)
                 return Shot(area, android.util.Size(out.width, out.height), stable, SystemClock.uptimeMillis() - started)
             } finally {
                 if (out !== cropped) out.recycle()
@@ -441,10 +457,10 @@ internal object AndroidUiLook {
         var stable: Boolean? = null
         if (stableMs > 0) {
             stable = false
-            var previous = thumbnail(image, window.bounds)
+            var previous = thumbnail(image, window.bounds, 48)
             while (SystemClock.uptimeMillis() - started < stableMs + delayMs) {
                 val next = capture(window.service)
-                val current = thumbnail(next, window.bounds)
+                val current = thumbnail(next, window.bounds, 48)
                 image.recycle(); image = next
                 if (UiBridgePolicy.settled(previous, current)) { stable = true; break }
                 previous = current
@@ -482,12 +498,14 @@ internal object AndroidUiLook {
         } finally { image.recycle() }
     }
 
-    /** 窓の範囲を 48 px 幅に縮めた明るさの並び。画面が動いているかを比べるだけに使う。 */
-    private fun thumbnail(image: android.graphics.Bitmap, bounds: Rect): IntArray {
+    /**
+     * 範囲を [width] px 幅に縮めた明るさの並び。画面が動いているか (48 px)・前の画像と同じか ([PRINT_WIDTH]) を
+     * 比べるだけに使う。
+     */
+    private fun thumbnail(image: android.graphics.Bitmap, bounds: Rect, width: Int): IntArray {
         val area = Rect(bounds)
         if (!area.intersect(0, 0, image.width, image.height)) return IntArray(0)
-        val width = 48
-        val height = (48f * area.height() / area.width().coerceAtLeast(1)).toInt().coerceIn(1, 256)
+        val height = (width.toFloat() * area.height() / area.width().coerceAtLeast(1)).toInt().coerceIn(1, width * 8)
         val cropped = android.graphics.Bitmap.createBitmap(image, area.left, area.top, area.width(), area.height())
         val small = android.graphics.Bitmap.createScaledBitmap(cropped, width, height, true)
         val pixels = IntArray(width * height).also { small.getPixels(it, 0, width, 0, 0, width, height) }

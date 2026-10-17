@@ -118,17 +118,22 @@ internal object UiBridge {
      * 撮って保存し、結果の JSON を返す。画像の (x, y) は画面の (box.x + x / scale, box.y + y / scale)。
      * [stableMs] > 0 なら動きが止まるまで待つ (`stable` が止まったかどうか)。
      */
-    private fun takeShot(app: Context, settings: UiBridgeSettings, scale: Float, jpeg: Boolean, stableMs: Long, delayMs: Long): JSONObject =
-        runBlocking { shotJson(app, settings, scale, jpeg, stableMs, delayMs) }
+    private fun takeShot(app: Context, settings: UiBridgeSettings, scale: Float, jpeg: Boolean, stableMs: Long, delayMs: Long,
+        box: android.graphics.Rect? = null, ifChanged: Boolean = false): JSONObject =
+        runBlocking { shotJson(app, settings, scale, jpeg, stableMs, delayMs, box = box, ifChanged = ifChanged) }
 
     /** [takeShot] の中身。指を置いたまま撮る `--peek` は操作の途中から呼ぶので、止めずに待てる形で持つ。[base] はファイル名。 */
     private suspend fun shotJson(app: Context, settings: UiBridgeSettings, scale: Float, jpeg: Boolean, stableMs: Long, delayMs: Long,
-        base: String = "shot"): JSONObject {
+        base: String = "shot", box: android.graphics.Rect? = null, ifChanged: Boolean = false): JSONObject {
         if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
         val name = if (jpeg) "$base.jpg" else "$base.png"
         val file = File(app.filesDir, "shared_home/.z2term/ui/$name")
-        val shot = AndroidUiLook.shot(file, scale, jpeg, { gateLook(app, settings, it) }, stableMs, delayMs)
+        val shot = AndroidUiLook.shot(file, scale, jpeg, { gateLook(app, settings, it) }, stableMs, delayMs, box, ifChanged)
         lastPackage?.let { touch(app, it) }
+        // 変わっていなければ画像は書いていない。AI は前に読んだ画像のままでよい。
+        if (shot.unchanged) return success().put("unchanged", true)
+            .put("box", JSONArray(listOf(shot.box.left, shot.box.top, shot.box.width(), shot.box.height())))
+            .apply { shot.stable?.let { put("stable", it).put("waited_ms", shot.waitedMs) } }
         return success().put("path", "/root/.z2term/ui/$name").put("size", JSONArray(listOf(shot.size.width, shot.size.height)))
             .put("box", JSONArray(listOf(shot.box.left, shot.box.top, shot.box.width(), shot.box.height()))).put("scale", scale.toDouble())
             .apply { shot.stable?.let { put("stable", it).put("waited_ms", shot.waitedMs) } }
@@ -136,11 +141,21 @@ internal object UiBridge {
 
     /** `--shot` を受ける命令 (操作のあとの画面を同じ呼び出しで返す)。 */
     private val SHOT_AFTER = setOf("tap", "long", "type", "enter", "key", "open", "scroll", "swipe", "drag", "noti")
+    /** 操作の命令から外す撮影の指定。`--box` は `--shot` と `--peek` の両方、`--if-changed` は `--shot` だけに効く。 */
+    private val CAPTURE_FLAGS = setOf("--shot", "--settle", "--peek", "--box", "--if-changed")
     /** `--peek` を受ける命令 (指を置いている間の画面を返す)。座標の長押し・スワイプ・なぞるだけ。 */
     private val PEEK = setOf("long", "swipe", "drag")
 
     /** 操作の命令から外した撮影の指定。[settle] は `--shot` / `--settle`、[peek] は `--peek` のミリ秒。 */
-    private class Capture(val settle: Long?, val peek: Long?)
+    private class Capture(val settle: Long?, val peek: Long?, val box: android.graphics.Rect? = null, val ifChanged: Boolean = false)
+
+    /** `--box X,Y,W,H` (画面のピクセル)。撮る範囲を窓の一部に絞る。 */
+    private fun box(arg: String?): android.graphics.Rect {
+        val v = arg?.split(',')?.map { it.toIntOrNull() }
+        if (v == null || v.size != 4 || v.any { it == null } || v[0]!! < 0 || v[1]!! < 0 || v[2]!! < 1 || v[3]!! < 1)
+            throw Refusal("bad_args", "--box looks like X,Y,W,H in screen pixels")
+        return android.graphics.Rect(v[0]!!, v[1]!!, v[0]!! + v[2]!!, v[1]!! + v[3]!!)
+    }
 
     /**
      * 操作の命令から `--shot` / `--settle MS` / `--peek MS` を外す。`--shot` があれば、操作のあと画面の動きが
@@ -149,10 +164,12 @@ internal object UiBridge {
      * どちらも手順の記録 (save) には残さない (見るだけで、操作の中身は変えないため)。
      */
     private fun capture(verb: String, args: List<String>): Pair<List<String>, Capture> {
-        if (verb !in SHOT_AFTER || args.none { it == "--shot" || it == "--settle" || it == "--peek" }) return args to Capture(null, null)
+        if (verb !in SHOT_AFTER || args.none { it in CAPTURE_FLAGS }) return args to Capture(null, null)
         val rest = mutableListOf<String>()
         var settle: Long? = null
         var peek: Long? = null
+        var area: android.graphics.Rect? = null
+        var ifChanged = false
         var i = 0
         while (i < args.size) {
             when (args[i]) {
@@ -164,17 +181,20 @@ internal object UiBridge {
                     peek = args.getOrNull(++i)?.toLongOrNull()?.takeIf { it >= 0 }
                         ?: throw Refusal("bad_args", "--peek takes milliseconds after the finger goes down")
                 }
+                "--box" -> area = box(args.getOrNull(++i))
+                "--if-changed" -> ifChanged = true
                 else -> rest += args[i]
             }
             i++
         }
-        return rest to Capture(settle, peek)
+        if ((area != null || ifChanged) && settle == null && peek == null) throw Refusal("bad_args", "--box and --if-changed go with --shot or --peek")
+        return rest to Capture(settle, peek, area, ifChanged)
     }
 
     /** `--peek` の撮影。失敗しても操作は止めず、失敗の JSON を `peek` に入れる。 */
-    private fun peeker(app: Context, settings: UiBridgeSettings, atMs: Long?) = atMs?.let {
+    private fun peeker(app: Context, settings: UiBridgeSettings, atMs: Long?, box: android.graphics.Rect?) = atMs?.let {
         AndroidUiLook.Peek(it) {
-            try { shotJson(app, settings, 0.5f, true, 0L, 0L, "peek") } catch (e: Refusal) { failure(e.code, e.message.orEmpty()) }
+            try { shotJson(app, settings, 0.5f, true, 0L, 0L, "peek", box) } catch (e: Refusal) { failure(e.code, e.message.orEmpty()) }
         }
     }
 
@@ -192,10 +212,10 @@ internal object UiBridge {
         val (args, capture) = try { capture(verb, rawArgs) } catch (e: Refusal) { return failure(e.code, e.message.orEmpty()) }
         val settle = capture.settle
         val result = try {
-            handle(app, verb, args, capture.peek).also { done ->
+            handle(app, verb, args, capture).also { done ->
                 // 操作が成功したときだけ撮る。直後は画面がまだ反応していないことがあるので 250 ms 置いてから。
                 if (settle != null && done.optBoolean("ok")) done.put("shot", try {
-                    takeShot(app, UiBridgeSettings(app), 0.5f, true, settle, 250L)
+                    takeShot(app, UiBridgeSettings(app), 0.5f, true, settle, 250L, capture.box, capture.ifChanged)
                 } catch (e: Refusal) { failure(e.code, e.message.orEmpty()) })
             }
         } catch (e: Refusal) {
@@ -213,8 +233,9 @@ internal object UiBridge {
     internal fun failure(code: String, text: String) = JSONObject().put("ok", false).put("error", code).put("message", text)
     internal fun success() = JSONObject().put("ok", true)
 
-    private fun handle(app: Context, verb: String, args: List<String>, peek: Long? = null): JSONObject {
+    private fun handle(app: Context, verb: String, args: List<String>, capture: Capture = Capture(null, null)): JSONObject {
         val settings = UiBridgeSettings(app)
+        val peek = capture.peek
         return when (verb) {
             "status" -> { count(args, 0); status(app, settings) }
             "pause" -> { count(args, 0); pause(app); success() }
@@ -246,6 +267,8 @@ internal object UiBridge {
                 var scale = 1f
                 var jpeg = false
                 var stable = 0L
+                var area: android.graphics.Rect? = null
+                var ifChanged = false
                 var i = 0
                 while (i < args.size) {
                     when (args[i]) {
@@ -261,13 +284,15 @@ internal object UiBridge {
                                     ?: throw Refusal("bad_args", "--stable takes 1..${UiBridgePolicy.SETTLE_MAX_MS} ms")
                             }
                         }
-                        else -> throw Refusal("bad_args", "z2-ui shot [--scale 0.1..1] [--jpeg] [--stable [MS]]")
+                        "--box" -> area = box(args.getOrNull(++i))
+                        "--if-changed" -> ifChanged = true
+                        else -> throw Refusal("bad_args", "z2-ui shot [--scale 0.1..1] [--jpeg] [--stable [MS]] [--box X,Y,W,H] [--if-changed]")
                     }
                     i++
                 }
                 enter(settings, false)
                 device(app)
-                takeShot(app, settings, scale, jpeg, stable, 0L)
+                takeShot(app, settings, scale, jpeg, stable, 0L, area, ifChanged)
             }
             "colors" -> { enter(settings, false); device(app); colors(app, settings, args) }
             "seq" -> seq(app, settings, args)
@@ -282,7 +307,7 @@ internal object UiBridge {
                 val points = args.take(4).map { it.toIntOrNull()?.takeIf { v -> v >= 0 } ?: throw Refusal("bad_args", "Coordinates are pixels (0 or more)") }
                 val ms = args.getOrNull(4)?.let { it.toLongOrNull()?.takeIf { v -> v in 50..3000 } ?: throw Refusal("bad_args", "Duration must be 50..3000 ms") } ?: 300L
                 checkPeek(peek, ms)
-                exclusive { swipe(app, settings, points, ms, peeker(app, settings, peek)) }
+                exclusive { swipe(app, settings, points, ms, peeker(app, settings, peek, capture.box)) }
             }
             "drag" -> {
                 var step = 100L
@@ -304,7 +329,7 @@ internal object UiBridge {
                 val ms = step * (points.size - 1)
                 if (ms > 30_000) throw Refusal("bad_args", "The whole drag must finish within 30000 ms")
                 checkPeek(peek, ms)
-                exclusive { drag(app, settings, points, ms, peeker(app, settings, peek)) }
+                exclusive { drag(app, settings, points, ms, peeker(app, settings, peek, capture.box)) }
             }
             "tap", "enter" -> { count(args, 1); exclusive { operate(app, settings, verb, UiBridgePolicy.target(args[0]), null, false) } }
             "long" -> {
@@ -319,7 +344,7 @@ internal object UiBridge {
                 if ((hold != null || peek != null) && target !is Target.Point) throw Refusal("bad_args", "--hold and --peek need coordinates (@X,Y)")
                 val duration = hold ?: UiBridgePolicy.HOLD_DEFAULT_MS
                 checkPeek(peek, duration)
-                exclusive { operate(app, settings, verb, target, null, false, duration, peeker(app, settings, peek)) }
+                exclusive { operate(app, settings, verb, target, null, false, duration, peeker(app, settings, peek, capture.box)) }
             }
             "type" -> {
                 val append = args.lastOrNull() == "--append"

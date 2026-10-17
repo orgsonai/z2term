@@ -98,6 +98,16 @@ class UiBridgePolicyTest {
         assertEquals("#0a0b0c", UiBridgePolicy.hex(0xff0a0b0c.toInt()))
     }
 
+    @Test fun sameIsStricterThanSettled() {
+        val before = IntArray(100) { 120 }
+        // 全体のわずかな揺れ (平均 1) でも、1 点だけの大きな変化 (数字の書き換えなど) は「同じ」にしない。
+        val oneDigit = before.copyOf().also { it[42] = 200 }
+        assertTrue(UiBridgePolicy.settled(before, oneDigit))
+        assertFalse(UiBridgePolicy.same(before, oneDigit))
+        assertTrue(UiBridgePolicy.same(before, IntArray(100) { 120 + 8 }))
+        assertFalse(UiBridgePolicy.same(before, IntArray(99) { 120 }))
+    }
+
     @Test fun medianIgnoresAHighlight() {
         // 赤い 8 点に白い光沢が 1 点。平均なら薄まるが、中央値は赤のまま。
         val red = 0xe03020

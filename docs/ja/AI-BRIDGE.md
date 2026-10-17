@@ -135,6 +135,7 @@ AI がいちばん時間を使うのは、呼び出しのあいだに「画像�
 - `seq` に入れられるのは front・look・shot・colors・tap・long・type・enter・key・open・scroll・swipe・drag・wait・wait-change・noti・sleep。失敗した手で止まり、`failed_step`（何手目か）とそれまでの各手の結果（`steps`）を返す。
 - `seq` の各手は単独で呼んだときと同じ判定・記録を通る（「毎回確認」の承認・一時停止・指示・停止も 1 手ごとに効き、`mark` → `save` にも残る）。始めてから 60 秒を過ぎたら次の手を始めない（`timeout`）。
 - 画像を作る手（`shot`・`--shot`・`--peek`）は最後の 1 手だけ。同じファイルへ上書きするため、途中の画像は返す前に消えてしまう。
+- **範囲を絞る・変わっていなければ返さない（1.0.39）**: `shot` と操作の `--shot` に `--box X,Y,W,H`（画面のピクセル）を付けると、その範囲だけを撮ります（`--peek` にも効く）。画像が小さいほど AI は速く読めます。`--if-changed` を付けると、前に保存した画像（同じファイル名・範囲・縮小）と同じ画面なら、書かずに `{"ok":true,"unchanged":true}` だけを返します（MCP では画像を付けない）。判定は厳しめで、数字 1 つの書き換えも「変わった」とみるので、`unchanged` なら見えるものは何も変わっていません。MCP では `box`・`if_changed`。
 - MCP では `colors`（`points` か `grid`: `{origin, step, cols, rows}`）と `seq`（`steps`: `[["tap", "@540,700"], ["sleep", "500"]]`）。
 
 ### 4.3 パスワードと保護された画面

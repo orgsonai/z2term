@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.39 (versionCode 737)**: AI app control sends the AI fewer and smaller images. (1) `--box X,Y,W,H` captures only the part of the screen that is needed; smaller images are faster for the AI to read. (2) With `--if-changed`, an unchanged screen returns just "unchanged" instead of an image, so the AI does not re-read the same picture after an operation that changed nothing. The comparison is strict so that small text changes are not missed.
+
 **1.0.38 (versionCode 736)**: AI app control can go faster in any app. Most of the time is the AI reading images and thinking, so these reduce how often and how much. (1) `z2-ui colors` returns the colour at known places on the screen as words such as "red" or "blue"; `--grid` reads a whole grid such as a game board at once. This is much faster for the AI than reading an image. (2) `z2-ui seq` sends known steps (type and send, close a known series of dialogs, ...) together in one call, so the AI does not think between them. Permissions, approvals and pause still apply to every step.
 
 **1.0.37 (versionCode 735)**: AI app control can now capture the screen while the finger is still down. Before, a capture waited for the gesture to end, so the AI could not see things shown only during a touch (such as a puzzle's remaining move time). Add `--peek MS` to `long @X,Y` / `swipe` / `drag` to also get the screen MS after the finger touches. `--hold MS` sets the length of a long-press at coordinates. Captured screen files are no longer kept around: they are deleted after two unused minutes and on stop, and over MCP as soon as they are returned.

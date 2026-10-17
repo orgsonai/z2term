@@ -190,6 +190,11 @@ internal object UiBridgeMcp {
         fun text(key: String) = a.optString(key).takeIf { a.has(key) && it.isNotEmpty() }
             ?: throw Refusal("bad_args", "$name needs $key")
         fun optional(key: String) = if (a.has(key) && !a.isNull(key)) a.get(key).toString() else null
+        // 撮る範囲を絞る・変わっていなければ画像を返さない (shot と、操作の shot / peek_ms に共通)。
+        val narrow = buildList {
+            a.optJSONArray("box")?.let { b -> add("--box"); add((0 until 4).joinToString(",") { b.optInt(it, -1).toString() }) }
+            if (a.optBoolean("if_changed")) add("--if-changed")
+        }
         val result = try {
             val (verb, args) = when (name) {
                 "front", "status", "mark" -> name to emptyList()
@@ -200,7 +205,7 @@ internal object UiBridgeMcp {
                 }
                 // 画像は会話に入るので、既定は半分の大きさの JPEG にする (小さく、書き出しも速い)。
                 "shot" -> "shot" to listOfNotNull("--scale", optional("scale") ?: "0.5", "--jpeg".takeIf { a.optString("format", "jpeg") != "png" },
-                    "--stable".takeIf { a.optBoolean("stable") })
+                    "--stable".takeIf { a.optBoolean("stable") }) + narrow
                 "drag" -> "drag" to buildList {
                     val points = a.optJSONArray("points") ?: throw Refusal("bad_args", "drag needs points")
                     for (i in 0 until points.length()) {
@@ -258,6 +263,7 @@ internal object UiBridgeMcp {
                 if (a.optBoolean("shot")) add("--shot")
                 optional("settle_ms")?.let { add("--settle"); add(it) }
                 optional("peek_ms")?.let { add("--peek"); add(it) }
+                if (name != "shot") addAll(narrow)
             }
             UiBridge.execute(app, verb, args + after)
         } catch (e: Refusal) { UiBridge.failure(e.code, e.message.orEmpty()) }
@@ -270,7 +276,7 @@ internal object UiBridgeMcp {
             name == "shot" || (name == "seq" && last.optString("verb") == "shot") -> listOf(last)
             else -> listOfNotNull(last.optJSONObject("peek"), last.optJSONObject("shot"))
         }
-        pictures.filter { it.optBoolean("ok") }.forEach { picture ->
+        pictures.filter { it.optBoolean("ok") && !it.optBoolean("unchanged") }.forEach { picture ->
             runCatching {
                 val file = File(app.filesDir, "shared_home/.z2term/ui/" + picture.getString("path").substringAfterLast('/'))
                 val bytes = file.readBytes()
@@ -287,9 +293,13 @@ internal object UiBridgeMcp {
         fun prop(type: String, description: String, values: List<String>? = null) = JSONObject().put("type", type)
             .put("description", description).apply { values?.let { put("enum", JSONArray(it)) } }
         val target = prop("string", "Element: \"#N\" from the last look, \"text=…\", \"desc=…\", \"id=PACKAGE:id/NAME\" or \"@X,Y\" (pixels)")
+        val narrow = mapOf(
+            "box" to JSONObject().put("type", "array").put("items", JSONObject().put("type", "integer"))
+                .put("description", "Capture only this part [x, y, width, height] in screen pixels (smaller images are faster for you to read)"),
+            "if_changed" to prop("boolean", "If the screen is the same as the last image you got, return unchanged: true and no image"))
         // 操作の道具に共通の「操作のあとの画面も返す」引数。
         val afterShot = mapOf("shot" to prop("boolean", "Also return the screen after the operation, once it stops moving (JPEG, scale 0.5)"),
-            "settle_ms" to prop("integer", "With shot: wait at most this long for the screen to stop moving, 1..10000, default 3000"))
+            "settle_ms" to prop("integer", "With shot: wait at most this long for the screen to stop moving, 1..10000, default 3000")) + narrow
         val operations = setOf("tap", "long", "type", "enter", "key", "open", "scroll", "swipe", "drag")
         // 指を置いたまま撮る。長押し・なぞる途中にだけ出る表示 (残り時間など) を見るためのもの。
         val peek = mapOf("peek_ms" to prop("integer", "Also capture the screen this many ms after the finger goes down, " +
@@ -305,7 +315,7 @@ internal object UiBridgeMcp {
                     "in" to prop("integer", "Only inside element N of the last look"))),
             tool("shot", "Capture only the foreground app window as an image. Screen = box.x,y + image.x,y / scale.",
                 mapOf("scale" to prop("number", "0.1..1, default 0.5"), "format" to prop("string", "jpeg (default) or png", listOf("jpeg", "png")),
-                    "stable" to prop("boolean", "Wait until the screen stops moving (up to 3 s) before capturing"))),
+                    "stable" to prop("boolean", "Wait until the screen stops moving (up to 3 s) before capturing")) + narrow),
             tool("drag", "Touch the first point and move through all points without lifting, as one gesture (puzzle games and drawing). " +
                 "Plan the whole path before calling; the move takes step ms per segment.",
                 mapOf("points" to JSONObject().put("type", "array").put("description", "2..256 points [x, y] in screen pixels")

@@ -132,6 +132,8 @@ after it in the same reply: z2-ui waits until the screen stops moving (at most 3
 captures the foreground app window as JPEG at scale 0.5 and puts the shot fields (path, size, box, scale, `stable`,
 `waited_ms`) under `shot`. Over MCP pass `"shot": true` (and `settle_ms`); the image is returned with the result.
 This replaces the separate shot call after every operation and halves the number of turns you need.
+`--box X,Y,W,H` and `--if-changed` (section 8) also apply to this shot (`--box` also to `--peek`); over MCP pass
+`box` and `if_changed`. `shot.unchanged` true means the operation changed nothing visible in that area.
 
 Add `--peek MS` to `long @X,Y`, `swipe` or `drag` to see the screen WHILE the finger is still down: z2-ui captures
 MS after the finger touches (JPEG, scale 0.5) and puts the shot fields under `peek`, with `held` true when the finger
@@ -147,7 +149,8 @@ would only add a second. Check the result with `shot`.
 
 ## 8. Screens without elements: shot
 
-`z2-ui shot [--scale S] [--jpeg]` (S from 0.1 to 1, default 1; the MCP tool defaults to 0.5 and JPEG).
+`z2-ui shot [--scale S] [--jpeg] [--stable [MS]] [--box X,Y,W,H] [--if-changed]` (S from 0.1 to 1, default 1; the MCP
+tool defaults to 0.5 and JPEG).
 - Saves only the foreground app window to `/root/.z2term/ui/shot.png` (or `shot.jpg` with `--jpeg`, which is faster to
   write and smaller). The status bar, notification shade and other apps are cut off.
 - Shots can be taken about three times per second (Android's limit); a shot right after another waits for that gap.
@@ -155,7 +158,15 @@ would only add a second. Check the result with `shot`.
   and saves that frame. `stable` tells whether it settled; `waited_ms` how long it took. Use it instead of taking
   several shots while an animation plays. Screens that keep moving slightly (sparkles, idle animations) count as
   settled; screens that keep moving a lot return after MS with `stable` false.
-- Returns `path`, image `size`, `box` (the window on screen) and `scale`.
+- Returns `path`, image `size`, `box` (the captured area on screen) and `scale`.
+- `--box X,Y,W,H` captures only that part of the window (screen pixels; cut to the window). A smaller image is much
+  faster for you to read: once you know where the part you need is (a board, a dialog, a counter), capture only it.
+  The coordinate formula below stays the same, because `box` is the captured area.
+- `--if-changed`: if the capture is the same as the last image saved with the same file name, area and scale,
+  z2-ui writes nothing and returns `{"ok":true,"unchanged":true,"box":[...]}` with no `path` (over MCP: no image).
+  Your previous image is still correct; do not read the file again. The comparison is strict (a single changed digit
+  counts as a change), so `unchanged` true reliably means nothing visible changed. Use it when polling a screen or
+  after an operation that may have done nothing.
 - Convert image coordinates to screen coordinates: screen_x = box[0] + image_x / scale, screen_y = box[1] + image_y / scale.
   Then use `z2-ui tap @screen_x,screen_y` or `swipe`.
 - Screens that forbid capture come back black. Requires Android 11 (`unsupported` before).
@@ -215,7 +226,8 @@ Design your moves so that time limits do not depend on your thinking time:
   step x (points - 1) ms regardless of how long you thought.
 - Use `--step` between 60 and 150 ms for board games: too fast may be ignored by the game, too slow may hit its timer.
   For a board, compute each cell centre from the shot once (box, scale and the grid) and reuse it.
-- Use `shot --jpeg --scale 0.5` (or smaller) when you only need to recognise colours and positions.
+- Use `shot --jpeg --scale 0.5` (or smaller) when you only need to recognise colours and positions, and `--box` to
+  capture only the area you need. Add `--if-changed` so an unchanged screen costs you no image.
 - To read something that appears only while touching (for example the remaining move time), add `--peek MS` to the
   `drag` or `long @X,Y` (section 7). Do not release and shoot afterwards: it is gone by then.
 - Coordinate operations do not wait for screen changes (section 7), so a following `shot` shows the result as soon as
@@ -278,14 +290,15 @@ notification. You learn about it as the reply to your next call:
 ## 15. MCP
 
 - Start: `z2-ui mcp` (stdio). From a PC, register `ssh <phone> z2-ui mcp` as a stdio MCP server.
-- Tools: front, look (all, tree, in), shot (scale, format, stable; also returns the image), colors (points or grid
+- Tools: front, look (all, tree, in), shot (scale, format, stable, box, if_changed; also returns the image), colors (points or grid
   {origin, step, cols, rows}, radius, hex, stable), seq (steps as [["tap", "@540,700"], ["sleep", "500"], ...]; the image of
   a last shot step is returned), tap, long, enter (target), type (target, text,
   append), key (name), open (target), wait (selector, ms), wait_change (ms), scroll (target, direction),
   swipe (x1, y1, x2, y2, ms), drag (points as [[x, y], ...], step), notes (package), write_notes (package, text), mark, save (name), notifications,
   press_notification (key, label, reply), status, guide.
 - Each tool result is the same JSON as the CLI, as text. `isError` is true when `ok` is false.
-- Operation tools (tap, long, type, enter, key, open, scroll, swipe, drag) accept `shot` (boolean) and `settle_ms`:
+- Operation tools (tap, long, type, enter, key, open, scroll, swipe, drag) accept `shot` (boolean), `settle_ms`, `box`
+  ([x, y, w, h]) and `if_changed`:
   with `shot` true the result also contains the screen after the operation, as an image.
 - long, swipe and drag accept `peek_ms`: the screen while the finger is down, as an image placed before the `shot`
   image. long also accepts `hold_ms` for `@X,Y`.

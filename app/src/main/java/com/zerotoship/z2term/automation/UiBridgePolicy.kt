@@ -87,6 +87,15 @@ internal object UiBridgePolicy {
     const val HOLD_MIN_MS = 100L
     const val HOLD_MAX_MS = 10_000L
 
+    /**
+     * 前に返した画像と同じ画面か (`--if-changed`)。[settled] より厳しく、縮めた明るさが 1 点でも
+     * [SAME_THRESHOLD] を超えて違えば「変わった」とみる。数字 1 つの書き換えも見落とさないため。
+     */
+    fun same(previous: IntArray, current: IntArray): Boolean =
+        previous.size == current.size && previous.indices.all { kotlin.math.abs(previous[it] - current[it]) <= SAME_THRESHOLD }
+
+    const val SAME_THRESHOLD = 8
+
     /** 点ごとの中央値 (0xRRGGBB)。赤・緑・青をそれぞれ並べて真ん中を取る。光沢や縁の 1 点に引っぱられない。 */
     fun median(pixels: IntArray): Int {
         if (pixels.isEmpty()) return 0

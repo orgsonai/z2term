@@ -135,6 +135,7 @@ Most of the time goes into the AI reading an image and thinking between calls (5
 - Steps allowed in `seq`: front, look, shot, colors, tap, long, type, enter, key, open, scroll, swipe, drag, wait, wait-change, noti, sleep. It stops at the first failing step and returns `failed_step` (1-based) and each step's result so far (`steps`).
 - Each step goes through the same checks and logging as a single call (approvals with `ask`, pause, instructions and stop apply per step, and `mark` → `save` records them). No new step starts after 60 s (`timeout`).
 - Steps that produce an image (`shot`, `--shot`, `--peek`) only as the last step: each image overwrites the same file, so earlier ones would be gone before the reply.
+- **Narrower and only when changed (1.0.39)**: add `--box X,Y,W,H` (screen pixels) to `shot` or an operation's `--shot` to capture only that area (it also applies to `--peek`); smaller images are faster for the AI to read. With `--if-changed`, if the screen is the same as the last saved image (same file name, area and scale), nothing is written and only `{"ok":true,"unchanged":true}` is returned (no image over MCP). The comparison is strict: a single changed digit counts as a change, so `unchanged` means nothing visible changed. Over MCP: `box`, `if_changed`.
 - Over MCP: `colors` (`points` or `grid`: `{origin, step, cols, rows}`) and `seq` (`steps`: `[["tap", "@540,700"], ["sleep", "500"]]`).
 
 ### 4.3 Passwords and protected screens
