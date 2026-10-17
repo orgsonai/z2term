@@ -102,10 +102,22 @@ class UiBridgePolicyTest {
         val before = IntArray(100) { 120 }
         // 全体のわずかな揺れ (平均 1) でも、1 点だけの大きな変化 (数字の書き換えなど) は「同じ」にしない。
         val oneDigit = before.copyOf().also { it[42] = 200 }
-        assertTrue(UiBridgePolicy.settled(before, oneDigit))
+        assertTrue(UiBridgePolicy.settled(before, oneDigit, width = 10))
         assertFalse(UiBridgePolicy.same(before, oneDigit))
         assertTrue(UiBridgePolicy.same(before, IntArray(100) { 120 + 8 }))
         assertFalse(UiBridgePolicy.same(before, IntArray(99) { 120 }))
+    }
+
+    @Test fun settledCatchesALocalAnimation() {
+        // 48 x 20 の画面のうち 8 x 8 (面積 7%) だけが大きく変わる。全体の平均差は 3 未満でも、まだ動いている。
+        val width = 48
+        val still = IntArray(width * 20) { 120 }
+        val local = still.copyOf().also { a -> for (y in 4 until 12) for (x in 8 until 16) a[y * width + x] = 160 }
+        assertTrue((0 until still.size).sumOf { kotlin.math.abs(still[it] - local[it]) }.toDouble() / still.size < UiBridgePolicy.SETTLE_THRESHOLD)
+        assertFalse(UiBridgePolicy.settled(still, local, width))
+        // まばらなきらめき (1 区画に 1 点、差 20) は無視する。
+        val sparkle = still.copyOf().also { a -> for (y in 0 until 20 step 4) for (x in 0 until width step 4) a[y * width + x] = 140 }
+        assertTrue(UiBridgePolicy.settled(still, sparkle, width))
     }
 
     @Test fun medianIgnoresAHighlight() {
@@ -134,6 +146,8 @@ class UiBridgePolicyTest {
         assertEquals("swipe px 1 2 3 4 300", step("swipe", "1", "2", "3", "4").line)
         assertEquals("drag px 80 10,20 30,40 50,60", step("drag", "10,20", "30,40", "--step", "80", "@50,60").line)
         assertEquals("drag px 100 1,2 3,4", step("drag", "1,2", "3,4").line)
+        // 始点で止める分は、始点を重ねて再現する (50 ms を 40 ms 刻みなら 2 区間)。
+        assertEquals("drag px 40 1,2 1,2 1,2 3,4", step("drag", "1,2", "3,4", "--hold", "50", "--step", "40").line)
         // 座標の長押しは指を置いた長さのまま。z2-action の長押しの範囲 (500..3000) を外れる長さは保存を断る。
         assertEquals("long-press px 5 6 600", step("long", "@5,6").line)
         assertEquals("long-press px 5 6 1500", step("long", "@5,6", "--hold", "1500").line)

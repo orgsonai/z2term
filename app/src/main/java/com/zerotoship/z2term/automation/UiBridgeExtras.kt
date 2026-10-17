@@ -191,9 +191,22 @@ internal object UiBridgeMcp {
             ?: throw Refusal("bad_args", "$name needs $key")
         fun optional(key: String) = if (a.has(key) && !a.isNull(key)) a.get(key).toString() else null
         // 撮る範囲を絞る・変わっていなければ画像を返さない (shot と、操作の shot / peek_ms に共通)。
+        // 色の格子 ({origin, step, cols, rows}) と、その読み方。colors と、shot / 操作の shot で共通。
+        val grid = buildList {
+            a.optJSONObject("grid")?.let { g ->
+                val origin = g.optJSONArray("origin")
+                val step = g.optJSONArray("step")
+                if (origin == null || step == null) throw Refusal("bad_args", "grid needs origin [x, y] and step [dx, dy]")
+                add("--grid"); add("${origin.optInt(0, -1)},${origin.optInt(1, -1)}")
+                add("${step.optInt(0)},${step.optInt(1)}"); add("${g.optInt("cols")}x${g.optInt("rows")}")
+                optional("radius")?.let { add("--radius"); add(it) }
+                if (a.optBoolean("hex")) add("--hex")
+            }
+        }
         val narrow = buildList {
             a.optJSONArray("box")?.let { b -> add("--box"); add((0 until 4).joinToString(",") { b.optInt(it, -1).toString() }) }
             if (a.optBoolean("if_changed")) add("--if-changed")
+            if (a.optBoolean("expect_change")) add("--expect-change")
         }
         val result = try {
             val (verb, args) = when (name) {
@@ -205,7 +218,7 @@ internal object UiBridgeMcp {
                 }
                 // 画像は会話に入るので、既定は半分の大きさの JPEG にする (小さく、書き出しも速い)。
                 "shot" -> "shot" to listOfNotNull("--scale", optional("scale") ?: "0.5", "--jpeg".takeIf { a.optString("format", "jpeg") != "png" },
-                    "--stable".takeIf { a.optBoolean("stable") }) + narrow
+                    "--stable".takeIf { a.optBoolean("stable") }) + narrow + grid
                 "drag" -> "drag" to buildList {
                     val points = a.optJSONArray("points") ?: throw Refusal("bad_args", "drag needs points")
                     for (i in 0 until points.length()) {
@@ -213,24 +226,21 @@ internal object UiBridgeMcp {
                         add("${xy.optInt(0, -1)},${xy.optInt(1, -1)}")
                     }
                     optional("step")?.let { add("--step"); add(it) }
+                    optional("hold_ms")?.let { add("--hold"); add(it) }
                 }
                 "colors" -> "colors" to buildList {
-                    val grid = a.optJSONObject("grid")
-                    if (grid != null) {
-                        val origin = grid.optJSONArray("origin")
-                        val step = grid.optJSONArray("step")
-                        if (origin == null || step == null) throw Refusal("bad_args", "grid needs origin [x, y] and step [dx, dy]")
-                        add("--grid"); add("${origin.optInt(0, -1)},${origin.optInt(1, -1)}")
-                        add("${step.optInt(0)},${step.optInt(1)}"); add("${grid.optInt("cols")}x${grid.optInt("rows")}")
-                    }
+                    addAll(grid)
                     a.optJSONArray("points")?.let { points ->
                         for (i in 0 until points.length()) {
                             val xy = points.optJSONArray(i) ?: throw Refusal("bad_args", "Each point is [x, y]")
                             add("${xy.optInt(0, -1)},${xy.optInt(1, -1)}")
                         }
+                        // 点の並びのときは、格子と同じ読み方 (radius / hex) をここで渡す。
+                        if (a.optJSONObject("grid") == null) {
+                            optional("radius")?.let { add("--radius"); add(it) }
+                            if (a.optBoolean("hex")) add("--hex")
+                        }
                     }
-                    optional("radius")?.let { add("--radius"); add(it) }
-                    if (a.optBoolean("hex")) add("--hex")
                     if (a.optBoolean("stable")) add("--stable")
                 }
                 // 1 手は CLI と同じ語の並び (["tap", "@540,700"])。CLI の区切り `--` でつなぐ。
@@ -263,18 +273,20 @@ internal object UiBridgeMcp {
                 if (a.optBoolean("shot")) add("--shot")
                 optional("settle_ms")?.let { add("--settle"); add(it) }
                 optional("peek_ms")?.let { add("--peek"); add(it) }
-                if (name != "shot") addAll(narrow)
+                if (name != "shot" && name != "colors") { addAll(narrow); addAll(grid) }
             }
             UiBridge.execute(app, verb, args + after)
         } catch (e: Refusal) { UiBridge.failure(e.code, e.message.orEmpty()) }
         val content = JSONArray().put(JSONObject().put("type", "text").put("text", result.toString()))
         // 指を置いている間の画面 (peek) → 操作のあとの画面 (shot) の順に付ける。
-        // seq は最後の 1 手だけが画像を作れる。
-        val last = if (name == "seq") result.optJSONArray("steps")?.let { it.optJSONObject(it.length() - 1) } else result
-        val pictures = when {
+        // seq は peek をどの手でも 1 回まで、撮影 (shot / --shot) を最後の 1 手だけで作れる。
+        val steps = if (name == "seq") result.optJSONArray("steps")?.let { arr -> (0 until arr.length()).mapNotNull { arr.optJSONObject(it) } }.orEmpty()
+            else listOf(result)
+        val last = steps.lastOrNull()
+        val pictures = steps.mapNotNull { it.optJSONObject("peek") } + when {
             last == null -> emptyList()
             name == "shot" || (name == "seq" && last.optString("verb") == "shot") -> listOf(last)
-            else -> listOfNotNull(last.optJSONObject("peek"), last.optJSONObject("shot"))
+            else -> listOfNotNull(last.optJSONObject("shot"))
         }
         pictures.filter { it.optBoolean("ok") && !it.optBoolean("unchanged") }.forEach { picture ->
             runCatching {
@@ -296,7 +308,13 @@ internal object UiBridgeMcp {
         val narrow = mapOf(
             "box" to JSONObject().put("type", "array").put("items", JSONObject().put("type", "integer"))
                 .put("description", "Capture only this part [x, y, width, height] in screen pixels (smaller images are faster for you to read)"),
-            "if_changed" to prop("boolean", "If the screen is the same as the last image you got, return unchanged: true and no image"))
+            "if_changed" to prop("boolean", "If the screen is the same as the last image you got, return unchanged: true and no image"),
+            "expect_change" to prop("boolean", "Before waiting for the screen to stop, wait (up to 1.5 s) until it differs from the last " +
+                "image you got; the result's changed tells whether it did. For screens that react late"),
+            "grid" to JSONObject().put("type", "object").put("description", "Also read colour names on this grid from the same capture: " +
+                "origin [x, y] of the top-left cell, step [dx, dy], cols, rows. Returned as grid, one string per row"),
+            "radius" to prop("integer", "With grid: median over a square of this radius, 0..20, default 4"),
+            "hex" to prop("boolean", "With grid: also return #rrggbb per cell"))
         // 操作の道具に共通の「操作のあとの画面も返す」引数。
         val afterShot = mapOf("shot" to prop("boolean", "Also return the screen after the operation, once it stops moving (JPEG, scale 0.5)"),
             "settle_ms" to prop("integer", "With shot: wait at most this long for the screen to stop moving, 1..10000, default 3000")) + narrow
@@ -320,7 +338,9 @@ internal object UiBridgeMcp {
                 "Plan the whole path before calling; the move takes step ms per segment.",
                 mapOf("points" to JSONObject().put("type", "array").put("description", "2..256 points [x, y] in screen pixels")
                     .put("items", JSONObject().put("type", "array").put("items", JSONObject().put("type", "integer"))),
-                    "step" to prop("integer", "Milliseconds per segment, 20..1000, default 100")) + peek, listOf("points")),
+                    "step" to prop("integer", "Milliseconds per segment, 20..1000, default 100"),
+                    "hold_ms" to prop("integer", "Keep the finger still on the first point this long before moving, 0..2000, default 0. " +
+                        "Use 50 when the screen does not pick up the first move; it lets you use a smaller step")) + peek, listOf("points")),
             tool("colors", "Read colour names (black, gray, white, red, orange, brown, yellow, green, cyan, blue, purple, pink) " +
                 "at screen points or on a grid, as text. Much faster for you to read than an image.",
                 mapOf("points" to JSONObject().put("type", "array").put("description", "Points [x, y] in screen pixels (or use grid)")
@@ -332,7 +352,7 @@ internal object UiBridgeMcp {
                     "stable" to prop("boolean", "Wait until the screen stops moving (up to 3 s) first"))),
             tool("seq", "Run several steps in one call, without thinking between them. Each step is the CLI words, " +
                 "e.g. [\"tap\", \"@540,700\"], [\"sleep\", \"500\"], [\"wait\", \"text=OK\"]. Stops at the first failure " +
-                "(failed_step). Images (shot, --shot, --peek) only in the last step.",
+                "(failed_step). shot and --shot only in the last step; --peek in any one step.",
                 mapOf("steps" to JSONObject().put("type", "array").put("description", "1..32 steps")
                     .put("items", JSONObject().put("type", "array").put("items", JSONObject().put("type", "string")))), listOf("steps")),
             tool("tap", "Tap an element.", mapOf("target" to target), listOf("target")),

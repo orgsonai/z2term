@@ -119,35 +119,47 @@ internal object UiBridge {
      * [stableMs] > 0 なら動きが止まるまで待つ (`stable` が止まったかどうか)。
      */
     private fun takeShot(app: Context, settings: UiBridgeSettings, scale: Float, jpeg: Boolean, stableMs: Long, delayMs: Long,
-        box: android.graphics.Rect? = null, ifChanged: Boolean = false): JSONObject =
-        runBlocking { shotJson(app, settings, scale, jpeg, stableMs, delayMs, box = box, ifChanged = ifChanged) }
+        box: android.graphics.Rect? = null, ifChanged: Boolean = false, expectChange: Boolean = false, colors: ColorSpec? = null): JSONObject =
+        runBlocking { shotJson(app, settings, scale, jpeg, stableMs, delayMs, box = box, ifChanged = ifChanged,
+            expectChange = expectChange, colors = colors) }
 
     /** [takeShot] の中身。指を置いたまま撮る `--peek` は操作の途中から呼ぶので、止めずに待てる形で持つ。[base] はファイル名。 */
     private suspend fun shotJson(app: Context, settings: UiBridgeSettings, scale: Float, jpeg: Boolean, stableMs: Long, delayMs: Long,
-        base: String = "shot", box: android.graphics.Rect? = null, ifChanged: Boolean = false): JSONObject {
+        base: String = "shot", box: android.graphics.Rect? = null, ifChanged: Boolean = false, expectChange: Boolean = false,
+        colors: ColorSpec? = null): JSONObject {
         if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
         val name = if (jpeg) "$base.jpg" else "$base.png"
         val file = File(app.filesDir, "shared_home/.z2term/ui/$name")
-        val shot = AndroidUiLook.shot(file, scale, jpeg, { gateLook(app, settings, it) }, stableMs, delayMs, box, ifChanged)
+        val shot = AndroidUiLook.shot(file, scale, jpeg, { gateLook(app, settings, it) }, stableMs, delayMs, box, ifChanged,
+            expectChange, colors?.at)
         lastPackage?.let { touch(app, it) }
+        val common: JSONObject.() -> Unit = {
+            shot.stable?.let { put("stable", it).put("waited_ms", shot.waitedMs) }
+            shot.changed?.let { put("changed", it) }
+            // 同じ 1 枚から読んだ色。変わっていなくても返す (次の判断の入力になるため)。
+            if (colors != null && shot.rgb != null) putColors(colors, shot.rgb)
+        }
         // 変わっていなければ画像は書いていない。AI は前に読んだ画像のままでよい。
         if (shot.unchanged) return success().put("unchanged", true)
-            .put("box", JSONArray(listOf(shot.box.left, shot.box.top, shot.box.width(), shot.box.height())))
-            .apply { shot.stable?.let { put("stable", it).put("waited_ms", shot.waitedMs) } }
+            .put("box", JSONArray(listOf(shot.box.left, shot.box.top, shot.box.width(), shot.box.height()))).apply(common)
         return success().put("path", "/root/.z2term/ui/$name").put("size", JSONArray(listOf(shot.size.width, shot.size.height)))
             .put("box", JSONArray(listOf(shot.box.left, shot.box.top, shot.box.width(), shot.box.height()))).put("scale", scale.toDouble())
-            .apply { shot.stable?.let { put("stable", it).put("waited_ms", shot.waitedMs) } }
+            .apply(common)
     }
 
     /** `--shot` を受ける命令 (操作のあとの画面を同じ呼び出しで返す)。 */
     private val SHOT_AFTER = setOf("tap", "long", "type", "enter", "key", "open", "scroll", "swipe", "drag", "noti")
-    /** 操作の命令から外す撮影の指定。`--box` は `--shot` と `--peek` の両方、`--if-changed` は `--shot` だけに効く。 */
-    private val CAPTURE_FLAGS = setOf("--shot", "--settle", "--peek", "--box", "--if-changed")
+    /**
+     * 操作の命令から外す撮影の指定。`--box` は `--shot` と `--peek` の両方、`--if-changed` / `--expect-change` /
+     * 色の指定 (`--grid` / `--radius` / `--hex`) は `--shot` だけに効く。
+     */
+    private val CAPTURE_FLAGS = setOf("--shot", "--settle", "--peek", "--box", "--if-changed", "--expect-change", "--grid", "--radius", "--hex")
     /** `--peek` を受ける命令 (指を置いている間の画面を返す)。座標の長押し・スワイプ・なぞるだけ。 */
     private val PEEK = setOf("long", "swipe", "drag")
 
     /** 操作の命令から外した撮影の指定。[settle] は `--shot` / `--settle`、[peek] は `--peek` のミリ秒。 */
-    private class Capture(val settle: Long?, val peek: Long?, val box: android.graphics.Rect? = null, val ifChanged: Boolean = false)
+    private class Capture(val settle: Long?, val peek: Long?, val box: android.graphics.Rect? = null, val ifChanged: Boolean = false,
+        val expectChange: Boolean = false, val colors: ColorSpec? = null)
 
     /** `--box X,Y,W,H` (画面のピクセル)。撮る範囲を窓の一部に絞る。 */
     private fun box(arg: String?): android.graphics.Rect {
@@ -161,34 +173,40 @@ internal object UiBridge {
      * 操作の命令から `--shot` / `--settle MS` / `--peek MS` を外す。`--shot` があれば、操作のあと画面の動きが
      * 止まるのを待ってから撮り (縮小 0.5 の JPEG)、結果の `shot` に入れる。AI は押すたびに撮り直す必要が無くなり、
      * 1 手で考える回数が 2 回から 1 回になる。`--peek` は指を置いてから MS 後、離す前に撮って `peek` に入れる。
-     * どちらも手順の記録 (save) には残さない (見るだけで、操作の中身は変えないため)。
+     * `--expect-change` は前回返した画像から変わるのを待ってから止まるのを待つ。`--grid …` は同じ 1 枚から色も読む。
+     * どれも手順の記録 (save) には残さない (見るだけで、操作の中身は変えないため)。
      */
     private fun capture(verb: String, args: List<String>): Pair<List<String>, Capture> {
         if (verb !in SHOT_AFTER || args.none { it in CAPTURE_FLAGS }) return args to Capture(null, null)
+        // 色の指定は点の並び (drag の点など) を食べないよう、--grid の形だけを取り出す。
+        val (colors, left) = takeColors(args, positional = false)
         val rest = mutableListOf<String>()
         var settle: Long? = null
         var peek: Long? = null
         var area: android.graphics.Rect? = null
         var ifChanged = false
+        var expectChange = false
         var i = 0
-        while (i < args.size) {
-            when (args[i]) {
+        while (i < left.size) {
+            when (left[i]) {
                 "--shot" -> settle = settle ?: UiBridgePolicy.SETTLE_DEFAULT_MS
-                "--settle" -> settle = args.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 1..UiBridgePolicy.SETTLE_MAX_MS }
+                "--settle" -> settle = left.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 1..UiBridgePolicy.SETTLE_MAX_MS }
                     ?: throw Refusal("bad_args", "--settle takes 1..${UiBridgePolicy.SETTLE_MAX_MS} ms")
                 "--peek" -> {
                     if (verb !in PEEK) throw Refusal("bad_args", "--peek is only for long @X,Y, swipe and drag")
-                    peek = args.getOrNull(++i)?.toLongOrNull()?.takeIf { it >= 0 }
+                    peek = left.getOrNull(++i)?.toLongOrNull()?.takeIf { it >= 0 }
                         ?: throw Refusal("bad_args", "--peek takes milliseconds after the finger goes down")
                 }
-                "--box" -> area = box(args.getOrNull(++i))
+                "--box" -> area = box(left.getOrNull(++i))
                 "--if-changed" -> ifChanged = true
-                else -> rest += args[i]
+                "--expect-change" -> expectChange = true
+                else -> rest += left[i]
             }
             i++
         }
         if ((area != null || ifChanged) && settle == null && peek == null) throw Refusal("bad_args", "--box and --if-changed go with --shot or --peek")
-        return rest to Capture(settle, peek, area, ifChanged)
+        if ((expectChange || colors != null) && settle == null) throw Refusal("bad_args", "--expect-change and --grid go with --shot")
+        return rest to Capture(settle, peek, area, ifChanged, expectChange, colors)
     }
 
     /** `--peek` の撮影。失敗しても操作は止めず、失敗の JSON を `peek` に入れる。 */
@@ -215,7 +233,8 @@ internal object UiBridge {
             handle(app, verb, args, capture).also { done ->
                 // 操作が成功したときだけ撮る。直後は画面がまだ反応していないことがあるので 250 ms 置いてから。
                 if (settle != null && done.optBoolean("ok")) done.put("shot", try {
-                    takeShot(app, UiBridgeSettings(app), 0.5f, true, settle, 250L, capture.box, capture.ifChanged)
+                    takeShot(app, UiBridgeSettings(app), 0.5f, true, settle, 250L, capture.box, capture.ifChanged,
+                        capture.expectChange, capture.colors)
                 } catch (e: Refusal) { failure(e.code, e.message.orEmpty()) })
             }
         } catch (e: Refusal) {
@@ -264,35 +283,38 @@ internal object UiBridge {
                     }
             }
             "shot" -> {
+                val (colorSpec, shotArgs) = takeColors(args, positional = false)
+                var expectChange = false
                 var scale = 1f
                 var jpeg = false
                 var stable = 0L
                 var area: android.graphics.Rect? = null
                 var ifChanged = false
                 var i = 0
-                while (i < args.size) {
-                    when (args[i]) {
-                        "--scale" -> scale = args.getOrNull(++i)?.toFloatOrNull()?.takeIf { it in 0.1f..1f }
+                while (i < shotArgs.size) {
+                    when (shotArgs[i]) {
+                        "--scale" -> scale = shotArgs.getOrNull(++i)?.toFloatOrNull()?.takeIf { it in 0.1f..1f }
                             ?: throw Refusal("bad_args", "Scale must be 0.1..1")
                         "--jpeg" -> jpeg = true
                         // 「--stable」だけなら既定の最大待ち。後ろに数字があればそれを最大待ちにする。
                         "--stable" -> {
-                            val next = args.getOrNull(i + 1)?.toLongOrNull()
+                            val next = shotArgs.getOrNull(i + 1)?.toLongOrNull()
                             stable = if (next == null) UiBridgePolicy.SETTLE_DEFAULT_MS else {
                                 i++
                                 next.takeIf { it in 1..UiBridgePolicy.SETTLE_MAX_MS }
                                     ?: throw Refusal("bad_args", "--stable takes 1..${UiBridgePolicy.SETTLE_MAX_MS} ms")
                             }
                         }
-                        "--box" -> area = box(args.getOrNull(++i))
+                        "--box" -> area = box(shotArgs.getOrNull(++i))
                         "--if-changed" -> ifChanged = true
-                        else -> throw Refusal("bad_args", "z2-ui shot [--scale 0.1..1] [--jpeg] [--stable [MS]] [--box X,Y,W,H] [--if-changed]")
+                        "--expect-change" -> expectChange = true
+                        else -> throw Refusal("bad_args", "z2-ui shot [--scale 0.1..1] [--jpeg] [--stable [MS]] [--box X,Y,W,H] [--if-changed] [--expect-change] [--grid X0,Y0 DX,DY COLSxROWS [--radius R] [--hex]]")
                     }
                     i++
                 }
                 enter(settings, false)
                 device(app)
-                takeShot(app, settings, scale, jpeg, stable, 0L, area, ifChanged)
+                takeShot(app, settings, scale, jpeg, stable, 0L, area, ifChanged, expectChange, colorSpec)
             }
             "colors" -> { enter(settings, false); device(app); colors(app, settings, args) }
             "seq" -> seq(app, settings, args)
@@ -311,6 +333,7 @@ internal object UiBridge {
             }
             "drag" -> {
                 var step = 100L
+                var hold = 0L
                 val points = mutableListOf<Pair<Int, Int>>()
                 var i = 0
                 while (i < args.size) {
@@ -318,6 +341,10 @@ internal object UiBridge {
                     if (arg == "--step") {
                         step = args.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 20..1000 }
                             ?: throw Refusal("bad_args", "--step must be 20..1000 ms")
+                    } else if (arg == "--hold") {
+                        // 始点で指を止める長さ。触れてすぐ動くと「掴んだ」と認めない画面のため。
+                        hold = args.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 0..2000 }
+                            ?: throw Refusal("bad_args", "--hold must be 0..2000 ms")
                     } else {
                         val xy = arg.removePrefix("@").split(',').map { it.toIntOrNull() }
                         if (xy.size != 2 || xy.any { it == null || it < 0 }) throw Refusal("bad_args", "Points look like 540,1200")
@@ -327,9 +354,9 @@ internal object UiBridge {
                 }
                 if (points.size !in 2..256) throw Refusal("bad_args", "drag takes 2..256 points")
                 val ms = step * (points.size - 1)
-                if (ms > 30_000) throw Refusal("bad_args", "The whole drag must finish within 30000 ms")
-                checkPeek(peek, ms)
-                exclusive { drag(app, settings, points, ms, peeker(app, settings, peek, capture.box)) }
+                if (ms + hold > 30_000) throw Refusal("bad_args", "The whole drag must finish within 30000 ms")
+                checkPeek(peek, ms + hold)
+                exclusive { drag(app, settings, points, ms, peeker(app, settings, peek, capture.box), hold) }
             }
             "tap", "enter" -> { count(args, 1); exclusive { operate(app, settings, verb, UiBridgePolicy.target(args[0]), null, false) } }
             "long" -> {
@@ -409,29 +436,29 @@ internal object UiBridge {
         return xy[0]!! to xy[1]!!
     }
 
+    /** 色を読む指定。[cols] は格子の列数 (点の並びなら null)。 */
+    private class ColorSpec(val at: AndroidUiLook.Points, val cols: Int?, val hex: Boolean)
+
     /**
-     * `colors X,Y … | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex]`。
-     * 画面の点の色を名前 (と `--hex` で #rrggbb) の文字で返す。画像を読ませるより AI がずっと速く判断できる。
-     * 盤面・色で状態を示す画面 (ランプ・スイッチ・読み込み中の印など) を、撮らずに見分けるためのもの。
+     * 引数から色の指定 (`--grid X0,Y0 DX,DY COLSxROWS` / `--radius R` / `--hex`、[positional] なら点 `X,Y` も) を
+     * 取り出し、残りを返す。指定が無ければ null。`colors` と、`shot --grid` / 操作の `--shot --grid` で共通。
      */
-    private fun colors(app: Context, settings: UiBridgeSettings, args: List<String>): JSONObject {
-        if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
-        val usage = "z2-ui colors X,Y ... | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex]"
-        var radius = 4
-        var stable = 0L
+    private fun takeColors(args: List<String>, positional: Boolean): Pair<ColorSpec?, List<String>> {
+        var radius: Int? = null
         var hex = false
-        var grid: Pair<Int, Int>? = null
+        var cols: Int? = null
         val points = mutableListOf<Pair<Int, Int>>()
+        val rest = mutableListOf<String>()
         var i = 0
         while (i < args.size) {
-            when (args[i]) {
-                "--radius" -> radius = args.getOrNull(++i)?.toIntOrNull()?.takeIf { it in 0..20 }
+            val arg = args[i]
+            when {
+                arg == "--radius" -> radius = args.getOrNull(++i)?.toIntOrNull()?.takeIf { it in 0..20 }
                     ?: throw Refusal("bad_args", "--radius must be 0..20")
-                "--stable" -> stableArg(args, i).let { (ms, at) -> stable = ms; i = at }
-                "--hex" -> hex = true
-                "--grid" -> {
-                    if (grid != null || points.isNotEmpty()) throw Refusal("bad_args", usage)
-                    val origin = point(args.getOrNull(i + 1) ?: throw Refusal("bad_args", usage))
+                arg == "--hex" -> hex = true
+                arg == "--grid" -> {
+                    if (cols != null || points.isNotEmpty()) throw Refusal("bad_args", "Use either points or one --grid")
+                    val origin = point(args.getOrNull(i + 1) ?: throw Refusal("bad_args", "--grid X0,Y0 DX,DY COLSxROWS"))
                     val step = args.getOrNull(i + 2)?.split(',')?.map { it.toIntOrNull() }
                         ?.takeIf { it.size == 2 && it.all { v -> v != null } }?.map { it!! }
                         ?: throw Refusal("bad_args", "--grid X0,Y0 DX,DY COLSxROWS (DX, DY may be negative)")
@@ -439,7 +466,7 @@ internal object UiBridge {
                         ?.takeIf { it.size == 2 && it.all { v -> v != null && v >= 1 } }?.map { it!! }
                         ?: throw Refusal("bad_args", "Grid size looks like 6x5")
                     if (size[0] * size[1] > MAX_COLOR_POINTS) throw Refusal("bad_args", "At most $MAX_COLOR_POINTS cells")
-                    grid = size[0] to size[1]
+                    cols = size[0]
                     for (r in 0 until size[1]) for (c in 0 until size[0]) {
                         val x = origin.first + c * step[0]
                         val y = origin.second + r * step[1]
@@ -448,29 +475,58 @@ internal object UiBridge {
                     }
                     i += 3
                 }
-                else -> { if (grid != null) throw Refusal("bad_args", usage); points += point(args[i]) }
+                positional && !arg.startsWith("--") && ',' in arg -> {
+                    if (cols != null) throw Refusal("bad_args", "Use either points or one --grid")
+                    points += point(arg)
+                }
+                else -> rest += arg
             }
             i++
         }
-        if (points.isEmpty()) throw Refusal("bad_args", usage)
-        if (points.size > MAX_COLOR_POINTS) throw Refusal("bad_args", "At most $MAX_COLOR_POINTS points")
-        val sample = runBlocking { AndroidUiLook.sample(points, radius, { gateLook(app, settings, it) }, stable) }
-        lastPackage?.let { touch(app, it) }
-        val names = sample.rgb.map(UiBridgePolicy::colorName)
-        return success().apply {
-            val size = grid
-            if (size != null) {
-                // 1 行を 1 つの文字列にする (AI が読む量を減らす)。左上が 1 列 1 行目。
-                put("grid", JSONArray(names.chunked(size.first).map { it.joinToString(" ") }))
-                if (hex) put("hex", JSONArray(sample.rgb.toList().chunked(size.first).map { row -> row.joinToString(" ") { UiBridgePolicy.hex(it) } }))
-            } else {
-                put("colors", JSONArray(points.indices.map { n ->
-                    JSONObject().put("x", points[n].first).put("y", points[n].second).put("name", names[n])
-                        .put("hex", UiBridgePolicy.hex(sample.rgb[n]))
-                }))
-            }
-            sample.stable?.let { put("stable", it) }
+        if (points.isEmpty()) {
+            if (radius != null || hex) throw Refusal("bad_args", "--radius and --hex go with points or --grid")
+            return null to rest
         }
+        if (points.size > MAX_COLOR_POINTS) throw Refusal("bad_args", "At most $MAX_COLOR_POINTS points")
+        return ColorSpec(AndroidUiLook.Points(points, radius ?: 4), cols, hex) to rest
+    }
+
+    /** 読んだ色を返事に入れる。格子は 1 行を 1 つの文字列にする (AI が読む量を減らす)。左上が 1 列 1 行目。 */
+    private fun JSONObject.putColors(spec: ColorSpec, rgb: IntArray) = apply {
+        val names = rgb.map(UiBridgePolicy::colorName)
+        val cols = spec.cols
+        if (cols != null) {
+            put("grid", JSONArray(names.chunked(cols).map { it.joinToString(" ") }))
+            if (spec.hex) put("hex", JSONArray(rgb.toList().chunked(cols).map { row -> row.joinToString(" ") { UiBridgePolicy.hex(it) } }))
+        } else {
+            val points = spec.at.points
+            put("colors", JSONArray(points.indices.map { n ->
+                JSONObject().put("x", points[n].first).put("y", points[n].second).put("name", names[n])
+                    .put("hex", UiBridgePolicy.hex(rgb[n]))
+            }))
+        }
+    }
+
+    /**
+     * `colors X,Y … | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex]`。
+     * 画面の点の色を名前 (と `--hex` で #rrggbb) の文字で返す。画像を読ませるより AI がずっと速く判断できる。
+     * 盤面・色で状態を示す画面 (ランプ・スイッチ・読み込み中の印など) を、撮らずに見分けるためのもの。
+     */
+    private fun colors(app: Context, settings: UiBridgeSettings, args: List<String>): JSONObject {
+        if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
+        val usage = "z2-ui colors X,Y ... | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex]"
+        val (spec, rest) = takeColors(args, positional = true)
+        if (spec == null) throw Refusal("bad_args", usage)
+        var stable = 0L
+        var i = 0
+        while (i < rest.size) {
+            if (rest[i] == "--stable") stableArg(rest, i).let { (ms, at) -> stable = ms; i = at }
+            else throw Refusal("bad_args", usage)
+            i++
+        }
+        val sample = runBlocking { AndroidUiLook.sample(spec.at, { gateLook(app, settings, it) }, stable) }
+        lastPackage?.let { touch(app, it) }
+        return success().putColors(spec, sample.rgb).apply { sample.stable?.let { put("stable", it) } }
     }
 
     /**
@@ -478,8 +534,8 @@ internal object UiBridge {
      * 各手は単独で呼んだときと同じ判定・記録を通る (承認・一時停止・指示も 1 手ごとに効く)。
      * 失敗した手で止め、それまでの結果と何手目かを返す。
      *
-     * ⚠ 画像を作る手 (`shot`・`--shot`・`--peek`) は最後の 1 手だけ。同じファイルへ上書きするので、途中の画像は
-     * 返す前に消えてしまう。`sleep MS` は seq の中だけの「待つ」。
+     * ⚠ `shot`・`--shot` は最後の 1 手だけ。同じファイルへ上書きするので、途中の画像は返す前に消えてしまう。
+     * `--peek` は別のファイルなので、どの手でも 1 回までなら使える。`sleep MS` は seq の中だけの「待つ」。
      */
     private fun seq(app: Context, settings: UiBridgeSettings, args: List<String>): JSONObject {
         val steps = mutableListOf(mutableListOf<String>())
@@ -489,9 +545,11 @@ internal object UiBridge {
         steps.forEachIndexed { n, step ->
             val verb = step[0]
             if (verb !in SEQ_VERBS) throw Refusal("bad_args", "Step ${n + 1}: $verb cannot be used in seq")
-            val picture = verb == "shot" || step.any { it == "--shot" || it == "--settle" || it == "--peek" }
-            if (picture && n != steps.lastIndex) throw Refusal("bad_args", "Step ${n + 1}: images (shot, --shot, --peek) only in the last step")
+            val picture = verb == "shot" || step.any { it == "--shot" || it == "--settle" }
+            if (picture && n != steps.lastIndex) throw Refusal("bad_args", "Step ${n + 1}: shot and --shot only in the last step")
         }
+        // `--peek` は別のファイル (peek.jpg) なので最後の撮影と上書きし合わない。ただし 2 回あると先の 1 枚が消える。
+        if (steps.count { step -> "--peek" in step } > 1) throw Refusal("bad_args", "seq takes --peek at most once")
         val gen = enter(settings, false)
         val started = SystemClock.elapsedRealtime()
         val results = JSONArray()
@@ -572,7 +630,8 @@ internal object UiBridge {
         return success().putPeek(peek)
     }
 
-    private fun drag(app: Context, settings: UiBridgeSettings, points: List<Pair<Int, Int>>, ms: Long, peek: AndroidUiLook.Peek?): JSONObject {
+    private fun drag(app: Context, settings: UiBridgeSettings, points: List<Pair<Int, Int>>, ms: Long, peek: AndroidUiLook.Peek?,
+        hold: Long): JSONObject {
         val gen = enter(settings, true)
         device(app)
         val window = runBlocking { AndroidUiLook.window() } ?: throw Refusal("no_window", "No foreground app window")
@@ -582,10 +641,10 @@ internal object UiBridge {
         runBlocking {
             AndroidUiLook.drag(points, ms, { pkg ->
                 if (pkg != window.pkg) throw Refusal("changed", "The foreground app changed; look again")
-            }, peek)
+            }, peek, hold)
         }
         touch(app, window.pkg)
-        return success().put("ms", ms).putPeek(peek)
+        return success().put("ms", ms + hold).apply { if (hold > 0) put("hold_ms", hold) }.putPeek(peek)
     }
 
     /**

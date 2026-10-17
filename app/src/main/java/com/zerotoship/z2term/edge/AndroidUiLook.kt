@@ -40,8 +40,12 @@ internal object AndroidUiLook {
     private const val BUDGET_MS = 1500L
     /** z2-ui が続けて撮るときの間隔。Android の撮影間隔の下限 (333 ミリ秒) に少し足したもの。 */
     private const val SHOT_INTERVAL_MS = 340L
-    /** 「前と同じ画像か」を比べる縮小の幅。動きの判定 (48 px) より細かくし、小さな文字の変化も拾う。 */
+    /** 「前と同じ画像か」を比べる縮小の幅。動きの判定 ([SETTLE_WIDTH]) より細かくし、小さな文字の変化も拾う。 */
     private const val PRINT_WIDTH = 160
+    /** 「動きが止まったか」を比べる縮小の幅。 */
+    private const val SETTLE_WIDTH = 48
+    /** `expectChange` で、前回の画像から変わるのを待つ最大の時間。何も変わらない操作で待たされすぎないように。 */
+    const val CHANGE_MAX_MS = 1500L
 
     class Window(val service: AndroidActions, val id: Int, val bounds: Rect, val pkg: String)
 
@@ -347,7 +351,7 @@ internal object AndroidUiLook {
      * 指を離さずに [points] を順に通る 1 本の操作 (`z2-ui drag`)。パズルのように、なぞる途中で指を
      * 離すと終わる画面のためのもの。点はすべて前面のアプリの窓の中。速さは道のり全体で一定 ([ms] で通り切る)。
      */
-    suspend fun drag(points: List<Pair<Int, Int>>, ms: Long, gate: (String) -> Unit, peek: Peek? = null) {
+    suspend fun drag(points: List<Pair<Int, Int>>, ms: Long, gate: (String) -> Unit, peek: Peek? = null, holdMs: Long = 0) {
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
         gate(window.pkg)
         if (points.any { (x, y) -> !window.bounds.contains(x, y) })
@@ -357,7 +361,7 @@ internal object AndroidUiLook {
             moveTo(points[0].first.toFloat(), points[0].second.toFloat())
             points.drop(1).forEach { (x, y) -> lineTo(x.toFloat(), y.toFloat()) }
         }
-        gesture(window.service, path, ms, peek)
+        gesture(window.service, path, ms, peek, holdMs)
     }
 
     /**
@@ -394,7 +398,14 @@ internal object AndroidUiLook {
      * 間隔が空くまで待ってから撮る ([RegionShot] と同じ)。
      */
     @androidx.annotation.RequiresApi(30)
-    class Shot(val box: Rect, val size: android.util.Size, val stable: Boolean?, val waitedMs: Long, val unchanged: Boolean = false)
+    class Shot(val box: Rect, val size: android.util.Size, val stable: Boolean?, val waitedMs: Long, val unchanged: Boolean = false,
+        /** `expectChange` のとき、前回返した画像から変わったか (比べる相手が無ければ null)。 */
+        val changed: Boolean? = null,
+        /** `colors` を渡したとき、同じ 1 枚から読んだ点ごとの色 (0xRRGGBB)。 */
+        val rgb: IntArray? = null)
+
+    /** 色を読む点 (`colors` / `shot --grid`)。各点は [radius] px 四方の中央値。 */
+    class Points(val points: List<Pair<Int, Int>>, val radius: Int)
 
     /** 直前に保存した画像の印 ([shot] の `ifChanged`)。ファイル名・窓・範囲・縮小が同じときだけ比べる。 */
     private class Saved(val key: String, val print: IntArray)
@@ -403,25 +414,42 @@ internal object AndroidUiLook {
     /**
      * [stableMs] > 0 なら、画面の動きが止まるまで (続けて撮った 2 枚がほぼ同じになるまで) 撮り続け、
      * 止まった 1 枚を保存する。最大 [stableMs] 待って止まらなければ、最後の 1 枚を保存する。
+     * 止まったかは [box] の中だけで見る (範囲の外で動き続けるものに待たされない)。
      * [delayMs] は撮り始める前の待ち。操作の直後は画面がまだ反応していないことがあるため。
+     * [expectChange] なら、止まるのを待つ前に、前回返した画像から変わるまで最大 [CHANGE_MAX_MS] 待つ
+     * (操作への反応が遅い画面で、操作前の静かな画面を「止まった」と返さないため)。
+     * [colors] を渡すと、保存する 1 枚と同じ画像から色も読む (撮り直さない)。
      */
     @androidx.annotation.RequiresApi(30)
     suspend fun shot(file: java.io.File, scale: Float, jpeg: Boolean, gate: (String) -> Unit,
-        stableMs: Long = 0, delayMs: Long = 0, box: Rect? = null, ifChanged: Boolean = false): Shot {
+        stableMs: Long = 0, delayMs: Long = 0, box: Rect? = null, ifChanged: Boolean = false,
+        expectChange: Boolean = false, colors: Points? = null): Shot {
         val started = SystemClock.uptimeMillis()
-        val (window, image, stable) = frame(gate, stableMs, delayMs)
+        // 窓 (と `--box`) の範囲。外れていれば null。
+        fun areaOf(window: Window, image: android.graphics.Bitmap): Rect? = Rect(window.bounds).takeIf {
+            it.intersect(0, 0, image.width, image.height) && (box == null || it.intersect(box))
+        }
+        fun keyOf(window: Window, area: Rect) = "${file.name}|${window.id}|${area.flattenToString()}|$scale"
+        val reference = saved.takeIf { expectChange }
+        val f = frame(gate, stableMs, delayMs, settleArea = box, unchanged = reference?.let { ref ->
+            { image, window -> areaOf(window, image)?.let { keyOf(window, it) == ref.key && UiBridgePolicy.same(ref.print, thumbnail(image, it, PRINT_WIDTH)) } ?: false }
+        })
+        val window = f.window
+        val image = f.image
         try {
-            val area = Rect(window.bounds)
-            if (!area.intersect(0, 0, image.width, image.height)) throw Refusal("no_window", "The window is outside the captured screen")
+            if (Rect(window.bounds).apply { intersect(0, 0, image.width, image.height) }.isEmpty)
+                throw Refusal("no_window", "The window is outside the captured screen")
             // `--box` は窓の中の一部だけ。窓の外へはみ出した分は切り落とす。
-            if (box != null && !area.intersect(box)) throw Refusal("outside", "The box is outside the foreground app window")
+            val area = areaOf(window, image) ?: throw Refusal("outside", "The box is outside the foreground app window")
+            val rgb = colors?.let { pick(image, window, it) }
             // 直前と同じ画面なら書かずに返す (AI に同じ画像をもう 1 度読ませない)。
-            val key = "${file.name}|${window.id}|${area.flattenToString()}|$scale"
+            val key = keyOf(window, area)
             val print = thumbnail(image, area, PRINT_WIDTH)
             val previous = saved
             if (ifChanged && previous != null && previous.key == key && UiBridgePolicy.same(previous.print, print))
                 return Shot(area, android.util.Size((area.width() * scale).toInt().coerceAtLeast(1),
-                    (area.height() * scale).toInt().coerceAtLeast(1)), stable, SystemClock.uptimeMillis() - started, unchanged = true)
+                    (area.height() * scale).toInt().coerceAtLeast(1)), f.stable, SystemClock.uptimeMillis() - started,
+                    unchanged = true, changed = f.changed, rgb = rgb)
             val cropped = android.graphics.Bitmap.createBitmap(image, area.left, area.top, area.width(), area.height())
             val out = if (scale < 1f) android.graphics.Bitmap.createScaledBitmap(cropped,
                 (area.width() * scale).toInt().coerceAtLeast(1), (area.height() * scale).toInt().coerceAtLeast(1), true) else cropped
@@ -437,7 +465,8 @@ internal object AndroidUiLook {
                     if (!tmp.renameTo(file)) throw Refusal("error", "Could not write ${file.name}")
                 }
                 saved = Saved(key, print)
-                return Shot(area, android.util.Size(out.width, out.height), stable, SystemClock.uptimeMillis() - started)
+                return Shot(area, android.util.Size(out.width, out.height), f.stable, SystemClock.uptimeMillis() - started,
+                    changed = f.changed, rgb = rgb)
             } finally {
                 if (out !== cropped) out.recycle()
                 if (cropped !== image) cropped.recycle()
@@ -445,31 +474,64 @@ internal object AndroidUiLook {
         } finally { image.recycle() }
     }
 
+    /** [frame] の結果。[stable] は止まったか ([frame] の stableMs が 0 なら null)、[changed] は前回から変わったか。 */
+    private class Frame(val window: Window, val image: android.graphics.Bitmap, val stable: Boolean?, val changed: Boolean?)
+
     /**
-     * 前面の窓と、画面全体を撮った 1 枚。[stableMs] > 0 なら動きが止まるまで撮り続ける ([shot] を参照)。
-     * 3 つ目は止まったか ([stableMs] が 0 なら null)。撮っている間に前面が変わったら断る。
+     * 前面の窓と、画面全体を撮った 1 枚。撮っている間に前面が変わったら断る。
+     *  1. [unchanged] があれば、それが false を返す (前回から変わった) まで最大 [CHANGE_MAX_MS] 撮り直す。
+     *  2. [stableMs] > 0 なら、続けて撮った 2 枚が [settleArea] (無ければ窓全体) の中でほぼ同じになるまで撮り続ける。
+     *     1 で変化を待った時間は、ここの最大待ちに数えない。
      */
     @androidx.annotation.RequiresApi(30)
-    private suspend fun frame(gate: (String) -> Unit, stableMs: Long, delayMs: Long): Triple<Window, android.graphics.Bitmap, Boolean?> {
-        val started = SystemClock.uptimeMillis()
+    private suspend fun frame(gate: (String) -> Unit, stableMs: Long, delayMs: Long, settleArea: Rect? = null,
+        unchanged: ((android.graphics.Bitmap, Window) -> Boolean)? = null): Frame {
         if (delayMs > 0) delay(delayMs)
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
         gate(window.pkg)
         var image = capture(window.service)
+        var changed: Boolean? = null
+        if (unchanged != null) {
+            val until = SystemClock.uptimeMillis() + CHANGE_MAX_MS
+            changed = !unchanged(image, window)
+            while (changed != true && SystemClock.uptimeMillis() < until) {
+                val next = capture(window.service)
+                image.recycle(); image = next
+                changed = !unchanged(image, window)
+            }
+        }
         var stable: Boolean? = null
         if (stableMs > 0) {
             stable = false
-            var previous = thumbnail(image, window.bounds, 48)
-            while (SystemClock.uptimeMillis() - started < stableMs + delayMs) {
+            // 判定の範囲を窓の中へ絞る。窓と交わらなければ窓全体で見る。
+            val area = Rect(window.bounds).also { a -> settleArea?.let { if (!a.intersect(it)) a.set(window.bounds) } }
+            val from = SystemClock.uptimeMillis()
+            var previous = thumbnail(image, area, SETTLE_WIDTH)
+            while (SystemClock.uptimeMillis() - from < stableMs) {
                 val next = capture(window.service)
-                val current = thumbnail(next, window.bounds, 48)
+                val current = thumbnail(next, area, SETTLE_WIDTH)
                 image.recycle(); image = next
-                if (UiBridgePolicy.settled(previous, current)) { stable = true; break }
+                if (UiBridgePolicy.settled(previous, current, SETTLE_WIDTH)) { stable = true; break }
                 previous = current
             }
         }
         if (window()?.id != window.id) { image.recycle(); throw Refusal("changed", "The screen changed while capturing; try again") }
-        return Triple(window, image, stable)
+        return Frame(window, image, stable, changed)
+    }
+
+    /** [image] の点の色。各点は radius px 四方の中央値。点はすべて [window] の中 (呼ぶ前に確かめる)。 */
+    private fun pick(image: android.graphics.Bitmap, window: Window, at: Points): IntArray {
+        if (at.points.any { (x, y) -> !window.bounds.contains(x, y) })
+            throw Refusal("outside", "All points must be inside the foreground app window")
+        val area = Rect(window.bounds).apply { intersect(0, 0, image.width, image.height) }
+        return IntArray(at.points.size) { i ->
+            val (x, y) = at.points[i]
+            val box = Rect(x - at.radius, y - at.radius, x + at.radius + 1, y + at.radius + 1)
+            if (!box.intersect(area)) return@IntArray 0
+            val pixels = IntArray(box.width() * box.height())
+            image.getPixels(pixels, 0, box.width(), box.left, box.top, box.width(), box.height())
+            UiBridgePolicy.median(pixels)
+        }
     }
 
     /** [sample] の結果。[rgb] は点ごとの 0xRRGGBB。 */
@@ -477,27 +539,20 @@ internal object AndroidUiLook {
 
     /**
      * 画面の点の色を読む (`z2-ui colors`)。画像を保存せず、AI には色の名前を文字で返す (画像を読ませるより速い)。
-     * 各点は [radius] px 四方の中央値 (光沢や縁の 1 点に引っぱられないように)。点はすべて前面のアプリの窓の中。
+     * 止まったかは点のまわり (点をすべて囲む範囲) だけで見る。
      */
     @androidx.annotation.RequiresApi(30)
-    suspend fun sample(points: List<Pair<Int, Int>>, radius: Int, gate: (String) -> Unit, stableMs: Long): Sample {
+    suspend fun sample(at: Points, gate: (String) -> Unit, stableMs: Long): Sample {
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
-        if (points.any { (x, y) -> !window.bounds.contains(x, y) })
+        if (at.points.any { (x, y) -> !window.bounds.contains(x, y) })
             throw Refusal("outside", "All points must be inside the foreground app window")
-        val (shown, image, stable) = frame(gate, stableMs, 0L)
+        val around = Rect(at.points.minOf { it.first } - at.radius, at.points.minOf { it.second } - at.radius,
+            at.points.maxOf { it.first } + at.radius + 1, at.points.maxOf { it.second } + at.radius + 1)
+        val f = frame(gate, stableMs, 0L, settleArea = around)
         try {
-            if (shown.id != window.id) throw Refusal("changed", "The screen changed; try again")
-            val area = Rect(window.bounds).apply { intersect(0, 0, image.width, image.height) }
-            val rgb = IntArray(points.size) { i ->
-                val (x, y) = points[i]
-                val box = Rect(x - radius, y - radius, x + radius + 1, y + radius + 1)
-                if (!box.intersect(area)) return@IntArray 0
-                val pixels = IntArray(box.width() * box.height())
-                image.getPixels(pixels, 0, box.width(), box.left, box.top, box.width(), box.height())
-                UiBridgePolicy.median(pixels)
-            }
-            return Sample(rgb, stable)
-        } finally { image.recycle() }
+            if (f.window.id != window.id) throw Refusal("changed", "The screen changed; try again")
+            return Sample(pick(f.image, f.window, at), f.stable)
+        } finally { f.image.recycle() }
     }
 
     /**
@@ -557,10 +612,20 @@ internal object AndroidUiLook {
      * 操作を送り、指が離れるまで待つ。[peek] があれば、指を置いている間に撮る。
      * 撮影は操作の終わりを待たずに並べて走らせる (以前は 1 つずつで、指を離すまで撮れなかった)。
      */
-    private suspend fun gesture(service: AccessibilityService, path: Path, ms: Long, peek: Peek? = null) = coroutineScope {
+    private suspend fun gesture(service: AccessibilityService, path: Path, ms: Long, peek: Peek? = null, holdMs: Long = 0) = coroutineScope {
         // 指が離れたことは結果の呼び戻しで直接残す (撮っている間はこの流れの再開が後回しになることがあるため)。
         val ended = java.util.concurrent.atomic.AtomicBoolean(false)
-        val stroke = async { send(service, path, ms, ended) }
+        val stroke = async {
+            if (holdMs <= 0) send(service, GestureDescription.StrokeDescription(path, 0, ms), ended)
+            else {
+                // 始点で [holdMs] 指を止めてから動かす (`drag --hold`)。触れてすぐ動くと「掴んだ」と
+                // 認められない画面があるため。止める分を指を離さない 1 本目にして、続きを 2 本目でつなぐ。
+                val start = FloatArray(2).also { android.graphics.PathMeasure(path, false).getPosTan(0f, it, null) }
+                val first = GestureDescription.StrokeDescription(Path().apply { moveTo(start[0], start[1]) }, 0, holdMs, true)
+                send(service, first, null)
+                send(service, first.continueStroke(path, 0, ms, false), ended)
+            }
+        }
         peek?.let {
             delay(it.atMs)
             it.result = it.take()
@@ -569,22 +634,23 @@ internal object AndroidUiLook {
         stroke.await()
     }
 
-    private suspend fun send(service: AccessibilityService, path: Path, ms: Long, ended: java.util.concurrent.atomic.AtomicBoolean) =
+    /** [stroke] を 1 回送り、終わるまで待つ。[ended] は指が離れたときに立てる印 (続きがある 1 本目では null)。 */
+    private suspend fun send(service: AccessibilityService, stroke: GestureDescription.StrokeDescription,
+        ended: java.util.concurrent.atomic.AtomicBoolean?) =
         withContext(Dispatchers.Main) {
             suspendCancellableCoroutine<Unit> { cont ->
-                val stroke = GestureDescription.StrokeDescription(path, 0, ms)
                 val sent = service.dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(),
                     object : AccessibilityService.GestureResultCallback() {
                         override fun onCompleted(gestureDescription: GestureDescription?) {
-                            ended.set(true)
+                            ended?.set(true)
                             if (cont.isActive) cont.resume(Unit)
                         }
                         override fun onCancelled(gestureDescription: GestureDescription?) {
-                            ended.set(true)
+                            ended?.set(true)
                             if (cont.isActive) cont.resumeWithException(Refusal("rejected", "Android cancelled the gesture"))
                         }
                     }, null)
-                if (!sent) ended.set(true)
+                if (!sent) ended?.set(true)
                 if (!sent && cont.isActive) cont.resumeWithException(Refusal("rejected", "Android rejected the gesture"))
             }
         }

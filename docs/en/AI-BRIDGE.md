@@ -136,6 +136,12 @@ Most of the time goes into the AI reading an image and thinking between calls (5
 - Each step goes through the same checks and logging as a single call (approvals with `ask`, pause, instructions and stop apply per step, and `mark` → `save` records them). No new step starts after 60 s (`timeout`).
 - Steps that produce an image (`shot`, `--shot`, `--peek`) only as the last step: each image overwrites the same file, so earlier ones would be gone before the reply.
 - **Narrower and only when changed (1.0.39)**: add `--box X,Y,W,H` (screen pixels) to `shot` or an operation's `--shot` to capture only that area (it also applies to `--peek`); smaller images are faster for the AI to read. With `--if-changed`, if the screen is the same as the last saved image (same file name, area and scale), nothing is written and only `{"ok":true,"unchanged":true}` is returned (no image over MCP). The comparison is strict: a single changed digit counts as a change, so `unchanged` means nothing visible changed. Over MCP: `box`, `if_changed`.
+- **Less waiting (1.0.42)**:
+  - The "has it stopped" check is stricter: besides the mean difference over the whole screen it looks at small blocks, so movement over less than a tenth of the screen (a few pieces disappearing, a small dialog, a number) still counts as moving. With `--box`, only movement inside the box counts; `colors --stable` looks only around its points.
+  - `--expect-change` (`shot` and an operation's `--shot`; MCP `expect_change`): before waiting for the screen to stop, wait up to 1.5 s until it differs from the last returned image, so that a late-reacting screen does not return the old, still picture as stable. `changed` in the result tells whether it did.
+  - `--grid X0,Y0 DX,DY COLSxROWS` (`shot` and an operation's `--shot`; MCP `grid`): also reads colours from the same capture and returns `grid` with the image, so no separate `colors` call is needed.
+  - In `seq`, `--peek` may appear in any one step (its image is a separate file). `shot` and `--shot` remain last-step only.
+  - `drag --hold MS` (0–2000, default 0; MCP `hold_ms`): keeps the finger still on the first point before moving. On screens that do not pick up a touch that moves at once, this allows a shorter `--step`. Saved macros repeat the first point to hold the same time.
 - Over MCP: `colors` (`points` or `grid`: `{origin, step, cols, rows}`) and `seq` (`steps`: `[["tap", "@540,700"], ["sleep", "500"]]`).
 
 ### 4.3 Passwords and protected screens

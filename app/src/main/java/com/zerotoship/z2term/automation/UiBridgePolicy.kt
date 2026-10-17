@@ -67,17 +67,35 @@ internal object UiBridgePolicy {
     }
 
     /**
-     * 画面の動きが止まったか。縮めた 2 枚の明るさ (0..255) の差の平均が [SETTLE_THRESHOLD] 未満なら止まったとみる。
-     * 背景が少しずつ動き続ける画面 (ゲームのきらめき等) で永遠に待たないよう、小さな差は無視する。
+     * 画面の動きが止まったか。縮めた 2 枚の明るさ (0..255) を比べ、次の両方を満たせば止まったとみる。
+     *  - 全体の差の平均が [SETTLE_THRESHOLD] 未満。
+     *  - [SETTLE_BLOCK] 四方の区画ごとの差の平均が、どれも [SETTLE_BLOCK_THRESHOLD] 未満。
+     *    全体の平均だけだと、画面の一部 (数個の駒が消える・小さなダイアログ・数字の表示) だけが動いている
+     *    最中を「止まった」とみてしまう (面積が 1 割に満たないと平均が薄まる)。
+     * 背景が少しずつ動き続ける画面 (きらめき等) で永遠に待たないよう、まばらな小さな差は無視する。
+     * [width] は縮めた画像の幅 (区画に分けるため)。
      */
-    fun settled(previous: IntArray, current: IntArray): Boolean {
+    fun settled(previous: IntArray, current: IntArray, width: Int = previous.size): Boolean {
         if (previous.isEmpty() || previous.size != current.size) return false
         var sum = 0L
         for (i in previous.indices) sum += kotlin.math.abs(previous[i] - current[i])
-        return sum.toDouble() / previous.size < SETTLE_THRESHOLD
+        if (sum.toDouble() / previous.size >= SETTLE_THRESHOLD) return false
+        val w = width.coerceIn(1, previous.size)
+        val h = previous.size / w
+        for (top in 0 until h step SETTLE_BLOCK) for (left in 0 until w step SETTLE_BLOCK) {
+            var block = 0L
+            var n = 0
+            for (y in top until minOf(top + SETTLE_BLOCK, h)) for (x in left until minOf(left + SETTLE_BLOCK, w)) {
+                block += kotlin.math.abs(previous[y * w + x] - current[y * w + x]); n++
+            }
+            if (block.toDouble() / n >= SETTLE_BLOCK_THRESHOLD) return false
+        }
+        return true
     }
 
     const val SETTLE_THRESHOLD = 3.0
+    const val SETTLE_BLOCK = 4
+    const val SETTLE_BLOCK_THRESHOLD = 10.0
     /** `--shot` / `shot --stable` の既定の最大待ち (ミリ秒)。 */
     const val SETTLE_DEFAULT_MS = 3000L
     const val SETTLE_MAX_MS = 10_000L
@@ -233,10 +251,14 @@ internal object UiBridgeReplay {
             "wait" -> Step("wait-ui ${args.getOrNull(1) ?: UiBridgePolicy.WAIT_DEFAULT_MS} ${args[0]}", null)
             // なぞる操作は画面操作の「点を順になぞる」(drag) にする。各点を同じ間隔で通る。
             "drag" -> {
-                val step = args.indexOf("--step").takeIf { it >= 0 }?.let { args[it + 1].toLong() } ?: 100L
-                val points = args.filterIndexed { i, v -> v != "--step" && (i == 0 || args[i - 1] != "--step") }
+                val flags = setOf("--step", "--hold")
+                fun flag(name: String) = args.indexOf(name).takeIf { it >= 0 }?.let { args[it + 1].toLong() }
+                val step = flag("--step") ?: 100L
+                val points = args.filterIndexed { i, v -> v !in flags && (i == 0 || args[i - 1] !in flags) }
                     .map { it.removePrefix("@") }
-                Step("drag px $step " + points.joinToString(" "), null, coordinates = true)
+                // z2-action の drag は始点で止まれないので、始点を重ねて同じだけ止める (1 区間 = step ms)。
+                val hold = flag("--hold")?.let { ((it + step - 1) / step).toInt() } ?: 0
+                Step("drag px $step " + (List(hold) { points[0] } + points).joinToString(" "), null, coordinates = true)
             }
             "tap", "long" -> {
                 val press = if (verb == "tap") "click" else "long-click"
