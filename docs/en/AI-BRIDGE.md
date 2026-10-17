@@ -199,10 +199,11 @@ While operations continue, the notification "AI is controlling an app (org.examp
 | MCP-capable AI | `z2-ui mcp` speaks MCP over stdin/stdout and exposes §4 as tools. On a PC, register `ssh <phone> z2-ui mcp` as a (stdio) MCP server |
 
 - MCP only exchanges JSON line by line, so it is written without external libraries; no license was added.
-- Tools: `front` / `look` / `shot` / `tap` / `long` / `type` / `enter` / `key` / `open` / `wait` / `wait_change` / `scroll` / `swipe` / `notes` / `write_notes` / `mark` / `save` / `notifications` / `press_notification` / `status`. They do the same as the CLI and go through the same checks, approvals and log. Pause, instruct, stop and permission changes are not tools, because they are for people.
+- Tools: `front` / `look` / `shot` / `tap` / `long` / `type` / `enter` / `key` / `open` / `wait` / `wait_change` / `scroll` / `swipe` / `notes` / `write_notes` / `mark` / `save` / `notifications` / `press_notification` / `status` / `guide`. They do the same as the CLI and go through the same checks, approvals and log. Pause, instruct, stop and permission changes are not tools, because they are for people.
 - `shot` also returns the image, so AIs that read images can look at it directly. It defaults to scale 0.5 to keep the conversation small.
-- The `instructions` sent on connection carry the same guidance and error meanings as `--help`.
-- Guidance for the AI ("`look` first, operate by number, `look` again on `stale`", and the meaning of each error) is in `z2-ui --help` (stage 1), meant to be read by the AI first.
+- **The guide for AIs is `z2-ui --help` (also with no arguments; 1.0.33).** z2-ui is a command for AIs, so its help is not a short note for people but a detailed guide for the AI to read (in English): every command's arguments and limits, the JSON fields, what to do for each error code, and rules of conduct (put `interrupted` first, never repeat a refused operation, never work around permissions, irreversible actions only on the user's explicit request). AIs try `--help` on unknown commands first, so they find it even when their instruction file says nothing.
+- People get the same text, so you can always check what the AI is told; to read it in Japanese, ask the AI to summarise `z2-ui --help`. This document stays the source of truth; the guide is written from it for AIs. Adding a command without updating the guide fails a test (`UiBridgeGuideTest`).
+- Over MCP the same guide is sent as the connection `instructions` and through the `guide` tool.
 
 ## 7. How the AI learns an app
 

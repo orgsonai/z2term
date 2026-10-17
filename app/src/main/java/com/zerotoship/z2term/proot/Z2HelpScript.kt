@@ -355,12 +355,12 @@ fun z2helpScript(lang: String = "ja"): String {
     )
 
     val edge = t(
-        en = "[Floating panels]\nz2-edge --help   Define panels and update their contents\nz2-key --help    Android global actions\nz2-shot --help   Capture only the part you draw around\nz2-app --help    List applications and export icons\nz2-action --help Named Android action macros\nz2-ui --help     AI app control (read and operate apps)",
-        ja = "[画面に浮かべるパネル]\nz2-edge --help   パネルの定義・表示の更新\nz2-key --help    戻る・ホーム・履歴などのAndroid操作\nz2-shot --help   囲んだところだけを撮る\nz2-app --help    アプリ一覧・アイコンの取得\nz2-action --help 名前付きAndroid操作マクロ\nz2-ui --help     AI からのアプリ操作（読む・押す・入れる）",
-        "zh-CN" to "[悬浮面板]\nz2-edge --help   定义面板并更新内容\nz2-key --help    Android 全局操作\nz2-shot --help   只截取圈出的部分\nz2-app --help    列出应用并导出图标\nz2-action --help 命名的Android操作宏\nz2-ui --help     AI 操作应用（读取、点击、输入）",
-        "zh-TW" to "[浮動面板]\nz2-edge --help   定義面板並更新內容\nz2-key --help    Android 全域操作\nz2-shot --help   只擷取圈出的部分\nz2-app --help    列出應用程式並匯出圖示\nz2-action --help 具名的Android操作巨集\nz2-ui --help     AI 操作應用程式（讀取、點按、輸入）",
-        "es" to "[Paneles flotantes]\nz2-edge --help   Definir paneles y actualizar su contenido\nz2-key --help    Acciones globales de Android\nz2-shot --help   Capturar solo la parte que rodeas\nz2-app --help    Listar aplicaciones y exportar iconos\nz2-action --help Macros de acciones Android con nombre\nz2-ui --help     Control de apps por IA (leer, tocar, escribir)",
-        "ko" to "[플로팅 패널]\nz2-edge --help   패널 정의 및 내용 업데이트\nz2-key --help    Android 전역 동작\nz2-shot --help   둘러싼 부분만 캡처\nz2-app --help    앱 목록 및 아이콘 내보내기\nz2-action --help 이름이 있는 Android 동작 매크로\nz2-ui --help     AI 앱 조작(읽기·누르기·입력)"
+        en = "[Floating panels]\nz2-edge --help   Define panels and update their contents\nz2-key --help    Android global actions\nz2-shot --help   Capture only the part you draw around\nz2-app --help    List applications and export icons\nz2-action --help Named Android action macros\nz2-ui --help     AI app control (the help is a guide for AI agents)",
+        ja = "[画面に浮かべるパネル]\nz2-edge --help   パネルの定義・表示の更新\nz2-key --help    戻る・ホーム・履歴などのAndroid操作\nz2-shot --help   囲んだところだけを撮る\nz2-app --help    アプリ一覧・アイコンの取得\nz2-action --help 名前付きAndroid操作マクロ\nz2-ui --help     AI からのアプリ操作（ヘルプは AI 向けのガイド）",
+        "zh-CN" to "[悬浮面板]\nz2-edge --help   定义面板并更新内容\nz2-key --help    Android 全局操作\nz2-shot --help   只截取圈出的部分\nz2-app --help    列出应用并导出图标\nz2-action --help 命名的Android操作宏\nz2-ui --help     AI 操作应用（帮助是给 AI 的指南）",
+        "zh-TW" to "[浮動面板]\nz2-edge --help   定義面板並更新內容\nz2-key --help    Android 全域操作\nz2-shot --help   只擷取圈出的部分\nz2-app --help    列出應用程式並匯出圖示\nz2-action --help 具名的Android操作巨集\nz2-ui --help     AI 操作應用程式（說明是給 AI 的指南）",
+        "es" to "[Paneles flotantes]\nz2-edge --help   Definir paneles y actualizar su contenido\nz2-key --help    Acciones globales de Android\nz2-shot --help   Capturar solo la parte que rodeas\nz2-app --help    Listar aplicaciones y exportar iconos\nz2-action --help Macros de acciones Android con nombre\nz2-ui --help     Control de apps por IA (la ayuda es una guía para IA)",
+        "ko" to "[플로팅 패널]\nz2-edge --help   패널 정의 및 내용 업데이트\nz2-key --help    Android 전역 동작\nz2-shot --help   둘러싼 부분만 캡처\nz2-app --help    앱 목록 및 아이콘 내보내기\nz2-action --help 이름이 있는 Android 동작 매크로\nz2-ui --help     AI 앱 조작(도움말은 AI용 안내서)"
     )
 
     return """

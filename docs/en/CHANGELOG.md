@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.33 (versionCode 731)**: `z2-ui --help` is now a detailed guide written for AIs (in English): how to use every command, what to do for each error, and the rules to follow (put the user's instructions first, never repeat a refused operation, never work around permissions, and so on). A freshly started AI can operate the phone after reading `z2-ui --help`, and MCP connections receive the same guide up front. People see the same text, so you can check what the AI is told.
+
 **1.0.32 (versionCode 730)**: AI app control (`z2-ui`) now speaks MCP (a common protocol for connecting AIs and tools). Register `ssh <phone> z2-ui mcp` in your PC's AI to read, tap, type and capture as tools. Also added: per-app notes (with the app version they were written for, so outdated notes are flagged after an update), `mark` → `save` to keep a working sequence as a `z2-action` macro (it runs from tiles and panels without the AI; ranges with typing or scrolling cannot be saved, and macros with the same name are never overwritten), and `noti list` / `press` for notification buttons (subject to the same permissions, such as Ask each time).
 
 **1.0.31 (versionCode 729)**: AI app control (`z2-ui`) gained operations for screens that expose no buttons. `z2-ui shot` captures only the foreground app window to an image (the notification shade and other apps are not included) and returns the values for mapping image positions to screen coordinates. `swipe` swipes by coordinates and `scroll` scrolls a list. `look --tree` adds parent/child structure and `look --in N` reads only inside element N. Scrolling and swiping are subject to the same permissions, such as Ask each time.

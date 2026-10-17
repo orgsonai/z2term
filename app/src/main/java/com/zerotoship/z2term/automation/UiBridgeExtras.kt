@@ -157,12 +157,8 @@ internal object UiBridgeNotifications {
  */
 internal object UiBridgeMcp {
     private val VERSIONS = listOf("2025-06-18", "2025-03-26", "2024-11-05")
-    private const val INSTRUCTIONS = "Operate the foreground Android app. Call look first, then act on elements by number " +
-        "(\"#3\") or by selector (\"text=Next\", \"desc=Back\", \"id=PACKAGE:id/NAME\"); look again after each change. " +
-        "Every tool returns JSON. error=stale: look again. error=interrupted: the message is a new instruction from the user. " +
-        "error=stopped: end the task. error=paused: wait and retry later. error=read_only/not_allowed/protected/denied: " +
-        "the user did not allow this. Password fields are never read or typed into. Keep per-app notes with " +
-        "write_notes (prefer resource IDs) and read them with notes before working in an app."
+    /** 接続したときに AI へ渡す説明。CLI の `z2-ui guide` と同じ文面 ([UiBridgeGuide])。 */
+    private val INSTRUCTIONS get() = UiBridgeGuide.TEXT
 
     fun handle(app: Context, line: String): String {
         val request = try { JSONObject(line) } catch (_: Exception) { return error(JSONObject.NULL, -32700, "Parse error") }
@@ -188,6 +184,9 @@ internal object UiBridgeMcp {
         .put("error", JSONObject().put("code", code).put("message", message)).toString()
 
     private fun call(app: Context, name: String, a: JSONObject): JSONObject {
+        // ガイドは判定も記録も要らない (CLI では z2-ui --help がこれを出す)。
+        if (name == "guide") return JSONObject().put("isError", false)
+            .put("content", JSONArray().put(JSONObject().put("type", "text").put("text", UiBridgeGuide.TEXT)))
         fun text(key: String) = a.optString(key).takeIf { a.has(key) && it.isNotEmpty() }
             ?: throw Refusal("bad_args", "$name needs $key")
         fun optional(key: String) = if (a.has(key) && !a.isNull(key)) a.get(key).toString() else null
@@ -269,6 +268,7 @@ internal object UiBridgeMcp {
                 mapOf("key" to prop("string", "Notification key from notifications"), "label" to prop("string", "Button label"),
                     "reply" to prop("string", "Reply text")), listOf("key", "label")),
             tool("status", "Permission state: enabled, paused, levels, approval grants."),
+            tool("guide", "The full z2-ui guide for AI agents: rules, commands, error codes. Read it before operating."),
         ))
     }
 }
