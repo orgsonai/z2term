@@ -199,7 +199,8 @@ internal object UiBridgeMcp {
                     optional("in")?.let { add("--in"); add(it) }
                 }
                 // 画像は会話に入るので、既定は半分の大きさの JPEG にする (小さく、書き出しも速い)。
-                "shot" -> "shot" to listOfNotNull("--scale", optional("scale") ?: "0.5", "--jpeg".takeIf { a.optString("format", "jpeg") != "png" })
+                "shot" -> "shot" to listOfNotNull("--scale", optional("scale") ?: "0.5", "--jpeg".takeIf { a.optString("format", "jpeg") != "png" },
+                    "--stable".takeIf { a.optBoolean("stable") })
                 "drag" -> "drag" to buildList {
                     val points = a.optJSONArray("points") ?: throw Refusal("bad_args", "drag needs points")
                     for (i in 0 until points.length()) {
@@ -223,11 +224,17 @@ internal object UiBridgeMcp {
                 "press_notification" -> "noti" to listOfNotNull("press", text("key"), text("label"), optional("reply"))
                 else -> throw Refusal("bad_args", "Unknown tool: $name")
             }
-            UiBridge.execute(app, verb, args)
+            // 操作のあとの画面も同じ返事に入れる (shot: true)。押すたびに shot を呼ぶ往復が要らなくなる。
+            val after = buildList {
+                if (a.optBoolean("shot")) add("--shot")
+                optional("settle_ms")?.let { add("--settle"); add(it) }
+            }
+            UiBridge.execute(app, verb, args + after)
         } catch (e: Refusal) { UiBridge.failure(e.code, e.message.orEmpty()) }
         val content = JSONArray().put(JSONObject().put("type", "text").put("text", result.toString()))
-        if (name == "shot" && result.optBoolean("ok")) runCatching {
-            val file = result.getString("path").substringAfterLast('/')
+        val picture = if (name == "shot") result else result.optJSONObject("shot")
+        if (picture != null && picture.optBoolean("ok")) runCatching {
+            val file = picture.getString("path").substringAfterLast('/')
             val bytes = File(app.filesDir, "shared_home/.z2term/ui/$file").readBytes()
             content.put(JSONObject().put("type", "image").put("mimeType", if (file.endsWith(".jpg")) "image/jpeg" else "image/png")
                 .put("data", Base64.encodeToString(bytes, Base64.NO_WRAP)))
@@ -239,9 +246,13 @@ internal object UiBridgeMcp {
         fun prop(type: String, description: String, values: List<String>? = null) = JSONObject().put("type", type)
             .put("description", description).apply { values?.let { put("enum", JSONArray(it)) } }
         val target = prop("string", "Element: \"#N\" from the last look, \"text=…\", \"desc=…\", \"id=PACKAGE:id/NAME\" or \"@X,Y\" (pixels)")
+        // 操作の道具に共通の「操作のあとの画面も返す」引数。
+        val afterShot = mapOf("shot" to prop("boolean", "Also return the screen after the operation, once it stops moving (JPEG, scale 0.5)"),
+            "settle_ms" to prop("integer", "With shot: wait at most this long for the screen to stop moving, 1..10000, default 3000"))
+        val operations = setOf("tap", "long", "type", "enter", "key", "open", "scroll", "swipe", "drag")
         fun tool(name: String, description: String, props: Map<String, JSONObject> = emptyMap(), required: List<String> = emptyList()) =
             JSONObject().put("name", name).put("description", description).put("inputSchema", JSONObject().put("type", "object")
-                .put("properties", JSONObject(props as Map<*, *>)).put("required", JSONArray(required)))
+                .put("properties", JSONObject((if (name in operations) props + afterShot else props) as Map<*, *>)).put("required", JSONArray(required)))
         return JSONArray(listOf(
             tool("front", "Foreground app: package, name, permission level, screen size, whether locked."),
             tool("look", "Read the foreground screen as numbered elements with role, text, position and available operations.",
@@ -249,7 +260,8 @@ internal object UiBridgeMcp {
                     "tree" to prop("boolean", "Nest elements by parent/child"),
                     "in" to prop("integer", "Only inside element N of the last look"))),
             tool("shot", "Capture only the foreground app window as an image. Screen = box.x,y + image.x,y / scale.",
-                mapOf("scale" to prop("number", "0.1..1, default 0.5"), "format" to prop("string", "jpeg (default) or png", listOf("jpeg", "png")))),
+                mapOf("scale" to prop("number", "0.1..1, default 0.5"), "format" to prop("string", "jpeg (default) or png", listOf("jpeg", "png")),
+                    "stable" to prop("boolean", "Wait until the screen stops moving (up to 3 s) before capturing"))),
             tool("drag", "Touch the first point and move through all points without lifting, as one gesture (puzzle games and drawing). " +
                 "Plan the whole path before calling; the move takes step ms per segment.",
                 mapOf("points" to JSONObject().put("type", "array").put("description", "2..256 points [x, y] in screen pixels")

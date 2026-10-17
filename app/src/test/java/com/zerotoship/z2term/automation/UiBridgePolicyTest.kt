@@ -111,6 +111,17 @@ class UiBridgePolicyTest {
         assertEquals("too_long", refusal { UiBridgeReplay.definition(List(65) { UiBridgeReplay.Step("key back", null) to 0L }) })
     }
 
+    @Test fun settledIgnoresSmallFlickerButNotRealChanges() {
+        val still = IntArray(100) { 120 }
+        assertTrue(UiBridgePolicy.settled(still, still.copyOf()))
+        // きらめき程度 (全体で平均 2 の差) は止まったとみる。
+        assertTrue(UiBridgePolicy.settled(still, IntArray(100) { if (it % 10 == 0) 140 else 120 }))
+        // ダイアログが開いた (4 分の 1 が大きく変わった) は動いている。
+        assertFalse(UiBridgePolicy.settled(still, IntArray(100) { if (it < 25) 240 else 120 }))
+        assertFalse(UiBridgePolicy.settled(IntArray(0), IntArray(0)))
+        assertFalse(UiBridgePolicy.settled(still, IntArray(50) { 120 }))
+    }
+
     @Test fun textIsCleanedAndCut() {
         assertNull(UiBridgePolicy.clean("  "))
         assertEquals("a b", UiBridgePolicy.clean("a\nb"))

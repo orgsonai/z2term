@@ -66,6 +66,22 @@ internal object UiBridgePolicy {
         return ms
     }
 
+    /**
+     * 画面の動きが止まったか。縮めた 2 枚の明るさ (0..255) の差の平均が [SETTLE_THRESHOLD] 未満なら止まったとみる。
+     * 背景が少しずつ動き続ける画面 (ゲームのきらめき等) で永遠に待たないよう、小さな差は無視する。
+     */
+    fun settled(previous: IntArray, current: IntArray): Boolean {
+        if (previous.isEmpty() || previous.size != current.size) return false
+        var sum = 0L
+        for (i in previous.indices) sum += kotlin.math.abs(previous[i] - current[i])
+        return sum.toDouble() / previous.size < SETTLE_THRESHOLD
+    }
+
+    const val SETTLE_THRESHOLD = 3.0
+    /** `--shot` / `shot --stable` の既定の最大待ち (ミリ秒)。 */
+    const val SETTLE_DEFAULT_MS = 3000L
+    const val SETTLE_MAX_MS = 10_000L
+
     /** 操作の相手の指定。 */
     sealed interface Target {
         /** 直前の `look` の要素番号（`#2`）。 */

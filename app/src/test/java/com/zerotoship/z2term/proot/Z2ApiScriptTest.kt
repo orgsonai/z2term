@@ -34,12 +34,52 @@ class Z2ApiScriptTest {
             }.redirectErrorStream(true).start()
             val output = process.inputStream.bufferedReader().readText()
             assertEquals(output, 0, process.waitFor())
-            val lines = File(dir, "req").listFiles()!!.single().readLines()
+            // 速い形式: ヘッダー行のあと "N" 行、その後ろは生の引数を NUL 区切りで並べたもの。
+            val text = File(dir, "req").listFiles()!!.single().readText()
+            val header = text.substringBefore("\nN\n").lines()
             fun decode(line: String) = String(java.util.Base64.getDecoder().decode(line.substring(2)), Charsets.UTF_8)
-            assertEquals("CMD torch", lines.first())
-            assertEquals(token, decode(lines.single { it.startsWith("E ") }))
-            assertEquals(listOf("on", "two\nlines"), lines.filter { it.startsWith("A ") }.map(::decode))
+            assertEquals("CMD torch", header.first())
+            assertEquals(token, decode(header.single { it.startsWith("E ") }))
+            assertFalse("応答の要らない要求に R 1 を付けない", "R 1" in header)
+            assertEquals(listOf("on", "two\nlines"), text.substringAfter("\nN\n").split('\u0000').dropLast(1))
         } finally { dir.deleteRecursively() }
+    }
+
+    /** 応答を待つ要求: 新旧どちらの形式の応答も読み、失敗は標準エラーと終了コード 1 で返す。 */
+    @Test fun dispatcherReadsBothResponseFormats() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val cases = listOf(
+            Triple("OK\nfirst line\n\nlast", 0, "first line\n\nlast\n"),
+            Triple("OK", 0, "\n"),
+            Triple("OK " + java.util.Base64.getEncoder().encodeToString("old\nformat\n".toByteArray()) + "\n", 0, "old\nformat\n"),
+            Triple("ERR\nbroken", 1, "broken\n"),
+        )
+        for ((response, code, expected) in cases) {
+            val dir = Files.createTempDirectory("z2api-resp").toFile()
+            try {
+                val dispatcher = File(dir, "z2api").apply {
+                    writeText(scripts.getValue("z2api").replace("DIR=/storage/app/z2api", "DIR='${dir.absolutePath}'"))
+                }
+                val process = ProcessBuilder(sh!!, dispatcher.absolutePath, "1", "key", "status").start()
+                // アプリの代わり: 要求が置かれたら、同じ id の応答を rename で置く。
+                val req = File(dir, "req")
+                val deadline = System.currentTimeMillis() + 5000
+                var request: File? = null
+                while (request == null && System.currentTimeMillis() < deadline) {
+                    request = req.listFiles()?.firstOrNull { it.name.endsWith(".req") }
+                    if (request == null) Thread.sleep(10)
+                }
+                val id = request!!.name.removeSuffix(".req")
+                assertTrue("R 1" in request.readText().substringBefore("\nN\n").lines())
+                val tmp = File(dir, "resp/.$id.tmp").apply { writeText(response) }
+                check(tmp.renameTo(File(dir, "resp/$id.resp")))
+                val out = process.inputStream.bufferedReader().readText()
+                val err = process.errorStream.bufferedReader().readText()
+                assertEquals("$response / stderr=$err", code, process.waitFor())
+                assertEquals(response, expected, if (code == 0) out else err)
+            } finally { dir.deleteRecursively() }
+        }
     }
 
     /** 行頭の `|` (trimMargin の剥がし漏れ) は POSIX sh では常に構文エラー (0.8.187 の事故)。 */

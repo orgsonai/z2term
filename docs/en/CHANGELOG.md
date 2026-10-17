@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.36 (versionCode 734)**: AI app control is faster again. (1) Add `--shot` to an operation (MCP: `"shot": true`) and z2-ui waits for the screen to stop moving, captures it and returns it in the same reply, so the AI thinks once per step instead of twice (tap, then capture). (2) `z2-ui shot --stable` waits for animations to finish before capturing, instead of capturing again and again. (3) Every `z2-*` command hands requests over with less work: even a no-op took about 0.5 s; the terminal side now starts 1–2 external commands instead of 8–10.
+
 **1.0.35 (versionCode 733)**: Screen-action macros (`z2-action`) gained Drag through points, a step that moves through several points without lifting the finger. Tap the points in order with Pick coordinates (they are numbered and joined, and Undo fixes mistakes), then choose the time per segment; on replay all points are joined at an even pace. In text: `drag percent 100 20,30 50,30 50,60`. Sequences using `z2-ui drag` saved with `z2-ui save` become this step.
 
 **1.0.34 (versionCode 732)**: AI app control (`z2-ui`) is fast enough for timed games. (1) `z2-ui drag` sends a move through many points without lifting the finger in one call; the AI thinks before touching, so the move itself takes points × step time. (2) Coordinate taps and swipes no longer watch the screen for up to a second and return as soon as the gesture ends (on game screens without elements no change could be detected, so every call waited a full second). (3) Consecutive captures wait about 0.34 s instead of about 1 s, and can be saved as lighter JPEG (the MCP default). Set games to No approval.

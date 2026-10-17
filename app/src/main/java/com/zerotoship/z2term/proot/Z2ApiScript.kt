@@ -50,47 +50,71 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
+    // ⭐ **外部コマンドをほぼ起こさない (1.0.36)。** 端末側は proot の上で動くので、外部コマンドを 1 つ
+    //   起こすごとに約 50 ms かかる (sleep 0.1 でさえ 0.16 秒)。以前は 1 回の呼び出しで awk・date・
+    //   引数ごとの base64・tr・mv・sleep・head・base64 -d・rm を起こし、何もしない命令でも約 0.5 秒
+    //   かかっていた (AI からのアプリ操作で 1 手ごとに効いていた)。いまは:
+    //   - 引数は base64 せず、組み込みの printf で NUL 区切りのまま書く (速い形式。Z2ApiBridge のヘッダ参照)
+    //   - rename しない (アプリは書き終えて閉じたときの CLOSE_WRITE で拾う)。id は自分の pid
+    //   - 応答待ちは、最初は組み込みの [ -e ] だけで回す (応答はふつう数ミリ秒で来る)。来なければ sleep で待つ
+    //   - 応答は生で返ってくるので、組み込みの read で読む (旧形式の応答が来たときだけ base64 -d を使う)
     val dispatcher = """
         |#!/bin/sh
         |# z2term Android API ブリッジ・ディスパッチャ (内部用)。
         |# usage: z2api <need_resp 0|1> <cmd> [args...]
         |DIR=/storage/app/z2api
-        |mkdir -p "${d}DIR/req" "${d}DIR/resp" 2>/dev/null || true
         |need_resp="${d}1"; shift
         |cmd="${d}1"; shift
-        |rnd=${d}(awk 'BEGIN{srand(); printf "%d", rand()*1000000}' 2>/dev/null)
-        |id="${d}${d}-${d}(date +%s 2>/dev/null)-${d}rnd"
-        |tmp="${d}DIR/req/.${d}id.tmp"
-        |{
-        |  echo "CMD ${d}cmd"
-        |  [ -z "${d}{Z2_EDGE_RUN:-}" ] || printf 'E %s\n' "${d}(printf '%s' "${d}Z2_EDGE_RUN" | base64 | tr -d '\n')"
-        |  for a in "${d}@"; do
-        |    printf 'A %s\n' "${d}(printf '%s' "${d}a" | base64 | tr -d '\n')"
-        |  done
-        |  [ "${d}need_resp" = "1" ] && echo "R 1"
-        |} > "${d}tmp" 2>/dev/null
-        |mv "${d}tmp" "${d}DIR/req/${d}id.req" 2>/dev/null || { echo "z2api: cannot write request (storage perm?)" >&2; exit 1; }
-        |[ "${d}need_resp" = "1" ] || exit 0
+        |id="${d}${d}-${d}{PPID:-0}"
+        |req="${d}DIR/req/${d}id.req"
         |resp="${d}DIR/resp/${d}id.resp"
+        |# 同じ pid の古い応答 (前に待ちきれずに終わった呼び出しの分) を読まないように消す。
+        |[ ! -e "${d}resp" ] || rm -f "${d}resp" 2>/dev/null
+        |write_request() {
+        |  {
+        |    printf 'CMD %s\n' "${d}cmd"
+        |    [ -z "${d}{Z2_EDGE_RUN:-}" ] || printf 'E %s\n' "${d}(printf '%s' "${d}Z2_EDGE_RUN" | base64 | tr -d '\n')"
+        |    [ "${d}need_resp" != "1" ] || printf 'R 1\n'
+        |    printf 'N\n'
+        |    [ "${d}#" -eq 0 ] || printf '%s\0' "${d}@"
+        |  } 2>/dev/null > "${d}req"
+        |}
+        |# 2>/dev/null を先に書く (後ろだと、置き場が無くて開けなかったときの文句が端末に出る)。
+        |write_request "${d}@" 2>/dev/null || { mkdir -p "${d}DIR/req" "${d}DIR/resp" 2>/dev/null; write_request "${d}@" 2>/dev/null; } ||
+        |  { echo "z2api: cannot write request (storage perm?)" >&2; exit 1; }
+        |[ "${d}need_resp" = "1" ] || exit 0
         |# 待ち時間は 0.1 秒 x この回数 (既定 5 秒)。z2-ask のように**人が答えるまで**待つものだけが
         |# Z2API_WAIT を伸ばす。ここを一律に長くすると、アプリが止まっているときの誤動作
         |# (応答が来ない) にどのコマンドも延々と付き合うことになる。
         |wait_n="${d}{Z2API_WAIT:-50}"
+        |spin=0
         |i=0
-        |while [ ! -e "${d}resp" ] && [ ${d}i -lt "${d}wait_n" ]; do sleep 0.1; i=${d}((i+1)); done
+        |while [ ! -e "${d}resp" ]; do
+        |  # 最初の 400 回 (約 0.3 秒) は組み込みの確認だけで待つ。sleep は 1 回で 0.16 秒かかる。
+        |  if [ "${d}spin" -lt 400 ]; then spin=${d}((spin + 1)); continue; fi
+        |  [ "${d}i" -lt "${d}wait_n" ] || break
+        |  sleep 0.1; i=${d}((i + 1))
+        |done
         |if [ ! -e "${d}resp" ]; then echo "z2api: timeout waiting for app" >&2; exit 1; fi
-        |line=${d}(head -n1 "${d}resp")
-        |status=${d}{line%% *}
-        |payload=${d}{line#* }
-        |rm -f "${d}resp" 2>/dev/null
-        |dec=${d}(printf '%s' "${d}payload" | base64 -d 2>/dev/null)
-        |if [ "${d}status" = "OK" ]; then
-        |  printf '%s\n' "${d}dec"
-        |  exit 0
-        |else
-        |  printf '%s\n' "${d}dec" >&2
-        |  exit 1
-        |fi
+        |# 1 行目が "OK" / "ERR" だけなら速い形式 (2 行目以降が生の本文)、"OK <base64>" なら旧形式。
+        |emit() {
+        |  if [ "${d}first" != "${d}status" ]; then
+        |    printf '%s\n' "${d}(printf '%s' "${d}{first#* }" | base64 -d 2>/dev/null)"
+        |  else
+        |    any=0
+        |    while IFS= read -r line || [ -n "${d}line" ]; do printf '%s\n' "${d}line"; any=1; done
+        |    [ "${d}any" = 1 ] || printf '\n'
+        |  fi
+        |}
+        |{
+        |  # 改行の無い最後の行でも read は値を入れたうえで失敗を返す。値は捨てない。
+        |  IFS= read -r first || :
+        |  status=${d}{first%% *}
+        |  if [ "${d}status" = "OK" ]; then emit; rc=0; else emit >&2; rc=1; fi
+        |} < "${d}resp"
+        |# 消すのは裏で (待たない)。標準入出力を切り離さないと、${d}(z2api …) が rm の終わりまで待つ。
+        |rm -f "${d}resp" </dev/null >/dev/null 2>&1 &
+        |exit "${d}rc"
     """.trimMargin() + "\n"
 
     // ⚠ --copy は「通知のボタンでクリップボードへ入れる」ための唯一の道 (0.8.335)。裏で走った

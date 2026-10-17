@@ -377,10 +377,33 @@ internal object AndroidUiLook {
      * 間隔が空くまで待ってから撮る ([RegionShot] と同じ)。
      */
     @androidx.annotation.RequiresApi(30)
-    suspend fun shot(file: java.io.File, scale: Float, jpeg: Boolean, gate: (String) -> Unit): Pair<Rect, android.util.Size> {
+    class Shot(val box: Rect, val size: android.util.Size, val stable: Boolean?, val waitedMs: Long)
+
+    /**
+     * [stableMs] > 0 なら、画面の動きが止まるまで (続けて撮った 2 枚がほぼ同じになるまで) 撮り続け、
+     * 止まった 1 枚を保存する。最大 [stableMs] 待って止まらなければ、最後の 1 枚を保存する。
+     * [delayMs] は撮り始める前の待ち。操作の直後は画面がまだ反応していないことがあるため。
+     */
+    @androidx.annotation.RequiresApi(30)
+    suspend fun shot(file: java.io.File, scale: Float, jpeg: Boolean, gate: (String) -> Unit,
+        stableMs: Long = 0, delayMs: Long = 0): Shot {
+        val started = SystemClock.uptimeMillis()
+        if (delayMs > 0) delay(delayMs)
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
         gate(window.pkg)
-        val image = capture(window.service)
+        var image = capture(window.service)
+        var stable: Boolean? = null
+        if (stableMs > 0) {
+            stable = false
+            var previous = thumbnail(image, window.bounds)
+            while (SystemClock.uptimeMillis() - started < stableMs + delayMs) {
+                val next = capture(window.service)
+                val current = thumbnail(next, window.bounds)
+                image.recycle(); image = next
+                if (UiBridgePolicy.settled(previous, current)) { stable = true; break }
+                previous = current
+            }
+        }
         try {
             if (window()?.id != window.id) throw Refusal("changed", "The screen changed while capturing; try again")
             val area = Rect(window.bounds)
@@ -399,12 +422,29 @@ internal object AndroidUiLook {
                     }
                     if (!tmp.renameTo(file)) throw Refusal("error", "Could not write ${file.name}")
                 }
-                return area to android.util.Size(out.width, out.height)
+                return Shot(area, android.util.Size(out.width, out.height), stable, SystemClock.uptimeMillis() - started)
             } finally {
                 if (out !== cropped) out.recycle()
                 if (cropped !== image) cropped.recycle()
             }
         } finally { image.recycle() }
+    }
+
+    /** 窓の範囲を 48 px 幅に縮めた明るさの並び。画面が動いているかを比べるだけに使う。 */
+    private fun thumbnail(image: android.graphics.Bitmap, bounds: Rect): IntArray {
+        val area = Rect(bounds)
+        if (!area.intersect(0, 0, image.width, image.height)) return IntArray(0)
+        val width = 48
+        val height = (48f * area.height() / area.width().coerceAtLeast(1)).toInt().coerceIn(1, 256)
+        val cropped = android.graphics.Bitmap.createBitmap(image, area.left, area.top, area.width(), area.height())
+        val small = android.graphics.Bitmap.createScaledBitmap(cropped, width, height, true)
+        val pixels = IntArray(width * height).also { small.getPixels(it, 0, width, 0, 0, width, height) }
+        if (small !== cropped) small.recycle()
+        if (cropped !== image) cropped.recycle()
+        return IntArray(pixels.size) { i ->
+            val c = pixels[i]
+            (((c shr 16) and 0xff) * 3 + ((c shr 8) and 0xff) * 6 + (c and 0xff)) / 10
+        }
     }
 
     @androidx.annotation.RequiresApi(30)

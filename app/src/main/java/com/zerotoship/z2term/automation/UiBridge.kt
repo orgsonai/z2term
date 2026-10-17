@@ -114,10 +114,56 @@ internal object UiBridge {
         }
     }
 
+    /**
+     * 撮って保存し、結果の JSON を返す。画像の (x, y) は画面の (box.x + x / scale, box.y + y / scale)。
+     * [stableMs] > 0 なら動きが止まるまで待つ (`stable` が止まったかどうか)。
+     */
+    private fun takeShot(app: Context, settings: UiBridgeSettings, scale: Float, jpeg: Boolean, stableMs: Long, delayMs: Long): JSONObject {
+        if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
+        val name = if (jpeg) "shot.jpg" else "shot.png"
+        val file = File(app.filesDir, "shared_home/.z2term/ui/$name")
+        val shot = runBlocking { AndroidUiLook.shot(file, scale, jpeg, { gateLook(app, settings, it) }, stableMs, delayMs) }
+        lastPackage?.let { touch(app, it) }
+        return success().put("path", "/root/.z2term/ui/$name").put("size", JSONArray(listOf(shot.size.width, shot.size.height)))
+            .put("box", JSONArray(listOf(shot.box.left, shot.box.top, shot.box.width(), shot.box.height()))).put("scale", scale.toDouble())
+            .apply { shot.stable?.let { put("stable", it).put("waited_ms", shot.waitedMs) } }
+    }
+
+    /** `--shot` を受ける命令 (操作のあとの画面を同じ呼び出しで返す)。 */
+    private val SHOT_AFTER = setOf("tap", "long", "type", "enter", "key", "open", "scroll", "swipe", "drag", "noti")
+
+    /**
+     * 操作の命令から `--shot` と `--settle MS` を外す。`--shot` があれば、操作のあと画面の動きが止まるのを
+     * 待ってから撮り (縮小 0.5 の JPEG)、結果の `shot` に入れる。AI は押すたびに撮り直す必要が無くなり、
+     * 1 手で考える回数が 2 回から 1 回になる。
+     */
+    private fun shotAfter(verb: String, args: List<String>): Pair<List<String>, Long?> {
+        if (verb !in SHOT_AFTER || ("--shot" !in args && "--settle" !in args)) return args to null
+        val rest = mutableListOf<String>()
+        var settle: Long? = null
+        var i = 0
+        while (i < args.size) {
+            when (args[i]) {
+                "--shot" -> settle = settle ?: UiBridgePolicy.SETTLE_DEFAULT_MS
+                "--settle" -> settle = args.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 1..UiBridgePolicy.SETTLE_MAX_MS }
+                    ?: throw Refusal("bad_args", "--settle takes 1..${UiBridgePolicy.SETTLE_MAX_MS} ms")
+                else -> rest += args[i]
+            }
+            i++
+        }
+        return rest to settle
+    }
+
     /** 1 回の呼び出し。判定・実行・記録・手順の控えまで。CLI と MCP で共通。 */
-    internal fun execute(app: Context, verb: String, args: List<String>): JSONObject {
+    internal fun execute(app: Context, verb: String, rawArgs: List<String>): JSONObject {
+        val (args, settle) = try { shotAfter(verb, rawArgs) } catch (e: Refusal) { return failure(e.code, e.message.orEmpty()) }
         val result = try {
-            handle(app, verb, args)
+            handle(app, verb, args).also { done ->
+                // 操作が成功したときだけ撮る。直後は画面がまだ反応していないことがあるので 250 ms 置いてから。
+                if (settle != null && done.optBoolean("ok")) done.put("shot", try {
+                    takeShot(app, UiBridgeSettings(app), 0.5f, true, settle, 250L)
+                } catch (e: Refusal) { failure(e.code, e.message.orEmpty()) })
+            }
         } catch (e: Refusal) {
             failure(e.code, e.message.orEmpty())
         } catch (e: Exception) {
@@ -164,26 +210,29 @@ internal object UiBridge {
             "shot" -> {
                 var scale = 1f
                 var jpeg = false
+                var stable = 0L
                 var i = 0
                 while (i < args.size) {
                     when (args[i]) {
                         "--scale" -> scale = args.getOrNull(++i)?.toFloatOrNull()?.takeIf { it in 0.1f..1f }
                             ?: throw Refusal("bad_args", "Scale must be 0.1..1")
                         "--jpeg" -> jpeg = true
-                        else -> throw Refusal("bad_args", "z2-ui shot [--scale 0.1..1] [--jpeg]")
+                        // 「--stable」だけなら既定の最大待ち。後ろに数字があればそれを最大待ちにする。
+                        "--stable" -> {
+                            val next = args.getOrNull(i + 1)?.toLongOrNull()
+                            stable = if (next == null) UiBridgePolicy.SETTLE_DEFAULT_MS else {
+                                i++
+                                next.takeIf { it in 1..UiBridgePolicy.SETTLE_MAX_MS }
+                                    ?: throw Refusal("bad_args", "--stable takes 1..${UiBridgePolicy.SETTLE_MAX_MS} ms")
+                            }
+                        }
+                        else -> throw Refusal("bad_args", "z2-ui shot [--scale 0.1..1] [--jpeg] [--stable [MS]]")
                     }
                     i++
                 }
-                if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
                 enter(settings, false)
                 device(app)
-                val name = if (jpeg) "shot.jpg" else "shot.png"
-                val file = File(app.filesDir, "shared_home/.z2term/ui/$name")
-                val (box, size) = runBlocking { AndroidUiLook.shot(file, scale, jpeg) { gateLook(app, settings, it) } }
-                lastPackage?.let { touch(app, it) }
-                // 画像の (x, y) は画面の (box.x + x / scale, box.y + y / scale)。
-                success().put("path", "/root/.z2term/ui/$name").put("size", JSONArray(listOf(size.width, size.height)))
-                    .put("box", JSONArray(listOf(box.left, box.top, box.width(), box.height()))).put("scale", scale.toDouble())
+                takeShot(app, settings, scale, jpeg, stable, 0L)
             }
             "scroll" -> {
                 count(args, 2)

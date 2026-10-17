@@ -54,10 +54,12 @@ class AndroidShellScriptsTest {
             }
             val body = "日本語\nquoted ' \" \$(exit 7)"
             run("sh", "-c", "z2-notify -n test \"\$1\"", "test", body)
-            val request = File(bridge, "req").listFiles()!!.single().readLines()
+            // 速い形式: ヘッダー行のあと "N" 行、その後ろは生の引数を NUL 区切りで並べたもの。
+            val text = File(bridge, "req").listFiles()!!.single().readText()
+            val request = text.substringBefore("\nN\n").lines()
             fun decode(line: String) = String(Base64.getDecoder().decode(line.substring(2)), Charsets.UTF_8)
             assertEquals("CMD notify", request.first())
-            assertEquals(body, decode(request.first { it.startsWith("A ") }))
+            assertTrue(body in text.substringAfter("\nN\n").split('\u0000'))
             assertEquals("edge-token", decode(request.single { it.startsWith("E ") }))
 
             val id = run("z2-when", "charge:start", "name=charge notice", "run", "z2-notify charged").trim()

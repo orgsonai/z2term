@@ -127,6 +127,12 @@ Safety checks you will meet:
 | `z2-ui wait <selector> [MS]` | Wait until an element matching text=/desc=/id= appears, 1 to 30000 ms (default 5000). `not_found` on timeout. |
 | `z2-ui wait-change [MS]` | Wait until the screen differs from the latest look. `unchanged` on timeout. |
 
+Add `--shot` to any operation (tap, long, type, enter, key, open, scroll, swipe, drag, noti press) to get the screen
+after it in the same reply: z2-ui waits until the screen stops moving (at most 3 s, or `--settle MS` up to 10000),
+captures the foreground app window as JPEG at scale 0.5 and puts the shot fields (path, size, box, scale, `stable`,
+`waited_ms`) under `shot`. Over MCP pass `"shot": true` (and `settle_ms`); the image is returned with the result.
+This replaces the separate shot call after every operation and halves the number of turns you need.
+
 Operation results: `{"ok":true,"changed":true|false}` for element operations. Coordinate operations (`tap @X,Y`,
 `long @X,Y`, `swipe`, `drag`) return `{"ok":true}` without `changed` and return as soon as the gesture ends:
 screens operated by coordinates are usually a single drawn surface where changes cannot be detected, so waiting
@@ -138,6 +144,10 @@ would only add a second. Check the result with `shot`.
 - Saves only the foreground app window to `/root/.z2term/ui/shot.png` (or `shot.jpg` with `--jpeg`, which is faster to
   write and smaller). The status bar, notification shade and other apps are cut off.
 - Shots can be taken about three times per second (Android's limit); a shot right after another waits for that gap.
+- `--stable [MS]` waits until the screen stops moving (two consecutive frames nearly identical, at most MS, default 3000)
+  and saves that frame. `stable` tells whether it settled; `waited_ms` how long it took. Use it instead of taking
+  several shots while an animation plays. Screens that keep moving slightly (sparkles, idle animations) count as
+  settled; screens that keep moving a lot return after MS with `stable` false.
 - Returns `path`, image `size`, `box` (the window on screen) and `scale`.
 - Convert image coordinates to screen coordinates: screen_x = box[0] + image_x / scale, screen_y = box[1] + image_y / scale.
   Then use `z2-ui tap @screen_x,screen_y` or `swipe`.
@@ -146,8 +156,13 @@ would only add a second. Check the result with `shot`.
 
 ## 9. Speed, games and time limits
 
-Your own thinking time between calls is the slowest part, and z2-ui cannot shorten it. Design your moves so that
-time limits do not depend on it:
+Your own thinking time between calls is the slowest part, and z2-ui cannot shorten it. Each call itself takes about
+0.2 s. So the number of calls you make is what decides the speed:
+- Use ONE call per step: the operation with `--shot` (MCP: `"shot": true`). Do not follow each tap with a separate shot.
+- When you need to wait for an animation or a dialog, use one `shot --stable` instead of repeated shots.
+- When the next taps are already known (for example several OK buttons at the same place in a tutorial), you may send
+  them without looking in between, but take a `--shot` on the last one and check it.
+Design your moves so that time limits do not depend on your thinking time:
 - Decide the whole move first, then send it in one call. Do not split a continuous move into several swipes:
   lifting the finger usually ends the move.
 - In many puzzle games the timer starts when the finger touches the board. Take the `shot`, plan the full path
@@ -216,11 +231,13 @@ notification. You learn about it as the reply to your next call:
 ## 14. MCP
 
 - Start: `z2-ui mcp` (stdio). From a PC, register `ssh <phone> z2-ui mcp` as a stdio MCP server.
-- Tools: front, look (all, tree, in), shot (scale, format; also returns the image), tap, long, enter (target), type (target, text,
+- Tools: front, look (all, tree, in), shot (scale, format, stable; also returns the image), tap, long, enter (target), type (target, text,
   append), key (name), open (target), wait (selector, ms), wait_change (ms), scroll (target, direction),
   swipe (x1, y1, x2, y2, ms), drag (points as [[x, y], ...], step), notes (package), write_notes (package, text), mark, save (name), notifications,
   press_notification (key, label, reply), status, guide.
 - Each tool result is the same JSON as the CLI, as text. `isError` is true when `ok` is false.
+- Operation tools (tap, long, type, enter, key, open, scroll, swipe, drag) accept `shot` (boolean) and `settle_ms`:
+  with `shot` true the result also contains the screen after the operation, as an image.
 - Pause, instruction, stop and permission changes are not tools; they belong to the user.
 
 ## 15. Conduct
