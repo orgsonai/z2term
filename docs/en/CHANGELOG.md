@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.44 (versionCode 742)**: The AI operation settings gained "Catch small moving parts" (on by default). Since 1.0.42 the "has it stopped" check is stricter, so a screen with a part that never stops may wait up to the limit every time; turning this off restores the check up to 1.0.41. The AI can also choose per call with `--settle-check strict|loose`.
+
 **1.0.43 (versionCode 741)**: AI app control can now wait until the screen's colours meet a condition, without any image (`z2-ui colors ... --until`). For example "until the board brightens (it is my turn)", "until the lamp is green" or "until any colour changes": z2term checks about every third of a second and returns the colours as text the moment the condition holds. Before, the AI kept capturing, reading the image and deciding to wait again, at 5–10 s per round.
 
 **1.0.42 (versionCode 740)**: AI app control waits less and needs fewer calls. (1) A screen where only a part is still moving is no longer reported as stopped too early, and with `--box` only movement inside the box counts (effects elsewhere no longer keep it waiting). (2) `--expect-change` waits for a late-reacting screen to change before waiting for it to stop. (3) `--grid` on `shot` / `--shot` returns the image and a colour grid in one call. (4) `--peek` may be used in any one step of a `seq`. (5) `drag --hold MS` keeps the finger on the start point before moving, so screens that ignore an immediate move can be dragged faster.

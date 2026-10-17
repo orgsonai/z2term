@@ -989,6 +989,8 @@
     <string name="hint_storage">要看到 /sdcard，需要在 ⚙設定 裡“授予全部儲存權限”</string>
     <string name="settings_terminal_hints">把常見的卡點換成人話</string>
     <string name="settings_terminal_hints_desc">出現常見錯誤時，在畫面下方只顯示一行“下一步該怎麼辦”。終端機本身的輸出不會被改寫。</string>
+    <string name="ui_bridge_strict_settle">小的變化也算「還在動」</string>
+    <string name="ui_bridge_strict_settle_desc">等待畫面停止變化時，也查看小範圍的變化（幾個棋子消失、小對話框出現等也算「還在動」）。如果某個畫面有一部分一直在動（例如待機動畫），導致每次都等到上限，請關閉此項。AI 也可以在每次呼叫時自行選擇。</string>
     <string name="settings_attention_signal">背景分頁呼叫時通知</string>
     <string name="settings_attention_signal_desc">你沒在看的分頁響鈴或要求通知（OSC 9 / OSC 777）時顯示通知。許多 AI 命令列工具在等待輸入時會這樣做。點按通知可開啟該分頁。</string>
     <string name="settings_attention_silence">背景分頁停止輸出時通知</string>

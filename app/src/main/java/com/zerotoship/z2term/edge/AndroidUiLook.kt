@@ -423,7 +423,7 @@ internal object AndroidUiLook {
     @androidx.annotation.RequiresApi(30)
     suspend fun shot(file: java.io.File, scale: Float, jpeg: Boolean, gate: (String) -> Unit,
         stableMs: Long = 0, delayMs: Long = 0, box: Rect? = null, ifChanged: Boolean = false,
-        expectChange: Boolean = false, colors: Points? = null): Shot {
+        expectChange: Boolean = false, colors: Points? = null, strict: Boolean = true): Shot {
         val started = SystemClock.uptimeMillis()
         // 窓 (と `--box`) の範囲。外れていれば null。
         fun areaOf(window: Window, image: android.graphics.Bitmap): Rect? = Rect(window.bounds).takeIf {
@@ -431,7 +431,7 @@ internal object AndroidUiLook {
         }
         fun keyOf(window: Window, area: Rect) = "${file.name}|${window.id}|${area.flattenToString()}|$scale"
         val reference = saved.takeIf { expectChange }
-        val f = frame(gate, stableMs, delayMs, settleArea = box, unchanged = reference?.let { ref ->
+        val f = frame(gate, stableMs, delayMs, settleArea = box, strict = strict, unchanged = reference?.let { ref ->
             { image, window -> areaOf(window, image)?.let { keyOf(window, it) == ref.key && UiBridgePolicy.same(ref.print, thumbnail(image, it, PRINT_WIDTH)) } ?: false }
         })
         val window = f.window
@@ -485,7 +485,7 @@ internal object AndroidUiLook {
      */
     @androidx.annotation.RequiresApi(30)
     private suspend fun frame(gate: (String) -> Unit, stableMs: Long, delayMs: Long, settleArea: Rect? = null,
-        unchanged: ((android.graphics.Bitmap, Window) -> Boolean)? = null): Frame {
+        strict: Boolean = true, unchanged: ((android.graphics.Bitmap, Window) -> Boolean)? = null): Frame {
         if (delayMs > 0) delay(delayMs)
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
         gate(window.pkg)
@@ -511,7 +511,7 @@ internal object AndroidUiLook {
                 val next = capture(window.service)
                 val current = thumbnail(next, area, SETTLE_WIDTH)
                 image.recycle(); image = next
-                if (UiBridgePolicy.settled(previous, current, SETTLE_WIDTH)) { stable = true; break }
+                if (UiBridgePolicy.settled(previous, current, SETTLE_WIDTH, blocks = strict)) { stable = true; break }
                 previous = current
             }
         }
@@ -550,7 +550,7 @@ internal object AndroidUiLook {
      */
     @androidx.annotation.RequiresApi(30)
     suspend fun sample(at: Points, gate: (String) -> Unit, stableMs: Long, until: UiBridgePolicy.Until? = null,
-        withinMs: Long = 0, alive: () -> Unit = {}): Sample {
+        withinMs: Long = 0, alive: () -> Unit = {}, strict: Boolean = true): Sample {
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
         if (at.points.any { (x, y) -> !window.bounds.contains(x, y) })
             throw Refusal("outside", "All points must be inside the foreground app window")
@@ -560,7 +560,7 @@ internal object AndroidUiLook {
             if (f.window.id != window.id) throw Refusal("changed", "The screen changed; try again")
             pick(f.image, f.window, at)
         } finally { f.image.recycle() }
-        if (until == null) return frame(gate, stableMs, 0L, settleArea = around).let { Sample(read(it), it.stable) }
+        if (until == null) return frame(gate, stableMs, 0L, settleArea = around, strict = strict).let { Sample(read(it), it.stable) }
         val started = SystemClock.uptimeMillis()
         val first = read(frame(gate, 0L, 0L))
         var rgb = first
@@ -571,7 +571,7 @@ internal object AndroidUiLook {
         }
         val waited = SystemClock.uptimeMillis() - started
         if (stableMs <= 0) return Sample(rgb, null, met = true, waitedMs = waited)
-        val f = frame(gate, stableMs, 0L, settleArea = around)
+        val f = frame(gate, stableMs, 0L, settleArea = around, strict = strict)
         return Sample(read(f), f.stable, met = true, waitedMs = waited)
     }
 

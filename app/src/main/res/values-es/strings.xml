@@ -1006,6 +1006,8 @@ Elige uno en las pestañas de la derecha.</string>
     <string name="hint_storage">Para ver /sdcard hace falta ir a Ajustes > permitir el acceso a todos los archivos</string>
     <string name="settings_terminal_hints">Explicar los tropiezos habituales</string>
     <string name="settings_terminal_hints_desc">Cuando aparece un error conocido, muestra abajo una línea con el siguiente paso. La salida de la terminal nunca se altera.</string>
+    <string name="ui_bridge_strict_settle">Detectar movimientos pequeños</string>
+    <string name="ui_bridge_strict_settle_desc">Al esperar a que la pantalla deje de moverse, mira también zonas pequeñas, de modo que unas pocas piezas que desaparecen o un diálogo pequeño cuentan como movimiento. Desactívalo si una pantalla con una parte que nunca se detiene (como una animación en reposo) hace esperar siempre hasta el límite. La IA también puede elegirlo en cada llamada.</string>
     <string name="settings_attention_signal">Avisar cuando una pestaña de fondo llama</string>
     <string name="settings_attention_signal_desc">Cuando una pestaña que no estás mirando hace sonar la campana o pide una notificación (OSC 9 / OSC 777), muestra una notificación. Muchas herramientas de IA de línea de comandos lo hacen al esperar una entrada. Tócala para abrir la pestaña.</string>
     <string name="settings_attention_silence">Avisar cuando una pestaña de fondo deja de mostrar salida</string>

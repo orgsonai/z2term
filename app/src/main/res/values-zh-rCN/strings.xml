@@ -989,6 +989,8 @@
     <string name="hint_storage">要看到 /sdcard，需要在 ⚙设置 里“授予全部存储权限”</string>
     <string name="settings_terminal_hints">把常见的卡点换成人话</string>
     <string name="settings_terminal_hints_desc">出现常见错误时，在画面下方只显示一行“下一步该怎么办”。终端本身的输出不会被改写。</string>
+    <string name="ui_bridge_strict_settle">小的变化也算“还在动”</string>
+    <string name="ui_bridge_strict_settle_desc">等待画面停止变化时，也查看小范围的变化（几个棋子消失、小对话框出现等也算“还在动”）。如果某个画面有一部分一直在动（例如待机动画），导致每次都等到上限，请关闭此项。AI 也可以在每次调用时自行选择。</string>
     <string name="settings_attention_signal">后台标签页呼叫时通知</string>
     <string name="settings_attention_signal_desc">你没在看的标签页响铃或请求通知（OSC 9 / OSC 777）时显示通知。很多 AI 命令行工具在等待输入时会这样做。点按通知可打开该标签页。</string>
     <string name="settings_attention_silence">后台标签页停止输出时通知</string>

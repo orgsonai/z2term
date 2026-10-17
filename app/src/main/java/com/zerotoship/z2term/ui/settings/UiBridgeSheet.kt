@@ -77,6 +77,7 @@ fun UiBridgeBody() {
     val stopped = remember(tick) { settings.stopped }
     val levels = remember(tick) { settings.levels() }
     val minutes = remember(tick) { settings.grantMinutes }
+    val strictSettle = remember(tick) { settings.strictSettle }
     var editingGrant by remember { mutableStateOf(false) }
     var paused by remember { mutableStateOf(UiBridge.isPaused) }
 
@@ -146,6 +147,14 @@ fun UiBridgeBody() {
                 settings.setLevel(pkg, Level.ASK)
         }
     }
+
+    // 「動きが止まったか」の判定 (1.0.44)。一部がずっと動いている画面で待たされるときに切る。
+    ToggleRow(
+        title = stringResource(R.string.ui_bridge_strict_settle),
+        desc = stringResource(R.string.ui_bridge_strict_settle_desc),
+        checked = strictSettle,
+        onChange = { settings.strictSettle = it }
+    )
 
     // まとめて許可する時間。見出しの長押しで 61 分以上を入れられる (裏設定: UiBridgePolicy.GRANT_MAX_MINUTES)。
     Text(

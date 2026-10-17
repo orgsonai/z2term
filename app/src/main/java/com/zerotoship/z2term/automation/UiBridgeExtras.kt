@@ -207,6 +207,7 @@ internal object UiBridgeMcp {
             a.optJSONArray("box")?.let { b -> add("--box"); add((0 until 4).joinToString(",") { b.optInt(it, -1).toString() }) }
             if (a.optBoolean("if_changed")) add("--if-changed")
             if (a.optBoolean("expect_change")) add("--expect-change")
+            optional("settle_check")?.let { add("--settle-check"); add(it) }
         }
         val result = try {
             val (verb, args) = when (name) {
@@ -245,6 +246,7 @@ internal object UiBridgeMcp {
                     // 「brighter 120」のような 1 つの文字列で受け、CLI と同じ語に分ける。
                     optional("until")?.let { add("--until"); addAll(it.trim().split(Regex("\\s+"))) }
                     optional("within_ms")?.let { add("--within"); add(it) }
+                    optional("settle_check")?.let { add("--settle-check"); add(it) }
                 }
                 // 1 手は CLI と同じ語の並び (["tap", "@540,700"])。CLI の区切り `--` でつなぐ。
                 "seq" -> "seq" to buildList {
@@ -308,6 +310,9 @@ internal object UiBridgeMcp {
         fun prop(type: String, description: String, values: List<String>? = null) = JSONObject().put("type", type)
             .put("description", description).apply { values?.let { put("enum", JSONArray(it)) } }
         val target = prop("string", "Element: \"#N\" from the last look, \"text=…\", \"desc=…\", \"id=PACKAGE:id/NAME\" or \"@X,Y\" (pixels)")
+        val settleCheck = prop("string", "How strictly \"stopped moving\" is judged: strict also catches a small moving part, " +
+            "loose looks only at the whole-screen average (for screens with a part that never stops). Default: the user's setting",
+            listOf("strict", "loose"))
         val narrow = mapOf(
             "box" to JSONObject().put("type", "array").put("items", JSONObject().put("type", "integer"))
                 .put("description", "Capture only this part [x, y, width, height] in screen pixels (smaller images are faster for you to read)"),
@@ -317,7 +322,8 @@ internal object UiBridgeMcp {
             "grid" to JSONObject().put("type", "object").put("description", "Also read colour names on this grid from the same capture: " +
                 "origin [x, y] of the top-left cell, step [dx, dy], cols, rows. Returned as grid, one string per row"),
             "radius" to prop("integer", "With grid: median over a square of this radius, 0..20, default 4"),
-            "hex" to prop("boolean", "With grid: also return #rrggbb per cell"))
+            "hex" to prop("boolean", "With grid: also return #rrggbb per cell"),
+            "settle_check" to settleCheck)
         // 操作の道具に共通の「操作のあとの画面も返す」引数。
         val afterShot = mapOf("shot" to prop("boolean", "Also return the screen after the operation, once it stops moving (JPEG, scale 0.5)"),
             "settle_ms" to prop("integer", "With shot: wait at most this long for the screen to stop moving, 1..10000, default 3000")) + narrow
@@ -356,7 +362,8 @@ internal object UiBridgeMcp {
                     "until" to prop("string", "Wait inside z2term until the colours meet this, without images: \"brighter N\" / " +
                         "\"darker N\" (mean brightness 0..255), \"changed\" (any point's colour name changes) or a colour name " +
                         "(all points). Checked about 3 times a second. Error not_met (with the last colours) on timeout"),
-                    "within_ms" to prop("integer", "With until: give up after this long, 1..30000, default 10000"))),
+                    "within_ms" to prop("integer", "With until: give up after this long, 1..30000, default 10000"),
+                    "settle_check" to settleCheck)),
             tool("seq", "Run several steps in one call, without thinking between them. Each step is the CLI words, " +
                 "e.g. [\"tap\", \"@540,700\"], [\"sleep\", \"500\"], [\"wait\", \"text=OK\"]. Stops at the first failure " +
                 "(failed_step). shot and --shot only in the last step; --peek in any one step.",

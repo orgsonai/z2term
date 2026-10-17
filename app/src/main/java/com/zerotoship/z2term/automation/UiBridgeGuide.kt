@@ -152,7 +152,7 @@ would only add a second. Check the result with `shot`.
 
 ## 8. Screens without elements: shot
 
-`z2-ui shot [--scale S] [--jpeg] [--stable [MS]] [--box X,Y,W,H] [--if-changed] [--expect-change]
+`z2-ui shot [--scale S] [--jpeg] [--stable [MS]] [--settle-check strict|loose] [--box X,Y,W,H] [--if-changed] [--expect-change]
 [--grid X0,Y0 DX,DY COLSxROWS [--radius R] [--hex]]` (S from 0.1 to 1, default 1; the MCP tool defaults to 0.5 and JPEG).
 - Saves only the foreground app window to `/root/.z2term/ui/shot.png` (or `shot.jpg` with `--jpeg`, which is faster to
   write and smaller). The status bar, notification shade and other apps are cut off.
@@ -163,6 +163,10 @@ would only add a second. Check the result with `shot`.
   settled; screens that keep moving a lot return after MS with `stable` false. A change in a small part of the
   screen (a few pieces disappearing, a small dialog, a number) still counts as moving. With `--box`, only movement
   inside the box counts, so effects elsewhere on the screen do not keep you waiting.
+- `--settle-check strict|loose` (also on `--shot` and `colors`; MCP `settle_check`): strict is the check above; loose
+  looks only at the whole-screen average, so a small part that never stops (an idle animation) is ignored, but a
+  small change can also be missed. The default is the user's setting (normally strict). If `stable` keeps coming
+  back false after the full wait on a screen that looks still, use `--box` around what you need, or loose.
 - `--expect-change`: before waiting for the screen to stop, wait up to 1.5 s until it differs from the last image you
   got (same file name, area and scale). `changed` tells whether it did. Use it after an operation on a screen that
   reacts late (a network round trip, an effect that starts after a pause), so that the old, still screen is not

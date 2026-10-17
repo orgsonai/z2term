@@ -34,6 +34,14 @@ internal class UiBridgeSettings(context: Context) {
         get() = prefs.getBoolean(KEY_STOPPED, false)
         set(value) { prefs.edit().putBoolean(KEY_STOPPED, value).apply() }
 
+    /**
+     * 「動きが止まったか」を区画ごとにも見るか (1.0.42 の厳しめの判定)。既定 ON。一部がずっと動いている
+     * 画面で待たされるときに OFF にする (画面全体の平均だけで見る)。呼び出しの `--settle-check` が優先。
+     */
+    var strictSettle: Boolean
+        get() = prefs.getBoolean(KEY_STRICT_SETTLE, true)
+        set(value) { prefs.edit().putBoolean(KEY_STRICT_SETTLE, value).apply() }
+
     var grantMinutes: Int
         get() = UiBridgePolicy.grantMinutes(prefs.getInt(KEY_GRANT, UiBridgePolicy.GRANT_DEFAULT_MINUTES))
         set(value) { prefs.edit().putInt(KEY_GRANT, UiBridgePolicy.grantMinutes(value)).apply() }
@@ -58,5 +66,6 @@ internal class UiBridgeSettings(context: Context) {
         private const val KEY_STOPPED = "stopped"
         private const val KEY_GRANT = "grant_minutes"
         private const val KEY_LEVELS = "levels"
+        private const val KEY_STRICT_SETTLE = "strict_settle"
     }
 }

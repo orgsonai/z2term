@@ -115,6 +115,8 @@ class UiBridgePolicyTest {
         val local = still.copyOf().also { a -> for (y in 4 until 12) for (x in 8 until 16) a[y * width + x] = 160 }
         assertTrue((0 until still.size).sumOf { kotlin.math.abs(still[it] - local[it]) }.toDouble() / still.size < UiBridgePolicy.SETTLE_THRESHOLD)
         assertFalse(UiBridgePolicy.settled(still, local, width))
+        // 区画を見ない判定 (loose) なら、1.0.41 までと同じく止まったとみる。
+        assertTrue(UiBridgePolicy.settled(still, local, width, blocks = false))
         // まばらなきらめき (1 区画に 1 点、差 20) は無視する。
         val sparkle = still.copyOf().also { a -> for (y in 0 until 20 step 4) for (x in 0 until width step 4) a[y * width + x] = 140 }
         assertTrue(UiBridgePolicy.settled(still, sparkle, width))

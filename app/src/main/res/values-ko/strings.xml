@@ -988,6 +988,8 @@
     <string name="hint_storage">/sdcard를 보려면 설정 > 모든 파일에 대한 접근을 허용해야 합니다</string>
     <string name="settings_terminal_hints">자주 걸리는 것 알려 주기</string>
     <string name="settings_terminal_hints_desc">잘 알려진 오류가 나오면 아래에 다음 할 일을 한 줄로 보여 줍니다. 터미널 출력 자체는 절대 건드리지 않습니다.</string>
+    <string name="ui_bridge_strict_settle">작은 움직임도 움직이는 것으로 보기</string>
+    <string name="ui_bridge_strict_settle_desc">화면이 멈추기를 기다릴 때 작은 영역의 움직임도 봅니다(몇 개의 조각이 사라지거나 작은 대화 상자가 나와도 아직 움직이는 것으로 봅니다). 일부가 계속 움직이는 화면(대기 애니메이션 등)에서 매번 최대까지 기다리게 되면 끄세요. AI가 호출마다 고를 수도 있습니다.</string>
     <string name="settings_attention_signal">뒤쪽 탭이 부르면 알림</string>
     <string name="settings_attention_signal_desc">보고 있지 않은 탭이 벨을 울리거나 알림을 요청하면(OSC 9 / OSC 777) 알림을 띄웁니다. 많은 AI 명령줄 도구가 입력을 기다릴 때 이렇게 합니다. 누르면 그 탭을 엽니다.</string>
     <string name="settings_attention_silence">뒤쪽 탭의 출력이 멈추면 알림</string>

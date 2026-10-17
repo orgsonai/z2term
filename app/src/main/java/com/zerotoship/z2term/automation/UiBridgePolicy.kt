@@ -74,12 +74,15 @@ internal object UiBridgePolicy {
      *    最中を「止まった」とみてしまう (面積が 1 割に満たないと平均が薄まる)。
      * 背景が少しずつ動き続ける画面 (きらめき等) で永遠に待たないよう、まばらな小さな差は無視する。
      * [width] は縮めた画像の幅 (区画に分けるため)。
+     * [blocks] = false なら区画を見ない (1.0.41 までの判定)。一部がずっと動いている画面 (待機中のキャラクター等) で、
+     * 区画の判定だと最大待ちまで止まらないときに使う (`--settle-check loose`・AI 操作の設定)。
      */
-    fun settled(previous: IntArray, current: IntArray, width: Int = previous.size): Boolean {
+    fun settled(previous: IntArray, current: IntArray, width: Int = previous.size, blocks: Boolean = true): Boolean {
         if (previous.isEmpty() || previous.size != current.size) return false
         var sum = 0L
         for (i in previous.indices) sum += kotlin.math.abs(previous[i] - current[i])
         if (sum.toDouble() / previous.size >= SETTLE_THRESHOLD) return false
+        if (!blocks) return true
         val w = width.coerceIn(1, previous.size)
         val h = previous.size / w
         for (top in 0 until h step SETTLE_BLOCK) for (left in 0 until w step SETTLE_BLOCK) {

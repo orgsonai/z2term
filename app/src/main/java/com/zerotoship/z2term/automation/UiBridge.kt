@@ -119,19 +119,20 @@ internal object UiBridge {
      * [stableMs] > 0 なら動きが止まるまで待つ (`stable` が止まったかどうか)。
      */
     private fun takeShot(app: Context, settings: UiBridgeSettings, scale: Float, jpeg: Boolean, stableMs: Long, delayMs: Long,
-        box: android.graphics.Rect? = null, ifChanged: Boolean = false, expectChange: Boolean = false, colors: ColorSpec? = null): JSONObject =
+        box: android.graphics.Rect? = null, ifChanged: Boolean = false, expectChange: Boolean = false, colors: ColorSpec? = null,
+        strict: Boolean? = null): JSONObject =
         runBlocking { shotJson(app, settings, scale, jpeg, stableMs, delayMs, box = box, ifChanged = ifChanged,
-            expectChange = expectChange, colors = colors) }
+            expectChange = expectChange, colors = colors, strict = strict) }
 
     /** [takeShot] の中身。指を置いたまま撮る `--peek` は操作の途中から呼ぶので、止めずに待てる形で持つ。[base] はファイル名。 */
     private suspend fun shotJson(app: Context, settings: UiBridgeSettings, scale: Float, jpeg: Boolean, stableMs: Long, delayMs: Long,
         base: String = "shot", box: android.graphics.Rect? = null, ifChanged: Boolean = false, expectChange: Boolean = false,
-        colors: ColorSpec? = null): JSONObject {
+        colors: ColorSpec? = null, strict: Boolean? = null): JSONObject {
         if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
         val name = if (jpeg) "$base.jpg" else "$base.png"
         val file = File(app.filesDir, "shared_home/.z2term/ui/$name")
         val shot = AndroidUiLook.shot(file, scale, jpeg, { gateLook(app, settings, it) }, stableMs, delayMs, box, ifChanged,
-            expectChange, colors?.at)
+            expectChange, colors?.at, strict ?: settings.strictSettle)
         lastPackage?.let { touch(app, it) }
         val common: JSONObject.() -> Unit = {
             shot.stable?.let { put("stable", it).put("waited_ms", shot.waitedMs) }
@@ -153,13 +154,24 @@ internal object UiBridge {
      * 操作の命令から外す撮影の指定。`--box` は `--shot` と `--peek` の両方、`--if-changed` / `--expect-change` /
      * 色の指定 (`--grid` / `--radius` / `--hex`) は `--shot` だけに効く。
      */
-    private val CAPTURE_FLAGS = setOf("--shot", "--settle", "--peek", "--box", "--if-changed", "--expect-change", "--grid", "--radius", "--hex")
+    private val CAPTURE_FLAGS = setOf("--shot", "--settle", "--peek", "--box", "--if-changed", "--expect-change", "--grid", "--radius", "--hex",
+        "--settle-check")
+
+    /**
+     * `--settle-check strict|loose`。strict = 区画ごとにも動きを見る (1.0.42 の判定)、loose = 画面全体の平均だけ
+     * (1.0.41 まで)。指定が無ければ AI 操作の設定 ([UiBridgeSettings.strictSettle]) に従う。
+     */
+    private fun settleCheck(arg: String?): Boolean = when (arg) {
+        "strict" -> true
+        "loose" -> false
+        else -> throw Refusal("bad_args", "--settle-check takes strict or loose")
+    }
     /** `--peek` を受ける命令 (指を置いている間の画面を返す)。座標の長押し・スワイプ・なぞるだけ。 */
     private val PEEK = setOf("long", "swipe", "drag")
 
     /** 操作の命令から外した撮影の指定。[settle] は `--shot` / `--settle`、[peek] は `--peek` のミリ秒。 */
     private class Capture(val settle: Long?, val peek: Long?, val box: android.graphics.Rect? = null, val ifChanged: Boolean = false,
-        val expectChange: Boolean = false, val colors: ColorSpec? = null)
+        val expectChange: Boolean = false, val colors: ColorSpec? = null, val strict: Boolean? = null)
 
     /** `--box X,Y,W,H` (画面のピクセル)。撮る範囲を窓の一部に絞る。 */
     private fun box(arg: String?): android.graphics.Rect {
@@ -186,6 +198,7 @@ internal object UiBridge {
         var area: android.graphics.Rect? = null
         var ifChanged = false
         var expectChange = false
+        var strict: Boolean? = null
         var i = 0
         while (i < left.size) {
             when (left[i]) {
@@ -200,13 +213,15 @@ internal object UiBridge {
                 "--box" -> area = box(left.getOrNull(++i))
                 "--if-changed" -> ifChanged = true
                 "--expect-change" -> expectChange = true
+                "--settle-check" -> strict = settleCheck(left.getOrNull(++i))
                 else -> rest += left[i]
             }
             i++
         }
         if ((area != null || ifChanged) && settle == null && peek == null) throw Refusal("bad_args", "--box and --if-changed go with --shot or --peek")
-        if ((expectChange || colors != null) && settle == null) throw Refusal("bad_args", "--expect-change and --grid go with --shot")
-        return rest to Capture(settle, peek, area, ifChanged, expectChange, colors)
+        if ((expectChange || colors != null || strict != null) && settle == null)
+            throw Refusal("bad_args", "--expect-change, --grid and --settle-check go with --shot")
+        return rest to Capture(settle, peek, area, ifChanged, expectChange, colors, strict)
     }
 
     /** `--peek` の撮影。失敗しても操作は止めず、失敗の JSON を `peek` に入れる。 */
@@ -234,7 +249,7 @@ internal object UiBridge {
                 // 操作が成功したときだけ撮る。直後は画面がまだ反応していないことがあるので 250 ms 置いてから。
                 if (settle != null && done.optBoolean("ok")) done.put("shot", try {
                     takeShot(app, UiBridgeSettings(app), 0.5f, true, settle, 250L, capture.box, capture.ifChanged,
-                        capture.expectChange, capture.colors)
+                        capture.expectChange, capture.colors, capture.strict)
                 } catch (e: Refusal) { failure(e.code, e.message.orEmpty()) })
             }
         } catch (e: Refusal) {
@@ -285,6 +300,7 @@ internal object UiBridge {
             "shot" -> {
                 val (colorSpec, shotArgs) = takeColors(args, positional = false)
                 var expectChange = false
+                var strict: Boolean? = null
                 var scale = 1f
                 var jpeg = false
                 var stable = 0L
@@ -308,13 +324,15 @@ internal object UiBridge {
                         "--box" -> area = box(shotArgs.getOrNull(++i))
                         "--if-changed" -> ifChanged = true
                         "--expect-change" -> expectChange = true
-                        else -> throw Refusal("bad_args", "z2-ui shot [--scale 0.1..1] [--jpeg] [--stable [MS]] [--box X,Y,W,H] [--if-changed] [--expect-change] [--grid X0,Y0 DX,DY COLSxROWS [--radius R] [--hex]]")
+                        "--settle-check" -> strict = settleCheck(shotArgs.getOrNull(++i))
+                        else -> throw Refusal("bad_args", "z2-ui shot [--scale 0.1..1] [--jpeg] [--stable [MS]] [--settle-check strict|loose] " +
+                            "[--box X,Y,W,H] [--if-changed] [--expect-change] [--grid X0,Y0 DX,DY COLSxROWS [--radius R] [--hex]]")
                     }
                     i++
                 }
                 enter(settings, false)
                 device(app)
-                takeShot(app, settings, scale, jpeg, stable, 0L, area, ifChanged, expectChange, colorSpec)
+                takeShot(app, settings, scale, jpeg, stable, 0L, area, ifChanged, expectChange, colorSpec, strict)
             }
             "colors" -> { enter(settings, false); device(app); colors(app, settings, args) }
             "seq" -> seq(app, settings, args)
@@ -518,13 +536,14 @@ internal object UiBridge {
      */
     private fun colors(app: Context, settings: UiBridgeSettings, args: List<String>): JSONObject {
         if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
-        val usage = "z2-ui colors X,Y ... | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex] " +
-            "[--until brighter N|darker N|changed|COLOR [--within MS]]"
+        val usage = "z2-ui colors X,Y ... | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--settle-check strict|loose] " +
+            "[--hex] [--until brighter N|darker N|changed|COLOR [--within MS]]"
         val (spec, rest) = takeColors(args, positional = true)
         if (spec == null) throw Refusal("bad_args", usage)
         var stable = 0L
         var until: UiBridgePolicy.Until? = null
         var within = UiBridgePolicy.UNTIL_DEFAULT_MS
+        var strict = settings.strictSettle
         var i = 0
         while (i < rest.size) {
             when (rest[i]) {
@@ -535,6 +554,7 @@ internal object UiBridge {
                     until = condition
                     i += used
                 }
+                "--settle-check" -> strict = settleCheck(rest.getOrNull(++i))
                 "--within" -> within = rest.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 1..UiBridgePolicy.UNTIL_MAX_MS }
                     ?: throw Refusal("bad_args", "--within takes 1..${UiBridgePolicy.UNTIL_MAX_MS} ms")
                 else -> throw Refusal("bad_args", usage)
@@ -543,7 +563,7 @@ internal object UiBridge {
         }
         val gen = generation.get()
         val sample = runBlocking {
-            AndroidUiLook.sample(spec.at, { gateLook(app, settings, it) }, stable, until, within) { alive(app, gen) }
+            AndroidUiLook.sample(spec.at, { gateLook(app, settings, it) }, stable, until, within, { alive(app, gen) }, strict)
         }
         lastPackage?.let { touch(app, it) }
         val result = if (sample.met == false) failure("not_met", "The colours did not meet --until within $within ms")
