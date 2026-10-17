@@ -12,6 +12,8 @@ import com.zerotoship.z2term.automation.Refusal
 import com.zerotoship.z2term.automation.UiBridgePolicy
 import com.zerotoship.z2term.automation.UiBridgePolicy.Target
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -65,6 +67,16 @@ internal object AndroidUiLook {
 
     class Snapshot(val screen: String, val windowId: Int, val pkg: String, val elements: List<Element>) {
         val fingerprint = fingerprint(windowId, elements)
+    }
+
+    /**
+     * 指を置いたまま撮る (`--peek MS`)。指を置いてから [atMs] 後に [take] を 1 度呼び、返事を [result] に残す。
+     * 長押しやなぞる途中にだけ出る表示 (残り時間など) は、指を離してから撮ると消えている。
+     * [held] は撮り終えた時点で指がまだ画面にあったか (false なら、写っているのは離したあとかもしれない)。
+     */
+    class Peek(val atMs: Long, val take: suspend () -> JSONObject) {
+        @Volatile var result: JSONObject? = null
+        @Volatile var held = false
     }
 
     private val counter = AtomicInteger()
@@ -248,14 +260,15 @@ internal object AndroidUiLook {
     }
 
     /** [op] (`tap` / `long` / `type` / `enter`) を 1 回だけ送る。 */
-    suspend fun act(op: String, target: Target, text: String?, append: Boolean, gate: (String) -> Unit) {
+    suspend fun act(op: String, target: Target, text: String?, append: Boolean, gate: (String) -> Unit,
+        holdMs: Long = 600, peek: Peek? = null) {
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
         gate(window.pkg)
         if (target is Target.Point) {
             if (op != "tap" && op != "long") throw Refusal("bad_args", "Coordinates are only for tap and long")
             if (!window.bounds.contains(target.x, target.y)) throw Refusal("outside", "The point is outside the foreground app window")
             if (AndroidActions.gesturesInFlight()) throw Refusal("busy", "Wait for the previous gesture to finish")
-            gesture(window.service, Path().apply { moveTo(target.x.toFloat(), target.y.toFloat()) }, if (op == "long") 600 else 80)
+            gesture(window.service, Path().apply { moveTo(target.x.toFloat(), target.y.toFloat()) }, if (op == "long") holdMs else 80, peek)
             return
         }
         val located = locate(window, target)
@@ -317,20 +330,20 @@ internal object AndroidUiLook {
         }
 
     /** 座標でスワイプする。始点・終点とも前面のアプリの窓の中だけ。 */
-    suspend fun swipe(x1: Int, y1: Int, x2: Int, y2: Int, ms: Long, gate: (String) -> Unit) {
+    suspend fun swipe(x1: Int, y1: Int, x2: Int, y2: Int, ms: Long, gate: (String) -> Unit, peek: Peek? = null) {
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
         gate(window.pkg)
         if (!window.bounds.contains(x1, y1) || !window.bounds.contains(x2, y2))
             throw Refusal("outside", "Both points must be inside the foreground app window")
         if (AndroidActions.gesturesInFlight()) throw Refusal("busy", "Wait for the previous gesture to finish")
-        gesture(window.service, Path().apply { moveTo(x1.toFloat(), y1.toFloat()); lineTo(x2.toFloat(), y2.toFloat()) }, ms)
+        gesture(window.service, Path().apply { moveTo(x1.toFloat(), y1.toFloat()); lineTo(x2.toFloat(), y2.toFloat()) }, ms, peek)
     }
 
     /**
      * 指を離さずに [points] を順に通る 1 本の操作 (`z2-ui drag`)。パズルのように、なぞる途中で指を
      * 離すと終わる画面のためのもの。点はすべて前面のアプリの窓の中。速さは道のり全体で一定 ([ms] で通り切る)。
      */
-    suspend fun drag(points: List<Pair<Int, Int>>, ms: Long, gate: (String) -> Unit) {
+    suspend fun drag(points: List<Pair<Int, Int>>, ms: Long, gate: (String) -> Unit, peek: Peek? = null) {
         val window = window() ?: throw Refusal("no_window", "No foreground app window")
         gate(window.pkg)
         if (points.any { (x, y) -> !window.bounds.contains(x, y) })
@@ -340,7 +353,7 @@ internal object AndroidUiLook {
             moveTo(points[0].first.toFloat(), points[0].second.toFloat())
             points.drop(1).forEach { (x, y) -> lineTo(x.toFloat(), y.toFloat()) }
         }
-        gesture(window.service, path, ms)
+        gesture(window.service, path, ms, peek)
     }
 
     /**
@@ -481,19 +494,41 @@ internal object AndroidUiLook {
         throw Refusal("capture_failed", "Android could not capture the screen")
     }
 
-    private suspend fun gesture(service: AccessibilityService, path: Path, ms: Long) = withContext(Dispatchers.Main) {
-        suspendCancellableCoroutine { cont ->
-            val stroke = GestureDescription.StrokeDescription(path, 0, ms)
-            val sent = service.dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(),
-                object : AccessibilityService.GestureResultCallback() {
-                    override fun onCompleted(gestureDescription: GestureDescription?) { if (cont.isActive) cont.resume(Unit) }
-                    override fun onCancelled(gestureDescription: GestureDescription?) {
-                        if (cont.isActive) cont.resumeWithException(Refusal("rejected", "Android cancelled the gesture"))
-                    }
-                }, null)
-            if (!sent && cont.isActive) cont.resumeWithException(Refusal("rejected", "Android rejected the gesture"))
+    /**
+     * 操作を送り、指が離れるまで待つ。[peek] があれば、指を置いている間に撮る。
+     * 撮影は操作の終わりを待たずに並べて走らせる (以前は 1 つずつで、指を離すまで撮れなかった)。
+     */
+    private suspend fun gesture(service: AccessibilityService, path: Path, ms: Long, peek: Peek? = null) = coroutineScope {
+        // 指が離れたことは結果の呼び戻しで直接残す (撮っている間はこの流れの再開が後回しになることがあるため)。
+        val ended = java.util.concurrent.atomic.AtomicBoolean(false)
+        val stroke = async { send(service, path, ms, ended) }
+        peek?.let {
+            delay(it.atMs)
+            it.result = it.take()
+            it.held = !ended.get()
         }
+        stroke.await()
     }
+
+    private suspend fun send(service: AccessibilityService, path: Path, ms: Long, ended: java.util.concurrent.atomic.AtomicBoolean) =
+        withContext(Dispatchers.Main) {
+            suspendCancellableCoroutine<Unit> { cont ->
+                val stroke = GestureDescription.StrokeDescription(path, 0, ms)
+                val sent = service.dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(),
+                    object : AccessibilityService.GestureResultCallback() {
+                        override fun onCompleted(gestureDescription: GestureDescription?) {
+                            ended.set(true)
+                            if (cont.isActive) cont.resume(Unit)
+                        }
+                        override fun onCancelled(gestureDescription: GestureDescription?) {
+                            ended.set(true)
+                            if (cont.isActive) cont.resumeWithException(Refusal("rejected", "Android cancelled the gesture"))
+                        }
+                    }, null)
+                if (!sent) ended.set(true)
+                if (!sent && cont.isActive) cont.resumeWithException(Refusal("rejected", "Android rejected the gesture"))
+            }
+        }
 
     /** 要素が出るまで待つ。前面が読めない・読んではいけない間は「まだ無い」として待ち続ける。 */
     suspend fun waitFor(selector: Target.Find, ms: Long, readable: (String) -> Boolean, alive: () -> Unit): Boolean {

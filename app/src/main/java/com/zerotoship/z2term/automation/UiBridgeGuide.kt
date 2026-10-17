@@ -115,7 +115,7 @@ Safety checks you will meet:
 | command | notes |
 |---|---|
 | `z2-ui tap <target>` | Tap. |
-| `z2-ui long <target>` | Long-press. |
+| `z2-ui long <target> [--hold MS]` | Long-press. With `@X,Y`, `--hold` sets how long the finger stays down, 100 to 10000 ms (default 600). |
 | `z2-ui type <target> <text> [--append]` | Replace the input's content with text (up to 4096 characters). `--append` adds to the end. Not for password fields (`password`). `not_input` if the element is not an input. |
 | `z2-ui enter <target>` | Press the keyboard's Enter/Search/Send action of an input. Focuses it first. |
 | `z2-ui key back` / `home` / `recents` | Global keys. `back` counts as an operation on the foreground app. |
@@ -132,6 +132,13 @@ after it in the same reply: z2-ui waits until the screen stops moving (at most 3
 captures the foreground app window as JPEG at scale 0.5 and puts the shot fields (path, size, box, scale, `stable`,
 `waited_ms`) under `shot`. Over MCP pass `"shot": true` (and `settle_ms`); the image is returned with the result.
 This replaces the separate shot call after every operation and halves the number of turns you need.
+
+Add `--peek MS` to `long @X,Y`, `swipe` or `drag` to see the screen WHILE the finger is still down: z2-ui captures
+MS after the finger touches (JPEG, scale 0.5) and puts the shot fields under `peek`, with `held` true when the finger
+was still down after the capture. Use it for things shown only during a touch (a move timer, a drag preview, a menu
+that closes on release). MS must be shorter than the gesture; leave at least 300 ms after it, because a capture can
+wait up to a third of a second for Android's limit. `held` false means the image may show the screen after release:
+use a smaller MS or a longer gesture. `--peek` and `--shot` can be combined (MCP: `peek_ms`).
 
 Operation results: `{"ok":true,"changed":true|false}` for element operations. Coordinate operations (`tap @X,Y`,
 `long @X,Y`, `swipe`, `drag`) return `{"ok":true}` without `changed` and return as soon as the gesture ends:
@@ -153,6 +160,9 @@ would only add a second. Check the result with `shot`.
   Then use `z2-ui tap @screen_x,screen_y` or `swipe`.
 - Screens that forbid capture come back black. Requires Android 11 (`unsupported` before).
 - Prefer look whenever it returns usable elements; shot is slower and coordinates break when the layout moves.
+- Each shot overwrites the previous file. Read it right after the call: shot files are deleted when z2-ui has not
+  been called for two minutes and when the user stops AI operation. Over MCP the file is deleted as soon as the
+  image is in the reply.
 
 ## 9. Speed, games and time limits
 
@@ -171,6 +181,8 @@ Design your moves so that time limits do not depend on your thinking time:
 - Use `--step` between 60 and 150 ms for board games: too fast may be ignored by the game, too slow may hit its timer.
   For a board, compute each cell centre from the shot once (box, scale and the grid) and reuse it.
 - Use `shot --jpeg --scale 0.5` (or smaller) when you only need to recognise colours and positions.
+- To read something that appears only while touching (for example the remaining move time), add `--peek MS` to the
+  `drag` or `long @X,Y` (section 7). Do not release and shoot afterwards: it is gone by then.
 - Coordinate operations do not wait for screen changes (section 7), so a following `shot` shows the result as soon as
   the game has drawn it; if the game animates, take the shot after a short pause or take it again.
 - Set expectations with the user: games that need reactions within a second are not playable through this interface.
@@ -238,6 +250,8 @@ notification. You learn about it as the reply to your next call:
 - Each tool result is the same JSON as the CLI, as text. `isError` is true when `ok` is false.
 - Operation tools (tap, long, type, enter, key, open, scroll, swipe, drag) accept `shot` (boolean) and `settle_ms`:
   with `shot` true the result also contains the screen after the operation, as an image.
+- long, swipe and drag accept `peek_ms`: the screen while the finger is down, as an image placed before the `shot`
+  image. long also accepts `hold_ms` for `@X,Y`.
 - Pause, instruction, stop and permission changes are not tools; they belong to the user.
 
 ## 15. Conduct

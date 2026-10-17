@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.37 (versionCode 735)**: AI app control can now capture the screen while the finger is still down. Before, a capture waited for the gesture to end, so the AI could not see things shown only during a touch (such as a puzzle's remaining move time). Add `--peek MS` to `long @X,Y` / `swipe` / `drag` to also get the screen MS after the finger touches. `--hold MS` sets the length of a long-press at coordinates. Captured screen files are no longer kept around: they are deleted after two unused minutes and on stop, and over MCP as soon as they are returned.
+
 **1.0.36 (versionCode 734)**: AI app control is faster again. (1) Add `--shot` to an operation (MCP: `"shot": true`) and z2-ui waits for the screen to stop moving, captures it and returns it in the same reply, so the AI thinks once per step instead of twice (tap, then capture). (2) `z2-ui shot --stable` waits for animations to finish before capturing, instead of capturing again and again. (3) Every `z2-*` command hands requests over with less work: even a no-op took about 0.5 s; the terminal side now starts 1–2 external commands instead of 8–10.
 
 **1.0.35 (versionCode 733)**: Screen-action macros (`z2-action`) gained Drag through points, a step that moves through several points without lifting the finger. Tap the points in order with Pick coordinates (they are numbered and joined, and Undo fixes mistakes), then choose the time per segment; on replay all points are joined at an even pace. In text: `drag percent 100 20,30 50,30 50,60`. Sequences using `z2-ui drag` saved with `z2-ui save` become this step.

@@ -209,7 +209,8 @@ internal object UiBridgeMcp {
                     }
                     optional("step")?.let { add("--step"); add(it) }
                 }
-                "tap", "long", "enter" -> name to listOf(text("target"))
+                "tap", "enter" -> name to listOf(text("target"))
+                "long" -> "long" to listOfNotNull(text("target"), optional("hold_ms")?.let { "--hold" }, optional("hold_ms"))
                 "type" -> "type" to listOfNotNull(text("target"), a.optString("text"), "--append".takeIf { a.optBoolean("append") })
                 "key" -> "key" to listOf(text("name"))
                 "open" -> "open" to listOf(text("target"))
@@ -228,16 +229,22 @@ internal object UiBridgeMcp {
             val after = buildList {
                 if (a.optBoolean("shot")) add("--shot")
                 optional("settle_ms")?.let { add("--settle"); add(it) }
+                optional("peek_ms")?.let { add("--peek"); add(it) }
             }
             UiBridge.execute(app, verb, args + after)
         } catch (e: Refusal) { UiBridge.failure(e.code, e.message.orEmpty()) }
         val content = JSONArray().put(JSONObject().put("type", "text").put("text", result.toString()))
-        val picture = if (name == "shot") result else result.optJSONObject("shot")
-        if (picture != null && picture.optBoolean("ok")) runCatching {
-            val file = picture.getString("path").substringAfterLast('/')
-            val bytes = File(app.filesDir, "shared_home/.z2term/ui/$file").readBytes()
-            content.put(JSONObject().put("type", "image").put("mimeType", if (file.endsWith(".jpg")) "image/jpeg" else "image/png")
-                .put("data", Base64.encodeToString(bytes, Base64.NO_WRAP)))
+        // 指を置いている間の画面 (peek) → 操作のあとの画面 (shot) の順に付ける。
+        val pictures = if (name == "shot") listOf(result) else listOfNotNull(result.optJSONObject("peek"), result.optJSONObject("shot"))
+        pictures.filter { it.optBoolean("ok") }.forEach { picture ->
+            runCatching {
+                val file = File(app.filesDir, "shared_home/.z2term/ui/" + picture.getString("path").substringAfterLast('/'))
+                val bytes = file.readBytes()
+                // 画像は返事に入れたので、ファイルは残さない。
+                file.delete()
+                content.put(JSONObject().put("type", "image").put("mimeType", if (file.name.endsWith(".jpg")) "image/jpeg" else "image/png")
+                    .put("data", Base64.encodeToString(bytes, Base64.NO_WRAP)))
+            }
         }
         return JSONObject().put("content", content).put("isError", !result.optBoolean("ok"))
     }
@@ -250,6 +257,9 @@ internal object UiBridgeMcp {
         val afterShot = mapOf("shot" to prop("boolean", "Also return the screen after the operation, once it stops moving (JPEG, scale 0.5)"),
             "settle_ms" to prop("integer", "With shot: wait at most this long for the screen to stop moving, 1..10000, default 3000"))
         val operations = setOf("tap", "long", "type", "enter", "key", "open", "scroll", "swipe", "drag")
+        // 指を置いたまま撮る。長押し・なぞる途中にだけ出る表示 (残り時間など) を見るためのもの。
+        val peek = mapOf("peek_ms" to prop("integer", "Also capture the screen this many ms after the finger goes down, " +
+            "while it is still down (JPEG, scale 0.5). Must be shorter than the gesture. The result's peek.held tells whether it was"))
         fun tool(name: String, description: String, props: Map<String, JSONObject> = emptyMap(), required: List<String> = emptyList()) =
             JSONObject().put("name", name).put("description", description).put("inputSchema", JSONObject().put("type", "object")
                 .put("properties", JSONObject((if (name in operations) props + afterShot else props) as Map<*, *>)).put("required", JSONArray(required)))
@@ -266,9 +276,10 @@ internal object UiBridgeMcp {
                 "Plan the whole path before calling; the move takes step ms per segment.",
                 mapOf("points" to JSONObject().put("type", "array").put("description", "2..256 points [x, y] in screen pixels")
                     .put("items", JSONObject().put("type", "array").put("items", JSONObject().put("type", "integer"))),
-                    "step" to prop("integer", "Milliseconds per segment, 20..1000, default 100")), listOf("points")),
+                    "step" to prop("integer", "Milliseconds per segment, 20..1000, default 100")) + peek, listOf("points")),
             tool("tap", "Tap an element.", mapOf("target" to target), listOf("target")),
-            tool("long", "Long-press an element.", mapOf("target" to target), listOf("target")),
+            tool("long", "Long-press an element.", mapOf("target" to target,
+                "hold_ms" to prop("integer", "Only for \"@X,Y\": how long the finger stays down, 100..10000, default 600")) + peek, listOf("target")),
             tool("type", "Replace (or append to) the text of an input field. Never works on password fields.",
                 mapOf("target" to target, "text" to prop("string", "Text, up to 4096 characters"),
                     "append" to prop("boolean", "Add to the end instead of replacing")), listOf("target", "text")),
@@ -282,7 +293,7 @@ internal object UiBridgeMcp {
                 "direction" to prop("string", "Direction", listOf("up", "down", "left", "right"))), listOf("target", "direction")),
             tool("swipe", "Swipe by pixel coordinates inside the foreground app window.", mapOf(
                 "x1" to prop("integer", "Start x"), "y1" to prop("integer", "Start y"), "x2" to prop("integer", "End x"),
-                "y2" to prop("integer", "End y"), "ms" to prop("integer", "50..3000, default 300")), listOf("x1", "y1", "x2", "y2")),
+                "y2" to prop("integer", "End y"), "ms" to prop("integer", "50..3000, default 300")) + peek, listOf("x1", "y1", "x2", "y2")),
             tool("notes", "Read your notes for an app, with the app version they were written for.",
                 mapOf("package" to prop("string", "Package name")), listOf("package")),
             tool("write_notes", "Replace your notes for an app (plain text, up to 64 KiB). Prefer resource IDs over labels.",

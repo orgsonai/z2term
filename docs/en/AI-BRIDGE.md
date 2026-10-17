@@ -55,7 +55,7 @@ Every output is one line of JSON. Success exits with 0, failure with non-zero. F
 | `z2-ui look` | Elements on the foreground screen (example below). `--all` includes meaningless containers too | |
 | `z2-ui look --tree` | The same with parent/child structure (`children` inside `tree`). Numbers match the flat list, so `#N` still works. Omitted containers are skipped and elements hang on the nearest listed ancestor | |
 | `z2-ui look --in N` | Read only inside element N of the last `look`, so a busy screen can be read part by part within the 512-element limit | |
-| `z2-ui shot [--scale 0.1..1] [--jpeg] [--stable [MS]]` | `--stable` waits until the screen stops moving (two consecutive frames nearly identical, at most MS, default 3000) before capturing (1.0.36). Save only the foreground app window to `/root/.z2term/ui/shot.png` (or `shot.jpg` with `--jpeg`, faster to write and smaller) and return `path`, image `size`, on-screen `box` and `scale`. Image (x, y) is screen (box.x + x / scale, box.y + y / scale). Everything outside the window is cut off so the notification shade and other apps are not captured | |
+| `z2-ui shot [--scale 0.1..1] [--jpeg] [--stable [MS]]` | `--stable` waits until the screen stops moving (two consecutive frames nearly identical, at most MS, default 3000) before capturing (1.0.36). Save only the foreground app window to `/root/.z2term/ui/shot.png` (or `shot.jpg` with `--jpeg`, faster to write and smaller) and return `path`, image `size`, on-screen `box` and `scale`. Image (x, y) is screen (box.x + x / scale, box.y + y / scale). Everything outside the window is cut off so the notification shade and other apps are not captured. Each capture overwrites the same file; files are deleted after two minutes without calls and on stop (MCP deletes them as soon as the image is in the reply, 1.0.37) | |
 | `z2-ui status` | Permission state (on/off, stopped, paused, default level, per-app levels, seconds left on approve-for, apps that are always refused) | |
 
 Use `z2-app list` for launchable apps (there is no `z2-ui apps`). `--all`, `--tree` and `--in N` can be combined.
@@ -94,7 +94,7 @@ Elements are addressed in one of these ways.
 | Command | Action | Stage |
 |---|---|---|
 | `z2-ui tap <element>` | Tap | |
-| `z2-ui long <element>` | Long-press | |
+| `z2-ui long <element> [--hold MS]` | Long-press. With coordinates (`@X,Y`), `--hold` sets how long the finger stays down (100–10000 ms, default 600, 1.0.37) | |
 | `z2-ui type <element> "text" [--append]` | Replace the field's content (`--append` adds to the end); up to 4096 characters | |
 | `z2-ui enter <element>` | Press the field's Enter action (search, send…); focuses the field first | |
 | `z2-ui key back\|home\|recents` | Android global action. `back` acts inside the foreground app, so it counts as an operation (subject to levels and approval) | |
@@ -106,6 +106,8 @@ Elements are addressed in one of these ways.
 | `z2-ui drag X1,Y1 X2,Y2 … [--step MS]` | One gesture that moves through every point without lifting (1.0.34). 2–256 points, 20–1000 ms per segment (default 100), 30 s at most; constant speed along the path. For screens where lifting the finger ends the move (puzzles, drawing) | |
 
 **Screen after the operation (1.0.36)**: add `--shot` to an operation (`tap` / `long` / `type` / `enter` / `key` / `open` / `scroll` / `swipe` / `drag` / `noti press`) and z2-ui waits until the screen stops moving (up to 3 s, or `--settle MS` up to 10 s), captures the foreground app window and returns it under `shot` (JPEG at scale 0.5). Over MCP use `"shot": true`; the image comes with the result. The AI no longer needs a separate capture after every tap, so it thinks once per step instead of twice.
+
+**Capture while the finger is down (1.0.37)**: add `--peek MS` to `long @X,Y` / `swipe` / `drag` and z2-ui captures the foreground app window MS after the finger touches, **before it lifts**, and returns it under `peek` (JPEG at scale 0.5; over MCP `peek_ms`). Things shown only during a touch (such as the remaining move time) are gone once the finger lifts. `held` true means the finger was still down when the capture finished. Keep MS shorter than the gesture and leave about 300 ms after it, because a capture can wait up to a third of a second for Android's interval limit. It can be combined with `--shot`.
 
 Coordinate operations (`tap @X,Y` / `long @X,Y` / `swipe` / `drag`) return as soon as the gesture ends and carry no `changed` (1.0.34): screens operated by coordinates (games and so on) are a single drawn surface where changes cannot be detected, so watching would cost a full second every time. Check the result with `shot`.
 

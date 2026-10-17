@@ -82,6 +82,11 @@ internal object UiBridgePolicy {
     const val SETTLE_DEFAULT_MS = 3000L
     const val SETTLE_MAX_MS = 10_000L
 
+    /** 座標の長押し (`long @X,Y --hold MS`) で指を置く長さ。 */
+    const val HOLD_DEFAULT_MS = 600L
+    const val HOLD_MIN_MS = 100L
+    const val HOLD_MAX_MS = 10_000L
+
     /** 操作の相手の指定。 */
     sealed interface Target {
         /** 直前の `look` の要素番号（`#2`）。 */
@@ -186,7 +191,13 @@ internal object UiBridgeReplay {
             }
             "tap", "long" -> {
                 val press = if (verb == "tap") "click" else "long-click"
-                fun at(x: Int, y: Int) = Step(if (verb == "tap") "tap px $x $y" else "long-press px $x $y 600", null, coordinates = true)
+                // `--hold` は座標の長押しだけ。z2-action の長押しは 500..3000 ms なので、外れる長さは保存を断る。
+                val hold = args.indexOf("--hold").takeIf { it >= 0 }?.let { args[it + 1].toLong() } ?: UiBridgePolicy.HOLD_DEFAULT_MS
+                fun at(x: Int, y: Int) = when {
+                    verb == "tap" -> Step("tap px $x $y", null, coordinates = true)
+                    hold !in 500L..3000L -> Step(null, "long --hold $hold")
+                    else -> Step("long-press px $x $y $hold", null, coordinates = true)
+                }
                 when (val target = UiBridgePolicy.target(args[0])) {
                     is UiBridgePolicy.Target.Find -> Step("$press ${target.selector}", null)
                     is UiBridgePolicy.Target.Point -> at(target.x, target.y)

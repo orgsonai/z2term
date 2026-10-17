@@ -97,6 +97,10 @@ class UiBridgePolicyTest {
         assertEquals("swipe px 1 2 3 4 300", step("swipe", "1", "2", "3", "4").line)
         assertEquals("drag px 80 10,20 30,40 50,60", step("drag", "10,20", "30,40", "--step", "80", "@50,60").line)
         assertEquals("drag px 100 1,2 3,4", step("drag", "1,2", "3,4").line)
+        // 座標の長押しは指を置いた長さのまま。z2-action の長押しの範囲 (500..3000) を外れる長さは保存を断る。
+        assertEquals("long-press px 5 6 600", step("long", "@5,6").line)
+        assertEquals("long-press px 5 6 1500", step("long", "@5,6", "--hold", "1500").line)
+        assertEquals("long --hold 5000", step("long", "@5,6", "--hold", "5000").unsupported)
         assertNull(step("look").line)
         assertNull(step("look").unsupported)
         assertEquals("tap #9", step("tap", "#9").unsupported)

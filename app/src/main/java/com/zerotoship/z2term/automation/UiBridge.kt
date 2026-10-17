@@ -118,11 +118,16 @@ internal object UiBridge {
      * 撮って保存し、結果の JSON を返す。画像の (x, y) は画面の (box.x + x / scale, box.y + y / scale)。
      * [stableMs] > 0 なら動きが止まるまで待つ (`stable` が止まったかどうか)。
      */
-    private fun takeShot(app: Context, settings: UiBridgeSettings, scale: Float, jpeg: Boolean, stableMs: Long, delayMs: Long): JSONObject {
+    private fun takeShot(app: Context, settings: UiBridgeSettings, scale: Float, jpeg: Boolean, stableMs: Long, delayMs: Long): JSONObject =
+        runBlocking { shotJson(app, settings, scale, jpeg, stableMs, delayMs) }
+
+    /** [takeShot] の中身。指を置いたまま撮る `--peek` は操作の途中から呼ぶので、止めずに待てる形で持つ。[base] はファイル名。 */
+    private suspend fun shotJson(app: Context, settings: UiBridgeSettings, scale: Float, jpeg: Boolean, stableMs: Long, delayMs: Long,
+        base: String = "shot"): JSONObject {
         if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
-        val name = if (jpeg) "shot.jpg" else "shot.png"
+        val name = if (jpeg) "$base.jpg" else "$base.png"
         val file = File(app.filesDir, "shared_home/.z2term/ui/$name")
-        val shot = runBlocking { AndroidUiLook.shot(file, scale, jpeg, { gateLook(app, settings, it) }, stableMs, delayMs) }
+        val shot = AndroidUiLook.shot(file, scale, jpeg, { gateLook(app, settings, it) }, stableMs, delayMs)
         lastPackage?.let { touch(app, it) }
         return success().put("path", "/root/.z2term/ui/$name").put("size", JSONArray(listOf(shot.size.width, shot.size.height)))
             .put("box", JSONArray(listOf(shot.box.left, shot.box.top, shot.box.width(), shot.box.height()))).put("scale", scale.toDouble())
@@ -131,34 +136,63 @@ internal object UiBridge {
 
     /** `--shot` を受ける命令 (操作のあとの画面を同じ呼び出しで返す)。 */
     private val SHOT_AFTER = setOf("tap", "long", "type", "enter", "key", "open", "scroll", "swipe", "drag", "noti")
+    /** `--peek` を受ける命令 (指を置いている間の画面を返す)。座標の長押し・スワイプ・なぞるだけ。 */
+    private val PEEK = setOf("long", "swipe", "drag")
+
+    /** 操作の命令から外した撮影の指定。[settle] は `--shot` / `--settle`、[peek] は `--peek` のミリ秒。 */
+    private class Capture(val settle: Long?, val peek: Long?)
 
     /**
-     * 操作の命令から `--shot` と `--settle MS` を外す。`--shot` があれば、操作のあと画面の動きが止まるのを
-     * 待ってから撮り (縮小 0.5 の JPEG)、結果の `shot` に入れる。AI は押すたびに撮り直す必要が無くなり、
-     * 1 手で考える回数が 2 回から 1 回になる。
+     * 操作の命令から `--shot` / `--settle MS` / `--peek MS` を外す。`--shot` があれば、操作のあと画面の動きが
+     * 止まるのを待ってから撮り (縮小 0.5 の JPEG)、結果の `shot` に入れる。AI は押すたびに撮り直す必要が無くなり、
+     * 1 手で考える回数が 2 回から 1 回になる。`--peek` は指を置いてから MS 後、離す前に撮って `peek` に入れる。
+     * どちらも手順の記録 (save) には残さない (見るだけで、操作の中身は変えないため)。
      */
-    private fun shotAfter(verb: String, args: List<String>): Pair<List<String>, Long?> {
-        if (verb !in SHOT_AFTER || ("--shot" !in args && "--settle" !in args)) return args to null
+    private fun capture(verb: String, args: List<String>): Pair<List<String>, Capture> {
+        if (verb !in SHOT_AFTER || args.none { it == "--shot" || it == "--settle" || it == "--peek" }) return args to Capture(null, null)
         val rest = mutableListOf<String>()
         var settle: Long? = null
+        var peek: Long? = null
         var i = 0
         while (i < args.size) {
             when (args[i]) {
                 "--shot" -> settle = settle ?: UiBridgePolicy.SETTLE_DEFAULT_MS
                 "--settle" -> settle = args.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 1..UiBridgePolicy.SETTLE_MAX_MS }
                     ?: throw Refusal("bad_args", "--settle takes 1..${UiBridgePolicy.SETTLE_MAX_MS} ms")
+                "--peek" -> {
+                    if (verb !in PEEK) throw Refusal("bad_args", "--peek is only for long @X,Y, swipe and drag")
+                    peek = args.getOrNull(++i)?.toLongOrNull()?.takeIf { it >= 0 }
+                        ?: throw Refusal("bad_args", "--peek takes milliseconds after the finger goes down")
+                }
                 else -> rest += args[i]
             }
             i++
         }
-        return rest to settle
+        return rest to Capture(settle, peek)
+    }
+
+    /** `--peek` の撮影。失敗しても操作は止めず、失敗の JSON を `peek` に入れる。 */
+    private fun peeker(app: Context, settings: UiBridgeSettings, atMs: Long?) = atMs?.let {
+        AndroidUiLook.Peek(it) {
+            try { shotJson(app, settings, 0.5f, true, 0L, 0L, "peek") } catch (e: Refusal) { failure(e.code, e.message.orEmpty()) }
+        }
+    }
+
+    /** `--peek MS` は指を離す前でなければ意味が無い。[duration] は指を置いている長さ。 */
+    private fun checkPeek(peek: Long?, duration: Long) {
+        if (peek != null && peek >= duration) throw Refusal("bad_args", "--peek must be shorter than the gesture ($duration ms)")
+    }
+
+    private fun JSONObject.putPeek(peek: AndroidUiLook.Peek?) = apply {
+        peek?.let { p -> p.result?.let { put("peek", it.put("held", p.held)) } }
     }
 
     /** 1 回の呼び出し。判定・実行・記録・手順の控えまで。CLI と MCP で共通。 */
     internal fun execute(app: Context, verb: String, rawArgs: List<String>): JSONObject {
-        val (args, settle) = try { shotAfter(verb, rawArgs) } catch (e: Refusal) { return failure(e.code, e.message.orEmpty()) }
+        val (args, capture) = try { capture(verb, rawArgs) } catch (e: Refusal) { return failure(e.code, e.message.orEmpty()) }
+        val settle = capture.settle
         val result = try {
-            handle(app, verb, args).also { done ->
+            handle(app, verb, args, capture.peek).also { done ->
                 // 操作が成功したときだけ撮る。直後は画面がまだ反応していないことがあるので 250 ms 置いてから。
                 if (settle != null && done.optBoolean("ok")) done.put("shot", try {
                     takeShot(app, UiBridgeSettings(app), 0.5f, true, settle, 250L)
@@ -178,7 +212,7 @@ internal object UiBridge {
     internal fun failure(code: String, text: String) = JSONObject().put("ok", false).put("error", code).put("message", text)
     internal fun success() = JSONObject().put("ok", true)
 
-    private fun handle(app: Context, verb: String, args: List<String>): JSONObject {
+    private fun handle(app: Context, verb: String, args: List<String>, peek: Long? = null): JSONObject {
         val settings = UiBridgeSettings(app)
         return when (verb) {
             "status" -> { count(args, 0); status(app, settings) }
@@ -244,7 +278,8 @@ internal object UiBridge {
                 require(args.size in 4..5) { "z2-ui swipe X1 Y1 X2 Y2 [MS]" }
                 val points = args.take(4).map { it.toIntOrNull()?.takeIf { v -> v >= 0 } ?: throw Refusal("bad_args", "Coordinates are pixels (0 or more)") }
                 val ms = args.getOrNull(4)?.let { it.toLongOrNull()?.takeIf { v -> v in 50..3000 } ?: throw Refusal("bad_args", "Duration must be 50..3000 ms") } ?: 300L
-                exclusive { swipe(app, settings, points, ms) }
+                checkPeek(peek, ms)
+                exclusive { swipe(app, settings, points, ms, peeker(app, settings, peek)) }
             }
             "drag" -> {
                 var step = 100L
@@ -265,9 +300,24 @@ internal object UiBridge {
                 if (points.size !in 2..256) throw Refusal("bad_args", "drag takes 2..256 points")
                 val ms = step * (points.size - 1)
                 if (ms > 30_000) throw Refusal("bad_args", "The whole drag must finish within 30000 ms")
-                exclusive { drag(app, settings, points, ms) }
+                checkPeek(peek, ms)
+                exclusive { drag(app, settings, points, ms, peeker(app, settings, peek)) }
             }
-            "tap", "long", "enter" -> { count(args, 1); exclusive { operate(app, settings, verb, UiBridgePolicy.target(args[0]), null, false) } }
+            "tap", "enter" -> { count(args, 1); exclusive { operate(app, settings, verb, UiBridgePolicy.target(args[0]), null, false) } }
+            "long" -> {
+                // `--hold MS` は座標の長押しで指を置く長さ。要素の長押しは Android の長押し操作なので長さを持たない。
+                val at = args.indexOf("--hold")
+                val hold = if (at < 0) null else args.getOrNull(at + 1)?.toLongOrNull()
+                    ?.takeIf { it in UiBridgePolicy.HOLD_MIN_MS..UiBridgePolicy.HOLD_MAX_MS }
+                    ?: throw Refusal("bad_args", "--hold takes ${UiBridgePolicy.HOLD_MIN_MS}..${UiBridgePolicy.HOLD_MAX_MS} ms")
+                val rest = if (at < 0) args else args.filterIndexed { i, _ -> i != at && i != at + 1 }
+                count(rest, 1)
+                val target = UiBridgePolicy.target(rest[0])
+                if ((hold != null || peek != null) && target !is Target.Point) throw Refusal("bad_args", "--hold and --peek need coordinates (@X,Y)")
+                val duration = hold ?: UiBridgePolicy.HOLD_DEFAULT_MS
+                checkPeek(peek, duration)
+                exclusive { operate(app, settings, verb, target, null, false, duration, peeker(app, settings, peek)) }
+            }
             "type" -> {
                 val append = args.lastOrNull() == "--append"
                 val rest = if (append) args.dropLast(1) else args
@@ -343,7 +393,7 @@ internal object UiBridge {
      * 座標の操作 (swipe / drag) は画面の変化を見張らない。座標で操作する画面 (ゲームなど) は要素を
      * 持たない 1 枚の絵で変化を検出できず、見張ると毎回 1 秒まるまる待つことになる。結果は shot で見る。
      */
-    private fun swipe(app: Context, settings: UiBridgeSettings, points: List<Int>, ms: Long): JSONObject {
+    private fun swipe(app: Context, settings: UiBridgeSettings, points: List<Int>, ms: Long, peek: AndroidUiLook.Peek?): JSONObject {
         val gen = enter(settings, true)
         device(app)
         val window = runBlocking { AndroidUiLook.window() } ?: throw Refusal("no_window", "No foreground app window")
@@ -352,15 +402,15 @@ internal object UiBridge {
         alive(app, gen)
         device(app)
         runBlocking {
-            AndroidUiLook.swipe(points[0], points[1], points[2], points[3], ms) { pkg ->
+            AndroidUiLook.swipe(points[0], points[1], points[2], points[3], ms, { pkg ->
                 if (pkg != window.pkg) throw Refusal("changed", "The foreground app changed; look again")
-            }
+            }, peek)
         }
         touch(app, window.pkg)
-        return success()
+        return success().putPeek(peek)
     }
 
-    private fun drag(app: Context, settings: UiBridgeSettings, points: List<Pair<Int, Int>>, ms: Long): JSONObject {
+    private fun drag(app: Context, settings: UiBridgeSettings, points: List<Pair<Int, Int>>, ms: Long, peek: AndroidUiLook.Peek?): JSONObject {
         val gen = enter(settings, true)
         device(app)
         val window = runBlocking { AndroidUiLook.window() } ?: throw Refusal("no_window", "No foreground app window")
@@ -368,12 +418,12 @@ internal object UiBridge {
         alive(app, gen)
         device(app)
         runBlocking {
-            AndroidUiLook.drag(points, ms) { pkg ->
+            AndroidUiLook.drag(points, ms, { pkg ->
                 if (pkg != window.pkg) throw Refusal("changed", "The foreground app changed; look again")
-            }
+            }, peek)
         }
         touch(app, window.pkg)
-        return success().put("ms", ms)
+        return success().put("ms", ms).putPeek(peek)
     }
 
     /**
@@ -447,6 +497,7 @@ internal object UiBridge {
         generation.incrementAndGet()
         pending?.let { it.answer = "deny"; it.latch.countDown() }
         AndroidUiLook.forget()
+        deleteShots(app)
         main.post { NotificationManagerCompat.from(app).cancel(NOTIFY_RUNNING) }
     }
 
@@ -457,7 +508,20 @@ internal object UiBridge {
         grants.clear()
         generation.incrementAndGet()
         pending?.let { it.answer = "deny"; it.latch.countDown() }
+        deleteShots(app)
         main.post { NotificationManagerCompat.from(app).cancel(NOTIFY_RUNNING) }
+    }
+
+    /**
+     * 撮った画面 (`shot.*` / `peek.*`) を消す。ほかのアプリの中身なので、使い終わったものを残し続けない。
+     * 停止・OFF のときと、しばらく呼ばれなかったとき ([idle]) に消す。MCP は画像を返したらすぐ消す。
+     */
+    internal fun deleteShots(app: Context) {
+        val dir = File(app.filesDir, "shared_home/.z2term/ui")
+        listOf("shot.png", "shot.jpg", "peek.jpg").forEach { name ->
+            File(dir, name).delete()
+            File(dir, ".$name.tmp").delete()
+        }
     }
 
     // --- 判定 ---
@@ -527,7 +591,8 @@ internal object UiBridge {
             .put("size", JSONArray(listOf(screen.width, screen.height))).put("rotation", screen.rotation).put("locked", locked)
     }
 
-    private fun operate(app: Context, settings: UiBridgeSettings, op: String, target: Target, text: String?, append: Boolean): JSONObject {
+    private fun operate(app: Context, settings: UiBridgeSettings, op: String, target: Target, text: String?, append: Boolean,
+        holdMs: Long = UiBridgePolicy.HOLD_DEFAULT_MS, peek: AndroidUiLook.Peek? = null): JSONObject {
         if (op == "type" && (text == null || text.length > 4096)) throw Refusal("bad_args", "Text must be at most 4096 characters")
         val gen = enter(settings, true)
         device(app)
@@ -539,13 +604,13 @@ internal object UiBridge {
         val watch = target !is Target.Point
         val changed = runBlocking {
             val before = if (watch) AndroidUiLook.fingerprint() else null
-            AndroidUiLook.act(op, target, text, append) { pkg ->
+            AndroidUiLook.act(op, target, text, append, { pkg ->
                 if (pkg != window.pkg) throw Refusal("changed", "The foreground app changed; look again")
-            }
+            }, holdMs, peek)
             if (watch) changedAfter(before) else null
         }
         touch(app, window.pkg)
-        return success().apply { changed?.let { put("changed", it) } }
+        return success().apply { changed?.let { put("changed", it) } }.putPeek(peek)
     }
 
     /** 操作の後 1 秒以内に画面が変わったか。遷移の完了までは保証しない。 */
@@ -689,8 +754,13 @@ internal object UiBridge {
             PendingIntent.FLAG_UPDATE_CURRENT or if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE)
 
     @Volatile private var appContext: Context? = null
-    // 一時停止中は消さない (再開のボタンがここにしか無い)。
-    private val idle = Runnable { if (!paused) appContext?.let { NotificationManagerCompat.from(it).cancel(NOTIFY_RUNNING) } }
+    // 一時停止中は通知を消さない (再開のボタンがここにしか無い)。撮った画面は一時停止中でも消す。
+    private val idle = Runnable {
+        appContext?.let { app ->
+            worker.execute { deleteShots(app) }
+            if (!paused) NotificationManagerCompat.from(app).cancel(NOTIFY_RUNNING)
+        }
+    }
 
     /** 呼ばれたアプリを覚え、常駐通知を出し直す。しばらく呼ばれなければ消す。 */
     private fun touch(app: Context, pkg: String) {
