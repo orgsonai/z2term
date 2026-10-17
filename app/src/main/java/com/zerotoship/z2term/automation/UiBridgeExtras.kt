@@ -209,6 +209,34 @@ internal object UiBridgeMcp {
                     }
                     optional("step")?.let { add("--step"); add(it) }
                 }
+                "colors" -> "colors" to buildList {
+                    val grid = a.optJSONObject("grid")
+                    if (grid != null) {
+                        val origin = grid.optJSONArray("origin")
+                        val step = grid.optJSONArray("step")
+                        if (origin == null || step == null) throw Refusal("bad_args", "grid needs origin [x, y] and step [dx, dy]")
+                        add("--grid"); add("${origin.optInt(0, -1)},${origin.optInt(1, -1)}")
+                        add("${step.optInt(0)},${step.optInt(1)}"); add("${grid.optInt("cols")}x${grid.optInt("rows")}")
+                    }
+                    a.optJSONArray("points")?.let { points ->
+                        for (i in 0 until points.length()) {
+                            val xy = points.optJSONArray(i) ?: throw Refusal("bad_args", "Each point is [x, y]")
+                            add("${xy.optInt(0, -1)},${xy.optInt(1, -1)}")
+                        }
+                    }
+                    optional("radius")?.let { add("--radius"); add(it) }
+                    if (a.optBoolean("hex")) add("--hex")
+                    if (a.optBoolean("stable")) add("--stable")
+                }
+                // 1 手は CLI と同じ語の並び (["tap", "@540,700"])。CLI の区切り `--` でつなぐ。
+                "seq" -> "seq" to buildList {
+                    val steps = a.optJSONArray("steps") ?: throw Refusal("bad_args", "seq needs steps")
+                    for (i in 0 until steps.length()) {
+                        val words = steps.optJSONArray(i) ?: throw Refusal("bad_args", "Each step is an array of words")
+                        if (i > 0) add("--")
+                        for (j in 0 until words.length()) add(words.optString(j))
+                    }
+                }
                 "tap", "enter" -> name to listOf(text("target"))
                 "long" -> "long" to listOfNotNull(text("target"), optional("hold_ms")?.let { "--hold" }, optional("hold_ms"))
                 "type" -> "type" to listOfNotNull(text("target"), a.optString("text"), "--append".takeIf { a.optBoolean("append") })
@@ -235,7 +263,13 @@ internal object UiBridgeMcp {
         } catch (e: Refusal) { UiBridge.failure(e.code, e.message.orEmpty()) }
         val content = JSONArray().put(JSONObject().put("type", "text").put("text", result.toString()))
         // 指を置いている間の画面 (peek) → 操作のあとの画面 (shot) の順に付ける。
-        val pictures = if (name == "shot") listOf(result) else listOfNotNull(result.optJSONObject("peek"), result.optJSONObject("shot"))
+        // seq は最後の 1 手だけが画像を作れる。
+        val last = if (name == "seq") result.optJSONArray("steps")?.let { it.optJSONObject(it.length() - 1) } else result
+        val pictures = when {
+            last == null -> emptyList()
+            name == "shot" || (name == "seq" && last.optString("verb") == "shot") -> listOf(last)
+            else -> listOfNotNull(last.optJSONObject("peek"), last.optJSONObject("shot"))
+        }
         pictures.filter { it.optBoolean("ok") }.forEach { picture ->
             runCatching {
                 val file = File(app.filesDir, "shared_home/.z2term/ui/" + picture.getString("path").substringAfterLast('/'))
@@ -277,6 +311,20 @@ internal object UiBridgeMcp {
                 mapOf("points" to JSONObject().put("type", "array").put("description", "2..256 points [x, y] in screen pixels")
                     .put("items", JSONObject().put("type", "array").put("items", JSONObject().put("type", "integer"))),
                     "step" to prop("integer", "Milliseconds per segment, 20..1000, default 100")) + peek, listOf("points")),
+            tool("colors", "Read colour names (black, gray, white, red, orange, brown, yellow, green, cyan, blue, purple, pink) " +
+                "at screen points or on a grid, as text. Much faster for you to read than an image.",
+                mapOf("points" to JSONObject().put("type", "array").put("description", "Points [x, y] in screen pixels (or use grid)")
+                    .put("items", JSONObject().put("type", "array").put("items", JSONObject().put("type", "integer"))),
+                    "grid" to JSONObject().put("type", "object").put("description", "Grid of cell centres: origin [x, y] of the top-left cell, " +
+                        "step [dx, dy] between cells, cols, rows (at most 400 cells). Returns one string per row"),
+                    "radius" to prop("integer", "Median over a square of this radius, 0..20, default 4"),
+                    "hex" to prop("boolean", "Grid: also return #rrggbb per cell"),
+                    "stable" to prop("boolean", "Wait until the screen stops moving (up to 3 s) first"))),
+            tool("seq", "Run several steps in one call, without thinking between them. Each step is the CLI words, " +
+                "e.g. [\"tap\", \"@540,700\"], [\"sleep\", \"500\"], [\"wait\", \"text=OK\"]. Stops at the first failure " +
+                "(failed_step). Images (shot, --shot, --peek) only in the last step.",
+                mapOf("steps" to JSONObject().put("type", "array").put("description", "1..32 steps")
+                    .put("items", JSONObject().put("type", "array").put("items", JSONObject().put("type", "string")))), listOf("steps")),
             tool("tap", "Tap an element.", mapOf("target" to target), listOf("target")),
             tool("long", "Long-press an element.", mapOf("target" to target,
                 "hold_ms" to prop("integer", "Only for \"@X,Y\": how long the finger stays down, 100..10000, default 600")) + peek, listOf("target")),

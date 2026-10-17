@@ -12,7 +12,7 @@ package com.zerotoship.z2term.automation
  */
 internal object UiBridgeGuide {
     /** ガイドに必ず載っている CLI の命令。UiBridgeGuideTest が照らし合わせる。 */
-    val VERBS = listOf("front", "look", "status", "shot", "tap", "long", "type", "enter", "key", "open", "wait", "wait-change",
+    val VERBS = listOf("front", "look", "status", "shot", "colors", "seq", "tap", "long", "type", "enter", "key", "open", "wait", "wait-change",
         "scroll", "swipe", "drag", "notes", "note", "mark", "save", "noti", "allow", "pause", "say", "stop", "mcp")
 
     val TEXT = """
@@ -25,7 +25,7 @@ through z2term (a terminal app). This guide is written for you, the AI. Follow i
 
 - Inside z2term on the phone: run `z2-ui ...` as a shell command.
 - From a PC: run `ssh <phone> z2-ui ...`. The user tells you the host name.
-- As an MCP server: the same operations are tools (section 14). You received this guide as the server instructions.
+- As an MCP server: the same operations are tools (section 15). You received this guide as the server instructions.
 - This guide is what `z2-ui --help` prints. It is the complete reference; you do not need any other document.
 - Every call prints exactly one line of JSON on stdout. Success: `{"ok":true,...}`, exit status 0.
   Failure: `{"ok":false,"error":"<code>","message":"..."}`, non-zero exit status. Always parse the JSON;
@@ -40,7 +40,7 @@ through z2term (a terminal app). This guide is written for you, the AI. Follow i
    - `accessibility` false or error `no_accessibility`: the user must enable the accessibility service
      "z2term Android actions" (`z2-key permission` opens the screen). Ask the user.
 2. Look at `default`, `apps` and `protected` in the status to know which apps you may read or operate.
-3. Before working in an app, run `z2-ui notes <package>` and read your notes if they exist (section 11).
+3. Before working in an app, run `z2-ui notes <package>` and read your notes if they exist (section 12).
 
 ## 3. Permission levels (decided by the user, never by you)
 
@@ -164,10 +164,45 @@ would only add a second. Check the result with `shot`.
   been called for two minutes and when the user stops AI operation. Over MCP the file is deleted as soon as the
   image is in the reply.
 
-## 9. Speed, games and time limits
+## 9. Faster: colors and seq (any app)
+
+Reading an image takes you far longer than reading a few words, and every call costs you one round of thinking.
+Two commands cut both:
+
+`z2-ui colors X,Y [X,Y ...] [--radius R] [--stable [MS]] [--hex]`
+`z2-ui colors --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex]`
+- Returns colour names as text, without saving an image: black, gray, white, red, orange, brown, yellow, green,
+  cyan, blue, purple, pink. Each point is the median over a square of radius R pixels (default 4, 0 to 20), so a
+  highlight or an edge does not decide it.
+- Points: `colors` is a list of `{x, y, name, hex}`. Grid: X0,Y0 is the centre of the top-left cell and DX,DY the
+  distance between cells (may be negative); `grid` is one string per row, left to right, top row first,
+  e.g. `["red blue green blue pink yellow", ...]`. `--hex` adds `#rrggbb` per cell. At most 400 points.
+- `--stable` waits until the screen stops moving first (as `shot --stable`). Same permission as shot (level look).
+- Use it whenever the state you need is a colour at a known place: board cells, a status lamp, a toggle drawn
+  without an element, whether a progress mark has gone. Take ONE shot to learn the layout (cell centres, where
+  the lamp is), write it in your notes, then use colors instead of shots. Names are coarse; when two things share
+  a name, use `--hex`.
+
+`z2-ui seq STEP -- STEP -- ...`
+- Runs several z2-ui steps in one call, in order, without coming back to you between them. Each STEP is a normal
+  command without `z2-ui`: `z2-ui seq tap '#3' -- wait 'text=Done' -- tap 'text=OK' --shot`.
+- `sleep MS` (1 to 10000) waits inside a seq. Allowed steps: front, look, shot, colors, tap, long, type, enter, key,
+  open, scroll, swipe, drag, wait, wait-change, noti, sleep. At most 32 steps.
+- Stops at the first failing step. The reply is `{"ok":true,"steps":[...]}` with each step's own result and `verb`;
+  on failure `ok` is false, `error` is the step's error code, and `failed_step` tells which step (1-based).
+- Images (shot, `--shot`, `--peek`) only in the LAST step (each image overwrites the previous file).
+- `#N` refers to the look before the seq unless a look step comes earlier in the same seq.
+- Every step is checked and logged exactly as if called alone: approvals with `ask`, pause, instructions and stop
+  still apply, and `mark`/`save` record the steps. A seq stops starting new steps after 60 s (`timeout`).
+- Use it when you already know the next steps: filling a form (type, type, tap), walking through known dialogs,
+  a fixed path through menus, or "do the move, wait, read the board" in a game:
+  `z2-ui seq drag ... -- colors --grid ... --stable`.
+
+## 10. Speed, games and time limits
 
 Your own thinking time between calls is the slowest part, and z2-ui cannot shorten it. Each call itself takes about
-0.2 s. So the number of calls you make is what decides the speed:
+0.2 s. So the number of calls you make, and how much you must read, decide the speed:
+- Send known steps together with `seq`, and read colours with `colors` instead of images (section 9).
 - Use ONE call per step: the operation with `--shot` (MCP: `"shot": true`). Do not follow each tap with a separate shot.
 - When you need to wait for an animation or a dialog, use one `shot --stable` instead of repeated shots.
 - When the next taps are already known (for example several OK buttons at the same place in a tutorial), you may send
@@ -188,7 +223,7 @@ Design your moves so that time limits do not depend on your thinking time:
 - Set expectations with the user: games that need reactions within a second are not playable through this interface.
 - The user must set the game to level `auto`; with `ask` every move waits for an approval.
 
-## 10. Interruptions from the user (highest priority)
+## 11. Interruptions from the user (highest priority)
 
 While you work, the target app is in front and the user cannot type into your terminal. They control you through a
 notification. You learn about it as the reply to your next call:
@@ -205,7 +240,7 @@ notification. You learn about it as the reply to your next call:
 - `z2-ui pause`, `z2-ui say <text>` and `z2-ui stop` exist for the user (tiles and panels do the same as the
   notification). Do not call them yourself.
 
-## 11. Notes per app (your memory across sessions)
+## 12. Notes per app (your memory across sessions)
 
 - `z2-ui notes <package>`: returns `exists`, `text`, `noted_version` and `app_version`.
 - `z2-ui note <package> <text>` or `z2-ui note <package> -` (text from stdin): replaces your notes, up to 64 KiB.
@@ -218,7 +253,7 @@ notification. You learn about it as the reply to your next call:
   - Pitfalls: dialogs, delays, things that need wait.
 - Never write secrets (passwords, codes, personal data the user did not ask you to keep) into notes.
 
-## 12. Saving a routine as a macro
+## 13. Saving a routine as a macro
 
 - `z2-ui mark` starts a recording. Then operate. `z2-ui save <name>` saves the successful operations since mark as a
   z2-action macro (`/root/.z2term/actions/<name>.actions`) that the user can run from tiles and panels without you.
@@ -231,7 +266,7 @@ notification. You learn about it as the reply to your next call:
 - `nothing_recorded`: nothing succeeded since mark. Names: 1 to 64 letters, digits, `_` or `-`. At most 64 steps (`too_long`).
 - Only save when the user wants a reusable routine.
 
-## 13. Notifications
+## 14. Notifications
 
 - `z2-ui noti list`: notifications of apps at level look or above, each with `key`, `package`, `app`, `title`, `text`
   and `actions` (`label`, `reply` = whether the button takes text).
@@ -240,10 +275,12 @@ notification. You learn about it as the reply to your next call:
 - `no_notification_access`: the user has not granted notification access to z2term. Ask the user.
 - z2term's own notifications (including approvals) are never listed. You cannot and must not approve your own requests.
 
-## 14. MCP
+## 15. MCP
 
 - Start: `z2-ui mcp` (stdio). From a PC, register `ssh <phone> z2-ui mcp` as a stdio MCP server.
-- Tools: front, look (all, tree, in), shot (scale, format, stable; also returns the image), tap, long, enter (target), type (target, text,
+- Tools: front, look (all, tree, in), shot (scale, format, stable; also returns the image), colors (points or grid
+  {origin, step, cols, rows}, radius, hex, stable), seq (steps as [["tap", "@540,700"], ["sleep", "500"], ...]; the image of
+  a last shot step is returned), tap, long, enter (target), type (target, text,
   append), key (name), open (target), wait (selector, ms), wait_change (ms), scroll (target, direction),
   swipe (x1, y1, x2, y2, ms), drag (points as [[x, y], ...], step), notes (package), write_notes (package, text), mark, save (name), notifications,
   press_notification (key, label, reply), status, guide.
@@ -254,7 +291,7 @@ notification. You learn about it as the reply to your next call:
   image. long also accepts `hold_ms` for `@X,Y`.
 - Pause, instruction, stop and permission changes are not tools; they belong to the user.
 
-## 15. Conduct
+## 16. Conduct
 
 - Do only what the user asked. Before irreversible actions (sending messages, posting, purchases, deleting,
   changing account settings), make sure the user explicitly asked for that exact action. If in doubt, ask first.
@@ -264,7 +301,7 @@ notification. You learn about it as the reply to your next call:
 - When you finish, tell the user what you did in which app, and anything you could not do.
 - The log at `/root/.z2term/ui/log.jsonl` records your calls (typed text is recorded only as a length). The user can read it.
 
-## 16. Error codes
+## 17. Error codes
 
 | error | meaning | what to do |
 |---|---|---|
@@ -286,8 +323,9 @@ notification. You learn about it as the reply to your next call:
 | too_many / too_large | screen too big to read at once | use `look --in N` |
 | rejected | Android refused the operation | look and try another way |
 | unsupported / capture_failed | feature not available or capture failed | use look instead of shot |
-| unsupported_step / exists / nothing_recorded / too_long | save could not be done | see section 12 |
+| unsupported_step / exists / nothing_recorded / too_long | save could not be done | see section 13 |
 | no_notification_access | notification access missing | ask the user |
+| timeout | a seq ran over 60 s; later steps were not run | look, then continue with fewer steps |
 | bad_args | wrong command or arguments | read this guide and fix the call |
 | no_response | z2term did not answer | check that z2term is running; ask the user |
 """.trim()

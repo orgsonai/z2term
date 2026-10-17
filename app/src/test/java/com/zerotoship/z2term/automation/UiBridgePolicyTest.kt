@@ -79,6 +79,33 @@ class UiBridgePolicyTest {
         assertEquals(listOf(-1, 0), UiBridgePolicy.parents(listOf(emptyList(), listOf(4))).toList())
     }
 
+    @Test fun colorNamesAreCoarseButStable() {
+        fun name(hex: String) = UiBridgePolicy.colorName(hex.removePrefix("#").toInt(16))
+        assertEquals("red", name("#e03020"))
+        assertEquals("pink", name("#f070c0"))
+        assertEquals("pink", name("#f09090"))
+        assertEquals("orange", name("#f08020"))
+        assertEquals("brown", name("#804010"))
+        assertEquals("yellow", name("#f0e040"))
+        assertEquals("green", name("#30c040"))
+        assertEquals("cyan", name("#20c0d0"))
+        assertEquals("blue", name("#2060e0"))
+        assertEquals("purple", name("#9030d0"))
+        assertEquals("white", name("#f4f4f4"))
+        assertEquals("gray", name("#808080"))
+        assertEquals("black", name("#101010"))
+        assertTrue(listOf("#e03020", "#808080").map(::name).all { it in UiBridgePolicy.COLOR_NAMES })
+        assertEquals("#0a0b0c", UiBridgePolicy.hex(0xff0a0b0c.toInt()))
+    }
+
+    @Test fun medianIgnoresAHighlight() {
+        // 赤い 8 点に白い光沢が 1 点。平均なら薄まるが、中央値は赤のまま。
+        val red = 0xe03020
+        val pixels = IntArray(9) { if (it == 4) 0xffffff else red }
+        assertEquals(red, UiBridgePolicy.median(pixels))
+        assertEquals(0, UiBridgePolicy.median(IntArray(0)))
+    }
+
     @Test fun replayPrefersIdsThenTextThenCoordinates() {
         val named = mapOf(1 to UiBridgeReplay.Named("org.example.app:id/next", "次へ", null, 10, 20),
             2 to UiBridgeReplay.Named(null, "送信", null, 30, 40),

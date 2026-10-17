@@ -87,6 +87,46 @@ internal object UiBridgePolicy {
     const val HOLD_MIN_MS = 100L
     const val HOLD_MAX_MS = 10_000L
 
+    /** 点ごとの中央値 (0xRRGGBB)。赤・緑・青をそれぞれ並べて真ん中を取る。光沢や縁の 1 点に引っぱられない。 */
+    fun median(pixels: IntArray): Int {
+        if (pixels.isEmpty()) return 0
+        fun channel(shift: Int) = pixels.map { (it shr shift) and 0xff }.sorted()[pixels.size / 2]
+        return (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
+    }
+
+    /** `z2-ui colors` が返す色の名前。AI が画像を読まずに盤面や状態を見分けるための粗い分け方。 */
+    val COLOR_NAMES = listOf("black", "gray", "white", "red", "orange", "brown", "yellow", "green", "cyan", "blue", "purple", "pink")
+
+    fun colorName(rgb: Int): String {
+        val r = (rgb shr 16) and 0xff
+        val g = (rgb shr 8) and 0xff
+        val b = rgb and 0xff
+        val max = maxOf(r, g, b)
+        val min = minOf(r, g, b)
+        val v = max / 255f
+        val s = if (max == 0) 0f else (max - min) / max.toFloat()
+        if (v < 0.2f) return "black"
+        if (s < 0.2f) return when { v > 0.85f -> "white"; else -> "gray" }
+        val d = (max - min).toFloat()
+        val h = when (max) {
+            r -> 60f * (((g - b) / d) % 6f)
+            g -> 60f * ((b - r) / d + 2f)
+            else -> 60f * ((r - g) / d + 4f)
+        }.let { if (it < 0f) it + 360f else it }
+        return when {
+            h < 15f || h >= 345f -> if (s < 0.5f && v > 0.7f) "pink" else "red"
+            h < 45f -> if (v < 0.6f) "brown" else "orange"
+            h < 70f -> "yellow"
+            h < 160f -> "green"
+            h < 195f -> "cyan"
+            h < 255f -> "blue"
+            h < 290f -> "purple"
+            else -> "pink"
+        }
+    }
+
+    fun hex(rgb: Int) = "#%06x".format(rgb and 0xffffff)
+
     /** 操作の相手の指定。 */
     sealed interface Target {
         /** 直前の `look` の要素番号（`#2`）。 */
@@ -166,7 +206,7 @@ internal object UiBridgeReplay {
     /** [line] が z2-action の 1 行。書き直せないときは [unsupported] に操作名。読むだけの操作は両方 null。 */
     data class Step(val line: String?, val unsupported: String?, val coordinates: Boolean = false)
 
-    private val READ_ONLY = setOf("front", "look", "status", "shot", "notes", "note", "mark", "save", "allow", "pause", "say", "stop")
+    private val READ_ONLY = setOf("front", "look", "status", "shot", "colors", "notes", "note", "mark", "save", "allow", "pause", "say", "stop")
 
     private fun selector(named: Named): String? = listOfNotNull(
         named.id?.let { "id=$it" },

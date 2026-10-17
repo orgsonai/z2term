@@ -204,8 +204,9 @@ internal object UiBridge {
             Log.w(TAG, "z2-ui $verb failed", e)
             failure("error", e.message ?: e.javaClass.simpleName)
         }
-        if (verb !in setOf("status", "")) log(app, verb, args, result)
-        if (result.optBoolean("ok")) UiBridgeRecorder.record(verb, args)
+        // seq は中の 1 手ずつを記録・控えるので、まとめた呼び出し自体は残さない。
+        if (verb !in setOf("status", "", "seq")) log(app, verb, args, result)
+        if (verb != "seq" && result.optBoolean("ok")) UiBridgeRecorder.record(verb, args)
         return result
     }
 
@@ -268,6 +269,8 @@ internal object UiBridge {
                 device(app)
                 takeShot(app, settings, scale, jpeg, stable, 0L)
             }
+            "colors" -> { enter(settings, false); device(app); colors(app, settings, args) }
+            "seq" -> seq(app, settings, args)
             "scroll" -> {
                 count(args, 2)
                 val target = UiBridgePolicy.target(args[0])
@@ -367,6 +370,140 @@ internal object UiBridge {
             else -> throw Refusal("bad_args", "See z2-ui --help")
         }
     }
+
+    /** `--stable [MS]` を読む。後ろに数字があればそれを最大待ちにする。読んだ位置を返す。 */
+    private fun stableArg(args: List<String>, i: Int): Pair<Long, Int> {
+        val next = args.getOrNull(i + 1)?.toLongOrNull() ?: return UiBridgePolicy.SETTLE_DEFAULT_MS to i
+        return (next.takeIf { it in 1..UiBridgePolicy.SETTLE_MAX_MS }
+            ?: throw Refusal("bad_args", "--stable takes 1..${UiBridgePolicy.SETTLE_MAX_MS} ms")) to i + 1
+    }
+
+    private fun point(arg: String): Pair<Int, Int> {
+        val xy = arg.removePrefix("@").split(',').map { it.toIntOrNull() }
+        if (xy.size != 2 || xy.any { it == null || it < 0 }) throw Refusal("bad_args", "Points look like 540,1200")
+        return xy[0]!! to xy[1]!!
+    }
+
+    /**
+     * `colors X,Y … | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex]`。
+     * 画面の点の色を名前 (と `--hex` で #rrggbb) の文字で返す。画像を読ませるより AI がずっと速く判断できる。
+     * 盤面・色で状態を示す画面 (ランプ・スイッチ・読み込み中の印など) を、撮らずに見分けるためのもの。
+     */
+    private fun colors(app: Context, settings: UiBridgeSettings, args: List<String>): JSONObject {
+        if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
+        val usage = "z2-ui colors X,Y ... | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--hex]"
+        var radius = 4
+        var stable = 0L
+        var hex = false
+        var grid: Pair<Int, Int>? = null
+        val points = mutableListOf<Pair<Int, Int>>()
+        var i = 0
+        while (i < args.size) {
+            when (args[i]) {
+                "--radius" -> radius = args.getOrNull(++i)?.toIntOrNull()?.takeIf { it in 0..20 }
+                    ?: throw Refusal("bad_args", "--radius must be 0..20")
+                "--stable" -> stableArg(args, i).let { (ms, at) -> stable = ms; i = at }
+                "--hex" -> hex = true
+                "--grid" -> {
+                    if (grid != null || points.isNotEmpty()) throw Refusal("bad_args", usage)
+                    val origin = point(args.getOrNull(i + 1) ?: throw Refusal("bad_args", usage))
+                    val step = args.getOrNull(i + 2)?.split(',')?.map { it.toIntOrNull() }
+                        ?.takeIf { it.size == 2 && it.all { v -> v != null } }?.map { it!! }
+                        ?: throw Refusal("bad_args", "--grid X0,Y0 DX,DY COLSxROWS (DX, DY may be negative)")
+                    val size = args.getOrNull(i + 3)?.split('x')?.map { it.toIntOrNull() }
+                        ?.takeIf { it.size == 2 && it.all { v -> v != null && v >= 1 } }?.map { it!! }
+                        ?: throw Refusal("bad_args", "Grid size looks like 6x5")
+                    if (size[0] * size[1] > MAX_COLOR_POINTS) throw Refusal("bad_args", "At most $MAX_COLOR_POINTS cells")
+                    grid = size[0] to size[1]
+                    for (r in 0 until size[1]) for (c in 0 until size[0]) {
+                        val x = origin.first + c * step[0]
+                        val y = origin.second + r * step[1]
+                        if (x < 0 || y < 0) throw Refusal("outside", "Grid cell ${c + 1},${r + 1} is off the screen")
+                        points += x to y
+                    }
+                    i += 3
+                }
+                else -> { if (grid != null) throw Refusal("bad_args", usage); points += point(args[i]) }
+            }
+            i++
+        }
+        if (points.isEmpty()) throw Refusal("bad_args", usage)
+        if (points.size > MAX_COLOR_POINTS) throw Refusal("bad_args", "At most $MAX_COLOR_POINTS points")
+        val sample = runBlocking { AndroidUiLook.sample(points, radius, { gateLook(app, settings, it) }, stable) }
+        lastPackage?.let { touch(app, it) }
+        val names = sample.rgb.map(UiBridgePolicy::colorName)
+        return success().apply {
+            val size = grid
+            if (size != null) {
+                // 1 行を 1 つの文字列にする (AI が読む量を減らす)。左上が 1 列 1 行目。
+                put("grid", JSONArray(names.chunked(size.first).map { it.joinToString(" ") }))
+                if (hex) put("hex", JSONArray(sample.rgb.toList().chunked(size.first).map { row -> row.joinToString(" ") { UiBridgePolicy.hex(it) } }))
+            } else {
+                put("colors", JSONArray(points.indices.map { n ->
+                    JSONObject().put("x", points[n].first).put("y", points[n].second).put("name", names[n])
+                        .put("hex", UiBridgePolicy.hex(sample.rgb[n]))
+                }))
+            }
+            sample.stable?.let { put("stable", it) }
+        }
+    }
+
+    /**
+     * `seq STEP -- STEP -- …`: 決まっている手順をまとめて 1 回で送る。1 手ずつ AI が考える往復を省く。
+     * 各手は単独で呼んだときと同じ判定・記録を通る (承認・一時停止・指示も 1 手ごとに効く)。
+     * 失敗した手で止め、それまでの結果と何手目かを返す。
+     *
+     * ⚠ 画像を作る手 (`shot`・`--shot`・`--peek`) は最後の 1 手だけ。同じファイルへ上書きするので、途中の画像は
+     * 返す前に消えてしまう。`sleep MS` は seq の中だけの「待つ」。
+     */
+    private fun seq(app: Context, settings: UiBridgeSettings, args: List<String>): JSONObject {
+        val steps = mutableListOf(mutableListOf<String>())
+        args.forEach { if (it == "--") steps += mutableListOf<String>() else steps.last() += it }
+        if (steps.any { it.isEmpty() }) throw Refusal("bad_args", "z2-ui seq VERB ARGS -- VERB ARGS ... (no empty steps)")
+        if (steps.size > MAX_SEQ_STEPS) throw Refusal("bad_args", "seq takes at most $MAX_SEQ_STEPS steps")
+        steps.forEachIndexed { n, step ->
+            val verb = step[0]
+            if (verb !in SEQ_VERBS) throw Refusal("bad_args", "Step ${n + 1}: $verb cannot be used in seq")
+            val picture = verb == "shot" || step.any { it == "--shot" || it == "--settle" || it == "--peek" }
+            if (picture && n != steps.lastIndex) throw Refusal("bad_args", "Step ${n + 1}: images (shot, --shot, --peek) only in the last step")
+        }
+        val gen = enter(settings, false)
+        val started = SystemClock.elapsedRealtime()
+        val results = JSONArray()
+        steps.forEachIndexed { n, step ->
+            // 承認待ちなどで長引くと、呼んだ側 (z2api) が先に諦める。次の手を始める前に打ち切る。
+            if (SystemClock.elapsedRealtime() - started > SEQ_LIMIT_MS) return stepFailure(results, n,
+                failure("timeout", "seq took over ${SEQ_LIMIT_MS / 1000} s; the remaining steps were not run"))
+            val result = if (step[0] == "sleep") sleep(app, gen, step) else execute(app, step[0], step.drop(1))
+            results.put(result.put("verb", step[0]))
+            if (!result.optBoolean("ok")) return stepFailure(results, n, result)
+        }
+        return success().put("steps", results)
+    }
+
+    private fun stepFailure(results: JSONArray, n: Int, result: JSONObject) = failure(result.optString("error", "error"),
+        "Step ${n + 1}: " + result.optString("message")).put("failed_step", n + 1).put("steps", results)
+
+    /** seq の `sleep MS`。待つ間も一時停止・指示・停止で止まる。 */
+    private fun sleep(app: Context, gen: Int, step: List<String>): JSONObject = try {
+        val ms = step.getOrNull(1)?.toLongOrNull()?.takeIf { step.size == 2 && it in 1..10_000 }
+            ?: throw Refusal("bad_args", "sleep takes 1..10000 ms")
+        val until = SystemClock.elapsedRealtime() + ms
+        while (true) {
+            alive(app, gen)
+            val left = until - SystemClock.elapsedRealtime()
+            if (left <= 0) break
+            Thread.sleep(minOf(left, 100L))
+        }
+        success()
+    } catch (e: Refusal) { failure(e.code, e.message.orEmpty()) }
+
+    private const val MAX_COLOR_POINTS = 400
+    private const val MAX_SEQ_STEPS = 32
+    private const val SEQ_LIMIT_MS = 60_000L
+    /** seq に入れられる命令 (と seq だけの sleep)。許可の変更・覚え書き・停止などは入れない。 */
+    private val SEQ_VERBS = setOf("front", "look", "shot", "colors", "tap", "long", "type", "enter", "key", "open", "scroll",
+        "swipe", "drag", "wait", "wait-change", "noti", "sleep")
 
     private class LookFlags(val all: Boolean, val tree: Boolean, val within: Int?)
 

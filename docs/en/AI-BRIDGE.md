@@ -121,6 +121,22 @@ There is no `key shade`: the notification shade (system UI) is never available t
 - If the element changes right before the tap, nothing is tapped. Operations are never resent or silently turned into coordinate taps, the same as `z2-action`.
 - A successful operation returns `{"ok":true,"changed":true|false}`. `changed` tells whether the screen changed within one second; it does not guarantee that a transition finished, so the AI follows with `wait` or `look` when needed.
 
+### 4.2.1 Going faster: colours as text and several steps per call (1.0.38)
+
+Most of the time goes into the AI reading an image and thinking between calls (5–10 s per step in the device log; z2-ui itself takes about 0.2 s per call). Two commands reduce how often it thinks and how much it reads. They work in any app.
+
+| command | what it does |
+|---|---|
+| `z2-ui colors X,Y [X,Y ...] [--radius R] [--stable [MS]] [--hex]` | Return the colours at screen points as **names in text** (no image is saved): black, gray, white, red, orange, brown, yellow, green, cyan, blue, purple, pink. Each point is the median over a square of radius R (default 4, 0–20) px, so a highlight or an edge does not decide it. `colors` holds `{x, y, name, hex}` per point |
+| `z2-ui colors --grid X0,Y0 DX,DY COLSxROWS ...` | Read points laid out in a grid. X0,Y0 is the centre of the top-left cell, DX,DY the distance between cells (may be negative). `grid` has one string per row (e.g. `["red blue green blue pink yellow", ...]`). `--hex` adds `#rrggbb`. At most 400 points |
+| `z2-ui seq STEP -- STEP -- ...` | Send known steps **together in one call**. A step is a normal command without `z2-ui` (e.g. `z2-ui seq tap '#3' -- wait 'text=Done' -- tap 'text=OK' --shot`). `sleep MS` (1–10000) waits. At most 32 steps |
+
+- `colors` needs the same level as `shot` (look). `--stable` waits until the screen stops moving first. Use it for states shown by the colour at a known place: board cells, a status lamp, a toggle without an element. Capture once to learn the layout, write the positions in the notes, and read colours from then on instead of images.
+- Steps allowed in `seq`: front, look, shot, colors, tap, long, type, enter, key, open, scroll, swipe, drag, wait, wait-change, noti, sleep. It stops at the first failing step and returns `failed_step` (1-based) and each step's result so far (`steps`).
+- Each step goes through the same checks and logging as a single call (approvals with `ask`, pause, instructions and stop apply per step, and `mark` → `save` records them). No new step starts after 60 s (`timeout`).
+- Steps that produce an image (`shot`, `--shot`, `--peek`) only as the last step: each image overwrites the same file, so earlier ones would be gone before the reply.
+- Over MCP: `colors` (`points` or `grid`: `{origin, step, cols, rows}`) and `seq` (`steps`: `[["tap", "@540,700"], ["sleep", "500"]]`).
+
 ### 4.3 Passwords and protected screens
 
 - `type` never targets password fields (`error:"password"`). A person enters credentials.

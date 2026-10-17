@@ -401,24 +401,8 @@ internal object AndroidUiLook {
     suspend fun shot(file: java.io.File, scale: Float, jpeg: Boolean, gate: (String) -> Unit,
         stableMs: Long = 0, delayMs: Long = 0): Shot {
         val started = SystemClock.uptimeMillis()
-        if (delayMs > 0) delay(delayMs)
-        val window = window() ?: throw Refusal("no_window", "No foreground app window")
-        gate(window.pkg)
-        var image = capture(window.service)
-        var stable: Boolean? = null
-        if (stableMs > 0) {
-            stable = false
-            var previous = thumbnail(image, window.bounds)
-            while (SystemClock.uptimeMillis() - started < stableMs + delayMs) {
-                val next = capture(window.service)
-                val current = thumbnail(next, window.bounds)
-                image.recycle(); image = next
-                if (UiBridgePolicy.settled(previous, current)) { stable = true; break }
-                previous = current
-            }
-        }
+        val (window, image, stable) = frame(gate, stableMs, delayMs)
         try {
-            if (window()?.id != window.id) throw Refusal("changed", "The screen changed while capturing; try again")
             val area = Rect(window.bounds)
             if (!area.intersect(0, 0, image.width, image.height)) throw Refusal("no_window", "The window is outside the captured screen")
             val cropped = android.graphics.Bitmap.createBitmap(image, area.left, area.top, area.width(), area.height())
@@ -440,6 +424,61 @@ internal object AndroidUiLook {
                 if (out !== cropped) out.recycle()
                 if (cropped !== image) cropped.recycle()
             }
+        } finally { image.recycle() }
+    }
+
+    /**
+     * 前面の窓と、画面全体を撮った 1 枚。[stableMs] > 0 なら動きが止まるまで撮り続ける ([shot] を参照)。
+     * 3 つ目は止まったか ([stableMs] が 0 なら null)。撮っている間に前面が変わったら断る。
+     */
+    @androidx.annotation.RequiresApi(30)
+    private suspend fun frame(gate: (String) -> Unit, stableMs: Long, delayMs: Long): Triple<Window, android.graphics.Bitmap, Boolean?> {
+        val started = SystemClock.uptimeMillis()
+        if (delayMs > 0) delay(delayMs)
+        val window = window() ?: throw Refusal("no_window", "No foreground app window")
+        gate(window.pkg)
+        var image = capture(window.service)
+        var stable: Boolean? = null
+        if (stableMs > 0) {
+            stable = false
+            var previous = thumbnail(image, window.bounds)
+            while (SystemClock.uptimeMillis() - started < stableMs + delayMs) {
+                val next = capture(window.service)
+                val current = thumbnail(next, window.bounds)
+                image.recycle(); image = next
+                if (UiBridgePolicy.settled(previous, current)) { stable = true; break }
+                previous = current
+            }
+        }
+        if (window()?.id != window.id) { image.recycle(); throw Refusal("changed", "The screen changed while capturing; try again") }
+        return Triple(window, image, stable)
+    }
+
+    /** [sample] の結果。[rgb] は点ごとの 0xRRGGBB。 */
+    class Sample(val rgb: IntArray, val stable: Boolean?)
+
+    /**
+     * 画面の点の色を読む (`z2-ui colors`)。画像を保存せず、AI には色の名前を文字で返す (画像を読ませるより速い)。
+     * 各点は [radius] px 四方の中央値 (光沢や縁の 1 点に引っぱられないように)。点はすべて前面のアプリの窓の中。
+     */
+    @androidx.annotation.RequiresApi(30)
+    suspend fun sample(points: List<Pair<Int, Int>>, radius: Int, gate: (String) -> Unit, stableMs: Long): Sample {
+        val window = window() ?: throw Refusal("no_window", "No foreground app window")
+        if (points.any { (x, y) -> !window.bounds.contains(x, y) })
+            throw Refusal("outside", "All points must be inside the foreground app window")
+        val (shown, image, stable) = frame(gate, stableMs, 0L)
+        try {
+            if (shown.id != window.id) throw Refusal("changed", "The screen changed; try again")
+            val area = Rect(window.bounds).apply { intersect(0, 0, image.width, image.height) }
+            val rgb = IntArray(points.size) { i ->
+                val (x, y) = points[i]
+                val box = Rect(x - radius, y - radius, x + radius + 1, y + radius + 1)
+                if (!box.intersect(area)) return@IntArray 0
+                val pixels = IntArray(box.width() * box.height())
+                image.getPixels(pixels, 0, box.width(), box.left, box.top, box.width(), box.height())
+                UiBridgePolicy.median(pixels)
+            }
+            return Sample(rgb, stable)
         } finally { image.recycle() }
     }
 
