@@ -10,7 +10,7 @@ import java.io.File
 internal object OutgoingShare {
     fun send(context: Context, args: List<String>) {
         require(args.size >= 2) { "share-files requires a request and filenames" }
-        val staging = File(requireNotNull(context.getExternalFilesDir(null)), "z2api")
+        val staging = com.zerotoship.z2term.service.Z2ApiBridge.dir(context)
         val cache = File(context.cacheDir, "shared-files").apply { mkdirs() }
         OutgoingShareSnapshot.cleanup(cache)
         val files = OutgoingShareSnapshot.prepare(staging, cache, args.first(), args.drop(1))

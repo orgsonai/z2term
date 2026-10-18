@@ -17,6 +17,11 @@ import java.nio.file.Files
  */
 class Z2ApiScriptTest {
 
+    private companion object {
+        /** アプリの代わりに受付口へ置く合言葉。 */
+        const val BRIDGE_TOKEN = "0123abcd"
+    }
+
     private val scripts = z2ApiScripts()
 
     /** 英語版。文言だけを差し替える作りなので、**両方**が同じ検証を通らないと意味がない。 */
@@ -28,6 +33,7 @@ class Z2ApiScriptTest {
             val dispatcher = File(dir, "z2api").apply {
                 writeText(scripts.getValue("z2api").replace("DIR=/storage/app/z2api", "DIR='${dir.absolutePath}'"))
             }
+            File(dir, ".token").writeText(BRIDGE_TOKEN)
             val token = "token\nwith ${'$'}(exit 9)"
             val process = ProcessBuilder("sh", dispatcher.absolutePath, "0", "torch", "on", "two\nlines").apply {
                 environment()["Z2_EDGE_RUN"] = token
@@ -39,6 +45,7 @@ class Z2ApiScriptTest {
             val header = text.substringBefore("\nN\n").lines()
             fun decode(line: String) = String(java.util.Base64.getDecoder().decode(line.substring(2)), Charsets.UTF_8)
             assertEquals("CMD torch", header.first())
+            assertEquals("T $BRIDGE_TOKEN", header.single { it.startsWith("T ") })
             assertEquals(token, decode(header.single { it.startsWith("E ") }))
             assertFalse("応答の要らない要求に R 1 を付けない", "R 1" in header)
             assertEquals(listOf("on", "two\nlines"), text.substringAfter("\nN\n").split('\u0000').dropLast(1))
@@ -61,6 +68,7 @@ class Z2ApiScriptTest {
                 val dispatcher = File(dir, "z2api").apply {
                     writeText(scripts.getValue("z2api").replace("DIR=/storage/app/z2api", "DIR='${dir.absolutePath}'"))
                 }
+                File(dir, ".token").writeText(BRIDGE_TOKEN)
                 val process = ProcessBuilder(sh!!, dispatcher.absolutePath, "1", "key", "status").start()
                 // アプリの代わり: 要求が置かれたら、同じ id の応答を rename で置く。
                 val req = File(dir, "req")
@@ -80,6 +88,23 @@ class Z2ApiScriptTest {
                 assertEquals(response, expected, if (code == 0) out else err)
             } finally { dir.deleteRecursively() }
         }
+    }
+
+    /** 合言葉 (1.0.48) が無いうちは要求を置かずに失敗する。置いてもアプリは実行しない。 */
+    @Test fun dispatcherRefusesWithoutBridgeToken() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val dir = Files.createTempDirectory("z2api-token").toFile()
+        try {
+            val dispatcher = File(dir, "z2api").apply {
+                writeText(scripts.getValue("z2api").replace("DIR=/storage/app/z2api", "DIR='${dir.absolutePath}'"))
+            }
+            val process = ProcessBuilder(sh!!, dispatcher.absolutePath, "0", "toast", "hi").redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 1, process.waitFor())
+            assertTrue(output, output.contains("not ready"))
+            assertTrue("合言葉なしで要求を置かない", File(dir, "req").listFiles().isNullOrEmpty())
+        } finally { dir.deleteRecursively() }
     }
 
     /** 行頭の `|` (trimMargin の剥がし漏れ) は POSIX sh では常に構文エラー (0.8.187 の事故)。 */

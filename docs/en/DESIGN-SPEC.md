@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-18 / Target version: 1.0.47 (versionCode 745)
+Last updated: 2026-10-18 / Target version: 1.0.48 (versionCode 746)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -1491,7 +1491,7 @@ Bulk output stability (unreleased): Processing a PTY chunk, resizing and renderi
 - The binary is `nativeLibraryDir/libproot.so` (+ `libproot_loader.so`). `libtalloc.so` is extracted as `libtalloc.so.2` per its SONAME and put on `LD_LIBRARY_PATH`. Newer Termux proot also links `libandroid-shmem.so` (SysV shared memory), so it is extracted into the same `proot-libs` and put on the path too (without it proot dies immediately with `library "libandroid-shmem.so" not found`).
 - `launch(distroId, command, rows, cols, fallbackShell)` assembles proot arguments and calls `PtyProcess.create`:
   - `--kill-on-exit -0 --link2symlink -r <rootfs> -b /dev -b /proc -b /sys -b <rootfs>/dev/shm:/dev/shm -b <shared_home>:/root`
-  - **External storage bind**: `/storage/emulated/0:/sdcard`, `getExternalFilesDir:/storage/app`
+  - **External storage bind**: `/storage/emulated/0:/sdcard`, `getExternalFilesDir:/storage/app`, with `filesDir/z2api:/storage/app/z2api` on top (only the z2-* intake lives in the app-private area, 1.0.48)
   - `-w /root`, env: `HOME=/root TERM=xterm-256color LANG=C.UTF-8 TZ=… PATH=… TMPDIR=/tmp` + history-related env.
   - **`TZ` carries the device time zone in POSIX form** ([`PosixTimeZone`], 0.8.302). ⚠ Until then the distro
     had neither `TZ` nor `/etc/localtime` and was **always UTC**, so `date` disagreed with the device clock.
@@ -2561,7 +2561,11 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
   - **`z2-torch`**: controlled via `CameraManager.setTorchMode` (no permission needed) and returns the resulting torch state
   - **`z2-media` / `z2-volume`**: the former dispatches media keys via `AudioManager.dispatchMediaKeyEvent`, the latter operates `STREAM_MUSIC` (returning current/max)
   - **`z2-intent`**: an `am start`-style set of flags (`-a/-d/-t/-p/-n/-f/--es/--ez/--ei/--broadcast/--service`) builds an arbitrary Intent and calls startActivity/broadcast/startService — a single command covering launching apps, opening settings screens, setting alarms, sharing, and more (none of it needs a permission; whatever the target requires is separate)
-- `ProotLauncher.ensureZ2ApiScripts` writes them to `/usr/local/bin` on every launch. req/resp watch `getExternalFilesDir/z2api` with a `FileObserver`, args are base64, atomic rename.
+- `ProotLauncher.ensureZ2ApiScripts` writes them to `/usr/local/bin` on every launch. req/resp watch `filesDir/z2api` (seen from the guest as `/storage/app/z2api`) with a `FileObserver`, args are base64, atomic rename.
+- **Protecting the intake (1.0.48)**: ⛔ the intake lives in the **app-private area** `filesDir/z2api`; `ProotLauncher` binds it over `/storage/app/z2api` for the guest (longest match in z2root, `mount -o bind` in chroot). Up to 1.0.47 it was the external files dir (`Android/data/<pkg>/files/z2api`), where apps holding Android 10's storage permission, file managers granted Android/data and a PC on USB could also drop requests. That was a way in to `z2-session send --enter` (type into a tab and run it), `session capture` (read the screen) and `z2-ui` (operate other apps).
+  - **Token**: `Z2ApiBridge.start` writes 32 random bytes to `z2api/.token` on every start; the dispatcher reads it each time with the built-in `read` and adds a `T <token>` line. The app compares it with `MessageDigest.isEqual` and does not run a request that does not match (ERR when a reply is expected). If the token cannot be written, the intake does not open. Without a token the dispatcher fails without writing a request (`Z2ApiScriptTest.dispatcherRefusesWithoutBridgeToken`).
+  - If the bind fails, requests land in the external files dir, which the app no longer watches, so they stop as "no reply" (never quietly open). The old intake is emptied on start and the directory kept as the mount point. The GUI-tab notice `z2gui.events` moved to the same intake.
+  - Under chroot running as root, the hand-over directories (`mktemp -d`) end up root-owned 700, so they are opened to 777 right after creation (the parent is the app-private area, so other apps still cannot reach them).
 
 ---
 
@@ -3492,7 +3496,7 @@ into "close" — you would not be able to delete while the pad is open.
 ### 6.7 File sharing / external storage
 
 - SAF home = `shared_home` (matches the terminal's `/root`). Each distro's rootfs (`/`) is also exposed.
-- From inside proot, `cd /sdcard` reaches Android shared storage (needs all-files-access permission); `/storage/app` is the app-private area (no permission needed).
+- From inside proot, `cd /sdcard` reaches Android shared storage (needs all-files-access permission); `/storage/app` is the app-private area (no permission needed). Only `/storage/app/z2api` inside it is the z2-* intake, backed by `filesDir/z2api`, which other apps cannot see (1.0.48).
 
 ### 6.8 Other UI
 

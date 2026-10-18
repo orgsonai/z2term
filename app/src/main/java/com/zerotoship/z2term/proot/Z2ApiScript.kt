@@ -3,8 +3,8 @@ package com.zerotoship.z2term.proot
 /**
  * Android API ブリッジの rootfs 側ヘルパー (`z2-*` CLI 群)。
  *
- * 端末 (PRoot/Linux) から `z2-notify "done"` のように叩くと、共有ディレクトリ
- * `/storage/app/z2api/req/` にリクエストファイルを書き、アプリ側の
+ * 端末 (PRoot/Linux) から `z2-notify "done"` のように叩くと、受付口
+ * `/storage/app/z2api/req/` (実体はアプリ専用領域・合言葉つき) にリクエストファイルを書き、アプリ側の
  * [com.zerotoship.z2term.service.Z2ApiBridge] (FileObserver) が Android 機能を代行する。
  *
  * 中核は `z2api` ディスパッチャ 1 本で、各 `z2-xxx` はその薄いラッパー。プロトコル詳細は
@@ -65,6 +65,11 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |DIR=/storage/app/z2api
         |need_resp="${d}1"; shift
         |cmd="${d}1"; shift
+        |# 合言葉 (1.0.48)。アプリが起動ごとに受付口へ置き直し、付いていない要求は実行しない。
+        |# 組み込みの read で読む (外部コマンドを起こさない)。改行の無い 1 行なので read の戻り値は見ない。
+        |tok=''
+        |IFS= read -r tok 2>/dev/null < "${d}DIR/.token"
+        |[ -n "${d}tok" ] || { echo "z2api: app bridge is not ready (open the z2term app)" >&2; exit 1; }
         |id="${d}${d}-${d}{PPID:-0}"
         |req="${d}DIR/req/${d}id.req"
         |resp="${d}DIR/resp/${d}id.resp"
@@ -73,6 +78,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |write_request() {
         |  {
         |    printf 'CMD %s\n' "${d}cmd"
+        |    printf 'T %s\n' "${d}tok"
         |    [ -z "${d}{Z2_EDGE_RUN:-}" ] || printf 'E %s\n' "${d}(printf '%s' "${d}Z2_EDGE_RUN" | base64 | tr -d '\n')"
         |    [ "${d}need_resp" != "1" ] || printf 'R 1\n'
         |    printf 'N\n'
@@ -162,6 +168,9 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |  DIR=/storage/app/z2api
         |  mkdir -p "${d}DIR" || exit 1
         |  stage=${d}(mktemp -d "${d}DIR/share-XXXXXXXXXX") || exit 1
+        |  # root で動く chroot では置き場が root の 700 になり、アプリから読めない。受付口の親は
+        |  # アプリ専用領域なので、ここを開けても他のアプリからは届かない。
+        |  chmod 777 "${d}stage" 2>/dev/null
         |  trap 'rm -rf "${d}stage"' 0
         |  trap 'exit 1' 1 2 15
         |  n=0; total=0
@@ -200,6 +209,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    [ ${d}# -ge 1 ] && [ ${d}# -le 2 ] && [ -f "${d}1" ] && [ -r "${d}1" ] || exit 2
         |    mkdir -p "${d}DIR" || exit 1
         |    stage=${d}(mktemp -d "${d}DIR/file-XXXXXXXX") || exit 1
+        |    chmod 777 "${d}stage" 2>/dev/null
         |    trap 'rm -rf "${d}stage"' EXIT
         |    trap 'exit 1' HUP INT TERM
         |    head -c 536870913 < "${d}1" > "${d}stage/data" || exit 1
@@ -242,6 +252,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |DIR=/storage/app/z2api
         |mkdir -p "${d}DIR" || exit 1
         |stage=${d}(mktemp -d "${d}DIR/view-XXXXXXXXXX") || exit 1
+        |chmod 777 "${d}stage" 2>/dev/null
         |trap 'rm -rf "${d}stage"' 0
         |trap 'exit 1' 1 2 15
         |if [ "${d}1" = - ]; then head -c 4194305 > "${d}stage/in"; else head -c 4194305 < "${d}1" > "${d}stage/in"; fi || exit 1
@@ -289,6 +300,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |  DIR=/storage/app/z2api
         |  mkdir -p "${d}DIR" || exit 1
         |  stage=${d}(mktemp -d "${d}DIR/qr-XXXXXXXXXX") || exit 1
+        |  chmod 777 "${d}stage" 2>/dev/null
         |  trap 'rm -rf "${d}stage"' 0
         |  trap 'exit 1' 1 2 15
         |  printf '%s' "${d}text" > "${d}stage/text.txt" || exit 1

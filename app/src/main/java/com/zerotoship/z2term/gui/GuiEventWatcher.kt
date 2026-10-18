@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.zerotoship.z2term.core.SessionManager
+import com.zerotoship.z2term.service.Z2ApiBridge
 import java.io.File
 import java.io.RandomAccessFile
 
@@ -15,9 +16,10 @@ import java.io.RandomAccessFile
  *
  * **流れ**:
  *  1. 端末 (proot) 内で `z2run python gui.py` 等が実行される
- *  2. `z2run` (Z2RunScript) が `/storage/app/z2gui.events` に `OPEN <display> <distro>` を append する
+ *  2. `z2run` (Z2RunScript) が `/storage/app/z2api/z2gui.events` に `OPEN <display> <distro>` を append する
  *  3. proot バインドにより、このファイルは Android 側の
- *     `getExternalFilesDir(null) + "/z2gui.events"` と同じ実体
+ *     `Z2ApiBridge.dir(context) + "/z2gui.events"` と同じ実体 (z2-* の受付口と同じアプリ専用領域。
+ *     1.0.47 までは外部 files dir で、他のアプリからも GUI タブを開かせられた)
  *  4. ここの [FileObserver] が MODIFY を受け取り、新規追記行をパースして
  *     [SessionManager.openGuiForDisplay] で対応する GUI タブを開く / 前面化
  *
@@ -49,12 +51,8 @@ object GuiEventWatcher {
     fun start(context: Context) {
         if (observer != null) return
         val appCtx = context.applicationContext
-        // /storage/app は proot 内のバインド先。Android 側実体は getExternalFilesDir(null)。
-        val dir = appCtx.getExternalFilesDir(null)
-        if (dir == null) {
-            Log.w(TAG, "external files dir unavailable — cannot start Watcher")
-            return
-        }
+        // /storage/app/z2api は proot 内のバインド先。Android 側実体は z2-* の受付口と同じ。
+        val dir = Z2ApiBridge.dir(appCtx)
         if (!dir.exists()) dir.mkdirs()
         val file = File(dir, FILENAME)
         try {

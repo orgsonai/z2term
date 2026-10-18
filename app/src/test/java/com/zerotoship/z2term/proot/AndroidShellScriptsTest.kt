@@ -32,7 +32,8 @@ class AndroidShellScriptsTest {
         val dir = Files.createTempDirectory("android cli '").toFile()
         try {
             val bin = File(dir, "bin").apply { mkdirs() }
-            val bridge = File(dir, "bridge")
+            val bridge = File(dir, "bridge").apply { mkdirs() }
+            File(bridge, ".token").writeText("0123abcd")
             val home = File(dir, "shared_home").apply { mkdirs() }
             AndroidShellScripts.create("en", bin.path, bridge.path).forEach { (name, body) ->
                 // Host shell stands in for Android's interpreter; native entry is tested separately.
@@ -59,6 +60,7 @@ class AndroidShellScriptsTest {
             val request = text.substringBefore("\nN\n").lines()
             fun decode(line: String) = String(Base64.getDecoder().decode(line.substring(2)), Charsets.UTF_8)
             assertEquals("CMD notify", request.first())
+            assertTrue("T 0123abcd" in request)
             assertTrue(body in text.substringAfter("\nN\n").split('\u0000'))
             assertEquals("edge-token", decode(request.single { it.startsWith("E ") }))
 

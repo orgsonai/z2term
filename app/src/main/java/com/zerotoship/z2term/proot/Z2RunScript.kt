@@ -9,8 +9,8 @@ package com.zerotoship.z2term.proot
  *     (= 透過なフォールバック)。これで既存コマンドの邪魔をしない。
  *  2. `:N` の Xvnc がまだ動いていなければ `z2gui start` をバックグラウンドで起動して立ち上げる。
  *     z2gui は wait し続けるので `&` で投げて先に進む。Xvnc が UNIX ソケットを開くまで短時間ポーリング。
- *  3. **z2term への通知**: `/storage/app/z2gui.events` (proot 内) に `OPEN N distro\n` を append。
- *     このパスは proot バインドで Android 側の `getExternalFilesDir(null)` = `/storage/emulated/0/Android/data/.../files/`
+ *  3. **z2term への通知**: `/storage/app/z2api/z2gui.events` (proot 内) に `OPEN N distro\n` を append。
+ *     このパスは proot バインドで Android 側の z2-* の受付口 (`Z2ApiBridge.dir`・アプリ専用領域)
  *     と同じ実体を指す。z2term の `GuiEventWatcher` (FileObserver) がここを監視していて、
  *     `OPEN N` を見つけると対応する GUI タブを開く / 前面化する。
  *  4. 引数があれば `exec "$@"` でユーザーの GUI アプリへバトンタッチ。引数なし (`z2run` 単体) は
@@ -65,10 +65,10 @@ fun z2runScript(lang: String = "ja"): String {
         |case "${d}{Z2_GUI_BACKEND:-vnc}" in direct) Z2_GUI_BACKEND=direct ;; *) Z2_GUI_BACKEND=vnc ;; esac
         |export Z2_GUI_BACKEND
         |if [ -n "${d}{Z2_DISTRO_ID:-}" ]; then
-        |  echo "OPEN ${d}{DISPLAY_NUM} ${d}{Z2_DISTRO_ID} ${d}{Z2_GUI_BACKEND}" >> /storage/app/z2gui.events 2>/dev/null || true
+        |  echo "OPEN ${d}{DISPLAY_NUM} ${d}{Z2_DISTRO_ID} ${d}{Z2_GUI_BACKEND}" >> /storage/app/z2api/z2gui.events 2>/dev/null || true
         |else
         |  # 旧起動経路との互換。新しいProotLauncherは常にZ2_DISTRO_IDを注入する。
-        |  echo "OPEN ${d}{DISPLAY_NUM}" >> /storage/app/z2gui.events 2>/dev/null || true
+        |  echo "OPEN ${d}{DISPLAY_NUM}" >> /storage/app/z2api/z2gui.events 2>/dev/null || true
         |fi
         |
         |# 3) Xvnc :N が無ければ z2gui で起動。z2gui は wait し続けるので & で投げて進む。

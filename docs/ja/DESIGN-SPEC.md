@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-18 / 対象バージョン: 1.0.47 (versionCode 745)
+最終更新: 2026-10-18 / 対象バージョン: 1.0.48 (versionCode 746)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -1470,7 +1470,7 @@ ptrace 越しに数千 syscall になるうえ、常駐中は WakeLock/WifiLock 
 - バイナリは `nativeLibraryDir/libproot.so` (+ `libproot_loader.so`)。`libtalloc.so` を SONAME 通り `libtalloc.so.2` に展開し `LD_LIBRARY_PATH` に通す。新しい Termux proot は `libandroid-shmem.so`(SysV 共有メモリ)にもリンクされるため、これも同じ `proot-libs` に展開して通す(不在だと `library "libandroid-shmem.so" not found` で proot が即落ちする)。
 - `launch(distroId, command, rows, cols, fallbackShell)` が proot 引数を組み立てて `PtyProcess.create`:
   - `--kill-on-exit -0 --link2symlink -r <rootfs> -b /dev -b /proc -b /sys -b <rootfs>/dev/shm:/dev/shm -b <shared_home>:/root`
-  - **外部ストレージ bind**: `/storage/emulated/0:/sdcard`、`getExternalFilesDir:/storage/app`
+  - **外部ストレージ bind**: `/storage/emulated/0:/sdcard`、`getExternalFilesDir:/storage/app`、その上に `filesDir/z2api:/storage/app/z2api`（z2-* の受付口だけはアプリ専用領域。1.0.48）
   - `-w /root`、env: `HOME=/root TERM=xterm-256color LANG=C.UTF-8 TZ=… PATH=… TMPDIR=/tmp` + 履歴系 env。
   - **`TZ` は端末のタイムゾーンを POSIX 形式で渡す ([`PosixTimeZone`]・0.8.302)**。⚠ それまで distro の中は
     `TZ` も `/etc/localtime` も無く **常に UTC** で、`date` の返す時刻が端末と食い違っていた。相対指定は
@@ -2530,7 +2530,11 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - **`z2-torch`**: `CameraManager.setTorchMode` (権限不要) で制御し結果の点灯状態を返す
   - **`z2-media` / `z2-volume`**: 前者は `AudioManager.dispatchMediaKeyEvent` でメディアキーを流し、後者は `STREAM_MUSIC` を操作 (結果 current/max を返す)
   - **`z2-intent`**: `am start` 風のフラグ (`-a/-d/-t/-p/-n/-f/--es/--ez/--ei/--broadcast/--service`) で任意の Intent を組んで startActivity/broadcast/startService する汎用アクション。これ 1 本でアプリ起動・設定画面表示・アラーム設定・共有等を網羅する (いずれも権限不要。呼び先が要求する権限は別)
-- `ProotLauncher.ensureZ2ApiScripts` が launch 毎に `/usr/local/bin` へ書き出す。req/resp は `getExternalFilesDir/z2api` を `FileObserver` で監視、引数は base64、atomic rename。
+- `ProotLauncher.ensureZ2ApiScripts` が launch 毎に `/usr/local/bin` へ書き出す。req/resp は `filesDir/z2api`（ゲストからは `/storage/app/z2api`）を `FileObserver` で監視、引数は base64、atomic rename。
+- **受付口の守り（1.0.48）**: ⛔ 受付口は**アプリ専用領域** `filesDir/z2api` に置き、ゲストへは `ProotLauncher` が `/storage/app/z2api` に重ねて bind する（z2root は最長一致、chroot は `mount -o bind`）。1.0.47 までは外部 files dir（`Android/data/<pkg>/files/z2api`）で、Android 10 の保存権限を持つアプリ・Android/data を許されたファイル管理アプリ・USB で繋いだ PC も要求を置けた。それは `z2-session send --enter`（タブへ打ち込んで実行）・`session capture`（画面を読む）・`z2-ui`（他のアプリを操作）の口だった。
+  - **合言葉**: `Z2ApiBridge.start` が起動ごとに 32 バイトの乱数を `z2api/.token` に置き、ディスパッチャが毎回組み込みの `read` で読んで `T <合言葉>` 行に載せる。アプリは `MessageDigest.isEqual` で照合し、合わない要求は実行しない（応答が要るものには ERR）。合言葉が置けなければ受付を開かない。合言葉が無いうちはディスパッチャが要求を置かずに失敗する（`Z2ApiScriptTest.dispatcherRefusesWithoutBridgeToken`）。
+  - bind に失敗したときは要求が外部 files dir に落ちるが、アプリはそこを見ないので「応答なし」で止まる（開いたまま動くことはない）。旧受付口は起動時に中身を消し、ディレクトリはマウントポイントとして残す。GUI タブを開く通知 `z2gui.events` も同じ受付口へ移した。
+  - root で動く chroot では受け渡しの置き場（`mktemp -d`）が root の 700 になるので、作った直後に 777 にする（親がアプリ専用領域なので他のアプリからは届かない）。
 
 ---
 
@@ -3429,7 +3433,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 ### 6.7 ファイル共有 / 外部ストレージ
 
 - SAF ホーム = `shared_home` (端末の `/root` と一致)。各 distro の rootfs(`/`) も公開。
-- proot 内から `cd /sdcard` で Android 共有ストレージ (要 全ファイルアクセス許可)、`/storage/app` はアプリ専用領域 (権限不要)。
+- proot 内から `cd /sdcard` で Android 共有ストレージ (要 全ファイルアクセス許可)、`/storage/app` はアプリ専用領域 (権限不要)。その中の `/storage/app/z2api` だけは z2-* の受付口で、実体は他のアプリから見えない `filesDir/z2api` (1.0.48)。
 
 ### 6.8 その他 UI
 

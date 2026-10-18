@@ -16,10 +16,10 @@ internal object AndroidShellEnvironment {
         val scripts = File(base, "scripts").apply { mkdirs() }
         val home = File(context.filesDir, "shared_home").apply { mkdirs() }
         File(home, ".z2term/macros").mkdirs()
-        val external = checkNotNull(context.getExternalFilesDir(null)) { "Android API bridge storage unavailable" }
         val native = File(context.applicationInfo.nativeLibraryDir, "libz2android.so")
         check(native.isFile) { "Missing bundled Android command launcher" }
-        AndroidShellScripts.create(LocaleHelper.language(context), bin.absolutePath, File(external, "z2api").absolutePath)
+        AndroidShellScripts.create(LocaleHelper.language(context), bin.absolutePath,
+            com.zerotoship.z2term.service.Z2ApiBridge.dir(context).apply { mkdirs() }.absolutePath)
             .forEach { (name, body) ->
                 writeIfChanged(File(scripts, name), body)
                 link(File(bin, name), native)

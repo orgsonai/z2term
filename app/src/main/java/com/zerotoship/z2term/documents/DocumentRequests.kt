@@ -34,7 +34,7 @@ internal object DocumentRequests {
             source = null; name = ""; mime = args[1]
         } else {
             require(args.size == 4 && Regex("file-[A-Za-z0-9]+").matches(args[1]))
-            val base = File(context.getExternalFilesDir(null), "z2api").canonicalFile
+            val base = com.zerotoship.z2term.service.Z2ApiBridge.dir(context).canonicalFile
             val dir = File(base, args[1])
             require(dir.canonicalFile.parentFile == base && dir.canonicalFile == dir.absoluteFile)
             source = File(dir, "data")

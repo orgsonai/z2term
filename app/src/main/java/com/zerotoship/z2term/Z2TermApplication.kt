@@ -51,7 +51,7 @@ class Z2TermApplication : Application() {
         // A composition must not observe palette state first created by a concurrent worker.
         AppColors.ensureInitialized()
         Log.i(TAG, "Z2Term application starting (version=${BuildConfig.VERSION_NAME})")
-        // proot 内 `/storage/app/z2gui.events` (= 外部 files dir の同名ファイル) を監視開始。
+        // proot 内 `/storage/app/z2api/z2gui.events` (= z2-* の受付口の同名ファイル) を監視開始。
         // 二重 start しても idempotent。Activity/Service ライフサイクルから独立して常駐する。
         GuiEventWatcher.start(this)
         // Android API ブリッジ (`z2-notify` 等) のリクエスト監視を開始 (Termux:API 相当)。

@@ -10,6 +10,7 @@ import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.core.PosixTimeZone
 import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.pty.PtyProcess
+import com.zerotoship.z2term.service.Z2ApiBridge
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.storage.ExternalStorageDetector
@@ -516,6 +517,9 @@ class ProotLauncher(private val context: Context) {
             for ((src, dst) in externalStorageBinds(externalVolumes)) {
                 add("-b"); add("$src:$dst")
             }
+            // z2-* の受付口だけはアプリ専用領域を重ねる (1.0.48)。bind 解決は最長一致なので
+            // /storage/app の上に載る。⛔ 外部 files dir のままにしない ([Z2ApiBridge] のヘッダ参照)。
+            add("-b"); add("${prepareBridgeDir(rootfs).absolutePath}:$BRIDGE_GUEST_DIR")
             for ((source, target) in androidFontBinds) {
                 add("-b"); add("${source.absolutePath}:$target")
             }
@@ -790,6 +794,7 @@ class ProotLauncher(private val context: Context) {
         // ⚠ `env -i` で組み立てているので、ここに書かない限り渡らない。
         val sessionEnv = if (sessionId.isNotBlank()) " Z2_SESSION_ID=${shq(sessionId)}" else ""
         val apiStorage = context.getExternalFilesDir(null)
+        val bridgeDir = prepareBridgeDir(File(rootfs))
         return buildString {
             append("export PATH=/system/bin:/system/xbin:/vendor/bin:\$PATH\n")
             append("RFS=").append(rfs).append('\n')
@@ -801,7 +806,7 @@ class ProotLauncher(private val context: Context) {
             // HOME 隔離オーバーレイは root より先に剥がす (root の lazy umount で取り残されないよう)。
             for ((_, dst) in homeOverlayBinds) append(' ').append(shq(dst.trimStart('/')))
             for (target in AndroidGuiFonts.guestDirectories) append(' ').append(shq(target.trimStart('/')))
-            append(" root sdcard sdcard_ext storage/app system apex")
+            append(" root sdcard sdcard_ext storage/app/z2api storage/app system apex")
             for (vol in externalVolumes) {
                 append(' ').append(shq(vol.trimStart('/')))
             }
@@ -843,6 +848,11 @@ class ProotLauncher(private val context: Context) {
                 append("mount -o bind ").append(shq(apiStorage.absolutePath))
                     .append(" \"\$RFS/storage/app\" || echo 'z2term: Android API storage mount failed' >&2\n")
             }
+            // z2-* の受付口はアプリ専用領域を上に重ねる (proot 経路と同じ・1.0.48)。失敗したら
+            // 要求は外部 files dir に落ちるが、アプリはそこを見ないので「応答なし」で止まる。
+            append("mkdir -p \"\$RFS$BRIDGE_GUEST_DIR\" 2>/dev/null\n")
+            append("mount -o bind ").append(shq(bridgeDir.absolutePath))
+                .append(" \"\$RFS$BRIDGE_GUEST_DIR\" || echo 'z2term: Android API bridge mount failed' >&2\n")
             // 外部 SD カード (設定で ON のときだけ呼び出し側が渡す)。
             // /sdcard_ext は最初の1つのエイリアス。proot 経路と同じ取り扱いに揃える。
             for ((i, vol) in externalVolumes.withIndex()) {
@@ -1023,6 +1033,16 @@ class ProotLauncher(private val context: Context) {
             if (guestExecutableExists(rootfs, "/usr/$rel")) return true
         }
         return false
+    }
+
+    /**
+     * z2-* の受付口の実体を用意して返す。マウントポイントも両方作る: /storage/app が bind されて
+     * いれば外部 files dir 側、されていなければ rootfs 側の `storage/app/z2api` に重なる。
+     */
+    private fun prepareBridgeDir(rootfs: File): File {
+        File(rootfs, BRIDGE_GUEST_DIR.trimStart('/')).mkdirs()
+        runCatching { Z2ApiBridge.legacyDir(context)?.mkdirs() }
+        return Z2ApiBridge.dir(context).apply { mkdirs() }
     }
 
     /**
@@ -1810,6 +1830,9 @@ class ProotLauncher(private val context: Context) {
          */
         private const val MACRO_DIR = "/root/.z2term/macros"
         private const val USER_BIN_DIR = "/root/.local/bin"
+
+        /** z2-* の受付口のゲスト側パス。実体は [Z2ApiBridge.dir] (アプリ専用領域)。 */
+        private const val BRIDGE_GUEST_DIR = "/storage/app/z2api"
 
         /** SHELL に採用してよい既知のシェル basename (これ以外は実体シェルへ振り替える)。 */
         private val KNOWN_SHELLS = setOf("sh", "bash", "ash", "dash", "zsh", "ksh", "mksh")
