@@ -243,7 +243,8 @@ internal object UiBridge {
     /** 1 回の呼び出し。判定・実行・記録・手順の控えまで。CLI と MCP で共通。 */
     internal fun execute(app: Context, verb: String, rawArgs: List<String>): JSONObject {
         val startedAt = SystemClock.elapsedRealtime()
-        val (args, capture) = try { capture(verb, rawArgs) } catch (e: Refusal) { return failure(e.code, e.message.orEmpty()) }
+        // マス (`--cells … c3r2`) は先に座標へ置き換える。seq は 1 手ずつここを通るので、まとめては見ない。
+        val (args, capture) = try { capture(verb, if (verb == "seq") rawArgs else UiBridgePolicy.cells(verb, rawArgs)) } catch (e: Refusal) { return failure(e.code, e.message.orEmpty()) }
         val settle = capture.settle
         val result = try {
             handle(app, verb, args, capture).also { done ->

@@ -218,6 +218,11 @@ Two commands cut both:
   without an element, whether a progress mark has gone. Take ONE shot to learn the layout (cell centres, where
   the lamp is), write it in your notes, then use colors instead of shots. Names are coarse; when two things share
   a name, use `--hex`.
+- Cells instead of pixels: `tap`, `long`, `drag` and `colors` accept `--cells X0,Y0 DX,DY COLSxROWS` (the same grid
+  as `--grid`) and then cells `cCrR` (column, row, 1-based; top-left is c1r1, the first word of the first `grid` row)
+  wherever a point goes: `z2-ui drag --cells 100,1516 177,177 6x5 c3r2 c3r1 c4r1 --step 60`,
+  `z2-ui tap --cells 100,1516 177,177 6x5 c2r4`. Cell n of grid row m is c(n)r(m), so you never compute pixels
+  (and never get them wrong). A cell outside the grid is `bad_args`. The log and `save` record the pixels.
 
 `z2-ui seq STEP -- STEP -- ...`
 - Runs several z2-ui steps in one call, in order, without coming back to you between them. Each STEP is a normal
@@ -342,7 +347,8 @@ notification. You learn about it as the reply to your next call:
   {origin, step, cols, rows}, radius, hex, stable, until as one string such as "brighter 120", within_ms), seq (steps as [["tap", "@540,700"], ["sleep", "500"], ...]; the image of
   a last shot step and of a --peek in any step are returned), tap, long, enter (target), type (target, text,
   append), key (name), open (target), wait (selector, ms), wait_change (ms), scroll (target, direction),
-  swipe (x1, y1, x2, y2, ms), drag (points as [[x, y], ...], step, hold_ms), notes (package), write_notes (package, text), mark, save (name), notifications,
+  swipe (x1, y1, x2, y2, ms), drag (points as [[x, y], ...], step, hold_ms),
+  and `cells` {origin, step, cols, rows} on tap, long, drag and colors, with "cCrR" as the target or as points, notes (package), write_notes (package, text), mark, save (name), notifications,
   press_notification (key, label, reply), status, guide.
 - Each tool result is the same JSON as the CLI, as text. `isError` is true when `ok` is false.
 - Operation tools (tap, long, type, enter, key, open, scroll, swipe, drag) accept `shot` (boolean), `settle_ms`, `box`

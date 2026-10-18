@@ -203,6 +203,20 @@ internal object UiBridgeMcp {
                 if (a.optBoolean("hex")) add("--hex")
             }
         }
+        // マスで指す格子 ({origin, step, cols, rows})。tap / long の target、drag / colors の points に "c3r2" を使える。
+        val cells = buildList {
+            a.optJSONObject("cells")?.let { g ->
+                val origin = g.optJSONArray("origin")
+                val step = g.optJSONArray("step")
+                if (origin == null || step == null) throw Refusal("bad_args", "cells needs origin [x, y] and step [dx, dy]")
+                add("--cells"); add("${origin.optInt(0, -1)},${origin.optInt(1, -1)}")
+                add("${step.optInt(0)},${step.optInt(1)}"); add("${g.optInt("cols")}x${g.optInt("rows")}")
+            }
+        }
+        // 点は [x, y] か、cells を付けたときのマス "c3r2"。
+        fun point(points: JSONArray, i: Int) = points.optJSONArray(i)?.let { xy -> "${xy.optInt(0, -1)},${xy.optInt(1, -1)}" }
+            ?: points.optString(i).takeIf { cells.isNotEmpty() && it.isNotEmpty() && points.opt(i) is String }
+            ?: throw Refusal("bad_args", "Each point is [x, y], or a cell such as \"c3r2\" with cells")
         val narrow = buildList {
             a.optJSONArray("box")?.let { b -> add("--box"); add((0 until 4).joinToString(",") { b.optInt(it, -1).toString() }) }
             if (a.optBoolean("if_changed")) add("--if-changed")
@@ -222,20 +236,16 @@ internal object UiBridgeMcp {
                     "--stable".takeIf { a.optBoolean("stable") }) + narrow + grid
                 "drag" -> "drag" to buildList {
                     val points = a.optJSONArray("points") ?: throw Refusal("bad_args", "drag needs points")
-                    for (i in 0 until points.length()) {
-                        val xy = points.optJSONArray(i) ?: throw Refusal("bad_args", "Each point is [x, y]")
-                        add("${xy.optInt(0, -1)},${xy.optInt(1, -1)}")
-                    }
+                    for (i in 0 until points.length()) add(point(points, i))
+                    addAll(cells)
                     optional("step")?.let { add("--step"); add(it) }
                     optional("hold_ms")?.let { add("--hold"); add(it) }
                 }
                 "colors" -> "colors" to buildList {
                     addAll(grid)
+                    addAll(cells)
                     a.optJSONArray("points")?.let { points ->
-                        for (i in 0 until points.length()) {
-                            val xy = points.optJSONArray(i) ?: throw Refusal("bad_args", "Each point is [x, y]")
-                            add("${xy.optInt(0, -1)},${xy.optInt(1, -1)}")
-                        }
+                        for (i in 0 until points.length()) add(point(points, i))
                         // 点の並びのときは、格子と同じ読み方 (radius / hex) をここで渡す。
                         if (a.optJSONObject("grid") == null) {
                             optional("radius")?.let { add("--radius"); add(it) }
@@ -257,8 +267,8 @@ internal object UiBridgeMcp {
                         for (j in 0 until words.length()) add(words.optString(j))
                     }
                 }
-                "tap", "enter" -> name to listOf(text("target"))
-                "long" -> "long" to listOfNotNull(text("target"), optional("hold_ms")?.let { "--hold" }, optional("hold_ms"))
+                "tap", "enter" -> name to listOf(text("target")) + cells
+                "long" -> "long" to listOfNotNull(text("target"), optional("hold_ms")?.let { "--hold" }, optional("hold_ms")) + cells
                 "type" -> "type" to listOfNotNull(text("target"), a.optString("text"), "--append".takeIf { a.optBoolean("append") })
                 "key" -> "key" to listOf(text("name"))
                 "open" -> "open" to listOf(text("target"))
@@ -309,7 +319,15 @@ internal object UiBridgeMcp {
     private fun tools(): JSONArray {
         fun prop(type: String, description: String, values: List<String>? = null) = JSONObject().put("type", type)
             .put("description", description).apply { values?.let { put("enum", JSONArray(it)) } }
-        val target = prop("string", "Element: \"#N\" from the last look, \"text=…\", \"desc=…\", \"id=PACKAGE:id/NAME\" or \"@X,Y\" (pixels)")
+        val target = prop("string", "Element: \"#N\" from the last look, \"text=…\", \"desc=…\", \"id=PACKAGE:id/NAME\", \"@X,Y\" (pixels) " +
+            "or a cell \"cCrR\" with cells")
+        // マスで指す格子。colors の grid と同じ形なので、読んだ盤面の何列何行目をそのまま指せる。
+        val cells = mapOf("cells" to JSONObject().put("type", "object").put("description", "Name points as cells \"cCrR\" " +
+            "(column, row, 1-based; top-left is c1r1) on this grid, same shape as colors grid: origin [x, y] of the top-left " +
+            "cell centre, step [dx, dy], cols, rows"))
+        val pointItem = JSONObject().put("anyOf", JSONArray(listOf(
+            JSONObject().put("type", "array").put("items", JSONObject().put("type", "integer")),
+            JSONObject().put("type", "string"))))
         val settleCheck = prop("string", "How strictly \"stopped moving\" is judged: strict also catches a small moving part, " +
             "loose looks only at the whole-screen average (for screens with a part that never stops). Default: the user's setting",
             listOf("strict", "loose"))
@@ -345,15 +363,15 @@ internal object UiBridgeMcp {
                     "stable" to prop("boolean", "Wait until the screen stops moving (up to 3 s) before capturing")) + narrow),
             tool("drag", "Touch the first point and move through all points without lifting, as one gesture (puzzle games and drawing). " +
                 "Plan the whole path before calling; the move takes step ms per segment.",
-                mapOf("points" to JSONObject().put("type", "array").put("description", "2..256 points [x, y] in screen pixels")
-                    .put("items", JSONObject().put("type", "array").put("items", JSONObject().put("type", "integer"))),
+                mapOf("points" to JSONObject().put("type", "array").put("description", "2..256 points [x, y] in screen pixels, " +
+                    "or cells \"cCrR\" with cells").put("items", pointItem),
                     "step" to prop("integer", "Milliseconds per segment, 20..1000, default 100"),
                     "hold_ms" to prop("integer", "Keep the finger still on the first point this long before moving, 0..2000, default 0. " +
-                        "Use 50 when the screen does not pick up the first move; it lets you use a smaller step")) + peek, listOf("points")),
+                        "Use 50 when the screen does not pick up the first move; it lets you use a smaller step")) + peek + cells, listOf("points")),
             tool("colors", "Read colour names (black, gray, white, red, orange, brown, yellow, green, cyan, blue, purple, pink) " +
                 "at screen points or on a grid, as text. Much faster for you to read than an image.",
-                mapOf("points" to JSONObject().put("type", "array").put("description", "Points [x, y] in screen pixels (or use grid)")
-                    .put("items", JSONObject().put("type", "array").put("items", JSONObject().put("type", "integer"))),
+                mapOf("points" to JSONObject().put("type", "array").put("description", "Points [x, y] in screen pixels, " +
+                    "or cells \"cCrR\" with cells (or use grid)").put("items", pointItem),
                     "grid" to JSONObject().put("type", "object").put("description", "Grid of cell centres: origin [x, y] of the top-left cell, " +
                         "step [dx, dy] between cells, cols, rows (at most 400 cells). Returns one string per row"),
                     "radius" to prop("integer", "Median over a square of this radius, 0..20, default 4"),
@@ -363,15 +381,16 @@ internal object UiBridgeMcp {
                         "\"darker N\" (mean brightness 0..255), \"changed\" (any point's colour name changes) or a colour name " +
                         "(all points). Checked about 3 times a second. Error not_met (with the last colours) on timeout"),
                     "within_ms" to prop("integer", "With until: give up after this long, 1..30000, default 10000"),
-                    "settle_check" to settleCheck)),
+                    "settle_check" to settleCheck) + cells),
             tool("seq", "Run several steps in one call, without thinking between them. Each step is the CLI words, " +
                 "e.g. [\"tap\", \"@540,700\"], [\"sleep\", \"500\"], [\"wait\", \"text=OK\"]. Stops at the first failure " +
                 "(failed_step). shot and --shot only in the last step; --peek in any one step.",
                 mapOf("steps" to JSONObject().put("type", "array").put("description", "1..32 steps")
                     .put("items", JSONObject().put("type", "array").put("items", JSONObject().put("type", "string")))), listOf("steps")),
-            tool("tap", "Tap an element.", mapOf("target" to target), listOf("target")),
+            tool("tap", "Tap an element.", mapOf("target" to target) + cells, listOf("target")),
             tool("long", "Long-press an element.", mapOf("target" to target,
-                "hold_ms" to prop("integer", "Only for \"@X,Y\": how long the finger stays down, 100..10000, default 600")) + peek, listOf("target")),
+                "hold_ms" to prop("integer", "Only for \"@X,Y\" or a cell: how long the finger stays down, 100..10000, default 600")) + peek + cells,
+                listOf("target")),
             tool("type", "Replace (or append to) the text of an input field. Never works on password fields.",
                 mapOf("target" to target, "text" to prop("string", "Text, up to 4096 characters"),
                     "append" to prop("boolean", "Add to the end instead of replacing")), listOf("target", "text")),

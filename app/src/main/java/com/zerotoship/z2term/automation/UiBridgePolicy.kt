@@ -124,6 +124,41 @@ internal object UiBridgePolicy {
      */
     fun spread(args: List<String>): List<String> = args.flatMap { arg -> arg.split(' ', '\t', '\n').filter { it.isNotEmpty() } }
 
+    /** マスで指せる操作 (`--cells`)。 */
+    val CELL_VERBS = setOf("tap", "long", "drag", "colors")
+    private val CELL = Regex("""@?c(\d+)r(\d+)""")
+
+    /**
+     * `--cells X0,Y0 DX,DY COLSxROWS` で決めた格子のマス `cCrR` (1 始まり、左上が c1r1) を画面の点に置き換える (1.0.46)。
+     * 格子の書き方は `colors --grid` と同じで、読んだ盤面の何列何行目をそのまま指せる。座標の計算と、その間違いをなくす。
+     * tap / long は `@X,Y`、drag / colors は `X,Y` にする。置き換えたあとの引数で判定・記録・手順の控えをする
+     * (控えから作るマクロにマスの書き方を持ち込まない)。`--cells` が無ければそのまま返す。
+     */
+    fun cells(verb: String, args: List<String>): List<String> {
+        val at = args.indexOf("--cells")
+        if (at < 0) return args
+        if (verb !in CELL_VERBS) throw Refusal("bad_args", "--cells is only for tap, long, drag and colors")
+        // 格子を 1 語にまとめて送られても読む ([spread])。ほかの引数は分けない。
+        val words = args.take(at + 1) + spread(args.drop(at + 1).take(1)) + args.drop(at + 2)
+        val usage = "--cells X0,Y0 DX,DY COLSxROWS, then cells like c1r1 (column, row; top-left is c1r1)"
+        fun pair(value: String?, sep: Char) = value?.split(sep)?.map { it.toIntOrNull() }
+            ?.takeIf { it.size == 2 && it.all { v -> v != null } }?.map { it!! } ?: throw Refusal("bad_args", usage)
+        val origin = pair(words.getOrNull(at + 1), ',')
+        val step = pair(words.getOrNull(at + 2), ',')
+        val size = pair(words.getOrNull(at + 3), 'x')
+        if (size.any { it < 1 }) throw Refusal("bad_args", usage)
+        val rest = words.take(at) + words.drop(at + 4)
+        if ("--cells" in rest) throw Refusal("bad_args", "Use one --cells")
+        val prefix = if (verb == "tap" || verb == "long") "@" else ""
+        return rest.map { arg ->
+            val m = CELL.matchEntire(arg) ?: return@map arg
+            val c = m.groupValues[1].toInt()
+            val r = m.groupValues[2].toInt()
+            if (c !in 1..size[0] || r !in 1..size[1]) throw Refusal("bad_args", "$arg is outside the ${size[0]}x${size[1]} cells")
+            "$prefix${origin[0] + (c - 1) * step[0]},${origin[1] + (r - 1) * step[1]}"
+        }
+    }
+
     /** 点ごとの中央値 (0xRRGGBB)。赤・緑・青をそれぞれ並べて真ん中を取る。光沢や縁の 1 点に引っぱられない。 */
     fun median(pixels: IntArray): Int {
         if (pixels.isEmpty()) return 0

@@ -146,6 +146,20 @@ class UiBridgePolicyTest {
         assertEquals(listOf("a", "b"), UiBridgePolicy.spread(listOf("  a\tb", "")))
     }
 
+    @Test fun cellsBecomePointsOnTheGrid() {
+        val grid = listOf("--cells", "100,1516", "177,177", "6x5")
+        assertEquals(listOf("454,1693", "454,1516", "985,2224", "--step", "60"),
+            UiBridgePolicy.cells("drag", grid + listOf("c3r2", "c3r1", "c6r5", "--step", "60")))
+        // tap / long は座標の target (@X,Y) にする。格子を 1 語にまとめても読む。
+        assertEquals(listOf("@277,2224", "--shot"),
+            UiBridgePolicy.cells("tap", listOf("--cells", "100,1516 177,177 6x5", "c2r5", "--shot")))
+        // --cells が無ければ触らない。
+        assertEquals(listOf("@540,1200"), UiBridgePolicy.cells("tap", listOf("@540,1200")))
+        assertEquals("bad_args", refusal { UiBridgePolicy.cells("drag", grid + listOf("c7r1", "c1r1")) })
+        assertEquals("bad_args", refusal { UiBridgePolicy.cells("type", grid + listOf("c1r1")) })
+        assertEquals("bad_args", refusal { UiBridgePolicy.cells("tap", listOf("--cells", "100,1516", "177,177")) })
+    }
+
     @Test fun medianIgnoresAHighlight() {
         // 赤い 8 点に白い光沢が 1 点。平均なら薄まるが、中央値は赤のまま。
         val red = 0xe03020
