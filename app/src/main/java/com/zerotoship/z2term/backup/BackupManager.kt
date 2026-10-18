@@ -11,6 +11,8 @@ import com.zerotoship.z2term.icon.refreshActiveNotifications
 import com.zerotoship.z2term.service.WhenManager
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.CustomThemeStore
+import com.zerotoship.z2term.settings.ServerEntry
+import com.zerotoship.z2term.settings.WhenRule
 import com.zerotoship.z2term.snippets.SnippetStore
 import com.zerotoship.z2term.tile.TileStore
 import com.zerotoship.z2term.tile.Z2TileService
@@ -105,6 +107,15 @@ object BackupManager {
         val passphrase: String = "",
     )
 
+    /** 取り込みの結果。 */
+    data class ImportResult(
+        /**
+         * 止めた状態で取り込んだ「自動で動く設定」の数 (1.0.49)。自動化ルール・常駐サーバー・
+         * エッジパネル・取り込まなかった端末起動時の自動起動と初期コマンドを数える。
+         */
+        val stopped: Int,
+    )
+
     private const val MANIFEST = BackupArchive.MANIFEST
     private const val SETTINGS = "settings.json"
     private const val SNIPPETS = "snippets.json"
@@ -118,6 +129,10 @@ object BackupManager {
     private const val SSH_ENC = "ssh.enc"
     private const val WHEN_DIR = "when/"
     private const val MACRO_DIR = "macros/"
+    /** 設定の中で自動で動くもののキー ([AppSettings] の DataStore 名と同じ。[stopAutomationInSettings])。 */
+    private const val KEY_SERVER_ENTRIES = "server_entries"
+    private const val KEY_SERVERS_AUTOSTART = "servers_autostart_on_boot"
+    private const val KEY_INIT_COMMAND = "init_command"
     private const val THEME = "theme.json"
     private const val TILES = "tiles.json"
     private const val ICONS = "icons.json"
@@ -220,6 +235,13 @@ object BackupManager {
         val entries = BackupArchive.readOuter(bytes) ?: return null
         val manifest = entries[MANIFEST]?.toString(Charsets.UTF_8) ?: return null
         val o = runCatching { JSONObject(manifest) }.getOrNull() ?: return null
+        // ⚠ 目録は作った人が自由に書ける。暗号化していないものは中身を数え直す
+        // (「ルール 0 件」と書いて仕込む手を見せないため)。暗号化したものは合言葉を入れるまで数えられない。
+        val flat = o.optInt("format", BackupArchive.FORMAT_FLAT) == BackupArchive.FORMAT_FLAT
+        if (flat) {
+            o.put("ruleCount", entries.keys.count { it.startsWith(WHEN_DIR) && it.endsWith(".rule") })
+            o.put("macroCount", entries.keys.count { it.startsWith(MACRO_DIR) && it.endsWith(".sh") })
+        }
         return Summary(
             createdAt = o.optString("createdAt"),
             appVersion = o.optString("appVersion"),
@@ -246,41 +268,64 @@ object BackupManager {
      * **上書きではなく追加・更新**。同じ id のものは置き換え、バックアップに無いものは
      * そのまま残す（古いバックアップを戻したときに、新しく作ったものが消えないように）。
      *
-     * @return 取り込めたら true。合言葉が違う / 壊れているときは false。
+     * ⛔ **[keepAutomation] が false (既定) なら、自動で動く設定は止めて取り込む** (1.0.49)。
+     * バックアップは他人から受け取ることもあり、ルールやサーバーを仕込んだファイルを戻すと、
+     * 利用者が中身を見る前にコマンドが動き出す (充電のたびに鍵を送る、など)。
+     *  - 自動化ルール: 書き戻すが `enabled=0` にする。
+     *  - 常駐サーバー: 一覧は戻すが、どれも OFF にする。
+     *  - 端末起動時の自動起動・新しいタブの初期コマンド: 取り込まない (いまの値のまま)。
+     *  - エッジパネル: 中身は戻すが、パネル自体は止める。
+     * マクロ・タイル・スニペットは、押されるか上の自動化から呼ばれるまで動かないので、そのまま戻す。
+     *
+     * @return 取り込めたら結果。合言葉が違う / 壊れているときは null。
      */
-    suspend fun import(context: Context, uri: Uri, passphrase: String): Boolean {
+    suspend fun import(
+        context: Context,
+        uri: Uri,
+        passphrase: String,
+        keepAutomation: Boolean = false,
+    ): ImportResult? {
         val app = context.applicationContext
-        val bytes = readAll(context, uri) ?: return false
-        val outer = BackupArchive.readOuter(bytes) ?: return false
-        val manifestBytes = outer[MANIFEST] ?: return false
+        val bytes = readAll(context, uri) ?: return null
+        val outer = BackupArchive.readOuter(bytes) ?: return null
+        val manifestBytes = outer[MANIFEST] ?: return null
         val manifest = runCatching { JSONObject(manifestBytes.toString(Charsets.UTF_8)) }.getOrNull()
-            ?: return false
+            ?: return null
         val entries = BackupArchive.payloadForImport(
             outer = outer,
             format = manifest.optInt("format", BackupArchive.FORMAT_FLAT),
             passphrase = passphrase,
-        ) ?: return false
+        ) ?: return null
 
         // format 1 の旧バックアップだけが ssh.enc を持つ。復号を全変更の前に済ませ、合言葉が
         // 違うときに設定やスニペットだけが部分的に戻るのを防ぐ。
         val ssh = when {
             entries[SSH_ENC] != null -> {
-                if (passphrase.isEmpty()) return false
+                if (passphrase.isEmpty()) return null
                 runCatching { BackupCrypt.decrypt(entries.getValue(SSH_ENC), passphrase) }.getOrNull()
-                    ?: return false
+                    ?: return null
             }
             else -> entries[SSH_PLAIN]
         }
+        var stopped = 0
 
         // Check file access before changing any settings. Real-root chroot sessions may leave
         // shared HOME owned by root (0700), even though restoration runs as the Android app UID.
         BackupHomeAccess.prepare(app)
 
-        val edge = runCatching { EdgeBackup.prepareRestore(EdgeRuntime.store(app), entries, app.cacheDir) }
-            .getOrElse { return false }
+        val restoredEdge = runCatching { EdgeBackup.prepareRestore(EdgeRuntime.store(app), entries, app.cacheDir) }
+            .getOrElse { return null }
+        val edge = if (keepAutomation || restoredEdge == null || !restoredEdge.enabled) restoredEdge
+            else restoredEdge.copy(enabled = false).also { stopped++ }
         if (edge != null) EdgeRuntime.prepareBackupRestore()
 
-        entries[SETTINGS]?.let { AppSettings(app).importRaw(it.toString(Charsets.UTF_8)) }
+        entries[SETTINGS]?.let { raw ->
+            val json = raw.toString(Charsets.UTF_8)
+            AppSettings(app).importRaw(
+                if (keepAutomation) json
+                else stopAutomationInSettings(json).also { stopped += it.second }.first
+            )
+        }
         entries[SNIPPETS]?.let { SnippetStore(app).importRaw(it.toString(Charsets.UTF_8)) }
         // ⚠ **グループはスニペットより先でも後でもよいが、無いときは何もしない**。
         // 空配列で上書きすると、いま作ってある棚が消えて中身だけが未分類に散らばる。
@@ -300,7 +345,14 @@ object BackupManager {
         entries.forEach { (name, data) ->
             when {
                 name.startsWith(WHEN_DIR) && name.endsWith(".rule") ->
-                    safeChild(whenDir, name.removePrefix(WHEN_DIR))?.writeBytes(data)
+                    safeChild(whenDir, name.removePrefix(WHEN_DIR))?.let { file ->
+                        val text = data.toString(Charsets.UTF_8)
+                        if (keepAutomation) file.writeBytes(data)
+                        else {
+                            if (WhenRule.parse(file.name.removeSuffix(".rule"), text)?.enabled == true) stopped++
+                            file.writeText(stoppedRule(text))
+                        }
+                    }
                 name.startsWith(MACRO_DIR) && name.endsWith(".sh") ->
                     safeChild(macroDir, name.removePrefix(MACRO_DIR))?.apply {
                         writeBytes(data)
@@ -337,7 +389,37 @@ object BackupManager {
         if (dictRestored) runCatching { UserDictStore.reload(app) }
         if (entries[IME_HISTORY] != null) runCatching { ImeHistoryStore.reload(app) }
         if (entries[KAOMOJI_CUSTOM] != null) runCatching { CustomKaomojiStore.reload(app) }
-        return true
+        return ImportResult(stopped)
+    }
+
+    /**
+     * ルールの本文を止めた形にする。`enabled` の行を消して最後に `enabled=0` を置く
+     * ([WhenRule.parse] は後の行が勝つ)。ほかの行は手を付けない (知らない項目も残す)。
+     */
+    internal fun stoppedRule(text: String): String =
+        (text.lines().filterNot { line ->
+            val eq = line.indexOf('=')
+            eq > 0 && line.substring(0, eq).trim() == "enabled"
+        }.dropLastWhile { it.isBlank() } + "enabled=0").joinToString("\n") + "\n"
+
+    /**
+     * 持ち出した設定 ([AppSettings.exportRaw] の JSON) から、自動で動く設定を止めた形と、
+     * 止めた数を返す。常駐サーバーは一覧を残して OFF に、自動起動と初期コマンドは取り込まない。
+     * 読めない JSON はそのまま返す ([AppSettings.importRaw] がどのみち読めない)。
+     */
+    internal fun stopAutomationInSettings(json: String): Pair<String, Int> {
+        val o = runCatching { JSONObject(json) }.getOrNull() ?: return json to 0
+        var stopped = 0
+        o.optJSONObject(KEY_SERVER_ENTRIES)?.let { e ->
+            val servers = ServerEntry.decode(e.optString("v"))
+            stopped += servers.count { it.enabled }
+            e.put("v", ServerEntry.encode(servers.map { it.copy(enabled = false) }))
+        }
+        if (o.optJSONObject(KEY_SERVERS_AUTOSTART)?.optBoolean("v") == true) stopped++
+        o.remove(KEY_SERVERS_AUTOSTART)
+        if (o.optJSONObject(KEY_INIT_COMMAND)?.optString("v").orEmpty().isNotBlank()) stopped++
+        o.remove(KEY_INIT_COMMAND)
+        return o.toString() to stopped
     }
 
     /**

@@ -523,7 +523,7 @@ private fun ServerEditForm(
         label = stringResource(R.string.servers_command_field),
         value = command,
         onChange = { command = it },
-        placeholder = "python3 -m http.server 8080",
+        placeholder = "python3 -m http.server 8080 --bind 127.0.0.1",
         multiline = true
     )
 

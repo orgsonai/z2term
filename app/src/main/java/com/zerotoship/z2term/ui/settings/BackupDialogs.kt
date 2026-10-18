@@ -157,6 +157,9 @@ fun BackupExportDialog(onDismiss: () -> Unit, onDone: () -> Unit) {
  *
  * **中身を一覧してから適用する**。「何が入るのか分からないまま押す」を作らないため、
  * 先に [BackupManager.peek] で件数を出し、確認してから取り込む。
+ *
+ * ⛔ 自動で動く設定 (ルール・常駐サーバー・パネル・初期コマンド) は**既定で止めて**取り込む
+ * (1.0.49・[BackupManager.import])。取り込んだ後は閉じずに、止めた数を見せてから閉じる。
  */
 @Composable
 fun BackupImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: () -> Unit) {
@@ -167,6 +170,8 @@ fun BackupImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: () -> Unit) {
     var passphrase by remember(uri) { mutableStateOf("") }
     var failed by remember(uri) { mutableStateOf(false) }
     var busy by remember(uri) { mutableStateOf(false) }
+    var keepAutomation by remember(uri) { mutableStateOf(false) }
+    var result by remember(uri) { mutableStateOf<BackupManager.ImportResult?>(null) }
 
     LaunchedEffect(uri) {
         summary = withContext(Dispatchers.IO) { BackupManager.peek(context, uri) }
@@ -187,7 +192,15 @@ fun BackupImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: () -> Unit) {
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
+                val done = result
                 when {
+                    done != null -> Text(
+                        text = if (done.stopped > 0) stringResource(R.string.backup_import_done_stopped, done.stopped)
+                            else stringResource(R.string.backup_import_done),
+                        color = ZtsTextPrimary,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
                     !loaded -> Text(
                         text = "…",
                         color = ZtsTextSecondary,
@@ -220,6 +233,31 @@ fun BackupImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: () -> Unit) {
                             fontFamily = FontFamily.Monospace,
                             modifier = Modifier.padding(top = 6.dp)
                         )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = keepAutomation,
+                                onCheckedChange = { keepAutomation = it },
+                                colors = CheckboxDefaults.colors(checkedColor = ZtsGreen)
+                            )
+                            Text(
+                                text = stringResource(R.string.backup_import_keep_automation),
+                                color = ZtsTextPrimary,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Text(
+                            text = stringResource(
+                                if (keepAutomation) R.string.backup_import_keep_automation_warning
+                                else R.string.backup_import_stop_automation_note
+                            ),
+                            color = if (keepAutomation) ZtsError else ZtsTextSecondary,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
                         if (s.encrypted) {
                             Field(
                                 label = stringResource(R.string.backup_passphrase),
@@ -242,18 +280,26 @@ fun BackupImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: () -> Unit) {
         },
         confirmButton = {
             val canImport = s != null && !busy && (!s.encrypted || passphrase.isNotEmpty())
-            TextButton(
+            if (result != null) {
+                TextButton(onClick = onDone) {
+                    Text(
+                        text = stringResource(R.string.backup_import_close),
+                        color = ZtsGreen,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            } else TextButton(
                 enabled = canImport,
                 onClick = {
                     busy = true
                     scope.launch {
-                        val ok = withContext(Dispatchers.IO) {
-                            runCatching { BackupManager.import(context, uri, passphrase) }
+                        val outcome = withContext(Dispatchers.IO) {
+                            runCatching { BackupManager.import(context, uri, passphrase, keepAutomation) }
                                 .onFailure { Log.e("BackupManager", "Backup restore failed", it) }
-                                .getOrDefault(false)
+                                .getOrNull()
                         }
                         busy = false
-                        if (ok) onDone() else failed = true
+                        if (outcome != null) result = outcome else failed = true
                     }
                 }
             ) {
@@ -264,13 +310,16 @@ fun BackupImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: () -> Unit) {
                 )
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(R.string.action_cancel),
-                    color = ZtsTextSecondary,
-                    fontFamily = FontFamily.Monospace
-                )
+        // 取り込んだ後に「キャンセル」を出すと、取り消せるように見えてしまう。
+        dismissButton = if (result != null) null else {
+            {
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        text = stringResource(R.string.action_cancel),
+                        color = ZtsTextSecondary,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
         }
     )

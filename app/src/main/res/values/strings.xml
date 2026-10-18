@@ -654,7 +654,7 @@
     <string name="resident_dialog_stop_all_desc">Stop the resident servers, system event capture and the session, then close the app (like a task kill). Your settings are left alone, so capture resumes the next time you open the app.</string>
     <string name="servers_title">Resident servers</string>
     <string name="servers_new">+ New</string>
-    <string name="servers_empty">No servers yet. Add one with a start command (e.g. python3 -m http.server 8080).</string>
+    <string name="servers_empty">No servers yet. Add one with a start command (e.g. python3 -m http.server 8080 --bind 127.0.0.1).</string>
     <string name="servers_hint">Servers run inside the selected OS. Install the server yourself (sshd/smbd/…); this only runs your start command and restarts it if it exits. Ports below 1024 cannot be bound without root.</string>
     <string name="servers_state_running">Running</string>
     <string name="servers_state_stopped">Stopped</string>
@@ -1133,6 +1133,12 @@ Edge panels: %12$d, notes: %13$d</string>
     <string name="backup_import_merge_note">Nothing you have now is deleted. Matching items are replaced, new ones are added.</string>
     <string name="backup_import_failed">Could not restore. Check the passphrase, file integrity, and access to the destination.</string>
     <string name="backup_import_do">Restore</string>
+    <string name="backup_import_keep_automation">Keep automatic settings running</string>
+    <string name="backup_import_stop_automation_note">Automation rules, resident servers and edge panels come in stopped; the auto-start at boot and the new-tab start command are not restored. Turn them on after checking what they run.</string>
+    <string name="backup_import_keep_automation_warning">Only for a backup you made yourself. Rules and servers in it start running right away.</string>
+    <string name="backup_import_done">Restored.</string>
+    <string name="backup_import_done_stopped" tools:ignore="PluralsCandidate">Restored. %1$d automatic settings were left stopped. Check what they run before turning them on (Automation rules, Resident servers, Edge panels).</string>
+    <string name="backup_import_close">Close</string>
     <!-- 定期バックアップ (0.8.386) -->
     <string name="settings_auto_backup">On a schedule</string>
     <string name="settings_auto_backup_desc">Writes a backup by itself at the time you choose and keeps the newest few. Only the files it made are tidied up — a backup you created by hand is never deleted.</string>

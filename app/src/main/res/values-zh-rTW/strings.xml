@@ -602,7 +602,7 @@
     <string name="resident_dialog_stop_all_desc">停止常駐服務、系統事件偵測和工作階段，然後關閉應用程式（相當於結束任務）。設定不會改動，所以下次開啟應用程式時偵測會還原。</string>
     <string name="servers_title">常駐服務</string>
     <string name="servers_new">+ 新增</string>
-    <string name="servers_empty">還沒有伺服器。請用啟動指令 (例: python3 -m http.server 8080) 新增一個。</string>
+    <string name="servers_empty">還沒有伺服器。請用啟動指令 (例: python3 -m http.server 8080 --bind 127.0.0.1) 新增一個。</string>
     <string name="servers_hint">伺服器在當前選中的系統裡執行。伺服器本體 (sshd/smbd 等) 需要你自己安裝；應用程式只負責執行啟動指令，並在它退出後重新啟動。沒有 root 時無法綁定 1024 以下的連接埠。</string>
     <string name="servers_state_running">執行中</string>
     <string name="servers_state_stopped">已停止</string>
@@ -1039,6 +1039,12 @@ SSH 連線目標 %3$d 個
     <string name="backup_import_merge_note">現在已有的東西不會被刪除。相同的會被替換，沒有的會被新增。</string>
     <string name="backup_import_failed">無法匯入。請檢查金鑰密語、檔案是否損壞及目標位置的存取權限。</string>
     <string name="backup_import_do">還原</string>
+    <string name="backup_import_keep_automation">自動執行的設定也照原樣啟用</string>
+    <string name="backup_import_stop_automation_note">自動化規則、常駐服務和邊緣面板會以停止狀態匯入；開機自動啟動和新分頁的初始指令不會還原。請先確認它們會執行什麼再啟用。</string>
+    <string name="backup_import_keep_automation_warning">僅用於你自己製作的備份。其中的規則和服務會立即開始執行。</string>
+    <string name="backup_import_done">已還原。</string>
+    <string name="backup_import_done_stopped">已還原。%1$d 項自動執行的設定保持停止。請先確認它們會執行什麼再啟用（自動化規則、常駐服務、邊緣面板）。</string>
+    <string name="backup_import_close">關閉</string>
     <string name="settings_auto_backup">在指定的日期時間自動進行</string>
     <string name="settings_auto_backup_desc">會在你選定的時間自動寫出備份，並保留最新的若干份。清理的對象只有自動建立的備份，手動建立的不會被刪除。</string>
     <string name="auto_backup_enable">啟用定期備份</string>

@@ -645,7 +645,7 @@
     <string name="resident_dialog_stop_all_desc">常駐サーバー・システムイベント検知・セッションをすべて止めてアプリを閉じます（タスクキル相当）。設定は変えないので、次にアプリを開くと検知は再開します。</string>
     <string name="servers_title">常駐サーバー</string>
     <string name="servers_new">+ 新規</string>
-    <string name="servers_empty">まだサーバーがありません。起動コマンド (例: python3 -m http.server 8080) で追加してください。</string>
+    <string name="servers_empty">まだサーバーがありません。起動コマンド (例: python3 -m http.server 8080 --bind 127.0.0.1) で追加してください。</string>
     <string name="servers_hint">サーバーは選択中の OS 内で動きます。サーバー本体 (sshd/smbd 等) はご自身で導入してください。アプリは起動コマンドを実行し、終了したら自動で再起動します。1024 未満のポートは root 無しでは bind できません。</string>
     <string name="servers_state_running">稼働中</string>
     <string name="servers_state_stopped">停止中</string>
@@ -1112,6 +1112,12 @@ SSH 接続先 %3$d 件
     <string name="backup_import_merge_note">いま入っているものは消えません。同じものは置き換え、無いものは追加します。</string>
     <string name="backup_import_failed">取り込めませんでした。合言葉、ファイルの破損、保存先へのアクセス権を確認してください。</string>
     <string name="backup_import_do">戻す</string>
+    <string name="backup_import_keep_automation">自動で動く設定もそのまま有効にする</string>
+    <string name="backup_import_stop_automation_note">自動化ルール・常駐サーバー・エッジパネルは止めた状態で入ります。端末起動時の自動起動と、新しいタブで動く初期コマンドは戻しません。何を動かすか確かめてから入れてください。</string>
+    <string name="backup_import_keep_automation_warning">自分で作ったバックアップのときだけ使ってください。入っているルールやサーバーがすぐに動き出します。</string>
+    <string name="backup_import_done">戻しました。</string>
+    <string name="backup_import_done_stopped">戻しました。自動で動く設定 %1$d 件は止めてあります。何を動かすか確かめてから入れてください（自動化ルール・常駐サーバー・エッジパネル）。</string>
+    <string name="backup_import_close">閉じる</string>
     <!-- 定期バックアップ (0.8.386) -->
     <string name="settings_auto_backup">決まった日時に自動で</string>
     <string name="settings_auto_backup_desc">選んだ日時に自分でバックアップを書き出し、新しいものから決めた本数だけ残します。片付ける対象は自動で作ったものだけで、手で作ったバックアップは消しません。</string>

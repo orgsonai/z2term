@@ -602,7 +602,7 @@
     <string name="resident_dialog_stop_all_desc">停止常驻服务、系统事件检测和会话，然后关闭应用（相当于结束任务）。设置不会改动，所以下次打开应用时检测会恢复。</string>
     <string name="servers_title">常驻服务</string>
     <string name="servers_new">+ 新建</string>
-    <string name="servers_empty">还没有服务器。请用启动命令 (例: python3 -m http.server 8080) 添加一个。</string>
+    <string name="servers_empty">还没有服务器。请用启动命令 (例: python3 -m http.server 8080 --bind 127.0.0.1) 添加一个。</string>
     <string name="servers_hint">服务器在当前选中的系统里运行。服务器本体 (sshd/smbd 等) 需要你自己安装；应用只负责执行启动命令，并在它退出后重新启动。没有 root 时无法绑定 1024 以下的端口。</string>
     <string name="servers_state_running">运行中</string>
     <string name="servers_state_stopped">已停止</string>
@@ -1039,6 +1039,12 @@ SSH 连接目标 %3$d 个
     <string name="backup_import_merge_note">现在已有的东西不会被删除。相同的会被替换，没有的会被添加。</string>
     <string name="backup_import_failed">无法导入。请检查口令、文件是否损坏以及目标位置的访问权限。</string>
     <string name="backup_import_do">恢复</string>
+    <string name="backup_import_keep_automation">自动运行的设置也照原样启用</string>
+    <string name="backup_import_stop_automation_note">自动化规则、常驻服务和边缘面板会以停止状态导入；开机自动启动和新标签页的初始命令不会恢复。请先确认它们会运行什么再启用。</string>
+    <string name="backup_import_keep_automation_warning">仅用于你自己制作的备份。其中的规则和服务会立即开始运行。</string>
+    <string name="backup_import_done">已恢复。</string>
+    <string name="backup_import_done_stopped">已恢复。%1$d 项自动运行的设置保持停止。请先确认它们会运行什么再启用（自动化规则、常驻服务、边缘面板）。</string>
+    <string name="backup_import_close">关闭</string>
     <string name="settings_auto_backup">在指定的日期时间自动进行</string>
     <string name="settings_auto_backup_desc">会在你选定的时间自动写出备份，并保留最新的若干份。清理的对象只有自动创建的备份，手动创建的不会被删除。</string>
     <string name="auto_backup_enable">启用定期备份</string>

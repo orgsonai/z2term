@@ -607,7 +607,7 @@
     <string name="resident_dialog_stop_all_desc">Para los servidores permanentes, la captura de eventos del sistema y la sesión, y después cierra la aplicación (como al retirar la tarea). Tus ajustes no se tocan, así que la captura se reanuda la próxima vez que abras la aplicación.</string>
     <string name="servers_title">Servidores permanentes</string>
     <string name="servers_new">+ Nuevo</string>
-    <string name="servers_empty">Todavía no hay servidores. Añade uno con su comando de inicio (por ejemplo, python3 -m http.server 8080).</string>
+    <string name="servers_empty">Todavía no hay servidores. Añade uno con su comando de inicio (por ejemplo, python3 -m http.server 8080 --bind 127.0.0.1).</string>
     <string name="servers_hint">Los servidores se ejecutan dentro del SO seleccionado. Instala tú el servidor (sshd/smbd/…); esto solo ejecuta tu comando de inicio y lo vuelve a lanzar si termina. Los puertos por debajo de 1024 no se pueden usar sin root.</string>
     <string name="servers_state_running">En marcha</string>
     <string name="servers_state_stopped">Parado</string>
@@ -1057,6 +1057,12 @@ Paneles laterales: %12$d, notas: %13$d</string>
     <string name="backup_import_merge_note">No se elimina nada de lo que tienes ahora. Los elementos que coinciden se sustituyen y los nuevos se añaden.</string>
     <string name="backup_import_failed">No se pudo restaurar. Comprueba la frase de contraseña, la integridad del archivo y el acceso al destino.</string>
     <string name="backup_import_do">Restaurar</string>
+    <string name="backup_import_keep_automation">Mantener activos los ajustes automáticos</string>
+    <string name="backup_import_stop_automation_note">Las reglas de automatización, los servidores permanentes y los paneles laterales entran detenidos; no se restauran el arranque automático al encender ni el comando inicial de las pestañas nuevas. Actívalos después de comprobar qué ejecutan.</string>
+    <string name="backup_import_keep_automation_warning">Solo para una copia que hayas hecho tú. Sus reglas y servidores empiezan a funcionar enseguida.</string>
+    <string name="backup_import_done">Restaurado.</string>
+    <string name="backup_import_done_stopped">Restaurado. %1$d ajustes automáticos quedaron detenidos. Comprueba qué ejecutan antes de activarlos (Reglas de automatización, Servidores permanentes, Paneles laterales).</string>
+    <string name="backup_import_close">Cerrar</string>
     <string name="settings_auto_backup">De forma programada</string>
     <string name="settings_auto_backup_desc">Escribe una copia por su cuenta a la hora que elijas y conserva las últimas. Solo se limpian los archivos que ha creado ella: una copia que hayas hecho a mano nunca se elimina.</string>
     <string name="auto_backup_enable">Hacer copias programadas</string>

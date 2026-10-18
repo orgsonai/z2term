@@ -57,7 +57,7 @@ Example questions:
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-1.0.48.apk`) on your phone.
+1. Put the APK file (`z2term-1.0.49.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -798,7 +798,7 @@ Notification, SMS, event and unlock-failure detection and log formats remain in 
 
 Open Command list → Servers to register, edit, start and stop resident servers.
 
-1. Tap "**+ New**". Picking a preset (SSH / HTTP / SMB / FTP / VNC) fills in a start command (edit it freely).
+1. Tap "**+ New**". Picking a preset (SSH / HTTP / SMB / FTP / VNC) fills in a start command (edit it freely). The HTTP preset listens **on the phone only** and serves just `~/public` (1.0.49). To reach it from other devices on the Wi-Fi, change `--bind 127.0.0.1` to `--bind 0.0.0.0` (there is no password, so keep only what you are happy to show in `~/public`).
 2. Install the server itself (`sshd` / `smbd`, …) into that OS beforehand from the terminal — the app does not bundle them.
 3. Tap "**Start**" to launch all servers now. Each row shows its state (`running`, …) and is **auto-restarted** if it exits.
    - **You can add, edit and delete servers while they stay resident** (applied within a few seconds). Previously, running something you had just added meant restarting everything — taking the other servers down with it. ⚠ **Deleting with ✕ asks for confirmation** (0.8.452).

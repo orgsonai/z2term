@@ -40,11 +40,47 @@ class BackupRestoreTest {
             }
             assertTrue(home.setReadable(false, false))
             assertTrue(home.setExecutable(false, false))
-            assertTrue(BackupManager.import(app, Uri.fromFile(archive), ""))
+            assertNotNull(BackupManager.import(app, Uri.fromFile(archive), ""))
             assertEquals("restored", macro.readText())
         } finally {
             home.setReadable(true, true); home.setExecutable(true, true)
             macro.delete(); archive.delete()
+        }
+    }
+
+    /** 既定の取り込みは、自動で動く設定を止めて入れる (1.0.49)。 */
+    @Test fun importStopsAutomationByDefault() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+        check(app.packageName.endsWith(".debug2"))
+        BackupHomeAccess.prepare(app)
+        val id = "backup-test-${UUID.randomUUID()}"
+        val rule = File(WhenManager.whenDir(app), "$id.rule")
+        val archive = File(app.cacheDir, "$id.zip")
+        val settings = AppSettings(app)
+        val before = settings.flow.first()
+        val servers = "[{\"id\":\"$id\",\"name\":\"x\",\"command\":\"echo x\",\"enabled\":true}]"
+        val settingsJson = "{\"server_entries\":{\"t\":\"s\",\"v\":${org.json.JSONObject.quote(servers)}}," +
+            "\"servers_autostart_on_boot\":{\"t\":\"b\",\"v\":true}," +
+            "\"init_command\":{\"t\":\"s\",\"v\":\"echo injected\"}}"
+        try {
+            archive.outputStream().use { out ->
+                BackupArchive.write(out, "{\"format\":1}".toByteArray(), mapOf(
+                    "when/$id.rule" to "trigger=boot\nrun=echo hi\nenabled=1\n".toByteArray(),
+                    "settings.json" to settingsJson.toByteArray(),
+                ), null)
+            }
+            val result = checkNotNull(BackupManager.import(app, Uri.fromFile(archive), ""))
+            assertEquals(4, result.stopped)
+            assertTrue(rule.readText().endsWith("enabled=0\n"))
+            val after = settings.flow.first()
+            assertEquals(before.initCommand, after.initCommand)
+            assertEquals(before.serversAutostartOnBoot, after.serversAutostartOnBoot)
+            assertTrue(com.zerotoship.z2term.settings.ServerEntry.decode(after.serverEntries).none { it.id == id && it.enabled })
+        } finally {
+            rule.delete(); archive.delete()
+            settings.setInitCommand(before.initCommand)
+            settings.setServersAutostartOnBoot(before.serversAutostartOnBoot)
+            settings.setServerEntries(before.serverEntries)
         }
     }
 
@@ -96,14 +132,15 @@ class BackupRestoreTest {
             snippets.upsert(Snippet(id = id, label = "Changed", command = "printf changed"))
             profiles.delete(id)
             if (includeSecrets) {
-                assertFalse(BackupManager.import(app, uri, "wrong"))
+                assertNull(BackupManager.import(app, uri, "wrong", keepAutomation = true))
                 assertEquals(21f, settings.flow.first().fontSizeSp, 0f)
                 assertEquals("changed", macro.readText())
                 assertFalse(rule.exists())
                 assertEquals("swipe", edge.panel(id).fields["scroll-how"])
                 assertEquals("changed note", externalNote.readText())
             }
-            assertTrue(BackupManager.import(app, uri, passphrase))
+            // 自分のバックアップを元どおりに戻す (自動で動く設定も止めない)。
+            assertNotNull(BackupManager.import(app, uri, passphrase, keepAutomation = true))
             assertEquals(17f, settings.flow.first().fontSizeSp, 0f)
             assertEquals(original, macro.readText())
             assertEquals("node", edge.panel(id).fields["scroll-how"])

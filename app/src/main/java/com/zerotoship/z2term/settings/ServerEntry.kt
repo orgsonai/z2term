@@ -12,7 +12,7 @@ import org.json.JSONObject
  *
  * @param id       安定した一意 id (UI の並び替え・status ファイル名に使う)。
  * @param name     表示名 (例: http / smb / ssh)。status ファイル名にも使うので実体は sanitize する。
- * @param command  起動コマンド (例: `python3 -m http.server 8080`)。sh -c で実行する。
+ * @param command  起動コマンド (例: `python3 -m http.server 8080 --bind 127.0.0.1`)。sh -c で実行する。
  * @param enabled  常駐対象に含めるか (OFF のエントリは起動しない)。
  */
 data class ServerEntry(
@@ -70,7 +70,13 @@ data class ServerEntry(
 
         val PRESETS: List<Preset> = listOf(
             Preset("SSH (sshd)", "ssh", "sshd"),
-            Preset("HTTP (python)", "http", "python3 -m http.server 8080"),
+            // ⚠ 既定はスマホの中だけ・~/public だけを見せる (1.0.49)。何も付けないと全ての宛先で待ち受け、
+            //    パスワードなしで起動したフォルダ (ホームなら ~/.ssh も) を LAN に見せていた。
+            //    LAN へ出すときは利用者が --bind を書き換える (sshd の --lan と同じく、外へ開くのは明示の操作)。
+            // ⚠ exec で sh と入れ替える。supervisor が止めるのは sh -c の pid だけなので、
+            //    && の後ろを子のままにすると python が残ってポートを握り続ける。
+            Preset("HTTP (python)", "http",
+                "mkdir -p ~/public && exec python3 -m http.server 8080 --bind 127.0.0.1 --directory ~/public"),
             Preset("SMB (samba)", "smb", "smbd -F --no-process-group"),
             Preset("FTP (vsftpd)", "ftp", "vsftpd"),
             Preset("VNC (Xvnc)", "vnc", "z2gui start 1280x720"),
