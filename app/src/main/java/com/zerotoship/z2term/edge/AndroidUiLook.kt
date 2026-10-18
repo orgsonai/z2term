@@ -89,6 +89,8 @@ internal object AndroidUiLook {
     /** 撮影の結果を受け取るスレッド。撮るたびに作ると残り続けるので 1 本を使い回す。 */
     private val shotExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "z2-ui-shot").apply { isDaemon = true } }
     @Volatile private var last: Snapshot? = null
+    /** 指の軌跡を画面に描くか ([UiTrail])。呼び出しのたびに UiBridge が設定から入れる。 */
+    @Volatile var showTrail = false
 
     /** 前面の窓。読めなければ null。メインスレッドで窓の情報だけを見る。 */
     suspend fun window(): Window? {
@@ -274,7 +276,7 @@ internal object AndroidUiLook {
             if (op != "tap" && op != "long") throw Refusal("bad_args", "Coordinates are only for tap and long")
             if (!window.bounds.contains(target.x, target.y)) throw Refusal("outside", "The point is outside the foreground app window")
             if (AndroidActions.gesturesInFlight()) throw Refusal("busy", "Wait for the previous gesture to finish")
-            gesture(window.service, Path().apply { moveTo(target.x.toFloat(), target.y.toFloat()) }, if (op == "long") holdMs else 80, peek)
+            gesture(window.service, listOf(target.x to target.y), if (op == "long") holdMs else 80, peek)
             return
         }
         val located = locate(window, target)
@@ -344,7 +346,7 @@ internal object AndroidUiLook {
         if (!window.bounds.contains(x1, y1) || !window.bounds.contains(x2, y2))
             throw Refusal("outside", "Both points must be inside the foreground app window")
         if (AndroidActions.gesturesInFlight()) throw Refusal("busy", "Wait for the previous gesture to finish")
-        gesture(window.service, Path().apply { moveTo(x1.toFloat(), y1.toFloat()); lineTo(x2.toFloat(), y2.toFloat()) }, ms, peek)
+        gesture(window.service, listOf(x1 to y1, x2 to y2), ms, peek)
     }
 
     /**
@@ -357,11 +359,7 @@ internal object AndroidUiLook {
         if (points.any { (x, y) -> !window.bounds.contains(x, y) })
             throw Refusal("outside", "All points must be inside the foreground app window")
         if (AndroidActions.gesturesInFlight()) throw Refusal("busy", "Wait for the previous gesture to finish")
-        val path = Path().apply {
-            moveTo(points[0].first.toFloat(), points[0].second.toFloat())
-            points.drop(1).forEach { (x, y) -> lineTo(x.toFloat(), y.toFloat()) }
-        }
-        gesture(window.service, path, ms, peek, holdMs)
+        gesture(window.service, points, ms, peek, holdMs)
     }
 
     /**
@@ -596,6 +594,8 @@ internal object AndroidUiLook {
 
     @androidx.annotation.RequiresApi(30)
     private suspend fun capture(service: AccessibilityService): android.graphics.Bitmap {
+        // 指の軌跡は撮影に写るので、撮る前に消す (AI に届く画像と色を軌跡なしに保つ)。
+        UiTrail.clear()
         repeat(2) { attempt ->
             // Android の下限 (約 1/3 秒) だけ空ける。バーの配色が使う 1 秒はあちらの都合で、z2-ui が続けて
             // 撮るときまで 1 秒待つ理由にはならない。下限に当たったときは下で 1 度だけ撮り直す。
@@ -629,10 +629,17 @@ internal object AndroidUiLook {
     }
 
     /**
-     * 操作を送り、指が離れるまで待つ。[peek] があれば、指を置いている間に撮る。
+     * 指を [points] (画面の px) の順に通す操作を送り、指が離れるまで待つ。点が 1 つならその場に置く。
+     * [peek] があれば、指を置いている間に撮る。
      * 撮影は操作の終わりを待たずに並べて走らせる (以前は 1 つずつで、指を離すまで撮れなかった)。
      */
-    private suspend fun gesture(service: AccessibilityService, path: Path, ms: Long, peek: Peek? = null, holdMs: Long = 0) = coroutineScope {
+    private suspend fun gesture(service: AccessibilityService, points: List<Pair<Int, Int>>, ms: Long, peek: Peek? = null,
+        holdMs: Long = 0) = coroutineScope {
+        val path = Path().apply {
+            moveTo(points[0].first.toFloat(), points[0].second.toFloat())
+            points.drop(1).forEach { (x, y) -> lineTo(x.toFloat(), y.toFloat()) }
+        }
+        if (showTrail) withContext(Dispatchers.Main) { UiTrail.start(service, points, ms, holdMs) }
         // 指が離れたことは結果の呼び戻しで直接残す (撮っている間はこの流れの再開が後回しになることがあるため)。
         val ended = java.util.concurrent.atomic.AtomicBoolean(false)
         val stroke = async {
@@ -640,8 +647,8 @@ internal object AndroidUiLook {
             else {
                 // 始点で [holdMs] 指を止めてから動かす (`drag --hold`)。触れてすぐ動くと「掴んだ」と
                 // 認められない画面があるため。止める分を指を離さない 1 本目にして、続きを 2 本目でつなぐ。
-                val start = FloatArray(2).also { android.graphics.PathMeasure(path, false).getPosTan(0f, it, null) }
-                val first = GestureDescription.StrokeDescription(Path().apply { moveTo(start[0], start[1]) }, 0, holdMs, true)
+                val start = Path().apply { moveTo(points[0].first.toFloat(), points[0].second.toFloat()) }
+                val first = GestureDescription.StrokeDescription(start, 0, holdMs, true)
                 send(service, first, null)
                 send(service, first.continueStroke(path, 0, ms, false), ended)
             }

@@ -78,6 +78,7 @@ fun UiBridgeBody() {
     val levels = remember(tick) { settings.levels() }
     val minutes = remember(tick) { settings.grantMinutes }
     val strictSettle = remember(tick) { settings.strictSettle }
+    val showTrail = remember(tick) { settings.showTrail }
     var editingGrant by remember { mutableStateOf(false) }
     var paused by remember { mutableStateOf(UiBridge.isPaused) }
 
@@ -154,6 +155,14 @@ fun UiBridgeBody() {
         desc = stringResource(R.string.ui_bridge_strict_settle_desc),
         checked = strictSettle,
         onChange = { settings.strictSettle = it }
+    )
+
+    // AI の指の軌跡を画面に描く (1.0.46)。AI が撮る画像には写さない。
+    ToggleRow(
+        title = stringResource(R.string.ui_bridge_show_trail),
+        desc = stringResource(R.string.ui_bridge_show_trail_desc),
+        checked = showTrail,
+        onChange = { settings.showTrail = it }
     )
 
     // まとめて許可する時間。見出しの長押しで 61 分以上を入れられる (裏設定: UiBridgePolicy.GRANT_MAX_MINUTES)。

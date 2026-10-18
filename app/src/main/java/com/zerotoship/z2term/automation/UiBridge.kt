@@ -270,6 +270,7 @@ internal object UiBridge {
 
     private fun handle(app: Context, verb: String, args: List<String>, capture: Capture = Capture(null, null)): JSONObject {
         val settings = UiBridgeSettings(app)
+        AndroidUiLook.showTrail = settings.showTrail
         val peek = capture.peek
         return when (verb) {
             "status" -> { count(args, 0); status(app, settings) }

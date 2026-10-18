@@ -1084,6 +1084,8 @@ Pick one from the tabs on the right.</string>
     <string name="settings_terminal_hints_desc">When a well-known error appears, show one line at the bottom with the next step. The terminal output itself is never altered.</string>
     <string name="ui_bridge_strict_settle">Catch small moving parts</string>
     <string name="ui_bridge_strict_settle_desc">When waiting for the screen to stop moving, also look at small areas, so that a few pieces disappearing or a small dialog count as moving. Turn this off if a screen with a part that never stops (such as an idle animation) makes AI operation wait up to the limit every time. The AI can also choose per call.</string>
+    <string name="ui_bridge_show_trail">Show the finger trail</string>
+    <string name="ui_bridge_show_trail_desc">Draw where the AI touches on the screen: a circle for a tap or long press, and a line with numbered points for a swipe or drag, following the finger. It fades a second after the finger lifts. It is removed before every capture, so the images and colours the AI reads do not include it.</string>
     <string name="settings_attention_signal">Notify when a background tab calls</string>
     <string name="settings_attention_signal_desc">When a tab you are not looking at rings its bell or asks for a notification (OSC 9 / OSC 777), show a notification. Many AI command-line tools do this when they wait for input. Tap it to open the tab.</string>
     <string name="settings_attention_silence">Notify when a background tab stops printing</string>

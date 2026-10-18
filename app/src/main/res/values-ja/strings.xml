@@ -1064,6 +1064,8 @@
     <string name="settings_terminal_hints_desc">よくあるエラーが出たとき、画面の下に「次の一手」を1行だけ出します。端末の出力は書き換えません。</string>
     <string name="ui_bridge_strict_settle">小さな動きも「動いている」とみる</string>
     <string name="ui_bridge_strict_settle_desc">画面の動きが止まるのを待つとき、小さな範囲の動きも見ます（数個の駒が消える・小さなダイアログなども「まだ動いている」とみます）。一部がずっと動いている画面（待機中のアニメーションなど）で毎回最大まで待たされるときは OFF にしてください。AI が呼び出しごとに選ぶこともできます。</string>
+    <string name="ui_bridge_show_trail">操作の軌跡を表示</string>
+    <string name="ui_bridge_show_trail_desc">AI が触れた場所を画面に描きます。タップ・長押しは丸、スワイプ・なぞる操作は指の動きに合わせて伸びる線と番号付きの点です。指を離して 1 秒ほどで消えます。撮影の前には毎回消すので、AI が読む画像や色には写りません。</string>
     <string name="settings_attention_signal">裏のタブが呼んだら通知する</string>
     <string name="settings_attention_signal_desc">見ていないタブがベルを鳴らしたり、通知を求めたり（OSC 9 / OSC 777）したら通知を出します。AI のコマンドラインツールの多くは、入力を待つときにこれを出します。通知を押すとそのタブを開きます。</string>
     <string name="settings_attention_silence">裏のタブの出力が止まったら通知する</string>
