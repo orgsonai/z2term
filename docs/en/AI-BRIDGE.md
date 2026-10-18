@@ -221,7 +221,7 @@ While operations continue, the notification "AI is controlling an app (org.examp
 
 ### 5.4 Log
 
-`~/.z2term/ui/log.jsonl` gets one line per call (time, app, operation, target, result). Text entered with `type` is not recorded, only its length; `look` contents are not recorded either.
+`~/.z2term/ui/log.jsonl` gets one line per call (time, app, operation, target, result, and the time taken as `ms`). The time stamp is when the call ended, so the gap to the previous line minus `ms` is the time spent outside the call, such as the AI thinking (1.0.46). Text entered with `type` is not recorded, only its length; `look` contents are not recorded either.
 
 ## 6. Connecting an AI
 

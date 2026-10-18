@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-18 / 対象バージョン: 1.0.45 (versionCode 743)
+最終更新: 2026-10-18 / 対象バージョン: 1.0.46 (versionCode 744)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -2552,6 +2552,8 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - **受け渡しの速い形式（1.0.36、`Z2ApiScript` の `z2api` / `Z2ApiBridge`）**: proot の上では外部コマンドを 1 つ起こすごとに約 50 ms かかり、z2api が 1 回で 8〜10 個起こしていたため、何もしない命令でも約 0.5 秒かかっていた。要求は `N` 行の後ろに生の引数を NUL 区切りで書き（組み込みの printf）、rename せず直接書く（アプリは CLOSE_WRITE で拾う）。id は自分の pid。応答待ちは最初の 400 回を組み込みの `[ -e ]` で回し、応答は生（1 行目 `OK` / `ERR`、末尾の改行は除く）で返して組み込みの read で読む。旧形式の要求・応答も受け付ける。
 - **操作のあとの画面（1.0.36）**: `--shot` / `--settle MS`（`UiBridge.capture`）は操作の成功後 250 ms 置いてから撮り始め、続けて撮った 2 枚を 48 px 幅の明るさに縮めて比べ、差の平均が 3 未満（`UiBridgePolicy.settled`）なら止まったとみて保存する。`shot --stable` も同じ。
 - **判定の厳しさ（1.0.44）**: `UiBridgeSettings.strictSettle`（既定 true、アプリの SharedPreferences）が `UiBridgePolicy.settled` の区画の判定（`blocks`）を切り替える。呼び出しの `--settle-check strict|loose` が優先する。
+- **1 語にまとめた引数（1.0.46）**: `UiBridgePolicy.spread` が空白でつないだ引数を分ける。使うのは数・座標・決まった語だけの引数（`drag` / `swipe` / `colors` の全部と、`--grid` の値）。`tap` の文字や `type` など、文字を入れる・探す引数には使わない。
+- **記録の処理時間（1.0.46）**: `log.jsonl` の各行に `ms`（`execute` の始めから終わりまで。撮影・待ちを含む）。時刻は終わったときなので、前の行との間隔から `ms` を引くと呼び出しの外の時間になる。
 - **色の条件待ち（1.0.43）**: `colors --until` は `AndroidUiLook.sample` の中で、撮影 1 回（`frame`、止まるのを待たない）ごとに `pick` で点の色を読み、`UiBridgePolicy.Until`（`Brighter` / `Darker` は `brightness` の平均、`Changed` は最初に読んだ色の名前との違い、`Named` は全点の名前、`UiBridgePolicyTest`）で判定する。画像は作らない。撮影の間隔は `capture` の下限（340 ms）に従う。満たしたら `--stable` のときだけ点を囲む範囲で止まるのを待つ。`--within`（既定 10 秒、最大 30 秒）を過ぎたら `not_met` に最後の色を付けて返す。待つ間は撮るたびに一時停止・指示・停止を確かめる。
 - **待ち時間を減らす（1.0.42）**: `UiBridgePolicy.settled` は全体の差の平均（3 未満）に加えて、4 × 4 の区画ごとの差の平均がどれも 10 未満であることを求める（`UiBridgePolicyTest`）。`AndroidUiLook.frame` は判定の範囲（`shot` は `--box`、`sample` は点をすべて囲む範囲＋半径）だけを縮めて比べる。`expectChange` は前回保存した画像の印（`Saved`）と同じ条件・同じ印の間、最大 `CHANGE_MAX_MS`（1.5 秒）撮り直し、そのあと止まるのを待つ（変化を待った時間は止まるまでの最大待ちに数えない）。`shot --grid` は保存する 1 枚から `pick` で色を読む。`seq` の `--peek` は 1 回まで、どの手でもよい。`drag --hold` は指を離さない 1 本目（始点で止める）と、`continueStroke` でつないだ 2 本目で送る。手順の保存では始点を `ceil(hold / step)` 個重ねる。
 - **範囲・変化なし（1.0.39）**: `--box` は窓の範囲と交わる部分だけを切り出す（`box` は撮った範囲なので座標の式は変わらない）。`--if-changed` は保存した画像の印（範囲を 160 px 幅に縮めた明るさ）を `AndroidUiLook` に 1 つ持ち、ファイル名・窓・範囲・縮小が同じで、どの点の差も 8 以下（`UiBridgePolicy.same`）なら書かずに `unchanged` を返す。動きの判定（`settled`、平均の差）より厳しくし、小さな文字の変化を見落とさない。

@@ -242,6 +242,7 @@ internal object UiBridge {
 
     /** 1 回の呼び出し。判定・実行・記録・手順の控えまで。CLI と MCP で共通。 */
     internal fun execute(app: Context, verb: String, rawArgs: List<String>): JSONObject {
+        val startedAt = SystemClock.elapsedRealtime()
         val (args, capture) = try { capture(verb, rawArgs) } catch (e: Refusal) { return failure(e.code, e.message.orEmpty()) }
         val settle = capture.settle
         val result = try {
@@ -259,7 +260,7 @@ internal object UiBridge {
             failure("error", e.message ?: e.javaClass.simpleName)
         }
         // seq は中の 1 手ずつを記録・控えるので、まとめた呼び出し自体は残さない。
-        if (verb !in setOf("status", "", "seq")) log(app, verb, args, result)
+        if (verb !in setOf("status", "", "seq")) log(app, verb, args, result, SystemClock.elapsedRealtime() - startedAt)
         if (verb != "seq" && result.optBoolean("ok")) UiBridgeRecorder.record(verb, args)
         return result
     }
@@ -343,9 +344,10 @@ internal object UiBridge {
                 exclusive { operate(app, settings, verb, target, args[1], false) }
             }
             "swipe" -> {
-                require(args.size in 4..5) { "z2-ui swipe X1 Y1 X2 Y2 [MS]" }
-                val points = args.take(4).map { it.toIntOrNull()?.takeIf { v -> v >= 0 } ?: throw Refusal("bad_args", "Coordinates are pixels (0 or more)") }
-                val ms = args.getOrNull(4)?.let { it.toLongOrNull()?.takeIf { v -> v in 50..3000 } ?: throw Refusal("bad_args", "Duration must be 50..3000 ms") } ?: 300L
+                val words = UiBridgePolicy.spread(args)
+                require(words.size in 4..5) { "z2-ui swipe X1 Y1 X2 Y2 [MS]" }
+                val points = words.take(4).map { it.toIntOrNull()?.takeIf { v -> v >= 0 } ?: throw Refusal("bad_args", "Coordinates are pixels (0 or more)") }
+                val ms = words.getOrNull(4)?.let { it.toLongOrNull()?.takeIf { v -> v in 50..3000 } ?: throw Refusal("bad_args", "Duration must be 50..3000 ms") } ?: 300L
                 checkPeek(peek, ms)
                 exclusive { swipe(app, settings, points, ms, peeker(app, settings, peek, capture.box)) }
             }
@@ -353,15 +355,16 @@ internal object UiBridge {
                 var step = 100L
                 var hold = 0L
                 val points = mutableListOf<Pair<Int, Int>>()
+                val words = UiBridgePolicy.spread(args)
                 var i = 0
-                while (i < args.size) {
-                    val arg = args[i]
+                while (i < words.size) {
+                    val arg = words[i]
                     if (arg == "--step") {
-                        step = args.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 20..1000 }
+                        step = words.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 20..1000 }
                             ?: throw Refusal("bad_args", "--step must be 20..1000 ms")
                     } else if (arg == "--hold") {
                         // 始点で指を止める長さ。触れてすぐ動くと「掴んだ」と認めない画面のため。
-                        hold = args.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 0..2000 }
+                        hold = words.getOrNull(++i)?.toLongOrNull()?.takeIf { it in 0..2000 }
                             ?: throw Refusal("bad_args", "--hold must be 0..2000 ms")
                     } else {
                         val xy = arg.removePrefix("@").split(',').map { it.toIntOrNull() }
@@ -461,7 +464,9 @@ internal object UiBridge {
      * 引数から色の指定 (`--grid X0,Y0 DX,DY COLSxROWS` / `--radius R` / `--hex`、[positional] なら点 `X,Y` も) を
      * 取り出し、残りを返す。指定が無ければ null。`colors` と、`shot --grid` / 操作の `--shot --grid` で共通。
      */
-    private fun takeColors(args: List<String>, positional: Boolean): Pair<ColorSpec?, List<String>> {
+    private fun takeColors(given: List<String>, positional: Boolean): Pair<ColorSpec?, List<String>> {
+        // `--grid "X0,Y0 DX,DY 6x5"` のように 1 語にまとめた格子も受ける。ほかの引数 (tap の文字など) は分けない。
+        val args = given.flatMapIndexed { n, arg -> if (given.getOrNull(n - 1) == "--grid") UiBridgePolicy.spread(listOf(arg)) else listOf(arg) }
         var radius: Int? = null
         var hex = false
         var cols: Int? = null
@@ -538,7 +543,7 @@ internal object UiBridge {
         if (android.os.Build.VERSION.SDK_INT < 30) throw Refusal("unsupported", "Screen capture requires Android 11")
         val usage = "z2-ui colors X,Y ... | --grid X0,Y0 DX,DY COLSxROWS [--radius R] [--stable [MS]] [--settle-check strict|loose] " +
             "[--hex] [--until brighter N|darker N|changed|COLOR [--within MS]]"
-        val (spec, rest) = takeColors(args, positional = true)
+        val (spec, rest) = takeColors(UiBridgePolicy.spread(args), positional = true)
         if (spec == null) throw Refusal("bad_args", usage)
         var stable = 0L
         var until: UiBridgePolicy.Until? = null
@@ -1134,8 +1139,12 @@ internal object UiBridge {
 
     private val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
 
-    /** `~/.z2term/ui/log.jsonl`。入れた文字は記録せず文字数だけ、look の中身も残さない。 */
-    private fun log(app: Context, verb: String, args: List<String>, result: JSONObject) = runCatching {
+    /**
+     * `~/.z2term/ui/log.jsonl`。入れた文字は記録せず文字数だけ、look の中身も残さない。
+     * [ms] はこの呼び出しにかかった時間 (撮影・待ちを含む)。時刻は終わったときなので、
+     * 前の行との間隔から [ms] を引いた残りが、呼び出しの外 (AI が考えていた時間など) になる。
+     */
+    private fun log(app: Context, verb: String, args: List<String>, result: JSONObject, ms: Long) = runCatching {
         val line = JSONObject().put("time", synchronized(iso) { iso.format(Date()) }).put("verb", verb)
             .put("package", lastPackage ?: JSONObject.NULL)
         when (verb) {
@@ -1144,7 +1153,7 @@ internal object UiBridge {
             "look", "front", "pause", "stop", "status" -> Unit
             else -> line.put("args", JSONArray(args))
         }
-        line.put("ok", result.optBoolean("ok"))
+        line.put("ok", result.optBoolean("ok")).put("ms", ms)
         result.optString("error").takeIf { it.isNotEmpty() }?.let { line.put("error", it) }
         val dir = File(app.filesDir, "shared_home/.z2term/ui").apply { mkdirs() }
         val file = File(dir, "log.jsonl")

@@ -117,6 +117,13 @@ internal object UiBridgePolicy {
 
     const val SAME_THRESHOLD = 8
 
+    /**
+     * 空白でつないで 1 つにされた引数を分ける (`"540,1200 600,1300"` → 2 つ、`"brighter 125"` → 2 つ)。
+     * AI が引用符で 1 語にまとめて送り、`bad_args` で 1 往復むだにするのを防ぐ。
+     * ⚠ 数・座標・決まった語だけの引数に使う。文字を入れる・探す引数 (`type` / `text=` など) には使わない。
+     */
+    fun spread(args: List<String>): List<String> = args.flatMap { arg -> arg.split(' ', '\t', '\n').filter { it.isNotEmpty() } }
+
     /** 点ごとの中央値 (0xRRGGBB)。赤・緑・青をそれぞれ並べて真ん中を取る。光沢や縁の 1 点に引っぱられない。 */
     fun median(pixels: IntArray): Int {
         if (pixels.isEmpty()) return 0

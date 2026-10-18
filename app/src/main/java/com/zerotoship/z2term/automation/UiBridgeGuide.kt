@@ -360,7 +360,7 @@ notification. You learn about it as the reply to your next call:
 - Never enter passwords or one-time codes. If a login is needed, ask the user to do it, then continue.
 - Do not read notifications or messages beyond what the task needs, and do not copy private content elsewhere.
 - When you finish, tell the user what you did in which app, and anything you could not do.
-- The log at `/root/.z2term/ui/log.jsonl` records your calls (typed text is recorded only as a length). The user can read it.
+- The log at `/root/.z2term/ui/log.jsonl` records your calls and how long each took (`ms`; typed text is recorded only as a length). The user can read it.
 
 ## 17. Error codes
 

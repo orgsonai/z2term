@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.46 (versionCode 744)**: In AI app control (`z2-ui`), (1) arguments sent quoted as one word are now accepted: `drag "540,1200 600,1300"`, `--until "brighter 125"` and `--grid "100,1516 177,177 6x5"` work as they are (before they were refused as wrong arguments, costing the AI a round trip to resend). Text to type or find is still never split. (2) Every line of the log (`~/.z2term/ui/log.jsonl`) now has the time the call took (`ms`), so z2term's own time can be told apart from the time the AI spent thinking between calls.
+
 **1.0.45 (versionCode 743)**: The AI guide (`z2-ui --help`) now describes handing a repeating procedure to a small script that calls z2-ui, with the AI deciding only when the script meets something unknown. This removes the AI round trip (5–10 s each) during the repetition. Permissions, pause and stop still apply to the script.
 
 **1.0.44 (versionCode 742)**: The AI operation settings gained "Catch small moving parts" (on by default). Since 1.0.42 the "has it stopped" check is stricter, so a screen with a part that never stops may wait up to the limit every time; turning this off restores the check up to 1.0.41. The AI can also choose per call with `--settle-check strict|loose`.

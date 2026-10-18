@@ -140,6 +140,12 @@ class UiBridgePolicyTest {
         assertNull(until("shiny"))
     }
 
+    @Test fun spreadSplitsWordsJoinedIntoOneArgument() {
+        assertEquals(listOf("540,1200", "600,1300", "--step", "60"), UiBridgePolicy.spread(listOf("540,1200 600,1300 ", "--step", "60")))
+        assertEquals(listOf("--until", "brighter", "125"), UiBridgePolicy.spread(listOf("--until", "brighter 125")))
+        assertEquals(listOf("a", "b"), UiBridgePolicy.spread(listOf("  a\tb", "")))
+    }
+
     @Test fun medianIgnoresAHighlight() {
         // 赤い 8 点に白い光沢が 1 点。平均なら薄まるが、中央値は赤のまま。
         val red = 0xe03020
