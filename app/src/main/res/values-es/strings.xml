@@ -641,6 +641,10 @@
     <string name="settings_log_size_warn">⚠ Este registro ha crecido hasta %1$s MB</string>
     <string name="settings_log_size_warn_desc">Mientras \"Lo más reciente arriba\" esté activado, el archivo entero se lee y se reescribe con cada entrada. A medida que crece esto se vuelve lento y, al final, ya no se pueden anotar más entradas. Desactívalo (para añadir al final) o recorta el archivo desde la terminal.</string>
     <string name="settings_log_size_warn_cmd_label">Comando para vaciarlo (toca para copiar)</string>
+    <string name="settings_log_keep_title">Días que se conservan</string>
+    <string name="settings_log_keep_unlimited">Sin límite</string>
+    <string name="settings_log_keep_days">%1$d días</string>
+    <string name="settings_log_keep_desc">Las entradas más antiguas se recortan del mismo archivo la próxima vez que se escribe una (sigue siendo un solo archivo). Las entradas anteriores a esta versión, o a una edición manual del archivo, se cuentan desde ese día.</string>
     <string name="settings_cmd_read_label">Comando para leerlo (toca para copiar)</string>
     <string name="settings_cmd_copy_label">Comando (toca para copiar)</string>
     <string name="settings_cmd_copied">Comando copiado</string>

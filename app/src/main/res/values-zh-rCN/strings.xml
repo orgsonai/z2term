@@ -636,6 +636,10 @@
     <string name="settings_log_size_warn">⚠ 这个日志已经涨到 %1$s MB</string>
     <string name="settings_log_size_warn_desc">只要“新的放在最前面”是开着的，每记录一行就要把整个文件读一遍再写一遍。文件继续变大会越来越慢，最后甚至记不下去。请关掉这个设置（改成追加到末尾），或者在终端里整理一下文件。</string>
     <string name="settings_log_size_warn_cmd_label">清空它的命令（点击复制）</string>
+    <string name="settings_log_keep_title">保留天数</string>
+    <string name="settings_log_keep_unlimited">不限</string>
+    <string name="settings_log_keep_days">%1$d 天</string>
+    <string name="settings_log_keep_desc">比这更早的记录会在下次写入时从同一个文件中删掉（仍是一个文件）。此版本之前的记录、以及手动改过文件之后的记录，从那天开始计算。</string>
     <string name="settings_cmd_read_label">读取它的命令（点击复制）</string>
     <string name="settings_cmd_copy_label">命令（点击复制）</string>
     <string name="settings_cmd_copied">已复制命令</string>

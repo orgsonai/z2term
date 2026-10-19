@@ -344,6 +344,11 @@ class AppSettings(private val context: Context) {
          */
         val notificationLogPrepend: Boolean = DEFAULT_LOG_PREPEND,
         /**
+         * 通知ログを何日分残すか (1.0.50)。0 = 無制限 (既定)。それより古い記録は、次に記録するときに
+         * [com.zerotoship.z2term.service.LogRetention] が同じファイルから切り落とす。
+         */
+        val notificationLogKeepDays: Int = DEFAULT_LOG_KEEP_DAYS,
+        /**
          * システムイベント検知の有効化フラグ。ON のとき [com.zerotoship.z2term.service.SystemEventService]
          * (opt-in の FG サービス) が常駐し、画面 ON/OFF・ロック解除・充電・電池残量・Wi‑Fi 接続などを
          * `~/.z2term/events.jsonl` へ追記する。通知検知 (z2-notify の逆向き) の姉妹機能で、加工はユーザーが
@@ -410,6 +415,8 @@ class AppSettings(private val context: Context) {
          * SMS ログを **先頭追記** (新着が上) にするか。false で末尾追記 (新着が下)。
          */
         val smsLogPrepend: Boolean = DEFAULT_LOG_PREPEND,
+        /** SMS ログを何日分残すか (1.0.50)。0 = 無制限 (既定)。[notificationLogKeepDays] と同じ扱い。 */
+        val smsLogKeepDays: Int = DEFAULT_LOG_KEEP_DAYS,
         /**
          * 定期バックアップを回すか (0.8.386)。ON のとき [autoBackupFolder] へ決まった日時に
          * 書き出し、[autoBackupKeep] 世代だけ残して古いものから消す
@@ -630,6 +637,7 @@ class AppSettings(private val context: Context) {
             notificationLogEnabled = p[KEY_NOTIFICATION_LOG] ?: DEFAULT_NOTIFICATION_LOG,
             notificationLogFormat = p[KEY_NOTIFICATION_LOG_FORMAT] ?: DEFAULT_NOTIFICATION_LOG_FORMAT,
             notificationLogPrepend = p[KEY_NOTIFICATION_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND,
+            notificationLogKeepDays = (p[KEY_NOTIFICATION_LOG_KEEP_DAYS] ?: DEFAULT_LOG_KEEP_DAYS).coerceAtLeast(0),
             systemEventCaptureEnabled = p[KEY_SYSTEM_EVENT_CAPTURE] ?: DEFAULT_SYSTEM_EVENT_CAPTURE,
             introDone = p[KEY_INTRO_DONE] ?: false,
             terminalHintsEnabled = p[KEY_TERMINAL_HINTS] ?: true,
@@ -643,6 +651,7 @@ class AppSettings(private val context: Context) {
             smsCaptureEnabled = p[KEY_SMS_CAPTURE] ?: DEFAULT_SMS_CAPTURE,
             smsLogFormat = p[KEY_SMS_LOG_FORMAT] ?: DEFAULT_SMS_LOG_FORMAT,
             smsLogPrepend = p[KEY_SMS_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND,
+            smsLogKeepDays = (p[KEY_SMS_LOG_KEEP_DAYS] ?: DEFAULT_LOG_KEEP_DAYS).coerceAtLeast(0),
             autoBackupEnabled = p[KEY_AUTO_BACKUP] ?: false,
             autoBackupFolder = p[KEY_AUTO_BACKUP_FOLDER] ?: "",
             autoBackupInterval = p[KEY_AUTO_BACKUP_INTERVAL] ?: DEFAULT_AUTO_BACKUP_INTERVAL,
@@ -750,6 +759,10 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_SMS_LOG_PREPEND] = enabled }
     }
 
+    suspend fun setSmsLogKeepDays(days: Int) {
+        context.dataStore.edit { it[KEY_SMS_LOG_KEEP_DAYS] = days.coerceAtLeast(0) }
+    }
+
     suspend fun setNotificationCaptureEnabled(enabled: Boolean) {
         context.dataStore.edit { it[KEY_NOTIFICATION_CAPTURE] = enabled }
     }
@@ -764,6 +777,10 @@ class AppSettings(private val context: Context) {
 
     suspend fun setNotificationLogPrepend(enabled: Boolean) {
         context.dataStore.edit { it[KEY_NOTIFICATION_LOG_PREPEND] = enabled }
+    }
+
+    suspend fun setNotificationLogKeepDays(days: Int) {
+        context.dataStore.edit { it[KEY_NOTIFICATION_LOG_KEEP_DAYS] = days.coerceAtLeast(0) }
     }
 
     suspend fun setSystemEventCaptureEnabled(enabled: Boolean) {
@@ -1213,6 +1230,7 @@ class AppSettings(private val context: Context) {
         const val MAX_ATTENTION_SILENCE_SEC = 600
         private val KEY_SYSTEM_EVENT_LOG_FORMAT = stringPreferencesKey("system_event_log_format")
         private val KEY_NOTIFICATION_LOG_PREPEND = booleanPreferencesKey("notification_log_prepend")
+        private val KEY_NOTIFICATION_LOG_KEEP_DAYS = intPreferencesKey("notification_log_keep_days")
         private val KEY_SYSTEM_EVENT_LOG_PREPEND = booleanPreferencesKey("system_event_log_prepend")
         private val KEY_UNLOCK_WATCH = booleanPreferencesKey("unlock_watch_enabled")
         private val KEY_SMS_CAPTURE = booleanPreferencesKey("sms_capture_enabled")
@@ -1257,6 +1275,7 @@ class AppSettings(private val context: Context) {
         private val KEY_APP_LOCK_GRACE = intPreferencesKey("app_lock_grace_sec")
         private val KEY_SMS_LOG_FORMAT = stringPreferencesKey("sms_log_format")
         private val KEY_SMS_LOG_PREPEND = booleanPreferencesKey("sms_log_prepend")
+        private val KEY_SMS_LOG_KEEP_DAYS = intPreferencesKey("sms_log_keep_days")
 
         /** 通知検知は既定 OFF (明示 opt-in + OS の通知アクセス許可が要る)。 */
         const val DEFAULT_NOTIFICATION_CAPTURE = false
@@ -1272,6 +1291,7 @@ class AppSettings(private val context: Context) {
 
         /** ログ書き込みは既定で末尾追記 (新着が下)。ON で先頭追記 (新着が上)。 */
         const val DEFAULT_LOG_PREPEND = false
+        const val DEFAULT_LOG_KEEP_DAYS = 0
 
         /** ロック解除の失敗監視は既定 OFF (明示 opt-in + 端末管理者の有効化が要る)。 */
         const val DEFAULT_UNLOCK_WATCH = false

@@ -17,6 +17,13 @@
     <string name="qr_tools_save_edge">Add as edge button</string>
     <string name="qr_tools_command_qr">Create command QR</string>
     <string name="qr_tools_command_note">Commands are not run when scanned or saved. Edge buttons are added to a new disabled panel; enable it in the panel manager.</string>
+    <string name="qr_tools_command_box">Command that goes in (check this, not the name)</string>
+    <string name="qr_tools_save_review_title">Save with this content?</string>
+    <string name="qr_tools_save_review_name">Name: %1$s</string>
+    <string name="qr_tools_save_review_no_name">(none)</string>
+    <string name="qr_tools_save_review_note">Once saved, tapping it later runs this command as it is. Whoever made the QR can give it any name, so decide by the content above.</string>
+    <string name="qr_tools_save_review_ok">Save</string>
+    <string name="qr_tools_save_review_cancel">Cancel</string>
     <string name="qr_tools_multiline">Text containing line breaks or control characters can be copied, but cannot be inserted as a command.</string>
     <string name="qr_tools_done">Saved</string>
     <string name="qr_tools_failed">Could not complete the operation. Check the QR content, image, camera permission or destination.</string>

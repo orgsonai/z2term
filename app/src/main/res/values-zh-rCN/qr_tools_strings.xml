@@ -17,6 +17,13 @@
     <string name="qr_tools_save_edge">添加为边缘按钮</string>
     <string name="qr_tools_command_qr">创建命令二维码</string>
     <string name="qr_tools_command_note">扫描或保存不会执行命令。边缘按钮会添加到新的隐藏面板，请在面板管理中启用。</string>
+    <string name="qr_tools_command_box">将放入的命令（请确认这里，而不是名称）</string>
+    <string name="qr_tools_save_review_title">按此内容保存吗？</string>
+    <string name="qr_tools_save_review_name">名称：%1$s</string>
+    <string name="qr_tools_save_review_no_name">（无）</string>
+    <string name="qr_tools_save_review_note">保存后，以后点按时会直接运行这条命令。名称可由制作 QR 的人随意填写，请以上面的内容为准。</string>
+    <string name="qr_tools_save_review_ok">保存</string>
+    <string name="qr_tools_save_review_cancel">取消</string>
     <string name="qr_tools_multiline">包含换行或控制字符的内容可以复制，但不能作为命令插入。</string>
     <string name="qr_tools_done">已保存</string>
     <string name="qr_tools_failed">操作失败。请检查二维码内容、图片、相机权限或保存位置。</string>

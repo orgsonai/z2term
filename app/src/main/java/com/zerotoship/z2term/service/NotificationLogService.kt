@@ -39,7 +39,7 @@ class NotificationLogService : NotificationListenerService() {
     private val trace = NotificationTrace()
     private val settingsReady = CompletableDeferred<Unit>()
     private data class Policy(val capture: Boolean = false, val log: Boolean = true,
-        val template: String = "", val prepend: Boolean = false)
+        val template: String = "", val prepend: Boolean = false, val keepDays: Int = 0)
     @Volatile private var policy = Policy()
     @Volatile private var connected = false
 
@@ -48,7 +48,7 @@ class NotificationLogService : NotificationListenerService() {
         scope.launch {
             AppSettings(applicationContext).flow.collectLatest {
                 policy = Policy(it.notificationCaptureEnabled, it.notificationLogEnabled,
-                    it.notificationLogFormat, it.notificationLogPrepend)
+                    it.notificationLogFormat, it.notificationLogPrepend, it.notificationLogKeepDays)
                 settingsReady.complete(Unit)
             }
         }
@@ -114,7 +114,7 @@ class NotificationLogService : NotificationListenerService() {
                 val line = render(settings.template, ts = sbn.postTime,
                     time = timestampFormat.format(Date(sbn.postTime)), pkg = sbn.packageName, app = app,
                     title = title, text = text, category = category, key = key)
-                LogWriter.write(logFile(ctx), line, settings.prepend)
+                LogWriter.write(logFile(ctx), line, settings.prepend, settings.keepDays)
             }.onFailure { Log.w(TAG, "write failed: " + it.message) }
             triggers.execute {
                 runCatching { WhenManager.onNotification(ctx, sbn.packageName, app, title, text, category) }

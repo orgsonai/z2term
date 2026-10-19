@@ -1195,6 +1195,7 @@ fun SettingsSheet(
                             checked = settings.notificationLogPrepend,
                             onChange = { session.setNotificationLogPrepend(it) }
                         )
+                        LogKeepDaysField(settings.notificationLogKeepDays) { session.setNotificationLogKeepDays(it) }
                         LogSizeWarning(
                             bytes = remember(permissionRefresh, settings.notificationLogPrepend) {
                                 NotificationLogService.logFile(context).length()
@@ -1269,6 +1270,7 @@ fun SettingsSheet(
                             checked = settings.smsLogPrepend,
                             onChange = { session.setSmsLogPrepend(it) }
                         )
+                        LogKeepDaysField(settings.smsLogKeepDays) { session.setSmsLogKeepDays(it) }
                         LogSizeWarning(
                             bytes = remember(permissionRefresh, settings.smsLogPrepend) {
                                 SmsLogReceiver.logFile(context).length()
@@ -3734,6 +3736,26 @@ private fun CopyableCommand(label: String, command: String) {
  *
  * [bytes] は呼び出し側が `remember` で取得する (設定を開いた時点のサイズ。毎コンポーズで stat しない)。
  */
+/**
+ * 通知・SMS の記録を何日分残すか (1.0.50)。既定は無制限で、選んだときだけ古い記録を消す
+ * ([com.zerotoship.z2term.service.LogRetention])。
+ */
+@Composable
+private fun LogKeepDaysField(days: Int, onSelect: (Int) -> Unit) {
+    val options = listOf(0, 7, 30, 90, 365).let { if (days in it) it else (it + days).sorted() }
+    Text(stringResource(R.string.settings_log_keep_title), color = ZtsTextPrimary, fontSize = 12.sp)
+    ChipRow(
+        options = options.map { it.toString() },
+        selected = days.toString(),
+        labels = options.associate { d ->
+            d.toString() to (if (d == 0) stringResource(R.string.settings_log_keep_unlimited)
+                else stringResource(R.string.settings_log_keep_days, d))
+        },
+        onSelect = { onSelect(it.toInt()) }
+    )
+    Text(stringResource(R.string.settings_log_keep_desc), color = ZtsTextSecondary, fontSize = 10.sp)
+}
+
 @Composable
 private fun LogSizeWarning(bytes: Long, prepend: Boolean, path: String) {
     if (!prepend || bytes < LOG_SIZE_WARN_BYTES) return

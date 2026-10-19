@@ -40,7 +40,7 @@ Single-line snippets have a **QR** button. The QR button on saved SSH profiles w
 
 SSH uses `ssh://demo@host.example:2222`, with an optional username and brackets for IPv6. Passwords, private keys, initialization commands, jump hosts and forwarding settings are excluded. Edit authentication/routing after importing and verify the host key when connecting.
 
-Named commands use `z2term://command?name=...&text=...` with UTF-8 URL encoding. Unknown/duplicate fields and commands containing line breaks or control characters are rejected.
+Named commands use `z2term://command?name=...&text=...` with UTF-8 URL encoding. Unknown/duplicate fields and commands containing line breaks or control characters are rejected. ⚠ Whoever makes the QR can give it any name, including one that does not match the command. The review screen therefore shows the command large in a frame, and saving it as a snippet or adding it to the edge first shows the name and the command again for confirmation (1.0.50).
 
 Generation accepts up to 2,000 UTF-8 bytes; the content field accepts 4,096 characters. Shorten content if generation fails.
 

@@ -17,6 +17,13 @@
     <string name="qr_tools_save_edge">新增為邊緣按鈕</string>
     <string name="qr_tools_command_qr">建立指令 QR</string>
     <string name="qr_tools_command_note">掃描或儲存不會執行指令。邊緣按鈕會新增至隱藏的新面板，請在面板管理中啟用。</string>
+    <string name="qr_tools_command_box">將放入的指令（請確認這裡，而不是名稱）</string>
+    <string name="qr_tools_save_review_title">依此內容儲存嗎？</string>
+    <string name="qr_tools_save_review_name">名稱：%1$s</string>
+    <string name="qr_tools_save_review_no_name">（無）</string>
+    <string name="qr_tools_save_review_note">儲存後，之後點按時會直接執行這條指令。名稱可由製作 QR 的人隨意填寫，請以上面的內容為準。</string>
+    <string name="qr_tools_save_review_ok">儲存</string>
+    <string name="qr_tools_save_review_cancel">取消</string>
     <string name="qr_tools_multiline">含換行或控制字元的內容可以複製，但不能作為指令插入。</string>
     <string name="qr_tools_done">已儲存</string>
     <string name="qr_tools_failed">操作失敗。請檢查 QR 內容、圖片、相機權限或儲存位置。</string>

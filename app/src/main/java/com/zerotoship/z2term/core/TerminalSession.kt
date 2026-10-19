@@ -606,6 +606,7 @@ class TerminalSession(
     fun setNotificationLogEnabled(enabled: Boolean) { scope.launch { settings.setNotificationLogEnabled(enabled) } }
     fun setNotificationLogFormat(template: String) { scope.launch { settings.setNotificationLogFormat(template) } }
     fun setNotificationLogPrepend(enabled: Boolean) { scope.launch { settings.setNotificationLogPrepend(enabled) } }
+    fun setNotificationLogKeepDays(days: Int) { scope.launch { settings.setNotificationLogKeepDays(days) } }
     fun setSystemEventCaptureEnabled(enabled: Boolean) { scope.launch { settings.setSystemEventCaptureEnabled(enabled) } }
     fun setSystemEventLogFormat(template: String) { scope.launch { settings.setSystemEventLogFormat(template) } }
     fun setSystemEventLogPrepend(enabled: Boolean) { scope.launch { settings.setSystemEventLogPrepend(enabled) } }
@@ -613,6 +614,7 @@ class TerminalSession(
     fun setSmsCaptureEnabled(enabled: Boolean) { scope.launch { settings.setSmsCaptureEnabled(enabled) } }
     fun setSmsLogFormat(template: String) { scope.launch { settings.setSmsLogFormat(template) } }
     fun setSmsLogPrepend(enabled: Boolean) { scope.launch { settings.setSmsLogPrepend(enabled) } }
+    fun setSmsLogKeepDays(days: Int) { scope.launch { settings.setSmsLogKeepDays(days) } }
     fun setKittyExternalFileEnabled(value: Boolean) { scope.launch { settings.setKittyExternalFileEnabled(value) } }
     fun setSgrMouseInputEnabled(value: Boolean) { scope.launch { settings.setSgrMouseInputEnabled(value) } }
 

@@ -12,8 +12,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -25,6 +27,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -102,6 +105,8 @@ internal open class QrToolsActivity : QrActivityBase() {
         val qrAction = remember(text) { QrAction.parse(text) }
         var notice by remember { mutableStateOf<Int?>(null) }
         var cameraRequested by rememberSaveable { mutableStateOf(false) }
+        // 保存の前の確認 (1.0.50)。"command" = コマンド一覧、"edge" = エッジボタン。
+        var pendingSave by remember { mutableStateOf<String?>(null) }
         val show: (String) -> Unit = { value ->
             camera = false; qrText = ""; choices = emptyList(); incomingFailed = false; notice = null
             error = value.length > QrContent.MAX_TEXT || value.isBlank()
@@ -231,9 +236,9 @@ internal open class QrToolsActivity : QrActivityBase() {
             }
             if (qrAction == null && content != null && content.kind in setOf(QrContent.Kind.TEXT, QrContent.Kind.COMMAND) &&
                 QrContent.singleLine(content.text)) {
-                if (content.kind == QrContent.Kind.COMMAND) SelectionContainer {
-                    Text(content.text, color = ZtsGreen, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                }
+                // ⚠ 登録名は QR を作った人が自由に付けられる。名前と食い違うコマンドを仕込めるので、
+                // 中身を大きく見せ、保存の前にもう一度見せる (1.0.50)。
+                if (content.kind == QrContent.Kind.COMMAND) CommandBox(content.text)
                 Field(label = stringResource(R.string.qr_tools_name), value = name,
                     onChange = { if (it.length <= 80) name = it })
                 ToolNote(stringResource(R.string.qr_tools_command_note))
@@ -242,9 +247,15 @@ internal open class QrToolsActivity : QrActivityBase() {
                     if (!error) finish()
                 }
                 PillButton(label = stringResource(R.string.qr_tools_save_command), fill = true, enabled = !busy) {
-                    action { SnippetStore(applicationContext).upsert(Snippet(UUID.randomUUID().toString(), name, content.text)) }
+                    pendingSave = "command"
                 }
                 PillButton(label = stringResource(R.string.qr_tools_save_edge), fill = true, enabled = !busy) {
+                    pendingSave = "edge"
+                }
+                val saveCommand = {
+                    action { SnippetStore(applicationContext).upsert(Snippet(UUID.randomUUID().toString(), name, content.text)) }
+                }
+                val saveEdge = {
                     action {
                         withContext(Dispatchers.IO) {
                             val store = EdgeRuntime.store(applicationContext)
@@ -258,6 +269,11 @@ internal open class QrToolsActivity : QrActivityBase() {
                         }
                         EdgeRuntime.reload(applicationContext)
                     }
+                }
+                pendingSave?.let { target ->
+                    SaveReviewDialog(name = name, command = content.text,
+                        onConfirm = { pendingSave = null; if (target == "edge") saveEdge() else saveCommand() },
+                        onDismiss = { pendingSave = null })
                 }
                 PillButton(label = stringResource(R.string.qr_tools_command_qr), fill = true, enabled = !busy) {
                     runCatching { qrText = QrContent.command(name, content.text) }.onFailure { error = true }
@@ -278,6 +294,48 @@ internal open class QrToolsActivity : QrActivityBase() {
                 )
             }
         }
+    }
+
+    /** 実際に入る・動くコマンド。登録名より目立たせる。 */
+    @Composable private fun CommandBox(command: String) {
+        Column(Modifier.fillMaxWidth().border(1.dp, ZtsWarning, RoundedCornerShape(6.dp)).padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(R.string.qr_tools_command_box), color = ZtsWarning, fontSize = 12.sp,
+                fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+            SelectionContainer {
+                Text(command, color = ZtsTextPrimary, fontSize = 15.sp, fontFamily = FontFamily.Monospace)
+            }
+        }
+    }
+
+    /** 保存の前に、登録名ではなく中身で確かめてもらう。保存したものは、あとで押すとそのまま動く。 */
+    @Composable private fun SaveReviewDialog(name: String, command: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            containerColor = ZtsBgCard,
+            title = {
+                Text(stringResource(R.string.qr_tools_save_review_title), color = ZtsGreen, fontSize = 15.sp,
+                    fontFamily = FontFamily.Monospace)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ToolLabel(stringResource(R.string.qr_tools_save_review_name,
+                        name.ifBlank { stringResource(R.string.qr_tools_save_review_no_name) }))
+                    CommandBox(command)
+                    ToolNote(stringResource(R.string.qr_tools_save_review_note))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onConfirm) {
+                    Text(stringResource(R.string.qr_tools_save_review_ok), color = ZtsGreen, fontFamily = FontFamily.Monospace)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.qr_tools_save_review_cancel), color = ZtsTextSecondary, fontFamily = FontFamily.Monospace)
+                }
+            }
+        )
     }
 
     @Composable private fun CameraPreview(onRead: (String) -> Unit, onError: () -> Unit) {

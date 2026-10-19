@@ -679,6 +679,10 @@
     <string name="settings_log_size_warn">⚠ ログが %1$s MB と大きくなっています</string>
     <string name="settings_log_size_warn_desc">「新しいものを先頭に」が ON のあいだは、1 行記録するたびにファイル全体を読み書きします。このまま大きくなると動作が重くなり、いずれ記録できなくなります。この設定を OFF にする（末尾に追記）か、ターミナルで整理してください。</string>
     <string name="settings_log_size_warn_cmd_label">空にするコマンド（タップでコピー）</string>
+    <string name="settings_log_keep_title">残す日数</string>
+    <string name="settings_log_keep_unlimited">無制限</string>
+    <string name="settings_log_keep_days">%1$d 日</string>
+    <string name="settings_log_keep_desc">選んだ日数より古い記録は、次に記録するときに同じファイルから消します（ファイルは 1 本のままです）。この版より前の記録と、手で書き換えた後の記録は、その日から数えます。</string>
     <string name="settings_cmd_read_label">読むコマンド（タップでコピー）</string>
     <string name="settings_cmd_copy_label">コマンド（タップでコピー）</string>
     <string name="settings_cmd_copied">コマンドをコピーしました</string>

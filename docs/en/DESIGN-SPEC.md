@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-18 / Target version: 1.0.49 (versionCode 747)
+Last updated: 2026-10-19 / Target version: 1.0.50 (versionCode 748)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -529,6 +529,8 @@ Delivered text is not length-limited by z2term, but text already shortened by th
 - Fill from a preset (readable / one-line / TSV / JSONL) then edit freely
 
 **Newest at the top (`notificationLogPrepend`)**: when on, each new line is **prepended** to the head of the file (newest first) instead of appended. Since a file has no OS primitive to insert at the head, `LogWriter` reads the existing content and rewrites it. No line cap = all lines kept (0.8.163).
+
+**Days to keep (`notificationLogKeepDays` / `smsLogKeepDays`, 1.0.50, default 0 = unlimited)**: notification and SMS logs hold message text as it is, so you can choose how many days to keep. The format is whatever the user chose (multi-line too), so dates cannot be read back from the lines. Instead `LogRetention` appends the write time and byte count of every entry to a hidden `.<name>.idx`, and cuts the total bytes of entries older than the chosen days from the head (append mode) or the tail (prepend mode), writing a temporary file and replacing the log (it stays one file). It checks once an hour and right after the setting changes, and merges index lines into one per hour. ⚠ When the index total does not match the file size (cleared or edited by hand) or append and prepend entries are mixed, nothing is cut: the current content is recounted as written just now (keeping too much rather than too little). Entries from before this version are treated the same way and counted from the day the index was created. The index is kept even at 0 days so a later choice takes effect. System event logs do not use it.
 
 **Deduplication (NotificationText.History, 0.8.585)**
 
@@ -3900,12 +3902,14 @@ built-in keyboard**".
 | Save notification log | notificationLogEnabled | true | false = detect only, write nothing to the file |
 | Notification log format | notificationLogFormat | "" (= JSONL) | template such as `{time}{app}{title}{text}` |
 | Prepend notification log | notificationLogPrepend | false | true puts new entries at the head (warns past 10 MiB) |
+| Days to keep the notification log | notificationLogKeepDays | 0 | 0 = unlimited; choose 7 / 30 / 90 / 365 days (1.0.50) |
 | System event detection | systemEventCaptureEnabled | false | screen/lock/charge/battery/Wi-Fi/BT audio |
 | Event log format | systemEventLogFormat | "" (= JSONL) | `{time}{event}{level}{ssid}` |
 | Prepend event log | systemEventLogPrepend | false | true puts new entries at the head |
 | SMS detection | smsCaptureEnabled | false | true/false (needs the SMS permission; reads the message body directly rather than via notifications) |
 | SMS log format | smsLogFormat | "" (= JSONL) | a template such as `{time}{from}{body}` |
 | SMS log prepend | smsLogPrepend | false | true puts new entries at the head of the file (warning past 10 MiB) |
+| Days to keep the SMS log | smsLogKeepDays | 0 | 0 = unlimited; choose 7 / 30 / 90 / 365 days (1.0.50) |
 | Watch unlock failures | unlockWatchEnabled | false | also needs the device-admin (watch-login) grant |
 | Resident server entries | serverEntries | "" | definitions of the servers to keep resident (JSON) |
 | Start servers on boot | serversAutostartOnBoot | false | start resident servers at device boot (`BootReceiver`) |

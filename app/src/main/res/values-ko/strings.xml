@@ -635,6 +635,10 @@
     <string name="settings_log_size_warn">⚠ 이 로그가 %1$s MB까지 커졌습니다</string>
     <string name="settings_log_size_warn_desc">"새것을 맨 위에"가 켜져 있으면 항목 하나마다 파일 전체를 읽고 다시 씁니다. 계속 커지면 느려지고, 끝내는 기록조차 못 하게 됩니다. 이 설정을 끄거나(끝에 붙이기) 터미널에서 파일을 줄이세요.</string>
     <string name="settings_log_size_warn_cmd_label">비우는 명령 (누르면 복사)</string>
+    <string name="settings_log_keep_title">남길 일수</string>
+    <string name="settings_log_keep_unlimited">제한 없음</string>
+    <string name="settings_log_keep_days">%1$d일</string>
+    <string name="settings_log_keep_desc">이보다 오래된 기록은 다음에 기록할 때 같은 파일에서 지웁니다(파일은 하나 그대로). 이 버전 이전의 기록과 직접 고친 뒤의 기록은 그날부터 셉니다.</string>
     <string name="settings_cmd_read_label">읽는 명령 (누르면 복사)</string>
     <string name="settings_cmd_copy_label">명령 (누르면 복사)</string>
     <string name="settings_cmd_copied">명령을 복사했습니다</string>

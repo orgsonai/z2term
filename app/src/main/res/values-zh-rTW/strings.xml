@@ -636,6 +636,10 @@
     <string name="settings_log_size_warn">⚠ 這個日誌已經漲到 %1$s MB</string>
     <string name="settings_log_size_warn_desc">只要“新的放在最前面”是開著的，每記錄一行就要把整個檔案讀一遍再寫一遍。檔案繼續變大會越來越慢，最後甚至記不下去。請關掉這個設定（改成追加到末尾），或者在終端機裡整理一下檔案。</string>
     <string name="settings_log_size_warn_cmd_label">清空它的指令（點選複製）</string>
+    <string name="settings_log_keep_title">保留天數</string>
+    <string name="settings_log_keep_unlimited">不限</string>
+    <string name="settings_log_keep_days">%1$d 天</string>
+    <string name="settings_log_keep_desc">比這更早的記錄會在下次寫入時從同一個檔案中刪掉（仍是一個檔案）。此版本之前的記錄、以及手動改過檔案之後的記錄，從那天開始計算。</string>
     <string name="settings_cmd_read_label">讀取它的指令（點選複製）</string>
     <string name="settings_cmd_copy_label">指令（點選複製）</string>
     <string name="settings_cmd_copied">已複製指令</string>

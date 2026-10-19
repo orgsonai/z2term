@@ -58,7 +58,7 @@ class SmsLogReceiver : BroadcastReceiver() {
                 // 生ログ (~/.z2term/sms.jsonl) への追記は設定 [smsCaptureEnabled] が ON のときだけ。
                 if (s.smsCaptureEnabled) {
                     val line = render(s.smsLogFormat, ts, ISO.format(Date(ts)), from, body)
-                    LogWriter.write(logFile(app), line, s.smsLogPrepend)
+                    LogWriter.write(logFile(app), line, s.smsLogPrepend, s.smsLogKeepDays)
                 }
             } catch (t: Throwable) {
                 Log.w(TAG, "sms capture failed: ${t.message}")

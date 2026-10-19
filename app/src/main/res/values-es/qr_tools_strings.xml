@@ -17,6 +17,13 @@
     <string name="qr_tools_save_edge">Añadir como botón lateral</string>
     <string name="qr_tools_command_qr">Crear QR de comando</string>
     <string name="qr_tools_command_note">Escanear o guardar no ejecuta comandos. El botón se añade a un panel nuevo desactivado; actívalo en el gestor.</string>
+    <string name="qr_tools_command_box">Comando que se inserta (compruébalo a él, no el nombre)</string>
+    <string name="qr_tools_save_review_title">¿Guardar con este contenido?</string>
+    <string name="qr_tools_save_review_name">Nombre: %1$s</string>
+    <string name="qr_tools_save_review_no_name">(ninguno)</string>
+    <string name="qr_tools_save_review_note">Una vez guardado, al pulsarlo más tarde se ejecuta este comando tal cual. Quien creó el QR puede ponerle cualquier nombre, así que decide por el contenido de arriba.</string>
+    <string name="qr_tools_save_review_ok">Guardar</string>
+    <string name="qr_tools_save_review_cancel">Cancelar</string>
     <string name="qr_tools_multiline">El texto con saltos de línea o controles se puede copiar, pero no insertar como comando.</string>
     <string name="qr_tools_done">Guardado</string>
     <string name="qr_tools_failed">No se pudo completar. Revisa el QR, la imagen, el permiso de cámara o el destino.</string>

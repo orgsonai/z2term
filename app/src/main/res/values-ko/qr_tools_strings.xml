@@ -17,6 +17,13 @@
     <string name="qr_tools_save_edge">엣지 버튼으로 추가</string>
     <string name="qr_tools_command_qr">명령 QR 만들기</string>
     <string name="qr_tools_command_note">읽거나 저장해도 실행하지 않습니다. 엣지 버튼은 새 비활성 패널에 추가됩니다. 패널 관리에서 표시하세요.</string>
+    <string name="qr_tools_command_box">들어가는 명령 (이름이 아니라 이것을 확인하세요)</string>
+    <string name="qr_tools_save_review_title">이 내용으로 저장할까요?</string>
+    <string name="qr_tools_save_review_name">이름: %1$s</string>
+    <string name="qr_tools_save_review_no_name">(없음)</string>
+    <string name="qr_tools_save_review_note">저장하면 나중에 누를 때 이 명령이 그대로 실행됩니다. 이름은 QR을 만든 사람이 마음대로 붙일 수 있으니 위의 내용으로 판단하세요.</string>
+    <string name="qr_tools_save_review_ok">저장</string>
+    <string name="qr_tools_save_review_cancel">취소</string>
     <string name="qr_tools_multiline">줄바꿈이나 제어 문자가 있는 내용은 복사할 수 있지만 명령으로 입력하지 않습니다.</string>
     <string name="qr_tools_done">저장했습니다</string>
     <string name="qr_tools_failed">작업하지 못했습니다. QR 내용, 이미지, 카메라 권한 또는 저장 위치를 확인하세요.</string>

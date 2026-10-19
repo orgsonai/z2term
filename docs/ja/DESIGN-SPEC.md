@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-18 / 対象バージョン: 1.0.49 (versionCode 747)
+最終更新: 2026-10-19 / 対象バージョン: 1.0.50 (versionCode 748)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -524,6 +524,8 @@ OS の「通知アクセス」を許可し、通知検知とログ保存をONに
 - プリセット（読みやすい / 1 行 / TSV / JSONL）から埋めて自由編集できる
 
 **新しいものを先頭に（`notificationLogPrepend`）**: ON のとき末尾追記でなく**先頭追記**（新着が上）。ファイルは先頭に 1 行差し込む OS 機能が無いため、既存内容を読んで書き直す（`LogWriter`）。上限行なし = 全行保持（0.8.163）。
+
+**残す日数（`notificationLogKeepDays` / `smsLogKeepDays`、1.0.50、既定 0 = 無制限）**: 通知と SMS の記録は本文をそのまま含むので、何日分残すかを選べる。書式は利用者が自由に決める（複数行も可）ため、行から日時は読めない。そこで `LogRetention` が 1 件書くたびに書いた時刻とバイト数を隠しファイル `.<名前>.idx` へ足し、選んだ日数より古い分の合計バイト数だけ、末尾追記なら先頭から・先頭追記なら末尾から切り落とす（一時ファイルに書いて置き換える。ファイルは 1 本のまま）。確かめるのは 1 時間に 1 回と日数を変えた直後で、控えは 1 時間ごとに 1 行へまとめる。⚠ 控えの合計がファイルの大きさと合わない（手で消した・書き換えた）・末尾追記と先頭追記が混ざった、ときは何も消さず、いまの中身をまとめて「いま書いた分」として数え直す（消しすぎるより残しすぎる側）。この版より前の記録も同じ扱いで、控えを作った日から数える。日数が 0 でも控えは付ける（あとから選んだときに効くように）。システムイベントの記録には付けない。
 
 **重複排除（NotificationText.History、0.8.585）**
 
@@ -3800,12 +3802,14 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 | 通知ログを保存 | notificationLogEnabled | true | false なら検知だけ行いファイルに書かない |
 | 通知ログ形式 | notificationLogFormat | "" (= JSONL) | `{time}{app}{title}{text}` 等のテンプレート |
 | 通知ログを先頭に追記 | notificationLogPrepend | false | true で新着がファイル先頭（10 MiB 超で注意表示） |
+| 通知ログを残す日数 | notificationLogKeepDays | 0 | 0 = 無制限。7 / 30 / 90 / 365 日から選ぶ（1.0.50） |
 | システムイベント検知 | systemEventCaptureEnabled | false | 画面/ロック/充電/電池/Wi-Fi/BT オーディオ |
 | イベントログ形式 | systemEventLogFormat | "" (= JSONL) | `{time}{event}{level}{ssid}` |
 | イベントログを先頭に追記 | systemEventLogPrepend | false | true で新着がファイル先頭 |
 | SMS 検知 | smsCaptureEnabled | false | true/false（SMS 受信権限が別途必要。通知経由と違い本文を直接読む） |
 | SMS ログ形式 | smsLogFormat | "" (= JSONL) | `{time}{from}{body}` 等のテンプレート |
 | SMS ログを先頭に追記 | smsLogPrepend | false | true で新着がファイル先頭（10 MiB 超で注意表示） |
+| SMS ログを残す日数 | smsLogKeepDays | 0 | 0 = 無制限。7 / 30 / 90 / 365 日から選ぶ（1.0.50） |
 | 解除失敗を検知 | unlockWatchEnabled | false | 端末管理者 (watch-login) の有効化が別途必要 |
 | 常駐サーバー登録 | serverEntries | "" | 常駐させるサーバーの定義 (JSON) |
 | 起動時に自動で常駐 | serversAutostartOnBoot | false | 端末起動で常駐サーバーを開始 (`BootReceiver`) |

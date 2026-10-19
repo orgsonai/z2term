@@ -71,6 +71,7 @@ Good to know:
 - Logs written by opt-in features (`~/.z2term/sms.jsonl`, `notifications.jsonl`,
   `events.jsonl`) are plain text in the Linux home. Every program you run in the Linux
   environment can read them. Turn the feature off or clear the file if you do not need it.
+  For notifications and SMS you can also choose how many days to keep (Settings › Permissions and notifications › Notifications and logs).
 - Anything you run in the terminal runs with z2term's permissions. Only run scripts you trust.
 
 ---
@@ -139,4 +140,5 @@ z2term は Android も操作できるターミナルなので、強い権限を�
 - 利用者が入れた機能の記録（`~/.z2term/sms.jsonl`・`notifications.jsonl`・`events.jsonl`）は、
   Linux のホームに平文で残ります。Linux 環境で動かすプログラムはすべて読めます。
   要らなければ機能を切るか、ファイルを空にしてください。
+  通知と SMS は、何日分残すかも選べます（⚙設定 › 権限・通知 › 通知・ログ）。
 - ターミナルで動かしたものは、z2term の権限で動きます。信頼できるスクリプトだけを動かしてください。

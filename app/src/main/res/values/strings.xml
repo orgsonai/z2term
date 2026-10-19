@@ -688,6 +688,10 @@
     <string name="settings_log_size_warn">⚠ This log has grown to %1$s MB</string>
     <string name="settings_log_size_warn_desc">While "Newest at the top" is ON, the whole file is read and rewritten for every single entry. As it keeps growing this gets slow, and eventually entries can no longer be recorded. Turn this off (append at the end) or trim the file from the terminal.</string>
     <string name="settings_log_size_warn_cmd_label">Command to empty it (tap to copy)</string>
+    <string name="settings_log_keep_title">How many days to keep</string>
+    <string name="settings_log_keep_unlimited">Unlimited</string>
+    <string name="settings_log_keep_days" tools:ignore="PluralsCandidate">%1$d days</string>
+    <string name="settings_log_keep_desc">Entries older than this are cut from the same file the next time an entry is written (it stays one file). Entries written before this version, or after you edit the file by hand, are counted from that day.</string>
     <string name="settings_cmd_read_label">Command to read it (tap to copy)</string>
     <string name="settings_cmd_copy_label">Command (tap to copy)</string>
     <string name="settings_cmd_copied">Copied the command</string>

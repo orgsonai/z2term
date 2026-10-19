@@ -17,6 +17,13 @@
     <string name="qr_tools_save_edge">エッジボタンとして追加</string>
     <string name="qr_tools_command_qr">コマンド用QRを作成</string>
     <string name="qr_tools_command_note">読み取り・保存だけでは実行しません。エッジボタンは新しい非表示パネルへ追加します。パネルの管理から表示してください。</string>
+    <string name="qr_tools_command_box">入るコマンド（登録名ではなく、こちらを確かめてください）</string>
+    <string name="qr_tools_save_review_title">この中身で保存しますか？</string>
+    <string name="qr_tools_save_review_name">登録名: %1$s</string>
+    <string name="qr_tools_save_review_no_name">（なし）</string>
+    <string name="qr_tools_save_review_note">保存すると、あとで押したときにこのコマンドがそのまま動きます。登録名は QR を作った人が自由に付けられるので、上の中身で判断してください。</string>
+    <string name="qr_tools_save_review_ok">保存する</string>
+    <string name="qr_tools_save_review_cancel">やめる</string>
     <string name="qr_tools_multiline">改行や制御文字を含む内容はコピーできますが、コマンドとして入力しません。</string>
     <string name="qr_tools_done">保存しました</string>
     <string name="qr_tools_failed">操作できませんでした。QRの内容・画像・カメラ権限・保存先を確認してください。</string>
