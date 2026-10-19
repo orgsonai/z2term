@@ -84,6 +84,12 @@ Secret が未登録だと debug 署名事故を防ぐためジョブは**明示�
 
 ### リリースする (毎回)
 
+安定版 (`v` + 数字だけのタグ) では、**タグを打つ前に** F-Droid の店頭に出す更新内容
+`metadata/ja-JP/changelogs/<versionCode>.txt` と `metadata/en-US/changelogs/<versionCode>.txt`
+(各 500 文字以内) を作り、版数を上げたコミットに含める (`docs/FDROID.md` §2)。
+無いまま push しようとすると、`.githooks/pre-push` が止める
+(各端末で一度 `git config core.hooksPath .githooks` を実行しておく)。
+
 ```bash
 # 版数を上げてコミット済みの状態で、そのコミットにタグを打って push (SSH。PAT 不要)
 git tag v0.9.x

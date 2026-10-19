@@ -1,0 +1,42 @@
+#!/bin/sh
+# 安定版のタグ (v + 数字とドットだけ) を push する前に、そのタグの中に F-Droid の
+# 更新内容 metadata/<locale>/changelogs/<versionCode>.txt があるかを確かめる。
+# タグを push すると CI が GitHub Release を公開し、F-Droid もそのタグをビルドするので、
+# 後から足しても店頭の更新内容は空のまま出る (1.0.47 / 1.0.50 で実際に起きた)。
+# 有効にするには各端末で一度: git config core.hooksPath .githooks
+# 手順と確認スクリプトは docs/FDROID.md §2。
+
+zero=0000000000000000000000000000000000000000
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_ref" in refs/tags/v*) ;; *) continue ;; esac
+  [ "$local_sha" = "$zero" ] && continue
+  tag=${local_ref#refs/tags/}
+  # -alpha などが付いたタグは F-Droid が拾わないので対象外
+  case "${tag#v}" in *[!0-9.]*|'') continue ;; esac
+
+  commit=$(git rev-parse "$local_sha^{commit}") || { status=1; continue; }
+  gradle=$(git show "$commit:app/build.gradle.kts") || { status=1; continue; }
+  vc=$(printf '%s\n' "$gradle" | sed -n 's/^ *versionCode = \([0-9]*\).*/\1/p' | head -n 1)
+  vn=$(printf '%s\n' "$gradle" | sed -n 's/^ *versionName = "\(.*\)".*/\1/p' | head -n 1)
+
+  if [ "$tag" != "v$vn" ]; then
+    echo "pre-push: $tag の中の versionName は $vn です。タグ名と合いません。" >&2
+    status=1
+    continue
+  fi
+  for locale in ja-JP en-US; do
+    f="metadata/$locale/changelogs/$vc.txt"
+    if ! git cat-file -e "$commit:$f" 2>/dev/null; then
+      echo "pre-push: $tag に $f がありません。作ってコミットし、タグを打ち直してから push してください。" >&2
+      status=1
+      continue
+    fi
+    n=$(git show "$commit:$f" | LC_ALL=C.UTF-8 wc -m)
+    if [ "$n" -gt 500 ]; then
+      echo "pre-push: $tag の $f が $n 文字です (F-Droid の上限は 500)。" >&2
+      status=1
+    fi
+  done
+done
+exit $status

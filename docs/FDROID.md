@@ -131,6 +131,15 @@ git push github v1.0.50
 `metadata/<locale>/changelogs/<versionCode>.txt` から読まれる。
 タグを打つ前にこのファイルを入れ、**500 文字以内か確かめる** (§7)。
 
+⛔ **2026-10-19 から、このファイルが無い安定版のタグは push できない。**
+リポジトリの `.githooks/pre-push` が、push するタグの中に両言語の `changelogs/<versionCode>.txt` が
+あるか・500 文字以内か・タグ名と versionName が合うかを見て、合わなければ止める
+(1.0.47 と 1.0.50 で入れ忘れ、店頭の更新内容が空になったため)。各端末で一度だけ有効にする。
+
+```sh
+git config core.hooksPath .githooks
+```
+
 ```sh
 # タグを打つ前に必ず流す。版数の一致・更新内容の有無と長さ・scanignore の実在をまとめて見る
 YML=metadata/com.zerotoship.z2term.yml
