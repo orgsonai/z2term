@@ -1,0 +1,6 @@
+1.0.53
+
+- GUI: Chromium and Electron apps now appear. Apps that refuse to start as root are restarted automatically with the sandbox turned off.
+- Edge panel: when rearranging directly on the panel, items can be dropped between rows.
+- Edge panel notes: a long note scrolls inside the note.
+- Double-tapping a note to edit puts the cursor where you tapped.
