@@ -15,6 +15,8 @@ package com.zerotoship.z2term.proot
  *     `OPEN N` を見つけると対応する GUI タブを開く / 前面化する。
  *  4. 引数があれば `exec "$@"` でユーザーの GUI アプリへバトンタッチ。引数なし (`z2run` 単体) は
  *     「GUI タブを開いて Xvnc を立ち上げるだけ」として静かに終了。
+ *     root で動かしたアプリが「root では `--no-sandbox` が要る」と言って終わったとき
+ *     (Chromium・Electron 製・Qt WebEngine のアプリ) だけ、`--no-sandbox` を足して起こし直す。
  *
  * 設計上の要点:
  * - 自前で X クライアントを起こすので、`xclock &` 等とは独立に「タブを必ず開く」副作用を一度だけ実行する
@@ -121,7 +123,27 @@ fun z2runScript(lang: String = "ja"): String {
         |export GDK_BACKEND="${d}{GDK_BACKEND:-x11}"
         |export GDK_RENDERING="${d}{GDK_RENDERING:-image}"
         |
+        |
         |# 5) 引数があればユーザーの GUI アプリへバトンタッチ。無ければここで終了。
-        |if [ ${d}# -gt 0 ]; then exec "${d}@"; fi
+        |[ ${d}# -gt 0 ] || exit 0
+        |
+        |# ⚠ GUI は root で動く。Chromium 系 (Chromium・Electron 製・Qt WebEngine) は root だと
+        |#   `--no-sandbox` が無い限り "Running as root without --no-sandbox" と出して即終了し、
+        |#   窓が 1 つも出ない (利用者の報告「GUI でクロミウムが表示されません」)。
+        |#   名前で決め打ちすると他のアプリが漏れるので、**そう言って終わったアプリだけ**
+        |#   `--no-sandbox` を足して起こし直す。それ以外のアプリの起動は変えない。
+        |case " ${d}* " in *" --no-sandbox "*) exec "${d}@" ;; esac
+        |[ "${d}(id -u 2>/dev/null)" = 0 ] || exec "${d}@"
+        |Z2_ERR=${d}(mktemp /tmp/z2run-err.XXXXXX 2>/dev/null) || exec "${d}@"
+        |# 標準エラーはそのまま流しつつ、先頭だけ控える (読み続けるのでアプリは詰まらない)。
+        |# 終了コードはパイプの外へ持ち出して返す (z2run をスクリプトから使う場合のため)。
+        |{ { "${d}@" 2>&1 1>&3 3>&-; echo ${d}? >"${d}Z2_ERR.rc"; } | awk -v f="${d}Z2_ERR" '{ print > "/dev/stderr"; fflush("/dev/stderr") } NR <= 50 { print > f; fflush(f) }'; } 3>&1
+        |Z2_RC=${d}(cat "${d}Z2_ERR.rc" 2>/dev/null)
+        |if grep -q "without --no-sandbox" "${d}Z2_ERR" 2>/dev/null; then
+        |  rm -f "${d}Z2_ERR" "${d}Z2_ERR.rc"
+        |  exec "${d}@" --no-sandbox
+        |fi
+        |rm -f "${d}Z2_ERR" "${d}Z2_ERR.rc"
+        |exit "${d}{Z2_RC:-1}"
     """.trimMargin() + "\n"
 }

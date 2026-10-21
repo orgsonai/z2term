@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.53 (versionCode 751)**: Fixed **Chromium and Electron apps not appearing** in the GUI. The GUI runs as root, so these apps reported that root needs the sandbox turned off (`--no-sandbox`) and exited without a window. When an app started from ☰ or the GUI menu exits for exactly this reason, it is now restarted automatically with `--no-sandbox`. Other apps start as before. Apps started by typing a command in a GUI terminal are not covered.
+
 **1.0.52 (versionCode 750)**: (1) When rearranging apps and other items directly on an edge panel, you can now **drop them between rows**. Until now, wherever you dropped an item it joined the target's row side by side. Dropping near the **top or bottom edge** of an item makes a new row above or below its row; dropping near the **middle** places it beside the item. A line shows where it will go before you drop. (2) Scrolling inside a note, fixed in 1.0.51, was taken by tab switching in horizontal panels (where a vertical swipe changes tabs); this is fixed.
 
 **1.0.51 (versionCode 749)**: In edge panel notes, (1) a long note now **scrolls inside the note** instead of the whole panel. Until now the panel took the scroll and the note did not move (the same applied inside items with a set height). When the text fits, the whole panel scrolls as before. (2) Double-tapping to start editing now puts the cursor **where you double-tapped** instead of at the start of the line.

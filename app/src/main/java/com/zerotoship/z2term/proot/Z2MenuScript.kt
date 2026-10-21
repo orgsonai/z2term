@@ -217,7 +217,8 @@ fun z2menuScript(lang: String = "ja"): String {
         |    return s
         |  }
         |  function item(i, ind,   e) {
-        |    print ind "<item label=\"" esc(nm[i]) "\"><action name=\"Execute\"><execute>" esc(cmd[i]) "</execute></action></item>"
+        |    # ☰ の一覧と同じく z2run を通す (root で起動を断るアプリを起こし直すため)。
+        |    print ind "<item label=\"" esc(nm[i]) "\"><action name=\"Execute\"><execute>/usr/local/bin/z2run " esc(cmd[i]) "</execute></action></item>"
         |  }
         |  BEGIN {
         |    nl = split(catlabels, pairs, ";")
