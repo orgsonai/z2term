@@ -17,13 +17,30 @@ import androidx.core.graphics.ColorUtils
 
 /** Per-note paper and ink, retaining theme defaults and actual line positions. */
 internal object EdgeNoteUi {
+    fun preview(context: Context, ruled: Boolean, ink: Int? = null, paper: Int? = null): NotePreview =
+        NotePreview(context, ruled, ink != null || paper != null).apply { style(this, ink, paper) }
+
+    /** メモの表示欄。ダブルタップで編集に切り替わる。 */
     // The double tap calls performClick(); single taps are withheld on purpose (see onTouchEvent).
-    @SuppressLint("ClickableViewAccessibility")
-    fun preview(context: Context, ruled: Boolean, ink: Int? = null, paper: Int? = null): TextView = object : TextView(context) {
-        private val rules = Rules(this, ruled, ink != null || paper != null)
+    // Built in code only, never inflated from XML.
+    @SuppressLint("ClickableViewAccessibility", "ViewConstructor")
+    internal class NotePreview(context: Context, ruled: Boolean, custom: Boolean) : TextView(context) {
+        private val rules = Rules(this, ruled, custom)
+
+        /**
+         * 最後のダブルタップが指した文字の位置。編集欄のカーソルをそこへ置く
+         * (利用者の報告: 「ダブルタップで編集しようとしたらカーソルが行頭になる」)。
+         * 読み上げ・キーボードから開いたときは指した位置が無いので -1。
+         */
+        var tapOffset = -1
+            private set
+
         private val taps = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDown(event: MotionEvent) = true
-            override fun onDoubleTap(event: MotionEvent): Boolean = performClick()
+            override fun onDoubleTap(event: MotionEvent): Boolean {
+                tapOffset = getOffsetForPosition(event.x, event.y)
+                return try { performClick() } finally { tapOffset = -1 }
+            }
         }).apply { setIsLongpressEnabled(false) }
 
         override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -40,7 +57,7 @@ internal object EdgeNoteUi {
             rules.draw(canvas)
             super.onDraw(canvas)
         }
-    }.apply { style(this, ink, paper) }
+    }
 
     /**
      * メモの編集欄。選択が変わったら [onSelectionChange] を呼ぶ。
@@ -61,6 +78,11 @@ internal object EdgeNoteUi {
         override fun onDraw(canvas: Canvas) {
             rules.draw(canvas)
             super.onDraw(canvas)
+        }
+
+        // 中身が欄からはみ出していれば、パネル全体ではなくこの欄をスクロールさせる。
+        override fun dispatchTouchEvent(event: MotionEvent): Boolean = claimVerticalScroll(this, event) {
+            super.dispatchTouchEvent(event)
         }
 
         override fun onSelectionChanged(selStart: Int, selEnd: Int) {

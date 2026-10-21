@@ -5,14 +5,13 @@ import android.content.Context
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
-import android.widget.ScrollView
 
 /** Explicit height is a scrollable viewport, so shrinking an item never hides its controls. */
 @SuppressLint("ViewConstructor") // Built in code only, never inflated from XML.
 internal class EdgeItemFrame(context: Context, private val item: EdgeStore.Item,
     private val panelHeight: Int, content: View) : FrameLayout(context) {
     init {
-        val child = if (item.fields["height"].isNullOrBlank()) content else ScrollView(context).apply {
+        val child = if (item.fields["height"].isNullOrBlank()) content else EdgeInnerScrollView(context).apply {
             isFillViewport = true
             addView(content)
         }

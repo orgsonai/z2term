@@ -1923,7 +1923,11 @@ object EdgeRuntime {
                         preview.visibility = View.GONE; editor.visibility = View.VISIBLE; history.visibility = View.VISIBLE
                         (preview.parent as? ScrollView)?.visibility = View.GONE
                         clip.visibility = View.VISIBLE
+                        // ダブルタップした所にカーソルを置く。空のときは案内文を指しているので先頭。
+                        val at = preview.tapOffset.takeIf { it >= 0 && note.text.isNotEmpty() }
+                            ?.coerceAtMost(editor.length())
                         editor.requestFocus()
+                        at?.let { editor.setSelection(it) }
                         editor.post { app?.getSystemService(android.view.inputmethod.InputMethodManager::class.java)
                             ?.showSoftInput(editor, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT) }
                     }
@@ -1931,7 +1935,7 @@ object EdgeRuntime {
                     if (fillSpace) {
                         // A note in a growing row fills it: the preview scrolls, the editor scrolls itself.
                         editor.maxLines = Int.MAX_VALUE; editor.gravity = Gravity.TOP or Gravity.START
-                        row.addView(ScrollView(ui()).apply { addView(preview) }, LinearLayout.LayoutParams(-1, 0, 1f))
+                        row.addView(EdgeInnerScrollView(ui()).apply { addView(preview) }, LinearLayout.LayoutParams(-1, 0, 1f))
                         row.addView(editor, LinearLayout.LayoutParams(-1, 0, 1f))
                     } else { row.addView(preview); row.addView(editor) }
                     row.addView(clip); row.addView(history)

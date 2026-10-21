@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-19 / Target version: 1.0.50 (versionCode 748)
+Last updated: 2026-10-21 / Target version: 1.0.51 (versionCode 749)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -2710,7 +2710,7 @@ Menus with child tabs allow direct selection in normal use. When the tab strip i
 
 **Rows (0.8.645)**: A response to the user's report that layout was too rigid: horizontal flow put apps and notes in the same line, and only the automatic flow let a terminal tab fill the panel. `flow` belonged to the parent and applied one arrangement to every item of every tab.
 - **A tab is a stack of rows**: item `row=N` is the row. Items in one row sit side by side (widths are shares of the row; see below); rows stack in number order. The parent `flow` is not read, so changing an app tab never affects a terminal tab.
-- **Rows with a terminal, note or view fill the remaining height**, only when the panel height is decided (`fit=fixed`, or an interactive part such as a terminal). An item with `height` does not grow. A growing note scrolls its text inside the row.
+- **Rows with a terminal, note or view fill the remaining height**, only when the panel height is decided (`fit=fixed`, or an interactive part such as a terminal). An item with `height` does not grow. A growing note scrolls its text inside the row. A scrolling area inside the panel, such as a note body or an item with `height`, takes vertical finger movement only when its content overflows (the whole panel stays put; 1.0.51). Otherwise the whole panel scrolls.
 - **Labels**: with `labels` unset, a row of one item shows the name; a shared row shows icons only.
 - **Existing panels keep their look**: a tab without any `row` is still drawn by `flow`. Layout settings derive rows from it (vertical = one per row, horizontal = one row, grid = per column count, unset grid = apps in a grid and the rest one per row, free = one per row) and write `row` and `order` for the whole tab on the first move (`EdgeStore.arrange`). ⚠ A former horizontal row no longer scrolls sideways; free coordinates (`at`) are not used by rows.
 - **Reordering (reworked in 0.8.646)**: 0.8.645 walked items through the rows one arrow press at a time (`EdgeRows.move`), so reaching a distant row took many presses and every press scrolled the list back to the top (the user: "the up/down buttons became a real chore"). ⇒ The list's ←→ only reorder inside the row (`EdgeRows.shift`); the "Row N ▾" menu moves an item to another row in one choice (end of that row, or a new row at the bottom; `EdgeRows.insert` / `newRow`). The page redraws at the same scroll position.
@@ -2811,6 +2811,7 @@ Choose Add item → Text input → Read and save a file to create a persistent e
 A blank note label (including whitespace only) hides the internal ID, icon and heading row so the body starts at the top (0.8.582).
 The note item settings include Ruled lines (off by default, `note-lines=on|off`), including wrapped lines.
 While editing, icon buttons for Undo, Redo, smaller text and larger text appear below the body. Text size is 10–32sp (default 16sp, `note-size`), saved per note item and applied to both reading and editing.
+Double-tapping the body to start editing places the cursor at the character you double-tapped (1.0.51).
 Undo and redo history is saved across saves, panel closure and app restarts: up to 100 history entries per text file, with a combined 256 KiB budget for past and future text (fewer entries for long notes). History lives in the panel's `.note-history/` directory (the shared home's `.z2term/edge/.note-history/` for external text files). External text changes or damaged history prevent stale history from being used. A history-only save failure keeps the already saved document intact.
 Text defaults to `~/.z2term/edge/panelID/itemID.txt`; `file=~/memo.txt` selects another shared-home file.
 Relative paths use the shared home; absolute paths must be accessible to the Android app and are not translated from guest-only paths.
