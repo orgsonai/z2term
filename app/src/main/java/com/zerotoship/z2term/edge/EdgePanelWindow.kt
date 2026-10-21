@@ -133,6 +133,9 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
         if (!contains(view, event)) return false
         // HTML pages use the same directional lock as text output: vertical reading, horizontal tabs.
         if (view is EdgeResultScrollView || view is android.webkit.WebView) return true
+        // Notes and sized items scroll only when they overflow; then they read like results too.
+        if ((view is EdgeInnerScrollView || view is EdgeNoteUi.NoteEditor) &&
+            (view.canScrollVertically(1) || view.canScrollVertically(-1))) return true
         if (view is ViewGroup) for (i in view.childCount - 1 downTo 0) {
             if (resultAt(view.getChildAt(i), event)) return true
         }

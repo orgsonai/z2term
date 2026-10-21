@@ -1150,7 +1150,7 @@ object EdgeRuntime {
                         val fitted = EdgeRows.iconFit(iconSize, cellWidth / density, rowHeight?.div(density), labelled = !bare)
                         addItem(cell, panel.id, item, bare, fitted ?: iconSize, horizontalOrder = line.size > 1,
                             fillSpace = grow && EdgeRows.grows(item), inlineClose = terminalClose(item), sizedCell = true,
-                            tight = fitted != null)
+                            tight = fitted != null, inRows = true)
                     }
                     // A lone item narrower than the panel leaves the rest of its row empty.
                     val spare = 100f - shares.sum()
@@ -1638,18 +1638,28 @@ object EdgeRuntime {
         heading.setOnLongClickListener { it.startDragAndDrop(null, View.DragShadowBuilder(it), ItemDrag(panelId, item.id), 0) }
     }
 
-    private fun enableMenuDrop(row: View, panelId: String, itemId: String, horizontal: Boolean) {
+    /** [inRows]: the panel shows its saved rows, so a drop near an item's top or bottom starts a new row. */
+    private fun enableMenuDrop(row: View, panelId: String, itemId: String, horizontal: Boolean, inRows: Boolean = false) {
+        var spot: EdgeDropSpot? = null
+        fun spotAt(event: android.view.DragEvent) =
+            EdgeDropSpot.at(event.x, event.y, row.width, row.height, dp(40).toFloat())
         row.setOnDragListener { _, event ->
             val drag = event.localState as? ItemDrag
             if (drag?.panel != panelId) false else {
                 when (event.action) {
-                    android.view.DragEvent.ACTION_DRAG_ENTERED -> if (drag.item != itemId) {
+                    android.view.DragEvent.ACTION_DRAG_ENTERED -> if (drag.item != itemId && !inRows) {
                         row.foreground = GradientDrawable().apply {
                             setColor(Color.TRANSPARENT)
                             setStroke(dp(2).coerceAtLeast(1), EdgeEditorUi.accent(ui()))
                         }
                     }
                     android.view.DragEvent.ACTION_DRAG_LOCATION -> {
+                        if (inRows && drag.item != itemId) spotAt(event).let { next ->
+                            if (next != spot) {
+                                spot = next
+                                row.foreground = EdgeDropMark(next, EdgeEditorUi.accent(ui()), dp(3).toFloat())
+                            }
+                        }
                         val source = IntArray(2)
                         row.getLocationInWindow(source)
                         var parent = row.parent
@@ -1670,12 +1680,15 @@ object EdgeRuntime {
                     }
                     android.view.DragEvent.ACTION_DROP -> if (drag.item != itemId) runCatching {
                         val after = if (horizontal) event.x >= row.width / 2 else event.y >= row.height / 2
-                        if (EdgeRows.arranged(store(app!!).panel(panelId).items))
+                        if (inRows) rearrange(panelId, moved = drag.item) { spotAt(event).apply(it, drag.item, itemId) }
+                        else if (EdgeRows.arranged(store(app!!).panel(panelId).items))
                             rearrange(panelId, moved = drag.item) { EdgeRows.drop(it, drag.item, itemId, after) }
                         else store(app!!).moveItem(panelId, drag.item, itemId, after)
                         reload(app!!)
                     }.onFailure { fail(it) }
-                    android.view.DragEvent.ACTION_DRAG_EXITED, android.view.DragEvent.ACTION_DRAG_ENDED -> row.foreground = null
+                    android.view.DragEvent.ACTION_DRAG_EXITED, android.view.DragEvent.ACTION_DRAG_ENDED -> {
+                        row.foreground = null; spot = null
+                    }
                 }
                 true
             }
@@ -1683,7 +1696,8 @@ object EdgeRuntime {
     }
 
     private fun addItem(rows: LinearLayout, panelId: String, item: EdgeStore.Item, iconOnly: Boolean = false, iconSize: Int = 40, horizontalOrder: Boolean = false,
-        fillSpace: Boolean = false, inlineClose: (() -> Unit)? = null, sizedCell: Boolean = false, tight: Boolean = false) {
+        fillSpace: Boolean = false, inlineClose: (() -> Unit)? = null, sizedCell: Boolean = false, tight: Boolean = false,
+        inRows: Boolean = false) {
         val target = "$panelId:${item.id}"
         // A tight cell was sized to its icon: no padding or minimum height beyond it.
         val row = LinearLayout(ui()).apply {
@@ -1703,7 +1717,7 @@ object EdgeRuntime {
         if (iconOnly) title.gravity = Gravity.CENTER
         else if (showTitle) title.addView(text(label, 15f), LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(title)
-        enableMenuDrop(row, panelId, item.id, horizontalOrder)
+        enableMenuDrop(row, panelId, item.id, horizontalOrder, inRows)
         if (Regex("^z2-key\\s+(back|recents|shade|quicksettings|screenshot|split)\\s*$")
                 .matches(item.command.trim()) && !AndroidActions.connected()) {
             row.addView(Button(ui()).apply {

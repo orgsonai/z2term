@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.52 (versionCode 750)**: (1) When rearranging apps and other items directly on an edge panel, you can now **drop them between rows**. Until now, wherever you dropped an item it joined the target's row side by side. Dropping near the **top or bottom edge** of an item makes a new row above or below its row; dropping near the **middle** places it beside the item. A line shows where it will go before you drop. (2) Scrolling inside a note, fixed in 1.0.51, was taken by tab switching in horizontal panels (where a vertical swipe changes tabs); this is fixed.
+
 **1.0.51 (versionCode 749)**: In edge panel notes, (1) a long note now **scrolls inside the note** instead of the whole panel. Until now the panel took the scroll and the note did not move (the same applied inside items with a set height). When the text fits, the whole panel scrolls as before. (2) Double-tapping to start editing now puts the cursor **where you double-tapped** instead of at the start of the line.
 
 **1.0.50 (versionCode 748)**: (1) You can now **choose how many days of notification and SMS logs to keep** (in the notification and SMS detection settings; unlimited by default, as before). Older entries are cut from the same file the next time an entry is written. It stays one file and works with your own format too. Entries from before this version are counted from the day you update. (2) Commands received by QR can now be **checked by their content, not their name**. Whoever makes the QR can name it anything, so the command is shown large in a frame, and saving it as a snippet or adding it as an edge button first shows the name and the command again for confirmation.
