@@ -208,22 +208,55 @@ object WhenTriggerMatch {
         }
     }
 
+    /** `file:` の種類。[fileAction] の値で、`file:<種類>=<フォルダ>` の `<種類>` と同じ。 */
+    const val FILE_NEW = "new"
+    const val FILE_CHANGED = "changed"
+    const val FILE_DELETED = "deleted"
+
     /**
-     * `file:new=<フォルダ>[,ext=<拡張子>]` の監視先フォルダ (書式が違えば null)。
+     * `file:<種類>=<フォルダ>[,ext=<拡張子>]` の `<種類>` (`new` / `changed` / `deleted`)。
+     * 書式が違えば null。
+     */
+    fun fileAction(spec: String): String? {
+        val s = spec.trim()
+        return listOf(FILE_NEW, FILE_CHANGED, FILE_DELETED).firstOrNull { s.startsWith("$it=") }
+    }
+
+    /**
+     * `file:<種類>=<フォルダ>[,ext=<拡張子>]` の監視先フォルダ (書式が違えば null)。
      *
      * どのフォルダを見張るかは**登録されたルールからしか決まらない**ので、
      * [SystemEventService] が `FileObserver` を張る前にここで取り出す。
      */
     fun fileDir(spec: String): String? {
-        val s = spec.trim()
-        if (!s.startsWith("new=")) return null
-        val body = s.substring("new=".length)
+        val action = fileAction(spec) ?: return null
+        val body = spec.trim().substring(action.length + 1)
         val dir = body.substringBefore(',').trim().trimEnd('/')
         return dir.ifEmpty { null }
     }
 
     /**
-     * `file:new=…` の絞り込み。[fileName] がそのルールの対象か。
+     * フォルダで起きたことを `new` / `changed` / `deleted` のどれと見なすか (1.0.54)。
+     *
+     * 書き込み完了 (`CLOSE_WRITE`) は**新しく作ったときにも上書きしたときにも**来るので、
+     * それだけでは見分けられない。見張りを始めた時点のファイル名を [known] に持っておき、
+     * 知らない名前なら `new`、知っている名前なら `changed` とする。別名で書いてから
+     * 移す書き方 (`MOVED_TO`) は常に `new`、消えたとき・よそへ移したときは `deleted`。
+     *
+     * ⚠ `CREATE` を見て「作った直後の書き込み」を判定する手は使わない — 共有ストレージの
+     * 一部では `CREATE` が届かず、`file:new` が一度も動かなくなる。
+     *
+     * @param event `closed` (書き込み完了) / `moved_in` / `deleted` / `moved_out`
+     */
+    fun fileEventKind(event: String, name: String, known: Set<String>): String? = when (event) {
+        "closed" -> if (name in known) FILE_CHANGED else FILE_NEW
+        "moved_in" -> FILE_NEW
+        "deleted", "moved_out" -> FILE_DELETED
+        else -> null
+    }
+
+    /**
+     * `file:<種類>=…` の絞り込み。[fileName] がそのルールの対象か。
      *
      * `ext=` を付けたときだけ拡張子で絞る (大小文字は区別しない)。付けなければ全部。
      * 隠しファイルと**書きかけの一時ファイル**は常に外す — 同期アプリやカメラは
@@ -268,5 +301,110 @@ object WhenTriggerMatch {
         "proximity=near" -> near
         "proximity=far" -> !near
         else -> false
+    }
+
+    /**
+     * `battery:temp>N` / `battery:temp<N` を今の電池の温度 [celsius] が満たすか (1.0.54)。
+     * 跨いだ瞬間だけ動かす判定 (エッジ) は [WhenManager] 側。それ以外の書式は false。
+     */
+    fun batteryTempSatisfied(spec: String, celsius: Float): Boolean {
+        val s = spec.trim()
+        val limit = s.substring(minOf(s.length, "temp>".length)).trim().toFloatOrNull() ?: return false
+        return when {
+            s.startsWith("temp>") -> celsius > limit
+            s.startsWith("temp<") -> celsius < limit
+            else -> false
+        }
+    }
+
+    /**
+     * `bt:*` トリガーが、Bluetooth 機器の接続 / 切断で発火すべきか (1.0.54)。
+     *
+     * spec の書式:
+     *  - `connect` / `disconnect`           … どの機器でも
+     *  - `connect=<名前>` / `disconnect=<名前>` … 機器の名前に含む (大小文字を区別しない)、
+     *    または機器のアドレス (`AA:BB:…`) に完全一致
+     *
+     * 名前は Android 12 以降「付近のデバイス」の許可が無いと取れない (空になる)。そのときは
+     * 名前で絞ったルールは一致しない (誤発火より取りこぼしを選ぶ。`wifi:ssid=` と同じ)。
+     */
+    fun bluetooth(spec: String, connected: Boolean, name: String, address: String): Boolean {
+        val s = spec.trim()
+        val want = if (connected) "connect" else "disconnect"
+        if (s == want) return true
+        if (!s.startsWith("$want=")) return false
+        val target = s.substring(want.length + 1).trim()
+        if (target.isEmpty()) return false
+        return (name.isNotEmpty() && name.contains(target, ignoreCase = true)) ||
+            (address.isNotEmpty() && address.equals(target, ignoreCase = true))
+    }
+
+    /**
+     * `app:open=<アプリ>` / `app:close=<アプリ>` が、前面のアプリが [prev] から [now] へ
+     * 替わったことで発火すべきか (1.0.54)。
+     *
+     * `<アプリ>` はパッケージ名かアプリ名に含む (大小文字を区別しない)。`notify:pkg=` と同じ
+     * 考え方。[nowLabel] / [prevLabel] はそれぞれのアプリ名 (取れなければ空)。
+     * 呼び元はアプリが替わったときしか呼ばない (同じアプリの中の画面移動では呼ばない)。
+     */
+    fun app(spec: String, now: String, nowLabel: String, prev: String, prevLabel: String): Boolean {
+        val s = spec.trim()
+        fun hit(target: String, pkg: String, label: String): Boolean =
+            target.isNotEmpty() && pkg.isNotEmpty() &&
+                (pkg.contains(target, ignoreCase = true) || label.contains(target, ignoreCase = true))
+        return when {
+            s.startsWith("open=") -> hit(s.substring(5).trim(), now, nowLabel)
+            s.startsWith("close=") -> hit(s.substring(6).trim(), prev, prevLabel)
+            else -> false
+        }
+    }
+
+    /** `steps:reach=N` の N (書式が違えば null)。 */
+    fun stepsGoal(spec: String): Int? {
+        val s = spec.trim()
+        if (!s.startsWith("reach=")) return null
+        return s.substring("reach=".length).trim().toIntOrNull()?.takeIf { it > 0 }
+    }
+
+    /**
+     * 歩数計 (起動からの累計) の読み [counter] を受けて、今日の歩数を出す (1.0.54)。
+     *
+     * Android の歩数計は**端末を起動してからの累計**しか返さない。「今日」を出すには
+     * 日の始まりの値 ([StepsState.base]) を覚えておく必要がある。
+     *  - 初めて読んだ: その値を今日の始まりとして置く (今日は 0 歩から)
+     *  - 日付が変わった: 前回の読みを今日の始まりにする
+     *  - 値が前回より小さい: 端末を再起動した (累計が 0 へ戻った)。今日のぶんを引き継ぐ
+     *
+     * 返すのは新しい状態。今日の歩数は [StepsState.today]、ひとつ前の読みでの今日の歩数は
+     * [StepsState.prevToday] (しきい値を「跨いだか」を見るため)。
+     */
+    fun stepsUpdate(state: StepsState?, counter: Long, date: String): StepsState {
+        if (state == null) return StepsState(date, base = counter, last = counter, prevToday = 0)
+        var base = state.base
+        var prevToday = state.last - state.base
+        // 再起動後の累計は「起動してからの歩数」なので、それに今日のぶんを足した形にする。
+        if (counter < state.last) base = -prevToday
+        if (date != state.date) {
+            base = if (counter < state.last) 0 else state.last
+            prevToday = 0
+        }
+        return StepsState(date, base = base, last = counter, prevToday = prevToday)
+    }
+
+    /** 歩数の数え方の状態 ([stepsUpdate])。ファイルに 1 行で残す ([serialize] / [parse])。 */
+    data class StepsState(val date: String, val base: Long, val last: Long, val prevToday: Long) {
+        val today: Long get() = (last - base).coerceAtLeast(0)
+        fun serialize(): String = "$date $base $last $prevToday"
+
+        companion object {
+            fun parse(line: String): StepsState? {
+                val p = line.trim().split(' ')
+                if (p.size < 4) return null
+                return StepsState(
+                    p[0], p[1].toLongOrNull() ?: return null,
+                    p[2].toLongOrNull() ?: return null, p[3].toLongOrNull() ?: return null,
+                )
+            }
+        }
     }
 }

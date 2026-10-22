@@ -14,6 +14,10 @@
     <string name="permissions_storage_desc">讀寫/sdcard等共用儲存空間。檔案選擇器中指定的資料夾需分別授權。</string>
     <string name="permissions_sms">接收簡訊</string>
     <string name="permissions_sms_desc">讀取收到的簡訊，用於簡訊日誌和自動化規則。</string>
+    <string name="permissions_bluetooth">鄰近裝置（藍牙）</string>
+    <string name="permissions_bluetooth_desc">讓自動化的 bt: 知道哪個藍牙裝置連上或中斷。不會搜尋裝置。</string>
+    <string name="permissions_activity">體能活動</string>
+    <string name="permissions_activity_desc">讓自動化的 steps: 讀取手機的計步器。步數不會傳到裝置外。</string>
     <string name="permissions_battery">忽略電池最佳化</string>
     <string name="permissions_battery_desc">讓背景服務在螢幕關閉時更容易繼續執行。</string>
     <string name="permissions_write_settings">修改系統設定</string>

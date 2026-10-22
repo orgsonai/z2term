@@ -14,6 +14,10 @@
     <string name="permissions_storage_desc">读写/sdcard等共享存储。文件选择器中指定的文件夹需分别授权。</string>
     <string name="permissions_sms">接收短信</string>
     <string name="permissions_sms_desc">读取收到的短信，用于短信日志和自动化规则。</string>
+    <string name="permissions_bluetooth">附近的设备（蓝牙）</string>
+    <string name="permissions_bluetooth_desc">让自动化的 bt: 知道哪个蓝牙设备连上或断开。不会搜索设备。</string>
+    <string name="permissions_activity">身体活动</string>
+    <string name="permissions_activity_desc">让自动化的 steps: 读取手机的计步器。步数不会发到设备外。</string>
     <string name="permissions_battery">忽略电池优化</string>
     <string name="permissions_battery_desc">让后台服务在息屏时更容易继续运行。</string>
     <string name="permissions_write_settings">修改系统设置</string>

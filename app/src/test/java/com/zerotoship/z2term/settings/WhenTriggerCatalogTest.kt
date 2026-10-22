@@ -2,6 +2,7 @@ package com.zerotoship.z2term.settings
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -70,6 +71,32 @@ class WhenTriggerCatalogTest {
         assertNull(WhenTriggerCatalog.triggerProblem("event:ringer_*"))
         assertNull(WhenTriggerCatalog.triggerProblem("sensor:light>250"))
         assertNull(WhenTriggerCatalog.triggerProblem("boot"))
+        assertNull(WhenTriggerCatalog.triggerProblem("battery:temp>42.5"))
+        assertNull(WhenTriggerCatalog.triggerProblem("bt:connect=My Car"))
+        assertNull(WhenTriggerCatalog.triggerProblem("app:close=settings"))
+        assertNull(WhenTriggerCatalog.triggerProblem("steps:reach=10000"))
+        assertNull(WhenTriggerCatalog.triggerProblem("file:deleted=/sdcard/Documents,ext=md"))
+    }
+
+    /** 1.0.54 の新しいトリガーの書き損じは弾く (数でない値・空の値)。 */
+    @Test fun newTriggers_badSpecIsRejected() {
+        listOf("battery:temp>hot", "bt:pair", "bt:connect=", "app:open", "steps:reach=many", "file:moved=/sdcard")
+            .forEach { assertEquals(it, WhenTriggerCatalog.Problem.BAD_SPEC, WhenTriggerCatalog.triggerProblem(it)) }
+    }
+
+    /** 画面で選んでいる候補を、書いた値に関係なく見つけられること。 */
+    @Test fun optionFor_findsTheOptionBehindAValue() {
+        assertEquals("battery_below", WhenTriggerCatalog.optionFor("battery:below=15")?.labelKey)
+        assertEquals("notify_missed_call", WhenTriggerCatalog.optionFor("notify:category=missed_call")?.labelKey)
+        assertEquals("charge_start", WhenTriggerCatalog.optionFor("charge:start")?.labelKey)
+        assertNull(WhenTriggerCatalog.optionFor("charge:begin"))
+        // 同じ書式の候補が 2 つある種別で、どちらでもない値は「一覧にない書き方」。
+        assertNull(WhenTriggerCatalog.optionFor("notify:category=msg"))
+    }
+
+    /** どの種別も、画面で並べる段のどれかに入っていること (入っていないと画面に出ない)。 */
+    @Test fun everyKindHasAGroup() {
+        WhenTriggerCatalog.kinds.forEach { assertTrue(it.id, it.group in WhenTriggerCatalog.groups) }
     }
 
     /**

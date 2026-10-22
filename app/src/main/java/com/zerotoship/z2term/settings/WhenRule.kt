@@ -55,6 +55,14 @@ package com.zerotoship.z2term.settings
  *  - `sensor:shake`                        … 端末を振ったとき (stage 2。検知 ON が前提・加速度)
  *  - `sensor:light>N` / `sensor:light<N`   … 照度が N lux を上/下へ跨いだとき
  *  - `sensor:proximity=near` / `=far`      … 近接センサーが near/far へ変化したとき
+ *  - `battery:temp>N` / `battery:temp<N`   … 電池の温度が N ℃ を上/下へ跨いだとき (1.0.54。検知 ON)
+ *  - `bt:connect` / `bt:disconnect` (`=<名前>` で機器を絞る) … Bluetooth 機器の接続 / 切断 (1.0.54。
+ *    検知 ON と、Android 12 以降は「付近のデバイス」の許可が前提)
+ *  - `app:open=<アプリ>` / `app:close=<アプリ>` … そのアプリが前面に来た / 離れたとき (1.0.54。
+ *    ユーザー補助が前提で、検知には依存しない)
+ *  - `steps:reach=N`                       … 今日の歩数が N に届いたとき (1.0.54。検知 ON と身体活動の許可)
+ *  - `file:new=<フォルダ>` / `file:changed=` / `file:deleted=` … フォルダのファイルが来た /
+ *    書き換わった / 消えたとき (`,ext=<拡張子>` で絞れる。changed / deleted は 1.0.54。検知 ON)
  *  - `event:<名前>`                        … `events.jsonl` に流れる端末イベント (0.8.226)。
  *    `event:ringer_*` の前方一致と `event:*` も可。名前は `z2-when events` で一覧できる。
  *    受動的なイベント (画面・充電・Wi‑Fi 等) は検知 ON が前提、自分で仕掛けたもの

@@ -303,4 +303,77 @@ class WhenTriggerMatchTest {
         assertFalse(WhenTriggerMatch.fileMatches("new=/sdcard/DCIM", ".pending-1234.jpg"))
         assertFalse(WhenTriggerMatch.fileMatches("new=/sdcard/DCIM", ""))
     }
+
+    // --- 1.0.54 で足したトリガー ---
+
+    @Test fun fileDir_readsAllThreeKinds() {
+        assertEquals("/sdcard/Documents", WhenTriggerMatch.fileDir("changed=/sdcard/Documents"))
+        assertEquals("/sdcard/Documents", WhenTriggerMatch.fileDir("deleted=/sdcard/Documents,ext=md"))
+        assertEquals(WhenTriggerMatch.FILE_CHANGED, WhenTriggerMatch.fileAction("changed=/sdcard"))
+        assertNull(WhenTriggerMatch.fileAction("moved=/sdcard"))
+    }
+
+    /** 書き込み完了は、知らない名前なら新しいファイル、知っている名前なら書き換え。 */
+    @Test fun fileEventKind_tellsNewFromChanged() {
+        val known = setOf("a.txt")
+        assertEquals(WhenTriggerMatch.FILE_NEW, WhenTriggerMatch.fileEventKind("closed", "b.txt", known))
+        assertEquals(WhenTriggerMatch.FILE_CHANGED, WhenTriggerMatch.fileEventKind("closed", "a.txt", known))
+        // 別名で書いてから移す書き方は、同じ名前を上書きしても「来た」扱い。
+        assertEquals(WhenTriggerMatch.FILE_NEW, WhenTriggerMatch.fileEventKind("moved_in", "a.txt", known))
+        assertEquals(WhenTriggerMatch.FILE_DELETED, WhenTriggerMatch.fileEventKind("deleted", "a.txt", known))
+        assertEquals(WhenTriggerMatch.FILE_DELETED, WhenTriggerMatch.fileEventKind("moved_out", "a.txt", known))
+        assertNull(WhenTriggerMatch.fileEventKind("opened", "a.txt", known))
+    }
+
+    @Test fun batteryTemp_comparesBothWays() {
+        assertTrue(WhenTriggerMatch.batteryTempSatisfied("temp>45", 45.5f))
+        assertFalse(WhenTriggerMatch.batteryTempSatisfied("temp>45", 45f))
+        assertTrue(WhenTriggerMatch.batteryTempSatisfied("temp<35", 34.9f))
+        assertFalse(WhenTriggerMatch.batteryTempSatisfied("below=20", 10f))
+        assertFalse(WhenTriggerMatch.batteryTempSatisfied("temp>hot", 90f))
+    }
+
+    @Test fun bluetooth_matchesDirectionAndName() {
+        assertTrue(WhenTriggerMatch.bluetooth("connect", true, "", ""))
+        assertFalse(WhenTriggerMatch.bluetooth("connect", false, "", ""))
+        assertTrue(WhenTriggerMatch.bluetooth("disconnect", false, "Car Audio", "AA:BB:CC:DD:EE:FF"))
+        // 名前は一部・大小文字無視。アドレスは完全一致。
+        assertTrue(WhenTriggerMatch.bluetooth("connect=car", true, "My Car Audio", ""))
+        assertTrue(WhenTriggerMatch.bluetooth("connect=aa:bb:cc:dd:ee:ff", true, "", "AA:BB:CC:DD:EE:FF"))
+        assertFalse(WhenTriggerMatch.bluetooth("connect=car", false, "My Car Audio", ""))
+        // 許可が無く名前が取れないときは、名前で絞ったルールは動かない。
+        assertFalse(WhenTriggerMatch.bluetooth("connect=car", true, "", "AA:BB:CC:DD:EE:FF"))
+    }
+
+    @Test fun app_openLooksAtNowAndCloseAtPrev() {
+        val browser = "com.example.browser"
+        val home = "com.example.launcher"
+        assertTrue(WhenTriggerMatch.app("open=browser", browser, "Browser", home, "Home"))
+        assertFalse(WhenTriggerMatch.app("open=browser", home, "Home", browser, "Browser"))
+        assertTrue(WhenTriggerMatch.app("close=browser", home, "Home", browser, "Browser"))
+        // アプリ名でも当たる。
+        assertTrue(WhenTriggerMatch.app("open=Reader", "com.example.r", "Reader Beta", home, ""))
+        assertFalse(WhenTriggerMatch.app("open=", browser, "Browser", home, ""))
+    }
+
+    @Test fun steps_countsTodayAcrossRebootAndMidnight() {
+        // 初めて読んだ値が今日の始まり。
+        var st = WhenTriggerMatch.stepsUpdate(null, 1000, "2026-10-23")
+        assertEquals(0L, st.today)
+        st = WhenTriggerMatch.stepsUpdate(st, 4000, "2026-10-23")
+        assertEquals(3000L, st.today)
+        assertEquals(0L, st.prevToday)
+        // 再起動で累計が 0 から数え直しになっても、今日のぶんは引き継ぐ。
+        st = WhenTriggerMatch.stepsUpdate(st, 500, "2026-10-23")
+        assertEquals(3500L, st.today)
+        assertEquals(3000L, st.prevToday)
+        // 日付が変わったら 0 から (前回の読みからの増分は新しい日に数える)。
+        st = WhenTriggerMatch.stepsUpdate(st, 800, "2026-10-24")
+        assertEquals(300L, st.today)
+        assertEquals(0L, st.prevToday)
+        // ファイルへの書き出しと読み戻し。
+        assertEquals(st, WhenTriggerMatch.StepsState.parse(st.serialize()))
+        assertEquals(8000, WhenTriggerMatch.stepsGoal("reach=8000"))
+        assertNull(WhenTriggerMatch.stepsGoal("reach=many"))
+    }
 }

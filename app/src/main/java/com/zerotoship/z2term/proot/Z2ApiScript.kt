@@ -880,13 +880,23 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    case "${d}tkind" in
         |      boot)    [ -z "${d}tspec" ] || badspec=1 ;;
         |      charge)  case "${d}tspec" in start|stop) ;; *) badspec=1 ;; esac ;;
-        |      battery) case "${d}tspec" in below=?*|above=?*) ;; *) badspec=1 ;; esac ;;
+        |      # 温度 (temp>N / temp<N) は数でないと一生成立しないので、数字以外を弾く。
+        |      battery) case "${d}tspec" in
+        |                 below=?*|above=?*) ;;
+        |                 "temp>"*|"temp<"*) tnum="${d}{tspec#temp?}"
+        |                   case "${d}tnum" in ''|*[!0-9.-]*) badspec=1 ;; esac ;;
+        |                 *) badspec=1 ;;
+        |               esac ;;
         |      time)    case "${d}tspec" in daily=?*|at=?*|every=?*|cron=?*) ;; *) badspec=1 ;; esac ;;
         |      wifi)    case "${d}tspec" in connect|disconnect|ssid=?*) ;; *) badspec=1 ;; esac ;;
         |      net)     case "${d}tspec" in online|offline|wifi|mobile|ethernet) ;; *) badspec=1 ;; esac ;;
         |      sms)     case "${d}tspec" in any|otp|from=?*|contains=?*) ;; *) badspec=1 ;; esac ;;
         |      notify)  case "${d}tspec" in any|otp|pkg=?*|title=?*|contains=?*|category=?*) ;; *) badspec=1 ;; esac ;;
-        |      file)    case "${d}tspec" in new=?*) ;; *) badspec=1 ;; esac ;;
+        |      file)    case "${d}tspec" in new=?*|changed=?*|deleted=?*) ;; *) badspec=1 ;; esac ;;
+        |      bt)      case "${d}tspec" in connect|disconnect|connect=?*|disconnect=?*) ;; *) badspec=1 ;; esac ;;
+        |      app)     case "${d}tspec" in open=?*|close=?*) ;; *) badspec=1 ;; esac ;;
+        |      # 歩数は数でないと一生届かないので、数字だけを通す。
+        |      steps)   case "${d}tspec" in reach=*[!0-9]*|reach=) badspec=1 ;; reach=*) ;; *) badspec=1 ;; esac ;;
         |      share)   case "${d}tspec" in any|text|file|contains=?*|ext=?*) ;; *) badspec=1 ;; esac ;;
         |      # `>` `<` は case のパターンではリダイレクトに読まれうるのでクォートする。
         |      sensor)  case "${d}tspec" in shake|"light>"?*|"light<"?*|proximity=near|proximity=far) ;; *) badspec=1 ;; esac ;;

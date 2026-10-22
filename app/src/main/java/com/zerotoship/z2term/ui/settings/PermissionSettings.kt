@@ -115,6 +115,13 @@ internal fun PermissionsSection(
     PermissionRow(R.string.permissions_sms, R.string.permissions_sms_desc, grants.sms,
         onRequest = if (!grants.sms) ({ request(Manifest.permission.RECEIVE_SMS) }) else null,
         onSettings = { open(details) })
+    if (Build.VERSION.SDK_INT >= 31) PermissionRow(R.string.permissions_bluetooth, R.string.permissions_bluetooth_desc,
+        grants.bluetooth,
+        onRequest = if (!grants.bluetooth) ({ request(Manifest.permission.BLUETOOTH_CONNECT) }) else null,
+        onSettings = { open(details) })
+    PermissionRow(R.string.permissions_activity, R.string.permissions_activity_desc, grants.activity,
+        onRequest = if (!grants.activity) ({ request(Manifest.permission.ACTIVITY_RECOGNITION) }) else null,
+        onSettings = { open(details) })
     PermissionRow(R.string.permissions_battery, R.string.permissions_battery_desc, grants.battery,
         onRequest = if (!grants.battery) ({ open(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageUri),
             Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }) else null,
@@ -199,7 +206,7 @@ private data class PermissionGrants(
     val notifications: Boolean, val listener: Boolean, val accessibility: Boolean,
     val overlay: Boolean, val storage: Boolean, val sms: Boolean, val battery: Boolean,
     val writeSettings: Boolean, val usage: Boolean, val install: Boolean,
-    val admin: Boolean, val ime: Boolean
+    val admin: Boolean, val ime: Boolean, val bluetooth: Boolean, val activity: Boolean
 ) {
     companion object {
         fun read(context: android.content.Context): PermissionGrants {
@@ -220,7 +227,10 @@ private data class PermissionGrants(
                 install = check { context.packageManager.canRequestPackageInstalls() },
                 admin = PasswordWatchAdmin.isActive(context),
                 ime = check { context.getSystemService(InputMethodManager::class.java).enabledInputMethodList
-                    .any { it.packageName == context.packageName } }
+                    .any { it.packageName == context.packageName } },
+                // 11 以前は通常権限 (入れた時点で許されている) なので、許可の行も出さない。
+                bluetooth = Build.VERSION.SDK_INT < 31 || allowed(Manifest.permission.BLUETOOTH_CONNECT),
+                activity = allowed(Manifest.permission.ACTIVITY_RECOGNITION)
             )
         }
     }

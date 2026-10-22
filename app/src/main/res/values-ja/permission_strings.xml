@@ -14,6 +14,10 @@
     <string name="permissions_storage_desc">/sdcardなどの共有ストレージを読み書きします。ファイル選択画面で指定するフォルダーは、そのフォルダーごとに許可します。</string>
     <string name="permissions_sms">SMSの受信</string>
     <string name="permissions_sms_desc">届いたSMSを読み、SMSログや自動化ルールで使います。</string>
+    <string name="permissions_bluetooth">付近のデバイス（Bluetooth）</string>
+    <string name="permissions_bluetooth_desc">自動化の bt: で、どの Bluetooth 機器がつながったか・切れたかを受け取ります。機器を探すことはしません。</string>
+    <string name="permissions_activity">身体活動</string>
+    <string name="permissions_activity_desc">自動化の steps: で、端末の歩数計を読みます。歩数は端末の外へ送りません。</string>
     <string name="permissions_battery">電池最適化からの除外</string>
     <string name="permissions_battery_desc">画面消灯中もバックグラウンド処理を続けやすくします。</string>
     <string name="permissions_write_settings">システム設定の変更</string>

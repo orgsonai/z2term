@@ -21,8 +21,11 @@ object WhenTriggerCatalog {
      * @param template 入力欄へ入れる文字列。`=` `>` `<` で終わるものは**値の入力が要る**
      *   ([needsValue])。`battery:below=` を選んでから `20` を打つ、という順で使う。
      * @param hint     値の書き方の例。入力欄の下に出して「何を打てばいいか」を示す。
+     * @param labelKey 画面に出す「いつ動くか」の文言の識別子（`when_opt_<labelKey>`）。
+     *   書式 (`battery:below=20`) だけを並べると、候補が増えたときに**読んで選べない**
+     *   （1.0.54。種別が 15、候補が 50 を超えた）。書式は文言の下に小さく残す。
      */
-    data class Option(val template: String, val hint: String = "") {
+    data class Option(val template: String, val hint: String = "", val labelKey: String = "") {
         /** 末尾が記号なら、続けて値を打たないと完成しない候補。 */
         val needsValue: Boolean get() = template.endsWith('=') || template.endsWith('>') || template.endsWith('<')
 
@@ -41,52 +44,103 @@ object WhenTriggerCatalog {
      * @param id       トリガーの `:` の手前。[WhenRule.kind] と同じもの。
      * @param labelKey 画面に出す短い日本語/英語ラベルの識別子。文字列そのものは
      *   `strings.xml` に置く（`when_kind_<labelKey>`）。ここに直接書くと英語版が作れない。
+     * @param group    画面で並べる段（[groups]）。
      */
-    data class Kind(val id: String, val labelKey: String, val options: List<Option>)
+    data class Kind(val id: String, val labelKey: String, val options: List<Option>, val group: String = "")
 
-    /** 画面に出す順。よく使うもの（充電・電池・時刻・Wi-Fi）を先に置く。 */
+    /**
+     * 画面で種別をまとめる段の並び（1.0.54）。文言は `when_group_<id>`。
+     *
+     * 種別を 1 列に 15 個並べると、目当てを探すのに全部読むことになる。「何について
+     * 起きたか」で 5 段に分け、段の名前で当たりを付けてから種別を選ぶ。
+     */
+    val groups: List<String> = listOf("time", "power", "link", "apps", "device")
+
+    /** 画面に出す順。段 ([groups]) の中では、よく使うものを先に置く。 */
     // ⚠ /sdcard は利用者へ見せる**入力例**で、ディストロ側から見えるパス。Android の
     // 外部ストレージ API に置き換えると、端末で打つパスと食い違う例になる。
     @Suppress("SdCardPath")
     val kinds: List<Kind> = listOf(
-        Kind("charge", "charge", listOf(Option("charge:start"), Option("charge:stop"))),
-        Kind("battery", "battery", listOf(Option("battery:below=", "20"), Option("battery:above=", "80"))),
         Kind("time", "time", listOf(
-            Option("time:daily=", "07:00"),
-            Option("time:at=", "22:30"),
-            Option("time:every=", "30m"),
-            Option("time:cron=", "0 3 * * *"),
-        )),
+            Option("time:daily=", "07:00", "time_daily"),
+            Option("time:at=", "22:30", "time_at"),
+            Option("time:every=", "30m", "time_every"),
+            Option("time:cron=", "0 3 * * *", "time_cron"),
+        ), group = "time"),
+        Kind("charge", "charge", listOf(
+            Option("charge:start", labelKey = "charge_start"), Option("charge:stop", labelKey = "charge_stop"),
+        ), group = "power"),
+        Kind("battery", "battery", listOf(
+            Option("battery:below=", "20", "battery_below"), Option("battery:above=", "80", "battery_above"),
+            Option("battery:temp>", "45", "battery_temp_above"), Option("battery:temp<", "35", "battery_temp_below"),
+        ), group = "power"),
         Kind("wifi", "wifi", listOf(
-            Option("wifi:connect"), Option("wifi:disconnect"), Option("wifi:ssid=", "Home"),
-        )),
+            Option("wifi:connect", labelKey = "wifi_connect"), Option("wifi:disconnect", labelKey = "wifi_disconnect"),
+            Option("wifi:ssid=", "Home", "wifi_ssid"),
+        ), group = "link"),
         Kind("net", "net", listOf(
-            Option("net:online"), Option("net:offline"),
-            Option("net:wifi"), Option("net:mobile"), Option("net:ethernet"),
-        )),
-        Kind("sensor", "sensor", listOf(
-            Option("sensor:shake"),
-            Option("sensor:light>", "100"), Option("sensor:light<", "5"),
-            Option("sensor:proximity=near"), Option("sensor:proximity=far"),
-        )),
-        Kind("sms", "sms", listOf(
-            Option("sms:any"), Option("sms:otp"),
-            Option("sms:from=", "0120"), Option("sms:contains=", "配達"),
-        )),
+            Option("net:online", labelKey = "net_online"), Option("net:offline", labelKey = "net_offline"),
+            Option("net:wifi", labelKey = "net_wifi"), Option("net:mobile", labelKey = "net_mobile"),
+            Option("net:ethernet", labelKey = "net_ethernet"),
+        ), group = "link"),
+        Kind("bt", "bt", listOf(
+            Option("bt:connect", labelKey = "bt_connect"), Option("bt:disconnect", labelKey = "bt_disconnect"),
+            Option("bt:connect=", "Car", "bt_connect_name"), Option("bt:disconnect=", "Car", "bt_disconnect_name"),
+        ), group = "link"),
+        Kind("app", "app", listOf(
+            Option("app:open=", "com.android.settings", "app_open"),
+            Option("app:close=", "com.android.settings", "app_close"),
+        ), group = "apps"),
         Kind("notify", "notify", listOf(
-            Option("notify:any"), Option("notify:otp"),
-            Option("notify:pkg=", "com.example"), Option("notify:title=", "会議"),
-            Option("notify:contains=", "至急"),
-            Option("notify:category=", "call"), Option("notify:category=", "missed_call"),
-        )),
-        Kind("file", "file", listOf(Option("file:new=", "/sdcard/Pictures/Screenshots"))),
+            Option("notify:any", labelKey = "notify_any"), Option("notify:otp", labelKey = "notify_otp"),
+            Option("notify:pkg=", "com.example", "notify_pkg"), Option("notify:title=", "会議", "notify_title"),
+            Option("notify:contains=", "至急", "notify_contains"),
+            Option("notify:category=", "call", "notify_call"),
+            Option("notify:category=", "missed_call", "notify_missed_call"),
+        ), group = "apps"),
+        Kind("sms", "sms", listOf(
+            Option("sms:any", labelKey = "sms_any"), Option("sms:otp", labelKey = "sms_otp"),
+            Option("sms:from=", "0120", "sms_from"), Option("sms:contains=", "配達", "sms_contains"),
+        ), group = "apps"),
         Kind("share", "share", listOf(
-            Option("share:any"), Option("share:text"), Option("share:file"),
-            Option("share:contains=", "http"), Option("share:ext=", "pdf"),
-        )),
-        Kind("event", "event", listOf(Option("event:", "screen_on"))),
-        Kind("boot", "boot", listOf(Option("boot"))),
+            Option("share:any", labelKey = "share_any"), Option("share:text", labelKey = "share_text"),
+            Option("share:file", labelKey = "share_file"),
+            Option("share:contains=", "http", "share_contains"), Option("share:ext=", "pdf", "share_ext"),
+        ), group = "apps"),
+        // event: の名前は増え続けるので、画面では `z2-when events` の一覧から候補を作る
+        // (WhenRulesSheet)。ここに 1 件だけ置くのは検査とテストのため。
+        Kind("event", "event", listOf(Option("event:", "screen_on", "event")), group = "device"),
+        Kind("sensor", "sensor", listOf(
+            Option("sensor:shake", labelKey = "sensor_shake"),
+            Option("sensor:light>", "100", "sensor_light_above"), Option("sensor:light<", "5", "sensor_light_below"),
+            Option("sensor:proximity=near", labelKey = "sensor_near"),
+            Option("sensor:proximity=far", labelKey = "sensor_far"),
+        ), group = "device"),
+        Kind("steps", "steps", listOf(Option("steps:reach=", "8000", "steps_reach")), group = "device"),
+        Kind("file", "file", listOf(
+            Option("file:new=", "/sdcard/Pictures/Screenshots", "file_new"),
+            Option("file:changed=", "/sdcard/Documents", "file_changed"),
+            Option("file:deleted=", "/sdcard/Documents", "file_deleted"),
+        ), group = "device"),
+        Kind("boot", "boot", listOf(Option("boot", labelKey = "boot")), group = "device"),
     )
+
+    /**
+     * [trigger] に当たる候補（無ければ null）。画面で「いま選んでいるのはどれか」を
+     * 文言で出すのに使う。
+     *
+     * 値の要らない候補は完全一致、値の要る候補は書式の頭が合えばよい
+     * (`battery:below=15` は `battery:below=` の候補)。`notify:category=` のように
+     * 同じ頭の候補が複数あるときは、例 ([Option.example]) と完全に一致するものだけを選ぶ
+     * (`notify:category=msg` を「着信中の通知」と呼ばないため。どれでもなければ null)。
+     */
+    fun optionFor(trigger: String): Option? {
+        val t = trigger.trim()
+        val all = kinds.flatMap { it.options }
+        all.firstOrNull { it.example == t }?.let { return it }
+        return all.filter { it.needsValue && t.startsWith(it.template) && t.length > it.template.length }
+            .singleOrNull()
+    }
 
     /** トリガーの書式の問題。文言は画面側で出す（`strings.xml` に置くため）。 */
     enum class Problem {
@@ -112,14 +166,17 @@ object WhenTriggerCatalog {
         val ok = when (kind) {
             "boot" -> spec.isEmpty()
             "charge" -> spec in setOf("start", "stop")
-            "battery" -> spec.hasValueFor("below", "above")
+            "battery" -> spec.hasValueFor("below", "above") || spec.hasNumberAfter("temp>", "temp<")
             "time" -> spec.hasValueFor("daily", "at", "every", "cron")
             "wifi" -> spec in setOf("connect", "disconnect") || spec.hasValueFor("ssid")
             "net" -> spec in setOf("online", "offline", "wifi", "mobile", "ethernet")
             "sms" -> spec in setOf("any", "otp") || spec.hasValueFor("from", "contains")
             "notify" -> spec in setOf("any", "otp") ||
                 spec.hasValueFor("pkg", "title", "contains", "category")
-            "file" -> spec.hasValueFor("new")
+            "file" -> spec.hasValueFor("new", "changed", "deleted")
+            "bt" -> spec in setOf("connect", "disconnect") || spec.hasValueFor("connect", "disconnect")
+            "app" -> spec.hasValueFor("open", "close")
+            "steps" -> spec.startsWith("reach=") && spec.substringAfter('=').trim().toIntOrNull()?.let { it > 0 } == true
             "share" -> spec in setOf("any", "text", "file") || spec.hasValueFor("contains", "ext")
             "sensor" -> spec == "shake" ||
                 spec.startsWith("light>") && spec.length > "light>".length ||
@@ -131,6 +188,10 @@ object WhenTriggerCatalog {
         }
         return if (ok) null else Problem.BAD_SPEC
     }
+
+    /** `temp>45` のように「[prefixes] のどれか + 数」か。数でないと一生成立しないので弾く。 */
+    private fun String.hasNumberAfter(vararg prefixes: String): Boolean =
+        prefixes.any { startsWith(it) && substring(it.length).trim().toFloatOrNull() != null }
 
     /** `below=20` のように「[keys] のどれか + `=` + 1 文字以上の値」か。 */
     private fun String.hasValueFor(vararg keys: String): Boolean =

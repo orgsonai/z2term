@@ -2584,6 +2584,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-when <trigger> run <cmd...>        … register a rule
         |#   triggers: charge:start | charge:stop  (needs detection ON)
         |#            battery:below=N | battery:above=N  (needs detection ON)
+        |#            battery:temp>N | battery:temp<N  … battery temperature (°C) crossed N (needs detection ON)
         |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
         |#            time:cron='min hour dom month dow'  (dow 0-7 / 0,7=Sunday. Quote it: it has spaces)
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<name>  (needs detection ON)
@@ -2596,6 +2597,14 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#            sms:any | sms:from=<substr> | sms:contains=<substr> | sms:otp  (needs RECEIVE_SMS)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (detection ON)
         |#            file:new=<dir>[,ext=<ext>]  … a new file landed in that folder (needs detection ON)
+        |#            file:changed=<dir>[,ext=<ext>] | file:deleted=<dir>[,ext=<ext>]
+        |#                                        … a file there was rewritten / went away (needs detection ON)
+        |#            bt:connect | bt:disconnect | bt:connect=<name> | bt:disconnect=<name>
+        |#                                        … a Bluetooth device connected / disconnected (name: part of it, or its address)
+        |#                                        (needs detection ON and, on Android 12+, the Nearby devices permission)
+        |#            app:open=<app> | app:close=<app>  … that app came to the front / left it (package or app name, part of it)
+        |#                                        (needs z2term turned on in Accessibility; works with detection OFF)
+        |#            steps:reach=N               … today's step count reached N (detection ON + Physical activity permission)
         |#            notify:any | notify:otp | notify:pkg=<part> | notify:title=<part> | notify:contains=<part>
         |#                                        … a notification arrived (needs notification access)
         |#            event:<name> | event:<prefix>* | event:*  … any device event, by name
@@ -2645,6 +2654,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# (and Z2_WHEN_OTP for notify:otp). notify:category= matches exactly: call, missed_call, msg, ...
         |# For event: you also get Z2_WHEN_EVENT (the event name); alarm / notify_action add
         |# Z2_WHEN_EVENT_NAME (the identifier you armed it with) and Z2_WHEN_ACTION (button pressed).
+        |# For battery:temp you get Z2_WHEN_TEMP (°C). For bt: Z2_WHEN_BT_NAME / Z2_WHEN_BT_ADDR.
+        |# For app: Z2_WHEN_APP_PKG (the app in front now) / Z2_WHEN_APP_PREV (the one before).
+        |# For steps: Z2_WHEN_STEPS (today's steps). For file: also Z2_WHEN_FILE_ACTION (new|changed|deleted).
+        |# app_installed / app_removed / app_updated give Z2_WHEN_PKG, timezone_changed gives Z2_WHEN_TZ,
+        |# usb_attached / usb_detached give Z2_WHEN_USB (name) / Z2_WHEN_USB_ID (vendor:product).
         |# The same rule will not fire twice within 10 seconds (events like screen_on come often).
         |# e.g. z2-when charge:start run ~/.z2term/macros/backup.sh
         |#      z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
@@ -2660,6 +2674,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-when <トリガー> run <コマンド...>   … ルールを登録
         |#   トリガー: charge:start | charge:stop  (検知 ON が前提)
         |#            battery:below=N | battery:above=N  (検知 ON が前提)
+        |#            battery:temp>N | battery:temp<N  … 電池の温度 (℃) が N を跨いだとき (検知 ON が前提)
         |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
         |#            time:cron='分 時 日 月 曜日'  (曜日 0-7 / 0,7=日曜。空白を含むので要クォート)
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<名前>  (検知 ON が前提)
@@ -2672,6 +2687,14 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#            sms:any | sms:from=<部分> | sms:contains=<部分> | sms:otp  (RECEIVE_SMS 許可が前提)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (検知 ON が前提)
         |#            file:new=<フォルダ>[,ext=<拡張子>]  … そのフォルダに新しいファイルが来たとき (検知 ON が前提)
+        |#            file:changed=<フォルダ>[,ext=<拡張子>] | file:deleted=<フォルダ>[,ext=<拡張子>]
+        |#                                        … そこのファイルが書き換わった / 消えたとき (検知 ON が前提)
+        |#            bt:connect | bt:disconnect | bt:connect=<名前> | bt:disconnect=<名前>
+        |#                                        … Bluetooth 機器が繋がった / 切れたとき (名前はその一部、またはアドレス)
+        |#                                        (検知 ON と、Android 12 以降は「付近のデバイス」の許可が前提)
+        |#            app:open=<アプリ> | app:close=<アプリ>  … そのアプリが前面に来た / 前面から離れたとき
+        |#                                        (パッケージ名かアプリ名の一部。ユーザー補助で z2term を ON にするのが前提。検知 OFF でも動く)
+        |#            steps:reach=N               … 今日の歩数が N に届いたとき (検知 ON と「身体活動」の許可が前提)
         |#            notify:any | notify:otp | notify:pkg=<部分> | notify:title=<部分> | notify:contains=<部分>
         |#                                        … 通知が届いたとき (通知アクセスの許可が前提)
         |#            event:<名前> | event:<接頭辞>* | event:*  … 端末イベントを名前で拾う
@@ -2721,6 +2744,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# (notify:otp なら Z2_WHEN_OTP も)。notify:category= は完全一致: call, missed_call, msg, ...
         |# event: のときは Z2_WHEN_EVENT (イベント名) が入る。alarm / notify_action では
         |# Z2_WHEN_EVENT_NAME (仕掛けたときの識別名) と Z2_WHEN_ACTION (押したボタン) も入る。
+        |# battery:temp のときは Z2_WHEN_TEMP (℃)。bt: のときは Z2_WHEN_BT_NAME / Z2_WHEN_BT_ADDR。
+        |# app: のときは Z2_WHEN_APP_PKG (今前面のアプリ) / Z2_WHEN_APP_PREV (直前のアプリ)。
+        |# steps: のときは Z2_WHEN_STEPS (今日の歩数)。file: では Z2_WHEN_FILE_ACTION (new|changed|deleted) も入る。
+        |# app_installed / app_removed / app_updated では Z2_WHEN_PKG、timezone_changed では Z2_WHEN_TZ、
+        |# usb_attached / usb_detached では Z2_WHEN_USB (機器名) / Z2_WHEN_USB_ID (製造元:製品) が入る。
         |# 同じルールは 10 秒以内に続けて発火しない (screen_on のような数の多いイベント対策)。
         |# 例: z2-when charge:start run ~/.z2term/macros/backup.sh
         |#     z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
@@ -2736,6 +2764,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-when <触发条件> run <命令...>      … 登记一条规则
         |#   触发条件: charge:start | charge:stop  (前提是检测已开启)
         |#            battery:below=N | battery:above=N  (前提是检测已开启)
+        |#            battery:temp>N | battery:temp<N  … 电池温度 (℃) 跨过 N 时 (前提是检测已开启)
         |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
         |#            time:cron='分 时 日 月 星期'  (星期 0-7 / 0,7=周日。含空格，要加引号)
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<名称>  (前提是检测已开启)
@@ -2748,6 +2777,14 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#            sms:any | sms:from=<片段> | sms:contains=<片段> | sms:otp  (前提是 RECEIVE_SMS 权限)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (前提是检测已开启)
         |#            file:new=<文件夹>[,ext=<扩展名>]  … 那个文件夹里来了新文件时 (前提是检测已开启)
+        |#            file:changed=<文件夹>[,ext=<扩展名>] | file:deleted=<文件夹>[,ext=<扩展名>]
+        |#                                        … 那里的文件被改写 / 消失时 (前提是检测已开启)
+        |#            bt:connect | bt:disconnect | bt:connect=<名称> | bt:disconnect=<名称>
+        |#                                        … 蓝牙设备连上 / 断开时 (名称写其中一部分，或者写地址)
+        |#                                        (前提是检测已开启，Android 12 起还要「附近的设备」权限)
+        |#            app:open=<应用> | app:close=<应用>  … 那个应用来到前台 / 离开前台时
+        |#                                        (包名或应用名的一部分。前提是在无障碍里开启 z2term。检测关闭也能用)
+        |#            steps:reach=N               … 今天的步数达到 N 时 (前提是检测已开启和「身体活动」权限)
         |#            notify:any | notify:otp | notify:pkg=<片段> | notify:title=<片段> | notify:contains=<片段>
         |#                                        … 收到通知时 (前提是通知使用权)
         |#            event:<名称> | event:<前缀>* | event:*  … 按名字捕捉设备事件
@@ -2796,6 +2833,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# (notify:otp 还会有 Z2_WHEN_OTP)。notify:category= 是完全匹配: call, missed_call, msg, ...
         |# event: 时会有 Z2_WHEN_EVENT (事件名)。alarm / notify_action 还会有
         |# Z2_WHEN_EVENT_NAME (设下时的标识名) 和 Z2_WHEN_ACTION (按了哪个按钮)。
+        |# battery:temp 时会有 Z2_WHEN_TEMP (℃)。bt: 时会有 Z2_WHEN_BT_NAME / Z2_WHEN_BT_ADDR。
+        |# app: 时会有 Z2_WHEN_APP_PKG (现在前台的应用) / Z2_WHEN_APP_PREV (之前的应用)。
+        |# steps: 时会有 Z2_WHEN_STEPS (今天的步数)。file: 还会有 Z2_WHEN_FILE_ACTION (new|changed|deleted)。
+        |# app_installed / app_removed / app_updated 会有 Z2_WHEN_PKG，timezone_changed 会有 Z2_WHEN_TZ，
+        |# usb_attached / usb_detached 会有 Z2_WHEN_USB (设备名) / Z2_WHEN_USB_ID (厂商:产品)。
         |# 同一条规则在 10 秒内不会连续触发两次 (针对 screen_on 这类数量多的事件)。
         |# 例: z2-when charge:start run ~/.z2term/macros/backup.sh
         |#     z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
@@ -2811,6 +2853,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-when <觸發條件> run <指令...>      … 登記一條規則
         |#   觸發條件: charge:start | charge:stop  (前提是偵測已開啟)
         |#            battery:below=N | battery:above=N  (前提是偵測已開啟)
+        |#            battery:temp>N | battery:temp<N  … 電池溫度 (℃) 跨過 N 時 (前提是偵測已開啟)
         |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
         |#            time:cron='分 時 日 月 星期'  (星期 0-7 / 0,7=週日。含空格，要加引號)
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<名稱>  (前提是偵測已開啟)
@@ -2823,6 +2866,14 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#            sms:any | sms:from=<片段> | sms:contains=<片段> | sms:otp  (前提是 RECEIVE_SMS 權限)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (前提是偵測已開啟)
         |#            file:new=<資料夾>[,ext=<副檔名>]  … 那個資料夾裡來了新檔案時 (前提是偵測已開啟)
+        |#            file:changed=<資料夾>[,ext=<副檔名>] | file:deleted=<資料夾>[,ext=<副檔名>]
+        |#                                        … 那裡的檔案被改寫 / 消失時 (前提是偵測已開啟)
+        |#            bt:connect | bt:disconnect | bt:connect=<名稱> | bt:disconnect=<名稱>
+        |#                                        … 藍牙裝置連上 / 中斷時 (名稱寫其中一部分，或者寫位址)
+        |#                                        (前提是偵測已開啟，Android 12 起還要「鄰近裝置」權限)
+        |#            app:open=<應用程式> | app:close=<應用程式>  … 那個應用程式來到前景 / 離開前景時
+        |#                                        (套件名稱或應用程式名稱的一部分。前提是在無障礙裡開啟 z2term。偵測關閉也能用)
+        |#            steps:reach=N               … 今天的步數達到 N 時 (前提是偵測已開啟和「體能活動」權限)
         |#            notify:any | notify:otp | notify:pkg=<片段> | notify:title=<片段> | notify:contains=<片段>
         |#                                        … 收到通知時 (前提是通知使用權)
         |#            event:<名稱> | event:<前綴>* | event:*  … 按名字捕捉裝置事件
@@ -2871,6 +2922,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# (notify:otp 還會有 Z2_WHEN_OTP)。notify:category= 是完全匹配: call, missed_call, msg, ...
         |# event: 時會有 Z2_WHEN_EVENT (事件名)。alarm / notify_action 還會有
         |# Z2_WHEN_EVENT_NAME (設下時的標識名) 和 Z2_WHEN_ACTION (按了哪個按鈕)。
+        |# battery:temp 時會有 Z2_WHEN_TEMP (℃)。bt: 時會有 Z2_WHEN_BT_NAME / Z2_WHEN_BT_ADDR。
+        |# app: 時會有 Z2_WHEN_APP_PKG (現在前景的應用程式) / Z2_WHEN_APP_PREV (之前的應用程式)。
+        |# steps: 時會有 Z2_WHEN_STEPS (今天的步數)。file: 還會有 Z2_WHEN_FILE_ACTION (new|changed|deleted)。
+        |# app_installed / app_removed / app_updated 會有 Z2_WHEN_PKG，timezone_changed 會有 Z2_WHEN_TZ，
+        |# usb_attached / usb_detached 會有 Z2_WHEN_USB (裝置名稱) / Z2_WHEN_USB_ID (廠商:產品)。
         |# 同一條規則在 10 秒內不會連續觸發兩次 (針對 screen_on 這類數量多的事件)。
         |# 例: z2-when charge:start run ~/.z2term/macros/backup.sh
         |#     z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
@@ -2886,6 +2942,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-when <disparador> run <cmd...>     … registra una regla
         |#   disparadores: charge:start | charge:stop  (hace falta la detección)
         |#            battery:below=N | battery:above=N  (hace falta la detección)
+        |#            battery:temp>N | battery:temp<N  … la temperatura de la batería (°C) cruzó N (hace falta la detección)
         |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
         |#            time:cron='min hora dm mes ds'  (ds 0-7 / 0,7=domingo. Entrecomíllalo: lleva espacios)
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<nombre>  (hace falta la detección)
@@ -2898,6 +2955,14 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#            sms:any | sms:from=<parte> | sms:contains=<parte> | sms:otp  (hace falta RECEIVE_SMS)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (con detección)
         |#            file:new=<carpeta>[,ext=<ext>]  … llegó un archivo nuevo a esa carpeta (con detección)
+        |#            file:changed=<carpeta>[,ext=<ext>] | file:deleted=<carpeta>[,ext=<ext>]
+        |#                                        … un archivo de ahí se reescribió / desapareció (con detección)
+        |#            bt:connect | bt:disconnect | bt:connect=<nombre> | bt:disconnect=<nombre>
+        |#                                        … se conectó / desconectó un dispositivo Bluetooth (nombre: una parte, o su dirección)
+        |#                                        (con detección y, desde Android 12, el permiso de Dispositivos cercanos)
+        |#            app:open=<app> | app:close=<app>  … esa app pasó al frente / dejó el frente (paquete o nombre, una parte)
+        |#                                        (hay que activar z2term en Accesibilidad; funciona sin detección)
+        |#            steps:reach=N               … los pasos de hoy llegaron a N (con detección y el permiso de Actividad física)
         |#            notify:any | notify:otp | notify:pkg=<parte> | notify:title=<parte> | notify:contains=<parte>
         |#                                        … llegó una notificación (hace falta el acceso a las notificaciones)
         |#            event:<nombre> | event:<prefijo>* | event:*  … cualquier evento del dispositivo, por nombre
@@ -2947,6 +3012,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# (y Z2_WHEN_OTP con notify:otp). notify:category= es coincidencia exacta: call, missed_call, msg, ...
         |# Con event: tienes además Z2_WHEN_EVENT (el nombre del evento); alarm / notify_action añaden
         |# Z2_WHEN_EVENT_NAME (el identificador con el que lo armaste) y Z2_WHEN_ACTION (el botón pulsado).
+        |# Con battery:temp tienes Z2_WHEN_TEMP (°C). Con bt: Z2_WHEN_BT_NAME / Z2_WHEN_BT_ADDR.
+        |# Con app: Z2_WHEN_APP_PKG (la app al frente ahora) / Z2_WHEN_APP_PREV (la anterior).
+        |# Con steps: Z2_WHEN_STEPS (pasos de hoy). Con file: también Z2_WHEN_FILE_ACTION (new|changed|deleted).
+        |# app_installed / app_removed / app_updated dan Z2_WHEN_PKG, timezone_changed da Z2_WHEN_TZ,
+        |# usb_attached / usb_detached dan Z2_WHEN_USB (nombre) / Z2_WHEN_USB_ID (fabricante:producto).
         |# Una misma regla no se dispara dos veces en 10 segundos (eventos como screen_on llegan a menudo).
         |# p. ej. z2-when charge:start run ~/.z2term/macros/backup.sh
         |#        z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
@@ -2962,6 +3032,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-when <트리거> run <cmd...>        … 규칙을 등록합니다
         |#   트리거: charge:start | charge:stop  (감지가 켜져 있어야 합니다)
         |#            battery:below=N | battery:above=N  (감지가 켜져 있어야 합니다)
+        |#            battery:temp>N | battery:temp<N  … 배터리 온도(℃)가 N을 넘나들었다 (감지가 켜져 있어야 합니다)
         |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
         |#            time:cron='분 시 일 월 요일'  (요일 0-7 / 0,7=일요일. 공백이 있으니 따옴표로 묶으세요)
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<이름>  (감지가 켜져 있어야 합니다)
@@ -2974,6 +3045,14 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#            sms:any | sms:from=<일부> | sms:contains=<일부> | sms:otp  (RECEIVE_SMS 필요)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (감지 필요)
         |#            file:new=<폴더>[,ext=<확장자>]  … 그 폴더에 새 파일이 들어왔다 (감지 필요)
+        |#            file:changed=<폴더>[,ext=<확장자>] | file:deleted=<폴더>[,ext=<확장자>]
+        |#                                        … 거기 있는 파일이 다시 쓰였다 / 사라졌다 (감지 필요)
+        |#            bt:connect | bt:disconnect | bt:connect=<이름> | bt:disconnect=<이름>
+        |#                                        … 블루투스 기기가 연결되었다 / 끊겼다 (이름은 그 일부, 또는 주소)
+        |#                                        (감지 필요. Android 12부터는 「근처 기기」 권한도 필요)
+        |#            app:open=<앱> | app:close=<앱>  … 그 앱이 앞에 나왔다 / 앞에서 벗어났다 (패키지 이름이나 앱 이름의 일부)
+        |#                                        (접근성에서 z2term을 켜야 합니다. 감지가 꺼져 있어도 동작)
+        |#            steps:reach=N               … 오늘 걸음 수가 N에 닿았다 (감지와 「신체 활동」 권한 필요)
         |#            notify:any | notify:otp | notify:pkg=<일부> | notify:title=<일부> | notify:contains=<일부>
         |#                                        … 알림이 왔다 (알림 접근 권한이 필요합니다)
         |#            event:<이름> | event:<앞부분>* | event:*  … 기기의 어떤 이벤트든 이름으로
@@ -3023,6 +3102,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# (notify:otp에서는 Z2_WHEN_OTP도). notify:category=는 정확히 일치해야 합니다: call, missed_call, msg, ...
         |# event:에서는 Z2_WHEN_EVENT(이벤트 이름)가 더 붙고, alarm / notify_action은
         |# Z2_WHEN_EVENT_NAME(등록할 때 붙인 식별자)과 Z2_WHEN_ACTION(누른 버튼)을 더합니다.
+        |# battery:temp 이면 Z2_WHEN_TEMP (℃). bt: 이면 Z2_WHEN_BT_NAME / Z2_WHEN_BT_ADDR.
+        |# app: 이면 Z2_WHEN_APP_PKG (지금 앞에 있는 앱) / Z2_WHEN_APP_PREV (바로 전 앱).
+        |# steps: 이면 Z2_WHEN_STEPS (오늘 걸음 수). file: 에는 Z2_WHEN_FILE_ACTION (new|changed|deleted)도 들어갑니다.
+        |# app_installed / app_removed / app_updated 에는 Z2_WHEN_PKG, timezone_changed 에는 Z2_WHEN_TZ,
+        |# usb_attached / usb_detached 에는 Z2_WHEN_USB (기기 이름) / Z2_WHEN_USB_ID (제조사:제품)가 들어갑니다.
         |# 같은 규칙은 10초 안에 두 번 발생하지 않습니다 (screen_on 같은 이벤트는 자주 옵니다).
         |# 예: z2-when charge:start run ~/.z2term/macros/backup.sh
         |#        z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
@@ -3161,6 +3245,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |ringer_normal          ringer set to normal      [detection ON]
         |ringer_vibrate         ringer set to vibrate     [detection ON]
         |ringer_silent          ringer set to silent      [detection ON]
+        |bt_connected           a Bluetooth device connected [detection ON]
+        |bt_disconnected        a Bluetooth device disconnected [detection ON]
+        |powersave_on           battery saver on          [detection ON]
+        |powersave_off          battery saver off         [detection ON]
+        |dnd_on                 Do Not Disturb on         [detection ON]
+        |dnd_off                Do Not Disturb off        [detection ON]
+        |app_installed          an app was installed      [detection ON]
+        |app_removed            an app was uninstalled    [detection ON]
+        |app_updated            an app was updated        [detection ON]
+        |timezone_changed       the time zone changed     [detection ON]
+        |usb_attached           a USB device was plugged in [detection ON]
+        |usb_detached           a USB device was unplugged [detection ON]
         |boot                   the device started up     [always]
         |alarm                  a z2-alarm fired          [always]
         |notify_action          a notification button     [always]
@@ -3191,6 +3287,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |ringer_normal          着信音ありにした        [検知 ON]
         |ringer_vibrate         バイブにした            [検知 ON]
         |ringer_silent          マナーにした            [検知 ON]
+        |bt_connected           Bluetooth 機器が繋がった [検知 ON]
+        |bt_disconnected        Bluetooth 機器が切れた  [検知 ON]
+        |powersave_on           省電力モードにした      [検知 ON]
+        |powersave_off          省電力モードを解除した  [検知 ON]
+        |dnd_on                 おやすみモードにした    [検知 ON]
+        |dnd_off                おやすみモードを解除した [検知 ON]
+        |app_installed          アプリを入れた          [検知 ON]
+        |app_removed            アプリを消した          [検知 ON]
+        |app_updated            アプリが更新された      [検知 ON]
+        |timezone_changed       タイムゾーンが変わった  [検知 ON]
+        |usb_attached           USB 機器を挿した        [検知 ON]
+        |usb_detached           USB 機器を抜いた        [検知 ON]
         |boot                   端末が起動した          [常に]
         |alarm                  z2-alarm が鳴った       [常に]
         |notify_action          通知のボタンを押した    [常に]
@@ -3221,6 +3329,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |ringer_normal          改成了响铃                [检测 ON]
         |ringer_vibrate         改成了振动                [检测 ON]
         |ringer_silent          改成了静音                [检测 ON]
+        |bt_connected           蓝牙设备连上了            [检测 ON]
+        |bt_disconnected        蓝牙设备断开了            [检测 ON]
+        |powersave_on           打开了省电模式            [检测 ON]
+        |powersave_off          关闭了省电模式            [检测 ON]
+        |dnd_on                 打开了勿扰模式            [检测 ON]
+        |dnd_off                关闭了勿扰模式            [检测 ON]
+        |app_installed          安装了应用                [检测 ON]
+        |app_removed            卸载了应用                [检测 ON]
+        |app_updated            应用更新了                [检测 ON]
+        |timezone_changed       时区变了                  [检测 ON]
+        |usb_attached           插入了 USB 设备           [检测 ON]
+        |usb_detached           拔出了 USB 设备           [检测 ON]
         |boot                   设备启动完成              [总是]
         |alarm                  z2-alarm 响了             [总是]
         |notify_action          按了通知上的按钮          [总是]
@@ -3251,6 +3371,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |ringer_normal          改成了響鈴                [偵測 ON]
         |ringer_vibrate         改成了振動                [偵測 ON]
         |ringer_silent          改成了靜音                [偵測 ON]
+        |bt_connected           藍牙裝置連上了            [偵測 ON]
+        |bt_disconnected        藍牙裝置中斷了            [偵測 ON]
+        |powersave_on           開啟了省電模式            [偵測 ON]
+        |powersave_off          關閉了省電模式            [偵測 ON]
+        |dnd_on                 開啟了零打擾模式          [偵測 ON]
+        |dnd_off                關閉了零打擾模式          [偵測 ON]
+        |app_installed          安裝了應用程式            [偵測 ON]
+        |app_removed            解除安裝了應用程式        [偵測 ON]
+        |app_updated            應用程式更新了            [偵測 ON]
+        |timezone_changed       時區變了                  [偵測 ON]
+        |usb_attached           插入了 USB 裝置           [偵測 ON]
+        |usb_detached           拔出了 USB 裝置           [偵測 ON]
         |boot                   裝置啟動完成              [總是]
         |alarm                  z2-alarm 響了             [總是]
         |notify_action          按了通知上的按鈕          [總是]
@@ -3281,12 +3413,24 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |ringer_normal          sonido puesto en normal           [con detección]
         |ringer_vibrate         sonido puesto en vibración        [con detección]
         |ringer_silent          sonido puesto en silencio         [con detección]
+        |bt_connected           se conectó un dispositivo Bluetooth [con detección]
+        |bt_disconnected        se desconectó un dispositivo Bluetooth [con detección]
+        |powersave_on           ahorro de batería activado        [con detección]
+        |powersave_off          ahorro de batería desactivado     [con detección]
+        |dnd_on                 No molestar activado              [con detección]
+        |dnd_off                No molestar desactivado           [con detección]
+        |app_installed          se instaló una app                [con detección]
+        |app_removed            se desinstaló una app             [con detección]
+        |app_updated            se actualizó una app              [con detección]
+        |timezone_changed       cambió la zona horaria            [con detección]
+        |usb_attached           se conectó un dispositivo USB     [con detección]
+        |usb_detached           se desconectó un dispositivo USB  [con detección]
         |boot                   el dispositivo arrancó            [siempre]
         |alarm                  saltó una z2-alarm                [siempre]
         |notify_action          un botón de una notificación      [siempre]
         |unlock_failed          falló el desbloqueo               [siempre, hay que prepararlo]
         |unlock_succeeded       desbloqueado tras un fallo        [siempre, hay que prepararlo]
-    """,
+    """.trimMargin(),
         "ko" to """
         |screen_on              화면이 켜졌다              [감지 필요]
         |screen_off             화면이 꺼졌다              [감지 필요]
@@ -3311,6 +3455,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |ringer_normal          소리를 일반으로 바꿨다     [감지 필요]
         |ringer_vibrate         소리를 진동으로 바꿨다     [감지 필요]
         |ringer_silent          소리를 무음으로 바꿨다     [감지 필요]
+        |bt_connected           블루투스 기기가 연결되었다 [감지 필요]
+        |bt_disconnected        블루투스 기기가 끊겼다     [감지 필요]
+        |powersave_on           절전 모드를 켰다           [감지 필요]
+        |powersave_off          절전 모드를 껐다           [감지 필요]
+        |dnd_on                 방해 금지 모드를 켰다      [감지 필요]
+        |dnd_off                방해 금지 모드를 껐다      [감지 필요]
+        |app_installed          앱을 설치했다              [감지 필요]
+        |app_removed            앱을 삭제했다              [감지 필요]
+        |app_updated            앱이 업데이트되었다        [감지 필요]
+        |timezone_changed       시간대가 바뀌었다          [감지 필요]
+        |usb_attached           USB 기기를 꽂았다          [감지 필요]
+        |usb_detached           USB 기기를 뽑았다          [감지 필요]
         |boot                   기기가 켜졌다              [언제나]
         |alarm                  z2-alarm이 울렸다          [언제나]
         |notify_action          알림의 버튼을 눌렀다       [언제나]

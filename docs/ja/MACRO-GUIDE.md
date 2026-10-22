@@ -102,6 +102,11 @@ B は「A で表現できないとき」の逃げ道です（5-5 のように、
 | `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp` | SMS が届いた | SMS 検知 |
 | `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near\|far` | 振った / 照度が N lux を跨いだ / 近接が変化 | 検知 ON |
 | `file:new=<フォルダ>[,ext=<拡張子>]` | そのフォルダに**新しいファイルが来た**（書き込みが終わってから） | 検知 ON |
+| `file:changed=<フォルダ>` / `file:deleted=<フォルダ>`（`,ext=` 可） | そこにあったファイルが**書き換わった / 消えた**（1.0.54。上書きは `new` ではなくこちら） | 検知 ON |
+| `battery:temp>N` / `battery:temp<N` | 電池の温度が N ℃ を跨いだ（`Z2_WHEN_TEMP`） | 検知 ON |
+| `bt:connect` / `bt:disconnect` / `bt:connect=<名前>` / `bt:disconnect=<名前>` | Bluetooth 機器が つながった / 切れた（名前の一部かアドレス。`Z2_WHEN_BT_NAME` / `_ADDR`） | 検知 ON ＋ 付近のデバイス |
+| `app:open=<アプリ>` / `app:close=<アプリ>` | そのアプリが前面に来た / 離れた（パッケージ名かアプリ名の一部。`Z2_WHEN_APP_PKG` / `_PREV`） | ユーザー補助 |
+| `steps:reach=N` | 今日の歩数が N に届いた（`Z2_WHEN_STEPS`） | 検知 ON ＋ 身体活動 |
 | `notify:any` / `notify:otp` / `notify:pkg=<部分>` / `notify:title=<部分>` / `notify:contains=<部分>` | 通知が届いた（`pkg=` はパッケージ名でもアプリ表示名でも当たる） | 通知アクセス |
 | `notify:category=<種別>` | その**種別**の通知が届いた（`call` = 着信中 / `missed_call` = 不在着信 / `msg` `email` `alarm` `event` `progress` など。Android が決めた語彙）。⚠ ここだけ**完全一致**（部分一致だと `call` が `missed_call` にも当たり、着信と不在着信を書き分けられない）。電話アプリのパッケージ名を知らなくても着信を拾えるのが利点 | 通知アクセス |
 | `event:<名前>` / `event:<接頭辞>*` / `event:*` | 端末イベントを**名前で**拾う（名前は 3-B の表と同じ。`z2-when events` で一覧） | 名前による |
@@ -231,6 +236,12 @@ z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term
 | `bt_audio_connected` / `bt_audio_disconnected` | **Bluetooth オーディオ**（イヤホン等）の 接続 / 切断 | — |
 | `airplane_on` / `airplane_off` | 機内モード ON / OFF | — |
 | `ringer_normal` / `ringer_vibrate` / `ringer_silent` | マナーモード 切替 | — |
+| `bt_connected` / `bt_disconnected` | Bluetooth 機器の 接続 / 切断（音を出さない機器も。1.0.54） | `name`（機器名。付近のデバイスの許可が要る） |
+| `powersave_on` / `powersave_off` | 省電力モード ON / OFF（1.0.54） | — |
+| `dnd_on` / `dnd_off` | おやすみモード ON / OFF（重要な通知だけ・アラームだけ も ON に数える。1.0.54） | — |
+| `app_installed` / `app_removed` / `app_updated` | アプリの 追加 / 削除 / 更新（ホーム画面に出るアプリだけ。1.0.54） | `name`（パッケージ名） |
+| `timezone_changed` | タイムゾーンが変わった（1.0.54） | `name`（新しいゾーン） |
+| `usb_attached` / `usb_detached` | USB 機器の 抜き差し（スマホ側が機器を繋いだとき。PC との接続では出ない。1.0.54） | `name`（機器名か `製造元:製品`） |
 | `alarm` | **`z2-alarm` で仕掛けた時刻**になった | `name`（`z2-alarm` に付けた名前） |
 | `notify_action` | **`z2-notify -b` で付けたボタンが押された** | `name`（通知に付けた名前）, `action`（押されたラベル） |
 | `unlock_failed` / `unlock_succeeded` | ロック画面の解除に**失敗 / 成功**（盗難対策向け。⚙設定「ロック解除の失敗監視」ON ＋ 端末管理者の有効化が必要）。**PIN・パターン・パスワードのみ**で、指紋/顔認証では発火しない（→ 解除の合図には `unlocked` を使う） | `unlock_failed` に `level`（連続失敗回数） |

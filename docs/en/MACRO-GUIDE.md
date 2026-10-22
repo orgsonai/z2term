@@ -104,6 +104,11 @@ exactly once** (no resident script involved).
 | `sms:any` / `sms:from=<substr>` / `sms:contains=<substr>` / `sms:otp` | An SMS arrived | SMS detection |
 | `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near\|far` | Shaken / light crossed N lux / proximity changed | detection ON |
 | `file:new=<dir>[,ext=<ext>]` | **A new file landed in that folder** (after the write finishes) | detection ON |
+| `file:changed=<dir>` / `file:deleted=<dir>` (`,ext=` works) | A file already there was **rewritten / went away** (1.0.54; overwrites fire this, not `new`) | detection ON |
+| `battery:temp>N` / `battery:temp<N` | Battery temperature crossed N °C (`Z2_WHEN_TEMP`) | detection ON |
+| `bt:connect` / `bt:disconnect` / `bt:connect=<name>` / `bt:disconnect=<name>` | A Bluetooth device connected / disconnected (part of its name, or its address; `Z2_WHEN_BT_NAME` / `_ADDR`) | detection ON + Nearby devices |
+| `app:open=<app>` / `app:close=<app>` | That app came to the front / was left (part of the package or app name; `Z2_WHEN_APP_PKG` / `_PREV`) | Accessibility |
+| `steps:reach=N` | Today's steps reached N (`Z2_WHEN_STEPS`) | detection ON + Physical activity |
 | `notify:any` / `notify:otp` / `notify:pkg=<part>` / `notify:title=<part>` / `notify:contains=<part>` | A notification arrived (`pkg=` matches the package name *or* the app label) | notification access |
 | `notify:category=<kind>` | A notification of that **category** arrived (`call` = ringing / `missed_call` / `msg` `email` `alarm` `event` `progress` … — Android's own vocabulary). ⚠ This one matches **exactly** (a partial match would make `call` fire on `missed_call`, so the two could not be told apart). Lets you catch calls without knowing the phone app's package name | notification access |
 | `event:<name>` / `event:<prefix>*` / `event:*` | Any device event, **by name** (same names as 3-B; `z2-when events` lists them) | depends on the name |
@@ -234,6 +239,12 @@ This is what you read when you watch the log yourself (style B / the 5-0 skeleto
 | `bt_audio_connected` / `bt_audio_disconnected` | **Bluetooth audio** (earbuds etc.) connected / disconnected | — |
 | `airplane_on` / `airplane_off` | Airplane mode on / off | — |
 | `ringer_normal` / `ringer_vibrate` / `ringer_silent` | Ringer mode change | — |
+| `bt_connected` / `bt_disconnected` | A Bluetooth device connected / disconnected (silent devices too; 1.0.54) | `name` (device name; needs Nearby devices) |
+| `powersave_on` / `powersave_off` | Battery saver on / off (1.0.54) | — |
+| `dnd_on` / `dnd_off` | Do Not Disturb on / off (priority-only and alarms-only count as on; 1.0.54) | — |
+| `app_installed` / `app_removed` / `app_updated` | An app was installed / uninstalled / updated (home-screen apps only; 1.0.54) | `name` (package) |
+| `timezone_changed` | The time zone changed (1.0.54) | `name` (the new zone) |
+| `usb_attached` / `usb_detached` | A USB device was plugged in / out (the phone acting as host; not when plugged into a PC; 1.0.54) | `name` (device name or `vendor:product`) |
 | `alarm` | **A time scheduled with `z2-alarm`** came around | `name` (the name you gave `z2-alarm`) |
 | `notify_action` | **A button added with `z2-notify -b` was pressed** | `name` (the notification's name), `action` (the label pressed) |
 | `unlock_failed` / `unlock_succeeded` | Lock-screen unlock **failed / succeeded** (anti-theft; needs ⚙ Settings "Watch unlock failures" ON + device admin activated). **PIN / pattern / password only** — never fires for fingerprint or face (use `unlocked` as the "cleared" signal) | `level` on `unlock_failed` (consecutive failure count) |

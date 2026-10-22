@@ -66,6 +66,12 @@ import java.util.concurrent.Executors
  *  - `airplane_on` / `airplane_off`           … 機内モード ON / OFF
  *  - `ringer_normal` / `ringer_vibrate` / `ringer_silent` … マナーモード切替
  *  - `bt_audio_connected` / `bt_audio_disconnected` … Bluetooth オーディオ (A2DP/SCO) の接続 / 切断
+ *  - `bt_connected` / `bt_disconnected`       … Bluetooth 機器の接続 / 切断 (`{name}` に機器名・1.0.54)
+ *  - `powersave_on` / `powersave_off`         … 省電力モードの ON / OFF (1.0.54)
+ *  - `dnd_on` / `dnd_off`                     … おやすみモード (通知を鳴らさない) の ON / OFF (1.0.54)
+ *  - `app_installed` / `app_removed` / `app_updated` … アプリの追加 / 削除 / 更新 (`{name}` にパッケージ名・1.0.54)
+ *  - `timezone_changed`                       … タイムゾーンが変わった (`{name}` に新しいゾーン・1.0.54)
+ *  - `usb_attached` / `usb_detached`          … USB 機器の抜き差し (`{name}` に機器名・1.0.54)
  *
  * このサービスとは別に、時刻トリガー ([AlarmScheduler] / `z2-alarm`) が同じ events.jsonl へ
  * `alarm` イベント (`{name}` 付き) を書く。そちらはこのサービスの ON/OFF に依存しない。
@@ -90,6 +96,13 @@ class SystemEventService : Service() {
 
     /** 直近に見た残量% (`events.jsonl` の 10% 刻みとは別に、z2-when の 1% 刻み評価を間引くため)。 */
     @Volatile private var lastBatteryPct = -1
+
+    /** 直近に見た電池の温度 (℃・整数)。1℃ 動いたときだけ `battery:temp` を評価する。 */
+    @Volatile private var lastBatteryTemp = Int.MIN_VALUE
+
+    /** 省電力モード / おやすみモードの直前の状態 (同じ知らせが続いても 1 回だけ書くため)。 */
+    @Volatile private var lastPowerSave: Boolean? = null
+    @Volatile private var lastDnd: Boolean? = null
 
     /**
      * Bluetooth オーディオ (A2DP/SCO) の抜き差しを拾うコールバック。
@@ -156,6 +169,14 @@ class SystemEventService : Service() {
                 Sensor.TYPE_PROXIMITY ->
                     // 近接センサーは 0 (near) 〜 maximumRange (far) を返す実装が一般的。
                     WhenManager.onProximity(applicationContext, near = e.values[0] < e.sensor.maximumRange)
+                // 歩数は状態ファイルを読み書きするので、メインスレッドではなく書き込み用の 1 本で回す。
+                Sensor.TYPE_STEP_COUNTER -> {
+                    val counter = e.values[0].toLong()
+                    writer.execute {
+                        runCatching { WhenManager.onSteps(applicationContext, counter) }
+                            .onFailure { Log.w(TAG, "steps rule failed: ${it.message}") }
+                    }
+                }
             }
         }
 
@@ -180,6 +201,74 @@ class SystemEventService : Service() {
                 Intent.ACTION_AIRPLANE_MODE_CHANGED ->
                     emit(if (intent.getBooleanExtra("state", false)) "airplane_on" else "airplane_off")
                 AudioManager.RINGER_MODE_CHANGED_ACTION -> handleRinger(intent)
+                android.os.PowerManager.ACTION_POWER_SAVE_MODE_CHANGED -> handlePowerSave()
+                NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED -> handleDnd()
+                Intent.ACTION_TIMEZONE_CHANGED -> {
+                    val zone = intent.getStringExtra(Intent.EXTRA_TIMEZONE)
+                        ?: java.util.TimeZone.getDefault().id
+                    emit("timezone_changed", name = zone, extraEnv = mapOf("Z2_WHEN_TZ" to zone))
+                }
+                android.hardware.usb.UsbManager.ACTION_USB_DEVICE_ATTACHED,
+                android.hardware.usb.UsbManager.ACTION_USB_DEVICE_DETACHED -> handleUsb(intent)
+            }
+        }
+    }
+
+    /**
+     * アプリの追加 / 削除 / 更新 (1.0.54)。`package:` の付いた知らせなので、他と分けて受ける
+     * (同じ IntentFilter にデータの条件を足すと、データを持たない画面 ON などが届かなくなる)。
+     *
+     * 更新では「消した → 入れた」も続けて来る (`EXTRA_REPLACING`)。そのまま書くと 1 回の更新が
+     * 削除と追加に見えるので、置き換えの知らせは `app_updated` の 1 件だけにする。
+     * 見えるのはランチャーに出るアプリだけ (Android 11 以降のパッケージの見え方の制限)。
+     */
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val pkg = intent.data?.schemeSpecificPart.orEmpty()
+            if (pkg.isEmpty() || pkg == packageName) return
+            val replacing = intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)
+            val event = when (intent.action) {
+                Intent.ACTION_PACKAGE_ADDED -> if (replacing) return else "app_installed"
+                Intent.ACTION_PACKAGE_REMOVED -> if (replacing) return else "app_removed"
+                Intent.ACTION_PACKAGE_REPLACED -> "app_updated"
+                else -> return
+            }
+            emit(event, name = pkg, extraEnv = mapOf("Z2_WHEN_PKG" to pkg))
+        }
+    }
+
+    /**
+     * Bluetooth 機器との接続 / 切断 (1.0.54)。
+     *
+     * ⚠ この知らせは Bluetooth のアプリ (system ではない) から来るので、**外向きに開いた**
+     * レシーバでないと届かない (`RECEIVER_NOT_EXPORTED` では黙って捨てられる)。
+     * 送れるのは OS の Bluetooth だけ (保護された知らせ) なので、開いても偽装はされない。
+     * Android 12 以降は「付近のデバイス」の許可が無いと、そもそも届かない。
+     */
+    private val bluetoothReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val connected = when (intent.action) {
+                android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED -> true
+                android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED -> false
+                else -> return
+            }
+            val device = if (Build.VERSION.SDK_INT >= 33) {
+                intent.getParcelableExtra(
+                    android.bluetooth.BluetoothDevice.EXTRA_DEVICE, android.bluetooth.BluetoothDevice::class.java
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(android.bluetooth.BluetoothDevice.EXTRA_DEVICE)
+            }
+            // 名前もアドレスも許可が無いと SecurityException になりうる。取れなければ空。
+            @Suppress("MissingPermission")
+            val name = runCatching { device?.name }.getOrNull().orEmpty()
+            val address = runCatching { device?.address }.getOrNull().orEmpty()
+            emit(if (connected) "bt_connected" else "bt_disconnected", name = name,
+                extraEnv = mapOf("Z2_WHEN_BT_NAME" to name, "Z2_WHEN_BT_ADDR" to address))
+            writer.execute {
+                runCatching { WhenManager.onBluetooth(applicationContext, connected, name, address) }
+                    .onFailure { Log.w(TAG, "bt rule failed: ${it.message}") }
             }
         }
     }
@@ -223,12 +312,37 @@ class SystemEventService : Service() {
             addAction(Intent.ACTION_HEADSET_PLUG)
             addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
             addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
+            addAction(android.os.PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+            addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            addAction(android.hardware.usb.UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            addAction(android.hardware.usb.UsbManager.ACTION_USB_DEVICE_DETACHED)
         }
+        val packageFilter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addDataScheme("package")
+        }
+        val bluetoothFilter = IntentFilter().apply {
+            addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED)
+        }
+        // 省電力・おやすみモードは「変わった」としか言わないので、今の状態を基準にしておく
+        // (起動直後に来た知らせを「切り替えた」と取り違えない)。
+        lastPowerSave = powerSaveNow()
+        lastDnd = dndNow()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED)
+            registerReceiver(packageReceiver, packageFilter, RECEIVER_NOT_EXPORTED)
+            registerReceiver(bluetoothReceiver, bluetoothFilter, RECEIVER_EXPORTED)
         } else {
             @Suppress("UnspecifiedRegisterReceiverFlag")
             registerReceiver(receiver, filter)
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(packageReceiver, packageFilter)
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(bluetoothReceiver, bluetoothFilter)
         }
         // Bluetooth オーディオの抜き差しはブロードキャストでは拾えないのでコールバックで受ける。
         runCatching {
@@ -251,6 +365,8 @@ class SystemEventService : Service() {
         super.onDestroy()
         instance = null
         runCatching { unregisterReceiver(receiver) }
+        runCatching { unregisterReceiver(packageReceiver) }
+        runCatching { unregisterReceiver(bluetoothReceiver) }
         runCatching {
             (getSystemService(AUDIO_SERVICE) as? AudioManager)
                 ?.unregisterAudioDeviceCallback(audioDeviceCallback)
@@ -276,11 +392,15 @@ class SystemEventService : Service() {
     private val fileWatchers = ArrayList<android.os.FileObserver>()
 
     /**
-     * `file:new=…` ルールが見張るフォルダに `FileObserver` を張り直す (0.8.235)。
+     * `file:<種類>=…` ルールが見張るフォルダに `FileObserver` を張り直す (0.8.235 / 種類は 1.0.54)。
      *
      * センサーと同じ考え方で、**該当ルールがあるフォルダだけ**を監視する。1 件も無ければ
      * 1 つも張らない。見るのは `CLOSE_WRITE`（書き込み完了）と `MOVED_TO`（別名で書いてから
-     * rename する書き方）だけ — `CREATE` を見るとコピー途中の空ファイルを掴む。
+     * rename する書き方）、消えたことの `DELETE` / `MOVED_FROM` だけ — `CREATE` を見ると
+     * コピー途中の空ファイルを掴む。
+     *
+     * 新しいファイルか書き換えかは、張った時点のファイル名の一覧 ([WhenTriggerMatch.fileEventKind])
+     * で見分ける。一覧は届いた知らせで足し引きして保つ。
      *
      * ⚠ `FileObserver` は**プロセスが生きている間だけ**なので、これは「検知 ON が前提」の
      * トリガー (時刻や SMS のような常時性は無い)。docs にもそう書く。
@@ -289,19 +409,32 @@ class SystemEventService : Service() {
         fileWatchers.forEach { runCatching { it.stopWatching() } }
         fileWatchers.clear()
         val dirs = runCatching { WhenManager.fileDirsNeeded(applicationContext) }.getOrDefault(emptySet())
-        val mask = android.os.FileObserver.CLOSE_WRITE or android.os.FileObserver.MOVED_TO
+        val mask = android.os.FileObserver.CLOSE_WRITE or android.os.FileObserver.MOVED_TO or
+            android.os.FileObserver.DELETE or android.os.FileObserver.MOVED_FROM
         dirs.forEach { dir ->
             runCatching {
                 val f = java.io.File(dir)
                 if (!f.isDirectory) {
-                    Log.w(TAG, "file:new のフォルダが無い: $dir")
+                    Log.w(TAG, "file: のフォルダが無い: $dir")
                     return@runCatching
                 }
+                // 知らせは見張り 1 つにつき 1 本のスレッドから順に来るので、この集合は
+                // そのスレッドの中だけで触る (書き込み用のスレッドへは結果だけ渡す)。
+                val known = HashSet<String>(f.list()?.toList().orEmpty())
                 val obs = object : android.os.FileObserver(f, mask) {
                     override fun onEvent(event: Int, path: String?) {
                         val name = path ?: return
+                        val what = when (event and ALL_EVENTS) {
+                            CLOSE_WRITE -> "closed"
+                            MOVED_TO -> "moved_in"
+                            DELETE -> "deleted"
+                            MOVED_FROM -> "moved_out"
+                            else -> return
+                        }
+                        val action = WhenTriggerMatch.fileEventKind(what, name, known) ?: return
+                        if (action == WhenTriggerMatch.FILE_DELETED) known.remove(name) else known.add(name)
                         writer.execute {
-                            runCatching { WhenManager.onFileCreated(applicationContext, dir, name) }
+                            runCatching { WhenManager.onFileEvent(applicationContext, dir, name, action) }
                                 .onFailure { Log.w(TAG, "file rule failed ($dir/$name): ${it.message}") }
                         }
                     }
@@ -329,6 +462,13 @@ class SystemEventService : Service() {
         if ("accel" in kinds) reg(Sensor.TYPE_ACCELEROMETER, SensorManager.SENSOR_DELAY_UI)
         if ("light" in kinds) reg(Sensor.TYPE_LIGHT, SensorManager.SENSOR_DELAY_NORMAL)
         if ("proximity" in kinds) reg(Sensor.TYPE_PROXIMITY, SensorManager.SENSOR_DELAY_NORMAL)
+        // 歩数計は端末側で数えているセンサーで、こちらは読みを受け取るだけ。1 分ぶんまとめて
+        // 受け取る (都度起こさない) ので、電池への負担は小さい。身体活動の許可が無いと何も来ない。
+        if ("steps" in kinds) sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)?.let {
+            if (sm.registerListener(sensorListener, it, SensorManager.SENSOR_DELAY_NORMAL, 60_000_000, h)) {
+                sensorsRegistered = true
+            }
+        }
     }
 
     private fun batteryLevel(): Int? = runCatching {
@@ -475,6 +615,16 @@ class SystemEventService : Service() {
             lastBatteryPct = pct
             runCatching { WhenManager.onBatteryChanged(applicationContext, pct) }
         }
+        // 温度は 0.1℃ 単位で来る。1℃ 動いたときだけ評価する (BATTERY_CHANGED は頻繁に来るため)。
+        val tenths = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+        if (tenths != Int.MIN_VALUE && tenths / 10 != lastBatteryTemp) {
+            lastBatteryTemp = tenths / 10
+            val celsius = tenths / 10f
+            writer.execute {
+                runCatching { WhenManager.onBatteryTemp(applicationContext, celsius) }
+                    .onFailure { Log.w(TAG, "battery temp rule failed: ${it.message}") }
+            }
+        }
         val bucket = pct / 10
         if (lastBatteryBucket == -1) { lastBatteryBucket = bucket; return }
         if (bucket != lastBatteryBucket) {
@@ -518,13 +668,63 @@ class SystemEventService : Service() {
         emit(name)
     }
 
-    private fun emit(event: String, level: Int? = null, ssid: String = "") {
+    private fun powerSaveNow(): Boolean = runCatching {
+        (getSystemService(POWER_SERVICE) as android.os.PowerManager).isPowerSaveMode
+    }.getOrDefault(false)
+
+    /** おやすみモード中か (= 通知を全部は鳴らさない設定になっているか)。 */
+    private fun dndNow(): Boolean = runCatching {
+        getSystemService(NotificationManager::class.java).currentInterruptionFilter !=
+            NotificationManager.INTERRUPTION_FILTER_ALL
+    }.getOrDefault(false)
+
+    /** 省電力モードの切り替え (1.0.54)。状態が変わったときだけ書く。 */
+    private fun handlePowerSave() {
+        val on = powerSaveNow()
+        if (on == lastPowerSave) return
+        lastPowerSave = on
+        emit(if (on) "powersave_on" else "powersave_off")
+    }
+
+    /**
+     * おやすみモードの切り替え (1.0.54)。重要な通知だけ / アラームだけ / 完全に鳴らさない、の
+     * どれも「on」にまとめる — 細かい段階で分けたいときは `z2-state` で読んでもらう。
+     */
+    private fun handleDnd() {
+        val on = dndNow()
+        if (on == lastDnd) return
+        lastDnd = on
+        emit(if (on) "dnd_on" else "dnd_off")
+    }
+
+    /**
+     * USB 機器の抜き差し (1.0.54)。名前は製品名、取れなければ `製造元:製品` の番号 (16 進)。
+     * スマホが USB ホストとして機器を繋いだときだけで、PC に繋いだ (充電・転送) ときは来ない。
+     */
+    private fun handleUsb(intent: Intent) {
+        val device = if (Build.VERSION.SDK_INT >= 33) {
+            intent.getParcelableExtra(android.hardware.usb.UsbManager.EXTRA_DEVICE, android.hardware.usb.UsbDevice::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(android.hardware.usb.UsbManager.EXTRA_DEVICE)
+        }
+        val ids = device?.let { String.format(Locale.US, "%04x:%04x", it.vendorId, it.productId) }.orEmpty()
+        val name = runCatching { device?.productName }.getOrNull()?.takeIf { it.isNotBlank() } ?: ids
+        val attached = intent.action == android.hardware.usb.UsbManager.ACTION_USB_DEVICE_ATTACHED
+        emit(if (attached) "usb_attached" else "usb_detached", name = name,
+            extraEnv = mapOf("Z2_WHEN_USB" to name, "Z2_WHEN_USB_ID" to ids))
+    }
+
+    private fun emit(
+        event: String, level: Int? = null, ssid: String = "",
+        name: String = "", extraEnv: Map<String, String> = emptyMap(),
+    ) {
         if (!captureEnabled) return
         val now = System.currentTimeMillis()
         val line = render(
             formatTemplate,
             ts = now, time = ISO.format(Date(now)),
-            event = event, level = level, ssid = ssid
+            event = event, level = level, ssid = ssid, name = name
         )
         val ctx = applicationContext
         val prependNow = prepend
@@ -536,7 +736,7 @@ class SystemEventService : Service() {
             // 単一のワーカースレッドなので、ルール読み込み (ファイル I/O) をレシーバのスレッドへ
             // 持ち込まずに済む。捕捉は必須 — 自動化の失敗で検知そのものを止めない。
             runCatching {
-                WhenManager.onEvent(ctx, event, level = level, ssid = ssid)
+                WhenManager.onEvent(ctx, event, level = level, name = name, ssid = ssid, extraEnv = extraEnv)
             }.onFailure { Log.w(TAG, "when event failed ($event): ${it.message}") }
         }
     }

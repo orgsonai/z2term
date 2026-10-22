@@ -14,6 +14,10 @@
     <string name="permissions_storage_desc">/sdcard 등의 공유 저장소를 읽고 씁니다. 파일 선택기로 지정하는 폴더는 폴더별로 허용합니다.</string>
     <string name="permissions_sms">SMS 수신</string>
     <string name="permissions_sms_desc">수신한 SMS를 읽어 SMS 로그와 자동화 규칙에 사용합니다.</string>
+    <string name="permissions_bluetooth">근처 기기 (블루투스)</string>
+    <string name="permissions_bluetooth_desc">자동화의 bt: 가 어떤 블루투스 기기가 연결되거나 끊겼는지 받게 합니다. 기기를 찾지는 않습니다.</string>
+    <string name="permissions_activity">신체 활동</string>
+    <string name="permissions_activity_desc">자동화의 steps: 가 휴대폰의 만보계를 읽게 합니다. 걸음 수는 기기 밖으로 보내지 않습니다.</string>
     <string name="permissions_battery">배터리 최적화 제외</string>
     <string name="permissions_battery_desc">화면이 꺼진 동안에도 백그라운드 처리를 계속할 수 있도록 합니다.</string>
     <string name="permissions_write_settings">시스템 설정 변경</string>

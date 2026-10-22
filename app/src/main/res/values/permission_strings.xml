@@ -14,6 +14,10 @@
     <string name="permissions_storage_desc">Read and write shared storage, including /sdcard. Folder access selected in a file picker is granted for that folder.</string>
     <string name="permissions_sms">Receive SMS</string>
     <string name="permissions_sms_desc">Read incoming SMS for the SMS log and automation rules.</string>
+    <string name="permissions_bluetooth">Nearby devices (Bluetooth)</string>
+    <string name="permissions_bluetooth_desc">Lets the automation trigger bt: see which Bluetooth device connected or disconnected. It never scans for devices.</string>
+    <string name="permissions_activity">Physical activity</string>
+    <string name="permissions_activity_desc">Lets the automation trigger steps: read the phone\'s step counter. Steps never leave the device.</string>
     <string name="permissions_battery">Battery optimization exemption</string>
     <string name="permissions_battery_desc">Allow background services to keep working while the screen is off.</string>
     <string name="permissions_write_settings">Modify system settings</string>

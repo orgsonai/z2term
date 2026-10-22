@@ -14,6 +14,10 @@
     <string name="permissions_storage_desc">Lee y escribe en el almacenamiento compartido, incluido /sdcard. Las carpetas elegidas en el selector se autorizan por separado.</string>
     <string name="permissions_sms">Recibir SMS</string>
     <string name="permissions_sms_desc">Lee SMS entrantes para el registro y las reglas de automatización.</string>
+    <string name="permissions_bluetooth">Dispositivos cercanos (Bluetooth)</string>
+    <string name="permissions_bluetooth_desc">Permite que el disparador bt: sepa qué dispositivo Bluetooth se conectó o desconectó. Nunca busca dispositivos.</string>
+    <string name="permissions_activity">Actividad física</string>
+    <string name="permissions_activity_desc">Permite que el disparador steps: lea el podómetro del teléfono. Los pasos no salen del dispositivo.</string>
     <string name="permissions_battery">Excluir de la optimización de batería</string>
     <string name="permissions_battery_desc">Facilita que los servicios sigan funcionando con la pantalla apagada.</string>
     <string name="permissions_write_settings">Modificar ajustes del sistema</string>

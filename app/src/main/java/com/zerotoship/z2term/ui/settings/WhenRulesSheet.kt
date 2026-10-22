@@ -1,7 +1,27 @@
 package com.zerotoship.z2term.ui.settings
 
 import android.widget.Toast
+import android.Manifest
+import android.app.NotificationManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.collectAsState
+import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
+import com.zerotoship.z2term.edge.AndroidActions
+import com.zerotoship.z2term.proot.Z2ApiMsg
+import com.zerotoship.z2term.service.NotificationLogService
+import com.zerotoship.z2term.service.SystemEventService
+import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.settings.LocaleHelper
+import kotlinx.coroutines.flow.map
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -581,10 +601,6 @@ private fun WhenRuleEditForm(
     var error by remember(initial.id) { mutableStateOf<String?>(null) }
     // 貼り付けた文字列から改行を落としたら、黙って直さずに一言出す（勝手に変えられたと思わせない）。
     var stripped by remember(initial.id) { mutableStateOf(false) }
-    // 候補を開いている種別。既存ルールを開いたときはその種別を開いておく。
-    var openKind by remember(initial.id) {
-        mutableStateOf(if (isNew) "" else initial.trigger.substringBefore(':').trim())
-    }
 
     // run が 1 本のスクリプトを指しているなら中身を読む（読み取り専用の確認窓）。
     var script by remember(initial.id) { mutableStateOf<String?>(null) }
@@ -621,46 +637,17 @@ private fun WhenRuleEditForm(
         placeholder = stringResource(R.string.when_name_placeholder)
     )
 
-    Field(
-        label = stringResource(R.string.when_trigger_field),
-        value = trigger,
-        // 貼り付けで改行が混ざっても 1 行に保つ（トリガーは 1 行しか読まれない）。
-        onChange = { trigger = it.replace('\n', ' ').replace('\r', ' ') },
-        placeholder = "charge:start"
+    // きっかけ (1.0.54 で作り直し)。選ぶ部品は [TriggerPicker]、正本は今までどおり 1 行の文字列。
+    TriggerPicker(
+        ruleKey = initial.id,
+        trigger = trigger,
+        startOpen = isNew || initial.trigger.isBlank(),
+        onTrigger = {
+            // 貼り付けで改行が混ざっても 1 行に保つ（トリガーは 1 行しか読まれない）。
+            trigger = it.replace('\n', ' ').replace('\r', ' ')
+            error = null
+        },
     )
-
-    // きっかけの候補。**そのまま入れて動く完成形**を並べるので、選んだ直後から正しい。
-    Text(
-        text = stringResource(R.string.when_trigger_pick),
-        color = ZtsTextSecondary,
-        fontSize = 11.sp,
-        fontFamily = FontFamily.Monospace
-    )
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        WhenTriggerCatalog.kinds.forEach { k ->
-            PillButton(label = kindLabel(k.labelKey), accent = k.id == openKind) {
-                openKind = if (openKind == k.id) "" else k.id
-            }
-        }
-    }
-    WhenTriggerCatalog.kinds.firstOrNull { it.id == openKind }?.let { kind ->
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            kind.options.forEach { option ->
-                PillButton(label = option.example) {
-                    trigger = option.example
-                    error = null
-                }
-            }
-        }
-    }
 
     Field(
         label = stringResource(R.string.when_run_field),
@@ -1311,5 +1298,332 @@ private fun kindLabel(key: String): String = when (key) {
     "share" -> stringResource(R.string.when_kind_share)
     "event" -> stringResource(R.string.when_kind_event)
     "boot" -> stringResource(R.string.when_kind_boot)
+    "bt" -> stringResource(R.string.when_kind_bt)
+    "app" -> stringResource(R.string.when_kind_app)
+    "steps" -> stringResource(R.string.when_kind_steps)
     else -> key
+}
+
+/**
+ * きっかけを選ぶ部品 (1.0.54)。
+ *
+ * 種別が 15、候補が 50 を超え、書式 (`battery:below=20`) のボタンを 1 面に並べる作りでは
+ * **読んで選べなくなった**。そこで次の 3 つに分けた。
+ *  - 種別を「何について起きたか」の段 ([WhenTriggerCatalog.groups]) に分けて並べる
+ *  - 候補は「いつ動くか」の文で 1 行ずつ出し、書式はその下に小さく添える
+ *  - 選び終えたら畳み、選んだものの文と書式・値の欄・足りない許可だけを残す
+ *
+ * ⚠ 正本は**今までどおり 1 行の文字列** ([trigger])。端末で書いた候補に無い書き方も
+ * 「一覧にない書き方」として壊さずに出し、下の書式欄でそのまま直せる。
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TriggerPicker(
+    ruleKey: String,
+    trigger: String,
+    startOpen: Boolean,
+    onTrigger: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    val events = remember { eventChoices(context) }
+    val kindOf = trigger.substringBefore(':').trim()
+    var open by remember(ruleKey) { mutableStateOf(startOpen) }
+    var openKind by remember(ruleKey) { mutableStateOf(kindOf) }
+    val option = WhenTriggerCatalog.optionFor(trigger)
+    val eventName = if (kindOf == "event") trigger.substringAfter(':', "").trim() else ""
+
+    Text(
+        text = stringResource(R.string.when_trigger_field),
+        color = ZtsTextSecondary,
+        fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace
+    )
+    // 選んでいるもの。押すと選び直す一覧が開く (閉じた状態でも何を選んだかは必ず読める)。
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(ZtsBgCard)
+            .border(1.dp, if (open) ZtsGreen else ZtsBorder, RoundedCornerShape(6.dp))
+            .clickable { open = !open; if (open && openKind.isEmpty()) openKind = kindOf }
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            val summary = when {
+                trigger.isBlank() -> stringResource(R.string.when_trigger_none)
+                kindOf == "event" -> events.firstOrNull { it.first == eventName }?.second
+                    ?: stringResource(R.string.when_trigger_custom)
+                option != null -> optionLabel(option)
+                else -> stringResource(R.string.when_trigger_custom)
+            }
+            Text(
+                text = summary,
+                color = if (trigger.isBlank()) ZtsTextSecondary else ZtsTextPrimary,
+                fontSize = 13.sp
+            )
+            if (trigger.isNotBlank()) {
+                Text(text = trigger, color = ZtsTextSecondary, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            }
+        }
+        Text(
+            text = stringResource(if (open) R.string.when_trigger_close else R.string.when_trigger_change),
+            color = ZtsGreen,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+
+    if (open) {
+        Text(
+            text = stringResource(R.string.when_trigger_pick),
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        // 段ごとに 1 行。左に段の名前、右に種別。段の名前で当たりを付けてから種別を選ぶ。
+        WhenTriggerCatalog.groups.forEach { group ->
+            val kinds = WhenTriggerCatalog.kinds.filter { it.group == group }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Text(
+                    text = groupLabel(group),
+                    color = ZtsTextSecondary,
+                    fontSize = 11.sp,
+                    modifier = Modifier.width(84.dp).padding(top = 9.dp)
+                )
+                FlowRow(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    kinds.forEach { k ->
+                        PillButton(label = kindLabel(k.labelKey), accent = k.id == openKind) {
+                            openKind = if (openKind == k.id) "" else k.id
+                        }
+                    }
+                }
+            }
+        }
+        // 選んだ種別の候補。1 行 = 1 候補で、文を主に・書式を従に出す。
+        val kind = WhenTriggerCatalog.kinds.firstOrNull { it.id == openKind }
+        if (kind != null) {
+            val rows: List<Triple<String, String, String>> = if (kind.id == "event") {
+                events.map { (name, desc) -> Triple("event:$name", desc, "event:$name") }
+            } else {
+                kind.options.map { Triple(it.example, optionLabel(it), it.example) }
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+            ) {
+                rows.forEachIndexed { index, (value, label, shown) ->
+                    if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(ZtsBorder))
+                    val selected = value == trigger ||
+                        (kind.id != "event" && WhenTriggerCatalog.optionFor(trigger)?.example == value)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onTrigger(value)
+                                open = false
+                            }
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(text = label, color = if (selected) ZtsGreen else ZtsTextPrimary, fontSize = 12.sp)
+                        Text(text = shown, color = ZtsTextSecondary, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    }
+                }
+            }
+        }
+    }
+
+    // 値の要る候補なら、値だけの欄を出す (書式の中の数字を探して直さなくてよいように)。
+    if (option != null && option.needsValue) {
+        Field(
+            label = stringResource(R.string.when_trigger_value),
+            value = trigger.trim().removePrefix(option.template),
+            onChange = { onTrigger(option.template + it) },
+            placeholder = option.hint
+        )
+    }
+
+    TriggerRequirement(trigger)
+
+    // 書式そのもの。端末の `z2-when` と同じ 1 行で、候補に無い書き方もここで直せる。
+    Field(
+        label = stringResource(R.string.when_trigger_format),
+        value = trigger,
+        onChange = onTrigger,
+        placeholder = "charge:start"
+    )
+}
+
+/**
+ * 選んだきっかけが**いまの設定では動かない**ときだけ、理由と直す入口を出す (1.0.54)。
+ *
+ * 検知 OFF・許可が無い、のどれも「登録はできるのに一度も動かない」になり、画面からは
+ * 原因が見えない。満たしているときは何も出さない (余計な注意書きで画面を埋めない)。
+ */
+@Composable
+private fun TriggerRequirement(trigger: String) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val resume = rememberPermissionRefresh()
+    var asked by remember { mutableStateOf(0) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { asked++ }
+    val detection by remember { AppSettings(context).flow.map { it.systemEventCaptureEnabled } }
+        .collectAsState(initial = true)
+    val kind = trigger.substringBefore(':').trim()
+    val spec = trigger.substringAfter(':', "").trim()
+    fun allowed(permission: String) =
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+    // 1 つずつ見て、最初に足りないものだけを出す (並べても、直す順は上からになる)。
+    val need: Triple<Int, String, () -> Unit>? = remember(trigger, resume, asked, detection) {
+        val details = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())
+        fun open(intent: Intent) = runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        val needsDetection = when (kind) {
+            "charge", "battery", "wifi", "net", "bt", "sensor", "steps", "file" -> true
+            "event" -> spec !in setOf("alarm", "notify_action", "unlock_failed", "unlock_succeeded", "boot")
+            else -> false
+        }
+        when {
+            needsDetection && !detection -> Triple(R.string.when_need_detection, context.getString(R.string.when_need_detection_on)) {
+                scope.launch {
+                    AppSettings(context).setSystemEventCaptureEnabled(true)
+                    SystemEventService.sync(context, true)
+                }
+                Unit
+            }
+            kind == "bt" && Build.VERSION.SDK_INT >= 31 && !allowed(Manifest.permission.BLUETOOTH_CONNECT) ->
+                Triple(R.string.when_need_bt, context.getString(R.string.permissions_request)) {
+                    runCatching { launcher.launch(Manifest.permission.BLUETOOTH_CONNECT) }.onFailure { open(details) }
+                    Unit
+                }
+            kind == "steps" && !allowed(Manifest.permission.ACTIVITY_RECOGNITION) ->
+                Triple(R.string.when_need_activity, context.getString(R.string.permissions_request)) {
+                    runCatching { launcher.launch(Manifest.permission.ACTIVITY_RECOGNITION) }.onFailure { open(details) }
+                    Unit
+                }
+            kind == "sms" && !allowed(Manifest.permission.RECEIVE_SMS) ->
+                Triple(R.string.when_need_sms, context.getString(R.string.permissions_request)) {
+                    runCatching { launcher.launch(Manifest.permission.RECEIVE_SMS) }.onFailure { open(details) }
+                    Unit
+                }
+            kind == "notify" && runCatching {
+                !context.getSystemService(NotificationManager::class.java)
+                    .isNotificationListenerAccessGranted(ComponentName(context, NotificationLogService::class.java))
+            }.getOrDefault(false) ->
+                Triple(R.string.when_need_listener, context.getString(R.string.permissions_manage)) {
+                    open(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                    Unit
+                }
+            kind == "app" && !AndroidActions.enabled(context) ->
+                Triple(R.string.when_need_accessibility, context.getString(R.string.permissions_manage)) {
+                    open(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    Unit
+                }
+            else -> null
+        }
+    }
+    need?.let { (message, button, action) ->
+        Text(text = stringResource(message), color = ZtsWarning, fontSize = 11.sp)
+        PillButton(label = button, onClick = action)
+    }
+    // 歩数は「今日いくつか」が分かると、届かせたい数を決めやすい (条件の「今の値」と同じ考え方)。
+    if (kind == "steps") {
+        val today = remember(trigger, resume) { WhenManager.stepsToday(context) }
+        if (today != null) {
+            Text(
+                text = stringResource(R.string.when_steps_today, today),
+                color = ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+}
+
+/** `z2-when events` の一覧 (名前 → 説明)。CLI と同じ文言を使い、言い回しを 2 か所に持たない。 */
+private fun eventChoices(context: Context): List<Pair<String, String>> =
+    runCatching {
+        Z2ApiMsg(lang = LocaleHelper.language(context), d = "$").whenEventList.lines().mapNotNull { line ->
+            val t = line.trim()
+            if (t.isEmpty() || t.startsWith("#")) return@mapNotNull null
+            val name = t.substringBefore(' ')
+            val desc = t.substringAfter(' ', "").substringBeforeLast('[').trim()
+            name to desc.ifEmpty { name }
+        }
+    }.getOrDefault(emptyList())
+
+/** 種別をまとめる段の名前。 */
+@Composable
+private fun groupLabel(group: String): String = when (group) {
+    "time" -> stringResource(R.string.when_group_time)
+    "power" -> stringResource(R.string.when_group_power)
+    "link" -> stringResource(R.string.when_group_link)
+    "apps" -> stringResource(R.string.when_group_apps)
+    "device" -> stringResource(R.string.when_group_device)
+    else -> group
+}
+
+/** 候補の「いつ動くか」の文。キーは [WhenTriggerCatalog.Option.labelKey]。 */
+@Composable
+private fun optionLabel(option: WhenTriggerCatalog.Option): String = when (option.labelKey) {
+    "time_daily" -> stringResource(R.string.when_opt_time_daily)
+    "time_at" -> stringResource(R.string.when_opt_time_at)
+    "time_every" -> stringResource(R.string.when_opt_time_every)
+    "time_cron" -> stringResource(R.string.when_opt_time_cron)
+    "charge_start" -> stringResource(R.string.when_opt_charge_start)
+    "charge_stop" -> stringResource(R.string.when_opt_charge_stop)
+    "battery_below" -> stringResource(R.string.when_opt_battery_below)
+    "battery_above" -> stringResource(R.string.when_opt_battery_above)
+    "battery_temp_above" -> stringResource(R.string.when_opt_battery_temp_above)
+    "battery_temp_below" -> stringResource(R.string.when_opt_battery_temp_below)
+    "wifi_connect" -> stringResource(R.string.when_opt_wifi_connect)
+    "wifi_disconnect" -> stringResource(R.string.when_opt_wifi_disconnect)
+    "wifi_ssid" -> stringResource(R.string.when_opt_wifi_ssid)
+    "net_online" -> stringResource(R.string.when_opt_net_online)
+    "net_offline" -> stringResource(R.string.when_opt_net_offline)
+    "net_wifi" -> stringResource(R.string.when_opt_net_wifi)
+    "net_mobile" -> stringResource(R.string.when_opt_net_mobile)
+    "net_ethernet" -> stringResource(R.string.when_opt_net_ethernet)
+    "bt_connect" -> stringResource(R.string.when_opt_bt_connect)
+    "bt_disconnect" -> stringResource(R.string.when_opt_bt_disconnect)
+    "bt_connect_name" -> stringResource(R.string.when_opt_bt_connect_name)
+    "bt_disconnect_name" -> stringResource(R.string.when_opt_bt_disconnect_name)
+    "app_open" -> stringResource(R.string.when_opt_app_open)
+    "app_close" -> stringResource(R.string.when_opt_app_close)
+    "notify_any" -> stringResource(R.string.when_opt_notify_any)
+    "notify_otp" -> stringResource(R.string.when_opt_notify_otp)
+    "notify_pkg" -> stringResource(R.string.when_opt_notify_pkg)
+    "notify_title" -> stringResource(R.string.when_opt_notify_title)
+    "notify_contains" -> stringResource(R.string.when_opt_notify_contains)
+    "notify_call" -> stringResource(R.string.when_opt_notify_call)
+    "notify_missed_call" -> stringResource(R.string.when_opt_notify_missed_call)
+    "sms_any" -> stringResource(R.string.when_opt_sms_any)
+    "sms_otp" -> stringResource(R.string.when_opt_sms_otp)
+    "sms_from" -> stringResource(R.string.when_opt_sms_from)
+    "sms_contains" -> stringResource(R.string.when_opt_sms_contains)
+    "share_any" -> stringResource(R.string.when_opt_share_any)
+    "share_text" -> stringResource(R.string.when_opt_share_text)
+    "share_file" -> stringResource(R.string.when_opt_share_file)
+    "share_contains" -> stringResource(R.string.when_opt_share_contains)
+    "share_ext" -> stringResource(R.string.when_opt_share_ext)
+    "event" -> stringResource(R.string.when_opt_event)
+    "sensor_shake" -> stringResource(R.string.when_opt_sensor_shake)
+    "sensor_light_above" -> stringResource(R.string.when_opt_sensor_light_above)
+    "sensor_light_below" -> stringResource(R.string.when_opt_sensor_light_below)
+    "sensor_near" -> stringResource(R.string.when_opt_sensor_near)
+    "sensor_far" -> stringResource(R.string.when_opt_sensor_far)
+    "steps_reach" -> stringResource(R.string.when_opt_steps_reach)
+    "file_new" -> stringResource(R.string.when_opt_file_new)
+    "file_changed" -> stringResource(R.string.when_opt_file_changed)
+    "file_deleted" -> stringResource(R.string.when_opt_file_deleted)
+    "boot" -> stringResource(R.string.when_opt_boot)
+    else -> option.example
 }

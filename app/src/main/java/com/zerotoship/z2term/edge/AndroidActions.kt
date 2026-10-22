@@ -73,6 +73,7 @@ class AndroidActions : AccessibilityService() {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && event.windowId >= 0) {
             event.packageName?.toString()?.let { windowPackages[event.windowId] = it }
             while (windowPackages.size > 64) windowPackages.remove(windowPackages.keys.first())
+            event.packageName?.toString()?.let { if (it != foregroundApp) noteForegroundApp(it, event.windowId) }
         }
         if (event?.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) nodeScroll.onScrolled(event)
         if ((autoScroll.running || nodeScroll.running) && (event?.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
@@ -80,6 +81,38 @@ class AndroidActions : AccessibilityService() {
             if (runCatching { focusedTarget() }.getOrNull() != scrollTarget) { autoScroll.stop(); nodeScroll.stop() }
         }
     }
+    /** `app:open=` / `app:close=` 用の、いま前面にあるアプリ (null = まだ基準が無い)。 */
+    private var foregroundApp: String? = null
+
+    /**
+     * 前面のアプリが替わったかを見て、替わっていれば自動化へ知らせる (1.0.54)。
+     *
+     * 窓が替わった知らせは、通知の引き出し・キーボード・重ね表示からも来る。それを「アプリが
+     * 替わった」と数えると、通知を見ただけで `app:close=` が動くので、**アプリの窓**から
+     * 来たものだけを採る。最初の 1 回は基準を置くだけ (サービスが繋がった瞬間を「開いた」と
+     * 取り違えない)。同じアプリの中の画面移動は呼び元で落としてある。
+     */
+    @Suppress("DEPRECATION")
+    private fun noteForegroundApp(pkg: String, windowId: Int) {
+        val isApp = runCatching {
+            val all = windows
+            try {
+                all.any {
+                    it.id == windowId && it.type == AccessibilityWindowInfo.TYPE_APPLICATION &&
+                        (Build.VERSION.SDK_INT < 30 || it.displayId == android.view.Display.DEFAULT_DISPLAY)
+                }
+            } finally { all.forEach { it.recycle() } }
+        }.getOrDefault(false)
+        if (!isApp) return
+        val prev = foregroundApp
+        foregroundApp = pkg
+        if (prev == null) return
+        val app = applicationContext
+        whenExecutor.execute {
+            runCatching { com.zerotoship.z2term.service.WhenManager.onAppForeground(app, pkg, prev) }
+        }
+    }
+
     override fun onInterrupt() {
         autoScroll.stop()
         nodeScroll.stop()
@@ -112,6 +145,9 @@ class AndroidActions : AccessibilityService() {
 
     companion object {
         @Volatile private var active: AndroidActions? = null
+
+        /** 自動化のルール読み込み (ファイル) を、知らせを受けるメインスレッドから外すための 1 本。 */
+        private val whenExecutor by lazy { java.util.concurrent.Executors.newSingleThreadExecutor() }
         private val actions = linkedMapOf(
             "back" to GLOBAL_ACTION_BACK, "home" to GLOBAL_ACTION_HOME,
             "recents" to GLOBAL_ACTION_RECENTS, "shade" to GLOBAL_ACTION_NOTIFICATIONS,

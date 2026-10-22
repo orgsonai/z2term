@@ -415,6 +415,9 @@ class Z2ApiScriptTest {
             assertTrue("boot の余計な引数が弾かれていない", run("boot:now", "run", "echo x").isNotBlank())
             assertTrue("空の file: が弾かれていない", run("file:new=", "run", "echo x").isNotBlank())
             assertTrue("share の引数違いが弾かれていない", run("share:txet", "run", "echo x").isNotBlank())
+            // 1.0.54 の新しいトリガーの書き損じ (数でない値・空の値・知らない種類)。
+            listOf("battery:temp>hot", "bt:pair", "app:open", "steps:reach=many", "steps:reach=", "file:moved=/x")
+                .forEach { assertTrue("弾かれていない: ${'$'}it", run(it, "run", "echo x").isNotBlank()) }
             assertTrue("弾いたのにルールが作られている: ${rules()}", rules().none { "echo x" in it })
 
             // 正しい書き方は今までどおり通ること (検査が厳しすぎて実用を壊していない)。
@@ -424,6 +427,9 @@ class Z2ApiScriptTest {
                 "notify:category=call", "notify:category=missed_call",
                 "sensor:light>500", "sensor:proximity=near", "file:new=/sdcard/Download",
                 "share:any", "share:text", "share:ext=pdf", "event:ringer_*",
+                "battery:temp>45", "battery:temp<35.5", "bt:connect", "bt:disconnect=Car",
+                "app:open=com.android.settings", "steps:reach=8000",
+                "file:changed=/sdcard/Documents", "file:deleted=/sdcard/Documents,ext=md",
             ).forEach { trigger ->
                 run(trigger, "run", "echo ok-$trigger")
                 assertTrue(

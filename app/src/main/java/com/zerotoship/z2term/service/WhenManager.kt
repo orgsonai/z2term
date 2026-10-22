@@ -374,6 +374,7 @@ object WhenManager {
      *
      * 環境変数は `Z2_WHEN_EVENT` (イベント名) と、あれば `Z2_WHEN_EVENT_NAME` (仕掛けたときの識別名) /
      * `Z2_WHEN_ACTION` (押された通知ボタン) / `Z2_WHEN_SSID`。数値は既存と同じ `Z2_WHEN_LEVEL`。
+     * イベント固有の値 (`app_installed` の `Z2_WHEN_PKG` など) は [extraEnv] で足す。
      * `Z2_WHEN_NAME` は**ルール id** のままにしてある (既存ルールの意味を変えない)。
      */
     fun onEvent(
@@ -383,6 +384,7 @@ object WhenManager {
         name: String = "",
         action: String = "",
         ssid: String = "",
+        extraEnv: Map<String, String> = emptyMap(),
     ) {
         if (event.isBlank()) return
         val app = context.applicationContext
@@ -402,6 +404,7 @@ object WhenManager {
             if (name.isNotEmpty()) env["Z2_WHEN_EVENT_NAME"] = name
             if (action.isNotEmpty()) env["Z2_WHEN_ACTION"] = action
             if (ssid.isNotEmpty()) env["Z2_WHEN_SSID"] = ssid
+            env.putAll(extraEnv)
             runRule(app, rule, level = level ?: -1, extraEnv = env)
         }
     }
@@ -452,7 +455,7 @@ object WhenManager {
     /**
      * 直近に処理したファイルのパスと時刻。**同じファイルで二重に走らせない**ために持つ。
      * `CLOSE_WRITE` と `MOVED_TO` は同じ 1 個のファイルに対して両方来ることがあり、
-     * 素通しにするとマクロが 2 回走る。
+     * 素通しにするとマクロが 2 回走る。鍵は「種類:パス」(消したあとに作り直したものは別扱い)。
      */
     private val recentFiles = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
@@ -460,7 +463,7 @@ object WhenManager {
     private const val FILE_DEDUP_MS = 5_000L
 
     /**
-     * enabled な `file:new=…` ルールが見張るフォルダの集合 (0.8.235)。
+     * enabled な `file:<種類>=…` ルールが見張るフォルダの集合 (0.8.235)。
      *
      * センサーと同じ考え方で、**該当ルールがあるフォルダだけ**を [SystemEventService] が
      * `FileObserver` で監視する。1 件も無ければ 1 つも登録しない = 電池も CPU も使わない。
@@ -472,17 +475,20 @@ object WhenManager {
             .toSet()
 
     /**
-     * [dir] に [fileName] が現れたときに `file:new=…` ルールを実行する。
+     * [dir] で [fileName] が [action] (`new` / `changed` / `deleted`) したときに、
+     * 同じ種類の `file:<種類>=…` ルールを実行する (0.8.235 / 種類は 1.0.54)。
      *
      * 呼び元は検知 ON のときの [SystemEventService] の `FileObserver`。書き込み完了
      * (`CLOSE_WRITE`) と移動 (`MOVED_TO`) を見るので、**コピー途中のファイルは掴まない**。
-     * フルパスは `Z2_WHEN_FILE`、フォルダは `Z2_WHEN_DIR` で渡す (外部由来なので env 渡し)。
+     * 新しいか書き換えかの見分けは [WhenTriggerMatch.fileEventKind]。
+     * フルパスは `Z2_WHEN_FILE`、フォルダは `Z2_WHEN_DIR`、種類は `Z2_WHEN_FILE_ACTION` で渡す
+     * (外部由来なので env 渡し)。
      */
-    fun onFileCreated(context: Context, dir: String, fileName: String) {
+    fun onFileEvent(context: Context, dir: String, fileName: String, action: String) {
         val app = context.applicationContext
         val path = "$dir/$fileName"
         val now = System.currentTimeMillis()
-        val prev = recentFiles.put(path, now)
+        val prev = recentFiles.put("$action:$path", now)
         if (prev != null && now - prev < FILE_DEDUP_MS) return
         // 溜まりすぎたら古いものから捨てる (見張り続けると際限なく増える)。
         if (recentFiles.size > 256) {
@@ -490,12 +496,13 @@ object WhenManager {
         }
         loadRules(app).filter {
             it.enabled && it.kind == "file" &&
+                WhenTriggerMatch.fileAction(it.spec) == action &&
                 WhenTriggerMatch.fileDir(it.spec) == dir &&
                 WhenTriggerMatch.fileMatches(it.spec, fileName)
         }.forEach { rule ->
             runRule(
                 app, rule, level = -1,
-                extraEnv = mapOf("Z2_WHEN_FILE" to path, "Z2_WHEN_DIR" to dir)
+                extraEnv = mapOf("Z2_WHEN_FILE" to path, "Z2_WHEN_DIR" to dir, "Z2_WHEN_FILE_ACTION" to action)
             )
         }
     }
@@ -509,13 +516,14 @@ object WhenManager {
     private val shakeDetector = ShakeDetector()
 
     /**
-     * enabled な sensor ルールが要求するセンサー種別集合 (`"accel"`/`"light"`/`"proximity"`)。
+     * enabled な sensor / steps ルールが要求するセンサー種別集合
+     * (`"accel"`/`"light"`/`"proximity"`/`"steps"`)。
      * [SystemEventService] が**必要なセンサーだけ**登録するために使う (不使用なら 1 つも登録せず電池ゼロ)。
      */
     fun sensorKindsNeeded(context: Context): Set<String> =
         loadRules(context).asSequence()
-            .filter { it.enabled && it.kind == "sensor" }
-            .mapNotNull { WhenTriggerMatch.sensorType(it.spec) }
+            .filter { it.enabled && (it.kind == "sensor" || it.kind == "steps") }
+            .mapNotNull { if (it.kind == "steps") "steps" else WhenTriggerMatch.sensorType(it.spec) }
             .toSet()
 
     /** 加速度サンプル ([tMs] は単調増加ミリ秒)。shake を検出したら `sensor:shake` ルールを実行。 */
@@ -559,6 +567,111 @@ object WhenManager {
             val prev = sensorSatisfied.put(rule.id, now)
             if (prev == false && now) runRule(app, rule, level = -1, extraEnv = env())
         }
+    }
+
+    // --- 電池の温度 (battery:temp>N / temp<N・検知 ON が前提) ---
+
+    /** 電池の温度の条件を直近で満たしていたか (rule id 単位・プロセス内メモリのみ)。 */
+    private val batteryTempSatisfied = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    /**
+     * 電池の温度 [celsius] (℃) を受けて `battery:temp>N` / `temp<N` を**跨いだ瞬間だけ**実行する
+     * (1.0.54)。呼び元は [SystemEventService] (残量と同じ `BATTERY_CHANGED`。温度が 1℃ 動いたとき)。
+     * 初めて見た値は基準を置くだけ (検知を ON にした瞬間に「もう 45℃ を超えている」で動かさない)。
+     */
+    fun onBatteryTemp(context: Context, celsius: Float) {
+        val app = context.applicationContext
+        loadRules(app).filter {
+            it.enabled && it.kind == "battery" && it.spec.trim().startsWith("temp")
+        }.forEach { rule ->
+            val now = WhenTriggerMatch.batteryTempSatisfied(rule.spec, celsius)
+            val prev = batteryTempSatisfied.put(rule.id, now)
+            if (prev == false && now) {
+                runRule(app, rule, level = -1, extraEnv = mapOf("Z2_WHEN_TEMP" to celsius.toString()))
+            }
+        }
+    }
+
+    // --- Bluetooth 機器 (bt:*・検知 ON + 付近のデバイスの許可が前提) ---
+
+    /**
+     * Bluetooth 機器との接続 / 切断で `bt:*` ルールを実行する (1.0.54)。
+     *
+     * `event:bt_audio_connected` は**音を出す機器**しか見ず、どの機器かも分からない。
+     * 車・腕時計・キーボードを機器ごとに分けたいので、接続そのもの (ACL) を見る。
+     * 名前とアドレスは `Z2_WHEN_BT_NAME` / `Z2_WHEN_BT_ADDR` で渡す。
+     */
+    fun onBluetooth(context: Context, connected: Boolean, name: String, address: String) {
+        val app = context.applicationContext
+        loadRules(app).filter {
+            it.enabled && it.kind == "bt" && WhenTriggerMatch.bluetooth(it.spec, connected, name, address)
+        }.forEach { rule ->
+            runRule(app, rule, level = -1, extraEnv = mapOf("Z2_WHEN_BT_NAME" to name, "Z2_WHEN_BT_ADDR" to address))
+        }
+    }
+
+    // --- 前面のアプリ (app:*・ユーザー補助が前提) ---
+
+    /**
+     * 前面のアプリが [prev] から [now] へ替わったときに `app:open=` / `app:close=` を実行する (1.0.54)。
+     *
+     * 呼び元はユーザー補助の [com.zerotoship.z2term.edge.AndroidActions] (窓が替わった知らせを
+     * 受けるだけで、定期的に見に行かない = 電池を使わない)。検知の ON/OFF には依存しない。
+     * 環境変数は `Z2_WHEN_APP_PKG` (今のアプリ) と `Z2_WHEN_APP_PREV` (直前のアプリ)。
+     */
+    fun onAppForeground(context: Context, now: String, prev: String) {
+        val app = context.applicationContext
+        val rules = loadRules(app).filter { it.enabled && it.kind == "app" }
+        if (rules.isEmpty()) return
+        fun label(pkg: String): String = if (pkg.isEmpty()) "" else runCatching {
+            val pm = app.packageManager
+            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+        }.getOrDefault("")
+        val nowLabel = label(now)
+        val prevLabel = label(prev)
+        rules.filter { WhenTriggerMatch.app(it.spec, now, nowLabel, prev, prevLabel) }.forEach { rule ->
+            runRule(app, rule, level = -1, extraEnv = mapOf("Z2_WHEN_APP_PKG" to now, "Z2_WHEN_APP_PREV" to prev))
+        }
+    }
+
+    // --- 歩数 (steps:reach=N・検知 ON + 身体活動の許可が前提) ---
+
+    /** 今日の歩数の数え方の状態 ([WhenTriggerMatch.StepsState]) を置くファイル。 */
+    private const val STEPS_STATE = ".steps"
+
+    /**
+     * 歩数計の読み (起動からの累計) [counter] を受けて、今日の歩数が `steps:reach=N` の N に
+     * **届いた瞬間だけ**実行する (1.0.54)。呼び元は [SystemEventService] の歩数計センサー。
+     *
+     * 今日の歩数の出し方は [WhenTriggerMatch.stepsUpdate]。状態はファイルに置くので、
+     * アプリが落ちても 1 日の途中から数え直しにならない。今日の歩数は `Z2_WHEN_STEPS` で渡す。
+     */
+    fun onSteps(context: Context, counter: Long) {
+        val app = context.applicationContext
+        val dir = whenDir(app).apply { mkdirs() }
+        val file = File(dir, STEPS_STATE)
+        val prevState = runCatching { WhenTriggerMatch.StepsState.parse(file.readText()) }.getOrNull()
+        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val state = WhenTriggerMatch.stepsUpdate(prevState, counter, date)
+        if (state != prevState) runCatching { file.writeText(state.serialize()) }
+        if (prevState == null) return  // 初回は基準を置くだけ
+        val before = state.prevToday
+        val today = state.today
+        loadRules(app).filter { it.enabled && it.kind == "steps" }.forEach { rule ->
+            val goal = WhenTriggerMatch.stepsGoal(rule.spec) ?: return@forEach
+            if (before < goal && today >= goal) {
+                runRule(app, rule, level = -1, extraEnv = mapOf("Z2_WHEN_STEPS" to today.toString()))
+            }
+        }
+    }
+
+    /** 今日の歩数 (数え始めていなければ null)。 */
+    fun stepsToday(context: Context): Long? {
+        val state = runCatching {
+            WhenTriggerMatch.StepsState.parse(File(whenDir(context), STEPS_STATE).readText())
+        }.getOrNull() ?: return null
+        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        return if (state.date == date) state.today else 0
     }
 
     // --- 一時停止 (キルスイッチ) と発火の記録 ---
@@ -950,10 +1063,12 @@ object WhenManager {
      * `notify_action` のように自分で仕掛けたものは依存しない — 名前だけでは判別できないので、
      * 「依存しうる」側に数えて警告する（黙って動かないより、余計に注意する方がまし）。
      * `boot` は manifest 宣言のレシーバで受けるので**依存しない**（0.8.264）。
+     * `app:` はユーザー補助で受けるので依存しない（1.0.54）。`file:` は見張りが検知の中に
+     * あるので依存する（1.0.54 で数え漏れを直した）。
      */
     fun rulesNeedingDetection(context: Context): Int =
         loadRules(context).count {
-            it.enabled && it.kind in setOf("charge", "battery", "wifi", "net", "sensor", "event")
+            it.enabled && it.kind in setOf("charge", "battery", "wifi", "net", "bt", "sensor", "steps", "file", "event")
         }
 
     // --- ルールファイルの小さな書き換え (CLI と競合しない範囲で) ---
