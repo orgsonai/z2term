@@ -1,0 +1,6 @@
+1.0.54
+
+- New automation triggers: a Bluetooth device connecting or disconnecting, an app opened or left, today's steps, battery temperature, files rewritten or removed.
+- New events: battery saver, Do Not Disturb, app install/remove/update, time zone, USB plug/unplug.
+- The trigger picker groups kinds into rows, lists choices as sentences, and says why a trigger cannot run.
+- Overwriting a file now fires file:changed, not file:new.
