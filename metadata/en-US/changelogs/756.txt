@@ -1,0 +1,6 @@
+1.0.58
+
+- Home screen widgets rebuilt: macros come as a grid (4) or a scrolling list (up to 30).
+- Each macro shows done, failed (exit code) or stopped, with today's times. Live tail scrolls and wraps lines.
+- The look follows the device's light / dark setting and colours, and so do the settings screens.
+- Fixed the ssh command being cut off, and its port sometimes differing from the real one.
