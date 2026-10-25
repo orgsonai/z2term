@@ -56,12 +56,15 @@ import kotlinx.coroutines.withContext
 fun SshAccessHelper(session: TerminalSession) {
     val context = LocalContext.current
     var ips by remember { mutableStateOf<List<String>>(emptyList()) }
-    // 表示用ポートは sshd_config の Port を反映 (無ければ既定 2222)。`sshd` コマンドと一致。
+    // 表示用ポートは動いている sshd と同じ順で決める (常駐サーバーの -p → sshd_config の Port → 既定)。
     var sshdPort by remember { mutableStateOf(Z2TERM_SSHD_PORT) }
     LaunchedEffect(Unit) {
         ips = withContext(Dispatchers.IO) { SshEndpoint.nics().map { "${it.ip} (${it.name})" } }
         sshdPort = withContext(Dispatchers.IO) {
-            SshEndpoint.configuredPort(context, session.settingsFlow.value.distroId)
+            val settings = session.settingsFlow.value
+            SshEndpoint.configuredPort(
+                context, settings.distroId, SshEndpoint.sshdServerCommand(settings.serverEntries)
+            )
         }
     }
     val primaryIp = ips.firstOrNull() ?: "<端末IP>"

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-26 / 対象バージョン: 1.0.57 (versionCode 755)
+最終更新: 2026-10-26 / 対象バージョン: 1.0.58 (versionCode 756)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -1253,6 +1253,8 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 - **角の丸みは端末の値**（`widget_shape.xml`。API 31+ は `system_app_widget_background_radius` / `system_app_widget_inner_radius`）。枠線は付けない。マス・行は地の色だけで分け、実行中・失敗は地の色が変わる。
 - **等幅フォントは ssh のコマンドと tail の行だけ**。ほかは端末の標準フォント（名前・値は `sans-serif-medium`、時刻は数字だけ等幅 `tnum`）。文字の基準サイズを 1〜2sp 上げた（`widget_dimens.xml`）。
 - 待機中の ▶ と実行中の ■ は、塗りの丸の上に載せた（押せることが分かる形）。一覧の行は区切り線をやめ、角の丸い地を 6dp 空けて並べる。
+
+**ssh のポートは動いている sshd と同じ順で決める（1.0.58。`service/SshEndpoint`）**: 1.0.57 までは選択中の OS の `/etc/ssh/sshd_config` の `Port` しか見ておらず、常駐サーバーを `sshd --lan -p 65152` のように起動していると、実際とは違う既定の 2222 を出していた（実機フィードバック）。いまは sshd を起動するコマンド（動いている常駐サーバーを優先、無ければ有効な登録）の `-p N` / `-pN` / `-o Port=N` → 設定ファイル（`-f` があればそれ）の `Port` → 既定、の順。コマンドが OpenSSH 本体（`/usr/sbin/sshd` など、ラッパー `/usr/local/sbin/sshd` 以外のパス）なら OpenSSH の決め方に合わせ、`Include` を書かれた位置で展開し、既定は 22。ラッパー（`sshd`）は設定ファイル本体だけを読み、既定は 2222（`SshdScript` と同じ）。⚙設定の SSH 案内（`SshAccessHelper`）も同じ関数を使う。⚠ アプリから `/proc/net/tcp` は読めない（Android 10〜）ので、実際に開いているポートを直接は確かめられない。
 
 **設定画面も同じ方針（1.0.57）**: マクロ（`WidgetConfigActivity`）とライブ tail（`TailConfigActivity`）の設定画面は、アプリ本体の ZTS ダーク・等幅・`[x]` の文字をやめ、Material 3 の標準部品で組んだ（`widget/WidgetConfigUi.kt`）。上のバー（題名と ✕）・`ListItem` + `Checkbox` の一覧・`SingleChoiceSegmentedButtonRow` の段切り替え（文字の大きさ・末尾 / 先頭）・`OutlinedTextField`（パス。ファイルでなければ赤くなり理由を下に出す）・下のバー（選んだ数 / キャンセル / 保存。保存はファイルを選ぶまで押せない）。色は `WidgetConfigTheme` が端末のライト / ダークと配色（API 31+ は `dynamicLight/DarkColorScheme`、API 29〜30 はウィジェットと同じ緑系）で決め、アプリの選択中テーマには追従しない。中身は 1 本の `LazyColumn` で、上下のバーは `Scaffold` が systemBars の分を空ける。
 

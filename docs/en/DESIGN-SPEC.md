@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-26 / Target version: 1.0.57 (versionCode 755)
+Last updated: 2026-10-26 / Target version: 1.0.58 (versionCode 756)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -1268,6 +1268,8 @@ Hence `TunnelManager.KEEPALIVE_MS` = **10s** (`KEEPALIVE_LOW_POWER_MS` = 60s in 
 - **Corner radii come from the device** (`widget_shape.xml`; on API 31+ `system_app_widget_background_radius` / `system_app_widget_inner_radius`). No outlines: tiles and rows are set apart by their fill alone, and running / failed change the fill.
 - **Monospace only for the ssh command and tail lines.** Everything else uses the device font (`sans-serif-medium` for names and values, tabular figures `tnum` for times). Base text sizes went up by 1–2 sp (`widget_dimens.xml`).
 - The idle ▶ and running ■ sit on a filled circle (so they read as buttons). List rows dropped the divider lines and are rounded fills spaced 6 dp apart.
+
+**The ssh port is worked out the same way the running sshd does (1.0.58, `service/SshEndpoint`)**: up to 1.0.57 only `Port` in the selected OS's `/etc/ssh/sshd_config` was read, so with a server started as `sshd --lan -p 65152` it showed the default 2222 instead of the real port (device feedback). Now the order is: the sshd command's `-p N` / `-pN` / `-o Port=N` (a running server first, otherwise an enabled registration) → `Port` in the config file (the `-f` one if given) → the default. When the command is OpenSSH itself (`/usr/sbin/sshd` or any path other than the wrapper `/usr/local/sbin/sshd`), OpenSSH's rules apply: `Include` is expanded where it appears and the default is 22. The wrapper (`sshd`) reads only the main config file and defaults to 2222 (as `SshdScript` does). The SSH help under ⚙ Settings (`SshAccessHelper`) uses the same function. ⚠ Apps cannot read `/proc/net/tcp` (Android 10+), so the port actually open cannot be checked directly.
 
 **The settings screens follow suit (1.0.57)**: the macro (`WidgetConfigActivity`) and live tail (`TailConfigActivity`) settings screens dropped the app's ZTS dark, monospace `[x]` look and are built from standard Material 3 parts (`widget/WidgetConfigUi.kt`): a top bar (title and ✕), a `ListItem` + `Checkbox` list, `SingleChoiceSegmentedButtonRow` toggles (text size, tail / head), an `OutlinedTextField` for the path (turns red with the reason below when it is not a file) and a bottom bar (count picked / Cancel / Save; Save stays disabled until a file is picked). `WidgetConfigTheme` picks colours from the device's light / dark setting and colour scheme (`dynamicLight/DarkColorScheme` on API 31+, the widget's green set on API 29–30) and does not follow the app's selected theme. The content is a single `LazyColumn`; `Scaffold` keeps the bars clear of the system bars.
 

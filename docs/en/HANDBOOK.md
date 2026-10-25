@@ -590,6 +590,7 @@ You can turn your phone into an SSH server and log in from a PC.
 - Edit `Port` in `/etc/ssh/sshd_config`, and `sshd` will start on that port.
 - For a temporary change, you can also specify it like `sshd -p 50000`.
 - Note: the port number must be **1024 or higher** (lower ports are blocked by phone restrictions).
+- The command shown on the home screen widget and in the SSH help under ⚙ Settings also reads the `-p` of the `sshd` you registered as a server, so it shows the port that is actually opened (1.0.58).
 
 **Keeping it running**
 - Register `sshd` (or `sshd --lan` to expose it to the LAN) under Command list → Servers and it keeps running without opening the app.

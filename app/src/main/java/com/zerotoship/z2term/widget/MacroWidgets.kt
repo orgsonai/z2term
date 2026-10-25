@@ -418,11 +418,16 @@ internal object MacroWidgets {
                 val lvl = batt?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
                 val scale = batt?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
 
+                // コマンド文字列に sshd が現れる常駐サーバー (`sshd --lan -p 65152` 等)。
+                // ポートはこのコマンドの -p も見て決める (動いているものを優先、無ければ登録済みのもの)。
+                val sshdRunningCommand = running.firstOrNull { SshEndpoint.isSshdCommand(it.command) }?.command
+                val sshdCommand = sshdRunningCommand
+                    ?: SshEndpoint.sshdServerCommand(settings?.serverEntries)
+
                 return Snapshot(
                     sshLine = if (distroId.isEmpty()) null
-                    else SshEndpoint.sshCommand(context, distroId),
-                    // コマンド文字列に sshd が現れる常駐サーバーが走っているか (`sshd --lan` 等)。
-                    sshdRunning = running.any { it.command?.contains("sshd") == true },
+                    else SshEndpoint.sshCommand(context, distroId, sshdCommand),
+                    sshdRunning = sshdRunningCommand != null,
                     serversRunning = running.size,
                     serversEnabled = enabledServers,
                     rulesEnabled = rules.count { it.enabled },
