@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ウィジェットのマクロボタン。設定シートのボタン (ZtsBgCard + ZtsBorder) と同じ見た目。 -->
+<!-- ウィジェットのパネル/ボタン背景。ZtsBgCard + ZtsBorder。 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="@color/widget_card" />

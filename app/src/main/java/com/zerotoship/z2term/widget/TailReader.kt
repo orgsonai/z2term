@@ -4,7 +4,7 @@ import java.io.File
 import java.io.RandomAccessFile
 
 /**
- * ファイルの末尾 N 行 / 先頭 N 行を読む (ウィジェット D2「ライブ tail」用)。
+ * ファイルの末尾 N 行 / 先頭 N 行を読む (ウィジェット「ライブ tail」用)。
  *
  * ログは青天井に育つ ([com.zerotoship.z2term.core.SessionLogger] も
  * [com.zerotoship.z2term.service.LogWriter] もローテーションしない方針) ので、
@@ -69,6 +69,20 @@ object TailReader {
         val usable = if (truncatedTail && all.size > 1) all.dropLast(1) else all
         return usable.take(n)
     }
+
+    /**
+     * 目立たせる行か (エラー・失敗の行)。ライブ tail はこの行だけ色を変える。
+     *
+     * 何のログかは知らないので、広く使われる語だけを単語単位で拾う。`errors` / `stderr` /
+     * `failsafe` のような語の一部では反応しない (「0 errors」の行まで赤くしない)。
+     */
+    fun isAlert(line: String): Boolean = ALERT.containsMatchIn(line)
+
+    private val ALERT = Regex(
+        "\\b(error|fail|failed|failure|fatal|panic|denied|refused|traceback|exception|timeout|timed out)\\b" +
+            "|エラー|失敗",
+        RegexOption.IGNORE_CASE,
+    )
 
     private fun splitLines(text: String): List<String> {
         if (text.isEmpty()) return emptyList()

@@ -42,18 +42,23 @@ import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 
 /**
- * ホーム画面ウィジェット (D1) の設定画面。ウィジェットを置いたときにランチャーから呼ばれ、
- * **どのマクロをボタンに並べるか**だけを選ばせる。
+ * マクロウィジェット (マス目型 [StatusWidgetProvider] / 一覧型 [MacroListWidgetProvider]) の
+ * 設定画面。ウィジェットを置いたときにランチャーから呼ばれ、**どのマクロを並べるか**と
+ * 文字の大きさを選ばせる。どちらの種類かは appWidgetId から判別し、選べる数だけが変わる
+ * (マス目は 4 個、一覧は [WidgetStore.MAX_LIST_MACROS] 個)。
  *
  * 候補は `~/.z2term/macros/` 配下の `.sh` の実ファイル。ここで新しいマクロを作らせることはしない
  * (マクロはターミナルで書く/`z2-macro install` で入れるもので、正本はファイル側にある)。
  *
  * API 31+ では `configuration_optional` を付けてあるので、この画面を出さずに置いても
- * ウィジェットは動く (その場合はマクロディレクトリの先頭 4 件が並ぶ)。
+ * ウィジェットは動く (その場合はマクロディレクトリの先頭から上限まで並ぶ)。
  */
 class WidgetConfigActivity : ComponentActivity() {
 
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+
+    /** このウィジェットに並べられる数 (マス目 4 / 一覧 [WidgetStore.MAX_LIST_MACROS])。 */
+    private var maxMacros = WidgetStore.MAX_MACROS
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleHelper.applyLocale(newBase))
@@ -77,8 +82,17 @@ class WidgetConfigActivity : ComponentActivity() {
 
         CustomThemeStore.ensureLoaded(applicationContext)
 
+        val provider = runCatching {
+            AppWidgetManager.getInstance(this).getAppWidgetInfo(appWidgetId)?.provider?.className
+        }.getOrNull()
+        maxMacros = if (provider == MacroListWidgetProvider::class.java.name) {
+            WidgetStore.MAX_LIST_MACROS
+        } else {
+            WidgetStore.MAX_MACROS
+        }
+
         val available = WidgetStore.availableMacros(this)
-        val initial = WidgetStore.macros(this, appWidgetId)
+        val initial = WidgetStore.macros(this, appWidgetId, maxMacros)
         // ファイル名だけでは何のマクロか分からないので、スクリプト先頭のコメントを説明として出す。
         val descriptions = available.associateWith { WidgetStore.description(this, it) }
 
@@ -89,6 +103,7 @@ class WidgetConfigActivity : ComponentActivity() {
                         available = available,
                         descriptions = descriptions,
                         initial = initial,
+                        maxMacros = maxMacros,
                         initialTextSp = WidgetStore.textSp(this, appWidgetId),
                         onSave = { selected, sp -> save(selected, sp) },
                         onCancel = { finish() },
@@ -105,17 +120,17 @@ class WidgetConfigActivity : ComponentActivity() {
      */
     private fun resetHistory() {
         WidgetStore.clearRunHistory(this)
-        Thread { runCatching { StatusWidgetProvider.renderAll(applicationContext) } }
+        Thread { MacroWidgets.renderEverything(applicationContext) }
             .apply { isDaemon = true; start() }
         Toast.makeText(this, R.string.widget_config_reset_done, Toast.LENGTH_SHORT).show()
     }
 
     private fun save(selected: List<String>, textSp: Int) {
-        WidgetStore.setMacros(this, appWidgetId, selected)
+        WidgetStore.setMacros(this, appWidgetId, selected, maxMacros)
         WidgetStore.setTextSp(this, appWidgetId, textSp)
         // 置かれた直後は OS の更新が来ないので、自分で 1 回描く。
         val id = appWidgetId
-        Thread { runCatching { StatusWidgetProvider.renderAll(applicationContext) } }
+        Thread { MacroWidgets.renderEverything(applicationContext) }
             .apply { isDaemon = true; start() }
         setResult(
             Activity.RESULT_OK,
@@ -130,6 +145,7 @@ private fun ConfigScreen(
     available: List<String>,
     descriptions: Map<String, String>,
     initial: List<String>,
+    maxMacros: Int,
     initialTextSp: Int,
     onSave: (List<String>, Int) -> Unit,
     onCancel: () -> Unit,
@@ -156,7 +172,7 @@ private fun ConfigScreen(
             fontFamily = FontFamily.Monospace
         )
         Text(
-            text = stringResource(R.string.widget_config_desc, WidgetStore.MAX_MACROS),
+            text = stringResource(R.string.widget_config_desc, maxMacros),
             color = ZtsTextSecondary,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
@@ -206,7 +222,7 @@ private fun ConfigScreen(
                         subtitle = desc.ifBlank { stringResource(R.string.widget_config_no_desc) },
                         checked = checked,
                         // 上限に達していたら未選択の行は押せない (先に外してもらう)。
-                        enabled = checked || selected.size < WidgetStore.MAX_MACROS,
+                        enabled = checked || selected.size < maxMacros,
                         onToggle = {
                             if (checked) selected.remove(name) else selected.add(name)
                         }

@@ -158,4 +158,112 @@ class WidgetStoreTest {
             WidgetStore.describe("backup.sh", listOf("#!/bin/sh", "", "# バックアップを取る。", "echo hi"))
         )
     }
+
+    // --- 一覧型の上限 (1.0.55) ---
+
+    @Test
+    fun listWidgetTakesMoreThanFour() {
+        val many = (1..40).map { "m$it.sh" }
+        assertEquals(
+            WidgetStore.MAX_LIST_MACROS,
+            WidgetStore.resolve(saved = null, available = many, max = WidgetStore.MAX_LIST_MACROS).size
+        )
+        assertEquals(
+            listOf("m7.sh", "m1.sh", "m30.sh", "m5.sh", "m2.sh"),
+            WidgetStore.resolve(
+                saved = "m7.sh\nm1.sh\nm30.sh\nm5.sh\nm2.sh", available = many,
+                max = WidgetStore.MAX_LIST_MACROS,
+            )
+        )
+    }
+
+    // --- 文字の大きさ (基準値はリソースから・差分で動かす) ---
+
+    @Test
+    fun textSizeMovesByDifference() {
+        // 既定 11 のまま触らなければ基準値そのまま。
+        assertEquals(14f, WidgetStore.scaledBy(14f, WidgetStore.DEFAULT_TEXT_SP), 0f)
+        // 2 大きくすれば、どの行も 2 ずつ大きくなる (倍率ではない)。
+        assertEquals(16f, WidgetStore.scaledBy(14f, WidgetStore.DEFAULT_TEXT_SP + 2), 0f)
+        assertEquals(13f, WidgetStore.scaledBy(11f, WidgetStore.DEFAULT_TEXT_SP + 2), 0f)
+        // 小さくしすぎても 6sp を割らない。
+        assertEquals(6f, WidgetStore.scaledBy(7f, WidgetStore.MIN_TEXT_SP - 5), 0f)
+    }
+
+    // --- マクロの状態 (1.0.55: 完了 / 失敗 / 停止を分ける) ---
+
+    private fun status(
+        running: Boolean = false,
+        startAt: Long = 0L,
+        finishAt: Long = 0L,
+        exitCode: Int? = null,
+        stopped: Boolean = false,
+        now: Long = at(2026, 10, 25, 12, 0),
+    ) = MacroStatus.of(running, startAt, finishAt, exitCode, stopped, now, zone)
+
+    @Test
+    fun neverRunIsIdle() {
+        assertEquals(MacroStatus.Kind.IDLE, status().kind)
+    }
+
+    @Test
+    fun runningWinsOverOldResult() {
+        val s = status(running = true, startAt = at(2026, 10, 25, 11, 58))
+        assertEquals(MacroStatus.Kind.RUNNING, s.kind)
+        assertEquals(at(2026, 10, 25, 11, 58), s.startAt)
+    }
+
+    @Test
+    fun exitZeroIsDone() {
+        val s = status(startAt = at(2026, 10, 25, 7, 10), finishAt = at(2026, 10, 25, 7, 12), exitCode = 0)
+        assertEquals(MacroStatus.Kind.DONE, s.kind)
+        assertEquals(at(2026, 10, 25, 7, 12), s.finishAt)
+    }
+
+    @Test
+    fun nonZeroExitIsFailedWithCode() {
+        // 1.0.54 までは失敗しても ✓ が付いていた。
+        val s = status(startAt = at(2026, 10, 25, 6, 30), finishAt = at(2026, 10, 25, 6, 30), exitCode = 2)
+        assertEquals(MacroStatus.Kind.FAILED, s.kind)
+        assertEquals(2, s.exitCode)
+    }
+
+    @Test
+    fun stoppedFromWidgetIsStopped() {
+        val s = status(
+            startAt = at(2026, 10, 25, 9, 0), finishAt = at(2026, 10, 25, 9, 1),
+            exitCode = 0, stopped = true,
+        )
+        assertEquals(MacroStatus.Kind.STOPPED, s.kind)
+    }
+
+    @Test
+    fun noExitCodeIsStopped() {
+        // 終了コードが書かれなかった = 最後まで行かなかった。完了扱いにしない。
+        val s = status(startAt = at(2026, 10, 25, 9, 0), finishAt = at(2026, 10, 25, 9, 1))
+        assertEquals(MacroStatus.Kind.STOPPED, s.kind)
+    }
+
+    @Test
+    fun startedButNeverFinishedIsStopped() {
+        // アプリごと落ちて終了の記録が無い。動いてもいないので「実行中」でも「完了」でもない。
+        val s = status(startAt = at(2026, 10, 25, 9, 0))
+        assertEquals(MacroStatus.Kind.STOPPED, s.kind)
+        assertEquals(0L, s.finishAt)
+    }
+
+    @Test
+    fun finishBeforeStartBelongsToThePreviousRun() {
+        // 前回の終了時刻が残っていても、今回の結果として読まない。
+        val s = status(startAt = at(2026, 10, 25, 9, 0), finishAt = at(2026, 10, 25, 8, 0), exitCode = 0)
+        assertEquals(MacroStatus.Kind.STOPPED, s.kind)
+        assertEquals(0L, s.finishAt)
+    }
+
+    @Test
+    fun yesterdaysResultIsIdleToday() {
+        // 当日限り (0.8.224 から): 昨日の結果は今日の印にしない。
+        val s = status(startAt = at(2026, 10, 24, 23, 0), finishAt = at(2026, 10, 24, 23, 5), exitCode = 1)
+        assertEquals(MacroStatus.Kind.IDLE, s.kind)
+    }
 }

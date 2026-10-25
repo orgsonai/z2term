@@ -507,7 +507,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- ホーム画面ウィジェット D1「状態＋ランチャー」。
+        <!-- ホーム画面ウィジェット「状態＋マクロ (マス目)」(旧 D1)。⚠ クラス名を変えると置き済みのものが消える。
              OS の定期更新 (APPWIDGET_UPDATE) と、ウィジェット内のボタンから送る自前の
              ブロードキャスト (REFRESH / RUN_MACRO) を受ける。後者は自アプリ内の明示 Intent
              なので exported=false のままで届く。ウィジェットの追加はランチャーが
@@ -524,7 +524,7 @@
                 android:resource="@xml/widget_status_info" />
         </receiver>
 
-        <!-- 上のウィジェットの設定画面 (並べるマクロを選ぶ)。ウィジェット配置時にランチャーが
+        <!-- マクロウィジェット (マス目・一覧) の設定画面 (並べるマクロを選ぶ)。ウィジェット配置時にランチャーが
              起動するため exported=true が必須。受け取るのは appWidgetId だけ。 -->
         <activity
             android:name=".widget.WidgetConfigActivity"
@@ -535,6 +535,32 @@
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
+
+        <!-- ホーム画面ウィジェット「状態＋マクロ (一覧)」。マス目型 (上の StatusWidgetProvider) と
+             同じ上段に、マクロを 1 行 1 個で並べて中でスクロールする。設定画面はマス目型と共通。 -->
+        <receiver
+            android:name=".widget.MacroListWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_list_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_list_info" />
+        </receiver>
+
+        <!-- 一覧型マクロウィジェットとライブ tail の「行」を作るサービス。ランチャーの描画のために
+             システムが bind するだけで常駐はしない。BIND_REMOTEVIEWS を持つシステム以外は
+             bind できないので exported=false のままでよい。 -->
+        <service
+            android:name=".widget.MacroListService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+        <service
+            android:name=".widget.TailLinesService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
 
         <!-- ホーム画面ウィジェット D2「ライブ tail」。選んだファイルの末尾 N 行を出す。
              D1 と同じく、受けるのは OS の定期更新と自アプリ内の明示ブロードキャストだけ。 -->
@@ -550,7 +576,7 @@
                 android:resource="@xml/widget_tail_info" />
         </receiver>
 
-        <!-- 上のウィジェットの設定画面 (見るファイルと行数を選ぶ)。D1 と同じ理由で exported=true。 -->
+        <!-- 上のウィジェットの設定画面 (見るファイル・どちら側か・文字の大きさを選ぶ)。D1 と同じ理由で exported=true。 -->
         <activity
             android:name=".widget.TailConfigActivity"
             android:exported="true"

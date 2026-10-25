@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  一覧型マクロウィジェットの 1 行 (MacroListService が 1 行ずつ作る)。行全体のタップで実行 / 停止。
+
+  ⚠ id は「ウィジェットの約束の表」で決めてある。行の背景はコードが状態ごとに widget_row_* へ
+  差し替えるので、root (item_root) に背景を持たせる。高さは 48dp 以上 (指で押せる大きさ)。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/item_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="52dp"
+    android:background="@drawable/widget_row_idle"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="8dp"
+    android:paddingTop="7dp"
+    android:paddingEnd="8dp"
+    android:paddingBottom="7dp">
+
+    <!-- 状態アイコン (実行/停止/完了/失敗) -->
+    <ImageView
+        android:id="@+id/item_icon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_widget_run" />
+
+    <!-- 名前と説明 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="8dp"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/item_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/widget_text_primary"
+            android:textSize="@dimen/widget_text_name"
+            android:textStyle="bold"
+            android:singleLine="true"
+            android:ellipsize="end" />
+        <TextView
+            android:id="@+id/item_desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="@dimen/widget_text_desc"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- 状態テキストと実行中タイマー -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/item_state"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/widget_state_idle"
+            android:textSize="@dimen/widget_text_state"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+        <Chronometer
+            android:id="@+id/item_timer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:textColor="@color/widget_state_running"
+            android:textSize="@dimen/widget_text_state"
+            android:fontFamily="monospace"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ホーム画面ウィジェットの文字の基準サイズ。
+
+  コード (MacroWidgets.textSize) がここを読み、ウィジェットの設定「文字の大きさ」の差分を
+  足して当てる。レイアウトの textSize にも同じ名前を使うこと (直書きすると設定を当てた瞬間に
+  ここの値へ戻る)。⚠ 必ず sp で書く (コードは数値だけを読む)。名前は消さない・変えない。
+-->
+<resources>
+    <dimen name="widget_text_title">13sp</dimen>
+    <dimen name="widget_text_label">10sp</dimen>
+    <dimen name="widget_text_value">12sp</dimen>
+    <dimen name="widget_text_name">13sp</dimen>
+    <dimen name="widget_text_desc">11sp</dimen>
+    <dimen name="widget_text_state">11sp</dimen>
+    <dimen name="widget_text_footer">10sp</dimen>
+</resources>

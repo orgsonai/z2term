@@ -6,43 +6,31 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import android.os.BatteryManager
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import com.zerotoship.z2term.MainActivity
 import com.zerotoship.z2term.R
-import com.zerotoship.z2term.service.HeadlessRun
-import com.zerotoship.z2term.service.ServerDaemonManager
-import com.zerotoship.z2term.service.SshEndpoint
-import com.zerotoship.z2term.service.WhenManager
-import com.zerotoship.z2term.settings.AppSettings
-import com.zerotoship.z2term.settings.ServerEntry
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
- * ホーム画面ウィジェット D1「状態＋ランチャー」。
+ * ホーム画面ウィジェット「状態＋マクロ (マス目)」。0.8.212 の D1 を 1.0.55 で作り直したもの。
  *
  * 上段に**いまの状態** (ssh 接続先 / 常駐サーバー数 / 有効な `z2-when` ルール数 / 電池)、
- * 下段に**マクロのボタン**を並べ、タップで `~/.z2term/macros/<name>.sh` を
- * **アプリを開かずバックグラウンド実行**する。
+ * 下段に**マクロ 4 個のマス (2×2)** を並べ、タップで `~/.z2term/macros/<name>.sh` を
+ * **アプリを開かずバックグラウンド実行**する。5 個以上並べたいときは一覧型
+ * ([MacroListWidgetProvider]) を置く — 土台 ([MacroWidgets]) は共通。
  *
- * **配線**: ボタン → [PendingIntent] (自分宛のブロードキャスト) → このレシーバ →
- * [HeadlessRun.launch] (= `z2-when` のルール実行と同じ経路) → 完了を待たずに再描画。
- * 新しい常駐サービスは足さない (電池要因を増やさない・引き継ぎ書 §10-2 の方針)。
+ * ⚠ **クラス名を変えない。** 置き済みのウィジェットはこのクラス名で結び付いているので、
+ * 変えるとホーム画面から消える。
+ *
+ * **配線**: マス → [PendingIntent] (自分宛のブロードキャスト) → このレシーバ →
+ * [MacroWidgets.run] (= `z2-when` のルール実行と同じ [com.zerotoship.z2term.service.HeadlessRun]) →
+ * 完了を待たずに再描画。新しい常駐サービスは足さない (電池要因を増やさない)。
  *
  * **更新のきっかけ**は 3 つ:
  *  1. OS の定期更新 (`updatePeriodMillis` = 30 分。これ以上は詰められない)
  *  2. ⟳ ボタンのタップ (その場で読み直す)
- *  3. アプリ側からの [refresh] (常駐サーバーの起動/停止・`z2-when` ルールの変更時)
+ *  3. アプリ側からの [refresh] (常駐サーバーの起動/停止・`z2-when` ルールの変更・マクロの終了時)
  *
  * 読み取りはファイル I/O と設定 DataStore を含むので、描画は必ず [goAsync] + 別スレッドで行う。
  */
@@ -53,23 +41,28 @@ class StatusWidgetProvider : AppWidgetProvider() {
             ACTION_RUN_MACRO -> {
                 val macro = intent.getStringExtra(EXTRA_MACRO).orEmpty()
                 background(context) { ctx ->
-                    if (macro.isNotBlank()) runMacro(ctx, macro)
-                    renderAll(ctx)
+                    if (macro.isNotBlank()) MacroWidgets.run(ctx, macro)
+                    MacroWidgets.renderEverything(ctx)
                 }
             }
-            // 実行中のボタンをもう一度押したとき。停止は最大 1 秒ブロックするので必ず別スレッドで。
+            // 実行中のマスをもう一度押したとき。停止は最大 1 秒ブロックするので必ず別スレッドで。
             ACTION_STOP_MACRO -> {
                 val macro = intent.getStringExtra(EXTRA_MACRO).orEmpty()
                 background(context) { ctx ->
-                    if (macro.isNotBlank()) HeadlessRun.stop(runKey(macro))
-                    renderAll(ctx)
+                    if (macro.isNotBlank()) MacroWidgets.stop(ctx, macro)
+                    MacroWidgets.renderEverything(ctx)
                 }
             }
-            // ⟳ タップ。押したことが分かるよう「更新中…」を先に出してから読み直す。
-            ACTION_REFRESH -> background(context) { ctx ->
-                showBusy(ctx)
-                Thread.sleep(WidgetFeedback.BUSY_HOLD_MS)
-                renderAll(ctx)
+            // ⟳ タップ / アプリ側からの再描画。⟳ のときだけ「更新中」を先に出す。
+            ACTION_REFRESH -> {
+                val manual = intent.getBooleanExtra(EXTRA_MANUAL, false)
+                background(context) { ctx ->
+                    if (manual) {
+                        showBusy(ctx)
+                        Thread.sleep(WidgetFeedback.BUSY_HOLD_MS)
+                    }
+                    renderAll(ctx)
+                }
             }
             // 定期更新 (APPWIDGET_UPDATE) も自前で受けて非同期に描く。onUpdate は使わない。
             AppWidgetManager.ACTION_APPWIDGET_UPDATE ->
@@ -108,31 +101,48 @@ class StatusWidgetProvider : AppWidgetProvider() {
         /** ⟳ タップ / アプリ側からの再描画要求。 */
         private const val ACTION_REFRESH = "com.zerotoship.z2term.widget.REFRESH"
 
-        /** マクロボタンのタップ。 */
+        /** マスのタップ。 */
         private const val ACTION_RUN_MACRO = "com.zerotoship.z2term.widget.RUN_MACRO"
 
-        /** 実行中のマクロボタンのタップ (= 停止)。 */
+        /** 実行中のマスのタップ (= 停止)。 */
         private const val ACTION_STOP_MACRO = "com.zerotoship.z2term.widget.STOP_MACRO"
 
         private const val EXTRA_MACRO = "macro"
 
-        /** [HeadlessRun] に渡す実行キー。ウィジェット発の実行だと分かる形にしておく。 */
-        private fun runKey(macro: String) = "widget-$macro"
+        /** true なら**ユーザーが ⟳ を押した**もの (「更新中」を出す合図)。 */
+        private const val EXTRA_MANUAL = "manual"
 
-        /** マクロ実行のまとめログ (`~/.z2term/widget/run.log`)。端末から `tail` して確かめられる。 */
-        private const val LOG_REL = ".z2term/widget/run.log"
-
-        /** レイアウトのボタン id (先頭から [WidgetStore.MAX_MACROS] 個使う)。 */
-        private val BUTTON_IDS = intArrayOf(
-            R.id.widget_btn_0, R.id.widget_btn_1, R.id.widget_btn_2, R.id.widget_btn_3
+        /** マス 1 つぶんの View の id (先頭から [WidgetStore.MAX_MACROS] 個使う)。 */
+        private val TILES = listOf(
+            MacroWidgets.Ids(
+                R.id.widget_tile_0, R.id.widget_tile_0_name, R.id.widget_tile_0_desc,
+                R.id.widget_tile_0_state, R.id.widget_tile_0_timer, R.id.widget_tile_0_icon,
+            ),
+            MacroWidgets.Ids(
+                R.id.widget_tile_1, R.id.widget_tile_1_name, R.id.widget_tile_1_desc,
+                R.id.widget_tile_1_state, R.id.widget_tile_1_timer, R.id.widget_tile_1_icon,
+            ),
+            MacroWidgets.Ids(
+                R.id.widget_tile_2, R.id.widget_tile_2_name, R.id.widget_tile_2_desc,
+                R.id.widget_tile_2_state, R.id.widget_tile_2_timer, R.id.widget_tile_2_icon,
+            ),
+            MacroWidgets.Ids(
+                R.id.widget_tile_3, R.id.widget_tile_3_name, R.id.widget_tile_3_desc,
+                R.id.widget_tile_3_state, R.id.widget_tile_3_timer, R.id.widget_tile_3_icon,
+            ),
         )
 
+        /** マスの行 (2 個ずつ)。下の行が丸ごと空なら行ごと隠す。 */
+        private val ROWS = intArrayOf(R.id.widget_tiles_row_0, R.id.widget_tiles_row_1)
+
         /**
-         * 置かれているウィジェットを描き直す。常駐サーバーの起動/停止や `z2-when` ルールの
-         * 変更など、**アプリ側で状態が変わったとき**に呼ぶ。1 つも置かれていなければ何もしない。
+         * 置かれているマクロウィジェットを描き直す。常駐サーバーの起動/停止や `z2-when` ルールの
+         * 変更など、**アプリ側で状態が変わったとき**に呼ぶ。一覧型 ([MacroListWidgetProvider]) も
+         * 同じ状態を出しているので、こちらを呼べば両方に届く。置かれていなければ何もしない。
          */
         fun refresh(context: Context) {
             val app = context.applicationContext
+            MacroListWidgetProvider.refresh(app)
             if (widgetIds(app).isEmpty()) return
             app.sendBroadcast(
                 Intent(app, StatusWidgetProvider::class.java).setAction(ACTION_REFRESH)
@@ -145,20 +155,14 @@ class StatusWidgetProvider : AppWidgetProvider() {
         }.getOrDefault(IntArray(0))
 
         /**
-         * 「いま読み直している」ことだけを先に見せる (⟳ を ⏳ に・フッターを「更新中…」に)。
-         *
-         * `partiallyUpdateAppWidget` なので**この 2 つの View 以外はそのまま**。読み直しは
-         * たいてい一瞬で終わるため、これが無いと**画面上は何も起きていないように見える**。
+         * 「いま読み直している」ことだけを先に見せる (⟳ の絵とフッターだけを差し替える)。
+         * 読み直しはたいてい一瞬で終わるため、これが無いと**画面上は何も起きていないように見える**。
          */
         private fun showBusy(context: Context) {
             val mgr = AppWidgetManager.getInstance(context) ?: return
             val ids = widgetIds(context)
             if (ids.isEmpty()) return
-            val busy = RemoteViews(context.packageName, R.layout.widget_status).apply {
-                setTextViewText(R.id.widget_refresh, context.getString(R.string.widget_busy_glyph))
-                setTextViewText(R.id.widget_footer, context.getString(R.string.widget_refreshing))
-                setViewVisibility(R.id.widget_footer, View.VISIBLE)
-            }
+            val busy = MacroWidgets.busyViews(context, R.layout.widget_status)
             ids.forEach { id -> runCatching { mgr.partiallyUpdateAppWidget(id, busy) } }
         }
 
@@ -167,144 +171,53 @@ class StatusWidgetProvider : AppWidgetProvider() {
             val mgr = AppWidgetManager.getInstance(context) ?: return
             val ids = widgetIds(context)
             if (ids.isEmpty()) return
-            val snapshot = Snapshot.read(context)
+            val snapshot = MacroWidgets.Snapshot.read(context)
             ids.forEach { id -> mgr.updateAppWidget(id, buildViews(context, id, snapshot)) }
         }
 
         // --- 描画 ---
 
-        private fun buildViews(context: Context, appWidgetId: Int, s: Snapshot): RemoteViews {
+        private fun buildViews(context: Context, appWidgetId: Int, s: MacroWidgets.Snapshot): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_status)
-            // SimpleDateFormat はスレッド安全でないので共有せず、この描画の中だけで使う。
-            val hhmm = SimpleDateFormat("HH:mm", Locale.US)
-            val hms = SimpleDateFormat("HH:mm:ss", Locale.US)
-
-            // ⚠ ここで ⟳ の文字を**必ず書き戻す**。updateAppWidget は既存の View に
-            // このRemoteViews の操作を上乗せするだけなので、[showBusy] で ⏳ にした文字は
-            // 触らない限り残り続ける (「砂時計から戻らない」実機フィードバックの原因)。
-            views.setTextViewText(R.id.widget_refresh, context.getString(R.string.widget_refresh_glyph))
-
-            // タイトルはアプリを開く。⟳ はその場で読み直す。⚙ は設定画面を直接開く
-            // (ウィジェット長押しからしか設定へ行けないのは使いにくい、という実機フィードバック)。
-            views.setOnClickPendingIntent(R.id.widget_title, openAppIntent(context))
-            views.setOnClickPendingIntent(
-                R.id.widget_refresh,
-                broadcast(context, appWidgetId, SLOT_REFRESH, ACTION_REFRESH, null)
-            )
-            views.setOnClickPendingIntent(R.id.widget_config, configIntent(context, appWidgetId))
-
-            // 文字の大きさ (設定で変えられる。0.8.255)。レイアウト XML の値を上書きする。
-            // 括弧の中はレイアウトに書いてある基準値 — ここを変えたら XML も合わせること。
-            // 単位は SP: 端末のフォントスケール設定にも従わせるため (DIP にしない)。
-            val sp = android.util.TypedValue.COMPLEX_UNIT_SP
-            views.setTextViewTextSize(R.id.widget_title, sp, WidgetStore.scaled(context, appWidgetId, 13))
-            views.setTextViewTextSize(R.id.widget_ssh, sp, WidgetStore.scaled(context, appWidgetId, 11))
-            views.setTextViewTextSize(R.id.widget_stats, sp, WidgetStore.scaled(context, appWidgetId, 11))
-            views.setTextViewTextSize(R.id.widget_footer, sp, WidgetStore.scaled(context, appWidgetId, 10))
-
-            views.setTextViewText(R.id.widget_ssh, s.sshLine ?: context.getString(R.string.widget_ssh_none))
-            // sshd が動いているときだけアクセント色にする (動いていない＝その宛先では入れない)。
-            views.setTextColor(
-                R.id.widget_ssh,
-                ContextCompat.getColor(
-                    context,
-                    if (s.sshdRunning) R.color.widget_accent else R.color.widget_text_secondary
-                )
-            )
-            // 「常駐 1/3」= 動いている本数 / 登録して有効にしてある本数。「自動化 2/5」も同じで、
-            // 有効なルール数 / 全ルール数。分子だけだと **0 の理由** (登録が無いのか・常駐を
-            // 止めているのか) が読めず、下に並ぶマクロボタンの数とも混同された
-            // (実機フィードバック 2026-07-25)。分母はどちらも「アプリ側に登録してあるもの」を指す。
-            views.setTextViewText(
-                R.id.widget_stats,
-                context.getString(
-                    R.string.widget_stats,
-                    s.serversRunning, s.serversEnabled,
-                    s.rulesEnabled, s.rulesTotal,
-                    s.batteryLevel
-                )
+            MacroWidgets.bindHeader(
+                context, views, appWidgetId, s,
+                refresh = broadcast(context, appWidgetId, SLOT_REFRESH, ACTION_REFRESH, null, manual = true),
+                config = configIntent(context, appWidgetId),
             )
 
             val now = System.currentTimeMillis()
             val macros = WidgetStore.macros(context, appWidgetId)
-            BUTTON_IDS.forEachIndexed { slot, viewId ->
+            TILES.forEachIndexed { slot, ids ->
                 val name = macros.getOrNull(slot)
                 if (name == null) {
-                    views.setViewVisibility(viewId, View.GONE)
-                } else {
-                    // 実行中は「■ 名前」にして、同じボタンのタップで止められるようにする
-                    // (RemoteViews に長押しは無いので、モードを増やさずトグルにするのが自然)。
-                    // 2 行目は**そのマクロを今日開始した時刻**。全体で 1 件しか出していなかった
-                    // ときは、複数走らせるとどれがいつのものか分からなかった。
-                    // 日付が変われば 0 に戻る (= ✓ が消えて無印へ)。`HH:mm` しか出せない以上、
-                    // 昨日の記録を残すと「その 07:12 はいつのものか」が読めないため。
-                    val busy = HeadlessRun.isRunning(runKey(name))
-                    val startedAt = WidgetStore.runStartAtToday(context, name, now)
-                    val time =
-                        if (startedAt > 0) hhmm.format(Date(startedAt))
-                        else context.getString(R.string.widget_btn_time_none)
-                    val label = WidgetStore.label(name)
-                    views.setViewVisibility(viewId, View.VISIBLE)
-                    // ボタンの基準は style Z2WidgetButton の 11sp。上の行と一緒に動かす。
-                    views.setTextViewTextSize(
-                        viewId,
-                        android.util.TypedValue.COMPLEX_UNIT_SP,
-                        WidgetStore.scaled(context, appWidgetId, 11)
-                    )
-                    views.setTextViewText(
-                        viewId,
-                        when {
-                            busy -> context.getString(R.string.widget_btn_running, label, time)
-                            // 今日走ったものは ✓ を付ける。すぐ終わるマクロで「■ が消えた」のが
-                            // 停止ではなく正常終了だと分かるようにするため。翌日には自動で消える。
-                            startedAt > 0 -> context.getString(R.string.widget_btn_done, label, time)
-                            else -> context.getString(R.string.widget_btn_idle, label, time)
-                        }
-                    )
-                    views.setTextColor(
-                        viewId,
-                        ContextCompat.getColor(
-                            context,
-                            if (busy) R.color.widget_accent else R.color.widget_text_primary
-                        )
-                    )
-                    views.setOnClickPendingIntent(
-                        viewId,
-                        broadcast(
-                            context, appWidgetId, slot,
-                            if (busy) ACTION_STOP_MACRO else ACTION_RUN_MACRO, name
-                        )
-                    )
+                    // 空きマスは場所だけ残す (2×2 の形を崩さない)。押しても何も起きない。
+                    views.setViewVisibility(ids.root, View.INVISIBLE)
+                    return@forEachIndexed
                 }
-            }
-
-            // フッターは「最後に起きたこと」。読み直した時刻を必ず出すので、⟳ を押したときに
-            // **表示が変わったことで押せたと分かる**。あわせて直近に終わったマクロも出す
-            // (開始時刻はボタン側に移ったので、ここは終了を伝える役)。
-            val footer = if (macros.isEmpty()) {
-                context.getString(R.string.widget_no_macros)
-            } else {
-                val parts = ArrayList<String>(2)
-                parts.add(context.getString(R.string.widget_updated_at, hms.format(Date(now))))
-                // 「最後に終わった」もボタンの ✓ と同じく当日限り (昨日の終了時刻を今日の
-                // フッターに出しても読み手には判断が付かない)。
-                if (s.lastFinish != null && WidgetStore.isSameDay(s.lastFinish.second, now)) {
-                    parts.add(
-                        context.getString(
-                            R.string.widget_last_finish,
-                            WidgetStore.label(s.lastFinish.first),
-                            hhmm.format(Date(s.lastFinish.second))
-                        )
+                val status = WidgetStore.status(context, name, MacroWidgets.isRunning(name), now)
+                views.setViewVisibility(ids.root, View.VISIBLE)
+                MacroWidgets.bindMacro(
+                    context, views, appWidgetId, ids, MacroWidgets.Surface.TILE,
+                    name, status, WidgetStore.description(context, name),
+                )
+                // 実行中は同じマスのタップで止める (RemoteViews に長押しは無いので、モードを
+                // 増やさずトグルにするのが自然)。
+                views.setOnClickPendingIntent(
+                    ids.root,
+                    broadcast(
+                        context, appWidgetId, slot,
+                        if (status.kind == MacroStatus.Kind.RUNNING) ACTION_STOP_MACRO else ACTION_RUN_MACRO,
+                        name,
                     )
-                }
-                parts.joinToString(" · ")
+                )
             }
-            if (footer == null) {
-                views.setViewVisibility(R.id.widget_footer, View.GONE)
-            } else {
-                views.setViewVisibility(R.id.widget_footer, View.VISIBLE)
-                views.setTextViewText(R.id.widget_footer, footer)
+            ROWS.forEachIndexed { row, rowId ->
+                views.setViewVisibility(
+                    rowId,
+                    if (row == 0 || macros.size > row * 2) View.VISIBLE else View.GONE
+                )
             }
+            MacroWidgets.bindFooter(context, views, s, hasMacros = macros.isNotEmpty(), now = now)
             return views
         }
 
@@ -328,18 +241,10 @@ class StatusWidgetProvider : AppWidgetProvider() {
             )
         }
 
-        private fun openAppIntent(context: Context): PendingIntent {
-            val intent = Intent(context, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            return PendingIntent.getActivity(
-                context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-        }
-
         /**
-         * ボタン 1 個ぶんの自分宛ブロードキャスト。requestCode と data の両方を
+         * マス 1 つぶんの自分宛ブロードキャスト。requestCode と data の両方を
          * ウィジェット×スロットで一意にする (どちらかが同じだと PendingIntent が使い回され、
-         * 別のボタンが同じマクロを走らせてしまう)。
+         * 別のマスが同じマクロを走らせてしまう)。
          */
         private fun broadcast(
             context: Context,
@@ -347,124 +252,26 @@ class StatusWidgetProvider : AppWidgetProvider() {
             slot: Int,
             action: String,
             macro: String?,
+            manual: Boolean = false,
         ): PendingIntent {
             val intent = Intent(context, StatusWidgetProvider::class.java)
                 .setAction(action)
                 .setData("z2term://widget/$appWidgetId/$slot".toUri())
             if (macro != null) intent.putExtra(EXTRA_MACRO, macro)
+            if (manual) intent.putExtra(EXTRA_MANUAL, true)
             return PendingIntent.getBroadcast(
                 context, appWidgetId * SLOTS_PER_WIDGET + slot, intent,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
         }
 
-        // --- マクロ実行 ---
-
-        /**
-         * `~/.z2term/macros/<name>` を headless 実行する。マクロ名は実在するファイルからしか
-         * 来ないが、シェルへは単一引用符で渡して展開させない (`z2-when` と同じ安全境界)。
-         */
-        private fun runMacro(context: Context, name: String) {
-            if (name !in WidgetStore.availableMacros(context)) {
-                Log.w(TAG, "macro not found: $name")
-                return
-            }
-            val q = HeadlessRun.shSingleQuote(name)
-            val script = "export Z2_WIDGET_MACRO=$q; cd \"\$HOME\" 2>/dev/null; " +
-                "sh \"\$HOME/.z2term/macros/\"$q"
-            val app = context.applicationContext
-            val ok = HeadlessRun.launch(
-                context = context,
-                script = script,
-                logFile = File(File(context.filesDir, "shared_home"), LOG_REL),
-                name = runKey(name),
-                header = HeadlessRun.logHeader("widget $name"),
-                // 終わったら「■」を「✓」へ戻す (onExit は drain スレッドから呼ばれる)。
-                onExit = {
-                    runCatching { WidgetStore.setRunFinish(app, name) }
-                    runCatching { renderAll(app) }
-                    // run.log を見ているライブ tail (D2) があれば、そちらも描き直す。
-                    runCatching { TailWidgetProvider.refresh(app) }
-                },
-            )
-            if (ok) WidgetStore.setRunStart(context, name)
-        }
-
-        /** ウィジェット 1 個あたりの PendingIntent スロット数 (ボタン + ⟳ + ⚙)。 */
+        /** ウィジェット 1 個あたりの PendingIntent スロット数 (マス + ⟳ + ⚙)。 */
         private const val SLOTS_PER_WIDGET = 8
 
-        /** ⟳ が使うスロット番号 (マクロボタンと衝突しない値)。 */
+        /** ⟳ が使うスロット番号 (マスと衝突しない値)。 */
         private const val SLOT_REFRESH = 7
 
         /** ⚙ が使うスロット番号。 */
         private const val SLOT_CONFIG = 6
-
-    }
-
-    /**
-     * ウィジェットに出す状態のひとまとめ。全ウィジェットで 1 回だけ読んで使い回す
-     * (置いてある数だけファイルを読み直さない)。
-     */
-    internal data class Snapshot(
-        val sshLine: String?,
-        val sshdRunning: Boolean,
-        val serversRunning: Int,
-        /** 登録済みで有効な常駐サーバーの件数 (= 起動対象の数)。「常駐 1/3」の分母。 */
-        val serversEnabled: Int,
-        val rulesEnabled: Int,
-        /** ルールファイルの総数。「自動化 2/5」の分母。 */
-        val rulesTotal: Int,
-        val batteryLevel: Int,
-        val lastRun: Pair<String, Long>?,
-        /** 直近に**終わった**マクロと時刻。フッターで「止めたのではなく終わった」ことを示す。 */
-        val lastFinish: Pair<String, Long>?,
-    ) {
-        companion object {
-            internal fun read(context: Context): Snapshot {
-                val settings = runCatching {
-                    runBlocking { AppSettings(context).flow.first() }
-                }.getOrNull()
-                val distroId = settings?.distroId.orEmpty()
-                // 「常駐 1/3」の分母。ServerDaemonManager.start が起動対象にする条件
-                // (command が空でなく enabled) と揃えて数える。
-                val enabledServers = runCatching {
-                    ServerEntry.decode(settings?.serverEntries)
-                        .count { it.enabled && it.command.isNotBlank() }
-                }.getOrDefault(0)
-                val rules = runCatching { WhenManager.loadRules(context) }.getOrDefault(emptyList())
-
-                // status ファイルは supervisor が落ちても残るので、supervisor が生きているときだけ
-                // 数える。常駐サーバーが動いていればフォアグラウンドサービスがこのプロセスを
-                // 生かしているので、ここで見る isRunning は実態と一致する (プロセスごと死んでいれば
-                // サーバーも死んでいる = 0 が正しい)。
-                val running = if (ServerDaemonManager.isRunning) {
-                    runCatching { ServerDaemonManager.readStatus(context) }
-                        .getOrDefault(emptyList())
-                        .filter { it.state == "running" }
-                } else {
-                    emptyList()
-                }
-
-                val batt = runCatching {
-                    context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-                }.getOrNull()
-                val lvl = batt?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-                val scale = batt?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-
-                return Snapshot(
-                    sshLine = if (distroId.isEmpty()) null
-                    else SshEndpoint.sshCommand(context, distroId),
-                    // コマンド文字列に sshd が現れる常駐サーバーが走っているか (`sshd --lan` 等)。
-                    sshdRunning = running.any { it.command?.contains("sshd") == true },
-                    serversRunning = running.size,
-                    serversEnabled = enabledServers,
-                    rulesEnabled = rules.count { it.enabled },
-                    rulesTotal = rules.size,
-                    batteryLevel = if (lvl >= 0 && scale > 0) lvl * 100 / scale else -1,
-                    lastRun = WidgetStore.lastRun(context),
-                    lastFinish = WidgetStore.lastFinish(context),
-                )
-            }
-        }
     }
 }

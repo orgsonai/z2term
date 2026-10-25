@@ -5,7 +5,7 @@
    - targetCellWidth/Height : ランチャーのグリッドでの既定サイズ (4x3 マス)
    - previewLayout          : ウィジェット選択画面に実物のレイアウトを出す (静止画より正確)
    - widgetFeatures         : configuration_optional = 設定画面を出さずに置ける
-                              (その場合はマクロディレクトリの先頭 4 件が並ぶ)
+                              (その場合はマクロディレクトリの先頭から上限まで並ぶ)
                               reconfigurable = 置いたあとから設定を開き直せる
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"

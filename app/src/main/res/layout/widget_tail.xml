@@ -1,77 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ホーム画面ウィジェット D2「ライブ tail」のレイアウト。
+  ホーム画面ウィジェット「ライブ tail」のレイアウト (TailWidgetProvider)。
+  本文はファイルの行の一覧で、中でスクロールする。1 行は widget_tail_item.xml。
 
-  D1 (widget_status.xml) と同じ土台・同じ 40dp 角のアイコンボタンを使う。
-  本文は 1 つの TextView に改行区切りで流し込む (RemoteViews では行数ぶんの View を
-  動的に生やせないため)。行数は設定で決め、weight=1 の枠に収める。
+  ⚠ id は「ウィジェットの約束の表」で決めてある。一覧は 2 つ必須:
+   - tail_list_end   … 末尾 (tail) 用。stackFromBottom="true" と transcriptMode="alwaysScroll" を
+                        外さないこと (開いた時点で最新の行が見えるのはこの 2 つのおかげ)。
+   - tail_list_start … 先頭 (head) 用。こちらには付けない。
+  2 つは同じ場所に重ね、コードが片方だけを見せる。tail_empty は案内・空表示用の TextView。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/tail_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@drawable/widget_bg"
-    android:padding="10dp">
+    android:orientation="vertical"
+    android:paddingStart="12dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="10dp">
 
+    <!-- ヘッダー行 (ファイルパス + ⚙ 設定 + ⟳ 更新) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
+        <!-- 見ているファイル (~ からのパス)。タップでアプリを開く。 -->
         <TextView
             android:id="@+id/tail_title"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="44dp"
             android:layout_weight="1"
+            android:gravity="center_vertical"
             android:textColor="@color/widget_accent"
-            android:textSize="12sp"
+            android:textSize="@dimen/widget_text_title"
             android:textStyle="bold"
             android:fontFamily="monospace"
             android:singleLine="true"
             android:ellipsize="start" />
 
-        <TextView
+        <ImageView
             android:id="@+id/tail_config"
             style="@style/Z2WidgetIconButton"
-            android:layout_marginStart="6dp"
-            android:text="@string/widget_config_glyph"
+            android:src="@drawable/ic_widget_settings"
             android:contentDescription="@string/tail_config_btn_desc" />
 
-        <TextView
+        <ImageView
             android:id="@+id/tail_refresh"
             style="@style/Z2WidgetIconButton"
-            android:layout_marginStart="6dp"
-            android:text="@string/widget_refresh_glyph"
+            android:layout_marginStart="2dp"
+            android:src="@drawable/ic_widget_refresh"
             android:contentDescription="@string/widget_refresh_desc" />
     </LinearLayout>
 
-    <!-- 本文。余った高さを全部もらって、下端に空白を残さない (D1 と同じ考え方)。 -->
-    <TextView
-        android:id="@+id/tail_body"
+    <!-- ログ表示パネル -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/widget_button"
-        android:padding="6dp"
-        android:textColor="@color/widget_text_primary"
-        android:textSize="10sp"
-        tools:ignore="SmallSp"
-        android:fontFamily="monospace"
-        android:gravity="bottom"
-        android:ellipsize="end" />
+        android:padding="6dp">
 
+        <ListView
+            android:id="@+id/tail_list_end"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@null"
+            android:stackFromBottom="true"
+            android:transcriptMode="alwaysScroll" />
+
+        <ListView
+            android:id="@+id/tail_list_start"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@null"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tail_empty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="@dimen/widget_text_desc"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <!-- フッター (モード · 時点 · ファイルサイズ) -->
     <TextView
         android:id="@+id/tail_footer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
+        android:layout_marginTop="6dp"
         android:textColor="@color/widget_text_tertiary"
-        android:textSize="10sp"
-        tools:ignore="SmallSp"
+        android:textSize="@dimen/widget_text_footer"
         android:fontFamily="monospace"
         android:singleLine="true"
         android:ellipsize="end" />

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 待機中のマクロ (押せば走る Play アイコン) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 端正な角丸の再生三角形 -->
+    <path
+        android:pathData="M9.5,7.2 L17.5,12 L9.5,16.8 A1,1 0 0 1 8,16 L8,8 A1,1 0 0 1 9.5,7.2 Z"
+        android:fillColor="@color/widget_text_primary" />
+</vector>

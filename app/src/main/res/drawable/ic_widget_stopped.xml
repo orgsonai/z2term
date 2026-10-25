@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  止めた / 途中で終わった (丸に横線)。
+  一時停止の記号 (縦 2 本) は「続きから再開できる」と読めるが、止めたマクロは再開できない。
+  失敗 (ic_widget_failed) と同じ丸の枠にそろえ、中の印で区別する。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M12,2.5 A9.5,9.5 0 1 0 12,21.5 A9.5,9.5 0 1 0 12,2.5"
+        android:strokeColor="@color/widget_state_stopped"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M7.5,12 H16.5"
+        android:strokeColor="@color/widget_state_stopped"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

@@ -94,4 +94,22 @@ class TailReaderTest {
         val text = "a\nb\nc\n"
         assertEquals(TailReader.lastLines(text, 3), TailReader.firstLines(text, 3))
     }
+
+    // --- 目立たせる行 (1.0.55) ---
+
+    @Test fun errorLinesAreAlerts() {
+        assertEquals(true, TailReader.isAlert("error: feed timeout"))
+        assertEquals(true, TailReader.isAlert("Build FAILED in 3s"))
+        assertEquals(true, TailReader.isAlert("Permission denied (publickey)."))
+        assertEquals(true, TailReader.isAlert("Traceback (most recent call last):"))
+        assertEquals(true, TailReader.isAlert("同期に失敗しました"))
+    }
+
+    @Test fun partOfAWordIsNotAnAlert() {
+        // 「0 errors」まで目立たせない。語の一部 (stderr / failsafe) でも反応しない。
+        assertEquals(false, TailReader.isAlert("0 errors, 0 warnings"))
+        assertEquals(false, TailReader.isAlert("redirect stderr to the log"))
+        assertEquals(false, TailReader.isAlert("failsafe mode is off"))
+        assertEquals(false, TailReader.isAlert("Already up to date."))
+    }
 }

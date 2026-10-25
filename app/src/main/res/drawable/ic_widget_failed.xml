@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 0 以外で終わった (警告サークルとエクスクラメーション) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 外周円 -->
+    <path
+        android:pathData="M12,2.5 A9.5,9.5 0 1 0 12,21.5 A9.5,9.5 0 1 0 12,2.5"
+        android:strokeColor="@color/widget_state_failed"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <!-- 縦棒 -->
+    <path
+        android:pathData="M12,7.5 V12.5"
+        android:strokeColor="@color/widget_state_failed"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <!-- 下の点 -->
+    <path
+        android:pathData="M12,16.5 A0.6,0.6 0 1 0 12,16.7 A0.6,0.6 0 1 0 12,16.5"
+        android:strokeColor="@color/widget_state_failed"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

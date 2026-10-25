@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  マクロウィジェット (マス目型 widget_status.xml / 一覧型 widget_list.xml) の上段。
+  両方から <include> する。
+
+  ⚠ id は「ウィジェットの約束の表」で決めてある (コードが id で値を入れる)。
+  見た目・並び・余白は自由に変えてよいが、id を消す・変える・別の種類の View にすることはしない。
+  RemoteViews で使える View だけを使うこと (表の「使える部品」参照)。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- タイトル行 (アプリ名 + ⚙ 設定 + ⟳ 更新) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- タップでアプリを開く -->
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:text="@string/app_name"
+            android:textColor="@color/widget_accent"
+            android:textSize="@dimen/widget_text_title"
+            android:textStyle="bold"
+            android:singleLine="true" />
+
+        <ImageView
+            android:id="@+id/widget_config"
+            style="@style/Z2WidgetIconButton"
+            android:src="@drawable/ic_widget_settings"
+            android:contentDescription="@string/widget_config_btn_desc" />
+
+        <ImageView
+            android:id="@+id/widget_refresh"
+            style="@style/Z2WidgetIconButton"
+            android:layout_marginStart="2dp"
+            android:src="@drawable/ic_widget_refresh"
+            android:contentDescription="@string/widget_refresh_desc" />
+    </LinearLayout>
+
+    <!-- ステータス指標行 (見出し小さく薄く、値は大きく濃く) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="4dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal">
+
+        <!-- 最重要: SSH 接続先 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2.2"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/widget_ssh_label"
+                style="@style/Z2WidgetLabel"
+                android:text="@string/widget_label_ssh" />
+            <TextView
+                android:id="@+id/widget_ssh"
+                style="@style/Z2WidgetValue"
+                android:layout_width="match_parent" />
+        </LinearLayout>
+
+        <!-- 常駐サーバー数 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/widget_servers_label"
+                style="@style/Z2WidgetLabel"
+                android:text="@string/widget_label_servers" />
+            <TextView
+                android:id="@+id/widget_servers"
+                style="@style/Z2WidgetValue" />
+        </LinearLayout>
+
+        <!-- 自動化ルール数 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/widget_rules_label"
+                style="@style/Z2WidgetLabel"
+                android:text="@string/widget_label_rules" />
+            <TextView
+                android:id="@+id/widget_rules"
+                style="@style/Z2WidgetValue" />
+        </LinearLayout>
+
+        <!-- バッテリー残量 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/widget_battery_label"
+                style="@style/Z2WidgetLabel"
+                android:text="@string/widget_label_battery" />
+            <TextView
+                android:id="@+id/widget_battery"
+                style="@style/Z2WidgetValue" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

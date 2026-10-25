@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ホーム画面ウィジェットのスタイル。名前・中身ともレイアウト担当が自由に変えてよい (コードからは参照しない)。 -->
+<resources>
+    <!-- ヘッダーの ⚙ / ⟳。押せる場所は 44dp 角以上にする。 -->
+    <style name="Z2WidgetIconButton">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:padding">11dp</item>
+        <item name="android:scaleType">fitCenter</item>
+    </style>
+
+    <!-- 見出し (小さく薄い) -->
+    <style name="Z2WidgetLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/widget_text_tertiary</item>
+        <item name="android:textSize">@dimen/widget_text_label</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <!-- 値 (大きく濃い・monospace) -->
+    <style name="Z2WidgetValue">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">1dp</item>
+        <item name="android:textColor">@color/widget_text_primary</item>
+        <item name="android:textSize">@dimen/widget_text_value</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+</resources>

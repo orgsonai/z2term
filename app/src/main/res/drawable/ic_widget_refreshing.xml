@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 読み直している最中 (⟳ を押した直後だけ出るスピナー弧) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- アクセント色の回転弧 (90度) -->
+    <path
+        android:pathData="M12,4.5 A7.5,7.5 0 0 1 19.5,12"
+        android:strokeColor="@color/widget_accent"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <!-- 対向する控えめな弧 (90度) -->
+    <path
+        android:pathData="M12,19.5 A7.5,7.5 0 0 1 4.5,12"
+        android:strokeColor="@color/widget_text_tertiary"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

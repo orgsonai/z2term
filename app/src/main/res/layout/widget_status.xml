@@ -1,121 +1,337 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ホーム画面ウィジェット D1「状態＋ランチャー」のレイアウト。
+  ホーム画面ウィジェット「状態＋マクロ (マス目)」のレイアウト (StatusWidgetProvider)。
+  上段は widget_status_header.xml、下段はマクロ 4 個のマス (2×2)。
 
-  RemoteViews で描くので Compose は使えず、ここで使える View も限られる
-  (LinearLayout / TextView など)。マクロボタンは可変個だが RemoteViews では
-  View を動的に生やせないため、4 個ぶんを置いておき、余った枠を GONE にする
-  (com.zerotoship.z2term.widget.StatusWidgetProvider)。
-
-  0.8.216 の作り直し (実機フィードバック):
-   - ボタン行に layout_weight=1 を持たせて**余った高さを吸わせる**。以前は全段が
-     wrap_content だったので、ウィジェットの枠が中身より高いと下に大きな空白が残り、
-     同時にボタンが小さくて押しにくかった。
-   - ⟳ と ⚙ を 40dp 角のタップ領域にする (以前の ⟳ は 14sp の文字だけで押せなかった)。
-   - ボタンは 2 行 (名前 / 開始時刻) にして、複数走らせても取り違えないようにする。
+  ⚠ id は「ウィジェットの約束の表」で決めてある。マスは 4 個 (widget_tile_0〜3) と
+  それを包む 2 行 (widget_tiles_row_0 / _1) が必須。マスの背景はコードが状態ごとに
+  widget_tile_* へ差し替えるので、マスの root (widget_tile_N) に背景を持たせる。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@drawable/widget_bg"
-    android:padding="10dp">
+    android:orientation="vertical"
+    android:paddingStart="12dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="10dp">
 
+    <include layout="@layout/widget_status_header" />
+
+    <!-- マス目 1行目 (マス 0, 1) -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-
-        <TextView
-            android:id="@+id/widget_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/app_name"
-            android:textColor="@color/widget_accent"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:fontFamily="monospace"
-            android:singleLine="true" />
-
-        <TextView
-            android:id="@+id/widget_config"
-            style="@style/Z2WidgetIconButton"
-            android:layout_marginStart="6dp"
-            android:text="@string/widget_config_glyph"
-            android:contentDescription="@string/widget_config_btn_desc" />
-
-        <TextView
-            android:id="@+id/widget_refresh"
-            style="@style/Z2WidgetIconButton"
-            android:layout_marginStart="6dp"
-            android:text="@string/widget_refresh_glyph"
-            android:contentDescription="@string/widget_refresh_desc" />
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/widget_ssh"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:textColor="@color/widget_text_secondary"
-        android:textSize="11sp"
-        android:fontFamily="monospace"
-        android:singleLine="true"
-        android:ellipsize="end" />
-
-    <TextView
-        android:id="@+id/widget_stats"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="1dp"
-        android:textColor="@color/widget_text_secondary"
-        android:textSize="11sp"
-        android:fontFamily="monospace"
-        android:singleLine="true"
-        android:ellipsize="end" />
-
-    <!-- weight=1 で残りの高さを全部もらう。ボタンが縦に伸びて押しやすくなり、
-         同時にウィジェット下端の余白が消える。 -->
-    <LinearLayout
+        android:id="@+id/widget_tiles_row_0"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:layout_marginTop="6dp"
+        android:baselineAligned="false"
         android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/widget_btn_0"
-            style="@style/Z2WidgetButton" />
+        <!-- マス 0 -->
+        <LinearLayout
+            android:id="@+id/widget_tile_0"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/widget_tile_idle"
+            android:orientation="vertical"
+            android:padding="9dp">
 
-        <TextView
-            android:id="@+id/widget_btn_1"
-            style="@style/Z2WidgetButton"
-            android:layout_marginStart="4dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/widget_tile_0_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="@dimen/widget_text_name"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+                <ImageView
+                    android:id="@+id/widget_tile_0_icon"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="6dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_widget_run" />
+            </LinearLayout>
 
-        <TextView
-            android:id="@+id/widget_btn_2"
-            style="@style/Z2WidgetButton"
-            android:layout_marginStart="4dp" />
+            <TextView
+                android:id="@+id/widget_tile_0_desc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="@dimen/widget_text_desc"
+                android:singleLine="true"
+                android:ellipsize="end" />
 
-        <TextView
-            android:id="@+id/widget_btn_3"
-            style="@style/Z2WidgetButton"
-            android:layout_marginStart="4dp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/widget_tile_0_state"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/widget_state_idle"
+                    android:textSize="@dimen/widget_text_state"
+                    android:fontFamily="monospace"
+                    android:singleLine="true" />
+                <Chronometer
+                    android:id="@+id/widget_tile_0_timer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/widget_state_running"
+                    android:textSize="@dimen/widget_text_state"
+                    android:fontFamily="monospace"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- マス 1 -->
+        <LinearLayout
+            android:id="@+id/widget_tile_1"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/widget_tile_idle"
+            android:orientation="vertical"
+            android:padding="9dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/widget_tile_1_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="@dimen/widget_text_name"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+                <ImageView
+                    android:id="@+id/widget_tile_1_icon"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="6dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_widget_run" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/widget_tile_1_desc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="@dimen/widget_text_desc"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/widget_tile_1_state"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/widget_state_idle"
+                    android:textSize="@dimen/widget_text_state"
+                    android:fontFamily="monospace"
+                    android:singleLine="true" />
+                <Chronometer
+                    android:id="@+id/widget_tile_1_timer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/widget_state_running"
+                    android:textSize="@dimen/widget_text_state"
+                    android:fontFamily="monospace"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
 
+    <!-- マス目 2行目 (マス 2, 3。マクロが 3 個未満のとき GONE) -->
+    <LinearLayout
+        android:id="@+id/widget_tiles_row_1"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal">
+
+        <!-- マス 2 -->
+        <LinearLayout
+            android:id="@+id/widget_tile_2"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/widget_tile_idle"
+            android:orientation="vertical"
+            android:padding="9dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/widget_tile_2_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="@dimen/widget_text_name"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+                <ImageView
+                    android:id="@+id/widget_tile_2_icon"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="6dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_widget_run" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/widget_tile_2_desc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="@dimen/widget_text_desc"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/widget_tile_2_state"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/widget_state_idle"
+                    android:textSize="@dimen/widget_text_state"
+                    android:fontFamily="monospace"
+                    android:singleLine="true" />
+                <Chronometer
+                    android:id="@+id/widget_tile_2_timer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/widget_state_running"
+                    android:textSize="@dimen/widget_text_state"
+                    android:fontFamily="monospace"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- マス 3 -->
+        <LinearLayout
+            android:id="@+id/widget_tile_3"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/widget_tile_idle"
+            android:orientation="vertical"
+            android:padding="9dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/widget_tile_3_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="@dimen/widget_text_name"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+                <ImageView
+                    android:id="@+id/widget_tile_3_icon"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="6dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_widget_run" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/widget_tile_3_desc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="@dimen/widget_text_desc"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/widget_tile_3_state"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/widget_state_idle"
+                    android:textSize="@dimen/widget_text_state"
+                    android:fontFamily="monospace"
+                    android:singleLine="true" />
+                <Chronometer
+                    android:id="@+id/widget_tile_3_timer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/widget_state_running"
+                    android:textSize="@dimen/widget_text_state"
+                    android:fontFamily="monospace"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- フッター (更新時刻 / 最後に終わったマクロ) -->
     <TextView
         android:id="@+id/widget_footer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
+        android:layout_marginTop="6dp"
         android:textColor="@color/widget_text_tertiary"
-        android:textSize="10sp"
-        tools:ignore="SmallSp"
-        android:fontFamily="monospace"
+        android:textSize="@dimen/widget_text_footer"
         android:singleLine="true"
         android:ellipsize="end" />
 </LinearLayout>

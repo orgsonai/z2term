@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ホーム画面ウィジェット専用の配色。ここだけは XML に色を持つ。
+  RemoteViews はランチャーのプロセスで描かれるため Compose の動的パレット (AppColors) を
+  読めず、選択中テーマに追従できない。値は固定する (意図的)。
+
+  ⚠ 名前は「ウィジェットの約束の表」(99_private/HANDOFF/z2term/) で決めてある。
+  コード (widget/*.kt) が名前で参照するので、名前を消したり変えたりしないこと。値は自由に変えてよい。
+-->
+<resources>
+    <!-- 土台・枠・サーフェス -->
+    <color name="widget_bg">#F40A0C0E</color>
+    <color name="widget_card">#FF141618</color>
+    <color name="widget_border">#FF2A2E33</color>
+
+    <!-- 文字 (背景 #0A0C0E に対するコントラスト比 4.5:1 以上を保証) -->
+    <color name="widget_accent">#FF22C55E</color>
+    <color name="widget_text_primary">#FFF8FAFC</color>
+    <color name="widget_text_secondary">#FFA8B2BC</color>
+    <color name="widget_text_tertiary">#FF88929D</color>
+
+    <!-- マクロの状態の文字色 (コードが状態ごとに当てる) -->
+    <color name="widget_state_idle">#FF88929D</color>
+    <color name="widget_state_running">#FF22C55E</color>
+    <color name="widget_state_done">#FFCBD5E1</color>
+    <color name="widget_state_failed">#FFF59E0B</color>
+    <color name="widget_state_stopped">#FFA8B2BC</color>
+
+    <!-- ライブ tail の行 (通常 / エラー・失敗の行) -->
+    <color name="widget_log_text">#FFE2E8F0</color>
+    <color name="widget_log_alert">#FFF59E0B</color>
+</resources>

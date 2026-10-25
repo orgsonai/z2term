@@ -7,7 +7,8 @@ import java.util.Calendar
 import java.util.TimeZone
 
 /**
- * ホーム画面ウィジェット (D1) の保存データ。
+ * ホーム画面のマクロウィジェット (マス目型 [StatusWidgetProvider] / 一覧型 [MacroListWidgetProvider])
+ * の保存データ。
  *
  * ウィジェットは**アプリのプロセスが生きていない状態**で描画・タップされるので、DataStore
  * (非同期・コルーチン前提) ではなく SharedPreferences を使う。ブロードキャスト受信中に
@@ -30,8 +31,23 @@ object WidgetStore {
     /** マクロごとの「最後に開始した時刻」。キーは `run_at_<ファイル名>`。 */
     private const val KEY_RUN_AT_PREFIX = "run_at_"
 
-    /** 1 つのウィジェットに並べられるマクロの上限 (レイアウトのボタン数と一致させること)。 */
+    /** マクロごとの「最後に終わった時刻」。キーは `fin_at_<ファイル名>`。 */
+    private const val KEY_FIN_AT_PREFIX = "fin_at_"
+
+    /** マクロごとの終了コード (取れなかったら書かない)。キーは `rc_<ファイル名>`。 */
+    private const val KEY_RC_PREFIX = "rc_"
+
+    /** ウィジェットから止めた印。キーは `stop_<ファイル名>`。 */
+    private const val KEY_STOP_PREFIX = "stop_"
+
+    /** マス目型に並べられるマクロの上限 (レイアウトのマス数と一致させること)。 */
     const val MAX_MACROS = 4
+
+    /**
+     * 一覧型に並べられるマクロの上限。一覧は中でスクロールするので数に見た目の制約は無いが、
+     * 設定画面で選びきれる数・描画のたびに読む説明の数を抑えるために区切る。
+     */
+    const val MAX_LIST_MACROS = 30
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -45,27 +61,28 @@ object WidgetStore {
      * (API 31+ の `configuration_optional`) ウィジェットでも空にならず、そのまま使えるようにするため。
      * 実在しなくなったマクロは落とす。
      */
-    fun macros(context: Context, appWidgetId: Int): List<String> = resolve(
+    fun macros(context: Context, appWidgetId: Int, max: Int = MAX_MACROS): List<String> = resolve(
         saved = prefs(context).getString(KEY_MACROS_PREFIX + appWidgetId, null),
         available = availableMacros(context),
+        max = max,
     )
 
     /**
      * [macros] の判断部分だけを切り出したもの (Android 非依存・テスト用)。
      *
-     * [saved] が null (＝未設定) なら [available] の先頭 [MAX_MACROS] 件。保存済みなら、その並び順の
+     * [saved] が null (＝未設定) なら [available] の先頭 [max] 件。保存済みなら、その並び順の
      * まま実在するものだけを残す (`z2-macro` で消したマクロのボタンが残らない)。空を保存した場合は
      * 空のまま — 「1 つも出さない」という選択を先頭 4 件で上書きしない。
      */
-    internal fun resolve(saved: String?, available: List<String>): List<String> {
-        if (saved == null) return available.take(MAX_MACROS)
-        return saved.split('\n').filter { it.isNotBlank() && it in available }.take(MAX_MACROS)
+    internal fun resolve(saved: String?, available: List<String>, max: Int = MAX_MACROS): List<String> {
+        if (saved == null) return available.take(max)
+        return saved.split('\n').filter { it.isNotBlank() && it in available }.take(max)
     }
 
     /** [appWidgetId] のマクロ選択を保存する。 */
-    fun setMacros(context: Context, appWidgetId: Int, names: List<String>) {
+    fun setMacros(context: Context, appWidgetId: Int, names: List<String>, max: Int = MAX_MACROS) {
         prefs(context).edit {
-            putString(KEY_MACROS_PREFIX + appWidgetId, names.take(MAX_MACROS).joinToString("\n"))
+            putString(KEY_MACROS_PREFIX + appWidgetId, names.take(max).joinToString("\n"))
         }
     }
 
@@ -95,9 +112,12 @@ object WidgetStore {
      * 既定からの**差分**を足す (倍率ではない)。倍率だと小さい行だけ潰れたり、
      * 大きい行だけ極端に伸びたりして、行同士の釣り合いが崩れる。
      */
-    fun scaled(context: Context, appWidgetId: Int, base: Int): Float =
-        (base + (textSp(context, appWidgetId) - DEFAULT_TEXT_SP))
-            .coerceAtLeast(6).toFloat()
+    fun scaled(context: Context, appWidgetId: Int, base: Float): Float =
+        scaledBy(base, textSp(context, appWidgetId))
+
+    /** [scaled] の計算部分 (Android 非依存・テスト用)。 */
+    internal fun scaledBy(base: Float, textSp: Int): Float =
+        (base + (textSp - DEFAULT_TEXT_SP)).coerceAtLeast(6f)
 
     fun clear(context: Context, appWidgetId: Int) {
         prefs(context).edit {
@@ -116,6 +136,10 @@ object WidgetStore {
     fun setRunStart(context: Context, name: String) {
         prefs(context).edit {
             putLong(KEY_RUN_AT_PREFIX + name, System.currentTimeMillis())
+            // 前回の結果を持ち越さない (開始したのに「失敗」や「停止」と出さない)。
+            remove(KEY_FIN_AT_PREFIX + name)
+            remove(KEY_RC_PREFIX + name)
+            remove(KEY_STOP_PREFIX + name)
             putString(KEY_LAST_RUN_NAME, name)
             putLong(KEY_LAST_RUN_AT, System.currentTimeMillis())
         }
@@ -129,12 +153,43 @@ object WidgetStore {
      * [name] が終わったことを記録する。**終了を表示するため**に要る。
      * すぐ終わるマクロだと `■` が一瞬で消えるので「勝手に停止された」ように見え、
      * 正常終了と停止の区別が付かなかった (同上のフィードバック)。
+     *
+     * [exitCode] はマクロの終了コード。取れなかったとき (止めた・途中で殺された) は null。
      */
-    fun setRunFinish(context: Context, name: String) {
+    fun setRunFinish(context: Context, name: String, exitCode: Int? = null) {
+        val now = System.currentTimeMillis()
         prefs(context).edit {
             putString(KEY_LAST_FINISH_NAME, name)
-            putLong(KEY_LAST_FINISH_AT, System.currentTimeMillis())
+            putLong(KEY_LAST_FINISH_AT, now)
+            putLong(KEY_FIN_AT_PREFIX + name, now)
+            if (exitCode != null) putInt(KEY_RC_PREFIX + name, exitCode) else remove(KEY_RC_PREFIX + name)
         }
+    }
+
+    /**
+     * [name] をウィジェットから止めたことを記録する。止める**前に**呼ぶ — 終了の通知
+     * ([setRunFinish]) が先に来ても「停止」と出せるようにするため。
+     */
+    fun markStopped(context: Context, name: String) {
+        prefs(context).edit { putBoolean(KEY_STOP_PREFIX + name, true) }
+    }
+
+    /** [name] のいまの状態 (今日の記録だけを見る。[MacroStatus.of] 参照)。 */
+    fun status(
+        context: Context,
+        name: String,
+        running: Boolean,
+        now: Long = System.currentTimeMillis(),
+    ): MacroStatus {
+        val p = prefs(context)
+        return MacroStatus.of(
+            running = running,
+            startAt = p.getLong(KEY_RUN_AT_PREFIX + name, 0L),
+            finishAt = p.getLong(KEY_FIN_AT_PREFIX + name, 0L),
+            exitCode = if (p.contains(KEY_RC_PREFIX + name)) p.getInt(KEY_RC_PREFIX + name, 0) else null,
+            stopped = p.getBoolean(KEY_STOP_PREFIX + name, false),
+            now = now,
+        )
     }
 
     /** 直近に終わったマクロ名と時刻 (無ければ null)。 */
@@ -161,7 +216,9 @@ object WidgetStore {
     fun clearRunHistory(context: Context) {
         val p = prefs(context)
         p.edit {
-            p.all.keys.filter { it.startsWith(KEY_RUN_AT_PREFIX) }.forEach { remove(it) }
+            p.all.keys.filter { key ->
+                PER_MACRO_PREFIXES.any { key.startsWith(it) }
+            }.forEach { remove(it) }
             remove(KEY_LAST_RUN_NAME)
             remove(KEY_LAST_RUN_AT)
             remove(KEY_LAST_FINISH_NAME)
@@ -192,6 +249,10 @@ object WidgetStore {
         val at = runStartAt(context, name)
         return if (isSameDay(at, now)) at else 0L
     }
+
+    /** マクロごとに持つ実行記録のキーの頭 ([clearRunHistory] でまとめて消す)。 */
+    private val PER_MACRO_PREFIXES =
+        listOf(KEY_RUN_AT_PREFIX, KEY_FIN_AT_PREFIX, KEY_RC_PREFIX, KEY_STOP_PREFIX)
 
     // --- マクロディレクトリ ---
 
@@ -254,4 +315,65 @@ object WidgetStore {
 
     /** 「ファイル名 <区切り> 説明」の区切りとして認める文字。 */
     private val DESC_SEPARATORS = listOf("—", "–", " - ", ":", "：")
+}
+
+/**
+ * マクロ 1 つの、ウィジェットに出す状態。
+ *
+ * 0.8.215〜1.0.54 は「実行中 / 今日走った (✓) / まだ」の 3 つで、**失敗しても ✓** が付いていた。
+ * 終了コードと「止めた」印を持つようにして、終わり方を 3 通りに分ける。
+ */
+data class MacroStatus(
+    val kind: Kind,
+    /** 今日開始した時刻 (今日まだなら 0)。 */
+    val startAt: Long,
+    /** 今日終わった時刻 (終わっていなければ 0)。 */
+    val finishAt: Long,
+    /** [Kind.FAILED] のときの終了コード。 */
+    val exitCode: Int?,
+) {
+    enum class Kind {
+        /** 今日はまだ走らせていない。 */
+        IDLE,
+        /** いま動いている (タップで止める)。 */
+        RUNNING,
+        /** 終了コード 0 で終わった。 */
+        DONE,
+        /** 0 以外で終わった。 */
+        FAILED,
+        /** ウィジェットから止めた / 終わり方が分からない (アプリごと落ちた等)。 */
+        STOPPED,
+    }
+
+    companion object {
+        /**
+         * 記録から状態を決める (Android 非依存・`WidgetStoreTest` が押さえる)。
+         *
+         * **当日限り**は従来どおり: 開始が今日でなければ、何が残っていても [Kind.IDLE]。
+         * `HH:mm` しか出せない以上、昨日の結果を今日の印として出すと読み違える。
+         *
+         * 開始したのに終わりの記録が無く、いまも動いていないもの (アプリのプロセスごと
+         * 落ちた等) は [Kind.STOPPED]。0.8.224 以降は「✓」が付いていたが、正常に終わったとは
+         * 言えないので完了扱いにしない。
+         */
+        fun of(
+            running: Boolean,
+            startAt: Long,
+            finishAt: Long,
+            exitCode: Int?,
+            stopped: Boolean,
+            now: Long,
+            zone: TimeZone = TimeZone.getDefault(),
+        ): MacroStatus {
+            val start = if (WidgetStore.isSameDay(startAt, now, zone)) startAt else 0L
+            if (running) return MacroStatus(Kind.RUNNING, start, 0L, null)
+            if (start == 0L) return MacroStatus(Kind.IDLE, 0L, 0L, null)
+            val fin = if (finishAt >= start) finishAt else 0L
+            return when {
+                stopped || fin == 0L || exitCode == null -> MacroStatus(Kind.STOPPED, start, fin, null)
+                exitCode == 0 -> MacroStatus(Kind.DONE, start, fin, 0)
+                else -> MacroStatus(Kind.FAILED, start, fin, exitCode)
+            }
+        }
+    }
 }

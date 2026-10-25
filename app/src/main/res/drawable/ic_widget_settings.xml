@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ⚙ 設定を開く (幾何学的な歯車アイコン) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 8歯の外周輪郭 -->
+    <path
+        android:pathData="M12.0,3.2 L13.72,3.37 L14.3,6.46 L15.33,7.01 L18.22,5.78 L19.32,7.11 L17.54,9.7 L17.88,10.83 L20.8,12.0 L20.63,13.72 L17.54,14.3 L16.99,15.33 L18.22,18.22 L16.89,19.32 L14.3,17.54 L13.17,17.88 L12.0,20.8 L10.28,20.63 L9.7,17.54 L8.67,16.99 L5.78,18.22 L4.68,16.89 L6.46,14.3 L6.12,13.17 L3.2,12.0 L3.37,10.28 L6.46,9.7 L7.01,8.67 L5.78,5.78 L7.11,4.68 L9.7,6.46 L10.83,6.12 Z"
+        android:strokeColor="@color/widget_text_secondary"
+        android:strokeWidth="1.8"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <!-- 中心の円穴 -->
+    <path
+        android:pathData="M12,12m-2.6,0a2.6,2.6 0 1,0 5.2,0a2.6,2.6 0 1,0 -5.2,0"
+        android:strokeColor="@color/widget_text_secondary"
+        android:strokeWidth="1.8"
+        android:fillColor="#00000000" />
+</vector>

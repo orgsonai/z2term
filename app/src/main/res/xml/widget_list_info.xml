@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ホーム画面ウィジェット「状態＋マクロ (一覧)」の宣言 (API 29-30 用)。
+  API 31+ 向けの追加属性は res/xml-v31/widget_list_info.xml にある。
+
+  マス目型 (widget_status_info.xml) と同じ設定画面・同じ更新間隔。一覧が中でスクロールするので
+  既定を 4x4 マスと高めにしてある (縮めても一覧が短くなるだけで崩れない)。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="180dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="110dp"
+    android:updatePeriodMillis="1800000"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:initialLayout="@layout/widget_list"
+    android:previewImage="@mipmap/ic_launcher"
+    android:configure="com.zerotoship.z2term.widget.WidgetConfigActivity"
+    android:description="@string/widget_list_description" />

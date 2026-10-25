@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ライブ tail の 1 行 (TailLinesService が 1 行ずつ作る)。長い行は折り返す (singleLine にしない)。
+  ⚠ id (tail_line) は「ウィジェットの約束の表」で決めてある。文字の大きさと色はコードが当てる。
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/tail_line"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="1.5dp"
+    android:paddingBottom="1.5dp"
+    android:textColor="@color/widget_log_text"
+    android:textSize="10sp"
+    tools:ignore="SmallSp"
+    android:fontFamily="monospace" />

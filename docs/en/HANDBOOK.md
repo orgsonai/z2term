@@ -846,11 +846,20 @@ Pick "End session only" for a clean slate, or "Stop everything and quit" to stop
 Puts Z2Term's **current state** on your home screen and runs **your favourite macros with a single tap**.
 The app does not open — you stay on the home screen while the macro runs in the background.
 
+There are two macro widgets (1.0.55). The status at the top and what a tap does are the same in both.
+
+| Widget | How macros are laid out | Use it when |
+|---|---|---|
+| **Z2Term status + macros (grid)** | Up to 4, in a 2×2 grid of tiles | You want a few big, easy targets |
+| **Z2Term status + macros (list)** | Up to 30, one per row, scrolling inside the widget | You want more than four |
+
+The "Z2Term status" widget of 1.0.54 and earlier becomes the grid one. Widgets already on your home screen stay where they are.
+
 **Adding it**
 
 1. Long-press an empty spot on the home screen → "Widgets"
-2. Pick **Z2Term status** from the list and drop it on the home screen
-3. The settings screen opens right away — **tick the macros you want and press Save** (up to 4)
+2. Pick **Z2Term status + macros (grid)** or **(list)** and drop it on the home screen
+3. The settings screen opens right away — **tick the macros you want and press Save** (up to 4 for the grid, up to 30 for the list; they appear in the order you tick them)
 
 If you have no macros yet, run `z2-macro install all` in the terminal first
 (everything under `~/.z2term/macros/` becomes selectable). Your own `.sh` files
@@ -860,14 +869,26 @@ dropped into that folder show up the same way.
 
 | Where | What |
 |---|---|
-| 1st line | `ssh -p 2222 root@192.168.x.x` — the command to get into this device from a PC. **Green means `sshd` is running** (grey = just the address) |
-| 2nd line | `servers 1/3 · rules 2/5 · battery 87%` (see the table below) |
-| Top right | **⚙** — pick which macros to show / **⟳** — refresh right now |
-| Buttons | The macros you picked. A tap runs one in the background. Line 1 is the name, **line 2 is when that macro was started today** |
-| Button marker | `■` = running (green) / `✓` = ran and finished today / no marker = has not run today |
-| Bottom line | The macro that **finished** last today, and when |
+| Top left | `ssh -p 2222 root@192.168.x.x` — the command to get into this device from a PC. **Green means `sshd` is running** (grey = just the address) |
+| Top right | `servers 1/3`, `rules 2/5`, `battery 87%` (see the table below) |
+| Corner buttons | **Settings** — pick which macros to show / **⟳** — refresh right now |
+| Tiles / rows | The macros you picked. A tap runs one in the background. Each shows the name, a description (the comment at the top of the script) and its state |
+| Bottom line | The macro that **finished** last today and when, plus when the widget was last refreshed |
 
-**What the numbers on the 2nd line mean**
+**Macro states**
+
+| Shown | Meaning |
+|---|---|
+| `not run today` | It has not run today |
+| `running` + elapsed time (green outline) | It is running now. **Tap it again to stop it** |
+| `07:10–07:12 done` | It finished normally today (start and end time) |
+| `06:30 failed (1)` (amber outline) | It ended today with a non-zero exit code, shown in brackets |
+| `09:00–09:01 stopped` | You stopped it from the widget, or it did not get to the end (the app was closed, for example) |
+
+**Up to 1.0.54 a failed macro still got a `✓`.** The widget now goes by the exit code the script returns.
+The reason it failed is in `~/.z2term/widget/run.log`.
+
+**What the numbers at the top mean**
 
 `1/3` reads "**how many are live now / how many are registered**". The three numbers count
 **three different things**:
@@ -876,42 +897,43 @@ dropped into that folder show up the same way.
 |---|---|---|
 | `servers 1/3` | Resident servers | Command list › Servers |
 | `rules 2/5` | Automation rules | `z2-when` in the terminal (files in `~/.z2term/when/`) |
-| The buttons below | Macros | `z2-macro` in the terminal (files in `~/.z2term/macros/`) |
+| The tiles / rows below | Macros | `z2-macro` in the terminal (files in `~/.z2term/macros/`) |
 
-So **`rules` has nothing to do with the number of buttons below it**. Adding four macro buttons does
+So **`rules` has nothing to do with the number of macros below it**. Adding four macros does
 not change `rules`, and `servers 0/3` means "three are registered, none are running right now" —
 which is what you see when the resident servers have not been started.
 
 **When it looks like it started and stopped straight away**
 
 The macro may simply have **finished instantly** (one that only does an `echo`, for example).
-If `■` (running) is gone and `✓` is there, it was not stopped — it **completed normally**.
-The bottom line also says "✓ name finished at HH:MM". A macro that keeps running keeps its `■`.
+If `running` is gone and it says `done`, it was not stopped — it **completed normally**.
+The bottom line also shows the macro and when it finished. A macro that keeps running stays `running` with its time counting up.
 
 **Stopping a macro**
 
-**Tap a running button again to stop it** (the `■` marks it as running). That makes it possible to
+**Tap a running tile or row again to stop it** (the green outline marks it as running). That makes it possible to
 stop long-running macros — the ones that keep watching for events — straight from the home screen.
-Note that **quitting the app also ends any macro started from the widget**.
+Note that **quitting the app also ends any macro started from the widget** (it then shows `stopped`).
 
 **Tips**
 
-- The macro list in the config screen shows **a description under each macro name**, read from the
+- The macro list in the config screen, and each tile / row, show **a description under the macro name**, read from the
   comment at the top of the script. When writing your own `.sh`, put `# what this macro does` on the
   line after the shebang (`#!/bin/sh`) and it will show up here.
-- Tap **⟳ at the top right to refresh right now**. Otherwise it updates every 30 minutes
+- Tap **⟳ to refresh right now**. Otherwise it updates every 30 minutes
   (Android does not allow anything shorter). It also redraws itself when resident servers
-  start/stop or when you add, remove or toggle a `z2-when` rule.
+  start/stop, when you add, remove or toggle a `z2-when` rule, and when a macro finishes.
 - Tap **the Z2Term title at the top left to open the app**.
 - Macro output is kept in `~/.z2term/widget/run.log`. If something does not work,
   run `tail ~/.z2term/widget/run.log` in the terminal.
-- To change which macros are shown, **tap ⚙ at the top right of the widget** (long-pressing the
+- To change which macros are shown, **tap the settings button on the widget** (long-pressing the
   widget to open its settings still works too).
-- **The `✓` and the time clear when the date changes** (the button goes back to no marker the next
-  day). A button can only show `HH:MM`, so a mark left over from yesterday would be unreadable.
-  To clear them right now, use **⚙ → "Clear run history"**. Your macros are not touched.
+- **Text size** is in the settings screen too. The status, names, descriptions and states all grow or shrink by the same step.
+- **States and times clear when the date changes** (the next day it says `not run today` again). Only `HH:MM` is shown,
+  so a result left over from yesterday would be unreadable.
+  To clear them right now, use **settings → "Clear run history"**. Your macros are not touched.
 - **To get more macros into that list**, put your own `.sh` in `~/.z2term/macros/` in the terminal,
-  or run `z2-macro install all`, then reopen ⚙.
+  or run `z2-macro install all`, then reopen the settings screen.
 
 ### The other widget: live tail
 
@@ -926,18 +948,22 @@ when a `z2-when` rule fired **without opening the app**.
   - **type the path** in the field at the top (e.g. `~/.z2term/events.jsonl`)
   - **tap through the folders** in the list below and tap the file you want
 - **Pick the end (tail) or the start (head)** (0.8.240).
-  - **end** — for a log that keeps growing, where new lines are added at the bottom.
+  - **end** — for a log that keeps growing, where new lines are added at the bottom. The newest lines are in view when it opens.
   - **start** — for a file already written, like a report or a config file where **what matters is at the top**.
   - The line under the text always says which one you are looking at: `tail` or `head`.
-- **How many lines are shown follows the widget's size** — stretch it taller for more lines.
+- **Scroll inside the widget to read further back** (1.0.55; up to 200 lines).
+  Up to 1.0.54 it showed only what fitted the height and cut long lines at the edge. **Long lines now wrap**, so nothing is cut off.
+- **Error lines change colour** (lines containing `error`, `failed`, `denied`, `Traceback` and the like).
+  A word that merely contains one of these, as in `0 errors`, does not count.
 - The usual ones are:
   - `.z2term/widget/run.log` — output of macros started from the widget
   - `.z2term/events.jsonl` — detected events (screen on/off, charging, Wi‑Fi …)
   - `.z2term/when/<id>.log` — what that automation rule ran
 - **⟳** re-reads right now. Besides the 30-minute automatic refresh, it also redraws itself
   **whenever a macro or an automation rule finishes**.
-- **⚙** changes which file is shown.
-- It only ever reads **part of the end you chose**, so it stays fast however large the file grows.
+- **The settings button** changes the file, which end, and the text size.
+- Tap the text to open the app.
+- It only ever reads **part of the end you chose** (16 KB), so it stays fast however large the file grows.
 
 ---
 

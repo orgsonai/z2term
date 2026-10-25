@@ -502,6 +502,7 @@ Android 側の出来事をシェルから扱えるようにするための機能
 | `~/.z2term/events.jsonl` | `filesDir/shared_home/.z2term/events.jsonl` | システムイベント・時刻トリガー・通知ボタン応答 |
 | `~/.z2term/when/<id>.rule` | `filesDir/shared_home/.z2term/when/` | `z2-when` の自動化ルール（+ `<id>.log` 実行ログ）|
 | `~/.z2term/widget/run.log` | `filesDir/shared_home/.z2term/widget/` | ホーム画面ウィジェットから実行したマクロの出力 |
+| `~/.z2term/widget/rc/<マクロ名>` | `filesDir/shared_home/.z2term/widget/rc/` | ウィジェットから実行したマクロの終了コード（1.0.55。実行スクリプトが書き、終わったときにアプリが読む） |
 
 #### 通知検知（`NotificationLogService`、0.8.149）
 
@@ -1172,12 +1173,19 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 - ⚠ **保存済みの設定を壊さない**。`kind` が無い JSON は 0.8.523 までに書かれたもので、そこでは `reverse` が正本（`PortForward.kindOf`）。書くときは `kind` と `reverse` の両方を出すので、古い版へ戻しても `-L` / `-R` はそのまま読める。
 - ⛔ **SOCKS4 は受けない**。挨拶の形が違うので、4 のつもりで送られたものを 5 として読み進めると後ろのバイトが丸ごとずれる。BIND / UDP ASSOCIATE も断るが、⚠ **宛先を読み飛ばしてから**断る（読み残すと次の読み手が要求の途中から読み始める）。
 
-#### ライブ tail ウィジェット（`widget/TailWidgetProvider`、0.8.217・D2）
+#### ライブ tail ウィジェット（`widget/TailWidgetProvider`、0.8.217・D2。1.0.55 で本文を一覧に）
 
 **何ができるか**: 選んだファイルの**末尾 N 行 / 先頭 N 行**をホーム画面に出す。「ホーム画面で `tail` / `head`」。マクロや `z2-when` が書いたログ・`events.jsonl`・セッション記録を、端末を開かずに眺めるための窓。§10-2 の D2。
 
+**本文は中でスクロールする一覧（1.0.55）**: 1.0.54 までは 1 つの `TextView` に「高さに入る行数」だけを流し込んでいたので、入りきらない行は読めず、長い行は端で切れていた。いまは本文を `ListView`（コレクションウィジェット）にして、`TailStore.LINES` = 200 行までを読み込み、行は折り返し、エラーの行（`TailReader.isAlert`）だけ `widget_log_alert` の色にする。行は `widget/TailLinesService`（`RemoteViewsService`）が作る。
+- **一覧は 2 つ**: 末尾用 `tail_list_end` は `stackFromBottom="true"` + `transcriptMode="alwaysScroll"` で下から積む（開いた時点で最新の行が見える）。積む向きは RemoteViews から切り替えられないので、先頭用 `tail_list_start` を同じ場所に重ね、見せる方だけに中身を渡す。⚠ `notifyAppWidgetViewDataChanged` も**見せている方だけ**に送る — 一覧は中身が入った時点で自分を表示へ戻すので、隠した側まで読み直させると末尾/先頭を切り替えたあとに 2 つとも出る。
+- ⚠ `updateAppWidget` だけでは一覧の行は変わらない（同じ Intent の一覧は前の中身を使い回す）。読み直すときは必ず `notifyAppWidgetViewDataChanged`。一覧の Intent の data はウィジェットごと・向きごとに変える（同じだと別のウィジェットが同じ中身を使い回す）。
+- ⚠ `setRemoteAdapter(Int, Intent)` は API 35 で非推奨（後継の `RemoteCollectionItems` は API 31 から）。minSdk 29 を切らない限りこちらを使う（両方を持つと描き方が 2 通りになる）。
+- 行のタップでアプリを開く（`setPendingIntentTemplate` + 空の fill-in。fill-in のため `FLAG_MUTABLE`、送り先は `MainActivity` に固定した明示 Intent）。
+
 **構成**:
-- `widget/TailWidgetProvider`… 描画と ⟳ / ⚙ のタップ受け。本文タップでアプリを開く。
+- `widget/TailWidgetProvider`… 描画と ⟳ / 設定のタップ受け。見出し・本文タップでアプリを開く。
+- `widget/TailLinesService`… 本文の行を作る（1.0.55）。
 - `widget/TailConfigActivity`（`APPWIDGET_CONFIGURE`）… 見るファイルを決める（パス入力 / フォルダを辿る）。
 - `widget/TailStore`… ウィジェットごとの「見るファイル（`~` からの相対パス）」と「どちら側を見るか」（`Mode.TAIL` / `Mode.HEAD`）を SharedPreferences に保存し、パス解決とディレクトリ走査も持つ。**行数は保存しない**。
 - `widget/TailReader`… 末尾 N 行 / 先頭 N 行の切り出し。判断部分は Android 非依存で `TailReaderTest`（17 ケース）。
@@ -1192,7 +1200,7 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 
 の 2 通り。`TailStore.resolve` は **`~` の外を canonicalPath 比較で弾く**（アプリの内部データを覗ける口にしない）。保存ボタンは実ファイルを指しているときだけ効き、そうでなければ理由をその場に出す（押しても何も起きない状態を作らない）。
 
-**行数はウィジェットの高さから決める（0.8.220、0.8.223 で修正）**: 固定にしていた頃は**縦に伸ばすと下に隙間ができた**。ヘッダー・フッター・余白を引いた残りを 1 行の高さで割る（2〜30 行に丸める）。リサイズは `onAppWidgetOptionsChanged` で拾って描き直す。設定から行数を選ばせるのはやめた。
+**行数はウィジェットの高さから決める（0.8.220〜1.0.54。1.0.55 で一覧にしたので廃止。下は経緯）**: 固定にしていた頃は**縦に伸ばすと下に隙間ができた**。ヘッダー・フッター・余白を引いた残りを 1 行の高さで割る（2〜30 行に丸める）。リサイズは `onAppWidgetOptionsChanged` で拾って描き直す。設定から行数を選ばせるのはやめた。
 
 > ⚠ **`OPTION_APPWIDGET_MIN_HEIGHT` は「縦画面での高さ」ではない。** Android は `MIN_HEIGHT` に**横画面での高さ**、`MAX_HEIGHT` に**縦画面での高さ**を入れる（幅は逆で MIN が縦画面）。0.8.222 まで `MIN_HEIGHT` を見ていたため**実際より小さく見積もり、上に隙間が空いてログが入りきらなかった**（実機フィードバック）。0.8.223 で向きに応じて選ぶようにし、1 行の高さも 13dp 決め打ちから**実フォント metrics の実測**へ変えた（端末のフォントスケールにも追従する）。
 >
@@ -1208,7 +1216,7 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 **文字の大きさを選べる（0.8.255・D1 / D2 とも）**: ウィジェットの ⚙ から選ぶ（D2 は 8〜20sp・既定 10 / D1 は 9〜20sp・既定 11 = それぞれ 0.8.254 までのレイアウト固定値）。`RemoteViews.setTextViewTextSize` で XML の値を上書きする。単位は **SP**（端末のフォントスケール設定にも従わせるため。DIP にしない）。
 - **スライダーではなくプリセットを並べる**。1sp 刻みで迷わせる価値が無く、ウィジェットの文字は数段階あれば足りる。既定値には「既定」と出して、戻したくなったときに迷わせない。
 - **D1 は倍率ではなく差分で動かす**（`WidgetStore.scaled`）。行ごとに元のサイズが違う（見出し 13 / 状態・ボタン 11 / フッター 10）ので、倍率だと小さい行だけ潰れて釣り合いが崩れる。
-- ⚠ **D2 は行数の見積もりにも同じ値を使う**（`linesFor` の `TextPaint.textSize`）。本文とズレると末尾が切れる / 隙間が空く。大きくすれば入る行数は減る — 行数を別設定にしないのは、「文字の大きさ」と「入る行数」は同じことを 2 通りで言っているだけで、両方いじれると矛盾した組み合わせを作れてしまうため。
+- （1.0.54 まで）⚠ **D2 は行数の見積もりにも同じ値を使う**（`linesFor` の `TextPaint.textSize`）。本文とズレると末尾が切れる / 隙間が空く。大きくすれば入る行数は減る — 行数を別設定にしないのは、「文字の大きさ」と「入る行数」は同じことを 2 通りで言っているだけで、両方いじれると矛盾した組み合わせを作れてしまうため。
 - ⚠ **通知の文字サイズはアプリから変えられない**（Android に API が無い。OS の「表示 → フォントサイズ」に従う）。自前 `RemoteViews` で組めば可能だが、標準の見た目・展開・アクションの作法から外れ、Android 12+ ではどのみちシステム側の装飾が被さるので採らない。
 
 **`configuration_optional` を付けない**（D1 とはここが違う）: **どのファイルを見るかは推測しようがない**ので、置いた直後に必ず設定画面を出す。それでも未設定の状態は起こり得る（設定を途中でやめた等）ので、その場合は「⚙ を押してファイルを選んでください」と本文に出す。
@@ -1236,7 +1244,19 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 
 **0.8.510 の直し（並べ替えが 1 個ずつしか動かない）**: → `ReorderList` の項を参照。
 
-#### ホーム画面ウィジェット（`widget/StatusWidgetProvider`、0.8.212・D1）
+#### マクロウィジェット（マス目 `widget/StatusWidgetProvider` 0.8.212・D1 ／ 一覧 `widget/MacroListWidgetProvider` 1.0.55）
+
+**1.0.55 の作り直し（機能とデザインを分けた）**: 利用者の「機能は弱めず強化し、デザインを一新したい」を受けて作り直した。下の 0.8.2xx の節は経緯として残す。
+
+- **2 種類**: マス目型（`StatusWidgetProvider`。旧「Z2Term の状態」。⚠ **クラス名は据え置き** — 置き済みのウィジェットはクラス名で結び付いているので、変えるとホーム画面から消える）は横 4 分割のボタンをやめて **2×2 のマス**。一覧型（`MacroListWidgetProvider`）は同じ上段の下に **1 行 1 マクロの一覧**（中でスクロール・最大 `WidgetStore.MAX_LIST_MACROS` = 30）。行は `widget/MacroListService`（`RemoteViewsService`）が作る。設定画面は共通で、`AppWidgetManager.getAppWidgetInfo(id).provider` から種類を判別して上限だけ変える。
+- **共通処理は `widget/MacroWidgets`**: 状態の読み取り（`Snapshot`）・上段の描画・マクロの実行と停止・1 マクロの描画（マスと行は id の組 `Ids` を渡して同じ手順で埋める）。`StatusWidgetProvider.refresh()` は一覧型にも届く（呼び元の `ServerDaemonService` / `WhenManager` は変えていない）。
+- **終わり方を 3 通りに**（`MacroStatus`・Android 非依存で `WidgetStoreTest`）: `IDLE`（今日はまだ）/ `RUNNING` / `DONE`（終了コード 0）/ `FAILED`（0 以外。コードを表示）/ `STOPPED`（ウィジェットから止めた・終了コードが残らなかった・開始したのに終わりの記録が無い＝アプリごと落ちた）。1.0.54 までは失敗でも `✓` だった。当日限り（下の 0.8.224）は変えていない。
+- **終了コードの取り方**: `HeadlessRun` の `onExit` は pty の EOF で呼ばれ、プロセスの終了コードは渡ってこない（`waitFor` は背景へ逃がしたデーモンを待つので、そこで待つと止まり得る）。そこで実行スクリプトの側で、マクロを子の `sh` で走らせて `$?` を `~/.z2term/widget/rc/<名前>` に書かせ、`onExit` で読む。止めたときは書かれないので「ファイルが無い＝最後まで行かなかった」と読める。止める前に `WidgetStore.markStopped` を付ける（終了の通知が先に来ても「停止」と出すため）。
+- **時刻**: 状態の行に今日の開始〜終了（`07:10–07:12 完了`）。実行中は `Chronometer` に経過時間を数えさせる（ランチャー側で進むので、こちらは 1 秒ごとに起きない）。
+- **見た目はリソース名だけで指す**: 状態ごとの背景（`widget_tile_*` / `widget_row_*` を `setBackgroundResource`）・アイコン（`ic_widget_*`）・文字色（`widget_state_*`）・文字の基準サイズ（`widget_text_*`）。基準サイズは `res/values/widget_dimens.xml` に置き、コードはそこを読んで「文字の大きさ」設定の差分を足す（1.0.54 まではコードに直書きで、レイアウトの値と二重管理だった）。⚠ `widget_text_*` は **sp で書く**（数値だけを読む）。
+- **デザイン担当が触るファイル**: `res/layout/widget_*.xml`・`res/drawable/widget_*` / `ic_widget_*`・`res/values/widget_colors.xml` / `widget_dimens.xml` / `widget_styles.xml`（色とスタイルは `colors.xml` / `themes.xml` から分けた）。コードが名前で参照する id・リソースの一覧は非公開の引き継ぎ書（約束の表）が正本。⚠ RemoteViews で描けない View（`View` / `Space` / `ConstraintLayout` / API 31 未満の `Switch` 等）を置くと、ビルドは通るのにホーム画面で「読み込めません」になる。
+- **一覧の行のタップ**: `setPendingIntentTemplate`（自分宛のブロードキャスト・`FLAG_MUTABLE`・送り先固定の明示 Intent）+ 行ごとの fill-in（マクロ名と「止めるか」）。requestCode はマス目型・tail と帯を分ける（`1_000_000 +`）。
+- ⟳ と設定は `ImageView`（文字の記号 `⚙` / `⟳` は端末のフォント次第で形が揃わないのでやめた）。⟳ の「更新中」は `ic_widget_refreshing` へ差し替え、描き直しで必ず戻す。
 
 **何ができるか**: ホーム画面に**いまの状態**（ssh の接続先 / 常駐サーバー / `z2-when` ルール / 電池残量）を出し、下段に並べたボタンで `~/.z2term/macros/*.sh` を**アプリを開かずバックグラウンド実行**する。`z2-when`（トリガー駆動）に対して、こちらは**人が押して起こす**入口。
 
@@ -1270,7 +1290,7 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 - **⚙（設定）をヘッダーに追加**。ランチャーの「長押し → 設定」を辿らないと設定へ行けないのは使いにくい、という指摘。`PendingIntent.getActivity` で `WidgetConfigActivity` を `EXTRA_APPWIDGET_ID` 付きで直接開く（requestCode は `appWidgetId * 8 + 6`）。
 - **既定サイズを 4x2 → 4x3 マス**（`minHeight` 110dp → 140dp）。ヘッダーが 40dp になったぶん、2 マスではボタンが潰れる。
 
-**マクロボタンは 2 行（0.8.216）**: 1 行目が状態つきの名前、2 行目が**そのマクロを最後に開始した時刻**。
+**マクロボタンは 2 行（0.8.216〜1.0.54。1.0.55 で名前・説明・状態の 3 段のマスに）**: 1 行目が状態つきの名前、2 行目が**そのマクロを最後に開始した時刻**。
 `WidgetStore` は開始時刻を**マクロごと**に持つ（`run_at_<ファイル名>`）。0.8.215 までは全体で 1 件しか覚えておらず、
 **複数走らせるとどれがいつのものか分からなかった**。1 行目の印は 3 状態:
 - `■ 名前`（アクセント色）… 実行中。タップで停止。

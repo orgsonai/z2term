@@ -837,26 +837,34 @@
     <string name="log_secret_warning">Note: whatever appears on screen goes in as-is (a password you only type never appears on screen, so it is not recorded). The toolbar button stays lit while recording.\nNote: masking only covers clearly recognisable shapes and is not complete — a secret in your own format goes straight through. Always read a log before handing it to someone.</string>
 
     <!-- Home screen widget (D1: status + launcher) -->
-    <string name="widget_status_label">Z2Term status</string>
-    <string name="widget_status_description">Shows the ssh address, resident servers, automation rules and battery, and runs your macros in the background with one tap.</string>
-    <string name="widget_refresh_glyph" translatable="false">\u27f3</string>
+    <string name="widget_status_label">Z2Term status + macros (grid)</string>
+    <string name="widget_status_description">Shows the ssh address, resident servers, automation rules and battery, with four macro tiles that run in the background with one tap.</string>
+    <string name="widget_list_label">Z2Term status + macros (list)</string>
+    <string name="widget_list_description">The same status as the grid widget, with your macros in a scrolling list — up to 30. One tap runs a macro in the background.</string>
+    <string name="widget_label_ssh">ssh</string>
+    <string name="widget_label_servers">servers</string>
+    <string name="widget_label_rules">rules</string>
+    <string name="widget_label_battery">battery</string>
+    <string name="widget_state_idle">not run today</string>
+    <string name="widget_state_running">running</string>
+    <string name="widget_state_done">%1$s done</string>
+    <string name="widget_state_failed">%1$s failed (%2$d)</string>
+    <string name="widget_state_stopped">%1$s stopped</string>
+    <string name="widget_run_desc">Run %1$s</string>
+    <string name="widget_stop_desc">Stop %1$s</string>
+    <string name="widget_ratio" translatable="false">%1$d/%2$d</string>
+    <string name="widget_battery_value" translatable="false">%1$d%%</string>
+    <string name="widget_value_unknown" translatable="false">–</string>
     <string name="widget_refresh_desc">Refresh</string>
     <string name="widget_ssh_none">no LAN address</string>
-    <string name="widget_stats">servers %1$d/%2$d \u00b7 rules %3$d/%4$d \u00b7 battery %5$d%%</string>
-    <string name="widget_config_glyph" translatable="false">\u2699</string>
     <string name="widget_config_btn_desc">Choose macros</string>
     <!-- \u30de\u30af\u30ed\u30dc\u30bf\u30f3: 1 \u884c\u76ee\u304c\u540d\u524d (\u72b6\u614b\u306e\u5370\u3064\u304d)\u30012 \u884c\u76ee\u304c\u6700\u5f8c\u306b\u958b\u59cb\u3057\u305f\u6642\u523b\u3002 -->
-    <string name="widget_btn_idle">%1$s\n%2$s</string>
-    <string name="widget_btn_done">\u2713 %1$s\n%2$s</string>
-    <string name="widget_btn_time_none" translatable="false">\u2013\u2013:\u2013\u2013</string>
-    <string name="widget_last_finish">\u2713 %1$s %2$s</string>
-    <string name="widget_updated_at">\u27f3 %1$s</string>
+    <string name="widget_last_finish">last: %1$s %2$s</string>
+    <string name="widget_updated_at">updated %1$s</string>
     <string name="widget_refreshing">refreshing\u2026</string>
-    <string name="widget_busy_glyph" translatable="false">\u23f3</string>
     <string name="widget_no_macros">No macros yet. Run z2-macro install all in the terminal.</string>
     <string name="widget_config_title">Macros on this widget</string>
     <string name="widget_config_desc">Up to %1$d. A tap runs the macro in the background \u2014 the app does not open. Tap a running macro again to stop it.</string>
-    <string name="widget_btn_running">\u25a0 %1$s\n%2$s</string>
     <string name="widget_config_no_desc">(no description in the script)</string>
     <string name="widget_config_add_hint">To add more: put your own .sh in ~/.z2term/macros/ in the terminal, or run z2-macro install all. Then reopen this screen.</string>
 
@@ -865,14 +873,14 @@
     <string name="tail_widget_description">Shows the start or the end of a file on your home screen — macro output, events.jsonl, session logs. Like head or tail, without opening the app.</string>
     <string name="tail_config_btn_desc">Choose the file</string>
     <string name="tail_title_none">no file selected</string>
-    <string name="tail_pick_file">Tap ⚙ and choose a file to watch.</string>
+    <string name="tail_pick_file">Tap the settings button and choose a file to watch.</string>
     <string name="tail_missing">That file does not exist yet.</string>
     <string name="tail_empty">(empty)</string>
     <string name="tail_footer">%1$s · read at %2$s · %3$d KB</string>
     <string name="tail_config_title">File to watch</string>
-    <string name="tail_config_desc">This file appears on the home screen. Type a path, or tap through the folders below. The number of lines follows the widget\'s height.</string>
+    <string name="tail_config_desc">This file appears on the home screen. Type a path, or tap through the folders below. Scroll inside the widget to read further back.</string>
     <string name="tail_text_size_label">Text size</string>
-    <string name="tail_text_size_desc">Larger text is easier to read but fits fewer lines.</string>
+    <string name="tail_text_size_desc">Larger text is easier to read; scroll to see the rest.</string>
     <string name="tail_text_size_default">default</string>
     <string name="tail_mode_label">Which end of the file</string>
     <string name="tail_mode_tail">end (tail)</string>
@@ -888,7 +896,7 @@
     <string name="widget_config_save">Save</string>
     <string name="widget_config_cancel">Cancel</string>
     <string name="widget_config_reset">Clear run history</string>
-    <string name="widget_config_reset_desc">The ✓ marks and times on the buttons clear on their own when the day changes. This clears them now. Your macros are not touched.</string>
+    <string name="widget_config_reset_desc">The results (done / failed / stopped) and times on the macros clear on their own when the day changes. This clears them now. Your macros are not touched.</string>
     <string name="widget_config_reset_done">Run history cleared.</string>
     <string name="tools_tab_when">Automation</string>
     <string name="when_title">Automation rules</string>

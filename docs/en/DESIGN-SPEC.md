@@ -505,6 +505,7 @@ Everything lands in one of two log files.
 | `~/.z2term/events.jsonl` | `filesDir/shared_home/.z2term/events.jsonl` | System events, time triggers, notification button replies |
 | `~/.z2term/when/<id>.rule` | `filesDir/shared_home/.z2term/when/` | `z2-when` automation rules (+ `<id>.log` run logs) |
 | `~/.z2term/widget/run.log` | `filesDir/shared_home/.z2term/widget/` | Output of macros started from the home screen widget |
+| `~/.z2term/widget/rc/<macro>` | `filesDir/shared_home/.z2term/widget/rc/` | Exit code of a macro started from a widget (1.0.55; written by the run script, read by the app when it ends) |
 
 #### Notification detection (`NotificationLogService`, 0.8.149)
 
@@ -1187,12 +1188,19 @@ Hence `TunnelManager.KEEPALIVE_MS` = **10s** (`KEEPALIVE_LOW_POWER_MS` = 60s in 
 - ⚠ **Stored settings keep working.** JSON without `kind` was written by 0.8.523 or earlier, where `reverse` is the reference (`PortForward.kindOf`). Both fields are written out, so `-L` / `-R` still read correctly if the app is rolled back.
 - ⛔ **SOCKS4 is refused** — its greeting has a different shape, so reading a version-4 greeting as version 5 shifts the meaning of every byte after it. BIND and UDP ASSOCIATE are refused too, but ⚠ **only after the address is consumed** (leaving it would make the next reader start mid-request).
 
-#### Live tail widget (`widget/TailWidgetProvider`, 0.8.217, D2)
+#### Live tail widget (`widget/TailWidgetProvider`, 0.8.217, D2; body became a list in 1.0.55)
 
 **What it does**: shows **the last N lines or the first N lines** of a chosen file on the home screen — "`tail` or `head` on your home screen". A window onto what macros and `z2-when` wrote, `events.jsonl`, or session logs, without opening the app. This is D2 from §10-2.
 
+**The body is a list that scrolls inside the widget (1.0.55)**: up to 1.0.54 one `TextView` got only the lines that fitted the height, so the rest could not be read and long lines were cut at the edge. The body is now a `ListView` (a collection widget) holding up to `TailStore.LINES` = 200 lines; lines wrap, and error lines (`TailReader.isAlert`) alone use `widget_log_alert`. Rows come from `widget/TailLinesService` (a `RemoteViewsService`).
+- **Two lists**: `tail_list_end` (for tail) stacks from the bottom with `stackFromBottom="true"` + `transcriptMode="alwaysScroll"`, so the newest lines are in view when it opens. RemoteViews cannot switch the stacking direction, so `tail_list_start` (for head) sits in the same place and only the shown one gets an adapter. ⚠ `notifyAppWidgetViewDataChanged` also goes **only to the shown list** — a list makes itself visible again once it has items, so reloading the hidden one leaves both on screen after switching ends.
+- ⚠ `updateAppWidget` alone does not change list rows (a list with the same Intent reuses its previous contents). Always call `notifyAppWidgetViewDataChanged` to reload. The list Intent's data differs per widget and per end (otherwise another widget reuses the same contents).
+- ⚠ `setRemoteAdapter(Int, Intent)` is deprecated in API 35 (its successor `RemoteCollectionItems` arrived in API 31). It stays while minSdk is 29 (having both would mean two ways of drawing).
+- Tapping a row opens the app (`setPendingIntentTemplate` + an empty fill-in; `FLAG_MUTABLE` for the fill-in, sent to an explicit `MainActivity` Intent).
+
 **Parts**:
-- `widget/TailWidgetProvider` — drawing plus the ⟳ / ⚙ taps. Tapping the body opens the app.
+- `widget/TailWidgetProvider` — drawing plus the ⟳ / settings taps. Tapping the title or the body opens the app.
+- `widget/TailLinesService` — builds the body rows (1.0.55).
 - `widget/TailConfigActivity` (`APPWIDGET_CONFIGURE`) — choose the file (type a path or walk the folders).
 - `widget/TailStore` — the per-widget file (path relative to `~`) and which end to show (`Mode.TAIL` / `Mode.HEAD`) in SharedPreferences, plus path resolution and directory listing. **The line count is not stored.**
 - `widget/TailReader` — taking the last or first N lines. The decision part is Android-independent and covered by `TailReaderTest` (17 cases).
@@ -1207,7 +1215,7 @@ Hence `TunnelManager.KEEPALIVE_MS` = **10s** (`KEEPALIVE_LOW_POWER_MS` = 60s in 
 
 `TailStore.resolve` **rejects anything outside `~` by canonicalPath comparison**, so this never becomes a window into the app's private data. Save only works when the path is a real file, and otherwise says why (never a button that silently does nothing).
 
-**The line count follows the widget's height (0.8.220, fixed in 0.8.223)**: with a fixed count, **stretching the widget vertically left a gap**. Header, footer and padding are subtracted and the rest divided by one line's height, clamped to 2..30. Resizes come in through `onAppWidgetOptionsChanged`. The manual line-count setting was dropped.
+**The line count follows the widget's height (0.8.220–1.0.54; dropped in 1.0.55 when the body became a list — kept as history)**: with a fixed count, **stretching the widget vertically left a gap**. Header, footer and padding are subtracted and the rest divided by one line's height, clamped to 2..30. Resizes come in through `onAppWidgetOptionsChanged`. The manual line-count setting was dropped.
 
 > ⚠ **`OPTION_APPWIDGET_MIN_HEIGHT` is not "the height in portrait".** Android puts the **landscape** height in `MIN_HEIGHT` and the **portrait** height in `MAX_HEIGHT` (widths are the other way round). Up to 0.8.222 this code read `MIN_HEIGHT`, **underestimated the space, and left a gap at the top with log lines missing** (on-device feedback). 0.8.223 picks the value matching the current orientation and measures one line from **real font metrics** instead of assuming 13dp (which also tracks the device's font-scale setting).
 >
@@ -1223,7 +1231,7 @@ Hence `TunnelManager.KEEPALIVE_MS` = **10s** (`KEEPALIVE_LOW_POWER_MS` = 60s in 
 **Text size is selectable (0.8.255, both D1 and D2)**: pick it from the widget's ⚙ (D2: 8–20sp, default 10; D1: 9–20sp, default 11 — each the value hard-coded in the layout up to 0.8.254). `RemoteViews.setTextViewTextSize` overrides the XML. The unit is **SP** so the device's font-scale setting still applies (never DIP).
 - **Presets, not a slider.** Nothing is gained by making someone choose between 13 and 14sp; a handful of steps is enough for a widget. The default is labelled "default" so it is easy to get back to.
 - **D1 shifts by a delta, not a ratio** (`WidgetStore.scaled`). Its rows start at different sizes (title 13 / status and buttons 11 / footer 10), and a ratio squashes the small rows until the rows no longer balance.
-- ⚠ **D2 feeds the same value into its line-count estimate** (`TextPaint.textSize` in `linesFor`). If that drifts from the body text, the last line gets clipped or a gap opens. Bigger text therefore means fewer lines — there is deliberately no separate "lines" setting, because text size and line count are two ways of saying the same thing and exposing both lets you build contradictory combinations.
+- (up to 1.0.54) ⚠ **D2 feeds the same value into its line-count estimate** (`TextPaint.textSize` in `linesFor`). If that drifts from the body text, the last line gets clipped or a gap opens. Bigger text therefore means fewer lines — there is deliberately no separate "lines" setting, because text size and line count are two ways of saying the same thing and exposing both lets you build contradictory combinations.
 - ⚠ **Notification text size cannot be set by an app** (Android exposes no API; notifications follow the OS "Display → Font size"). Custom `RemoteViews` could do it, but that abandons the standard look, expansion and action behaviour, and Android 12+ decorates custom views anyway — not worth it.
 
 **No `configuration_optional`** (unlike D1): **there is no way to guess which file to watch**, so the config screen always opens when the widget is placed. The unconfigured state can still happen (the user backs out), and then the body says "tap ⚙ and choose a file".
@@ -1251,7 +1259,19 @@ Hence `TunnelManager.KEEPALIVE_MS` = **10s** (`KEEPALIVE_LOW_POWER_MS` = 60s in 
 
 **What 0.8.510 fixed (reordering moved one item at a time)**: see the `ReorderList` notes.
 
-#### Home screen widget (`widget/StatusWidgetProvider`, 0.8.212, D1)
+#### Macro widgets (grid `widget/StatusWidgetProvider` 0.8.212, D1 / list `widget/MacroListWidgetProvider` 1.0.55)
+
+**Rebuilt in 1.0.55 (function and design split)**: rebuilt on the request "keep every feature, make it stronger, and redo the design". The 0.8.2xx sections below are kept as history.
+
+- **Two kinds**: the grid widget (`StatusWidgetProvider`, formerly "Z2Term status"; ⚠ **the class name stays** — placed widgets are bound by class name, so renaming it would remove them from the home screen) drops the four side-by-side buttons for a **2×2 grid of tiles**. The list widget (`MacroListWidgetProvider`) puts **one macro per row** under the same header (scrolls inside; up to `WidgetStore.MAX_LIST_MACROS` = 30). Rows come from `widget/MacroListService` (a `RemoteViewsService`). The config screen is shared; it tells the kinds apart from `AppWidgetManager.getAppWidgetInfo(id).provider` and only the limit changes.
+- **Shared code lives in `widget/MacroWidgets`**: reading the state (`Snapshot`), the header, running and stopping macros, and drawing one macro (tiles and rows pass their id set `Ids` and are filled the same way). `StatusWidgetProvider.refresh()` also reaches the list widget (callers in `ServerDaemonService` / `WhenManager` are unchanged).
+- **Three ways to end** (`MacroStatus`, Android-independent, covered by `WidgetStoreTest`): `IDLE` (not today) / `RUNNING` / `DONE` (exit code 0) / `FAILED` (non-zero, code shown) / `STOPPED` (stopped from the widget, no exit code left behind, or started with no record of an end — the app itself died). Up to 1.0.54 a failure still got `✓`. Today-only (0.8.224 below) is unchanged.
+- **How the exit code is obtained**: `HeadlessRun`'s `onExit` fires on pty EOF and does not receive the process exit code (`waitFor` waits for daemons the script sent to the background, so waiting there can hang). So the run script runs the macro in a child `sh`, writes `$?` to `~/.z2term/widget/rc/<name>`, and `onExit` reads it. Stopping means it is never written, so "no file" reads as "did not reach the end". `WidgetStore.markStopped` is set before stopping (so it shows "stopped" even if the end notice arrives first).
+- **Times**: the state line shows today's start–end (`07:10–07:12 done`). While running, a `Chronometer` counts the elapsed time (the launcher advances it, so we do not wake every second).
+- **Looks are referenced by resource name only**: per-state backgrounds (`widget_tile_*` / `widget_row_*` via `setBackgroundResource`), icons (`ic_widget_*`), text colours (`widget_state_*`) and base text sizes (`widget_text_*`). Base sizes live in `res/values/widget_dimens.xml`; the code reads them and adds the "text size" setting's delta (up to 1.0.54 they were hard-coded, duplicating the layout values). ⚠ Write `widget_text_*` **in sp** (only the number is read).
+- **Files the design side owns**: `res/layout/widget_*.xml`, `res/drawable/widget_*` / `ic_widget_*`, `res/values/widget_colors.xml` / `widget_dimens.xml` / `widget_styles.xml` (colours and styles were split out of `colors.xml` / `themes.xml`). The list of ids and resources the code refers to by name is kept in the private handoff (the contract table). ⚠ A View RemoteViews cannot draw (`View`, `Space`, `ConstraintLayout`, `Switch` below API 31, …) still builds but shows "Can't load widget" on the home screen.
+- **Row taps in the list**: `setPendingIntentTemplate` (a broadcast to ourselves, `FLAG_MUTABLE`, an explicit Intent with a fixed target) + a per-row fill-in (macro name and whether to stop). Request codes use a separate band from the grid and tail widgets (`1_000_000 +`).
+- ⟳ and settings are `ImageView`s (the glyphs `⚙` / `⟳` render differently per device font, so they are gone). The "refreshing" state swaps in `ic_widget_refreshing` and every redraw puts the icon back.
 
 **What it does**: puts the **current state** on the home screen (ssh endpoint / resident servers / `z2-when` rules / battery) and, on the bottom row, buttons that run `~/.z2term/macros/*.sh` **in the background without opening the app**. Where `z2-when` is trigger-driven, this is the entry point **a human presses**.
 
@@ -1285,7 +1305,7 @@ Hence `TunnelManager.KEEPALIVE_MS` = **10s** (`KEEPALIVE_LOW_POWER_MS` = 60s in 
 - **⚙ (config) added to the header**. Having to go through the launcher's "long-press → settings" was called out as awkward. It opens `WidgetConfigActivity` directly through `PendingIntent.getActivity` with `EXTRA_APPWIDGET_ID` (requestCode `appWidgetId * 8 + 6`).
 - **Default size 4x2 → 4x3 cells** (`minHeight` 110dp → 140dp): with a 40dp header, two cells squash the buttons.
 
-**Macro buttons are two lines (0.8.216)**: line 1 is the name with a state marker, line 2 is **when that macro was last started**. `WidgetStore` keeps the start time **per macro** (`run_at_<file name>`); up to 0.8.215 it remembered only one globally, so **running several made it impossible to tell which time belonged to which**. The three states are:
+**Macro buttons are two lines (0.8.216–1.0.54; 1.0.55 made them tiles with name, description and state)**: line 1 is the name with a state marker, line 2 is **when that macro was last started**. `WidgetStore` keeps the start time **per macro** (`run_at_<file name>`); up to 0.8.215 it remembered only one globally, so **running several made it impossible to tell which time belonged to which**. The three states are:
 - `■ name` (accent) — running; tap to stop.
 - `✓ name` — ran and finished **today**. Added because **a macro that finishes instantly makes `■` vanish at once, which looked like it had been stopped**.
 - `name` — has not run today (time shows `––:––`).

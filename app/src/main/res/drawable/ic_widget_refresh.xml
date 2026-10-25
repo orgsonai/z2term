@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ⟳ 読み直す (円弧の回転矢印) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 約270度の円弧 (半径7.5) -->
+    <path
+        android:pathData="M19.5,12 A7.5,7.5 0 1 1 17.3,6.7"
+        android:strokeColor="@color/widget_text_secondary"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <!-- 矢じり (円弧の終点が先端・進む向きを指す) -->
+    <path
+        android:pathData="M17.3,2.7 V6.7 H13.3"
+        android:strokeColor="@color/widget_text_secondary"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+</vector>
