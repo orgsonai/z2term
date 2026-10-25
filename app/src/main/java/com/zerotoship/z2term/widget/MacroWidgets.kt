@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import android.util.TypedValue
@@ -136,6 +137,21 @@ internal object MacroWidgets {
         )
     }
 
+    /**
+     * 文字色を当てる。API 31+ は**色の名前**を渡してランチャー側で引かせる。
+     *
+     * 1.0.56 から配色は端末のライト / ダーク (と API 31+ は壁紙の配色) で変わる。こちらで色の値に
+     * 直して渡すと、その時点の値で固まり、端末をダークへ切り替えても描き直すまで明るい地用の
+     * 文字色のまま残る。名前で渡せば、ランチャーが切り替わった設定で引き直す。
+     */
+    fun textColor(context: Context, views: RemoteViews, viewId: Int, @ColorRes res: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            views.setColor(viewId, "setTextColor", res)
+        } else {
+            views.setTextColor(viewId, ContextCompat.getColor(context, res))
+        }
+    }
+
     fun openAppIntent(context: Context): PendingIntent {
         val intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -175,12 +191,9 @@ internal object MacroWidgets {
 
         views.setTextViewText(R.id.widget_ssh, s.sshLine ?: context.getString(R.string.widget_ssh_none))
         // sshd が動いているときだけアクセント色にする (動いていない＝その宛先では入れない)。
-        views.setTextColor(
-            R.id.widget_ssh,
-            ContextCompat.getColor(
-                context,
-                if (s.sshdRunning) R.color.widget_accent else R.color.widget_text_secondary
-            )
+        textColor(
+            context, views, R.id.widget_ssh,
+            if (s.sshdRunning) R.color.widget_accent else R.color.widget_text_secondary
         )
         // 「常駐 1/3」= 動いている本数 / 登録して有効にしてある本数。「自動化 2/5」も同じで、
         // 有効なルール数 / 全ルール数。分子だけだと **0 の理由** (登録が無いのか・常駐を
@@ -276,9 +289,8 @@ internal object MacroWidgets {
             views.setTextViewText(ids.desc, description)
         }
         views.setTextViewText(ids.state, stateText(context, status))
-        val color = ContextCompat.getColor(context, stateColor(status.kind))
-        views.setTextColor(ids.state, color)
-        views.setTextColor(ids.timer, color)
+        textColor(context, views, ids.state, stateColor(status.kind))
+        textColor(context, views, ids.timer, stateColor(status.kind))
         views.setImageViewResource(ids.icon, stateIcon(status.kind))
         views.setInt(ids.root, "setBackgroundResource", background(surface, status.kind))
         views.setContentDescription(

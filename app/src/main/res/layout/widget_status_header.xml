@@ -3,6 +3,10 @@
   マクロウィジェット (マス目型 widget_status.xml / 一覧型 widget_list.xml) の上段。
   両方から <include> する。
 
+  1.0.56: ssh の接続コマンドは**横幅いっぱいの 1 行**に置く。1.0.55 は常駐・自動化・電池と
+  横に並べたため幅が 4 割ほどしかなく、「ssh -p 6…」で切れてポート番号から先が読めなかった。
+  コマンド自体が ssh で始まるので見出し (widget_ssh_label) は出さない (id は約束の表どおり残す)。
+
   ⚠ id は「ウィジェットの約束の表」で決めてある (コードが id で値を入れる)。
   見た目・並び・余白は自由に変えてよいが、id を消す・変える・別の種類の View にすることはしない。
   RemoteViews で使える View だけを使うこと (表の「使える部品」参照)。
@@ -23,13 +27,13 @@
         <TextView
             android:id="@+id/widget_title"
             android:layout_width="0dp"
-            android:layout_height="44dp"
+            android:layout_height="40dp"
             android:layout_weight="1"
             android:gravity="center_vertical"
             android:text="@string/app_name"
-            android:textColor="@color/widget_accent"
+            android:textColor="@color/widget_text_primary"
             android:textSize="@dimen/widget_text_title"
-            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium"
             android:singleLine="true" />
 
         <ImageView
@@ -41,43 +45,39 @@
         <ImageView
             android:id="@+id/widget_refresh"
             style="@style/Z2WidgetIconButton"
-            android:layout_marginStart="2dp"
             android:src="@drawable/ic_widget_refresh"
             android:contentDescription="@string/widget_refresh_desc" />
     </LinearLayout>
 
-    <!-- ステータス指標行 (見出し小さく薄く、値は大きく濃く) -->
+    <!-- ssh の接続コマンド (横幅いっぱい。sshd が動いているときだけアクセント色) -->
+    <TextView
+        android:id="@+id/widget_ssh_label"
+        style="@style/Z2WidgetLabel"
+        android:text="@string/widget_label_ssh"
+        android:visibility="gone" />
+    <TextView
+        android:id="@+id/widget_ssh"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/widget_text_secondary"
+        android:textSize="@dimen/widget_text_value"
+        android:fontFamily="monospace"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+    <!-- 常駐 / 自動化 / 電池 (見出しと値を横に並べた 3 つ) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:layout_marginBottom="4dp"
-        android:baselineAligned="false"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="2dp"
         android:orientation="horizontal">
 
-        <!-- 最重要: SSH 接続先 -->
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="2.2"
-            android:orientation="vertical">
-            <TextView
-                android:id="@+id/widget_ssh_label"
-                style="@style/Z2WidgetLabel"
-                android:text="@string/widget_label_ssh" />
-            <TextView
-                android:id="@+id/widget_ssh"
-                style="@style/Z2WidgetValue"
-                android:layout_width="match_parent" />
-        </LinearLayout>
-
-        <!-- 常駐サーバー数 -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="6dp"
-            android:orientation="vertical">
+            android:orientation="horizontal">
             <TextView
                 android:id="@+id/widget_servers_label"
                 style="@style/Z2WidgetLabel"
@@ -87,13 +87,11 @@
                 style="@style/Z2WidgetValue" />
         </LinearLayout>
 
-        <!-- 自動化ルール数 -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="6dp"
-            android:orientation="vertical">
+            android:orientation="horizontal">
             <TextView
                 android:id="@+id/widget_rules_label"
                 style="@style/Z2WidgetLabel"
@@ -103,13 +101,11 @@
                 style="@style/Z2WidgetValue" />
         </LinearLayout>
 
-        <!-- バッテリー残量 -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="6dp"
-            android:orientation="vertical">
+            android:orientation="horizontal">
             <TextView
                 android:id="@+id/widget_battery_label"
                 style="@style/Z2WidgetLabel"

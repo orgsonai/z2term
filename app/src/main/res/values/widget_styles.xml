@@ -1,34 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ホーム画面ウィジェットのスタイル。名前・中身ともレイアウト担当が自由に変えてよい (コードからは参照しない)。 -->
 <resources>
-    <!-- ヘッダーの ⚙ / ⟳。押せる場所は 44dp 角以上にする。 -->
+    <!-- ヘッダーの ⚙ / ⟳。押せる場所は 40dp 角以上にする。 -->
     <style name="Z2WidgetIconButton">
-        <item name="android:layout_width">44dp</item>
-        <item name="android:layout_height">44dp</item>
-        <item name="android:padding">11dp</item>
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:padding">9dp</item>
         <item name="android:scaleType">fitCenter</item>
     </style>
 
-    <!-- 見出し (小さく薄い) -->
+    <!-- 上段の見出し (小さく薄い) -->
     <style name="Z2WidgetLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">@color/widget_text_tertiary</item>
         <item name="android:textSize">@dimen/widget_text_label</item>
+        <item name="android:singleLine">true</item>
+    </style>
+
+    <!-- 上段の値 (見出しの横に並ぶ) -->
+    <style name="Z2WidgetValue">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">5dp</item>
+        <item name="android:textColor">@color/widget_text_primary</item>
+        <item name="android:textSize">@dimen/widget_text_value</item>
         <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:singleLine">true</item>
         <item name="android:ellipsize">end</item>
     </style>
 
-    <!-- 値 (大きく濃い・monospace) -->
-    <style name="Z2WidgetValue">
-        <item name="android:layout_width">wrap_content</item>
+    <!-- マス目型の 1 マス (背景はコードが状態ごとに差し替える) -->
+    <style name="Z2WidgetTile">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:background">@drawable/widget_tile_idle</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingTop">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:paddingBottom">10dp</item>
+    </style>
+
+    <!-- マクロの名前 (マス・行で共通) -->
+    <style name="Z2WidgetMacroName">
+        <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginTop">1dp</item>
+        <item name="android:layout_weight">1</item>
         <item name="android:textColor">@color/widget_text_primary</item>
-        <item name="android:textSize">@dimen/widget_text_value</item>
-        <item name="android:fontFamily">monospace</item>
+        <item name="android:textSize">@dimen/widget_text_name</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
         <item name="android:singleLine">true</item>
         <item name="android:ellipsize">end</item>
+    </style>
+
+    <!-- マクロの説明 -->
+    <style name="Z2WidgetMacroDesc">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:textColor">@color/widget_text_secondary</item>
+        <item name="android:textSize">@dimen/widget_text_desc</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <!-- 状態の 1 行 (「07:10–07:12 完了」など。色はコードが当てる) -->
+    <style name="Z2WidgetMacroState">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/widget_state_idle</item>
+        <item name="android:textSize">@dimen/widget_text_state</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+        <item name="android:singleLine">true</item>
+    </style>
+
+    <!-- 実行中の経過時間。桁が変わっても幅が揺れないよう数字を等幅にする -->
+    <style name="Z2WidgetMacroTimer">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">6dp</item>
+        <item name="android:textColor">@color/widget_state_running</item>
+        <item name="android:textSize">@dimen/widget_text_state</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+        <item name="android:visibility">gone</item>
     </style>
 </resources>

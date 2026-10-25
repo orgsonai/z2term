@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ホーム画面ウィジェットの配色 (ダーク・API 29〜30)。説明は values/widget_colors.xml。 -->
+<resources>
+    <color name="widget_bg">#FF1A1C1A</color>
+    <color name="widget_card">#FF2C332D</color>
+    <color name="widget_border">#FF414941</color>
+    <color name="widget_running_bg">#FF0F5229</color>
+    <color name="widget_failed_bg">#FF601410</color>
+
+    <color name="widget_accent">#FF86D99E</color>
+    <color name="widget_on_accent">#FF00391B</color>
+    <color name="widget_text_primary">#FFE1E3DE</color>
+    <color name="widget_text_secondary">#FFC0C9BD</color>
+    <color name="widget_text_tertiary">#FFA2AB9F</color>
+
+    <color name="widget_state_idle">#FFC0C9BD</color>
+    <color name="widget_state_running">#FFB9F0C8</color>
+    <color name="widget_state_done">#FFC0C9BD</color>
+    <color name="widget_state_failed">#FFF2B8B5</color>
+    <color name="widget_state_stopped">#FFC0C9BD</color>
+
+    <color name="widget_log_text">#FFE1E3DE</color>
+    <color name="widget_log_alert">#FFF2B8B5</color>
+</resources>

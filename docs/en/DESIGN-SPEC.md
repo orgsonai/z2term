@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-21 / Target version: 1.0.53 (versionCode 751)
+Last updated: 2026-10-26 / Target version: 1.0.56 (versionCode 754)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -1261,6 +1261,14 @@ Hence `TunnelManager.KEEPALIVE_MS` = **10s** (`KEEPALIVE_LOW_POWER_MS` = 60s in 
 
 #### Macro widgets (grid `widget/StatusWidgetProvider` 0.8.212, D1 / list `widget/MacroListWidgetProvider` 1.0.55)
 
+**The 1.0.56 look (matching standard Android widgets)**: 1.0.55 kept nearly the same black-and-green monospace look as 1.0.54, and the user said "the design doesn't feel changed". The top row also put the ssh command side by side with servers, rules and battery, leaving it about 40 % of the width, so it was cut to "ssh -p 6…" and **the port onwards could not be read**.
+- **The ssh command gets a full-width line of its own.** Below it, `servers 1/3`, `rules 2/5` and `battery 87%` split the width in three, each label and value side by side. The command itself starts with ssh, so the `widget_ssh_label` header is `GONE` (the id stays).
+- **Colours follow the device's light / dark setting**: `widget_colors.xml` now comes in four sets (`values` / `values-night` / `values-v31` / `values-night-v31`). API 31+ uses the device's colour scheme (`@android:color/system_accent1_*` / `system_accent2_*` / `system_neutral*`) with Material 3 widget roles (base = surface, tiles and rows = secondaryContainer, running = primaryContainer, failed = errorContainer; only the failure red is fixed, as the device scheme has none). API 29–30 uses fixed green-based colours.
+- **Code passes text colours by name** (`MacroWidgets.textColor`; on API 31+ `RemoteViews.setColor(id, "setTextColor", res)`). Passing a resolved value freezes it, so after switching the device to dark the text would keep the light-background colour until the next redraw. API 29–30 still passes the value (it corrects itself on the next redraw).
+- **Corner radii come from the device** (`widget_shape.xml`; on API 31+ `system_app_widget_background_radius` / `system_app_widget_inner_radius`). No outlines: tiles and rows are set apart by their fill alone, and running / failed change the fill.
+- **Monospace only for the ssh command and tail lines.** Everything else uses the device font (`sans-serif-medium` for names and values, tabular figures `tnum` for times). Base text sizes went up by 1–2 sp (`widget_dimens.xml`).
+- The idle ▶ and running ■ sit on a filled circle (so they read as buttons). List rows dropped the divider lines and are rounded fills spaced 6 dp apart.
+
 **Rebuilt in 1.0.55 (function and design split)**: rebuilt on the request "keep every feature, make it stronger, and redo the design". The 0.8.2xx sections below are kept as history.
 
 - **Two kinds**: the grid widget (`StatusWidgetProvider`, formerly "Z2Term status"; ⚠ **the class name stays** — placed widgets are bound by class name, so renaming it would remove them from the home screen) drops the four side-by-side buttons for a **2×2 grid of tiles**. The list widget (`MacroListWidgetProvider`) puts **one macro per row** under the same header (scrolls inside; up to `WidgetStore.MAX_LIST_MACROS` = 30). Rows come from `widget/MacroListService` (a `RemoteViewsService`). The config screen is shared; it tells the kinds apart from `AppWidgetManager.getAppWidgetInfo(id).provider` and only the limit changes.
@@ -1295,7 +1303,7 @@ Hence `TunnelManager.KEEPALIVE_MS` = **10s** (`KEEPALIVE_LOW_POWER_MS` = 60s in 
 2. The ⟳ tap on the widget (re-reads immediately)
 3. `StatusWidgetProvider.refresh()` from the app — when the number of running resident servers changes (`ServerDaemonService`'s notification loop calls it **only when the count changes**) and from `WhenManager.reload()` (rules added/removed/toggled)
 
-**Drawing constraints**: `RemoteViews` are inflated in the launcher's process, so they **cannot read the Compose dynamic palette (`AppColors`)**. The widget alone keeps fixed ZTS dark colors in `res/values/colors.xml` as `widget_*` and does not follow the selected theme (deliberate). Views cannot be created dynamically either, so **all 4 buttons live in the layout and the spare ones are set to `GONE`**. Reading the state involves file I/O and the settings DataStore, so drawing always happens under `goAsync()` on a separate thread.
+**Drawing constraints**: `RemoteViews` are inflated in the launcher's process, so they **cannot read the Compose dynamic palette (`AppColors`)**. The widget alone keeps its colours in `widget_colors.xml` as `widget_*` and does not follow the app's selected theme (deliberate). Up to 1.0.55 these were fixed ZTS dark colours; from 1.0.56 they **follow the device's light / dark setting (and on API 31+ the device colour scheme)** (see the 1.0.56 section above). Views cannot be created dynamically either, so **all 4 buttons live in the layout and the spare ones are set to `GONE`**. Reading the state involves file I/O and the settings DataStore, so drawing always happens under `goAsync()` on a separate thread.
 
 **Unique PendingIntents**: both the requestCode (`appWidgetId * 8 + slot`) and the data URI (`z2term://widget/<id>/<slot>`) are made unique per widget × button. If either collides the PendingIntent is reused and one button runs the other's macro.
 

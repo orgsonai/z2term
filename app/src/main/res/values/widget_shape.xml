@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ホーム画面ウィジェットの角の丸み。API 31+ は values-v31/widget_shape.xml で端末の値に置き換える
+  (ランチャーやほかのウィジェットと同じ丸みになる)。
+   - widget_radius       … ウィジェットの外枠
+   - widget_inner_radius … 中のマス・行・パネル
+-->
+<resources>
+    <dimen name="widget_radius">20dp</dimen>
+    <dimen name="widget_inner_radius">12dp</dimen>
+</resources>

@@ -6,7 +6,6 @@ import android.content.Intent
 import android.util.TypedValue
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
-import androidx.core.content.ContextCompat
 import com.zerotoship.z2term.R
 
 /**
@@ -55,12 +54,9 @@ class TailLinesService : RemoteViewsService() {
             // 空行も 1 行として高さを持たせる (詰めると段落の区切りが消える)。
             views.setTextViewText(R.id.tail_line, line.ifEmpty { " " })
             views.setTextViewTextSize(R.id.tail_line, TypedValue.COMPLEX_UNIT_SP, textSp)
-            views.setTextColor(
-                R.id.tail_line,
-                ContextCompat.getColor(
-                    context,
-                    if (TailReader.isAlert(line)) R.color.widget_log_alert else R.color.widget_log_text
-                )
+            MacroWidgets.textColor(
+                context, views, R.id.tail_line,
+                if (TailReader.isAlert(line)) R.color.widget_log_alert else R.color.widget_log_text
             )
             views.setOnClickFillInIntent(R.id.tail_line, Intent())
             return views

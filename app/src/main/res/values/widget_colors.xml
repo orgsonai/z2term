@@ -1,32 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ホーム画面ウィジェット専用の配色。ここだけは XML に色を持つ。
+  ホーム画面ウィジェット専用の配色 (ライト・API 29〜30)。ここだけは XML に色を持つ。
   RemoteViews はランチャーのプロセスで描かれるため Compose の動的パレット (AppColors) を
-  読めず、選択中テーマに追従できない。値は固定する (意図的)。
+  読めず、選択中テーマに追従できない。代わりに**端末のライト / ダークに追従する** (1.0.56〜)。
+
+  4 組ある (名前はすべて同じ):
+   - values/            … ライト・API 29〜30 (固定の緑系)
+   - values-night/      … ダーク・API 29〜30
+   - values-v31/        … ライト・API 31+ (端末の配色 = 壁紙から作られる system_* 色)
+   - values-night-v31/  … ダーク・API 31+
+  組の中での役割は Material 3 のウィジェットに揃えてある:
+  土台 = surface / マス・行 = secondaryContainer / 実行中 = primaryContainer / 失敗 = errorContainer。
 
   ⚠ 名前は「ウィジェットの約束の表」(99_private/HANDOFF/z2term/) で決めてある。
   コード (widget/*.kt) が名前で参照するので、名前を消したり変えたりしないこと。値は自由に変えてよい。
 -->
 <resources>
     <!-- 土台・枠・サーフェス -->
-    <color name="widget_bg">#F40A0C0E</color>
-    <color name="widget_card">#FF141618</color>
-    <color name="widget_border">#FF2A2E33</color>
+    <color name="widget_bg">#FFF6F8F3</color>
+    <color name="widget_card">#FFE3EAE0</color>
+    <color name="widget_border">#FFC1C9BE</color>
+    <!-- 実行中 / 失敗のマス・行の地 -->
+    <color name="widget_running_bg">#FFB9F0C8</color>
+    <color name="widget_failed_bg">#FFF9DEDC</color>
 
-    <!-- 文字 (背景 #0A0C0E に対するコントラスト比 4.5:1 以上を保証) -->
-    <color name="widget_accent">#FF22C55E</color>
-    <color name="widget_text_primary">#FFF8FAFC</color>
-    <color name="widget_text_secondary">#FFA8B2BC</color>
-    <color name="widget_text_tertiary">#FF88929D</color>
+    <!-- 文字 (それぞれが載る地に対してコントラスト比 4.5:1 以上) -->
+    <color name="widget_accent">#FF1B6D3B</color>
+    <color name="widget_on_accent">#FFFFFFFF</color>
+    <color name="widget_text_primary">#FF191C19</color>
+    <color name="widget_text_secondary">#FF414941</color>
+    <color name="widget_text_tertiary">#FF5B635A</color>
 
-    <!-- マクロの状態の文字色 (コードが状態ごとに当てる) -->
-    <color name="widget_state_idle">#FF88929D</color>
-    <color name="widget_state_running">#FF22C55E</color>
-    <color name="widget_state_done">#FFCBD5E1</color>
-    <color name="widget_state_failed">#FFF59E0B</color>
-    <color name="widget_state_stopped">#FFA8B2BC</color>
+    <!-- マクロの状態の文字色 (コードが状態ごとに当てる)。実行中・失敗は上の地の上に載る -->
+    <color name="widget_state_idle">#FF414941</color>
+    <color name="widget_state_running">#FF00391B</color>
+    <color name="widget_state_done">#FF414941</color>
+    <color name="widget_state_failed">#FFB3261E</color>
+    <color name="widget_state_stopped">#FF414941</color>
 
     <!-- ライブ tail の行 (通常 / エラー・失敗の行) -->
-    <color name="widget_log_text">#FFE2E8F0</color>
-    <color name="widget_log_alert">#FFF59E0B</color>
+    <color name="widget_log_text">#FF191C19</color>
+    <color name="widget_log_alert">#FFB3261E</color>
 </resources>

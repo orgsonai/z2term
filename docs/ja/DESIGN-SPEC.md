@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-10-21 / 対象バージョン: 1.0.53 (versionCode 751)
+最終更新: 2026-10-26 / 対象バージョン: 1.0.56 (versionCode 754)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -1246,6 +1246,14 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 
 #### マクロウィジェット（マス目 `widget/StatusWidgetProvider` 0.8.212・D1 ／ 一覧 `widget/MacroListWidgetProvider` 1.0.55）
 
+**1.0.56 の見た目（Android 標準のウィジェットに合わせた）**: 1.0.55 は色も文字も 1.0.54 とほぼ同じ黒＋緑・等幅のままで、利用者から「デザインが変わった気がしない」と言われた。さらに上段で ssh の接続コマンドを常駐・自動化・電池と横に並べたため幅が 4 割ほどしかなく、「ssh -p 6…」で切れて**ポートから先が読めなかった**。
+- **ssh の行は横幅いっぱいの 1 行**。その下に `常駐 1/3`・`自動化 2/5`・`電池 87%` を見出しと値の横並びで 3 等分。コマンド自体が ssh で始まるので見出し `widget_ssh_label` は `GONE`（id は残す）。
+- **配色は端末のライト / ダークに追従**: `widget_colors.xml` を 4 組（`values` / `values-night` / `values-v31` / `values-night-v31`）にした。API 31+ は端末の配色（`@android:color/system_accent1_*` / `system_accent2_*` / `system_neutral*`）を使い、役割は Material 3 のウィジェットに揃える（土台 = surface、マス・行 = secondaryContainer、実行中 = primaryContainer、失敗 = errorContainer。失敗の赤だけは端末の配色に無いので固定）。API 29〜30 は緑系の固定色。
+- **コードは文字色を名前で渡す**（`MacroWidgets.textColor`。API 31+ は `RemoteViews.setColor(id, "setTextColor", res)`）。値に直して渡すと、その時点の色で固まり、端末をダークに切り替えても描き直すまで明るい地用の色のまま残るため。API 29〜30 は従来どおり値で渡す（切り替えたあとは次の描き直しで直る）。
+- **角の丸みは端末の値**（`widget_shape.xml`。API 31+ は `system_app_widget_background_radius` / `system_app_widget_inner_radius`）。枠線は付けない。マス・行は地の色だけで分け、実行中・失敗は地の色が変わる。
+- **等幅フォントは ssh のコマンドと tail の行だけ**。ほかは端末の標準フォント（名前・値は `sans-serif-medium`、時刻は数字だけ等幅 `tnum`）。文字の基準サイズを 1〜2sp 上げた（`widget_dimens.xml`）。
+- 待機中の ▶ と実行中の ■ は、塗りの丸の上に載せた（押せることが分かる形）。一覧の行は区切り線をやめ、角の丸い地を 6dp 空けて並べる。
+
 **1.0.55 の作り直し（機能とデザインを分けた）**: 利用者の「機能は弱めず強化し、デザインを一新したい」を受けて作り直した。下の 0.8.2xx の節は経緯として残す。
 
 - **2 種類**: マス目型（`StatusWidgetProvider`。旧「Z2Term の状態」。⚠ **クラス名は据え置き** — 置き済みのウィジェットはクラス名で結び付いているので、変えるとホーム画面から消える）は横 4 分割のボタンをやめて **2×2 のマス**。一覧型（`MacroListWidgetProvider`）は同じ上段の下に **1 行 1 マクロの一覧**（中でスクロール・最大 `WidgetStore.MAX_LIST_MACROS` = 30）。行は `widget/MacroListService`（`RemoteViewsService`）が作る。設定画面は共通で、`AppWidgetManager.getAppWidgetInfo(id).provider` から種類を判別して上限だけ変える。
@@ -1280,7 +1288,7 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 2. ウィジェットの ⟳ タップ（その場で読み直す）
 3. アプリ側からの `StatusWidgetProvider.refresh()` — 常駐サーバーの稼働数が変わったとき（`ServerDaemonService` の通知更新ループが**数が変わった時だけ**叩く）と、`WhenManager.reload()`（ルールの増減・on/off）のとき
 
-**描画の制約**: `RemoteViews` はランチャーのプロセスで描かれるため **Compose の動的パレット（`AppColors`）を読めない**。ウィジェットだけは ZTS ダークパレットの固定色を `res/values/colors.xml` の `widget_*` に持ち、選択中テーマには追従しない（意図的）。ボタンは View を動的に生やせないので**4 個ぶんをレイアウトに置いて余りを `GONE`** にする。読み取りはファイル I/O と設定 DataStore を含むので、描画は必ず `goAsync()` + 別スレッドで行う。
+**描画の制約**: `RemoteViews` はランチャーのプロセスで描かれるため **Compose の動的パレット（`AppColors`）を読めない**。ウィジェットだけは色を `widget_colors.xml` の `widget_*` に持ち、アプリの選択中テーマには追従しない（意図的）。1.0.55 までは ZTS ダークの固定色だったが、1.0.56 から**端末のライト / ダーク（API 31+ は端末の配色）**に追従する（上の 1.0.56 の節）。ボタンは View を動的に生やせないので**4 個ぶんをレイアウトに置いて余りを `GONE`** にする。読み取りはファイル I/O と設定 DataStore を含むので、描画は必ず `goAsync()` + 別スレッドで行う。
 
 **PendingIntent の一意化**: requestCode（`appWidgetId * 8 + スロット`）と data（`z2term://widget/<id>/<slot>`）の両方をウィジェット×ボタンで一意にする。どちらかが同じだと PendingIntent が使い回され、別のボタンが前のマクロを走らせる。
 

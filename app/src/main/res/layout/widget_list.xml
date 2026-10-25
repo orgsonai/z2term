@@ -3,6 +3,8 @@
   ホーム画面ウィジェット「状態＋マクロ (一覧)」のレイアウト (MacroListWidgetProvider)。
   上段は widget_status_header.xml、下段はマクロの一覧 (中でスクロール)。1 行は widget_macro_item.xml。
 
+  1.0.56: 行は区切り線ではなく、角の丸い地を 6dp 空けて並べる (マス目型のマスと同じ見え方)。
+
   ⚠ id は「ウィジェットの約束の表」で決めてある。widget_list は ListView のまま
   (GridView / StackView にしない)、widget_list_empty はマクロが無いときに出す TextView。
 -->
@@ -12,10 +14,10 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
     android:orientation="vertical"
-    android:paddingStart="12dp"
-    android:paddingTop="8dp"
-    android:paddingEnd="12dp"
-    android:paddingBottom="10dp">
+    android:paddingStart="14dp"
+    android:paddingTop="6dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="12dp">
 
     <include layout="@layout/widget_status_header" />
 
@@ -30,8 +32,9 @@
             android:id="@+id/widget_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:divider="@color/widget_border"
-            android:dividerHeight="1dp" />
+            android:divider="@android:color/transparent"
+            android:dividerHeight="6dp"
+            android:scrollbars="none" />
 
         <TextView
             android:id="@+id/widget_list_empty"
@@ -47,7 +50,7 @@
         android:id="@+id/widget_footer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="8dp"
         android:textColor="@color/widget_text_tertiary"
         android:textSize="@dimen/widget_text_footer"
         android:singleLine="true"

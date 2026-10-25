@@ -3,6 +3,9 @@
   ホーム画面ウィジェット「状態＋マクロ (マス目)」のレイアウト (StatusWidgetProvider)。
   上段は widget_status_header.xml、下段はマクロ 4 個のマス (2×2)。
 
+  1.0.56: Android のホーム画面に並ぶ標準のウィジェットに合わせて作り直した
+  (端末のライト / ダーク・配色・角の丸みに追従、枠線なし、等幅フォントは ssh とログだけ)。
+
   ⚠ id は「ウィジェットの約束の表」で決めてある。マスは 4 個 (widget_tile_0〜3) と
   それを包む 2 行 (widget_tiles_row_0 / _1) が必須。マスの背景はコードが状態ごとに
   widget_tile_* へ差し替えるので、マスの root (widget_tile_N) に背景を持たせる。
@@ -13,10 +16,10 @@
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
     android:orientation="vertical"
-    android:paddingStart="12dp"
-    android:paddingTop="8dp"
-    android:paddingEnd="12dp"
-    android:paddingBottom="10dp">
+    android:paddingStart="14dp"
+    android:paddingTop="6dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="12dp">
 
     <include layout="@layout/widget_status_header" />
 
@@ -33,13 +36,7 @@
         <!-- マス 0 -->
         <LinearLayout
             android:id="@+id/widget_tile_0"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@drawable/widget_tile_idle"
-            android:orientation="vertical"
-            android:padding="9dp">
-
+            style="@style/Z2WidgetTile">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -47,70 +44,42 @@
                 android:orientation="horizontal">
                 <TextView
                     android:id="@+id/widget_tile_0_name"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textColor="@color/widget_text_primary"
-                    android:textSize="@dimen/widget_text_name"
-                    android:textStyle="bold"
-                    android:singleLine="true"
-                    android:ellipsize="end" />
+                    style="@style/Z2WidgetMacroName" />
                 <ImageView
                     android:id="@+id/widget_tile_0_icon"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
                     android:layout_marginStart="6dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_widget_run" />
             </LinearLayout>
-
             <TextView
                 android:id="@+id/widget_tile_0_desc"
+                style="@style/Z2WidgetMacroDesc" />
+            <!-- 残りの高さを空けて、状態はマスの下端に揃える -->
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="@color/widget_text_secondary"
-                android:textSize="@dimen/widget_text_desc"
-                android:singleLine="true"
-                android:ellipsize="end" />
-
+                android:layout_height="0dp"
+                android:layout_weight="1" />
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
                 <TextView
                     android:id="@+id/widget_tile_0_state"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/widget_state_idle"
-                    android:textSize="@dimen/widget_text_state"
-                    android:fontFamily="monospace"
-                    android:singleLine="true" />
+                    style="@style/Z2WidgetMacroState" />
                 <Chronometer
                     android:id="@+id/widget_tile_0_timer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:textColor="@color/widget_state_running"
-                    android:textSize="@dimen/widget_text_state"
-                    android:fontFamily="monospace"
-                    android:visibility="gone" />
+                    style="@style/Z2WidgetMacroTimer" />
             </LinearLayout>
         </LinearLayout>
 
         <!-- マス 1 -->
         <LinearLayout
             android:id="@+id/widget_tile_1"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/widget_tile_idle"
-            android:orientation="vertical"
-            android:padding="9dp">
-
+            style="@style/Z2WidgetTile"
+            android:layout_marginStart="8dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -118,56 +87,34 @@
                 android:orientation="horizontal">
                 <TextView
                     android:id="@+id/widget_tile_1_name"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textColor="@color/widget_text_primary"
-                    android:textSize="@dimen/widget_text_name"
-                    android:textStyle="bold"
-                    android:singleLine="true"
-                    android:ellipsize="end" />
+                    style="@style/Z2WidgetMacroName" />
                 <ImageView
                     android:id="@+id/widget_tile_1_icon"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
                     android:layout_marginStart="6dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_widget_run" />
             </LinearLayout>
-
             <TextView
                 android:id="@+id/widget_tile_1_desc"
+                style="@style/Z2WidgetMacroDesc" />
+            <!-- 残りの高さを空けて、状態はマスの下端に揃える -->
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="@color/widget_text_secondary"
-                android:textSize="@dimen/widget_text_desc"
-                android:singleLine="true"
-                android:ellipsize="end" />
-
+                android:layout_height="0dp"
+                android:layout_weight="1" />
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
                 <TextView
                     android:id="@+id/widget_tile_1_state"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/widget_state_idle"
-                    android:textSize="@dimen/widget_text_state"
-                    android:fontFamily="monospace"
-                    android:singleLine="true" />
+                    style="@style/Z2WidgetMacroState" />
                 <Chronometer
                     android:id="@+id/widget_tile_1_timer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:textColor="@color/widget_state_running"
-                    android:textSize="@dimen/widget_text_state"
-                    android:fontFamily="monospace"
-                    android:visibility="gone" />
+                    style="@style/Z2WidgetMacroTimer" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
@@ -185,13 +132,7 @@
         <!-- マス 2 -->
         <LinearLayout
             android:id="@+id/widget_tile_2"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@drawable/widget_tile_idle"
-            android:orientation="vertical"
-            android:padding="9dp">
-
+            style="@style/Z2WidgetTile">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -199,70 +140,42 @@
                 android:orientation="horizontal">
                 <TextView
                     android:id="@+id/widget_tile_2_name"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textColor="@color/widget_text_primary"
-                    android:textSize="@dimen/widget_text_name"
-                    android:textStyle="bold"
-                    android:singleLine="true"
-                    android:ellipsize="end" />
+                    style="@style/Z2WidgetMacroName" />
                 <ImageView
                     android:id="@+id/widget_tile_2_icon"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
                     android:layout_marginStart="6dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_widget_run" />
             </LinearLayout>
-
             <TextView
                 android:id="@+id/widget_tile_2_desc"
+                style="@style/Z2WidgetMacroDesc" />
+            <!-- 残りの高さを空けて、状態はマスの下端に揃える -->
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="@color/widget_text_secondary"
-                android:textSize="@dimen/widget_text_desc"
-                android:singleLine="true"
-                android:ellipsize="end" />
-
+                android:layout_height="0dp"
+                android:layout_weight="1" />
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
                 <TextView
                     android:id="@+id/widget_tile_2_state"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/widget_state_idle"
-                    android:textSize="@dimen/widget_text_state"
-                    android:fontFamily="monospace"
-                    android:singleLine="true" />
+                    style="@style/Z2WidgetMacroState" />
                 <Chronometer
                     android:id="@+id/widget_tile_2_timer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:textColor="@color/widget_state_running"
-                    android:textSize="@dimen/widget_text_state"
-                    android:fontFamily="monospace"
-                    android:visibility="gone" />
+                    style="@style/Z2WidgetMacroTimer" />
             </LinearLayout>
         </LinearLayout>
 
         <!-- マス 3 -->
         <LinearLayout
             android:id="@+id/widget_tile_3"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/widget_tile_idle"
-            android:orientation="vertical"
-            android:padding="9dp">
-
+            style="@style/Z2WidgetTile"
+            android:layout_marginStart="8dp">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -270,56 +183,34 @@
                 android:orientation="horizontal">
                 <TextView
                     android:id="@+id/widget_tile_3_name"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textColor="@color/widget_text_primary"
-                    android:textSize="@dimen/widget_text_name"
-                    android:textStyle="bold"
-                    android:singleLine="true"
-                    android:ellipsize="end" />
+                    style="@style/Z2WidgetMacroName" />
                 <ImageView
                     android:id="@+id/widget_tile_3_icon"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
                     android:layout_marginStart="6dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_widget_run" />
             </LinearLayout>
-
             <TextView
                 android:id="@+id/widget_tile_3_desc"
+                style="@style/Z2WidgetMacroDesc" />
+            <!-- 残りの高さを空けて、状態はマスの下端に揃える -->
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textColor="@color/widget_text_secondary"
-                android:textSize="@dimen/widget_text_desc"
-                android:singleLine="true"
-                android:ellipsize="end" />
-
+                android:layout_height="0dp"
+                android:layout_weight="1" />
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
                 <TextView
                     android:id="@+id/widget_tile_3_state"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/widget_state_idle"
-                    android:textSize="@dimen/widget_text_state"
-                    android:fontFamily="monospace"
-                    android:singleLine="true" />
+                    style="@style/Z2WidgetMacroState" />
                 <Chronometer
                     android:id="@+id/widget_tile_3_timer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:textColor="@color/widget_state_running"
-                    android:textSize="@dimen/widget_text_state"
-                    android:fontFamily="monospace"
-                    android:visibility="gone" />
+                    style="@style/Z2WidgetMacroTimer" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
@@ -329,7 +220,7 @@
         android:id="@+id/widget_footer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="8dp"
         android:textColor="@color/widget_text_tertiary"
         android:textSize="@dimen/widget_text_footer"
         android:singleLine="true"

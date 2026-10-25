@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 実行中のマクロ (押せば止まる Stop アイコン) -->
+<!-- 実行中のマクロ (押せば止まる)。塗りの丸に停止の四角 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- 角丸の停止正方形 -->
     <path
-        android:pathData="M7.5,6.3 h9 a1.2,1.2 0 0 1 1.2,1.2 v9 a1.2,1.2 0 0 1 -1.2,1.2 h-9 a1.2,1.2 0 0 1 -1.2,-1.2 v-9 a1.2,1.2 0 0 1 1.2,-1.2 z"
-        android:fillColor="@color/widget_state_running" />
+        android:pathData="M12,1 A11,11 0 1 0 12,23 A11,11 0 1 0 12,1 Z"
+        android:fillColor="@color/widget_accent" />
+    <path
+        android:pathData="M9.2,8 h5.6 a1.2,1.2 0 0 1 1.2,1.2 v5.6 a1.2,1.2 0 0 1 -1.2,1.2 h-5.6 a1.2,1.2 0 0 1 -1.2,-1.2 v-5.6 a1.2,1.2 0 0 1 1.2,-1.2 z"
+        android:fillColor="@color/widget_on_accent" />
 </vector>

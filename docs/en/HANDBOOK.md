@@ -865,12 +865,14 @@ If you have no macros yet, run `z2-macro install all` in the terminal first
 (everything under `~/.z2term/macros/` becomes selectable). Your own `.sh` files
 dropped into that folder show up the same way.
 
+The widget's colours follow **the device's light / dark setting** (on Android 12 and later it uses the device colour scheme made from your wallpaper; 1.0.56).
+
 **What it shows**
 
 | Where | What |
 |---|---|
-| Top left | `ssh -p 2222 root@192.168.x.x` — the command to get into this device from a PC. **Green means `sshd` is running** (grey = just the address) |
-| Top right | `servers 1/3`, `rules 2/5`, `battery 87%` (see the table below) |
+| Second line | `ssh -p 2222 root@192.168.x.x` — the command to get into this device from a PC. **Coloured means `sshd` is running** (grey = just the address) |
+| Third line | `servers 1/3`, `rules 2/5`, `battery 87%` (see the table below) |
 | Corner buttons | **Settings** — pick which macros to show / **⟳** — refresh right now |
 | Tiles / rows | The macros you picked. A tap runs one in the background. Each shows the name, a description (the comment at the top of the script) and its state |
 | Bottom line | The macro that **finished** last today and when, plus when the widget was last refreshed |
@@ -880,9 +882,9 @@ dropped into that folder show up the same way.
 | Shown | Meaning |
 |---|---|
 | `not run today` | It has not run today |
-| `running` + elapsed time (green outline) | It is running now. **Tap it again to stop it** |
+| `running` + elapsed time (the tile gets a coloured fill) | It is running now. **Tap it again to stop it** |
 | `07:10–07:12 done` | It finished normally today (start and end time) |
-| `06:30 failed (1)` (amber outline) | It ended today with a non-zero exit code, shown in brackets |
+| `06:30 failed (1)` (the tile turns red) | It ended today with a non-zero exit code, shown in brackets |
 | `09:00–09:01 stopped` | You stopped it from the widget, or it did not get to the end (the app was closed, for example) |
 
 **Up to 1.0.54 a failed macro still got a `✓`.** The widget now goes by the exit code the script returns.
@@ -911,7 +913,7 @@ The bottom line also shows the macro and when it finished. A macro that keeps ru
 
 **Stopping a macro**
 
-**Tap a running tile or row again to stop it** (the green outline marks it as running). That makes it possible to
+**Tap a running tile or row again to stop it** (the coloured fill marks it as running). That makes it possible to
 stop long-running macros — the ones that keep watching for events — straight from the home screen.
 Note that **quitting the app also ends any macro started from the widget** (it then shows `stopped`).
 
