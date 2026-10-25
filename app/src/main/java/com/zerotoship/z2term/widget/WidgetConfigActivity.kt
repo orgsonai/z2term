@@ -9,18 +9,17 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -28,18 +27,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
-import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
-import com.zerotoship.z2term.ui.theme.Z2TermTheme
-import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
-import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
-import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 
 /**
  * マクロウィジェット (マス目型 [StatusWidgetProvider] / 一覧型 [MacroListWidgetProvider]) の
@@ -80,8 +73,6 @@ class WidgetConfigActivity : ComponentActivity() {
             return
         }
 
-        CustomThemeStore.ensureLoaded(applicationContext)
-
         val provider = runCatching {
             AppWidgetManager.getInstance(this).getAppWidgetInfo(appWidgetId)?.provider?.className
         }.getOrNull()
@@ -97,19 +88,17 @@ class WidgetConfigActivity : ComponentActivity() {
         val descriptions = available.associateWith { WidgetStore.description(this, it) }
 
         setContent {
-            Z2TermTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = ZtsBgPrimary) {
-                    ConfigScreen(
-                        available = available,
-                        descriptions = descriptions,
-                        initial = initial,
-                        maxMacros = maxMacros,
-                        initialTextSp = WidgetStore.textSp(this, appWidgetId),
-                        onSave = { selected, sp -> save(selected, sp) },
-                        onCancel = { finish() },
-                        onResetHistory = { resetHistory() },
-                    )
-                }
+            WidgetConfigTheme {
+                ConfigScreen(
+                    available = available,
+                    descriptions = descriptions,
+                    initial = initial,
+                    maxMacros = maxMacros,
+                    initialTextSp = WidgetStore.textSp(this, appWidgetId),
+                    onSave = { selected, sp -> save(selected, sp) },
+                    onCancel = { finish() },
+                    onResetHistory = { resetHistory() },
+                )
             }
         }
     }
@@ -154,116 +143,84 @@ private fun ConfigScreen(
     val selected = remember { mutableStateListOf<String>().apply { addAll(initial) } }
     var textSp by remember { mutableStateOf(initialTextSp) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            // ステータスバー / ナビゲーションバーの下に潜り込ませない。targetSdk 35 の
-            // Android 15 は edge-to-edge が強制なので、これが無いと上下が隠れて押せない
-            // (実機フィードバック 2026-07-24)。既存の画面と同じ書き方に揃えている。
-            .windowInsetsPadding(WindowInsets.systemBars)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.widget_config_title),
-            color = ZtsTextPrimary,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
-        )
-        Text(
-            text = stringResource(R.string.widget_config_desc, maxMacros),
-            color = ZtsTextSecondary,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace
-        )
-
-        // 文字の大きさ (0.8.255)。ライブ tail ウィジェットと同じ作法 (プリセットを並べる)。
-        // ここで選んだ差分が、見出し・状態行・ボタン・フッターに**まとめて**効く。
-        Text(
-            text = stringResource(R.string.tail_text_size_label),
-            color = ZtsTextSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(9, 11, 13, 15, 17, 20).forEach { sp ->
-                ConfigSelectRow(
-                    title = "$sp",
-                    subtitle = if (sp == WidgetStore.DEFAULT_TEXT_SP) {
-                        stringResource(R.string.tail_text_size_default)
-                    } else "",
-                    checked = textSp == sp,
-                    modifier = Modifier.weight(1f),
-                    onToggle = { textSp = sp }
-                )
+    ConfigScaffold(
+        title = stringResource(R.string.widget_config_title),
+        onClose = onCancel,
+        closeDescription = stringResource(R.string.widget_config_cancel),
+        bottomBar = {
+            // いくつ選んだかを保存の横に出す (上限に達すると未選択の行が押せなくなる理由が分かる)。
+            Text(
+                text = "${selected.size} / $maxMacros",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.widget_config_cancel)) }
+            Button(onClick = { onSave(selected.toList(), textSp) }) {
+                Text(stringResource(R.string.widget_config_save))
             }
-        }
+        },
+    ) {
+        item { ConfigNote(stringResource(R.string.widget_config_desc, maxMacros)) }
 
         if (available.isEmpty()) {
-            Text(
-                text = stringResource(R.string.widget_config_empty),
-                color = ZtsTextSecondary,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace
-            )
+            item {
+                ConfigNote(
+                    stringResource(R.string.widget_config_empty),
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
         } else {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                available.forEach { name ->
-                    val checked = name in selected
-                    val desc = descriptions[name].orEmpty()
-                    ConfigSelectRow(
-                        title = WidgetStore.label(name),
-                        subtitle = desc.ifBlank { stringResource(R.string.widget_config_no_desc) },
-                        checked = checked,
-                        // 上限に達していたら未選択の行は押せない (先に外してもらう)。
-                        enabled = checked || selected.size < maxMacros,
-                        onToggle = {
-                            if (checked) selected.remove(name) else selected.add(name)
-                        }
-                    )
-                }
+            item { Spacer(Modifier.padding(top = 4.dp)) }
+            items(available, key = { it }) { name ->
+                val checked = name in selected
+                // 上限に達していたら未選択の行は押せない (先に外してもらう)。
+                val enabled = checked || selected.size < maxMacros
+                val desc = descriptions[name].orEmpty()
+                ListItem(
+                    headlineContent = { Text(WidgetStore.label(name)) },
+                    supportingContent = {
+                        Text(desc.ifBlank { stringResource(R.string.widget_config_no_desc) })
+                    },
+                    leadingContent = { Checkbox(checked = checked, onCheckedChange = null, enabled = enabled) },
+                    modifier = Modifier
+                        .alpha(if (enabled) 1f else 0.5f)
+                        .toggleable(
+                            value = checked,
+                            enabled = enabled,
+                            role = Role.Checkbox,
+                            onValueChange = { if (checked) selected.remove(name) else selected.add(name) },
+                        ),
+                )
             }
         }
 
         // 「一覧に無いマクロをどう足すのか分からない」という実機フィードバックへの対応。
         // 一覧が空のときだけでなく**常に**出す (足し方はここでしか分からない)。
-        Text(
-            text = stringResource(R.string.widget_config_add_hint),
-            color = ZtsTextSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace
-        )
+        item { ConfigNote(stringResource(R.string.widget_config_add_hint)) }
 
-        // 実行履歴 (ボタンの ✓ と時刻) のリセット。日付が変われば自動で消えるが、
+        // 文字の大きさ (0.8.255)。ここで選んだ差分が、見出し・状態・マス・フッターに**まとめて**効く。
+        item { ConfigSection(stringResource(R.string.tail_text_size_label)) }
+        item {
+            ConfigTextSize(
+                options = listOf(9, 11, 13, 15, 17, 20),
+                selected = textSp,
+                defaultSp = WidgetStore.DEFAULT_TEXT_SP,
+                defaultLabel = stringResource(R.string.tail_text_size_default),
+                onSelect = { textSp = it },
+            )
+        }
+
+        // 実行履歴 (マクロの結果と時刻) のリセット。日付が変われば自動で消えるが、
         // 「いま消したい」に応える出口をここに置く — ウィジェットを置き直しても消えず、
         // アプリのデータ削除しか手が無かった (実機フィードバック 2026-07-25)。
-        Text(
-            text = stringResource(R.string.widget_config_reset_desc),
-            color = ZtsTextSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace
-        )
-        ConfigButton(
-            label = stringResource(R.string.widget_config_reset),
-            onClick = onResetHistory
-        )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ConfigButton(
-                label = stringResource(R.string.widget_config_save),
-                accent = true,
-                onClick = { onSave(selected.toList(), textSp) }
-            )
-            ConfigButton(
-                label = stringResource(R.string.widget_config_cancel),
-                onClick = onCancel
-            )
+        item { ConfigSection(stringResource(R.string.widget_config_reset)) }
+        item { ConfigNote(stringResource(R.string.widget_config_reset_desc)) }
+        item {
+            OutlinedButton(
+                onClick = onResetHistory,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            ) { Text(stringResource(R.string.widget_config_reset)) }
         }
     }
 }

@@ -8,42 +8,35 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
-import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
-import com.zerotoship.z2term.ui.theme.Z2TermTheme
-import com.zerotoship.z2term.ui.theme.ZtsBgCard
-import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
-import com.zerotoship.z2term.ui.theme.ZtsGreen
-import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
-import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -79,23 +72,20 @@ class TailConfigActivity : ComponentActivity() {
             return
         }
 
-        CustomThemeStore.ensureLoaded(applicationContext)
         val initial = TailStore.path(this, appWidgetId)
         val initialMode = TailStore.mode(this, appWidgetId)
 
         setContent {
-            Z2TermTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = ZtsBgPrimary) {
-                    TailConfigScreen(
-                        initialPath = initial,
-                        initialMode = initialMode,
-                        initialTextSp = TailStore.textSp(this, appWidgetId),
-                        list = { dir -> TailStore.list(this, dir) },
-                        isFile = { p -> TailStore.resolve(this, p)?.isFile == true },
-                        onSave = { path, mode, sp -> save(path, mode, sp) },
-                        onCancel = { finish() },
-                    )
-                }
+            WidgetConfigTheme {
+                TailConfigScreen(
+                    initialPath = initial,
+                    initialMode = initialMode,
+                    initialTextSp = TailStore.textSp(this, appWidgetId),
+                    list = { dir -> TailStore.list(this, dir) },
+                    isFile = { p -> TailStore.resolve(this, p)?.isFile == true },
+                    onSave = { path, mode, sp -> save(path, mode, sp) },
+                    onCancel = { finish() },
+                )
             }
         }
     }
@@ -132,163 +122,117 @@ private fun TailConfigScreen(
     }
     val entries = remember(dir) { list(dir) }
     val stamp = SimpleDateFormat("MM/dd HH:mm", Locale.US)
+    val canSave = path.isNotBlank() && isFile(path)
+    val modes = listOf(TailStore.Mode.TAIL, TailStore.Mode.HEAD)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.systemBars)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ConfigScaffold(
+        title = stringResource(R.string.tail_config_title),
+        onClose = onCancel,
+        closeDescription = stringResource(R.string.widget_config_cancel),
+        bottomBar = {
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.widget_config_cancel)) }
+            // 保存できない理由は入力欄の下に出す (押しても何も起きない、を作らない)。
+            Button(onClick = { onSave(path.trim(), mode, textSp) }, enabled = canSave) {
+                Text(stringResource(R.string.widget_config_save))
+            }
+        },
     ) {
-        Text(
-            text = stringResource(R.string.tail_config_title),
-            color = ZtsTextPrimary,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
-        )
-        Text(
-            text = stringResource(R.string.tail_config_desc),
-            color = ZtsTextSecondary,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace
-        )
+        item { ConfigNote(stringResource(R.string.tail_config_desc)) }
 
         // 自分で打つ口。フォルダを辿って選んだときもここに入るので、いつでも直せる。
-        BasicTextField(
-            value = path,
-            onValueChange = { path = it },
-            singleLine = true,
-            textStyle = TextStyle(
-                color = ZtsTextPrimary,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace
-            ),
-            cursorBrush = SolidColor(ZtsGreen),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 2.dp)
-        )
-        Text(
-            text = stringResource(R.string.tail_path_hint),
-            color = ZtsTextSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace
-        )
+        item {
+            val invalid = path.isNotBlank() && !canSave
+            OutlinedTextField(
+                value = path,
+                onValueChange = { path = it },
+                singleLine = true,
+                isError = invalid,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+                supportingText = {
+                    Text(
+                        stringResource(if (invalid) R.string.tail_not_a_file else R.string.tail_path_hint)
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
 
         // ファイルのどちら側を出すか。増え続けるログなら末尾、書き終わったファイルなら先頭。
-        Text(
-            text = stringResource(R.string.tail_mode_label),
-            color = ZtsTextSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ConfigSelectRow(
-                title = stringResource(R.string.tail_mode_tail),
-                subtitle = stringResource(R.string.tail_mode_tail_desc),
-                checked = mode == TailStore.Mode.TAIL,
-                modifier = Modifier.weight(1f),
-                onToggle = { mode = TailStore.Mode.TAIL }
+        item { ConfigSection(stringResource(R.string.tail_mode_label)) }
+        item {
+            ConfigSegmented(
+                labels = listOf(
+                    stringResource(R.string.tail_mode_tail),
+                    stringResource(R.string.tail_mode_head),
+                ),
+                selected = modes.indexOf(mode),
+                onSelect = { mode = modes[it] },
             )
-            ConfigSelectRow(
-                title = stringResource(R.string.tail_mode_head),
-                subtitle = stringResource(R.string.tail_mode_head_desc),
-                checked = mode == TailStore.Mode.HEAD,
-                modifier = Modifier.weight(1f),
-                onToggle = { mode = TailStore.Mode.HEAD }
+            ConfigNote(
+                stringResource(
+                    if (mode == TailStore.Mode.TAIL) R.string.tail_mode_tail_desc else R.string.tail_mode_head_desc
+                ),
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
 
-        // 文字の大きさ (0.8.255)。プリセットを並べる — スライダーだと 1sp 刻みで
-        // 迷わせるだけで、ウィジェットの文字は数段階あれば足りる。
-        Text(
-            text = stringResource(R.string.tail_text_size_label),
-            color = ZtsTextSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(8, 10, 12, 14, 17, 20).forEach { sp ->
-                ConfigSelectRow(
-                    title = "$sp",
-                    // 既定 (10) がどれか分かるようにしておく。戻したくなったとき迷わない。
-                    subtitle = if (sp == TailStore.DEFAULT_TEXT_SP) {
-                        stringResource(R.string.tail_text_size_default)
-                    } else "",
-                    checked = textSp == sp,
-                    modifier = Modifier.weight(1f),
-                    onToggle = { textSp = sp }
-                )
-            }
-        }
-        Text(
-            text = stringResource(R.string.tail_text_size_desc),
-            color = ZtsTextSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace
-        )
-
-        // いま開いているフォルダ。
-        Text(
-            text = "~/" + dir,
-            color = ZtsGreen,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace
-        )
-
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            TailStore.parentOf(dir)?.let { up ->
-                ConfigSelectRow(
-                    title = "../",
-                    subtitle = "",
-                    checked = false,
-                    onToggle = { dir = up }
-                )
-            }
-            if (entries.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.tail_dir_empty),
-                    color = ZtsTextSecondary,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-            entries.forEach { e ->
-                ConfigSelectRow(
-                    title = if (e.isDir) e.name + "/" else e.name,
-                    subtitle = if (e.isDir) "" else
-                        stringResource(R.string.tail_file_meta, stamp.format(Date(e.modified)), e.size / 1024),
-                    checked = !e.isDir && e.relPath == path,
-                    onToggle = { if (e.isDir) dir = e.relPath else path = e.relPath }
-                )
-            }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ConfigButton(
-                label = stringResource(R.string.widget_config_save),
-                accent = true,
-                onClick = { if (path.isNotBlank() && isFile(path)) onSave(path.trim(), mode, textSp) }
+        // 文字の大きさ (0.8.255)。段を並べる — スライダーだと 1sp 刻みで迷わせるだけで、
+        // ウィジェットの文字は数段階あれば足りる。
+        item { ConfigSection(stringResource(R.string.tail_text_size_label)) }
+        item {
+            ConfigTextSize(
+                options = listOf(8, 10, 12, 14, 17, 20),
+                selected = textSp,
+                defaultSp = TailStore.DEFAULT_TEXT_SP,
+                defaultLabel = stringResource(R.string.tail_text_size_default),
+                onSelect = { textSp = it },
             )
-            ConfigButton(
-                label = stringResource(R.string.widget_config_cancel),
-                onClick = onCancel
-            )
+            ConfigNote(stringResource(R.string.tail_text_size_desc))
         }
-        // 保存できない理由をその場で出す (押しても何も起きない、を作らない)。
-        if (path.isNotBlank() && !isFile(path)) {
-            Text(
-                text = stringResource(R.string.tail_not_a_file),
-                color = ZtsTextSecondary,
-                fontSize = 10.sp,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier.padding(top = 2.dp)
+
+        // いま開いているフォルダと、その中身。
+        item { ConfigSection("~/$dir") }
+        TailStore.parentOf(dir)?.let { up ->
+            item(key = "..") {
+                ListItem(
+                    headlineContent = { Text("../") },
+                    leadingContent = { Icon(Icons.Outlined.ArrowUpward, contentDescription = null) },
+                    modifier = Modifier.clickable { dir = up },
+                )
+            }
+        }
+        if (entries.isEmpty()) {
+            item { ConfigNote(stringResource(R.string.tail_dir_empty)) }
+        }
+        items(entries, key = { it.relPath }) { e ->
+            val picked = !e.isDir && e.relPath == path
+            ListItem(
+                headlineContent = { Text(if (e.isDir) e.name + "/" else e.name) },
+                supportingContent = if (e.isDir) null else {
+                    {
+                        Text(
+                            stringResource(
+                                R.string.tail_file_meta, stamp.format(Date(e.modified)), e.size / 1024
+                            )
+                        )
+                    }
+                },
+                leadingContent = {
+                    Icon(
+                        if (e.isDir) Icons.Outlined.Folder else Icons.Outlined.Description,
+                        contentDescription = null,
+                    )
+                },
+                trailingContent = if (picked) {
+                    { Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
+                } else null,
+                colors = if (picked) {
+                    ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                } else ListItemDefaults.colors(),
+                modifier = Modifier.clickable { if (e.isDir) dir = e.relPath else path = e.relPath },
             )
         }
     }
