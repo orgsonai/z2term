@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.60 (versionCode 758)**: `z2-listen -w` sometimes missed the word you said. In 1.0.59, saying the Japanese word 改行 was judged on the top guess (a different word with the same sound) and missed. The recogniser's other guesses now come back too, so a word in second place or lower still matches.
+
 **1.0.59 (versionCode 757)**: New command **`z2-listen`** turns what you say into text; capture it with `text=$(z2-listen)`. Recognition runs **on the device only** and your voice never goes to the network (Android 12 and later, on devices with on-device speech recognition; download your language for offline speech recognition in the device's voice input settings). Speak with z2term on screen; it stops when you go quiet. The first run asks for microphone access. With a list such as `z2-listen -w "next,stop"`, it prints the matched word only when you say one of them. All of the recogniser's guesses are checked, not just the top one, so a word that comes back with a different spelling of the same sound still matches. Exit codes: 0 = done, 1 = nothing heard or none of the words, 2 = unavailable (the reason is printed). The microphone permission was added for this.
 
 **1.0.58 (versionCode 756)**: The port in the `ssh -p` command on the home screen widget and in the SSH help under ⚙ Settings **could differ from the port sshd actually opens**. Only `Port` in `/etc/ssh/sshd_config` was read, so with a server started as `sshd --lan -p 65152` it showed the default 2222. The port is now worked out in the same order as sshd (the command's `-p` → `Port` in the config file → the default). When OpenSSH itself (`/usr/sbin/sshd`) is used, settings under `sshd_config.d` are read too.

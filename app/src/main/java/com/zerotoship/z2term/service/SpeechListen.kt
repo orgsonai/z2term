@@ -93,6 +93,10 @@ internal object SpeechListen {
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                 .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, MAX_RESULTS)
+                // ⚠ 途中経過も受け取る。付けた版 (1.0.60) では端末内の認識が候補を 4 つ返し
+                // (「開業, 改行, 会場, 開錠」)、-w が 2 位以下の「改行」に当たった。付けていなかった
+                // 1.0.59 では 3 回とも外れていた (1 位は 開業 / 海洋 / 海峡。候補の数は記録していない)。
+                .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             if (lang.isNotEmpty()) intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang)
             // 待つ言葉へ聞き取りを寄せる (Android 13〜)。効き方は認識エンジン次第なので、
             // 判定は [ListenWords.match] が候補全体を見て行う (これが無くても外さないための本体)。
