@@ -475,6 +475,7 @@ private fun previewActionLabel(action: KeyAction?): String? = when (action) {
         AppAction.SETTINGS -> "⚙"
         AppAction.IME_CONVERT -> "変換"
         AppAction.IME_DAKUTEN -> "゛"
+        AppAction.VOICE_INPUT -> "🎤"
     }
     is KeyAction.Chord -> action.text ?: action.key?.id?.uppercase()
     is KeyAction.Raw -> "0x"

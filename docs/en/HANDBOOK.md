@@ -180,6 +180,8 @@ The **number face (0.8.305)** is for typing **runs of digits** — port numbers,
 
 Use **Settings › Key layout (your own)** to enable faces and change their order. The accessory bar toggle and editor are in the same section.
 
+**🎤 voice input key (1.0.61)**: in the layout editor, set a key's action to the app action `voice_input` to make a 🎤 key (it can go on the accessory bar or on a face of your own). Press it and speak, and **what you said is typed into the tab. Enter is not pressed**, so you can check it before sending. When the whole utterance is "**enter**", "**send**" or "new line" (or the Japanese 改行 / 送信), Enter is sent; "**control c**" (or コントロールC / 中断) sends Ctrl+C. A command word inside a sentence does nothing. The key lights green while listening. Recognition is the same as `z2-listen`: **on the device only**, Android 12 and later. The first press asks for microphone access. It works in terminal tabs (it does nothing in GUI tabs).
+
 ### Japanese / kana-kanji conversion
 - When the bottom-left key reads **"あ"**, press it to switch to the built-in **Japanese flick keyboard**.
 - Flick rules: **tap = あ / left = い / up = う / right = え / down = お** (same as the common 12-key phone layout).

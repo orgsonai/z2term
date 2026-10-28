@@ -696,6 +696,15 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     ?.let { active.writeBytes(it) }
             }
         }
+        // 🎤 (1.0.61): 話した内容を打ち込むだけ。Enter / Ctrl+C は、発話全体が操作語のときだけ ([VoiceInput])。
+        val onVoiceInput: () -> Unit = {
+            VoiceInput.start(
+                context,
+                onText = { onKeyboardBytes(it.toByteArray(Charsets.UTF_8)) },
+                onEnter = { onKeyboardKey(NamedKey.ENTER, KeyModifiers()) },
+                onInterrupt = { onKeyboardBytes(byteArrayOf(0x03)) },
+            )
+        }
 
         // OS が 1 つも無いときの案内 (0.8.314)。ダウンロードの催促ダイアログの代わりで、
         // 画面を塞がない 1 枚。⚙設定 → Linux環境 で入れれば自然に出なくなる。
@@ -746,7 +755,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         faceEntries = faceEntries,
                         widthDp = settings.landscapeKeyboardWidthDp,
                         onBytes = onKeyboardBytes,
-                        onKey = onKeyboardKey
+                        onKey = onKeyboardKey,
+                        onVoiceInput = onVoiceInput,
                     )
                 }
             }
@@ -881,7 +891,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         faceEntries = faceEntries,
                         widthDp = settings.landscapeKeyboardWidthDp,
                         onBytes = onKeyboardBytes,
-                        onKey = onKeyboardKey
+                        onKey = onKeyboardKey,
+                        onVoiceInput = onVoiceInput,
                     )
                 }
             }
@@ -900,6 +911,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                             TerminalKeyboard(
                                 onBytes = onKeyboardBytes,
                                 onKey = onKeyboardKey,
+                                onVoiceInput = onVoiceInput,
                                 composing = composing,
                                 style = kbStyle,
                                 faceEntries = faceEntries,
@@ -957,6 +969,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                                 TerminalKeyboard(
                                     onBytes = onKeyboardBytes,
                                     onKey = onKeyboardKey,
+                                    onVoiceInput = onVoiceInput,
                                     composing = composing,
                                     style = kbStyle,
                                     faceEntries = faceEntries,
@@ -975,6 +988,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                             ctrlState = ctrlState,
                             onBytes = onKeyboardBytes,
                             onKey = onKeyboardKey,
+                            onVoiceInput = onVoiceInput,
                         )
                     }
                 }
@@ -3766,6 +3780,7 @@ private fun SideKeyboardColumn(
     onBytes: (ByteArray) -> Unit,
     onKey: (NamedKey, KeyModifiers) -> Unit,
     onNamedKey: ((NamedKey) -> Unit)? = null,
+    onVoiceInput: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -3782,6 +3797,7 @@ private fun SideKeyboardColumn(
                 onBytes = onBytes,
                 onKey = onKey,
                 onNamedKey = onNamedKey,
+                onVoiceInput = onVoiceInput,
                 composing = composing,
                 style = style,
                 faceEntries = faceEntries,

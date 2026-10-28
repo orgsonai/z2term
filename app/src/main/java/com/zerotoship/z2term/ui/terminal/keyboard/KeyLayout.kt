@@ -97,7 +97,13 @@ enum class AppAction(val id: String) {
     IME_CONVERT("ime_convert"),
 
     /** カーソル直前のかなを濁点 → 半濁点 → 小書き → 元へ巡回する。 */
-    IME_DAKUTEN("ime_dakuten");
+    IME_DAKUTEN("ime_dakuten"),
+
+    /**
+     * 話した内容を文字にしてタブへ打ち込む (1.0.61・[com.zerotoship.z2term.ui.terminal.VoiceInput])。
+     * 端末タブの内蔵キーボードと補助キーバーだけが配線する。それ以外では何もしない。
+     */
+    VOICE_INPUT("voice_input");
 
     companion object {
         fun byId(id: String): AppAction? = entries.firstOrNull { it.id == id }

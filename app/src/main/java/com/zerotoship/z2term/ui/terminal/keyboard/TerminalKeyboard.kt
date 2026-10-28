@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -112,6 +113,8 @@ fun TerminalKeyboard(
     accessoryBar: Boolean = false,
     /** OS IME / 外付けキー入力と共有する Ctrl 状態。 */
     ctrlState: MutableState<Boolean>? = null,
+    /** 🎤 (`voice_input`) の出口。端末タブだけが渡す。null なら押しても何もしない。 */
+    onVoiceInput: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var shift by remember { mutableStateOf(ShiftState.OFF) }
@@ -378,6 +381,7 @@ fun TerminalKeyboard(
                     AppAction.CLOSE_PAD -> pad = PadMode.NONE
                     AppAction.IME_CONVERT -> handleConvert()
                     AppAction.IME_DAKUTEN -> cycleDakuten()
+                    AppAction.VOICE_INPUT -> onVoiceInput?.invoke()
                     // ⚠ 設定 / キーボードを閉じる / IME 切替は、この面のキーにはまだ無い。
                     else -> Unit
                 }
@@ -636,7 +640,10 @@ private fun KeyCell(
 
     val tap = key.actionsFor(KeyGesture.TAP).firstOrNull()
     val isShiftKey = tap is KeyAction.Modifier && tap.mod == ModKey.SHIFT
-    val active = key.highlighted || when {
+    val isVoiceKey = tap is KeyAction.App && tap.action == AppAction.VOICE_INPUT
+    // 🎤 は聞いている間だけ光る (話しているのが伝わるように)。
+    val listening = isVoiceKey && com.zerotoship.z2term.service.SpeechListen.listening.collectAsState().value
+    val active = key.highlighted || listening || when {
         tap is KeyAction.Modifier && tap.mod == ModKey.CTRL -> ctrl
         tap is KeyAction.Modifier && tap.mod == ModKey.ALT -> alt
         tap is KeyAction.Layer -> sym
@@ -667,7 +674,7 @@ private fun KeyCell(
         }
         border = if (lit || active) ZtsGreen else ZtsBorder
         // ⚠ 面の切替キーだけラベルが空。「押すと**行く**面」を入れるのは呼出し側の仕事。
-        label = key.label.ifEmpty { faceLabel }
+        label = key.label.ifEmpty { if (isVoiceKey) "🎤" else faceLabel }
     }
     val fontSp = when (key.fontRole) {
         KeyFontRole.SMALL -> smallFont

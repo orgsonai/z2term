@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.61 (versionCode 759)**: Keys can now carry a **🎤 voice input** action (`voice_input`). Place it on the accessory bar or on a face of your own in the editor under ⚙ Settings › Key layout (your own). Press it and speak, and what you said is typed into the tab. **Enter is not pressed**, so you can check it before sending. When the whole utterance is "enter" or "send", Enter is sent; "control c" sends Ctrl+C. The key lights green while listening. Recognition is the same as `z2-listen`: on the device only, Android 12 and later.
+
 **1.0.60 (versionCode 758)**: `z2-listen -w` sometimes missed the word you said. In 1.0.59, saying the Japanese word 改行 was judged on the top guess (a different word with the same sound) and missed. The recogniser's other guesses now come back too, so a word in second place or lower still matches.
 
 **1.0.59 (versionCode 757)**: New command **`z2-listen`** turns what you say into text; capture it with `text=$(z2-listen)`. Recognition runs **on the device only** and your voice never goes to the network (Android 12 and later, on devices with on-device speech recognition; download your language for offline speech recognition in the device's voice input settings). Speak with z2term on screen; it stops when you go quiet. The first run asks for microphone access. With a list such as `z2-listen -w "next,stop"`, it prints the matched word only when you say one of them. All of the recogniser's guesses are checked, not just the top one, so a word that comes back with a different spelling of the same sound still matches. Exit codes: 0 = done, 1 = nothing heard or none of the words, 2 = unavailable (the reason is printed). The microphone permission was added for this.

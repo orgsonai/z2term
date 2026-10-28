@@ -21,6 +21,7 @@ fun SpecialKeyBar(
     onBytes: (ByteArray) -> Unit,
     onKey: (NamedKey, KeyModifiers) -> Unit,
     onNamedKey: ((NamedKey) -> Unit)? = null,
+    onVoiceInput: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val layout = remember(layoutJson) { specialKeyLayoutFromJson(layoutJson) }
@@ -33,6 +34,7 @@ fun SpecialKeyBar(
         faceEntries = listOf(KeyboardFaceEntry.custom(layout)),
         accessoryBar = true,
         ctrlState = ctrlState,
+        onVoiceInput = onVoiceInput,
         modifier = modifier,
     )
 }

@@ -38,6 +38,14 @@ class ListenWordsTest {
         assertEquals("次の曲", ListenWords.match(listOf("曲", "次の曲"), listOf("次の曲にして")))
     }
 
+    /** 🎤 の操作語は丸ごと一致だけ。文の中の「送信」で Enter を押さない。2 位以下の候補は見る。 */
+    @Test
+    fun exactIgnoresWordsInsideSentences() {
+        assertNull(ListenWords.exact(listOf("送信"), listOf("ファイルを送信して")))
+        assertEquals("改行", ListenWords.exact(listOf("改行", "送信"), listOf("開業", "改行")))
+        assertEquals("control c", ListenWords.exact(listOf("control c"), listOf("Control C.")))
+    }
+
     @Test
     fun returnsNullWhenNothingMatches() {
         assertNull(ListenWords.match(words, listOf("開業", "かいぎょう")))
