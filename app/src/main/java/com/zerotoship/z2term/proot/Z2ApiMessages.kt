@@ -3461,6 +3461,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |notify_action          a notification button     [always]
         |unlock_failed          failed to unlock          [always, needs setup]
         |unlock_succeeded       unlocked after a failure  [always, needs setup]
+        |voice                  a voice command was heard [always, from the tile or assistant]
     """.trimMargin(),
         ja = """
         |screen_on              画面が点いた            [検知 ON]
@@ -3503,6 +3504,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |notify_action          通知のボタンを押した    [常に]
         |unlock_failed          ロック解除に失敗した    [常に・要設定]
         |unlock_succeeded       失敗のあと解除できた    [常に・要設定]
+        |voice                  声で操作で話した        [常に・タイルかアシスタントから]
     """.trimMargin(),
         "zh-CN" to """
         |screen_on              屏幕点亮了                [检测 ON]
@@ -3545,6 +3547,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |notify_action          按了通知上的按钮          [总是]
         |unlock_failed          解锁失败了                [总是，需设置]
         |unlock_succeeded       失败之后解锁成功          [总是，需设置]
+        |voice                  语音操作说了话            [总是，从磁贴或助手]
     """.trimMargin(),
         "zh-TW" to """
         |screen_on              螢幕點亮了                [偵測 ON]
@@ -3587,6 +3590,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |notify_action          按了通知上的按鈕          [總是]
         |unlock_failed          解鎖失敗了                [總是，需設定]
         |unlock_succeeded       失敗之後解鎖成功          [總是，需設定]
+        |voice                  語音操作說了話            [總是，從圖塊或助理]
     """.trimMargin(),
         "es" to """
         |screen_on              se encendió la pantalla           [con detección]
@@ -3629,6 +3633,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |notify_action          un botón de una notificación      [siempre]
         |unlock_failed          falló el desbloqueo               [siempre, hay que prepararlo]
         |unlock_succeeded       desbloqueado tras un fallo        [siempre, hay que prepararlo]
+        |voice                  se oyó una orden por voz          [siempre, desde el mosaico o el asistente]
     """.trimMargin(),
         "ko" to """
         |screen_on              화면이 켜졌다              [감지 필요]
@@ -3671,6 +3676,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |notify_action          알림의 버튼을 눌렀다       [언제나]
         |unlock_failed          잠금 해제에 실패했다       [언제나, 준비가 필요]
         |unlock_succeeded       실패 뒤에 잠금이 풀렸다    [언제나, 준비가 필요]
+        |voice                  음성 조작으로 말했다       [언제나, 타일이나 어시스턴트에서]
     """.trimMargin()
     )
 

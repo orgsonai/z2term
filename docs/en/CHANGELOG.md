@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.64 (versionCode 762)**: New **voice command**. Use the "Voice command" quick settings tile, or choose z2term as the device's digital assistant app (opened with a long press of the power button and the like), and a small listening screen appears. What you say is recorded as a `voice` event, which `z2-when event:voice` rules can connect to macros that skip tracks, set timers, open calls or ask AI. It asks for an unlock while locked. Recognition stays on the device. `voice` is exempt from the per-rule minimum interval so a second command within 10 seconds is not dropped.
+
 **1.0.63 (versionCode 761)**: With 🎤 and the ⏎ left flick, spelling "el es" was typed as `LS` in capitals and did not run as a command. **Latin words that are all capitals are now typed in lower case** (full-width letters become half-width too). Mixed-case words such as `Git` and Japanese text are unchanged; words like `README` also become lower case. `z2-listen` output is unchanged.
 
 **1.0.62 (versionCode 760)**: On the default keyboard, **flick ⏎ left to type by voice** (the same as the 1.0.61 🎤 key). This covers the Latin, romaji, kana and number faces and the accessory bar's default keys. Nothing changes visually; tapping and holding to repeat still send Enter. As the system input method in other apps and in GUI tabs, a left flick still sends Enter. Added to ⚙ Settings › Tips and tricks too.

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 「声で操作」タイル (1.0.64)。マイクの形を線で描いた自作のアイコン。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,3a3,3 0,0 0,-3 3v5a3,3 0,0 0,6 0V6a3,3 0,0 0,-3 -3z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M6,11a6,6 0,0 0,12 0M12,17v4M9,21h6" />
+</vector>

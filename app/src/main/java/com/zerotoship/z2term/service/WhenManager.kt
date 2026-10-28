@@ -361,6 +361,9 @@ object WhenManager {
      */
     private const val EVENT_MIN_INTERVAL_MS = 10_000L
 
+    /** 1 回ごとに人が起こす合図なので、[EVENT_MIN_INTERVAL_MS] で間引かないイベント。 */
+    private val UNTHROTTLED_EVENTS = setOf(com.zerotoship.z2term.voice.VoiceCommandActivity.EVENT)
+
     /** rule id → 最後に発火した時刻。プロセス内メモリのみ (死んだらリセットで構わない)。 */
     private val eventLastFired = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
@@ -394,7 +397,9 @@ object WhenManager {
         val now = System.currentTimeMillis()
         rules.forEach { rule ->
             val prev = eventLastFired[rule.id]
-            if (prev != null && now - prev < EVENT_MIN_INTERVAL_MS) {
+            // ⚠ 「声で操作」(`voice`) は間隔で間引かない。1 回ごとに人がタイルを押して話した合図で、
+            // 続けて言った「次の曲」を 10 秒以内だからと捨てると、言ったのに動かないになる。
+            if (event !in UNTHROTTLED_EVENTS && prev != null && now - prev < EVENT_MIN_INTERVAL_MS) {
                 Log.i(TAG, "event $event: ${rule.id} skipped (min interval)")
                 return@forEach
             }

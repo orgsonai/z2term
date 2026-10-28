@@ -324,6 +324,34 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
+        <!-- 「声で操作」(1.0.64)。タイルと、端末の「デジタル アシスタント」(ACTION_ASSIST・
+             電源ボタン長押しなど) から開く小さな聞き取りの画面。聞いた内容は events.jsonl の
+             voice イベントになり、z2-when event:voice のルールが受ける (VoiceCommandActivity)。
+             ⚠ ロック画面の上には出さない (showWhenLocked を付けない)。
+             他のアプリから開かれても、聞いた内容はその呼び出し元へは返らない。 -->
+        <activity
+            android:name=".voice.VoiceCommandActivity"
+            android:label="@string/voice_activity_label"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <service
+            android:name=".voice.VoiceTileService"
+            android:label="@string/voice_tile_label"
+            android:icon="@drawable/ic_tile_voice"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <!-- クイック設定タイル (z2-tile)。枠は manifest に書いた数で固定され、実行中に増やせない
              (Android の仕様) ので 12 枠。中身の割り当ては端末の `z2-tile set <1-12> <コマンド>`。
              TileService はシェードを開いている間しかバインドされないので常駐は増えない。

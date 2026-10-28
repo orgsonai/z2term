@@ -89,12 +89,20 @@ internal object SpeechListen {
 
     private fun msg(context: Context) = Z2ApiMsg(lang = LocaleHelper.language(context), d = "$")
 
+    /** いま聞いているもの (Main からだけ触る)。 */
+    private var current: Request? = null
+
+    /** 聞くのをやめる (「声で操作」の画面を閉じたとき)。結果は空の理由つき失敗として返る。 */
+    fun cancel() {
+        main.post { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) current?.cancel() }
+    }
+
     private fun begin(context: Context, lang: String, bias: List<String>, onHeard: (Heard) -> Unit) {
         val m = msg(context)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) { onHeard(Heard.Failed(2, m.listenNeedsAndroid12)); return }
         // マイクは 1 つ。2 本目は待たせずに断る (後ろで勝手に聞き始めると、誰の声か分からなくなる)。
         if (!listeningState.compareAndSet(false, true)) { onHeard(Heard.Failed(2, m.listenBusy)); return }
-        Request(context, m, lang, bias, onHeard).run()
+        Request(context, m, lang, bias, onHeard).also { current = it }.run()
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -122,7 +130,10 @@ internal object SpeechListen {
         }
 
         private fun listen() {
-            if (!MainActivity.isShown()) return fail(2, m.listenNotShown)
+            // 画面に出ている z2term の画面 (端末か「声で操作」) があるときだけ、マイクが渡る。
+            if (!MainActivity.isShown() && !com.zerotoship.z2term.voice.VoiceCommandActivity.shown) {
+                return fail(2, m.listenNotShown)
+            }
             val r = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
             recognizer = r
             r.setRecognitionListener(this)
@@ -162,6 +173,8 @@ internal object SpeechListen {
 
         private fun fail(code: Int, message: String) = finish(Heard.Failed(code, message))
 
+        fun cancel() = fail(1, "")
+
         /** 結果を 1 回だけ返し、マイクを放す。 */
         private fun finish(heard: Heard) {
             if (done) return
@@ -173,6 +186,7 @@ internal object SpeechListen {
             }
             recognizer = null
             listeningState.value = false
+            if (current === this) current = null
             onHeard(heard)
         }
 

@@ -1345,4 +1345,11 @@ Paneles laterales: %12$d, notas: %13$d</string>
     <string name="guide_step_sample_use" formatted="false">Cambia entre las tres pestañas. Toca dos veces la nota para editarla; se guarda automáticamente. Para traducir, introduce el texto, elige el idioma y pulsa Traducir. Cambiar de pestaña o cerrar borra la entrada y el resultado de traducción. La terminal conserva la shell, la salida y el borrador; usa ↻ para restablecerlos. Las barras de ejemplo tienen una opacidad del 30 %.</string>
     <string name="guide_step_translation_cli" tools:ignore="TypographyDashes">Si falta trans, instálalo manualmente en este mismo entorno Linux.\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\nEsta tarjeta solo informa; tocarla no instala nada. El texto se envía a un servicio externo de traducción.</string>
     <string name="guide_sample_translation_missing">Instala trans y prepara la macro de traducción antes de volver a crear el ejemplo.</string>
+    <string name="voice_activity_label">z2term órdenes por voz</string>
+    <string name="voice_tile_label">Órdenes por voz</string>
+    <string name="voice_listening">Habla ahora…</string>
+    <string name="voice_cancel">Cancelar</string>
+    <string name="voice_heard">«%1$s»</string>
+    <string name="voice_no_rule">Todavía no hay ninguna regla que lo reciba. Registra una como z2-when event:voice run \'~/.z2term/macros/voice.sh\'.</string>
+    <string name="voice_no_mic">No hay permiso para el micrófono. Permítelo para usar órdenes por voz.</string>
 </resources>

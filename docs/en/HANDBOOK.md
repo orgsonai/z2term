@@ -183,6 +183,13 @@ Use **Settings › Key layout (your own)** to enable faces and change their orde
 **Flick ⏎ left to type by voice (1.0.62)**: on the default keyboard (the Latin, romaji, kana and number faces, and the accessory bar's default keys), **flicking ⏎ left** does the same as the 🎤 key below. ⏎ looks the same as before; tapping and holding to repeat still send Enter. Where 🎤 cannot work (as the system input method in other apps, or in GUI tabs), a left flick also sends Enter. If you have saved an edited accessory bar, use Restore default in its editor to get it.
 Latin words that come out **all in capitals are typed in lower case** (1.0.63): spelled letters are recognised as `LS` but typed as `ls`. Mixed-case words such as `Git` stay as they are. Words you want in capitals, such as `README`, also become lower case, so fix them after they are typed.
 
+**Voice command (1.0.64)**: add the **"Voice command" tile** from the quick settings Edit screen, or choose "z2term voice command" under the device's Settings › Apps › Default apps › **Digital assistant app** (then it opens with a long press of the power button and the like), and "Speak now…" appears at the bottom of the screen. What you say is recorded in `~/.z2term/events.jsonl` as a `voice` event; connect it to anything with a **`z2-when event:voice run …` rule**. The words arrive in `$Z2_WHEN_ACTION`, and the recogniser's other guesses in `$Z2_WHEN_EVENT_NAME` (separated by `|`). While locked, it listens after you unlock. Recognition stays on the device; Android 12 and later.
+
+```sh
+# Example: register a macro that skips tracks, sets timers, opens calls and asks AI by voice
+z2-when event:voice name=voice run '~/.z2term/macros/voice.sh'
+```
+
 **🎤 voice input key (1.0.61)**: in the layout editor, set a key's action to the app action `voice_input` to make a 🎤 key (it can go on the accessory bar or on a face of your own). Press it and speak, and **what you said is typed into the tab. Enter is not pressed**, so you can check it before sending. When the whole utterance is "**enter**", "**send**" or "new line" (or the Japanese 改行 / 送信), Enter is sent; "**control c**" (or コントロールC / 中断) sends Ctrl+C. A command word inside a sentence does nothing. The key lights green while listening. Recognition is the same as `z2-listen`: **on the device only**, Android 12 and later. The first press asks for microphone access. It works in terminal tabs (it does nothing in GUI tabs).
 
 ### Japanese / kana-kanji conversion

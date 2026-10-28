@@ -1333,4 +1333,11 @@ SSH 连接目标 %3$d 个
     <string name="guide_step_sample_use" formatted="false">切换三个标签页使用。双击笔记正文即可编辑，内容自动保存。翻译时输入原文、选择目标语言并点击翻译。切换标签页或关闭面板会清除翻译输入和结果。终端的 Shell、输出和输入草稿会保留，可用 ↻ 手动刷新。示例栏的不透明度为30%。</string>
     <string name="guide_step_translation_cli" tools:ignore="TypographyDashes">若尚未安装 trans，请在同一 Linux 环境中手动执行对应命令。\nArch: pacman -S --needed translate-shell\nAlpine: apk update &amp;&amp; apk add translate-shell\nUbuntu / Debian / Kali: apt-get update &amp;&amp; apt-get install translate-shell\n此卡片仅供阅读，点击不会安装。待翻译文本会发送至外部翻译服务。</string>
     <string name="guide_sample_translation_missing">请先安装 trans 并准备翻译宏，再重新执行示例创建步骤。</string>
+    <string name="voice_activity_label">z2term 语音操作</string>
+    <string name="voice_tile_label">语音操作</string>
+    <string name="voice_listening">请说话…</string>
+    <string name="voice_cancel">取消</string>
+    <string name="voice_heard">“%1$s”</string>
+    <string name="voice_no_rule">还没有规则接收它。请用 z2-when event:voice run \'~/.z2term/macros/voice.sh\' 这样的方式注册。</string>
+    <string name="voice_no_mic">没有麦克风权限。要用语音操作，请允许。</string>
 </resources>
