@@ -17,7 +17,20 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- z2-listen (1.0.59): 端末内の音声認識サービスを見つけるため (Android 11 以降の見える範囲)。 -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
     </queries>
+
+    <!-- z2-listen (1.0.59): 話した内容を文字にするため。実行時許可で、初めて z2-listen を
+         実行したときに尋ねる。認識は端末の中だけで行い、声をネットへ出さない (SpeechListen)。
+         z2term が画面に出ている間しか聞かないので、マイク用の常駐サービスの権限は要らない。
+         マイクの無い端末へも入るよう、機能は必須にしない。 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
     <!-- 通信量の上限 (0.8.389) で**端末全体**の通信量を読むために要る。⚠ 普通の権限ではなく
          「使用状況へのアクセス」= 設定画面で利用者が 1 つずつ許すもの。宣言していないと
          その一覧にすら出ないので、ここに書いたうえで画面から設定へ案内する。

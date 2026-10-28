@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-26 / Target version: 1.0.58 (versionCode 756)
+Last updated: 2026-10-28 / Target version: 1.0.59 (versionCode 757)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -1614,6 +1614,12 @@ Bulk output stability (unreleased): Processing a PTY chunk, resizing and renderi
   - ⚠ **Dismissing without answering still replies** (the notification's `setDeleteIntent`). Writing nothing would leave the terminal side hanging for the whole timeout. Both cancel and timeout **exit non-zero**, so `ans=$(z2-ask …) || exit 1` expresses "give up if they don't answer" directly.
   - ⚠ **The `PendingIntent` must be `FLAG_MUTABLE`**: `RemoteInput` works by having the OS insert the typed text into the Intent, so `IMMUTABLE` means **the answer never arrives** (the one exception in a codebase that otherwise uses `IMMUTABLE` everywhere). `setAutoCancel` does not fire for replies, so the notification is **cancelled explicitly** (leaving it up would allow a second reply).
   - ⚠ **Only this command waits longer.** The `z2api` dispatcher waits 5s by default; that is now overridable with `Z2API_WAIT` (tenths of a second). Making it long for everything would mean **every** command sits through the full wait whenever the app is not running.
+- **`z2-listen` command (1.0.59, speech to text)**: `cmd=$(z2-listen -w "next,stop")`. `-w word,word` (accept only these words and print the one heard) / `-l lang` (default: the device language). Exit codes: 0 = done / 1 = nothing heard, or none of the words / 2 = unavailable (reason on stderr). Implemented in `service/SpeechListen`.
+  - **Why it was added**: `z2-say` covered speaking, but nothing listened. This is the base for giving AI instructions by voice and for driving `z2-media` and the like by voice.
+  - ⛔ **Your voice never goes to the network.** Only `SpeechRecognizer.createOnDeviceSpeechRecognizer` (on-device recognition) is used; there is no fallback to the ordinary `createSpeechRecognizer`, which on some devices recognises on a server. `EXTRA_PREFER_OFFLINE` is only a request, not a guarantee, so **Android 11 and earlier (which cannot require on-device recognition) and devices without on-device recognition (for example without Google's speech services) get "unavailable" (2).** No recognition engine is bundled (no new dependency or licence). When a language's data is missing, the message points to the device's voice input settings to download it.
+  - ⚠ **It listens only while z2term is on screen.** From Android 11, apps in the background do not get the microphone. Listening in the background would need a microphone foreground service (`FOREGROUND_SERVICE_MICROPHONE`), with its notification and mic indicator always showing, so it is not done. Microphone access (`RECORD_AUDIO`) is asked for on the first run through Android's permission screen when z2term is in front, and listening starts as soon as it is granted.
+  - ⚠ **`-w` does not decide on the top guess alone.** Five guesses are requested; the first word that equals a whole guess (guesses in order) wins, otherwise the longest word contained in any guess (`ListenWords.match`). Differences in full/half width, case, spaces and punctuation do not matter. Words with the same reading (Japanese 改行 "newline" / 開業 "opening a business") can come back as the other spelling in first place; this happened in the offline recognition trial. From Android 13 the words are also passed to the recogniser (`EXTRA_BIASING_STRINGS`), but how much that helps depends on the engine, so matching the guesses is what decides.
+  - ⚠ **The response is always OK, and its first word is the result** (`0 <text>` / `1 <reason>` / `2 <reason>`). A `z2api` ERR can only become exit code 1, which cannot tell "not heard" apart from "not available on this device". Like `ask`, `handleRequestFile` **handles it first** and writes `resp` after you stop speaking. The shell waits 100 seconds, longer than the app's limit (90 seconds, including the permission prompt). Only one listen runs at a time; a second one is refused with 2 straight away.
 - **`z2-noti` command (0.8.236)**: prints the notifications currently on screen as TSV (key / package / app name / title / body). The trace subcommand (0.8.588) temporarily records received field types and lengths. Notification detection already existed, but it could only record; there was no way to ask "what is on screen right now" from the shell.
   - ⚠ **Pressing and dismissing are deliberately absent.** The original proposal included a verb to press a notification's buttons, which also means **pressing other apps' pay and send buttons** — the only feature among the 32 proposals whose misfires land outside this app. Per the summariser's call, only the reading half was implemented.
   - `getActiveNotifications()` belongs to `NotificationListenerService`, so it can only be read through the live, OS-bound instance ([`NotificationLogService.activeNotificationsTsv`]). Without the permission or the binding it reports that notification access is not granted.
@@ -2580,6 +2586,7 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
   | `z2-battery` | Battery state |
   | `z2-vibrate` | Vibration |
   | `z2-say` | TTS speech |
+  | `z2-listen` | Speech to text (on-device recognition only, 1.0.59) |
   | `z2-torch` | Flashlight on/off/toggle (0.8.153) |
   | `z2-media` | Media playback control |
   | `z2-volume` | Media volume |
@@ -2599,6 +2606,7 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
     - ⚠ **No toast of our own on Android 13+** (the OS shows its own copy confirmation; two would be redundant).
     - ⚠ Android shows at most three notification buttons. A "Copy" button costs one of them, leaving fewer `-b` reply buttons.
   - **`z2-say`**: speaks via the device's standard TTS (engine init is async, so utterances are queued until it is ready)
+  - **`z2-listen`**: recognises on the device only via `SpeechRecognizer.createOnDeviceSpeechRecognizer` and returns the text (see the `z2-listen` entry above)
   - **`z2-torch`**: controlled via `CameraManager.setTorchMode` (no permission needed) and returns the resulting torch state
   - **`z2-media` / `z2-volume`**: the former dispatches media keys via `AudioManager.dispatchMediaKeyEvent`, the latter operates `STREAM_MUSIC` (returning current/max)
   - **`z2-intent`**: an `am start`-style set of flags (`-a/-d/-t/-p/-n/-f/--es/--ez/--ei/--broadcast/--service`) builds an arbitrary Intent and calls startActivity/broadcast/startService — a single command covering launching apps, opening settings screens, setting alarms, sharing, and more (none of it needs a permission; whatever the target requires is separate)

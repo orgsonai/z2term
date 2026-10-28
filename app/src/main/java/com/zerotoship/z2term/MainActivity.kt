@@ -59,6 +59,12 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* granted/denied どちらでもアプリは継続。永続通知が出ないだけ。 */ }
 
+    /** `z2-listen` の初回に尋ねるマイクの許可。答えは [pendingMic] へ渡す。 */
+    private val micPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> pendingMic?.invoke(granted); pendingMic = null }
+    private var pendingMic: ((Boolean) -> Unit)? = null
+
     /** 直前の本人確認が通らなかったか (ロック画面の文言に出す)。 */
     private var unlockFailed by mutableStateOf(false)
 
@@ -286,6 +292,22 @@ class MainActivity : ComponentActivity() {
 
         /** Keep settings and sessions intact when the coordinate picker moves both tasks away. */
         internal fun moveToBackground() { instance.get()?.moveTaskToBack(true) }
+
+        /** `z2-listen` 用。画面に出ているか (Android 11 以降、マイクは画面に出ているアプリにしか渡らない)。 */
+        internal fun isShown(): Boolean =
+            instance.get()?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true
+
+        /**
+         * `z2-listen` 用。マイクの許可を尋ね、答えを [onResult] へ渡す。Main から呼ぶ。
+         * 前面に居なければ許可の画面を出せないので、尋ねずに false を返す。
+         */
+        internal fun requestMicPermission(onResult: (Boolean) -> Unit): Boolean {
+            val activity = instance.get()
+                ?.takeIf { it.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) } ?: return false
+            activity.pendingMic = onResult
+            activity.micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            return true
+        }
 
         /** 共有 Intent を処理済みにする印 (同じ Intent での二重挿入を防ぐ)。 */
         private const val EXTRA_SHARE_HANDLED = "com.zerotoship.z2term.SHARE_HANDLED"

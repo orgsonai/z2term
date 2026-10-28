@@ -30,6 +30,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |[Phone features]
         |  z2-notify [-h] [-b LABEL]...   Notification (-h: banner, -b: reply button)
         |  z2-ask "question"              Ask via a notification reply field; prints the answer
+        |  z2-listen [-w WORD,...]        Speech to text, on the device only (z2-listen -h)
         |  z2-toast "message"             Toast (short on-screen message)
         |  z2-share "text"                Hand text to Android's share sheet
         |  z2-open <url|path>             Open a URL/file in the default app
@@ -85,6 +86,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |[スマホの機能を呼ぶ]
         |  z2-notify [-h] [-b ラベル]...  通知(-h: バナー, -b: 返事のボタン)
         |  z2-ask "質問"                  通知の返信欄で聞いて、答えを標準出力へ
+        |  z2-listen [-w 言葉,...]        話した内容を文字に(端末内だけで認識。z2-listen -h)
         |  z2-toast "メッセージ"          トースト(画面下の短いメッセージ)
         |  z2-share "テキスト"            Android の共有メニューに渡す
         |  z2-open <URL かパス>           URL/ファイルを既定アプリで開く
@@ -140,6 +142,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |[调用手机的功能]
         |  z2-notify [-h] [-b 标签]...    通知(-h: 横幅, -b: 回复按钮)
         |  z2-ask "问题"                  用通知的回复框提问，把答案送到标准输出
+        |  z2-listen [-w 词,...]          把说的话转成文字(只在设备上识别。z2-listen -h)
         |  z2-toast "消息"                吐司(屏幕下方的短消息)
         |  z2-share "文本"                交给 Android 的分享菜单
         |  z2-open <URL 或路径>           用默认应用打开 URL/文件
@@ -195,6 +198,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |[呼叫手機的功能]
         |  z2-notify [-h] [-b 標籤]...    通知(-h: 橫幅, -b: 回覆按鈕)
         |  z2-ask "問題"                  用通知的回覆框提問，把答案送到標準輸出
+        |  z2-listen [-w 詞,...]          把說的話轉成文字(只在裝置上辨識。z2-listen -h)
         |  z2-toast "訊息"                快顯訊息(螢幕下方的短訊息)
         |  z2-share "文字"                交給 Android 的分享選單
         |  z2-open <URL 或路徑>           用預設應用程式開啟 URL/檔案
@@ -250,6 +254,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |[Funciones del teléfono]
         |  z2-notify [-h] [-b TEXTO]...   Notificación (-h: banner, -b: botón de respuesta)
         |  z2-ask "pregunta"              Pregunta en una notificación; imprime la respuesta
+        |  z2-listen [-w PALABRA,...]     Voz a texto, solo en el dispositivo (z2-listen -h)
         |  z2-toast "mensaje"             Toast (mensaje corto en pantalla)
         |  z2-share "texto"               Pasa el texto al menú de compartir de Android
         |  z2-open <url|ruta>             Abre una URL o un archivo en su aplicación
@@ -305,6 +310,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |[휴대전화 기능]
         |  z2-notify [-h] [-b 라벨]...   알림 (-h: 배너, -b: 응답 버튼)
         |  z2-ask "질문"                 알림으로 묻고, 답을 출력합니다
+        |  z2-listen [-w 단어,...]        말을 글자로 (기기 안에서만 인식. z2-listen -h)
         |  z2-toast "메시지"             토스트 (화면에 잠깐 뜨는 짧은 메시지)
         |  z2-share "텍스트"             텍스트를 Android 공유 메뉴로 넘깁니다
         |  z2-open <url|경로>            URL이나 파일을 그 앱으로 엽니다

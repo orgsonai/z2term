@@ -413,6 +413,31 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |Z2API_WAIT=${d}((secs*10)) exec /usr/local/bin/z2api 1 ask "${d}*" "${d}hint" "${d}preset"
     """.trimMargin() + "\n"
 
+    // z2-listen (1.0.59): 話した内容を端末の中だけで文字にして返す。応答の先頭の語が結果
+    // (0 / 1 / 2・[com.zerotoship.z2term.service.SpeechListen] 参照) で、それをそのまま終了コードにする。
+    // z2api 自体が失敗した (アプリが応えない) ときも「使えない」の 2。待ちはアプリ側の上限 (90 秒) より長く。
+    val listen = "#!/bin/sh\n" + m.listenHelp + "\n" + helpCaseDash + """
+        |words=""
+        |lang=""
+        |while [ ${d}# -gt 0 ]; do
+        |  case "${d}1" in
+        |    -w|--words) words="${d}2"; shift 2 || exit 2 ;;
+        |    -l|--lang)  lang="${d}2"; shift 2 || exit 2 ;;
+        |    *) echo "${m.listenUsage}" >&2; exit 2 ;;
+        |  esac
+        |done
+        |[ ! -t 2 ] || echo "${m.listenPrompt}" >&2
+        |r=${d}(Z2API_WAIT=1000 /usr/local/bin/z2api 1 listen "${d}words" "${d}lang") || exit 2
+        |code=${d}{r%% *}
+        |text=${d}{r#"${d}code"}
+        |text=${d}{text# }
+        |case "${d}code" in
+        |  0) printf '%s\n' "${d}text"; exit 0 ;;
+        |  1) [ -z "${d}text" ] || printf '%s\n' "${d}text" >&2; exit 1 ;;
+        |  *) [ -z "${d}text" ] || printf '%s\n' "${d}text" >&2; exit 2 ;;
+        |esac
+    """.trimMargin() + "\n"
+
     val noti = "#!/bin/sh\n" + m.notiHelp + "\n" + helpCase + """
         |case "${d}{1:-list}" in
         |  list) exec /usr/local/bin/z2api 1 noti list ;;
@@ -1187,6 +1212,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-icon" to icon,
         "z2-noti" to noti,
         "z2-ask" to ask,
+        "z2-listen" to listen,
         "z2-alarm" to alarm,
         "z2-update" to update,
     )

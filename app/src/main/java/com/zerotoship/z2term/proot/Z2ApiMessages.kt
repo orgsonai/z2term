@@ -995,6 +995,205 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             "ko" to "사용법: z2-ask [-t 초] [-H 힌트] [-d 기본값] <질문>"
         )
 
+    // --- z2-listen (1.0.59) ---
+
+    val listenHelp: String = t(
+        en = """
+        |# z2-listen [-w WORD,WORD,...] [-l LANG]
+        |#   Print what you say on stdout. Recognition runs **on the device only**; your voice
+        |#   never goes to the network. Needs Android 12+ and on-device speech recognition
+        |#   (for your language, its offline speech data).
+        |#   Speak with z2term on screen (Android gives the microphone only to the app on screen).
+        |#   It stops when you go quiet. The first run asks for microphone access.
+        |#   -w <words>  accept only these words (comma-separated) and print the one heard.
+        |#               All of the recogniser's guesses are checked, not just the top one.
+        |#   -l <lang>   language to recognise (e.g. en-US, ja-JP; default: the device language)
+        |# Exit: 0 = done / 1 = nothing heard, or none of the words / 2 = unavailable (reason on stderr)
+        |#   cmd=${d}(z2-listen -w "next,stop") || exit
+    """.trimMargin(),
+        ja = """
+        |# z2-listen [-w 言葉,言葉,...] [-l 言語]
+        |#   話した内容を文字にして標準出力へ返す。認識は**端末の中だけ**で行い、声をネットへ出さない。
+        |#   Android 12 以降と、端末内の音声認識 (その言語のオフライン認識のデータ) が必要。
+        |#   z2term を画面に出したまま話す (Android は画面に出ているアプリにしかマイクを渡さない)。
+        |#   黙ると終わる。初めて実行したときにマイクの許可を尋ねる。
+        |#   -w <言葉>  決まった言葉だけ受け付け、当たった言葉を出す (カンマ区切り)。
+        |#              認識の 1 位だけでなく、ほかの候補も見て判定する。
+        |#   -l <言語>  認識する言語 (例: ja-JP, en-US。既定は端末の言語)
+        |# 終了コード: 0 = 成功 / 1 = 聞き取れない・どの言葉でもない / 2 = 使えない (理由は標準エラーへ)
+        |#   cmd=${d}(z2-listen -w "次の曲,止めて") || exit
+    """.trimMargin(),
+        "zh-CN" to """
+        |# z2-listen [-w 词,词,...] [-l 语言]
+        |#   把说的话转成文字输出到标准输出。识别**只在设备上**进行，声音不会发到网络。
+        |#   需要 Android 12 以上，以及设备上的语音识别 (该语言的离线识别数据)。
+        |#   说话时让 z2term 显示在屏幕上 (Android 只把麦克风交给屏幕上的应用)。
+        |#   停顿后结束。第一次运行时会请求麦克风权限。
+        |#   -w <词>    只接受这些词 (逗号分隔)，输出命中的那个。
+        |#              不只看识别的第一名，也会看其他候选。
+        |#   -l <语言>  识别的语言 (例: zh-CN, en-US。默认为设备语言)
+        |# 退出码: 0 = 成功 / 1 = 没听清、不是任何一个词 / 2 = 无法使用 (原因输出到标准错误)
+        |#   cmd=${d}(z2-listen -w "下一首,停止") || exit
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-listen [-w 詞,詞,...] [-l 語言]
+        |#   把說的話轉成文字輸出到標準輸出。辨識**只在裝置上**進行，聲音不會傳到網路。
+        |#   需要 Android 12 以上，以及裝置上的語音辨識 (該語言的離線辨識資料)。
+        |#   說話時讓 z2term 顯示在螢幕上 (Android 只把麥克風交給螢幕上的應用程式)。
+        |#   停頓後結束。第一次執行時會要求麥克風權限。
+        |#   -w <詞>    只接受這些詞 (逗號分隔)，輸出命中的那個。
+        |#              不只看辨識的第一名，也會看其他候選。
+        |#   -l <語言>  辨識的語言 (例: zh-TW, en-US。預設為裝置語言)
+        |# 結束碼: 0 = 成功 / 1 = 沒聽清、不是任何一個詞 / 2 = 無法使用 (原因輸出到標準錯誤)
+        |#   cmd=${d}(z2-listen -w "下一首,停止") || exit
+    """.trimMargin(),
+        "es" to """
+        |# z2-listen [-w PALABRA,PALABRA,...] [-l IDIOMA]
+        |#   Imprime en la salida estándar lo que dices. El reconocimiento se hace **solo en el
+        |#   dispositivo**; tu voz nunca sale a la red. Requiere Android 12+ y reconocimiento de voz
+        |#   en el dispositivo (los datos sin conexión de tu idioma).
+        |#   Habla con z2term en pantalla (Android solo da el micrófono a la app que está en pantalla).
+        |#   Termina al quedarte en silencio. La primera vez pide permiso para el micrófono.
+        |#   -w <palabras>  acepta solo estas palabras (separadas por comas) e imprime la oída.
+        |#                  Se revisan todas las propuestas del reconocedor, no solo la primera.
+        |#   -l <idioma>    idioma a reconocer (p. ej. es-ES, en-US; por omisión el del dispositivo)
+        |# Salida: 0 = hecho / 1 = no se oyó nada o ninguna de las palabras / 2 = no disponible (motivo en stderr)
+        |#   cmd=${d}(z2-listen -w "siguiente,para") || exit
+    """.trimMargin(),
+        "ko" to """
+        |# z2-listen [-w 단어,단어,...] [-l 언어]
+        |#   말한 내용을 글자로 바꿔 표준 출력으로 내보냅니다. 인식은 **기기 안에서만** 하며,
+        |#   목소리를 네트워크로 보내지 않습니다. Android 12 이상과 기기 내 음성 인식
+        |#   (해당 언어의 오프라인 인식 데이터)이 필요합니다.
+        |#   z2term을 화면에 띄운 채로 말하세요 (Android는 화면에 있는 앱에만 마이크를 줍니다).
+        |#   말을 멈추면 끝납니다. 처음 실행할 때 마이크 권한을 묻습니다.
+        |#   -w <단어>  이 단어들만 받고 (쉼표로 구분), 맞은 단어를 출력합니다.
+        |#              인식의 1위만이 아니라 다른 후보도 봅니다.
+        |#   -l <언어>  인식할 언어 (예: ko-KR, en-US. 기본값은 기기 언어)
+        |# 종료 코드: 0 = 성공 / 1 = 못 알아들음·어느 단어도 아님 / 2 = 사용할 수 없음 (이유는 stderr)
+        |#   cmd=${d}(z2-listen -w "다음 곡,정지") || exit
+    """.trimMargin()
+    )
+
+    val listenUsage: String =
+        t(
+            en = "usage: z2-listen [-w word,word,...] [-l lang]",
+            ja = "usage: z2-listen [-w 言葉,言葉,...] [-l 言語]",
+            "zh-CN" to "usage: z2-listen [-w 词,词,...] [-l 语言]",
+            "zh-TW" to "usage: z2-listen [-w 詞,詞,...] [-l 語言]",
+            "es" to "uso: z2-listen [-w palabra,palabra,...] [-l idioma]",
+            "ko" to "사용법: z2-listen [-w 단어,단어,...] [-l 언어]"
+        )
+
+    val listenPrompt: String =
+        t(
+            en = "Speak now… (stops when you go quiet)",
+            ja = "話してください…（黙ると終わります）",
+            "zh-CN" to "请说话…（停顿后结束）",
+            "zh-TW" to "請說話…（停頓後結束）",
+            "es" to "Habla ahora… (termina al quedarte en silencio)",
+            "ko" to "말씀하세요… (말을 멈추면 끝납니다)"
+        )
+
+    val listenNeedsAndroid12: String = t(
+        en = "z2-listen needs Android 12 or later (before that, recognition cannot be kept on the device).",
+        ja = "z2-listen は Android 12 以降が必要です（それより前は、端末の中だけで認識すると指定できません）。",
+        "zh-CN" to "z2-listen 需要 Android 12 以上（更早的版本无法指定只在设备上识别）。",
+        "zh-TW" to "z2-listen 需要 Android 12 以上（更早的版本無法指定只在裝置上辨識）。",
+        "es" to "z2-listen requiere Android 12 o posterior (antes no se puede exigir que el reconocimiento se quede en el dispositivo).",
+        "ko" to "z2-listen은 Android 12 이상이 필요합니다 (그 이전에는 기기 안에서만 인식하도록 지정할 수 없습니다)."
+    )
+
+    val listenBusy: String = t(
+        en = "Already listening (another z2-listen is running).",
+        ja = "すでに聞き取り中です（別の z2-listen が動いています）。",
+        "zh-CN" to "已经在听了（另一个 z2-listen 正在运行）。",
+        "zh-TW" to "已經在聽了（另一個 z2-listen 正在執行）。",
+        "es" to "Ya está escuchando (hay otro z2-listen en marcha).",
+        "ko" to "이미 듣는 중입니다 (다른 z2-listen이 실행 중입니다)."
+    )
+
+    val listenNoOnDevice: String = t(
+        en = "This device has no on-device speech recognition. z2-listen never sends your voice to the network, so it cannot run here.",
+        ja = "この端末には端末内の音声認識がありません。z2-listen は声をネットへ出さないため、ここでは使えません。",
+        "zh-CN" to "此设备没有设备上的语音识别。z2-listen 不会把声音发到网络，所以这里无法使用。",
+        "zh-TW" to "此裝置沒有裝置上的語音辨識。z2-listen 不會把聲音傳到網路，所以這裡無法使用。",
+        "es" to "Este dispositivo no tiene reconocimiento de voz en el dispositivo. z2-listen nunca envía tu voz a la red, así que aquí no puede funcionar.",
+        "ko" to "이 기기에는 기기 내 음성 인식이 없습니다. z2-listen은 목소리를 네트워크로 보내지 않으므로 여기서는 사용할 수 없습니다."
+    )
+
+    val listenNoPermission: String = t(
+        en = "Microphone access is not allowed. Run z2-listen again with z2term on screen to be asked, or allow it in Android settings.",
+        ja = "マイクが許可されていません。z2term を画面に出したままもう一度実行すると許可を尋ねます（Android の設定からも許可できます）。",
+        "zh-CN" to "没有麦克风权限。让 z2term 显示在屏幕上再运行一次即可请求权限（也可以在 Android 设置中允许）。",
+        "zh-TW" to "沒有麥克風權限。讓 z2term 顯示在螢幕上再執行一次即可要求權限（也可以在 Android 設定中允許）。",
+        "es" to "No hay permiso para el micrófono. Vuelve a ejecutar z2-listen con z2term en pantalla para que lo pida, o permítelo en los ajustes de Android.",
+        "ko" to "마이크 권한이 없습니다. z2term을 화면에 띄운 채 다시 실행하면 권한을 묻습니다 (Android 설정에서도 허용할 수 있습니다)."
+    )
+
+    val listenNotShown: String = t(
+        en = "Bring z2term to the screen and try again (Android gives the microphone only to the app on screen).",
+        ja = "z2term を画面に出してからもう一度実行してください（Android は画面に出ているアプリにしかマイクを渡しません）。",
+        "zh-CN" to "请让 z2term 显示在屏幕上再试一次（Android 只把麦克风交给屏幕上的应用）。",
+        "zh-TW" to "請讓 z2term 顯示在螢幕上再試一次（Android 只把麥克風交給螢幕上的應用程式）。",
+        "es" to "Pon z2term en pantalla y vuelve a intentarlo (Android solo da el micrófono a la app que está en pantalla).",
+        "ko" to "z2term을 화면에 띄운 뒤 다시 실행하세요 (Android는 화면에 있는 앱에만 마이크를 줍니다)."
+    )
+
+    val listenNoMic: String = t(
+        en = "Could not use the microphone (z2term left the screen, or another app is recording).",
+        ja = "マイクを使えませんでした（z2term が画面から外れた・別のアプリが録音中）。",
+        "zh-CN" to "无法使用麦克风（z2term 离开了屏幕，或其他应用正在录音）。",
+        "zh-TW" to "無法使用麥克風（z2term 離開了螢幕，或其他應用程式正在錄音）。",
+        "es" to "No se pudo usar el micrófono (z2term salió de la pantalla u otra app está grabando).",
+        "ko" to "마이크를 사용할 수 없었습니다 (z2term이 화면에서 벗어났거나 다른 앱이 녹음 중)."
+    )
+
+    val listenNoLanguage: String = t(
+        en = "The on-device speech data for this language is not installed. Download it in the device's voice input settings (offline speech recognition).",
+        ja = "この言語の端末内認識のデータがありません。端末の音声入力の設定（オフライン音声認識）でダウンロードしてください。",
+        "zh-CN" to "没有该语言的设备上识别数据。请在设备的语音输入设置（离线语音识别）中下载。",
+        "zh-TW" to "沒有該語言的裝置上辨識資料。請在裝置的語音輸入設定（離線語音辨識）中下載。",
+        "es" to "No están instalados los datos de reconocimiento en el dispositivo para este idioma. Descárgalos en los ajustes de entrada de voz (reconocimiento sin conexión).",
+        "ko" to "이 언어의 기기 내 인식 데이터가 없습니다. 기기의 음성 입력 설정 (오프라인 음성 인식)에서 다운로드하세요."
+    )
+
+    val listenNoSpeech: String = t(
+        en = "Nothing was heard.",
+        ja = "聞き取れませんでした。",
+        "zh-CN" to "没有听清。",
+        "zh-TW" to "沒有聽清。",
+        "es" to "No se oyó nada.",
+        "ko" to "알아듣지 못했습니다."
+    )
+
+    val listenTimedOut: String = t(
+        en = "Timed out.",
+        ja = "時間切れです。",
+        "zh-CN" to "超时。",
+        "zh-TW" to "逾時。",
+        "es" to "Se acabó el tiempo.",
+        "ko" to "시간이 초과되었습니다."
+    )
+
+    fun listenNoMatch(heard: String): String = t(
+        en = "None of the words (heard: $heard)",
+        ja = "待っている言葉ではありません（聞こえた言葉: $heard）",
+        "zh-CN" to "不是要等的词（听到的是：$heard）",
+        "zh-TW" to "不是要等的詞（聽到的是：$heard）",
+        "es" to "Ninguna de las palabras (se oyó: $heard)",
+        "ko" to "기다리는 단어가 아닙니다 (들린 말: $heard)"
+    )
+
+    fun listenFailed(code: Int): String = t(
+        en = "Speech recognition failed (error $code).",
+        ja = "音声認識に失敗しました（エラー $code）。",
+        "zh-CN" to "语音识别失败（错误 $code）。",
+        "zh-TW" to "語音辨識失敗（錯誤 $code）。",
+        "es" to "Falló el reconocimiento de voz (error $code).",
+        "ko" to "음성 인식에 실패했습니다 (오류 $code)."
+    )
+
     // --- z2-screen ---
 
     val screenHelp: String = t(
