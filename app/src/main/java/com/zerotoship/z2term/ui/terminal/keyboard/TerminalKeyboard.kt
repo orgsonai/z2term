@@ -167,6 +167,7 @@ fun TerminalKeyboard(
             switchLabel = nextFace.switchLabel,
             composing = composing,
             selectedStyle = entryStyle,
+            onVoiceInput = onVoiceInput,
             modifier = modifier
         )
         return
@@ -180,6 +181,7 @@ fun TerminalKeyboard(
             switchLabel = nextFace.switchLabel,
             composing = composing,
             selectedStyle = entryStyle,
+            onVoiceInput = onVoiceInput,
             modifier = modifier
         )
         return
@@ -340,6 +342,16 @@ fun TerminalKeyboard(
     val isCompact = renderStyle.id == "compact"
     val smallFont = (renderStyle.keyFontSp - 3f).coerceAtLeast(10f)
 
+    // 🎤 が使えない場面 (OS の入力方法・GUI タブ) では、🎤 だけが割り当たった向きをタップとして扱う。
+    // 既定の ⏎ の左フリック ([KeyDef.enter]) が、そこでは今までどおり Enter になる。
+    fun actionsOf(key: KeyDef, gesture: KeyGesture): List<KeyAction> {
+        val actions = key.actionsFor(gesture)
+        val voiceOnly = actions.isNotEmpty() &&
+            actions.all { it is KeyAction.App && it.action == AppAction.VOICE_INPUT }
+        return if (voiceOnly && onVoiceInput == null && gesture != KeyGesture.TAP) key.actionsFor(KeyGesture.TAP)
+        else actions
+    }
+
     // タップ・フリック・カスタム同時押しの修飾を共通の出口へ送る。
     fun runActions(actions: List<KeyAction>, gesture: KeyGesture) {
         val isFlick = gesture in KeyGesture.FLICKS
@@ -425,7 +437,7 @@ fun TerminalKeyboard(
                         alt = alt,
                         sym = sym,
                         faceLabel = nextFace.switchLabel,
-                        onGesture = { key, g -> runActions(key.actionsFor(g), g) },
+                        onGesture = { key, g -> runActions(actionsOf(key, g), g) },
                     )
                 }
             }
@@ -503,7 +515,7 @@ fun TerminalKeyboard(
                         alt = alt,
                         sym = sym,
                         faceLabel = nextFace.switchLabel,
-                        onGesture = { key, g -> runActions(key.actionsFor(g), g) },
+                        onGesture = { key, g -> runActions(actionsOf(key, g), g) },
                     )
                 }
                 if (!accessoryBar && keyRow.endGap > 0f) Spacer(Modifier.weight(keyRow.endGap))

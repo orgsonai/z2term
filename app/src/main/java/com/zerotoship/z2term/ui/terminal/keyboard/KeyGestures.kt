@@ -115,19 +115,26 @@ internal const val KEY_REPEAT_INTERVAL_MS = 55L
  *
  * フリックを併用するキー (英字/かな) では使わず、FlickKey 側で独自に統合する。
  * 数字・矢印・space・⌫ などフリックの無いキー用。
+ *
+ * [onFlickLeft] を渡したときだけ、連打が始まる前に左へ払って離すと onTap の代わりにそれを呼ぶ
+ * (かな面・数字面の ⏎ の 🎤・1.0.62)。null なら従来どおり (指がずれてもタップ)。
  */
 internal suspend fun PointerInputScope.detectTapWithRepeat(
     scope: CoroutineScope,
     onPressedChange: (Boolean) -> Unit = {},
+    onFlickLeft: (() -> Unit)? = null,
     onTap: () -> Unit
 ) {
+    val flickThreshold = viewConfiguration.touchSlop * 1.4f
     awaitPointerEventScope {
         while (true) {
             val down = awaitFirstDown(requireUnconsumed = false)
             onPressedChange(true)
             var repeated = false
+            var flicked = false
             val repeatJob = scope.launch {
                 delay(KEY_REPEAT_INITIAL_MS)
+                if (flicked) return@launch
                 repeated = true
                 while (isActive) {
                     onTap()
@@ -138,11 +145,19 @@ internal suspend fun PointerInputScope.detectTapWithRepeat(
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Main)
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                if (onFlickLeft != null && !repeated) {
+                    val dx = change.position.x - down.position.x
+                    val dy = change.position.y - down.position.y
+                    flicked = -dx > flickThreshold && abs(dx) > abs(dy)
+                }
                 if (!change.pressed) break
             }
             repeatJob.cancel()
             onPressedChange(false)
-            if (!repeated) onTap()
+            when {
+                flicked -> onFlickLeft?.invoke()
+                !repeated -> onTap()
+            }
         }
     }
 }

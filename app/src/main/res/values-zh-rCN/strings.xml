@@ -36,6 +36,8 @@
     <string name="tip_esc_flick_body">向上滑动 ESC 是粘贴，向下滑动是表情符号。面板中的 (^^) 标签页里有颜文字和字符画。</string>
     <string name="tip_backspace_flick_title">左右滑动 ⌫ 可以一次删掉更多</string>
     <string name="tip_backspace_flick_body">向左滑动删掉一个词，向右滑动一直删到行首。比一直按着退格键快得多。</string>
+    <string name="tip_enter_voice_title">向左滑动 ⏎ 用语音输入</string>
+    <string name="tip_enter_voice_body">说的话会输入到标签页里。不会按 Enter，可以先确认再发送。只说“send”或“enter”会按 Enter，说“control c”发送 Ctrl+C。识别只在手机上进行（Android 12 以上）。可在终端标签页的内置键盘和辅助键栏中使用。</string>
     <string name="tip_gui_scroll_title">图形应用里用三指上下滚动</string>
     <string name="tip_gui_scroll_body">用三根手指上下拖动来滚动。两根手指用于缩放和平移画面，缩小到适合屏幕时也不会变成滚动。</string>
     <string name="tip_gui_clean_title">输入 z2gui clean 可以重装图形环境</string>

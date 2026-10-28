@@ -36,6 +36,8 @@
     <string name="tip_esc_flick_body">向上滑動 ESC 是貼上，向下滑動是表情符號。面板中的 (^^) 分頁裡有顏文字和字元畫。</string>
     <string name="tip_backspace_flick_title">左右滑動 ⌫ 可以一次刪掉更多</string>
     <string name="tip_backspace_flick_body">向左滑動刪掉一個詞，向右滑動一直刪到行首。比一直按著退格鍵快得多。</string>
+    <string name="tip_enter_voice_title">向左滑動 ⏎ 用語音輸入</string>
+    <string name="tip_enter_voice_body">說的話會輸入到分頁裡。不會按 Enter，可以先確認再送出。只說「send」或「enter」會按 Enter，說「control c」送出 Ctrl+C。辨識只在手機上進行（Android 12 以上）。可在終端分頁的內建鍵盤和輔助鍵列中使用。</string>
     <string name="tip_gui_scroll_title">圖形應用程式裡用三指上下捲動</string>
     <string name="tip_gui_scroll_body">用三根手指上下拖曳來捲動。兩根手指用於縮放和平移畫面，縮小到適合螢幕時也不會變成捲動。</string>
     <string name="tip_gui_clean_title">輸入 z2gui clean 可以重裝圖形環境</string>

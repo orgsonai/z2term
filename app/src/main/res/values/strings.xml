@@ -40,6 +40,8 @@
     <string name="tip_esc_flick_body">Flick ESC up to paste, or down for emoji. In the pad, the (^^) tab holds emoticons and ASCII art.</string>
     <string name="tip_backspace_flick_title">Flick ⌫ left or right to delete more at once</string>
     <string name="tip_backspace_flick_body">Flick left to delete a word, flick right to delete back to the start of the line. Much faster than holding backspace down.</string>
+    <string name="tip_enter_voice_title">Flick ⏎ left to type by voice</string>
+    <string name="tip_enter_voice_body">Speak, and what you said is typed into the tab. Enter is not pressed, so you can check it first. Saying just \"send\" or \"enter\" presses Enter; \"control c\" sends Ctrl+C. Recognition stays on the phone (Android 12 or later). Works in terminal tabs on the built-in keyboard and the accessory bar.</string>
     <string name="tip_gui_scroll_title">Scroll inside a GUI app with three fingers</string>
     <string name="tip_gui_scroll_body">Drag three fingers up or down to scroll. Two fingers zoom and pan the view, including when zooming back to fit.</string>
     <string name="tip_gui_clean_title">Type z2gui clean to reinstall the GUI</string>

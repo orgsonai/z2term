@@ -36,6 +36,8 @@
     <string name="tip_esc_flick_body">ESC를 위로 플릭하면 붙여넣기, 아래로 플릭하면 이모지입니다. 패드의 (^^) 탭에는 이모티콘과 AA가 있습니다.</string>
     <string name="tip_backspace_flick_title">⌫를 좌우로 플릭하면 한 번에 더 많이 지웁니다</string>
     <string name="tip_backspace_flick_body">왼쪽으로 플릭하면 한 단어, 오른쪽으로 플릭하면 줄 앞까지 지웁니다. 백스페이스를 누르고 있는 것보다 훨씬 빠릅니다.</string>
+    <string name="tip_enter_voice_title">⏎를 왼쪽으로 플릭하면 음성으로 입력합니다</string>
+    <string name="tip_enter_voice_body">말한 내용이 탭에 입력됩니다. Enter는 누르지 않으므로 확인한 뒤 보낼 수 있습니다. \"send\"나 \"enter\"라고만 말하면 Enter, \"control c\"는 Ctrl+C를 보냅니다. 인식은 휴대전화 안에서만 합니다 (Android 12 이상). 터미널 탭의 내장 키보드와 보조 키 막대에서 쓸 수 있습니다.</string>
     <string name="tip_gui_scroll_title">GUI 안의 앱은 세 손가락으로 스크롤합니다</string>
     <string name="tip_gui_scroll_body">세 손가락을 위아래로 움직여 스크롤하세요. 두 손가락은 확대·축소와 화면 이동에 사용하며 화면에 맞게 축소해도 스크롤로 바뀌지 않습니다.</string>
     <string name="tip_gui_clean_title">z2gui clean이라고 입력하면 GUI를 다시 설치합니다</string>

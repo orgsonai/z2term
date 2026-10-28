@@ -36,6 +36,8 @@
     <string name="tip_esc_flick_body">Desliza ESC hacia arriba para pegar y hacia abajo para los emojis. En el panel, la pestaña (^^) tiene emoticonos y arte ASCII.</string>
     <string name="tip_backspace_flick_title">Desliza ⌫ a izquierda o derecha para borrar más de golpe</string>
     <string name="tip_backspace_flick_body">Desliza a la izquierda para borrar una palabra y a la derecha para borrar hasta el principio de la línea. Mucho más rápido que mantener pulsado el retroceso.</string>
+    <string name="tip_enter_voice_title">Desliza ⏎ a la izquierda para escribir con la voz</string>
+    <string name="tip_enter_voice_body">Lo que digas se escribe en la pestaña. No se pulsa Enter, así que puedes revisarlo antes. Decir solo \"send\" o \"enter\" pulsa Enter; \"control c\" envía Ctrl+C. El reconocimiento se hace en el teléfono (Android 12 o posterior). Funciona en las pestañas de terminal con el teclado integrado y la barra de teclas.</string>
     <string name="tip_gui_scroll_title">Desplázate dentro de una aplicación gráfica con tres dedos</string>
     <string name="tip_gui_scroll_body">Arrastra tres dedos hacia arriba o abajo para desplazarte. Dos dedos amplían, reducen y mueven la vista, incluso al volver al tamaño ajustado a la pantalla.</string>
     <string name="tip_gui_clean_title">Escribe z2gui clean para reinstalar el entorno gráfico</string>

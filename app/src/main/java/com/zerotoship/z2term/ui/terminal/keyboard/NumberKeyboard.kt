@@ -62,6 +62,8 @@ fun NumberKeyboard(
     switchLabel: String,
     composing: ComposingState,
     selectedStyle: KeyboardStyle,
+    /** ⏎ の左フリック = 🎤 ([KeyDef.enter] と同じ)。端末タブだけが渡す。 */
+    onVoiceInput: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // フォントは選択スタイルによらず SPACIOUS 基準へ揃える (かな面と共通)。
@@ -135,7 +137,7 @@ fun NumberKeyboard(
                 JpFuncKey("▶", style, Modifier.weight(1f).fillMaxWidth(), repeatable = true) {
                     onCursorKey(TerminalEmulator.CursorKey.RIGHT)
                 }
-                JpFuncKey("⏎", style, Modifier.weight(2f).fillMaxWidth(), repeatable = true) {
+                JpFuncKey("⏎", style, Modifier.weight(2f).fillMaxWidth(), repeatable = true, onFlickLeft = onVoiceInput) {
                     if (!composing.commitRaw()) onBytes(byteArrayOf(0x0D))
                 }
             }
@@ -227,7 +229,7 @@ fun NumberKeyboard(
             NumKey(".", style, digitScale, ::insert)
             NumKey("0", style, digitScale, ::insert)
             NumKey(":", style, digitScale, ::insert)
-            JpKey("⏎", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
+            JpKey("⏎", style, repeatable = true, weight = JP_EDGE_WEIGHT, onFlickLeft = onVoiceInput) {
                 if (!composing.commitRaw()) onBytes(byteArrayOf(0x0D))
             }
         }

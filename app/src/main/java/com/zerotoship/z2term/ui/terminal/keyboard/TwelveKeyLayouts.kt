@@ -45,7 +45,7 @@ fun japaneseKeyLayout(): KeyLayout = KeyLayout(
             keySlot(appKey("小゛゜", AppAction.IME_DAKUTEN, fontRole = KeyFontRole.SMALL)),
             kana("わ", "を", "ん", "ー", "〜"),
             kana("、", "。", "？", "！", "…"),
-            keySlot(namedKey("⏎", NamedKey.ENTER, repeatable = true), JP_EDGE_WEIGHT),
+            keySlot(KeyDef.enter(), JP_EDGE_WEIGHT),
         ),
     ),
 )
@@ -104,7 +104,7 @@ fun numberKeyLayout(): KeyLayout = KeyLayout(
             keySlot(textKey(".", ".", repeatable = true)),
             keySlot(textKey("0", "0", repeatable = true)),
             keySlot(textKey(":", ":", repeatable = true)),
-            keySlot(namedKey("⏎", NamedKey.ENTER, repeatable = true), JP_EDGE_WEIGHT),
+            keySlot(KeyDef.enter(), JP_EDGE_WEIGHT),
         ),
     ),
 )

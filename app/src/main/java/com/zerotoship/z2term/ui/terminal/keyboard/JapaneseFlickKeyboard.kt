@@ -103,6 +103,8 @@ fun JapaneseFlickKeyboard(
     switchLabel: String = KeyboardFace.ASCII.switchLabel,
     composing: ComposingState,
     selectedStyle: KeyboardStyle,
+    /** ⏎ の左フリック = 🎤 ([KeyDef.enter] と同じ)。端末タブだけが渡す。 */
+    onVoiceInput: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // フォントは選択スタイルによらず SPACIOUS 基準へ揃える (数字面と共通・[forTwelveKeyFace])。
@@ -228,7 +230,7 @@ fun JapaneseFlickKeyboard(
                     if (composing.isActive) composing.moveCursorRight()
                     else { flush(); onCursorKey(TerminalEmulator.CursorKey.RIGHT) }
                 }
-                JpFuncKey("⏎", style, Modifier.weight(2f).fillMaxWidth(), repeatable = true) {
+                JpFuncKey("⏎", style, Modifier.weight(2f).fillMaxWidth(), repeatable = true, onFlickLeft = onVoiceInput) {
                     if (!composing.commitRaw()) onBytes(byteArrayOf(0x0D))
                 }
             }
@@ -335,7 +337,7 @@ fun JapaneseFlickKeyboard(
             JpFlickKey(PUNCT, style, ::emitPlain)
             // ⏎ も長押しで連打できる (要望)。未確定文字があれば 1 回目は確定に使われ、
             // 以降は改行が連続で送られる。
-            JpKey("⏎", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
+            JpKey("⏎", style, repeatable = true, weight = JP_EDGE_WEIGHT, onFlickLeft = onVoiceInput) {
                 if (!composing.commitRaw()) onBytes(byteArrayOf(0x0D))
             }
         }
@@ -360,6 +362,7 @@ internal fun RowScope.JpKey(
     accent: Boolean = false,
     repeatable: Boolean = false,
     weight: Float = 1f,
+    onFlickLeft: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     JpFuncKey(
@@ -369,6 +372,7 @@ internal fun RowScope.JpKey(
         fontScale = fontScale,
         accent = accent,
         repeatable = repeatable,
+        onFlickLeft = onFlickLeft,
         onClick = onClick
     )
 }
@@ -408,6 +412,8 @@ internal fun JpFuncKey(
     fontScale: Float = 1f,
     accent: Boolean = false,
     repeatable: Boolean = false,
+    /** 左フリック (連打できるキーだけ・[detectTapWithRepeat])。null なら払ってもタップ。 */
+    onFlickLeft: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     var pressed by remember { mutableStateOf(false) }
@@ -420,9 +426,15 @@ internal fun JpFuncKey(
     val border = if (accent || pressed) ZtsGreen else ZtsBorder
     val scope = rememberCoroutineScope()
     val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnFlickLeft by rememberUpdatedState(onFlickLeft)
     val tap = if (repeatable) {
-        Modifier.pointerInput(Unit) {
-            detectTapWithRepeat(scope, onPressedChange = { pressed = it }) { currentOnClick() }
+        // ⚠ 左フリックの有無でジェスチャを組み直す (有無が変わるのは 🎤 の配線が変わったときだけ)。
+        Modifier.pointerInput(onFlickLeft != null) {
+            detectTapWithRepeat(
+                scope,
+                onPressedChange = { pressed = it },
+                onFlickLeft = if (onFlickLeft != null) ({ currentOnFlickLeft?.invoke() }) else null,
+            ) { currentOnClick() }
         }
     } else {
         Modifier.pointerInput(Unit) {

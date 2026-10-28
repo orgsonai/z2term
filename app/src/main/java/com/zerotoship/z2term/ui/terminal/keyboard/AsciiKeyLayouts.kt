@@ -178,7 +178,7 @@ fun asciiKeyLayout(
                 r3.forEachIndexed { i, label ->
                     add(slot(letterKey(label, flickUpRow(AsciiKeys.FLICK_UP_ROW3, i, label, symbols))))
                 }
-                add(slot(KeyDef.named("⏎", NamedKey.ENTER, repeatable = true), AsciiKeys.W_ENTER))
+                add(slot(KeyDef.enter(), AsciiKeys.W_ENTER))
             }
         )
     )
@@ -255,7 +255,7 @@ fun romajiKeyLayout(hasFaceKey: Boolean, symbols: Boolean = false): KeyLayout {
                 r3.forEachIndexed { i, label ->
                     add(slot(letterKey(label, flickUpRow(AsciiKeys.FLICK_UP_ROW3, i, label, symbols))))
                 }
-                add(slot(KeyDef.named("⏎", NamedKey.ENTER, repeatable = true), AsciiKeys.W_ENTER))
+                add(slot(KeyDef.enter(), AsciiKeys.W_ENTER))
             }
         ),
         KeyRow(
@@ -307,7 +307,7 @@ fun asciiPadRow(): KeyRow = KeyRow(
         ),
         slot(backspaceKey(), AsciiKeys.W_SIDE),
         slot(spaceKey(), 3f),
-        slot(KeyDef.named("⏎", NamedKey.ENTER, repeatable = true), AsciiKeys.W_ENTER),
+        slot(KeyDef.enter(), AsciiKeys.W_ENTER),
         slot(arrowKey("←", NamedKey.LEFT), AsciiKeys.W_KEY),
         slot(arrowKey("→", NamedKey.RIGHT), AsciiKeys.W_KEY),
     )

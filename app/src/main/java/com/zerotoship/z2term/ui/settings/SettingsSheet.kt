@@ -3198,6 +3198,7 @@ private fun TipsSection() {
         TipItem(R.string.tip_tab_new_os_title, R.string.tip_tab_new_os_body)
         TipItem(R.string.tip_esc_flick_title, R.string.tip_esc_flick_body)
         TipItem(R.string.tip_backspace_flick_title, R.string.tip_backspace_flick_body)
+        TipItem(R.string.tip_enter_voice_title, R.string.tip_enter_voice_body)
         TipItem(R.string.tip_gui_split_title, R.string.tip_gui_split_body)
         TipItem(R.string.tip_gui_scroll_title, R.string.tip_gui_scroll_body)
         TipItem(R.string.tip_gui_clean_title, R.string.tip_gui_clean_body)

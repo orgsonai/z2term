@@ -38,6 +38,8 @@
     <string name="tip_esc_flick_body">ESC を上へはらうと貼り付け、下へはらうと絵文字です。パッドの (^^) タブには顔文字と AA があります。</string>
     <string name="tip_backspace_flick_title">⌫ を左右にはらうとまとめて消せます</string>
     <string name="tip_backspace_flick_body">左へはらうと単語ごと、右へはらうと行の先頭まで消えます。⌫ を押し続けるより速く戻せます。</string>
+    <string name="tip_enter_voice_title">⏎ を左にはらうと声で入力できます</string>
+    <string name="tip_enter_voice_body">話した内容がタブに入ります。Enter は押さないので、確かめてから送れます。「送信」「改行」とだけ言うと Enter、「コントロールC」で Ctrl+C を送ります。認識はスマホの中だけで行います（Android 12 以降）。端末タブの内蔵キーボードと補助キーバーで使えます。</string>
     <string name="tip_gui_scroll_title">GUI の中のアプリは 3 本指で上下にスクロール</string>
     <string name="tip_gui_scroll_body">3 本指を上下へ動かすとスクロールします。2 本指は拡大・縮小と表示移動に使い、等倍まで縮小してもスクロールには切り替わりません。</string>
     <string name="tip_gui_clean_title">z2gui clean と打つと GUI を入れ直せます</string>

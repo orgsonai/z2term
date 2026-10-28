@@ -225,6 +225,15 @@ data class KeyDef(
             )
 
         /** タップで特殊キーを送るキー。 */
+        /**
+         * 既定の ⏎。長押しで連打、**左フリックで 🎤** ([AppAction.VOICE_INPUT]・1.0.62)。
+         * ヒントは出さない (見た目は今までの ⏎ のまま)。🎤 が使えない場面では、左フリックも
+         * Enter になる ([TerminalKeyboard] が 🎤 だけの向きをタップとして扱う)。
+         */
+        fun enter(): KeyDef = named("⏎", NamedKey.ENTER, repeatable = true).let {
+            it.copy(bindings = it.bindings + (KeyGesture.LEFT to listOf(KeyAction.App(AppAction.VOICE_INPUT))))
+        }
+
         fun named(
             label: String,
             key: NamedKey,
