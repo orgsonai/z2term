@@ -33,9 +33,27 @@ internal object VoiceInput {
                 is SpeechListen.Heard.Text -> when {
                     ListenWords.exact(ENTER_WORDS, heard.candidates) != null -> onEnter()
                     ListenWords.exact(INTERRUPT_WORDS, heard.candidates) != null -> onInterrupt()
-                    else -> onText(heard.candidates[0])
+                    else -> onText(typed(heard.candidates[0]))
                 }
             }
         }
+    }
+
+    /** 英字の語 (全角も)。数字を含んでよい (`MP3`)。 */
+    private val LATIN_WORD = Regex("[A-Za-zＡ-Ｚａ-ｚ][A-Za-z0-9Ａ-Ｚａ-ｚ０-９]*")
+
+    /**
+     * 打ち込む前の整え (1.0.63)。**全部大文字の英字の語だけ**を半角の小文字にする。
+     *
+     * 声には大文字・小文字の区別が無く、日本語の認識は文字を 1 つずつ読んだ英字 (「エル エス」) を
+     * 大文字で書く (`LS`)。端末のコマンドはほぼ小文字なので、そのままでは `ls` として動かない
+     * (実機で確認)。大小が混ざった語 (`Git`) は認識が意図して書いたものなのでそのまま。
+     * 引き換えに `README` `PATH` のような大文字で書きたい語も小文字になる (利用者が選んだ決まり)。
+     * `z2-listen` の出力は変えない (スクリプトが自分で決める)。
+     */
+    internal fun typed(text: String): String = LATIN_WORD.replace(text) { m ->
+        val word = m.value
+        if (word.any { it.isLowerCase() }) word
+        else java.text.Normalizer.normalize(word, java.text.Normalizer.Form.NFKC).lowercase()
     }
 }
