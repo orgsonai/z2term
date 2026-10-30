@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="editor_save">保存</string>
+    <string name="editor_saved">已保存</string>
+    <string name="editor_save_and_close">保存并关闭</string>
+    <string name="editor_gone">无法保存：打开此画面的 z2-edit 已结束。</string>
+    <string name="editor_unreadable">无法打开：不是 UTF-8 文本文件，或超过 1 MiB。</string>
+</resources>

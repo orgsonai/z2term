@@ -562,6 +562,9 @@ case "${d}{1:-}" in
     ;;
   words)
     ensure_words
+    # z2term の編集画面で開く (ふつうの入力欄。nano や vi はスマホのキーボードでは重い)。
+    # 画面で開くので、タイルやパネルから呼んでも開ける。
+    command -v z2-edit >/dev/null 2>&1 && exec z2-edit "${d}WORDS"
     ed=${d}{VISUAL:-${d}{EDITOR:-}}
     [ -n "${d}ed" ] || for e in nano vim vi; do command -v "${d}e" >/dev/null 2>&1 && { ed=${d}e; break; }; done
     if [ -t 0 ] && [ -t 1 ] && [ -n "${d}ed" ]; then exec ${d}ed "${d}WORDS"; fi

@@ -742,6 +742,16 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             "ko" to "# z2-vibrate [ms]  (기본값 200ms)"
         )
 
+    val editHelp: String =
+        t(
+            en = "# z2-edit <file>      … edit a text file in z2term's own editor (plain text box; Save writes it back)",
+            ja = "# z2-edit <ファイル>  … 文字ファイルを z2term の編集画面で書き換える (ふつうの入力欄。「保存」で書き戻す)",
+            "zh-CN" to "# z2-edit <文件>      … 在 z2term 自带的编辑画面里改写文本文件 (普通输入框，“保存”写回)",
+            "zh-TW" to "# z2-edit <檔案>      … 在 z2term 自帶的編輯畫面裡改寫文字檔 (一般輸入框，「儲存」寫回)",
+            "es" to "# z2-edit <archivo>   … edita un archivo de texto en el editor de z2term (caja de texto normal; Guardar lo escribe)",
+            "ko" to "# z2-edit <파일>      … 텍스트 파일을 z2term 편집 화면에서 고칩니다 (일반 입력란, '저장'으로 되돌려 씀)"
+        )
+
     val sayHelp: String =
         t(
             en = "# z2-say <text>       … speak with the device TTS (reads stdin when no argument)",

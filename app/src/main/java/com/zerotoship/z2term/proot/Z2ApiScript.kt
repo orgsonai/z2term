@@ -363,6 +363,35 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |exec /usr/local/bin/z2api 0 say "${d}text"
     """.trimMargin() + "\n"
 
+    // z2-edit (1.0.67): 文字ファイルをアプリの編集画面で書き換える。⚠ 受け渡しは z2-view と同じ
+    // /storage/app/z2api の下へ写して名前だけを渡す (アプリに任意のパスを読み書きさせない)。
+    // アプリは置き場の text.txt を書き換えて saved / closed の印を置くだけで、元のファイルへ
+    // 書き戻すのはここ (cat > で書くので、ファイルの持ち主・権限・リンクはそのまま)。
+    val edit = "#!/bin/sh\n" + m.editHelp + "\n" + helpCaseLong + """
+        |[ ${d}# -eq 1 ] && [ -n "${d}1" ] || { echo "usage: z2-edit <file>" >&2; exit 1; }
+        |f=${d}1
+        |[ ! -e "${d}f" ] || { [ -f "${d}f" ] && [ -r "${d}f" ]; } || { echo "z2-edit: not a readable file: ${d}f" >&2; exit 1; }
+        |DIR=/storage/app/z2api
+        |mkdir -p "${d}DIR" || exit 1
+        |stage=${d}(mktemp -d "${d}DIR/edit-XXXXXXXXXX") || exit 1
+        |chmod 777 "${d}stage" 2>/dev/null
+        |trap 'rm -rf "${d}stage"' 0
+        |trap 'exit 1' 1 2 15
+        |if [ -e "${d}f" ]; then head -c 1048577 < "${d}f" > "${d}stage/text.txt" || exit 1; else : > "${d}stage/text.txt"; fi
+        |[ "${d}(wc -c < "${d}stage/text.txt")" -le 1048576 ] || { echo 'z2-edit: file exceeds 1 MiB' >&2; exit 1; }
+        |chmod 666 "${d}stage/text.txt" 2>/dev/null
+        |/usr/local/bin/z2api 1 edit "${d}{stage##*/}" "${d}f" >/dev/null || exit 1
+        |# 閉じるまで待つ。保存されるたびに元のファイルへ書き戻す。
+        |while :; do
+        |  if [ -e "${d}stage/saved" ]; then
+        |    rm -f "${d}stage/saved"
+        |    cat "${d}stage/text.txt" > "${d}f" || echo "z2-edit: could not write ${d}f" >&2
+        |  fi
+        |  [ -e "${d}stage/closed" ] && [ ! -e "${d}stage/saved" ] && break
+        |  sleep 0.5
+        |done
+    """.trimMargin() + "\n"
+
     val torch = "#!/bin/sh\n" + m.torchHelp + "\n" + helpCase + """
         |exec /usr/local/bin/z2api 1 torch "${d}{1:-toggle}"
     """.trimMargin() + "\n"
@@ -1193,6 +1222,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-share" to share,
         "z2-open" to open,
         "z2-view" to view,
+        "z2-edit" to edit,
         "z2-file" to file,
         "z2-qr" to qr,
         "z2-img" to img,

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="editor_save">저장</string>
+    <string name="editor_saved">저장했습니다</string>
+    <string name="editor_save_and_close">저장하고 닫기</string>
+    <string name="editor_gone">저장할 수 없습니다. 이 화면을 연 z2-edit가 끝났습니다.</string>
+    <string name="editor_unreadable">열 수 없습니다. UTF-8 텍스트 파일이 아니거나 1 MiB를 넘습니다.</string>
+</resources>

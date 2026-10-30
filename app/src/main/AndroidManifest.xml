@@ -161,6 +161,9 @@
         <!-- z2-view: 端末が書いた 1 枚を読むだけ。外から開かせない (exported=false)。 -->
         <activity android:name=".viewer.ViewerActivity" android:exported="false"
             android:launchMode="singleTop" />
+        <!-- z2-edit の編集画面。キーボードが出たら欄を縮める (下の行が隠れない)。 -->
+        <activity android:name=".editor.EditorActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity android:name=".qr.QrReceiveActivity" android:exported="true"
             android:label="${appLabel} — QR" android:launchMode="singleTop">
             <intent-filter>
