@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.68 (versionCode 766)**: In the `z2-edit` editor, **pinch with two fingers to make the text larger or smaller**. The size is remembered, and the next file opens at the same size.
+
 **1.0.67 (versionCode 765)**: (1) **`z2-edit <file>`** edits a text file in z2term's own **editor**. Change it in a plain text box and press "Save" to write it back to the file. If you close with unsaved changes, it asks first. `voice.sh words` now opens the word table here too (no more nano, and it opens even from a tile or panel). (2) While the phone is speaking, **pressing a volume button twice in a row stops the speech**. A single press still changes the volume (after a double press the volume goes back to where it was). It works with the screen off; it may not work while another app is playing music.
 
 **1.0.66 (versionCode 764)**: You can now **stop the phone while it is speaking** (`z2-say`). While it speaks, a notification shows the sentence being spoken. "Stop" in that notification, or pressing the "Voice command" tile, stops the current sentence and everything after it (when nothing is being spoken, the tile listens as before; stopping does not need you to unlock). The notification goes away when it finishes speaking.

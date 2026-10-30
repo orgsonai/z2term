@@ -5,6 +5,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -42,6 +44,7 @@ class EditorActivity : ComponentActivity() {
     private lateinit var stage: File
     private lateinit var field: EditText
     private var savedText = ""
+    private var textSizeSp = DEFAULT_TEXT_SP
 
     override fun attachBaseContext(newBase: Context) { super.attachBaseContext(LocaleHelper.applyLocale(newBase)) }
 
@@ -58,6 +61,7 @@ class EditorActivity : ComponentActivity() {
         }
         stage = dir
         savedText = text
+        textSizeSp = getSharedPreferences(PREFS, MODE_PRIVATE).getFloat(TEXT_SIZE, DEFAULT_TEXT_SP).coerceIn(MIN_TEXT_SP, MAX_TEXT_SP)
 
         val density = resources.displayMetrics.density
         val pad = (12 * density).toInt()
@@ -98,7 +102,7 @@ class EditorActivity : ComponentActivity() {
             // 決まった id があれば、回転で作り直しても書きかけの文字が残る。
             id = android.R.id.edit
             setText(text)
-            textSize = 14f
+            textSize = textSizeSp
             typeface = android.graphics.Typeface.MONOSPACE
             gravity = Gravity.TOP or Gravity.START
             setTextColor(AppColors.textPrimary.toArgb())
@@ -108,6 +112,31 @@ class EditorActivity : ComponentActivity() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
             imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI
             isVerticalScrollBarEnabled = true
+        }
+        // 2 本指のピンチで文字の大きさを変え、次に開くときも同じ大きさで開く。指が 2 本になった時点で
+        // 入力欄へ取り消しを送り、離し終えるまで入力欄には渡さない (範囲選択やカーソル移動に化けない)。
+        val pinch = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                textSizeSp = (textSizeSp * detector.scaleFactor).coerceIn(MIN_TEXT_SP, MAX_TEXT_SP)
+                field.textSize = textSizeSp
+                return true
+            }
+            override fun onScaleEnd(detector: ScaleGestureDetector) {
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit().putFloat(TEXT_SIZE, textSizeSp).apply()
+            }
+        })
+        var pinching = false
+        @Suppress("ClickableViewAccessibility")
+        field.setOnTouchListener { view, event ->
+            pinch.onTouchEvent(event)
+            if (event.actionMasked == MotionEvent.ACTION_POINTER_DOWN && !pinching) {
+                pinching = true
+                val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
+                view.onTouchEvent(cancel); cancel.recycle()
+            }
+            val consumed = pinching
+            if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) pinching = false
+            consumed
         }
         root.addView(field, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
@@ -162,6 +191,11 @@ class EditorActivity : ComponentActivity() {
         private const val TEXT = "text.txt"
         private const val SAVED = "saved"
         private const val CLOSED = "closed"
+        private const val PREFS = "editor"
+        private const val TEXT_SIZE = "text-size"
+        private const val DEFAULT_TEXT_SP = 14f
+        private const val MIN_TEXT_SP = 8f
+        private const val MAX_TEXT_SP = 40f
         /** EditText が重くならない大きさまで。z2-edit 側も同じ値で断る。 */
         private const val LIMIT = 1024 * 1024
 
