@@ -769,6 +769,8 @@
     <!-- Android API ブリッジ (z2-* ヘルパー) -->
     <string name="api_channel_name">端末 API</string>
     <string name="api_channel_desc">端末から z2-notify で送られた通知。</string>
+    <string name="speech_notif_title">読み上げ中</string>
+    <string name="speech_notif_stop">止める</string>
     <string name="api_channel_high_name">端末 API（バナー）</string>
     <string name="api_channel_high_desc">z2-notify -h で送られたヘッドアップ通知（画面上部にポップアップ表示）。</string>
 

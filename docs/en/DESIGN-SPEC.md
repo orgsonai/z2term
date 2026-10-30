@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-10-30 / Target version: 1.0.65 (versionCode 763)
+Last updated: 2026-10-30 / Target version: 1.0.66 (versionCode 764)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -2620,7 +2620,7 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
     - ⚠ **Verify by reading it back** (`setPrimaryClip` → compare `primaryClip`). A refusal has neither a return value nor an exception, so there is no other way to know. The bundled samples (`otp-clip` / `otp-sms`) use that read-back to choose between "write directly while in front" and "hand it to the button".
     - ⚠ **No toast of our own on Android 13+** (the OS shows its own copy confirmation; two would be redundant).
     - ⚠ Android shows at most three notification buttons. A "Copy" button costs one of them, leaving fewer `-b` reply buttons.
-  - **`z2-say`**: speaks via the device's standard TTS (engine init is async, so utterances are queued until it is ready)
+  - **`z2-say`**: speaks via the device's standard TTS (engine init is async, so utterances are queued until it is ready). While it speaks, a silent ongoing notification shows the sentence being spoken; "Stop" (`SpeechStopReceiver`) drops the current sentence and everything queued. The "Voice command" tile also stops the speech instead of listening while the phone speaks (stopping only, so it does not ask to unlock). The notification goes away when every utterance has finished. Added because users wanted to cut long readings short (1.0.66)
   - **`z2-listen`**: recognises on the device only via `SpeechRecognizer.createOnDeviceSpeechRecognizer` and returns the text (see the `z2-listen` entry above)
   - **`z2-torch`**: controlled via `CameraManager.setTorchMode` (no permission needed) and returns the resulting torch state
   - **`z2-media` / `z2-volume`**: the former dispatches media keys via `AudioManager.dispatchMediaKeyEvent`, the latter operates `STREAM_MUSIC` (returning current/max)

@@ -783,6 +783,8 @@
     <!-- Android API bridge (z2-* helpers) -->
     <string name="api_channel_name">Terminal API</string>
     <string name="api_channel_desc">Notifications posted by z2-notify from the terminal.</string>
+    <string name="speech_notif_title">Speaking</string>
+    <string name="speech_notif_stop">Stop</string>
     <string name="api_channel_high_name">Terminal API (banner)</string>
     <string name="api_channel_high_desc">Heads-up notifications from z2-notify -h (pops up at the top of the screen).</string>
 

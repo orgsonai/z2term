@@ -716,6 +716,8 @@
     </plurals>
     <string name="api_channel_name">終端機 API</string>
     <string name="api_channel_desc">從終端機用 z2-notify 發出的通知。</string>
+    <string name="speech_notif_title">正在朗讀</string>
+    <string name="speech_notif_stop">停止</string>
     <string name="api_channel_high_name">終端機 API（橫幅）</string>
     <string name="api_channel_high_desc">用 z2-notify -h 發出的浮動通知（在螢幕頂部彈出）。</string>
     <string name="search_hint">搜尋輸出</string>

@@ -731,6 +731,8 @@
     </plurals>
     <string name="api_channel_name">API de la terminal</string>
     <string name="api_channel_desc">Notificaciones publicadas por z2-notify desde la terminal.</string>
+    <string name="speech_notif_title">Leyendo en voz alta</string>
+    <string name="speech_notif_stop">Detener</string>
     <string name="api_channel_high_name">API de la terminal (aviso)</string>
     <string name="api_channel_high_desc">Notificaciones emergentes de z2-notify -h (aparecen en la parte superior de la pantalla).</string>
     <string name="search_hint">Buscar en la salida</string>
