@@ -1107,6 +1107,7 @@
     <string name="guide_desc_otp_sms">SMS の認証コードをコピーする</string>
     <string name="guide_desc_unknown_call">電話番号のコピー通知</string>
     <string name="guide_desc_remind">通知でリマインドする</string>
+    <string name="guide_desc_voice">声で操作する（音楽・音量・タイマー・リマインド・天気など）</string>
     <string name="guide_desc_rss">自動化でフィードを巡回し、通知から記事や一覧を開く</string>
     <string name="guide_desc_qr">QR にして別の端末へ渡す</string>
     <string name="guide_step_install">マクロを入れる</string>
@@ -1133,6 +1134,11 @@
     <string name="guide_ask_feed_url">読みたいフィードの URL（1 本ずつ。あとから何本でも足せます）</string>
     <string name="guide_ask_interval">どれくらいの間隔で見に行くか（30m / 1h など。30 分より短くしない）</string>
     <string name="guide_ask_qr_text">QR にしたい文字列や URL</string>
+    <string name="guide_step_voice_setup">声で操作・声のタイマー・歩数のルールを登録（最初に 1 回）</string>
+    <string name="guide_step_voice_start">あとは話すだけ: クイック設定に「声で操作」タイルを並べるか、端末の設定 › アプリ › 既定のアプリ › デジタル アシスタント アプリで z2term を選ぶ</string>
+    <string name="guide_step_voice_words">言葉の表を開いて、言い方を足す・変える</string>
+    <string name="guide_step_voice_ai">AI は最初はオフ: オンにする方法を見る（「AI」で始めたときだけ聞きます）</string>
+    <string name="guide_ask_voice_phrase">話さずに試す言葉（例: 何ができる）</string>
 
     <!-- OS が 1 つも入っていないときの案内 (新規インストール直後は全員この状態)。 -->
     <string name="no_os_title">Android標準シェルを利用できます</string>
@@ -1416,6 +1422,6 @@ SSH 接続先 %3$d 件
     <string name="voice_listening">話してください…</string>
     <string name="voice_cancel">やめる</string>
     <string name="voice_heard">「%1$s」</string>
-    <string name="voice_no_rule">これを受けるルールがまだありません。z2-when event:voice run \'~/.z2term/macros/voice.sh\' のように登録してください。</string>
+    <string name="voice_no_rule">これを受けるルールがまだありません。端末で z2-macro install voice を実行してから sh ~/.z2term/macros/voice.sh setup を実行してください（⚙設定 › 案内を表示 › voice でも案内します）。</string>
     <string name="voice_no_mic">マイクが許可されていません。声で操作するには許可してください。</string>
 </resources>

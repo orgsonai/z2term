@@ -1125,6 +1125,7 @@ Pick one from the tabs on the right.</string>
     <string name="guide_desc_otp_sms">copy one-time codes from SMS</string>
     <string name="guide_desc_unknown_call">copy phone numbers from call notifications</string>
     <string name="guide_desc_remind">remind me with a notification</string>
+    <string name="guide_desc_voice">operate the phone by voice: music, volume, timers, reminders, weather</string>
     <string name="guide_desc_rss">poll feeds with automation and open articles or the list from notifications</string>
     <string name="guide_desc_qr">hand something over as a QR code</string>
     <string name="guide_step_install">Install the macro</string>
@@ -1151,6 +1152,11 @@ Pick one from the tabs on the right.</string>
     <string name="guide_ask_feed_url">Feed URL to read (one at a time; you can add more later)</string>
     <string name="guide_ask_interval">How often to poll (30m / 1h …; do not go below 30 minutes)</string>
     <string name="guide_ask_qr_text">Text or URL to turn into a QR code</string>
+    <string name="guide_step_voice_setup">Register the rules for voice command, its timer and the step count (once)</string>
+    <string name="guide_step_voice_start">Then just speak: add the \"Voice command\" tile to quick settings, or pick z2term under Settings › Apps › Default apps › Digital assistant app</string>
+    <string name="guide_step_voice_words">Open the word table to add or change what you can say</string>
+    <string name="guide_step_voice_ai">AI is off at first: see how to turn it on (it is only asked when you start with \"AI\")</string>
+    <string name="guide_ask_voice_phrase">A phrase to try without speaking (for example: what can I say)</string>
 
     <!-- Shown when no Linux OS is installed at all (the state every fresh install starts in). -->
     <string name="no_os_title">Android shell is ready</string>
@@ -1436,6 +1442,6 @@ Edge panels: %12$d, notes: %13$d</string>
     <string name="voice_listening">Speak now…</string>
     <string name="voice_cancel">Cancel</string>
     <string name="voice_heard">“%1$s”</string>
-    <string name="voice_no_rule">Nothing reacts to this yet. Add a rule such as z2-when event:voice run \'~/.z2term/macros/voice.sh\'.</string>
+    <string name="voice_no_rule">Nothing reacts to this yet. In a terminal run z2-macro install voice, then sh ~/.z2term/macros/voice.sh setup (Settings › Show a guide › voice walks you through it).</string>
     <string name="voice_no_mic">Microphone access is not allowed. Allow it to use voice commands.</string>
 </resources>

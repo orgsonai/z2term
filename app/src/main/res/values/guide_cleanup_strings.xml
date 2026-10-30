@@ -13,6 +13,7 @@
     <string name="guide_undo_remind_tiles">Empty the tile slots that run remind.sh</string>
     <string name="guide_undo_remind_data">Delete the reminder records (✕ to keep them)</string>
     <string name="guide_undo_rss_data">Delete the feed list and the collected articles (✕ to keep them)</string>
+    <string name="guide_undo_voice_data">Delete voice command\'s word table, notes and settings (✕ to keep them)</string>
     <string name="guide_undo_edge_main">Delete the sample app panel \"main\" (items you added to it go too)</string>
     <string name="guide_undo_edge_samples">Delete the sample panels (the text in the note goes too)</string>
     <string name="guide_undo_edge_off">If you use no other panel, turn panels off (the bar disappears)</string>

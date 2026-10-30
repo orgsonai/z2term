@@ -1036,6 +1036,7 @@
     <string name="guide_desc_otp_sms">从短信里复制一次性验证码</string>
     <string name="guide_desc_unknown_call">来电号码复制通知</string>
     <string name="guide_desc_remind">用通知来提醒我</string>
+    <string name="guide_desc_voice">用语音操作手机（音乐、音量、计时器、提醒、天气等）</string>
     <string name="guide_desc_rss">通过自动化巡查订阅源，从通知打开文章或列表</string>
     <string name="guide_desc_qr">做成二维码交给另一台设备</string>
     <string name="guide_step_install">安装这个宏</string>
@@ -1062,6 +1063,11 @@
     <string name="guide_ask_feed_url">想读的订阅源 URL（一次一个，之后想加多少都行）</string>
     <string name="guide_ask_interval">每隔多久去看一次（30m / 1h 等。不要短于 30 分钟）</string>
     <string name="guide_ask_qr_text">想做成二维码的文字或 URL</string>
+    <string name="guide_step_voice_setup">登记语音操作、语音计时器和计步的规则（只做一次）</string>
+    <string name="guide_step_voice_start">之后只要说话：在快捷设置里放上“语音操作”磁贴，或在系统设置 › 应用 › 默认应用 › 数字助理应用中选择 z2term</string>
+    <string name="guide_step_voice_words">打开词表，增加或更换说法</string>
+    <string name="guide_step_voice_ai">AI 一开始是关闭的：看看怎么打开（只有用“AI”开头时才会问）</string>
+    <string name="guide_ask_voice_phrase">不说话也能试的话（例如：你能做什么）</string>
     <string name="no_os_title">Android Shell已就绪</string>
     <string name="no_os_action">⚙设置 → Linux 环境，选一个想用的系统装上</string>
     <string name="no_os_hint">无需安装Linux即可使用z2-*、自动化和边缘面板。运行z2help查看可用命令。需要Linux工具时再安装系统。</string>
@@ -1338,6 +1344,6 @@ SSH 连接目标 %3$d 个
     <string name="voice_listening">请说话…</string>
     <string name="voice_cancel">取消</string>
     <string name="voice_heard">“%1$s”</string>
-    <string name="voice_no_rule">还没有规则接收它。请用 z2-when event:voice run \'~/.z2term/macros/voice.sh\' 这样的方式注册。</string>
+    <string name="voice_no_rule">还没有规则接收它。请在终端里运行 z2-macro install voice，再运行 sh ~/.z2term/macros/voice.sh setup（⚙设置 › 显示向导 › voice 也会一步步说明）。</string>
     <string name="voice_no_mic">没有麦克风权限。要用语音操作，请允许。</string>
 </resources>

@@ -680,6 +680,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         "rss-open.sh" to rssOpen,
         "qr.sh" to qr,
         "md.sh" to md,
+        "voice.sh" to z2VoiceMacro(lang),
     )
 }
 

@@ -13,6 +13,7 @@
     <string name="guide_undo_remind_tiles">remind.sh를 넣은 타일 칸 비우기</string>
     <string name="guide_undo_remind_data">알림 기록 지우기 (남기려면 ✕)</string>
     <string name="guide_undo_rss_data">피드 목록과 모은 글 지우기 (남기려면 ✕)</string>
+    <string name="guide_undo_voice_data">음성 조작의 낱말 표·메모·설정 지우기 (남기려면 ✕)</string>
     <string name="guide_undo_edge_main">예제 앱 목록 패널 main 지우기 (직접 추가한 항목도 함께 지워집니다)</string>
     <string name="guide_undo_edge_samples">예제 패널 지우기 (메모장의 글도 지워집니다)</string>
     <string name="guide_undo_edge_off">다른 패널을 쓰지 않는다면 패널 끄기 (바가 사라집니다)</string>

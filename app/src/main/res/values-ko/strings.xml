@@ -1035,6 +1035,7 @@
     <string name="guide_desc_otp_sms">SMS에서 일회용 코드 복사하기</string>
     <string name="guide_desc_unknown_call">전화번호 복사 알림</string>
     <string name="guide_desc_remind">알림으로 일깨워 주기</string>
+    <string name="guide_desc_voice">음성으로 휴대폰 조작하기 (음악·볼륨·타이머·리마인더·날씨 등)</string>
     <string name="guide_desc_rss">자동화로 피드를 확인하고 알림에서 글이나 목록 열기</string>
     <string name="guide_desc_qr">QR 코드로 건네주기</string>
     <string name="guide_step_install">매크로 설치</string>
@@ -1061,6 +1062,11 @@
     <string name="guide_ask_feed_url">읽을 피드 URL (하나씩. 나중에 더 넣을 수 있습니다)</string>
     <string name="guide_ask_interval">얼마나 자주 볼지 (30m / 1h …. 30분보다 짧게는 하지 마세요)</string>
     <string name="guide_ask_qr_text">QR 코드로 만들 글이나 URL</string>
+    <string name="guide_step_voice_setup">음성 조작, 음성 타이머, 걸음 수 규칙 등록하기 (처음에 한 번)</string>
+    <string name="guide_step_voice_start">그다음엔 말하기만 하면 됩니다: 빠른 설정에 \"음성 조작\" 타일을 놓거나, 기기 설정 › 애플리케이션 › 기본 앱 › 디지털 어시스턴트 앱에서 z2term을 고르기</string>
+    <string name="guide_step_voice_words">낱말 표를 열어 말하는 법을 더하거나 바꾸기</string>
+    <string name="guide_step_voice_ai">AI는 처음에 꺼져 있습니다: 켜는 방법 보기 (\"AI\"로 시작할 때만 묻습니다)</string>
+    <string name="guide_ask_voice_phrase">말하지 않고 시험할 말 (예: 뭐 할 수 있어)</string>
     <string name="no_os_title">Android 셸을 사용할 수 있습니다</string>
     <string name="no_os_action">설정 -> Linux 환경: 원하는 OS를 골라 설치하세요</string>
     <string name="no_os_hint">Linux 없이 z2-*, 자동화, 엣지 패널을 사용할 수 있습니다. z2help로 명령을 확인하세요. Linux 도구가 필요할 때 OS를 설치하세요.</string>
@@ -1331,6 +1337,6 @@ SSH 연결: %3$d
     <string name="voice_listening">말씀하세요…</string>
     <string name="voice_cancel">취소</string>
     <string name="voice_heard">“%1$s”</string>
-    <string name="voice_no_rule">아직 이것을 받는 규칙이 없습니다. z2-when event:voice run \'~/.z2term/macros/voice.sh\' 처럼 등록하세요.</string>
+    <string name="voice_no_rule">아직 이것을 받는 규칙이 없습니다. 터미널에서 z2-macro install voice 를 실행한 뒤 sh ~/.z2term/macros/voice.sh setup 을 실행하세요 (설정 › 안내 보기 › voice 에서도 안내합니다).</string>
     <string name="voice_no_mic">마이크 권한이 없습니다. 음성 조작을 쓰려면 허용하세요.</string>
 </resources>

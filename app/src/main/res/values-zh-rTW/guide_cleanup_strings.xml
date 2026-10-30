@@ -13,6 +13,7 @@
     <string name="guide_undo_remind_tiles">清空分配給 remind.sh 的方塊位</string>
     <string name="guide_undo_remind_data">刪除提醒的記錄（要保留就按 ✕）</string>
     <string name="guide_undo_rss_data">刪除訂閱清單和收集到的文章（要保留就按 ✕）</string>
+    <string name="guide_undo_voice_data">刪除語音操作的詞表、備忘和設定（要保留就按 ✕）</string>
     <string name="guide_undo_edge_main">刪除範例應用程式清單面板 main（你自己加的項目也會一起刪除）</string>
     <string name="guide_undo_edge_samples">刪除範例面板（記事本裡的內容也會刪除）</string>
     <string name="guide_undo_edge_off">如果沒有在用別的面板，就關閉面板（長條會消失）</string>

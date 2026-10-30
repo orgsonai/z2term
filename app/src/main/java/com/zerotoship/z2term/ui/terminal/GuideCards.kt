@@ -248,6 +248,31 @@ enum class Guide(
     )),
 
     /**
+     * 声で操作する (1.0.65)。1.0.64 の受け口 (タイル・デジタル アシスタント) に、聞いた言葉で動く
+     * `voice.sh` をつなぐ。入れる → ルール → 話し方 → 試す → 言葉の表 → AI の順。
+     *
+     * ⚠ **AI はオフのまま案内する** (利用者の決定)。オンにする手順は「見るだけ」にしてあり、
+     * `voice.sh ai` が今の設定とオンにする 1 行を出す。勝手にオンにしない。
+     */
+    VOICE("voice", R.string.guide_desc_voice, listOf(
+        GuideStep(R.string.guide_step_install, "z2-macro install voice"),
+        GuideStep(R.string.guide_step_voice_setup, "sh ~/.z2term/macros/voice.sh setup"),
+        GuideStep(R.string.guide_step_voice_start),
+        GuideStep(
+            R.string.guide_step_try,
+            "sh ~/.z2term/macros/voice.sh try \"%s\"",
+            askRes = R.string.guide_ask_voice_phrase
+        ),
+        GuideStep(R.string.guide_step_voice_words, "sh ~/.z2term/macros/voice.sh words"),
+        GuideStep(R.string.guide_step_voice_ai, "sh ~/.z2term/macros/voice.sh ai"),
+    ), cleanup = listOf(
+        // voice・alarm・steps の 3 本とも voice.sh を呼ぶので 1 行で拾える。
+        GuideStep(R.string.guide_undo_rules, guideUndoRules("voice")),
+        GuideStep(R.string.guide_undo_macro, guideUndoMacro("voice")),
+        GuideStep(R.string.guide_undo_voice_data, "rm -rf ~/.z2term/voice"),
+    )),
+
+    /**
      * Collect and read feeds through scheduled polling and notification actions (0.8.635).
      * Both rules live in Automation; the final step opens the collected list with rss.sh view.
      */
