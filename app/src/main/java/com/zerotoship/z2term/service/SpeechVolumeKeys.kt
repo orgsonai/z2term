@@ -8,6 +8,7 @@ import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 
 /**
  * `z2-say` で話している間だけ、**音量ボタンの 2 度押しで読み上げを止める** (1.0.67)。
@@ -23,6 +24,7 @@ import android.os.SystemClock
  */
 internal object SpeechVolumeKeys {
     // 指で 2 回押すと間は 0.6〜0.7 秒ほどになる (実機の記録で 0.67 秒)。0.4 秒では届かなかった。
+    private const val TAG = "SpeechVolumeKeys"
     private const val DOUBLE_MS = 800L
     // TTS の既定の出力先。読み上げの音量 = この音量。
     private const val STREAM = AudioManager.STREAM_MUSIC
@@ -30,7 +32,7 @@ internal object SpeechVolumeKeys {
     private val main = Handler(Looper.getMainLooper())
     private var session: MediaSession? = null
     private var lastPress = 0L
-    private var lastDirection = 0
+    private var pressed = false
     private var volumeBefore = 0
 
     fun start(context: Context) = main.post {
@@ -43,19 +45,23 @@ internal object SpeechVolumeKeys {
                     VOLUME_CONTROL_RELATIVE, audio.getStreamMaxVolume(STREAM), audio.getStreamVolume(STREAM)
                 ) {
                     override fun onAdjustVolume(direction: Int) {
-                        if (direction == 0) return
+                        // ⚠ 0 (変えない) も 1 回の押下として数える。音量の表示が出ていないときの 1 回目は、
+                        // Android が「表示を出すだけ」にして 0 で渡してくる。捨てると 2 回押しても 1 回に見える。
                         val now = SystemClock.uptimeMillis()
-                        if (lastDirection != 0 && now - lastPress <= DOUBLE_MS) {
+                        Log.i(TAG, "volume key dir=$direction since=${if (lastPress == 0L) -1 else now - lastPress}ms")
+                        if (pressed && now - lastPress <= DOUBLE_MS) {
                             audio.setStreamVolume(STREAM, volumeBefore, 0)
-                            lastDirection = 0
+                            pressed = false
                             Z2ApiBridge.stopSpeaking(appCtx)
                             return
                         }
                         lastPress = now
-                        lastDirection = direction
+                        pressed = true
                         volumeBefore = audio.getStreamVolume(STREAM)
-                        audio.adjustStreamVolume(STREAM, direction, 0)
-                        currentVolume = audio.getStreamVolume(STREAM)
+                        if (direction != 0) {
+                            audio.adjustStreamVolume(STREAM, direction, 0)
+                            currentVolume = audio.getStreamVolume(STREAM)
+                        }
                     }
                 })
                 setPlaybackState(PlaybackState.Builder().setState(PlaybackState.STATE_PLAYING, 0, 1f).build())
@@ -67,6 +73,6 @@ internal object SpeechVolumeKeys {
     fun stop() = main.post {
         session?.let { runCatching { it.isActive = false; it.release() } }
         session = null
-        lastDirection = 0
+        pressed = false
     }
 }

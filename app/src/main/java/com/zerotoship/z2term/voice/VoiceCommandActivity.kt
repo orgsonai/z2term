@@ -71,6 +71,8 @@ class VoiceCommandActivity : ComponentActivity() {
 
     private var ui by mutableStateOf<VoiceUi>(VoiceUi.Listening)
     private var started = false
+    /** この画面がいま聞いているか。閉じるとき、聞いている最中のものだけを取り消す。 */
+    private var listening = false
     private val main = Handler(Looper.getMainLooper())
 
     private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -89,7 +91,7 @@ class VoiceCommandActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        shown = true
+        visible.incrementAndGet()
     }
 
     override fun onResume() {
@@ -104,16 +106,21 @@ class VoiceCommandActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        shown = false
+        visible.decrementAndGet()
         // 画面から外れたら終わり (戻ってきても、さっきの続きは聞かない)。
+        // ⚠ 取り消すのは自分が聞いている最中だけ。マクロが続きを聞くために開いた次の画面
+        // (「ナビ」→ 行き先) が前に出ると、聞き終えたこの画面が止まる。ここで取り消すと、
+        // 次の画面が聞き始めたばかりのものまで止めてしまう (マイクは 1 つで、取り消しは共通)。
         if (!isChangingConfigurations) {
-            SpeechListen.cancel()
+            if (listening) SpeechListen.cancel()
             finish()
         }
     }
 
     private fun listen() {
+        listening = true
         SpeechListen.listen(this, lang = "", bias = emptyList()) { heard ->
+            listening = false
             when (heard) {
                 is SpeechListen.Heard.Failed ->
                     if (heard.message.isNotEmpty()) show(VoiceUi.Failed(heard.message)) else finish()
@@ -144,9 +151,12 @@ class VoiceCommandActivity : ComponentActivity() {
         private const val HEARD_MS = 1_500L
         private const val MESSAGE_MS = 4_000L
 
-        /** 画面に出ているか。[SpeechListen] がマイクを使ってよいかの判断に使う。 */
-        @Volatile var shown = false
-            private set
+        /**
+         * 画面に出ているか。[SpeechListen] がマイクを使ってよいかの判断に使う。
+         * 出ている数で数える — 次の画面が出てから前の画面が止まるので、真偽 1 つだと前の画面が消してしまう。
+         */
+        private val visible = java.util.concurrent.atomic.AtomicInteger()
+        val shown: Boolean get() = visible.get() > 0
 
         private fun hasRule(context: Context): Boolean = runCatching {
             WhenManager.loadRules(context).any {
