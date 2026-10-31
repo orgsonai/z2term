@@ -22,7 +22,8 @@ import android.os.SystemClock
  * ⚠ ほかのアプリが音楽を流していると、そちらに音量ボタンを取られることがある (Android が決める)。
  */
 internal object SpeechVolumeKeys {
-    private const val DOUBLE_MS = 400L
+    // 指で 2 回押すと間は 0.6〜0.7 秒ほどになる (実機の記録で 0.67 秒)。0.4 秒では届かなかった。
+    private const val DOUBLE_MS = 800L
     // TTS の既定の出力先。読み上げの音量 = この音量。
     private const val STREAM = AudioManager.STREAM_MUSIC
 

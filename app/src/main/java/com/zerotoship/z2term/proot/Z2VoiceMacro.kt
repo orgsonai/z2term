@@ -853,13 +853,96 @@ if match play; then
 fi
 
 # --- Open an app by its name (◯◯を開いて / open ...) ---
-if match open; then
-  pkg=${d}(z2-app list 2>/dev/null | python3 -c '
+# is_word KEY TEXT — TEXT is exactly one of the words (spaces ignored).
+is_word() {
+  eval "list=\${d}{W_${d}1-}"
+  [ -n "${d}list" ] || return 1
+  nosp "${d}2"; w=${d}NOSP
+  IFS='|'
+  for p in ${d}list; do nosp "${d}p"; [ -n "${d}NOSP" ] && [ "${d}NOSP" = "${d}w" ] && { IFS=${d}OIFS; return 0; }; done
+  IFS=${d}OIFS
+  return 1
+}
+# open_kind TEXT — a kind of app (browser, maps, camera ...) opens the phone's default one.
+open_kind() {
+  for k in browser:APP_BROWSER maps:APP_MAPS mail:APP_EMAIL calendar:APP_CALENDAR music:APP_MUSIC \
+           gallery:APP_GALLERY contacts:APP_CONTACTS messages:APP_MESSAGING calculator:APP_CALCULATOR \
+           camera:@android.media.action.STILL_IMAGE_CAMERA settings:@android.settings.SETTINGS dialer:@android.intent.action.DIAL; do
+    is_word "open_${d}{k%%:*}" "${d}1" || continue
+    v=${d}{k#*:}
+    case ${d}v in
+      @*) z2-intent -a "${d}{v#@}" >/dev/null 2>&1 ;;
+      *) z2-intent -a android.intent.action.MAIN -c "android.intent.category.${d}v" >/dev/null 2>&1 ;;
+    esac
+    log "open kind ${d}{k%%:*}"
+    return 0
+  done
+  return 1
+}
+
+# find_app name|rest — the package for ${d}ARG out of ${d}APPS (z2-app list). "name": a nickname in the word
+# table or the app's name. "rest": part of the name, then the reading — kana said for a name written in
+# letters (ヴィヴァルディ -> Vivaldi).
+find_app() {
+  printf '%s' "${d}APPS" | python3 -c '
 import json,sys,unicodedata
 n=lambda s: unicodedata.normalize("NFKC",s).lower().replace(" ","")
-want=n(sys.argv[1]); apps=json.load(sys.stdin)
-hit=[a for a in apps if n(a["label"])==want] or [a for a in apps if want in n(a["label"])]
-print(hit[0]["package"] if hit else "")' "${d}ARG" 2>/dev/null)
+want=n(sys.argv[1]); step=sys.argv[3]; apps=json.load(sys.stdin)
+for pair in sys.argv[2].split("|"):
+    if ":" in pair:
+        k,v=pair.split(":",1)
+        if n(k)==want: want=n(v)
+if step=="name":
+    hit=[a for a in apps if n(a["label"])==want or a["package"]==want]
+    print(hit[0]["package"] if hit else ""); sys.exit()
+hit=[a for a in apps if want and want in n(a["label"])]
+if hit: print(hit[0]["package"]); sys.exit()
+# --- the reading ---
+kata="".join(chr(ord(c)+96) if "ぁ"<=c<="ゖ" else c for c in want)
+if not kata or any(not ("ァ"<=c<="ー") for c in kata): print(""); sys.exit()
+K=dict(zip("アイウエオカキクケコガギグゲゴサシスセソザジズゼゾタチツテトダヂヅデドナニヌネノハヒフヘホバビブベボパピプペポマミムメモヤユヨラリルレロワヲンヴ",
+  "a i u e o ka ki ku ke ko ga gi gu ge go sa shi su se so za ji zu ze zo ta chi tsu te to da ji zu de do na ni nu ne no ha hi fu he ho ba bi bu be bo pa pi pu pe po ma mi mu me mo ya yu yo ra ri ru re ro wa o n vu".split()))
+r=""
+for c in kata:
+    if c in "ャュョ":
+        v={"ャ":"a","ュ":"u","ョ":"o"}[c]; b=r[:-1] if r.endswith("i") else r
+        r=b+v if b.endswith(("sh","ch","j")) else b+"y"+v
+    elif c in "ァィゥェォ":
+        v="aiueo"["ァィゥェォ".index(c)]; r=(r[:-1] if r and r[-1] in "aiueo" and len(r)>1 else ("w" if r.endswith("u") else r))+v
+    elif c in "ッー": pass
+    else: r+=K.get(c,"")
+def loose(s):
+    s="".join(c for c in s.lower() if "a"<=c<="z")
+    for a,b in (("chu","tu"),("ou","u"),("ph","f"),("th","s"),("ck","k"),("c","k"),("q","k"),("x","ks"),("l","r"),("v","b")): s=s.replace(a,b)
+    o=""
+    for i,c in enumerate(s):
+        if c=="h" and o and o[-1] not in "aeiou": continue
+        if not o or o[-1]!=c: o+=c
+    return o
+def bones(s): return s[:1]+"".join(c for c in s[1:] if c not in "aeiouy")
+def dist(a,b):
+    d=list(range(len(b)+1))
+    for i,x in enumerate(a,1):
+        p,d[0]=d[0],i
+        for j,y in enumerate(b,1): p,d[j]=d[j],min(d[j]+1,d[j-1]+1,p+(x!=y))
+    return d[len(b)]
+w=loose(r); best=None
+for a in apps:
+  # the whole name, and each word of it (a name of several words is often said by one of them)
+  for f in [a["label"]]+a["label"].split():
+    l=loose(f)
+    if len(l)<2 or not w: continue
+    s=dist(w,l)/max(len(w),len(l))
+    if s<=(0.5 if bones(w)==bones(l) else 0.25) and (best is None or s<best[0]): best=(s,a["package"])
+print(best[1] if best else "")' "${d}ARG" "${d}{W_app_names-}" "${d}1" 2>/dev/null
+}
+
+if match open; then
+  # nickname or name -> a kind of app (browser, maps ...) -> part of the name -> the reading
+  APPS=${d}(z2-app list 2>/dev/null)
+  pkg=${d}(find_app name)
+  if [ -z "${d}pkg" ] && open_kind "${d}ARG"; then exit 0; fi
+  [ -n "${d}pkg" ] || pkg=${d}(find_app rest)
   if [ -n "${d}pkg" ]; then
     z2-intent -p "${d}pkg" >/dev/null 2>&1; log "open ${d}ARG (${d}pkg)"
   else
@@ -940,6 +1023,21 @@ timer = *のタイマーをセットして|*のタイマー|*タイマー|タイ
 call = *さんに電話して|*さんに電話|*に電話して|*に電話|*へ電話
 play = *を再生して|*を再生|*をかけて|*を流して
 open = *を開いて|*開いて|*を起動して|*を起動|*起動
+# 種類の言葉で開く (端末の既定のアプリ)。「ブラウザを開いて」「地図開いて」
+open_browser = ブラウザ|ウェブ|インターネット
+open_maps = 地図|マップ
+open_mail = メール
+open_camera = カメラ
+open_settings = 設定
+open_calendar = カレンダー
+open_music = 音楽|ミュージック
+open_gallery = 写真|ギャラリー|アルバム
+open_contacts = 連絡先|電話帳
+open_dialer = 電話
+open_messages = メッセージ|sms
+open_calculator = 電卓|計算機
+# アプリの呼び名。名前が英字などで、言っても開けないときに書く: 呼び名:アプリの名前|呼び名:アプリの名前
+app_names =
 
 # 数の入った音量 (「音量3段階下げて」「音量を10にして」「音量50%」「音量最大」) — 含まれていれば当たる
 volume_word = 音量|ボリューム
@@ -1090,6 +1188,21 @@ timer = 设一个*的计时器|设个*的计时器|*的计时器|*计时器|*计
 call = 给*打电话|打电话给*|打给*|呼叫*
 play = 播放*|放一首*|我想听*|来一首*
 open = 打开*|启动*|开启*
+# 用类别名打开 (设备的默认应用)。例: 打开浏览器
+open_browser = 浏览器|网页
+open_maps = 地图
+open_mail = 邮件|电子邮件
+open_camera = 相机|照相机
+open_settings = 设置
+open_calendar = 日历
+open_music = 音乐
+open_gallery = 相册|图库|照片
+open_contacts = 联系人|通讯录
+open_dialer = 电话|拨号
+open_messages = 短信|信息
+open_calculator = 计算器
+# 应用的别名。说了也打不开时写上: 别名:应用名称|别名:应用名称
+app_names =
 
 # 带数字的音量 ("音量调低3格"、"音量调到10"、"音量百分之五十"、"音量最大") — 只要包含就算
 volume_word = 音量|声音
@@ -1240,6 +1353,21 @@ timer = 設一個*的計時器|設個*的計時器|*的計時器|*計時器|*計
 call = 給*打電話|打電話給*|打給*|撥給*
 play = 播放*|放一首*|我想聽*|來一首*
 open = 打開*|開啟*|啟動*
+# 用類別名稱開啟 (裝置的預設應用程式)。例: 打開瀏覽器
+open_browser = 瀏覽器|網頁
+open_maps = 地圖
+open_mail = 郵件|電子郵件
+open_camera = 相機
+open_settings = 設定
+open_calendar = 日曆
+open_music = 音樂
+open_gallery = 相簿|圖庫|照片
+open_contacts = 聯絡人|通訊錄
+open_dialer = 電話|撥號
+open_messages = 簡訊|訊息
+open_calculator = 計算機
+# 應用程式的別名。說了也開不了時寫上: 別名:應用程式名稱|別名:應用程式名稱
+app_names =
 
 # 帶數字的音量 ("音量調低3格"、"音量調到10"、"音量百分之五十"、"音量最大") — 只要包含就算
 volume_word = 音量|聲音
@@ -1390,6 +1518,21 @@ timer = pon un temporizador de *|pon un temporizador *|temporizador de *|tempori
 call = llama a *|llamar a *|llama *
 play = reproduce *|pon *|quiero escuchar *
 open = abre *|abrir *|inicia *|lanza *
+# Abrir por tipo (la app predeterminada del teléfono). Ej.: abre el navegador
+open_browser = navegador|el navegador|internet
+open_maps = mapas|mapa|el mapa
+open_mail = correo|el correo|email
+open_camera = cámara|la cámara
+open_settings = ajustes|configuración
+open_calendar = calendario|el calendario
+open_music = música|la música
+open_gallery = fotos|galería|la galería
+open_contacts = contactos|los contactos
+open_dialer = teléfono|el teléfono
+open_messages = mensajes|los mensajes|sms
+open_calculator = calculadora|la calculadora
+# Apodos de apps. Si dices el nombre y no se abre, escríbelo: apodo:nombre de la app|apodo:nombre de la app
+app_names =
 
 # Volumen con un número ("baja el volumen 3", "volumen al 50 por ciento", "volumen al máximo") — basta con que aparezca
 volume_word = volumen
@@ -1542,6 +1685,21 @@ timer = *타이머 맞춰 줘|*타이머 설정해 줘|*타이머|타이머 *
 call = *에게 전화해 줘|*에게 전화해|*한테 전화해 줘|*한테 전화해|*에게 전화|*한테 전화|*에 전화해 줘
 play = *을 틀어 줘|*를 틀어 줘|*틀어 줘|*을 재생해 줘|*를 재생해 줘|*재생해 줘|*재생
 open = *을 열어 줘|*를 열어 줘|*열어 줘|*열어|*을 실행해 줘|*를 실행해 줘|*실행해 줘|*실행
+# 종류로 열기 (기기의 기본 앱). 예: 브라우저 열어 줘
+open_browser = 브라우저|인터넷
+open_maps = 지도
+open_mail = 메일|이메일
+open_camera = 카메라
+open_settings = 설정
+open_calendar = 캘린더|달력
+open_music = 음악
+open_gallery = 사진|갤러리
+open_contacts = 연락처
+open_dialer = 전화
+open_messages = 메시지|문자
+open_calculator = 계산기
+# 앱 별명. 말해도 열리지 않을 때 적습니다: 별명:앱 이름|별명:앱 이름
+app_names =
 
 # 숫자가 든 볼륨 ("볼륨 3단계 내려 줘", "볼륨 10으로", "볼륨 50퍼센트", "볼륨 최대") — 들어 있기만 하면 맞습니다
 volume_word = 볼륨|음량
@@ -1692,6 +1850,21 @@ timer = set a timer for *|set timer for *|start a timer for *|timer for *|set a 
 call = call *|phone *|dial *
 play = play *|put on *
 open = open *|launch *|start *
+# Open by kind (the phone's default app). E.g. open the browser
+open_browser = browser|the browser|web browser|internet
+open_maps = maps|map|the map
+open_mail = mail|email|the mail
+open_camera = camera|the camera
+open_settings = settings|the settings
+open_calendar = calendar|the calendar
+open_music = music|the music
+open_gallery = photos|gallery|the gallery
+open_contacts = contacts|the contacts
+open_dialer = phone|dialer|the phone
+open_messages = messages|the messages|sms
+open_calculator = calculator|the calculator
+# Nicknames for apps. When saying the name does not open it, write: nickname:app name|nickname:app name
+app_names =
 
 # Volume with a number ("volume down 3", "volume 10", "volume 50 percent", "volume max") — matches when contained
 volume_word = volume

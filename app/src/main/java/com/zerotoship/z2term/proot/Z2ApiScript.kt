@@ -411,7 +411,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     """.trimMargin() + "\n"
 
     val intent = "#!/bin/sh\n" + m.intentHelp + "\n" + helpCase + """
-        |[ ${d}# -ge 1 ] || { echo "usage: z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] ..." >&2; exit 1; }
+        |[ ${d}# -ge 1 ] || { echo "usage: z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] [-c CATEGORY] ..." >&2; exit 1; }
         |exec /usr/local/bin/z2api 1 intent "${d}@"
     """.trimMargin() + "\n"
 

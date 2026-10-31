@@ -814,7 +814,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
 
     val intentHelp: String = t(
         en = """
-        |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
+        |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-c CATEGORY] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# Fire any Android Intent (startActivity by default). A leading non-flag argument is the ACTION.
         |# Freeform defaults to task reuse and OS bounds. --reuse-task / --os-bounds remain accepted.
@@ -823,7 +823,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# -p PKG alone launches that app. --window full|freeform|split|ask selects the launch request (OS support required).
     """.trimMargin(),
         ja = """
-        |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
+        |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-c CATEGORY] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 任意の Android Intent を発火 (既定は startActivity)。先頭の非フラグ引数は ACTION。
         |# フリーフォームはタスク再利用・OS任せの寸法が既定。--reuse-task / --os-bounds は互換用。
@@ -832,7 +832,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# -p PKG だけでアプリを起動。--window full|freeform|split|ask で開き方を指定（OS対応が必要）。
     """.trimMargin(),
         "zh-CN" to """
-        |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
+        |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-c CATEGORY] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 触发任意 Android Intent (默认是 startActivity)。开头的非选项参数即 ACTION。
         |# --window full|freeform|split|ask 指定窗口模式。freeform 默认复用任务，由系统决定大小。
@@ -840,7 +840,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# --no-scale 停用 Motorola 的缩放自由窗口请求。
     """.trimMargin(),
         "zh-TW" to """
-        |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
+        |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-c CATEGORY] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 觸發任意 Android Intent (預設是 startActivity)。開頭的非選項參數即 ACTION。
         |# --window full|freeform|split|ask 指定視窗模式。freeform 預設重用工作，由系統決定大小。
@@ -848,7 +848,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# --no-scale 停用 Motorola 的縮放自由視窗要求。
     """.trimMargin(),
         "es" to """
-        |# z2-intent [-a ACCIÓN] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
+        |# z2-intent [-a ACCIÓN] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-c CATEGORY] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# Lanza cualquier Intent de Android (startActivity por omisión). El primer argumento que no sea una opción es la ACCIÓN.
         |# --window full|freeform|split|ask elige el modo. Freeform reutiliza tareas y deja el tamaño al sistema.
@@ -856,7 +856,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# --no-scale desactiva la solicitud de ventana libre reducida de Motorola.
     """.trimMargin(),
         "ko" to """
-        |# z2-intent [-a 액션] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
+        |# z2-intent [-a 액션] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-c CATEGORY] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 어떤 Android Intent든 띄웁니다 (기본값은 startActivity). 옵션이 아닌 첫 인수가 액션입니다.
         |# --window full|freeform|split|ask로 창 모드를 선택합니다. freeform은 작업을 재사용하고 크기를 OS에 맡깁니다.

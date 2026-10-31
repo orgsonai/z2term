@@ -43,6 +43,13 @@ class VoiceScriptTest {
                     setExecutable(true)
                 }
             }
+            // z2-app list は決まったアプリの一覧を返す (英字の名前・何語かの名前・日本語の名前)。
+            File(bin, "z2-app").apply {
+                writeText("#!/bin/sh\necho \"z2-app \$*\" >> ${trace.absolutePath}\n" +
+                    "echo '[{\"package\":\"p.browser\",\"label\":\"Vivaldi\"},{\"package\":\"p.photo\",\"label\":\"Adobe Photoshop Express\"}," +
+                    "{\"package\":\"p.clock\",\"label\":\"時計\"},{\"package\":\"p.video\",\"label\":\"YouTube\"}]'\n")
+                setExecutable(true)
+            }
             files.forEach { (path, body) -> File(home, path).apply { parentFile!!.mkdirs(); writeText(body) } }
             val pb = ProcessBuilder(listOf(sh!!, script.absolutePath) + args).redirectErrorStream(true)
             pb.environment()["HOME"] = home.absolutePath
@@ -91,6 +98,26 @@ class VoiceScriptTest {
         assertHeard("en", "set a timer for 5 minutes", "z2-alarm in 5m voice-timer:5 minutes")
         assertHeard("en", "remind me to take out the bins tomorrow at 7 am", "remind tomorrow 07:00 take out the bins")
         assertHeard("en", "remind me tonight at 9 to call mom", "remind 21:00 call mom")
+    }
+
+    /**
+     * 「◯◯を開いて」(1.0.69)。英字の名前をカタカナで言っても読みで当たる。種類の言葉は端末の既定のアプリ
+     * (MAIN + APP_* の種類)。言葉の表の呼び名 (app_names) が名前より先。どれでもなければ開かない。
+     */
+    @Test
+    fun openAppsByNameReadingKindAndNickname() {
+        assertHeard("ja", "時計を開いて", "z2-intent -p p.clock")
+        assertHeard("ja", "ヴィヴァルディ開いて", "z2-intent -p p.browser")
+        assertHeard("ja", "フォトショップを開いて", "z2-intent -p p.photo")
+        assertHeard("ja", "ユーチューブを開いて", "z2-intent -p p.video")
+        assertHeard("ja", "ブラウザを開いて", "z2-intent -a android.intent.action.MAIN -c android.intent.category.APP_BROWSER")
+        assertHeard("ja", "カメラを開いて", "z2-intent -a android.media.action.STILL_IMAGE_CAMERA")
+        assertHeard("en", "open the browser", "z2-intent -a android.intent.action.MAIN -c android.intent.category.APP_BROWSER")
+        val table = mapOf(".z2term/voice/words-ja.txt" to "app_names = うごが:YouTube\n")
+        val nick = run("ja", "try", "うごが開いて", files = table).second
+        assertTrue(nick, nick.lines().contains("z2-intent -p p.video"))
+        val none = run("ja", "try", "ラジオを開いて").second
+        assertTrue(none, none.lines().none { it.startsWith("z2-intent") })
     }
 
     /** 6 言語とも表を持ち、アプリの言語がその表の既定になる。表の無い言語は英語。 */

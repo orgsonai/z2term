@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.69 (versionCode 767)**: In voice command's "open …": (1) apps whose names are written in letters now **open from the way they sound** (in Japanese, a katakana reading such as the one recognition returns for a Latin name used to end in "not found"). (2) **Kinds of app** — "browser", "maps", "camera", "mail", "settings", "calculator" and so on — open the phone's default one. (3) For an app that still does not open, write a **nickname** under `app_names` in the word table (`nickname:app name`). `z2-intent` gets `-c` to give a category. The **double press of a volume button** while the phone speaks now allows 0.8 s between presses instead of 0.4 s (two presses with a finger were too slow for 0.4 s, so it never stopped). ⚠ An installed `voice.sh` is not updated by itself; reinstall it with `z2-macro install -f voice`.
+
 **1.0.68 (versionCode 766)**: In the `z2-edit` editor, **pinch with two fingers to make the text larger or smaller**. The size is remembered, and the next file opens at the same size.
 
 **1.0.67 (versionCode 765)**: (1) **`z2-edit <file>`** edits a text file in z2term's own **editor**. Change it in a plain text box and press "Save" to write it back to the file. If you close with unsaved changes, it asks first. `voice.sh words` now opens the word table here too (no more nano, and it opens even from a tile or panel). (2) While the phone is speaking, **pressing a volume button twice in a row stops the speech**. A single press still changes the volume (after a double press the volume goes back to where it was). It works with the screen off; it may not work while another app is playing music.
