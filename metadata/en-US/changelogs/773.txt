@@ -1,0 +1,6 @@
+1.0.75
+
+- New voice command: speak from a tile or a power-button long press to control music and volume, set timers, hear weather and news, take notes, call, open apps and navigate (bundled macro voice). Only safe things run while locked.
+- z2-listen turns speech into text; the keyboard gets a 🎤 key (or swipe ⏎ left). Recognition stays on the device.
+- Stop speech from its notification, the tile, or a quick double press of a volume button.
+- New z2-edit: edit a text file in an editor.
