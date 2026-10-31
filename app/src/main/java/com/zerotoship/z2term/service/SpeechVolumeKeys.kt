@@ -41,6 +41,10 @@ internal object SpeechVolumeKeys {
         val audio = appCtx.getSystemService(AudioManager::class.java) ?: return@post
         session = runCatching {
             MediaSession(appCtx, "z2term-say").apply {
+                // ⚠ 受け口 (Callback) が無いと、音量ボタンは VolumeProvider まで届かずに捨てられる
+                // (MediaSession は届いた操作を Callback の Handler に載せて配る)。音量の表示だけが
+                // Android 側の見込みの値で動き、止まらなかった (1.0.71 まで)。中身は空でよい。
+                setCallback(object : MediaSession.Callback() {}, main)
                 setPlaybackToRemote(object : VolumeProvider(
                     VOLUME_CONTROL_RELATIVE, audio.getStreamMaxVolume(STREAM), audio.getStreamVolume(STREAM)
                 ) {

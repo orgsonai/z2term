@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.72 (versionCode 770)**: **A double press of a volume button while the phone speaks still did not stop it** (the 1.0.71 fix missed the cause). The presses were dropped inside z2term and only the cast volume panel moved; fixed.
+
 **1.0.71 (versionCode 769)**: (1) After saying just "navigate", **the screen that asks for the destination stopped at once and had to be opened again**. The closing screen was also stopping the next one's listening; fixed. (2) **A double press of a volume button did not stop the speech.** The first press, made while the volume panel was hidden, was not counted; fixed. While the phone speaks, the volume panel shows the cast style (a screen with Wi-Fi waves): that is z2term taking the volume buttons.
 
 **1.0.70 (versionCode 768)**: Voice command gains **navigation and a place's phone number**. "navigate to Tokyo Station", "take me to …" and "phone number of …" open the place in the phone's map app (start the route or the call from its page for the place). Saying just "navigate" opens the listening screen again and asks where to; if it is not heard, you can type the destination in a notification's reply box. Added to the "what can I say" list too. ⚠ Reinstall the installed `voice.sh` with `z2-macro install -f voice`.
