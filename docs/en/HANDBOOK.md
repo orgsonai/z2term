@@ -198,6 +198,7 @@ Latin words that come out **all in capitals are typed in lower case** (1.0.63): 
 ```sh
 z2-macro install voice
 sh ~/.z2term/macros/voice.sh setup      # 3 rules (voice command / voice timer / steps)
+sh ~/.z2term/macros/voice.sh listen     # open the listening screen and speak (same as the tile; 1.0.75)
 sh ~/.z2term/macros/voice.sh words      # open the word table
 sh ~/.z2term/macros/voice.sh ai         # the AI setting and how to turn it on (off at first)
 ```

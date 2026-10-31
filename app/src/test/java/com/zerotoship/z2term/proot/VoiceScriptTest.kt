@@ -187,6 +187,13 @@ class VoiceScriptTest {
         assertTrue(open, open.lines().none { it.startsWith("z2-intent") })
     }
 
+    /** voice.sh listen はタイルと同じ聞き取りの画面を開く (1.0.75・端末や案内から試す入口)。 */
+    @Test
+    fun listenOpensTheListeningScreen() {
+        val (_, calls) = run("ja", "listen")
+        assertTrue(calls, calls.lines().contains("z2-intent -n com.zerotoship.z2term/com.zerotoship.z2term.voice.VoiceCommandActivity"))
+    }
+
     /** setup は voice・voice_locked・alarm・steps の 4 本を登録する (どれも voice.sh を呼ぶので片付けの 1 行で消える)。 */
     @Test
     fun setupRegistersFourRules() {

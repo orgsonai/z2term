@@ -34,6 +34,7 @@ fun z2VoiceMacro(lang: String): String {
 # From a terminal:
 #   voice.sh words                 open the word table (~/.z2term/voice/words-<lang>.txt; add or change phrases)
 #   voice.sh try <phrase>          try one without speaking (e.g. voice.sh try next song)
+#   voice.sh listen                open the listening screen and speak (the same as the tile)
 #   voice.sh lang [lang]           the word table's language (en / ja / zh-CN / zh-TW / es / ko)
 #   voice.sh ai [off|codex|claude|agy]   whether to use AI (off at first)
 #   voice.sh model [name]          the AI's model (empty = that AI's default)
@@ -53,6 +54,7 @@ fun z2VoiceMacro(lang: String): String {
 # 端末から:
 #   voice.sh words                 言葉の表を開く (~/.z2term/voice/words-<言語>.txt。言い方を足す・変える)
 #   voice.sh try <言葉>            話さずに試す (例: voice.sh try 次の曲)
+#   voice.sh listen                聞き取りの画面を開いて話す (タイルと同じ)
 #   voice.sh lang [言語]           言葉の表の言語 (en / ja / zh-CN / zh-TW / es / ko)
 #   voice.sh ai [off|codex|claude|agy]   AI を使うか (最初は off)
 #   voice.sh model [名前]          AI のモデル (空でその AI の既定)
@@ -72,6 +74,7 @@ fun z2VoiceMacro(lang: String): String {
 # 在终端里:
 #   voice.sh words                 打开词表 (~/.z2term/voice/words-<语言>.txt。增加或更换说法)
 #   voice.sh try <话>              不说话也能试 (例: voice.sh try 下一首)
+#   voice.sh listen                打开听取画面后说话 (与磁贴相同)
 #   voice.sh lang [语言]           词表的语言 (en / ja / zh-CN / zh-TW / es / ko)
 #   voice.sh ai [off|codex|claude|agy]   是否使用 AI (一开始是 off)
 #   voice.sh model [名字]          AI 的模型 (留空 = 该 AI 的默认)
@@ -91,6 +94,7 @@ fun z2VoiceMacro(lang: String): String {
 # 在終端機裡:
 #   voice.sh words                 開啟詞表 (~/.z2term/voice/words-<語言>.txt。增加或更換說法)
 #   voice.sh try <話>              不說話也能試 (例: voice.sh try 下一首)
+#   voice.sh listen                打開聽取畫面後說話 (與圖塊相同)
 #   voice.sh lang [語言]           詞表的語言 (en / ja / zh-CN / zh-TW / es / ko)
 #   voice.sh ai [off|codex|claude|agy]   是否使用 AI (一開始是 off)
 #   voice.sh model [名字]          AI 的模型 (留空 = 該 AI 的預設)
@@ -110,6 +114,7 @@ fun z2VoiceMacro(lang: String): String {
 # Desde una terminal:
 #   voice.sh words                 abre la tabla de palabras (~/.z2term/voice/words-<idioma>.txt; añade o cambia frases)
 #   voice.sh try <frase>           prueba una sin hablar (p. ej. voice.sh try siguiente canción)
+#   voice.sh listen                abre la pantalla de escucha y habla (igual que el icono)
 #   voice.sh lang [idioma]         idioma de la tabla de palabras (en / ja / zh-CN / zh-TW / es / ko)
 #   voice.sh ai [off|codex|claude|agy]   si se usa la IA (desactivada al principio)
 #   voice.sh model [nombre]        el modelo de la IA (vacío = el de esa IA por defecto)
@@ -129,6 +134,7 @@ fun z2VoiceMacro(lang: String): String {
 # 터미널에서:
 #   voice.sh words                 낱말 표 열기 (~/.z2term/voice/words-<언어>.txt. 말하는 법을 더하거나 바꿈)
 #   voice.sh try <말>              말하지 않고 시험 (예: voice.sh try 다음 곡)
+#   voice.sh listen                듣기 화면을 열고 말하기 (타일과 같음)
 #   voice.sh lang [언어]           낱말 표의 언어 (en / ja / zh-CN / zh-TW / es / ko)
 #   voice.sh ai [off|codex|claude|agy]   AI를 쓸지 (처음에는 off)
 #   voice.sh model [이름]          AI의 모델 (비우면 그 AI의 기본값)
@@ -576,6 +582,10 @@ case "${d}{1:-}" in
     if [ -t 0 ] && [ -t 1 ] && [ -n "${d}ed" ]; then exec ${d}ed "${d}WORDS"; fi
     msg msg_words_file file "${d}WORDS"; echo
     exit 0
+    ;;
+  listen)
+    # The listening screen, as the tile opens it (for trying it from a terminal, a panel or a widget).
+    exec z2-intent -n com.zerotoship.z2term/com.zerotoship.z2term.voice.VoiceCommandActivity
     ;;
   try)
     # Try a phrase without speaking: voice.sh try 次の曲

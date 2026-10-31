@@ -1067,6 +1067,7 @@
     <string name="guide_ask_qr_text">想做成二维码的文字或 URL</string>
     <string name="guide_step_voice_setup">登记语音操作、语音计时器和计步的规则（只做一次）</string>
     <string name="guide_step_voice_start">之后只要说话：在快捷设置里放上“语音操作”磁贴，或在系统设置 › 应用 › 默认应用 › 数字助理应用中选择 z2term</string>
+    <string name="guide_step_voice_listen">也可以从这里打开听取画面后说话</string>
     <string name="guide_step_voice_words">打开词表，增加或更换说法</string>
     <string name="guide_step_voice_ai">AI 一开始是关闭的：看看怎么打开（只有用“AI”开头时才会问）</string>
     <string name="guide_ask_voice_phrase">不说话也能试的话（例如：你能做什么）</string>

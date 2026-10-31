@@ -1067,6 +1067,7 @@
     <string name="guide_ask_qr_text">想做成二維條碼的文字或 URL</string>
     <string name="guide_step_voice_setup">登記語音操作、語音計時器和計步的規則（只做一次）</string>
     <string name="guide_step_voice_start">之後只要說話：在快速設定裡放上「語音操作」圖塊，或在系統設定 › 應用程式 › 預設應用程式 › 數位助理應用程式中選擇 z2term</string>
+    <string name="guide_step_voice_listen">也可以從這裡打開聽取畫面後說話</string>
     <string name="guide_step_voice_words">開啟詞表，增加或更換說法</string>
     <string name="guide_step_voice_ai">AI 一開始是關閉的：看看怎麼開啟（只有用「AI」開頭時才會問）</string>
     <string name="guide_ask_voice_phrase">不說話也能試的話（例如：你能做什麼）</string>

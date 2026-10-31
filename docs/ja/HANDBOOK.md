@@ -192,6 +192,7 @@ Z2Term には **アプリ専用のキーボード**が入っています。表�
 ```sh
 z2-macro install voice
 sh ~/.z2term/macros/voice.sh setup      # ルール 3 本 (声で操作 / 声のタイマー / 歩数)
+sh ~/.z2term/macros/voice.sh listen     # 聞き取りの画面を開いて話す (タイルと同じ。1.0.75)
 sh ~/.z2term/macros/voice.sh words      # 言葉の表を開く
 sh ~/.z2term/macros/voice.sh ai         # AI の今の設定とオンにする方法 (最初は off)
 ```

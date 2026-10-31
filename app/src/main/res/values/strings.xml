@@ -1156,6 +1156,7 @@ Pick one from the tabs on the right.</string>
     <string name="guide_ask_qr_text">Text or URL to turn into a QR code</string>
     <string name="guide_step_voice_setup">Register the rules for voice command, its timer and the step count (once)</string>
     <string name="guide_step_voice_start">Then just speak: add the \"Voice command\" tile to quick settings, or pick z2term under Settings › Apps › Default apps › Digital assistant app</string>
+    <string name="guide_step_voice_listen">Or open the listening screen from here and speak</string>
     <string name="guide_step_voice_words">Open the word table to add or change what you can say</string>
     <string name="guide_step_voice_ai">AI is off at first: see how to turn it on (it is only asked when you start with \"AI\")</string>
     <string name="guide_ask_voice_phrase">A phrase to try without speaking (for example: what can I say)</string>

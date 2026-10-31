@@ -258,6 +258,7 @@ enum class Guide(
         GuideStep(R.string.guide_step_install, "z2-macro install voice"),
         GuideStep(R.string.guide_step_voice_setup, "sh ~/.z2term/macros/voice.sh setup"),
         GuideStep(R.string.guide_step_voice_start),
+        GuideStep(R.string.guide_step_voice_listen, "sh ~/.z2term/macros/voice.sh listen"),
         GuideStep(
             R.string.guide_step_try,
             "sh ~/.z2term/macros/voice.sh try \"%s\"",

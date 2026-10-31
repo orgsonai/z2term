@@ -1082,6 +1082,7 @@ Elige uno en las pestañas de la derecha.</string>
     <string name="guide_ask_qr_text">Texto o URL que convertir en un código QR</string>
     <string name="guide_step_voice_setup">Registrar las reglas de Órdenes por voz, su temporizador y el recuento de pasos (una vez)</string>
     <string name="guide_step_voice_start">Después solo hay que hablar: añade el icono «Órdenes por voz» a los ajustes rápidos, o elige z2term en Ajustes › Aplicaciones › Aplicaciones predeterminadas › Aplicación de asistente digital</string>
+    <string name="guide_step_voice_listen">O abre aquí la pantalla de escucha y habla</string>
     <string name="guide_step_voice_words">Abrir la tabla de palabras para añadir o cambiar lo que puedes decir</string>
     <string name="guide_step_voice_ai">La IA empieza desactivada: ver cómo activarla (solo se le pregunta si empiezas con «IA»)</string>
     <string name="guide_ask_voice_phrase">Una frase para probar sin hablar (por ejemplo: qué puedo decir)</string>

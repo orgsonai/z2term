@@ -1138,6 +1138,7 @@
     <string name="guide_ask_qr_text">QR にしたい文字列や URL</string>
     <string name="guide_step_voice_setup">声で操作・声のタイマー・歩数のルールを登録（最初に 1 回）</string>
     <string name="guide_step_voice_start">あとは話すだけ: クイック設定に「声で操作」タイルを並べるか、端末の設定 › アプリ › 既定のアプリ › デジタル アシスタント アプリで z2term を選ぶ</string>
+    <string name="guide_step_voice_listen">ここから聞き取りの画面を開いて話す</string>
     <string name="guide_step_voice_words">言葉の表を開いて、言い方を足す・変える</string>
     <string name="guide_step_voice_ai">AI は最初はオフ: オンにする方法を見る（「AI」で始めたときだけ聞きます）</string>
     <string name="guide_ask_voice_phrase">話さずに試す言葉（例: 何ができる）</string>

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.75 (versionCode 773)**: `sh ~/.z2term/macros/voice.sh listen` **opens the listening screen from a terminal** so you can speak (the same screen as the tile). Added to Settings › Show a guide › `voice` too. ⚠ Reinstall with `z2-macro install -f voice`.
+
 **1.0.74 (versionCode 772)**: (1) Voice command **works on the lock screen** (tile, power-button long press and so on). While locked, only things that are fine for anyone to do — music, volume, time, weather, timers and so on — run at once; calls, apps, navigation, notes, AI and the like go on once you unlock. ⚠ Reinstall with `z2-macro install -f voice` and run `sh ~/.z2term/macros/voice.sh setup` again. (2) Stopping with a double press of a volume button **no longer moves the volume for a moment**; a single press now takes effect 0.3 s later.
 
 **1.0.73 (versionCode 771)**: **Trying to change the volume with the volume buttons while the phone spoke stopped the speech** (one press delivers two signals from Android, and they were counted as a double press); fixed. It stops only when **the same button is pressed twice within 0.3 s**; normal presses change the speech volume.
