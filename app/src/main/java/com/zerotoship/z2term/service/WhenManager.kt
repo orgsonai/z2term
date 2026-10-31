@@ -362,7 +362,10 @@ object WhenManager {
     private const val EVENT_MIN_INTERVAL_MS = 10_000L
 
     /** 1 回ごとに人が起こす合図なので、[EVENT_MIN_INTERVAL_MS] で間引かないイベント。 */
-    private val UNTHROTTLED_EVENTS = setOf(com.zerotoship.z2term.voice.VoiceCommandActivity.EVENT)
+    private val UNTHROTTLED_EVENTS = setOf(
+        com.zerotoship.z2term.voice.VoiceCommandActivity.EVENT,
+        com.zerotoship.z2term.voice.VoiceCommandActivity.EVENT_LOCKED,
+    )
 
     /** rule id → 最後に発火した時刻。プロセス内メモリのみ (死んだらリセットで構わない)。 */
     private val eventLastFired = java.util.concurrent.ConcurrentHashMap<String, Long>()

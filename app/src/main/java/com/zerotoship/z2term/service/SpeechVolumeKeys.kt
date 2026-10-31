@@ -17,8 +17,9 @@ import android.util.Log
  * 音量ボタンを受け取るのに、話している間だけ「再生中」の [MediaSession] を作り、音量の受け口を
  * 自前 ([VolumeProvider]) にする。Android は再生中のセッションへ音量ボタンを渡すので、画面が消えていても
  * 届き、ユーザー補助の権限も要らない。
- * - 1 回押し: 今までどおり音量を 1 段変える (自分で [AudioManager.adjustStreamVolume] する)。
- * - [DOUBLE_MS] 以内に同じボタンの 2 回目: 1 回目の前の音量に戻し、読み上げを止める。
+ * - 1 回押し: [DOUBLE_MS] 待ってから音量を 1 段変える (自分で [AudioManager.adjustStreamVolume] する)。
+ * - [DOUBLE_MS] 以内に同じボタンの 2 回目: 1 回目の分は変えずに、読み上げを止める。
+ *   ⚠ 1 回目ですぐ変えて後で戻すと、止めるたびに音量が一瞬動く (利用者の指摘、1.0.74 で待つ形に)。
  * ⚠ 話し終わったら必ずセッションを放す ([stop])。残すと音量ボタンをずっと取り続ける。
  * ⚠ ほかのアプリが音楽を流していると、そちらに音量ボタンを取られることがある (Android が決める)。
  */
@@ -33,9 +34,9 @@ internal object SpeechVolumeKeys {
     private val main = Handler(Looper.getMainLooper())
     private var session: MediaSession? = null
     private var lastPress = 0L
-    private var pressed = false
     private var lastDirection = 0
-    private var volumeBefore = 0
+    /** 2 回目を待っている 1 回目の音量の変更。 */
+    private var pending: Runnable? = null
 
     fun start(context: Context) = main.post {
         if (session != null) return@post
@@ -56,18 +57,22 @@ internal object SpeechVolumeKeys {
                         // ⚠ 0 (変えない) は押下ではない。1 回押すと ±1 の直後 (実機で 17ms 後) に 0 が続けて届く。
                         // 1.0.71〜1.0.72 はこれも数えていて、1 回押しただけで 2 度押しになって止まった。
                         if (direction == 0) return
-                        if (pressed && direction == lastDirection && now - lastPress <= DOUBLE_MS) {
-                            audio.setStreamVolume(STREAM, volumeBefore, 0)
-                            pressed = false
+                        if (pending != null && direction == lastDirection && now - lastPress <= DOUBLE_MS) {
+                            main.removeCallbacks(pending!!)
+                            pending = null
                             Z2ApiBridge.stopSpeaking(appCtx)
                             return
                         }
+                        // 待っている 1 回目があれば先に効かせる (向きが違う・間が空いた = 音量を変える押し方)。
+                        pending?.let { main.removeCallbacks(it); it.run() }
                         lastPress = now
-                        pressed = true
                         lastDirection = direction
-                        volumeBefore = audio.getStreamVolume(STREAM)
-                        audio.adjustStreamVolume(STREAM, direction, 0)
-                        currentVolume = audio.getStreamVolume(STREAM)
+                        val provider = this
+                        pending = Runnable {
+                            pending = null
+                            audio.adjustStreamVolume(STREAM, direction, 0)
+                            provider.currentVolume = audio.getStreamVolume(STREAM)
+                        }.also { main.postDelayed(it, DOUBLE_MS) }
                     }
                 })
                 setPlaybackState(PlaybackState.Builder().setState(PlaybackState.STATE_PLAYING, 0, 1f).build())
@@ -79,6 +84,8 @@ internal object SpeechVolumeKeys {
     fun stop() = main.post {
         session?.let { runCatching { it.isActive = false; it.release() } }
         session = null
-        pressed = false
+        // 待っていた 1 回目は効かせる (話し終わる直前に押した音量の変更を捨てない)。
+        pending?.let { main.removeCallbacks(it); it.run() }
+        pending = null
     }
 }

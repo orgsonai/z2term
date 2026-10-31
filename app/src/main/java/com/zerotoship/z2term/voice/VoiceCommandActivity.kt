@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.voice
 
 import android.Manifest
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -56,14 +57,16 @@ import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
  *
  * ⚠ **画面を出すのは、マイクが画面に出ているアプリにしか渡らないため** (Android 11〜)。
  * 裏で聞くにはマイク用の常駐サービスが要り、通知とマイク表示が出っぱなしになるので作らない。
- * ⚠ ロック画面の上には出さない (`showWhenLocked` を付けない)。拾った人が声で電話をかけたり
- * マクロを動かしたりできる状態を作らない — タイルの [VoiceTileService] も解除を求める。
+ * **ロック中も開く** (1.0.74・`showWhenLocked`)。ただしロック中に聞いた内容は別のイベント
+ * [EVENT_LOCKED] (`voice_locked`) にする。自分で作った `event:voice` のルールが、拾った人の声で
+ * 動かないように — ロック中に何を許すかは、`voice_locked` を受けると決めたルール (同梱の voice.sh は
+ * 曲・音量・時刻・天気などだけ) が決める。アプリは何も許さない・何も実行しない、は変わらない。
  */
 /** 聞き取りの画面の状態。 */
 private sealed interface VoiceUi {
     data object Listening : VoiceUi
     /** 聞いた言葉。[hasRule] が false なら、受けるルールが無いことも伝える。 */
-    data class Heard(val text: String, val hasRule: Boolean) : VoiceUi
+    data class Heard(val text: String, val hasRule: Boolean, val locked: Boolean = false) : VoiceUi
     data class Failed(val message: String) : VoiceUi
 }
 
@@ -81,6 +84,7 @@ class VoiceCommandActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setShowWhenLocked(true)
         setContent {
             VoicePanel(
                 ui = ui,
@@ -127,11 +131,13 @@ class VoiceCommandActivity : ComponentActivity() {
                 is SpeechListen.Heard.Text -> {
                     val app = applicationContext
                     val text = heard.candidates[0]
+                    // 聞き終えた時点で判断する (聞いている間に解除されたら、ふつうの voice)。
+                    val event = if (getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) EVENT_LOCKED else EVENT
                     // 記録とルールの読み込みはファイル I/O なので Main から外す。
                     Thread {
-                        EventEmitter.emit(app, event = EVENT, name = heard.candidates.joinToString("|"), action = text)
-                        val hasRule = hasRule(app)
-                        main.post { show(VoiceUi.Heard(text, hasRule)) }
+                        EventEmitter.emit(app, event = event, name = heard.candidates.joinToString("|"), action = text)
+                        val hasRule = hasRule(app, event)
+                        main.post { show(VoiceUi.Heard(text, hasRule, locked = event == EVENT_LOCKED)) }
                     }.apply { isDaemon = true; name = "voice-event" }.start()
                 }
             }
@@ -148,6 +154,8 @@ class VoiceCommandActivity : ComponentActivity() {
 
     companion object {
         const val EVENT = "voice"
+        /** ロック中に聞いた内容。[EVENT] のルールには届かない (受けるルールを別に登録する)。 */
+        const val EVENT_LOCKED = "voice_locked"
         private const val HEARD_MS = 1_500L
         private const val MESSAGE_MS = 4_000L
 
@@ -158,9 +166,9 @@ class VoiceCommandActivity : ComponentActivity() {
         private val visible = java.util.concurrent.atomic.AtomicInteger()
         val shown: Boolean get() = visible.get() > 0
 
-        private fun hasRule(context: Context): Boolean = runCatching {
+        private fun hasRule(context: Context, event: String): Boolean = runCatching {
             WhenManager.loadRules(context).any {
-                it.enabled && it.kind == "event" && WhenTriggerMatch.event(it.spec, EVENT)
+                it.enabled && it.kind == "event" && WhenTriggerMatch.event(it.spec, event)
             }
         }.getOrDefault(true)
     }
@@ -174,7 +182,8 @@ private fun VoicePanel(ui: VoiceUi, onCancel: () -> Unit) {
         is VoiceUi.Heard -> stringResource(R.string.voice_heard, ui.text)
         is VoiceUi.Failed -> ui.message
     }
-    val body = if (ui is VoiceUi.Heard && !ui.hasRule) stringResource(R.string.voice_no_rule) else null
+    val body = if (ui is VoiceUi.Heard && !ui.hasRule)
+        stringResource(if (ui.locked) R.string.voice_no_locked_rule else R.string.voice_no_rule) else null
     Box(
         modifier = Modifier
             .fillMaxSize()

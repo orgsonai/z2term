@@ -1488,7 +1488,7 @@ private fun TriggerRequirement(trigger: String) {
         fun open(intent: Intent) = runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         val needsDetection = when (kind) {
             "charge", "battery", "wifi", "net", "bt", "sensor", "steps", "file" -> true
-            "event" -> spec !in setOf("alarm", "notify_action", "unlock_failed", "unlock_succeeded", "boot", "voice")
+            "event" -> spec !in setOf("alarm", "notify_action", "unlock_failed", "unlock_succeeded", "boot", "voice", "voice_locked")
             else -> false
         }
         when {

@@ -330,7 +330,7 @@
         <!-- 「声で操作」(1.0.64)。タイルと、端末の「デジタル アシスタント」(ACTION_ASSIST・
              電源ボタン長押しなど) から開く小さな聞き取りの画面。聞いた内容は events.jsonl の
              voice イベントになり、z2-when event:voice のルールが受ける (VoiceCommandActivity)。
-             ⚠ ロック画面の上には出さない (showWhenLocked を付けない)。
+             ロック中も出す (1.0.74)。ロック中に聞いた内容は voice_locked イベントになり、voice のルールには届かない。
              他のアプリから開かれても、聞いた内容はその呼び出し元へは返らない。 -->
         <activity
             android:name=".voice.VoiceCommandActivity"

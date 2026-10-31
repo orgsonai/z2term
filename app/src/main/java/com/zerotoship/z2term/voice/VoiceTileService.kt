@@ -13,7 +13,7 @@ import com.zerotoship.z2term.service.Z2ApiBridge
  * `z2-tile` の 12 枠 ([com.zerotoship.z2term.tile.Z2TileService]) とは別の 1 枚にした。枠はコマンドを
  * **裏で**走らせるもので、裏ではマイクが使えない (画面を出す必要がある) ため。
  *
- * ⚠ ロック中は [unlockAndRun] で解除を求める ([VoiceCommandActivity] の理由と同じ)。
+ * ロック中もそのまま開く (1.0.74)。ロック中に何を許すかは [VoiceCommandActivity] の voice_locked を受けるルールが決める。
  * スマホが話している (`z2-say`) ときは聞かずに読み上げを止める。止めるだけなのでロック中でも解除を求めない。
  */
 class VoiceTileService : TileService() {
@@ -23,23 +23,21 @@ class VoiceTileService : TileService() {
             Z2ApiBridge.stopSpeaking(this)
             return
         }
-        unlockAndRun {
-            val intent = Intent(this, VoiceCommandActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-            // パネルを畳んで開く。Android 14 からは PendingIntent を渡す形だけが残っている。
-            runCatching {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    startActivityAndCollapse(
-                        PendingIntent.getActivity(
-                            this, 0, intent,
-                            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-                        )
+        val intent = Intent(this, VoiceCommandActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+        // パネルを畳んで開く。Android 14 からは PendingIntent を渡す形だけが残っている。
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startActivityAndCollapse(
+                    PendingIntent.getActivity(
+                        this, 0, intent,
+                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                     )
-                } else {
-                    @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
-                    startActivityAndCollapse(intent)
-                }
-            }.onFailure { Log.w("VoiceTileService", "open failed: ${it.message}") }
-        }
+                )
+            } else {
+                @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
+                startActivityAndCollapse(intent)
+            }
+        }.onFailure { Log.w("VoiceTileService", "open failed: ${it.message}") }
     }
 }

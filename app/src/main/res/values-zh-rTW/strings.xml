@@ -1347,5 +1347,6 @@ SSH 連線目標 %3$d 個
     <string name="voice_cancel">取消</string>
     <string name="voice_heard">「%1$s」</string>
     <string name="voice_no_rule">還沒有規則接收它。請在終端機裡執行 z2-macro install voice，再執行 sh ~/.z2term/macros/voice.sh setup（⚙設定 › 顯示導引 › voice 也會一步步說明）。</string>
+    <string name="voice_no_locked_rule">還沒有接收鎖定時說的話的規則。請在終端機裡再執行一次 sh ~/.z2term/macros/voice.sh setup。</string>
     <string name="voice_no_mic">沒有麥克風權限。要用語音操作，請允許。</string>
 </resources>

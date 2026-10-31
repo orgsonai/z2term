@@ -516,8 +516,12 @@ ${d}W_fmt_ai_prompt"
 # --- setup: the three rules (only the ones not there yet) ---
 has_rule() { z2-when list 2>/dev/null | grep -F "macros/voice.sh" | grep -qF "${d}1"; }
 cmd_setup() {
-  has_rule "event:voice" ||
+  # ⚠ The tab after the name: "event:voice" alone would also find "event:voice_locked".
+  has_rule "${d}(printf 'event:voice\t')" ||
     z2-when event:voice name="${d}W_title_rule_voice" run "sh ${d}SELF" >/dev/null || return 1
+  # What is said while the phone is locked arrives as voice_locked (only the safe things run).
+  has_rule "event:voice_locked" ||
+    z2-when event:voice_locked name="${d}W_title_rule_voice_locked" run "sh ${d}SELF" >/dev/null
   has_rule "event:alarm" ||
     z2-when event:alarm name="${d}W_title_rule_timer" run "sh ${d}SELF" >/dev/null
   # Only there to keep the step counter running for "how many steps today" (it never fires).
@@ -597,6 +601,9 @@ if [ "${d}{Z2_WHEN_EVENT:-}" = "alarm" ]; then
   exit 0
 fi
 
+# Said while the phone was locked: only the things in the locked list run (below).
+LOCKED=
+if [ "${d}{Z2_WHEN_EVENT:-}" = "voice_locked" ]; then LOCKED=1; Z2_WHEN_EVENT=voice; fi
 [ "${d}{Z2_WHEN_EVENT:-}" = "voice" ] || { awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 && NF { exit }' "${d}0"; exit 0; }
 text=${d}{Z2_WHEN_ACTION:-}
 [ -n "${d}text" ] || exit 0
@@ -612,6 +619,36 @@ map_search() {
   q=${d}(printf '%s' "${d}1" | python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read().strip()))')
   z2-intent -a android.intent.action.VIEW -d "geo:0,0?q=${d}q" >/dev/null 2>&1
 }
+
+# --- Locked: run only what is safe to do for anyone holding the phone ---
+# Music, volume, time, battery, steps, flashlight, news, weather, timers and "what can I say" run as
+# they are. Anything else (calls, apps, maps, notes, reminders, AI, your own words) waits for the phone
+# to be unlocked and then runs, within 2 minutes; the notification asks for the unlock.
+if [ -n "${d}LOCKED" ]; then
+  ok=
+  for k in media_next media_previous media_pause media_play volume_up volume_down volume_unmute volume_mute \
+           time date battery steps torch_on torch_off news weather_tomorrow weather wake help timer; do
+    match "${d}k" && { ok=1; break; }
+  done
+  [ -n "${d}ok" ] || ! has volume_word "${d}(digits "${d}t")" || ok=1
+  if [ -z "${d}ok" ]; then
+    z2-notify -h -n voice-locked "${d}W_title_app" "${d}(msg msg_locked text "${d}text")"
+    say say_locked
+    log "locked: '${d}text' waits for the unlock"
+    (
+      i=0
+      while [ ${d}i -lt 60 ]; do
+        sleep 2; i=${d}((i + 1))
+        [ "${d}(z2-state locked 2>/dev/null)" = false ] || continue
+        log "unlocked: ${d}text"
+        Z2_WHEN_EVENT=voice Z2_WHEN_ACTION=${d}text Z2_WHEN_EVENT_NAME=${d}{Z2_WHEN_EVENT_NAME:-${d}text} sh "${d}SELF"
+        exit 0
+      done
+      log "locked: '${d}text' dropped (not unlocked within 2 minutes)"
+    ) >/dev/null 2>&1 &
+    exit 0
+  fi
+fi
 
 # --- The place asked for by "navi" alone (said within a minute) ---
 if [ -f "${d}NAVI_WAIT" ]; then
@@ -1131,6 +1168,7 @@ title_remind = 予定
 title_call = 電話
 title_help = 声で言えること
 title_rule_voice = 声で操作
+title_rule_voice_locked = 声で操作（ロック中）
 title_rule_timer = 声のタイマー
 title_rule_steps = 歩数を数える（声で操作用）
 fmt_clock = {h}時{m}分
@@ -1171,8 +1209,10 @@ say_call_missing = {who}さんの番号が見つかりませんでした
 msg_call_missing = 「{who}」が {file} にありません。1 行に「名前 番号」で書いてください。
 say_open_missing = {name}というアプリが見つかりませんでした
 say_help = 言えることを通知に出しました
+say_locked = ロックを解除してください
 msg_help = 時刻・日付・電池・歩数 / 音量3段階下げて・音量50% / 次の曲・止めて / 3分のタイマー・7時に起こして / 明日の朝7時にゴミ出しをリマインド・予定は / ニュース・天気・明日の天気 / メモ牛乳を買う・メモを読んで / ライトをつけて・スクショ / ◯◯を開いて / ◯◯に電話 / ◯◯までナビ・◯◯の電話番号 / AI 〜 (使うには voice.sh ai) / 言葉を変える: voice.sh words
 msg_unknown = わからない言葉でした: {text}
+msg_locked = 「{text}」はロックを解除すると続けます
 msg_navi_where = 行き先を話してください
 msg_navi_hint = 行き先（場所の名前）
 msg_ai_off = AI はオフです。コピーを押して端末に貼ると {ai} を使うようになります (sh ~/.z2term/macros/voice.sh ai {ai})
@@ -1302,6 +1342,7 @@ title_remind = 提醒
 title_call = 电话
 title_help = 可以说的话
 title_rule_voice = 语音操作
+title_rule_voice_locked = 语音操作（锁屏时）
 title_rule_timer = 语音计时器
 title_rule_steps = 计步 (语音操作用)
 fmt_clock = {h}点{m}分
@@ -1342,8 +1383,10 @@ say_call_missing = 没找到{who}的号码
 msg_call_missing = {file} 里没有"{who}"。请每行写一个"名字 号码"。
 say_open_missing = 没找到叫{name}的应用
 say_help = 已经把可以说的话放到通知里了
+say_locked = 请解锁手机
 msg_help = 时间·日期·电量·步数 / 音量调低3格·音量百分之五十 / 下一首·暂停 / 3分钟的计时器·7点叫醒我 / 明天早上7点提醒我倒垃圾·我的提醒 / 新闻·天气·明天天气 / 记一下买牛奶·读备忘录 / 打开手电筒·截图 / 打开… / 给…打电话 / 导航到…·…的电话号码 / AI … (用 voice.sh ai 开启) / 改说法: voice.sh words
 msg_unknown = 没听懂: {text}
+msg_locked = 解锁后继续执行“{text}”
 msg_navi_where = 请说出目的地
 msg_navi_hint = 目的地 (地名)
 msg_ai_off = AI 已关闭。按"复制"并粘贴到终端，就会使用 {ai} (sh ~/.z2term/macros/voice.sh ai {ai})
@@ -1473,6 +1516,7 @@ title_remind = 提醒
 title_call = 電話
 title_help = 可以說的話
 title_rule_voice = 語音操作
+title_rule_voice_locked = 語音操作（鎖定時）
 title_rule_timer = 語音計時器
 title_rule_steps = 計步 (語音操作用)
 fmt_clock = {h}點{m}分
@@ -1513,8 +1557,10 @@ say_call_missing = 沒找到{who}的號碼
 msg_call_missing = {file} 裡沒有"{who}"。請每行寫一個"名字 號碼"。
 say_open_missing = 沒找到叫{name}的應用程式
 say_help = 已經把可以說的話放到通知裡了
+say_locked = 請解鎖手機
 msg_help = 時間·日期·電量·步數 / 音量調低3格·音量百分之五十 / 下一首·暫停 / 3分鐘的計時器·7點叫醒我 / 明天早上7點提醒我倒垃圾·我的提醒 / 新聞·天氣·明天天氣 / 記一下買牛奶·讀備忘錄 / 打開手電筒·截圖 / 打開… / 給…打電話 / 導航到…·…的電話號碼 / AI … (用 voice.sh ai 開啟) / 改說法: voice.sh words
 msg_unknown = 沒聽懂: {text}
+msg_locked = 解鎖後繼續執行「{text}」
 msg_navi_where = 請說出目的地
 msg_navi_hint = 目的地 (地名)
 msg_ai_off = AI 已關閉。按"複製"並貼到終端機，就會使用 {ai} (sh ~/.z2term/macros/voice.sh ai {ai})
@@ -1644,6 +1690,7 @@ title_remind = Recordatorios
 title_call = Llamar
 title_help = Lo que puedes decir
 title_rule_voice = Órdenes por voz
+title_rule_voice_locked = Órdenes por voz (bloqueado)
 title_rule_timer = Temporizador por voz
 title_rule_steps = Contar pasos (para Órdenes por voz)
 fmt_clock = {h}:{mm}
@@ -1684,8 +1731,10 @@ say_call_missing = No he encontrado el número de {who}
 msg_call_missing = "{who}" no está en {file}. Escribe un "nombre número" por línea.
 say_open_missing = No he encontrado ninguna aplicación llamada {name}
 say_help = Tienes en una notificación lo que puedes decir
+say_locked = Desbloquea el teléfono
 msg_help = hora, fecha, batería, pasos / baja el volumen 3, volumen al 50 por ciento / siguiente canción, pausa / temporizador de 3 minutos, despiértame a las 7 / recuérdame mañana a las 7 sacar la basura, recordatorios / noticias, tiempo, tiempo de mañana / anota comprar leche, lee mis notas / enciende la linterna, captura / abre … / llama a … / navega a …, teléfono de … / IA … (actívala con voice.sh ai) / cambiar las palabras: voice.sh words
 msg_unknown = No he entendido: {text}
+msg_locked = «{text}» seguirá cuando desbloquees el teléfono
 msg_navi_where = Di adónde quieres ir
 msg_navi_hint = Destino (nombre del lugar)
 msg_ai_off = La IA está desactivada. Pulsa Copiar y pégalo en una terminal para usar {ai} (sh ~/.z2term/macros/voice.sh ai {ai})
@@ -1817,6 +1866,7 @@ title_remind = 일정
 title_call = 전화
 title_help = 말할 수 있는 것
 title_rule_voice = 음성 조작
+title_rule_voice_locked = 음성 조작 (잠금 중)
 title_rule_timer = 음성 타이머
 title_rule_steps = 걸음 수 세기 (음성 조작용)
 fmt_clock = {h}시 {m}분
@@ -1857,8 +1907,10 @@ say_call_missing = {who}의 번호를 찾지 못했습니다
 msg_call_missing = "{who}"이(가) {file} 에 없습니다. 한 줄에 "이름 번호"로 쓰세요.
 say_open_missing = {name}이라는 앱을 찾지 못했습니다
 say_help = 말할 수 있는 것을 알림으로 보냈습니다
+say_locked = 잠금을 해제해 주세요
 msg_help = 시간·날짜·배터리·걸음 수 / 볼륨 3단계 내려 줘·볼륨 50퍼센트 / 다음 곡·멈춰 / 3분 타이머·7시에 깨워 줘 / 내일 아침 7시에 쓰레기 버리라고 알려 줘·일정 / 뉴스·날씨·내일 날씨 / 메모 우유 사기·메모 읽어 줘 / 손전등 켜 줘·스크린샷 / ◯◯ 열어 줘 / ◯◯에게 전화해 줘 / ◯◯까지 안내해 줘·◯◯ 전화번호 / AI … (켜려면 voice.sh ai) / 말 바꾸기: voice.sh words
 msg_unknown = 알아듣지 못한 말입니다: {text}
+msg_locked = 잠금을 해제하면 "{text}"을(를) 이어서 합니다
 msg_navi_where = 목적지를 말해 주세요
 msg_navi_hint = 목적지 (장소 이름)
 msg_ai_off = AI가 꺼져 있습니다. 복사를 눌러 터미널에 붙여 넣으면 {ai}를 씁니다 (sh ~/.z2term/macros/voice.sh ai {ai})
@@ -1988,6 +2040,7 @@ title_remind = Reminders
 title_call = Call
 title_help = What you can say
 title_rule_voice = Voice command
+title_rule_voice_locked = Voice command (locked)
 title_rule_timer = Voice timer
 title_rule_steps = Count steps (for voice command)
 fmt_clock = {h}:{mm}
@@ -2028,8 +2081,10 @@ say_call_missing = I could not find a number for {who}
 msg_call_missing = "{who}" is not in {file}. Write one "name number" per line.
 say_open_missing = I could not find an app called {name}
 say_help = What you can say is in a notification
+say_locked = Please unlock the phone
 msg_help = time, date, battery, steps / volume down 3, volume 50 percent / next song, pause / 3 minute timer, wake me up at 7 / remind me to take out the bins tomorrow at 7 am, reminders / news, weather, weather tomorrow / note buy milk, read my notes / flashlight on, screenshot / open … / call … / navigate to …, phone number of … / AI … (turn on with voice.sh ai) / change the words: voice.sh words
 msg_unknown = I did not understand: {text}
+msg_locked = "{text}" will go on once you unlock the phone
 msg_navi_where = Say where you want to go
 msg_navi_hint = Where to (a place name)
 msg_ai_off = AI is off. Press Copy and paste it into a terminal to use {ai} (sh ~/.z2term/macros/voice.sh ai {ai})

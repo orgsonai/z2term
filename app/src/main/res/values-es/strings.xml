@@ -1359,5 +1359,6 @@ Paneles laterales: %12$d, notas: %13$d</string>
     <string name="voice_cancel">Cancelar</string>
     <string name="voice_heard">«%1$s»</string>
     <string name="voice_no_rule">Todavía no hay ninguna regla que lo reciba. En una terminal ejecuta z2-macro install voice y después sh ~/.z2term/macros/voice.sh setup (Ajustes › Mostrar una guía › voice te guía).</string>
+    <string name="voice_no_locked_rule">Todavía no hay ninguna regla para lo que dices con el teléfono bloqueado. En una terminal ejecuta otra vez sh ~/.z2term/macros/voice.sh setup.</string>
     <string name="voice_no_mic">No hay permiso para el micrófono. Permítelo para usar órdenes por voz.</string>
 </resources>

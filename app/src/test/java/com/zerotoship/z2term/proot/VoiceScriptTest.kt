@@ -18,14 +18,16 @@ class VoiceScriptTest {
 
     private val fakes = listOf(
         "z2-say", "z2-notify", "z2-toast", "z2-media", "z2-volume", "z2-alarm",
-        "z2-torch", "z2-intent", "z2-vibrate", "z2-key", "z2-when",
+        "z2-torch", "z2-intent", "z2-vibrate", "z2-key", "z2-when", "z2-ask",
     )
 
     /**
      * voice.sh を引数付きで 1 回走らせ、(出力, 偽物が受けた呼び出し) を返す。
      * [files] は HOME からの相対パス → 中身 (言葉の表などを先に置く)。
      */
-    private fun run(lang: String, vararg args: String, files: Map<String, String> = emptyMap()): Pair<String, String> {
+    private fun run(
+        lang: String, vararg args: String, files: Map<String, String> = emptyMap(), env: Map<String, String> = emptyMap(),
+    ): Pair<String, String> {
         assumeTrue("sh が無い環境なのでスキップ", sh != null)
         val home = File.createTempFile("voice-home", "").apply { delete(); mkdirs() }
         val bin = File(home, "bin").apply { mkdirs() }
@@ -43,6 +45,8 @@ class VoiceScriptTest {
                     setExecutable(true)
                 }
             }
+            // z2-state locked はロック中のまま (解除待ちの裏の処理は 2 分で諦める。試験はその前に終わる)。
+            File(bin, "z2-state").apply { writeText("#!/bin/sh\necho true\n"); setExecutable(true) }
             // z2-app list は決まったアプリの一覧を返す (英字の名前・何語かの名前・日本語の名前)。
             File(bin, "z2-app").apply {
                 writeText("#!/bin/sh\necho \"z2-app \$*\" >> ${trace.absolutePath}\n" +
@@ -53,6 +57,7 @@ class VoiceScriptTest {
             files.forEach { (path, body) -> File(home, path).apply { parentFile!!.mkdirs(); writeText(body) } }
             val pb = ProcessBuilder(listOf(sh!!, script.absolutePath) + args).redirectErrorStream(true)
             pb.environment()["HOME"] = home.absolutePath
+            pb.environment().putAll(env)
             // ⚠ PATH は組み直す (z2term の中で回すと本物の z2-* が居るため)。偽物を先頭に。
             val base = listOf("/usr/bin", "/bin").filter { File(it).isDirectory }.joinToString(":")
             pb.environment()["PATH"] = bin.absolutePath + ":" + base
@@ -164,12 +169,31 @@ class VoiceScriptTest {
         assertTrue(other, other.lines().contains("z2-media previous"))
     }
 
-    /** setup は voice・alarm・steps の 3 本を登録する (どれも voice.sh を呼ぶので片付けの 1 行で消える)。 */
+    /**
+     * ロック中に聞いた言葉 (voice_locked・1.0.74)。曲・音量・時刻などはその場で動き、電話・アプリ・地図・
+     * メモなどは動かさずに解除を求める (解除されたら続ける)。
+     */
     @Test
-    fun setupRegistersThreeRules() {
+    fun lockedRunsOnlyTheSafeThings() {
+        fun locked(phrase: String) = run("ja", files = emptyMap(), env = mapOf(
+            "Z2_WHEN_EVENT" to "voice_locked", "Z2_WHEN_ACTION" to phrase, "Z2_WHEN_EVENT_NAME" to phrase,
+        )).second
+        assertTrue(locked("次の曲").lines().contains("z2-media next"))
+        assertEquals(3, locked("音量3段階下げて").lines().count { it == "z2-volume down" })
+        val call = locked("東京駅までナビ")
+        assertTrue(call, call.lines().none { it.startsWith("z2-intent") })
+        assertTrue(call, call.lines().any { it.startsWith("z2-notify -h -n voice-locked") })
+        val open = locked("時計を開いて")
+        assertTrue(open, open.lines().none { it.startsWith("z2-intent") })
+    }
+
+    /** setup は voice・voice_locked・alarm・steps の 4 本を登録する (どれも voice.sh を呼ぶので片付けの 1 行で消える)。 */
+    @Test
+    fun setupRegistersFourRules() {
         val (_, calls) = run("ja", "setup")
         val adds = calls.lines().filter { it.startsWith("z2-when ") && !it.startsWith("z2-when list") }
-        assertEquals(calls, 3, adds.size)
+        assertEquals(calls, 4, adds.size)
+        assertTrue(calls, adds.any { it.startsWith("z2-when event:voice_locked ") })
         assertTrue(calls, adds.all { it.contains("macros/voice.sh") })
         assertTrue(calls, adds.any { it.startsWith("z2-when event:voice ") })
         assertTrue(calls, adds.any { it.startsWith("z2-when event:alarm ") })

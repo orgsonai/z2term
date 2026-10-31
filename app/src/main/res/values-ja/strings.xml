@@ -1425,5 +1425,6 @@ SSH 接続先 %3$d 件
     <string name="voice_cancel">やめる</string>
     <string name="voice_heard">「%1$s」</string>
     <string name="voice_no_rule">これを受けるルールがまだありません。端末で z2-macro install voice を実行してから sh ~/.z2term/macros/voice.sh setup を実行してください（⚙設定 › 案内を表示 › voice でも案内します）。</string>
+    <string name="voice_no_locked_rule">ロック中に話したことを受けるルールがまだありません。端末で sh ~/.z2term/macros/voice.sh setup をもう一度実行してください。</string>
     <string name="voice_no_mic">マイクが許可されていません。声で操作するには許可してください。</string>
 </resources>
