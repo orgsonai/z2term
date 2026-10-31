@@ -1521,7 +1521,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-clip get` / `z2-clip set [text]` | Get / set the clipboard (set reads stdin if no argument). ⚠ **Writing only works while you are looking at z2term** (or while z2term is the input method you use) — since Android 10 a `set` from a macro running in the background is dropped silently. For macros triggered by calls, SMS or notifications, use the `z2-notify -c` copy button instead (0.8.335) |
 | `z2-battery` | Show battery level / charging state (JSON) |
 | `z2-vibrate [ms]` | Vibrate (default 200ms) |
-| `z2-say <text>` | Speak text via the device's text-to-speech (reads stdin if no argument). While it speaks a notification is shown; "Stop" there, the "Voice command" tile or **pressing a volume button twice** stops it midway (a single press still changes the volume) |
+| `z2-say <text>` | Speak text via the device's text-to-speech (reads stdin if no argument). While it speaks a notification is shown; "Stop" there, the "Voice command" tile or **pressing the same volume button twice quickly** (within 0.3 s) stops it midway (normal presses still change the volume) |
 | `z2-torch [on\|off\|toggle\|status]` | Turn the flashlight on/off/toggle (default toggle; prints the resulting state) |
 | `z2-media [playpause\|play\|pause\|next\|previous\|stop]` | Control media playback (default playpause) |
 | `z2-volume <up\|down\|mute\|unmute\|N\|N%>` | Adjust media volume (prints the resulting current/max) |

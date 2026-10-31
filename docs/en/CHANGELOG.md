@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.73 (versionCode 771)**: **Trying to change the volume with the volume buttons while the phone spoke stopped the speech** (one press delivers two signals from Android, and they were counted as a double press); fixed. It stops only when **the same button is pressed twice within 0.3 s**; normal presses change the speech volume.
+
 **1.0.72 (versionCode 770)**: **A double press of a volume button while the phone speaks still did not stop it** (the 1.0.71 fix missed the cause). The presses were dropped inside z2term and only the cast volume panel moved; fixed.
 
 **1.0.71 (versionCode 769)**: (1) After saying just "navigate", **the screen that asks for the destination stopped at once and had to be opened again**. The closing screen was also stopping the next one's listening; fixed. (2) **A double press of a volume button did not stop the speech.** The first press, made while the volume panel was hidden, was not counted; fixed. While the phone speaks, the volume panel shows the cast style (a screen with Wi-Fi waves): that is z2term taking the volume buttons.
