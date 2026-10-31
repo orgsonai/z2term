@@ -120,6 +120,24 @@ class VoiceScriptTest {
         assertTrue(none, none.lines().none { it.startsWith("z2-intent") })
     }
 
+    /**
+     * ナビと施設の電話番号 (1.0.70)。どちらも端末の地図アプリで場所を開く (geo: の検索)。
+     * 「ナビ」だけなら聞き取りの画面を開き直し、1 分のうちに言ったことを行き先にする。
+     */
+    @Test
+    fun naviAndPlacePhoneOpenTheMap() {
+        val tokyo = "z2-intent -a android.intent.action.VIEW -d geo:0,0?q=%E6%9D%B1%E4%BA%AC%E9%A7%85"
+        assertHeard("ja", "東京駅までナビ", tokyo)
+        assertHeard("ja", "東京駅に行きたい", tokyo)
+        assertHeard("ja", "東京駅の電話番号", tokyo)
+        assertHeard("en", "navigate to Tokyo Station", "z2-intent -a android.intent.action.VIEW -d geo:0,0?q=tokyo%20station")
+        assertHeard("en", "phone number of Tokyo Station", "z2-intent -a android.intent.action.VIEW -d geo:0,0?q=tokyo%20station")
+        val ask = run("ja", "try", "ナビ").second
+        assertTrue(ask, ask.lines().contains("z2-intent -a android.intent.action.ASSIST -p com.zerotoship.z2term"))
+        val next = run("ja", "try", "東京駅", files = mapOf(".z2term/voice/navi-wait" to "")).second
+        assertTrue(next, next.lines().contains(tokyo))
+    }
+
     /** 6 言語とも表を持ち、アプリの言語がその表の既定になる。表の無い言語は英語。 */
     @Test
     fun everyLanguageHasItsTable() {

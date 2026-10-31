@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.70 (versionCode 768)**: Voice command gains **navigation and a place's phone number**. "navigate to Tokyo Station", "take me to …" and "phone number of …" open the place in the phone's map app (start the route or the call from its page for the place). Saying just "navigate" opens the listening screen again and asks where to; if it is not heard, you can type the destination in a notification's reply box. Added to the "what can I say" list too. ⚠ Reinstall the installed `voice.sh` with `z2-macro install -f voice`.
+
 **1.0.69 (versionCode 767)**: In voice command's "open …": (1) apps whose names are written in letters now **open from the way they sound** (in Japanese, a katakana reading such as the one recognition returns for a Latin name used to end in "not found"). (2) **Kinds of app** — "browser", "maps", "camera", "mail", "settings", "calculator" and so on — open the phone's default one. (3) For an app that still does not open, write a **nickname** under `app_names` in the word table (`nickname:app name`). `z2-intent` gets `-c` to give a category. The **double press of a volume button** while the phone speaks now allows 0.8 s between presses instead of 0.4 s (two presses with a finger were too slow for 0.4 s, so it never stopped). ⚠ An installed `voice.sh` is not updated by itself; reinstall it with `z2-macro install -f voice`.
 
 **1.0.68 (versionCode 766)**: In the `z2-edit` editor, **pinch with two fingers to make the text larger or smaller**. The size is remembered, and the next file opens at the same size.

@@ -163,6 +163,8 @@ LOG=${d}DIR/log.txt
 CONFIG=${d}DIR/config
 CONTACTS=${d}DIR/contacts.txt
 COMMANDS=${d}DIR/commands.txt
+# "navi" alone asks where to; the next thing said within a minute is the place.
+NAVI_WAIT=${d}DIR/navi-wait
 MEMO=${d}DIR/memo.txt
 TIMER_PREFIX=voice-timer:
 TAB=${d}(printf '\t')
@@ -604,6 +606,20 @@ CANDS_NS=${d}(printf '%s' "${d}CANDS" | sed 's/ //g')
 t=${d}(norm "${d}text")
 log "heard: ${d}text  [${d}CANDS]"
 
+# map_search PLACE — the standard "geo:" search, so whichever map app the phone uses opens the place
+# (its page for the place has the route and the phone number).
+map_search() {
+  q=${d}(printf '%s' "${d}1" | python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read().strip()))')
+  z2-intent -a android.intent.action.VIEW -d "geo:0,0?q=${d}q" >/dev/null 2>&1
+}
+
+# --- The place asked for by "navi" alone (said within a minute) ---
+if [ -f "${d}NAVI_WAIT" ]; then
+  age=${d}(( ${d}(date +%s) - ${d}(date -r "${d}NAVI_WAIT" +%s 2>/dev/null || echo 0) ))
+  rm -f "${d}NAVI_WAIT"
+  if [ "${d}age" -le 60 ]; then map_search "${d}text"; log "navi: ${d}text"; exit 0; fi
+fi
+
 # --- Your own words (~/.z2term/voice/commands.txt, before everything else) ---
 # One line per command: "words = command". "a|b = command" for several ways to say it; a word
 # ending in * matches the start and the rest arrives as ${d}1. Lines starting with # are notes.
@@ -826,6 +842,27 @@ fi
 
 # --- Phone call (opens the dialer; you press call yourself) ---
 # ~/.z2term/voice/contacts.txt: one "name number" per line (the last word is the number).
+# --- Navigation (◯◯までナビ) and a place's phone number (◯◯の電話番号): the map app opens the place ---
+if match navi; then map_search "${d}ARG"; log "navi: ${d}ARG"; exit 0; fi
+if match place_phone; then map_search "${d}ARG"; log "place phone: ${d}ARG"; exit 0; fi
+# "navi" alone: open the listening screen again for the place. When nothing comes within 20 seconds
+# (not heard, or the screen could not open), ask in a notification's reply box instead.
+if match navi_ask; then
+  : > "${d}NAVI_WAIT"
+  z2-toast "${d}(msg msg_navi_where)"
+  z2-intent -a android.intent.action.ASSIST -p com.zerotoship.z2term >/dev/null 2>&1
+  (
+    sleep 20
+    [ -f "${d}NAVI_WAIT" ] || exit 0
+    rm -f "${d}NAVI_WAIT"
+    place=${d}(z2-ask -H "${d}(msg msg_navi_hint)" "${d}W_title_navi") || exit 0
+    [ -n "${d}place" ] || exit 0
+    map_search "${d}place"; log "navi (typed): ${d}place"
+  ) >/dev/null 2>&1 &
+  log "navi: asking"
+  exit 0
+fi
+
 if match call; then
   who=${d}ARG; num=
   case "${d}who" in
@@ -1020,6 +1057,9 @@ remind = *のをリマインドして|*のをリマインド|*をリマインド
 wake = *に起こして|*に起こしてください|*に起こしてね
 help = 何ができる|何ができますか|ヘルプ|使い方|できること
 timer = *のタイマーをセットして|*のタイマー|*タイマー|タイマー*|*測って|*計って|*はかって
+navi = *までナビして|*までナビ|*へナビ|*にナビ|ナビで*|*までの行き方|*への行き方|*に行きたい|*へ行きたい|*までの道|*まで案内して
+navi_ask = ナビ|ナビして|ナビを始めて|道案内|道案内して
+place_phone = *の電話番号を調べて|*の電話番号|*の番号を調べて
 call = *さんに電話して|*さんに電話|*に電話して|*に電話|*へ電話
 play = *を再生して|*を再生|*をかけて|*を流して
 open = *を開いて|*開いて|*を起動して|*を起動|*起動
@@ -1082,6 +1122,7 @@ remind_filler = の|に|を|は|で|って|と
 fmt_spaces = no
 fmt_sentence_end = 。
 title_app = 声で操作
+title_navi = ナビ
 title_ai = AI
 title_timer = タイマー
 title_news = ニュース
@@ -1130,8 +1171,10 @@ say_call_missing = {who}さんの番号が見つかりませんでした
 msg_call_missing = 「{who}」が {file} にありません。1 行に「名前 番号」で書いてください。
 say_open_missing = {name}というアプリが見つかりませんでした
 say_help = 言えることを通知に出しました
-msg_help = 時刻・日付・電池・歩数 / 音量3段階下げて・音量50% / 次の曲・止めて / 3分のタイマー・7時に起こして / 明日の朝7時にゴミ出しをリマインド・予定は / ニュース・天気・明日の天気 / メモ牛乳を買う・メモを読んで / ライトをつけて・スクショ / ◯◯を開いて / ◯◯に電話 / AI 〜 (使うには voice.sh ai) / 言葉を変える: voice.sh words
+msg_help = 時刻・日付・電池・歩数 / 音量3段階下げて・音量50% / 次の曲・止めて / 3分のタイマー・7時に起こして / 明日の朝7時にゴミ出しをリマインド・予定は / ニュース・天気・明日の天気 / メモ牛乳を買う・メモを読んで / ライトをつけて・スクショ / ◯◯を開いて / ◯◯に電話 / ◯◯までナビ・◯◯の電話番号 / AI 〜 (使うには voice.sh ai) / 言葉を変える: voice.sh words
 msg_unknown = わからない言葉でした: {text}
+msg_navi_where = 行き先を話してください
+msg_navi_hint = 行き先（場所の名前）
 msg_ai_off = AI はオフです。コピーを押して端末に貼ると {ai} を使うようになります (sh ~/.z2term/macros/voice.sh ai {ai})
 msg_ai_off_none = AI はオフです。codex / claude / agy のどれかを入れてログインしてから、端末で sh ~/.z2term/macros/voice.sh ai codex のように選んでください
 msg_ai_missing = {ai} が見つかりません。入れてログインするか、sh ~/.z2term/macros/voice.sh ai で別の AI を選んでください
@@ -1185,6 +1228,9 @@ remind = 提醒我*|*提醒我*|*提醒我|设置提醒*|设个提醒*
 wake = *叫醒我|*叫我起床|*点叫我|把闹钟定在*|闹钟定在*
 help = 你能做什么|我能说什么|帮助|能做什么
 timer = 设一个*的计时器|设个*的计时器|*的计时器|*计时器|*计时|计时*|倒计时*|定时*
+navi = 导航到*|导航去*|去*怎么走|带我去*|我想去*|到*的路线
+navi_ask = 导航|开始导航|带路
+place_phone = 查一下*的电话号码|*的电话号码|查一下*的电话
 call = 给*打电话|打电话给*|打给*|呼叫*
 play = 播放*|放一首*|我想听*|来一首*
 open = 打开*|启动*|开启*
@@ -1247,6 +1293,7 @@ remind_filler = 的|在|要|去|我|记得
 fmt_spaces = no
 fmt_sentence_end = 。
 title_app = 语音操作
+title_navi = 导航
 title_ai = AI
 title_timer = 计时器
 title_news = 新闻
@@ -1295,8 +1342,10 @@ say_call_missing = 没找到{who}的号码
 msg_call_missing = {file} 里没有"{who}"。请每行写一个"名字 号码"。
 say_open_missing = 没找到叫{name}的应用
 say_help = 已经把可以说的话放到通知里了
-msg_help = 时间·日期·电量·步数 / 音量调低3格·音量百分之五十 / 下一首·暂停 / 3分钟的计时器·7点叫醒我 / 明天早上7点提醒我倒垃圾·我的提醒 / 新闻·天气·明天天气 / 记一下买牛奶·读备忘录 / 打开手电筒·截图 / 打开… / 给…打电话 / AI … (用 voice.sh ai 开启) / 改说法: voice.sh words
+msg_help = 时间·日期·电量·步数 / 音量调低3格·音量百分之五十 / 下一首·暂停 / 3分钟的计时器·7点叫醒我 / 明天早上7点提醒我倒垃圾·我的提醒 / 新闻·天气·明天天气 / 记一下买牛奶·读备忘录 / 打开手电筒·截图 / 打开… / 给…打电话 / 导航到…·…的电话号码 / AI … (用 voice.sh ai 开启) / 改说法: voice.sh words
 msg_unknown = 没听懂: {text}
+msg_navi_where = 请说出目的地
+msg_navi_hint = 目的地 (地名)
 msg_ai_off = AI 已关闭。按"复制"并粘贴到终端，就会使用 {ai} (sh ~/.z2term/macros/voice.sh ai {ai})
 msg_ai_off_none = AI 已关闭。请先安装并登录 codex / claude / agy 中的一个，再在终端里用 sh ~/.z2term/macros/voice.sh ai codex 这样选择
 msg_ai_missing = 找不到 {ai}。请安装并登录，或用 sh ~/.z2term/macros/voice.sh ai 选择别的 AI
@@ -1350,6 +1399,9 @@ remind = 提醒我*|*提醒我*|*提醒我|設定提醒*|設個提醒*
 wake = *叫醒我|*叫我起床|*點叫我|把鬧鐘定在*|鬧鐘定在*
 help = 你能做什麼|我能說什麼|說明|能做什麼
 timer = 設一個*的計時器|設個*的計時器|*的計時器|*計時器|*計時|計時*|倒數*|定時*
+navi = 導航到*|導航去*|去*怎麼走|帶我去*|我想去*|到*的路線
+navi_ask = 導航|開始導航|帶路
+place_phone = 查一下*的電話號碼|*的電話號碼|查一下*的電話
 call = 給*打電話|打電話給*|打給*|撥給*
 play = 播放*|放一首*|我想聽*|來一首*
 open = 打開*|開啟*|啟動*
@@ -1412,6 +1464,7 @@ remind_filler = 的|在|要|去|我|記得
 fmt_spaces = no
 fmt_sentence_end = 。
 title_app = 語音操作
+title_navi = 導航
 title_ai = AI
 title_timer = 計時器
 title_news = 新聞
@@ -1460,8 +1513,10 @@ say_call_missing = 沒找到{who}的號碼
 msg_call_missing = {file} 裡沒有"{who}"。請每行寫一個"名字 號碼"。
 say_open_missing = 沒找到叫{name}的應用程式
 say_help = 已經把可以說的話放到通知裡了
-msg_help = 時間·日期·電量·步數 / 音量調低3格·音量百分之五十 / 下一首·暫停 / 3分鐘的計時器·7點叫醒我 / 明天早上7點提醒我倒垃圾·我的提醒 / 新聞·天氣·明天天氣 / 記一下買牛奶·讀備忘錄 / 打開手電筒·截圖 / 打開… / 給…打電話 / AI … (用 voice.sh ai 開啟) / 改說法: voice.sh words
+msg_help = 時間·日期·電量·步數 / 音量調低3格·音量百分之五十 / 下一首·暫停 / 3分鐘的計時器·7點叫醒我 / 明天早上7點提醒我倒垃圾·我的提醒 / 新聞·天氣·明天天氣 / 記一下買牛奶·讀備忘錄 / 打開手電筒·截圖 / 打開… / 給…打電話 / 導航到…·…的電話號碼 / AI … (用 voice.sh ai 開啟) / 改說法: voice.sh words
 msg_unknown = 沒聽懂: {text}
+msg_navi_where = 請說出目的地
+msg_navi_hint = 目的地 (地名)
 msg_ai_off = AI 已關閉。按"複製"並貼到終端機，就會使用 {ai} (sh ~/.z2term/macros/voice.sh ai {ai})
 msg_ai_off_none = AI 已關閉。請先安裝並登入 codex / claude / agy 其中之一，再在終端機裡用 sh ~/.z2term/macros/voice.sh ai codex 這樣選擇
 msg_ai_missing = 找不到 {ai}。請安裝並登入，或用 sh ~/.z2term/macros/voice.sh ai 選擇別的 AI
@@ -1515,6 +1570,9 @@ remind = recuérdame que *|recuérdame *|recuerdame que *|recuerdame *|pon un re
 wake = despiértame a las *|despiértame a la *|despiértame *|despiertame a las *|pon una alarma a las *|pon una alarma para las *|alarma a las *
 help = qué puedo decir|qué puedes hacer|ayuda
 timer = pon un temporizador de *|pon un temporizador *|temporizador de *|temporizador *|cuenta *
+navi = navega a *|llévame a *|cómo llego a *|como llego a *|quiero ir a *|ruta a *|indicaciones para *
+navi_ask = navegar|navegación|indicaciones|ruta
+place_phone = el teléfono de *|teléfono de *|el número de teléfono de *|número de teléfono de *
 call = llama a *|llamar a *|llama *
 play = reproduce *|pon *|quiero escuchar *
 open = abre *|abrir *|inicia *|lanza *
@@ -1577,6 +1635,7 @@ remind_filler = que|de|el|la|a|para|en|los|las
 fmt_spaces = yes
 fmt_sentence_end = .
 title_app = Órdenes por voz
+title_navi = Navegación
 title_ai = IA
 title_timer = Temporizador
 title_news = Noticias
@@ -1625,8 +1684,10 @@ say_call_missing = No he encontrado el número de {who}
 msg_call_missing = "{who}" no está en {file}. Escribe un "nombre número" por línea.
 say_open_missing = No he encontrado ninguna aplicación llamada {name}
 say_help = Tienes en una notificación lo que puedes decir
-msg_help = hora, fecha, batería, pasos / baja el volumen 3, volumen al 50 por ciento / siguiente canción, pausa / temporizador de 3 minutos, despiértame a las 7 / recuérdame mañana a las 7 sacar la basura, recordatorios / noticias, tiempo, tiempo de mañana / anota comprar leche, lee mis notas / enciende la linterna, captura / abre … / llama a … / IA … (actívala con voice.sh ai) / cambiar las palabras: voice.sh words
+msg_help = hora, fecha, batería, pasos / baja el volumen 3, volumen al 50 por ciento / siguiente canción, pausa / temporizador de 3 minutos, despiértame a las 7 / recuérdame mañana a las 7 sacar la basura, recordatorios / noticias, tiempo, tiempo de mañana / anota comprar leche, lee mis notas / enciende la linterna, captura / abre … / llama a … / navega a …, teléfono de … / IA … (actívala con voice.sh ai) / cambiar las palabras: voice.sh words
 msg_unknown = No he entendido: {text}
+msg_navi_where = Di adónde quieres ir
+msg_navi_hint = Destino (nombre del lugar)
 msg_ai_off = La IA está desactivada. Pulsa Copiar y pégalo en una terminal para usar {ai} (sh ~/.z2term/macros/voice.sh ai {ai})
 msg_ai_off_none = La IA está desactivada. Instala e inicia sesión en codex / claude / agy y elígela en una terminal, por ejemplo sh ~/.z2term/macros/voice.sh ai codex
 msg_ai_missing = No se encuentra {ai}. Instálalo e inicia sesión, o elige otra con sh ~/.z2term/macros/voice.sh ai
@@ -1682,6 +1743,9 @@ remind = *을 알려 줘|*를 알려 줘|*알려 줘|*리마인드해 줘|*리�
 wake = *에 깨워 줘|*에 깨워|*에 알람 맞춰 줘|*에 알람 맞춰
 help = 뭐 할 수 있어|무엇을 할 수 있어|도움말|할 수 있는 것
 timer = *타이머 맞춰 줘|*타이머 설정해 줘|*타이머|타이머 *
+navi = *까지 안내해 줘|*까지 길 안내|*로 안내해 줘|*으로 안내해 줘|*에 가고 싶어|*가는 길|*까지 내비
+navi_ask = 내비|내비게이션|길 안내|길 안내해 줘
+place_phone = *전화번호 알려 줘|*의 전화번호|*전화번호
 call = *에게 전화해 줘|*에게 전화해|*한테 전화해 줘|*한테 전화해|*에게 전화|*한테 전화|*에 전화해 줘
 play = *을 틀어 줘|*를 틀어 줘|*틀어 줘|*을 재생해 줘|*를 재생해 줘|*재생해 줘|*재생
 open = *을 열어 줘|*를 열어 줘|*열어 줘|*열어|*을 실행해 줘|*를 실행해 줘|*실행해 줘|*실행
@@ -1744,6 +1808,7 @@ remind_filler = 에|에는|에게|까지|을|를|은|는|이|가|라고|하라�
 fmt_spaces = yes
 fmt_sentence_end = .
 title_app = 음성 조작
+title_navi = 길 안내
 title_ai = AI
 title_timer = 타이머
 title_news = 뉴스
@@ -1792,8 +1857,10 @@ say_call_missing = {who}의 번호를 찾지 못했습니다
 msg_call_missing = "{who}"이(가) {file} 에 없습니다. 한 줄에 "이름 번호"로 쓰세요.
 say_open_missing = {name}이라는 앱을 찾지 못했습니다
 say_help = 말할 수 있는 것을 알림으로 보냈습니다
-msg_help = 시간·날짜·배터리·걸음 수 / 볼륨 3단계 내려 줘·볼륨 50퍼센트 / 다음 곡·멈춰 / 3분 타이머·7시에 깨워 줘 / 내일 아침 7시에 쓰레기 버리라고 알려 줘·일정 / 뉴스·날씨·내일 날씨 / 메모 우유 사기·메모 읽어 줘 / 손전등 켜 줘·스크린샷 / ◯◯ 열어 줘 / ◯◯에게 전화해 줘 / AI … (켜려면 voice.sh ai) / 말 바꾸기: voice.sh words
+msg_help = 시간·날짜·배터리·걸음 수 / 볼륨 3단계 내려 줘·볼륨 50퍼센트 / 다음 곡·멈춰 / 3분 타이머·7시에 깨워 줘 / 내일 아침 7시에 쓰레기 버리라고 알려 줘·일정 / 뉴스·날씨·내일 날씨 / 메모 우유 사기·메모 읽어 줘 / 손전등 켜 줘·스크린샷 / ◯◯ 열어 줘 / ◯◯에게 전화해 줘 / ◯◯까지 안내해 줘·◯◯ 전화번호 / AI … (켜려면 voice.sh ai) / 말 바꾸기: voice.sh words
 msg_unknown = 알아듣지 못한 말입니다: {text}
+msg_navi_where = 목적지를 말해 주세요
+msg_navi_hint = 목적지 (장소 이름)
 msg_ai_off = AI가 꺼져 있습니다. 복사를 눌러 터미널에 붙여 넣으면 {ai}를 씁니다 (sh ~/.z2term/macros/voice.sh ai {ai})
 msg_ai_off_none = AI가 꺼져 있습니다. codex / claude / agy 중 하나를 설치하고 로그인한 뒤, 터미널에서 sh ~/.z2term/macros/voice.sh ai codex 처럼 고르세요
 msg_ai_missing = {ai}를 찾을 수 없습니다. 설치하고 로그인하거나, sh ~/.z2term/macros/voice.sh ai 로 다른 AI를 고르세요
@@ -1847,6 +1914,9 @@ remind = remind me to *|remind me that *|remind me about *|remind me *|set a rem
 wake = wake me up at *|wake me at *|wake me up *|set an alarm for *|set alarm for *|alarm at *|alarm for *
 help = what can i say|what can you do|help|commands
 timer = set a timer for *|set timer for *|start a timer for *|timer for *|set a * timer|start a * timer|a * timer|* timer
+navi = navigate to *|directions to *|take me to *|how do i get to *|i want to go to *|navigate *
+navi_ask = navigate|navigation|directions|start navigation
+place_phone = what is the phone number of *|the phone number of *|phone number of *|look up the number of *|* phone number
 call = call *|phone *|dial *
 play = play *|put on *
 open = open *|launch *|start *
@@ -1909,6 +1979,7 @@ remind_filler = to|at|on|in|about|that|for|me|by|the
 fmt_spaces = yes
 fmt_sentence_end = .
 title_app = Voice command
+title_navi = Navigation
 title_ai = AI
 title_timer = Timer
 title_news = News
@@ -1957,8 +2028,10 @@ say_call_missing = I could not find a number for {who}
 msg_call_missing = "{who}" is not in {file}. Write one "name number" per line.
 say_open_missing = I could not find an app called {name}
 say_help = What you can say is in a notification
-msg_help = time, date, battery, steps / volume down 3, volume 50 percent / next song, pause / 3 minute timer, wake me up at 7 / remind me to take out the bins tomorrow at 7 am, reminders / news, weather, weather tomorrow / note buy milk, read my notes / flashlight on, screenshot / open … / call … / AI … (turn on with voice.sh ai) / change the words: voice.sh words
+msg_help = time, date, battery, steps / volume down 3, volume 50 percent / next song, pause / 3 minute timer, wake me up at 7 / remind me to take out the bins tomorrow at 7 am, reminders / news, weather, weather tomorrow / note buy milk, read my notes / flashlight on, screenshot / open … / call … / navigate to …, phone number of … / AI … (turn on with voice.sh ai) / change the words: voice.sh words
 msg_unknown = I did not understand: {text}
+msg_navi_where = Say where you want to go
+msg_navi_hint = Where to (a place name)
 msg_ai_off = AI is off. Press Copy and paste it into a terminal to use {ai} (sh ~/.z2term/macros/voice.sh ai {ai})
 msg_ai_off_none = AI is off. Install and sign in to one of codex / claude / agy, then choose it in a terminal, e.g. sh ~/.z2term/macros/voice.sh ai codex
 msg_ai_missing = {ai} was not found. Install it and sign in, or choose another with sh ~/.z2term/macros/voice.sh ai
