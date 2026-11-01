@@ -25,11 +25,19 @@ internal object VoiceInput {
 
     fun start(context: Context, onText: (String) -> Unit, onEnter: () -> Unit, onInterrupt: () -> Unit) {
         val m = Z2ApiMsg(lang = LocaleHelper.language(context), d = "$")
+        // 聞いている最中にもう一度押したら止める (1.0.76)。これが無いと止める手段が無かった。
+        if (SpeechListen.listening.value) {
+            SpeechListen.cancel()
+            Toast.makeText(context, m.listenStopped, Toast.LENGTH_SHORT).show()
+            return
+        }
         // 聞いている間はキーが光る ([SpeechListen.listening])。話し始めの合図だけ短く出す。
-        if (!SpeechListen.listening.value) Toast.makeText(context, m.listenPrompt, Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, m.listenPrompt, Toast.LENGTH_SHORT).show()
         SpeechListen.listen(context, lang = "", bias = emptyList()) { heard ->
             when (heard) {
-                is SpeechListen.Heard.Failed -> Toast.makeText(context, heard.message, Toast.LENGTH_LONG).show()
+                // 理由が空 = 止めたとき。止めた側が知らせている。
+                is SpeechListen.Heard.Failed ->
+                    if (heard.message.isNotEmpty()) Toast.makeText(context, heard.message, Toast.LENGTH_LONG).show()
                 is SpeechListen.Heard.Text -> when {
                     ListenWords.exact(ENTER_WORDS, heard.candidates) != null -> onEnter()
                     ListenWords.exact(INTERRUPT_WORDS, heard.candidates) != null -> onInterrupt()

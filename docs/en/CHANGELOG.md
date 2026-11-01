@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.76 (versionCode 774)**: Fixed voice input from the ⏎ left flick and 🎤 sometimes being impossible to stop. (1) **Flick (or press) again while listening to stop.** (2) If recognition gives no sign of life for 10 seconds, it ends instead of waiting 90 seconds (it is not cut off while you are speaking). (3) Listening stops when you leave the z2term screen. (4) When another app is using the device's speech recognition, the message now says so instead of "another z2-listen is running".
+
 **1.0.75 (versionCode 773)**: `sh ~/.z2term/macros/voice.sh listen` **opens the listening screen from a terminal** so you can speak (the same screen as the tile). Added to Settings › Show a guide › `voice` too. ⚠ Reinstall with `z2-macro install -f voice`.
 
 **1.0.74 (versionCode 772)**: (1) Voice command **works on the lock screen** (tile, power-button long press and so on). While locked, only things that are fine for anyone to do — music, volume, time, weather, timers and so on — run at once; calls, apps, navigation, notes, AI and the like go on once you unlock. ⚠ Reinstall with `z2-macro install -f voice` and run `sh ~/.z2term/macros/voice.sh setup` again. (2) Stopping with a double press of a volume button **no longer moves the volume for a moment**; a single press now takes effect 0.3 s later.

@@ -1123,6 +1123,24 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         "ko" to "이미 듣는 중입니다 (다른 z2-listen이 실행 중입니다)."
     )
 
+    val listenEngineBusy: String = t(
+        en = "The device's speech recognition is busy (another app may be using it). Try again later.",
+        ja = "端末の音声認識が使用中です（別のアプリが使っているかもしれません）。少し待ってからもう一度試してください。",
+        "zh-CN" to "设备的语音识别正在使用中（可能有其他应用在用）。请稍后再试。",
+        "zh-TW" to "裝置的語音辨識正在使用中（可能有其他應用程式在用）。請稍後再試。",
+        "es" to "El reconocimiento de voz del dispositivo está ocupado (quizá lo use otra app). Inténtalo más tarde.",
+        "ko" to "기기의 음성 인식이 사용 중입니다 (다른 앱이 사용 중일 수 있습니다). 잠시 후 다시 시도하세요."
+    )
+
+    val listenStopped: String = t(
+        en = "Stopped listening.",
+        ja = "聞き取りをやめました。",
+        "zh-CN" to "已停止聆听。",
+        "zh-TW" to "已停止聆聽。",
+        "es" to "Se dejó de escuchar.",
+        "ko" to "듣기를 멈췄습니다."
+    )
+
     val listenNoOnDevice: String = t(
         en = "This device has no on-device speech recognition. z2-listen never sends your voice to the network, so it cannot run here.",
         ja = "この端末には端末内の音声認識がありません。z2-listen は声をネットへ出さないため、ここでは使えません。",

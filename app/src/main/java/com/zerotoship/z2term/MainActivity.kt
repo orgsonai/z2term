@@ -206,6 +206,11 @@ class MainActivity : ComponentActivity() {
             com.zerotoship.z2term.core.TabAttention.setAppVisible(false)
             // 失敗の跡は持ち越さない。次に戻ってきたときは自動でもう一度尋ねる。
             unlockFailed = false
+            // マイクは画面に出ているアプリにしか渡らない。離れたら聞き続けても無音なのでやめる。
+            // ⚠ 「声で操作」の画面が前に出たときは止めない (その画面が聞いている最中)。
+            if (!com.zerotoship.z2term.voice.VoiceCommandActivity.shown) {
+                com.zerotoship.z2term.service.SpeechListen.cancel()
+            }
         }
     }
 

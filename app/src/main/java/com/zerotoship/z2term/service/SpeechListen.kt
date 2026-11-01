@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -40,6 +41,13 @@ import kotlinx.coroutines.flow.StateFlow
 internal object SpeechListen {
     /** 許可を尋ねる間も含めた上限。端末側 (`z2-listen`) の待ちはこれより少し長い。 */
     private const val LIMIT_MS = 90_000L
+    /**
+     * 認識エンジンから何の知らせも無いまま待つ上限 (1.0.76)。準備完了・話し始め・途中経過・話し終わりの
+     * たびに数え直す。⚠ 話が続いている間は途中経過が来るので切れない。音量の知らせ
+     * ([RecognitionListener.onRmsChanged]) は無音でも届くので数えない。
+     */
+    private const val STALL_MS = 10_000L
+    private const val TAG = "SpeechListen"
     /** 候補をいくつ受け取るか。決まった言葉を待つとき、1 位以外も見るため ([ListenWords.match])。 */
     private const val MAX_RESULTS = 5
 
@@ -92,7 +100,10 @@ internal object SpeechListen {
     /** いま聞いているもの (Main からだけ触る)。 */
     private var current: Request? = null
 
-    /** 聞くのをやめる (「声で操作」の画面を閉じたとき)。結果は空の理由つき失敗として返る。 */
+    /**
+     * 聞くのをやめる (「声で操作」の画面を閉じたとき・⏎ の左はらいや 🎤 をもう一度押したとき・
+     * 端末の画面から離れたとき)。結果は空の理由つき失敗として返る。
+     */
     fun cancel() {
         main.post { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) current?.cancel() }
     }
@@ -116,6 +127,17 @@ internal object SpeechListen {
         private var recognizer: SpeechRecognizer? = null
         private var done = false
         private val timeout = Runnable { fail(1, m.listenTimedOut) }
+        private val stall = Runnable {
+            Log.w(TAG, "no news from the recognizer for ${STALL_MS}ms")
+            fail(1, m.listenTimedOut)
+        }
+
+        /** エンジンが動いている知らせを受けたので、待ちを数え直す。 */
+        private fun progressed(what: String) {
+            Log.i(TAG, what)
+            main.removeCallbacks(stall)
+            main.postDelayed(stall, STALL_MS)
+        }
 
         fun run() {
             main.postDelayed(timeout, LIMIT_MS)
@@ -150,6 +172,7 @@ internal object SpeechListen {
             if (bias.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 intent.putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, ArrayList(bias))
             }
+            progressed("start")
             r.startListening(intent)
         }
 
@@ -160,12 +183,12 @@ internal object SpeechListen {
             finish(Heard.Text(heard))
         }
 
-        override fun onError(error: Int) = when (error) {
+        override fun onError(error: Int) = when (error.also { Log.i(TAG, "error $it") }) {
             SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> fail(1, m.listenNoSpeech)
             SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> fail(2, m.listenNoPermission)
             SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED,
             SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> fail(2, m.listenNoLanguage)
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> fail(2, m.listenBusy)
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> fail(2, m.listenEngineBusy)
             // マイクを取れなかった (z2term が裏に回った・別のアプリが録音中)。
             SpeechRecognizer.ERROR_AUDIO -> fail(2, m.listenNoMic)
             else -> fail(2, m.listenFailed(error))
@@ -180,6 +203,7 @@ internal object SpeechListen {
             if (done) return
             done = true
             main.removeCallbacks(timeout)
+            main.removeCallbacks(stall)
             recognizer?.let { r ->
                 runCatching { r.cancel() }
                 runCatching { r.destroy() }
@@ -190,12 +214,12 @@ internal object SpeechListen {
             onHeard(heard)
         }
 
-        override fun onReadyForSpeech(params: Bundle?) {}
-        override fun onBeginningOfSpeech() {}
+        override fun onReadyForSpeech(params: Bundle?) = progressed("ready")
+        override fun onBeginningOfSpeech() = progressed("speech begins")
         override fun onRmsChanged(rmsdB: Float) {}
         override fun onBufferReceived(buffer: ByteArray?) {}
-        override fun onEndOfSpeech() {}
-        override fun onPartialResults(partialResults: Bundle?) {}
+        override fun onEndOfSpeech() = progressed("speech ends")
+        override fun onPartialResults(partialResults: Bundle?) = progressed("partial")
         override fun onEvent(eventType: Int, params: Bundle?) {}
     }
 }
