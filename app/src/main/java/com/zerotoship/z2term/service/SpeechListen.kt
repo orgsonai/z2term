@@ -129,12 +129,17 @@ internal object SpeechListen {
         private val timeout = Runnable { fail(1, m.listenTimedOut) }
         private val stall = Runnable {
             Log.w(TAG, "no news from the recognizer for ${STALL_MS}ms")
-            fail(1, m.listenTimedOut)
+            // 認識エンジンが止まっている (実機で確認。エンジンの強制停止で戻った)。z2term からは立て直せない。
+            fail(2, m.listenEngineStuck)
         }
 
         /** エンジンが動いている知らせを受けたので、待ちを数え直す。 */
         private fun progressed(what: String) {
             Log.i(TAG, what)
+            restartStall()
+        }
+
+        private fun restartStall() {
             main.removeCallbacks(stall)
             main.postDelayed(stall, STALL_MS)
         }
@@ -216,10 +221,36 @@ internal object SpeechListen {
 
         override fun onReadyForSpeech(params: Bundle?) = progressed("ready")
         override fun onBeginningOfSpeech() = progressed("speech begins")
-        override fun onRmsChanged(rmsdB: Float) {}
+        /** マイクの音量を 1 秒ごとの最大値でログへ出す (声が届いているかの切り分け。音声そのものは残さない)。 */
+        override fun onRmsChanged(rmsdB: Float) {
+            levelPeak = maxOf(levelPeak, rmsdB)
+            levelCount++
+            val now = android.os.SystemClock.uptimeMillis()
+            if (now - levelAt >= 1_000L) {
+                Log.i(TAG, "level peak=$levelPeak n=$levelCount")
+                levelPeak = Float.NEGATIVE_INFINITY
+                levelCount = 0
+                levelAt = now
+            }
+        }
+        private var levelPeak = Float.NEGATIVE_INFINITY
+        private var levelCount = 0
+        private var levelAt = android.os.SystemClock.uptimeMillis()
         override fun onBufferReceived(buffer: ByteArray?) {}
         override fun onEndOfSpeech() = progressed("speech ends")
-        override fun onPartialResults(partialResults: Bundle?) = progressed("partial")
+        /** 途中経過は多いので、ログは 1 秒に 1 行へまとめる (中身は残さない)。 */
+        override fun onPartialResults(partialResults: Bundle?) {
+            restartStall()
+            partialCount++
+            val now = android.os.SystemClock.uptimeMillis()
+            if (now - partialAt >= 1_000L) {
+                Log.i(TAG, "partial n=$partialCount")
+                partialCount = 0
+                partialAt = now
+            }
+        }
+        private var partialCount = 0
+        private var partialAt = android.os.SystemClock.uptimeMillis()
         override fun onEvent(eventType: Int, params: Bundle?) {}
     }
 }

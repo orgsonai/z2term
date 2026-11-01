@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.77 (versionCode 775)**: When the device's speech recognition has stalled, the message is now **"Speech recognition isn't responding"** instead of "Timed out", with how to recover (force stop Android System Intelligence or similar in Android Settings › Apps). `z2-listen` exits with 2 in this case.
+
 **1.0.76 (versionCode 774)**: Fixed voice input from the ⏎ left flick and 🎤 sometimes being impossible to stop. (1) **Flick (or press) again while listening to stop.** (2) If recognition gives no sign of life for 10 seconds, it ends instead of waiting 90 seconds (it is not cut off while you are speaking). (3) Listening stops when you leave the z2term screen. (4) When another app is using the device's speech recognition, the message now says so instead of "another z2-listen is running".
 
 **1.0.75 (versionCode 773)**: `sh ~/.z2term/macros/voice.sh listen` **opens the listening screen from a terminal** so you can speak (the same screen as the tile). Added to Settings › Show a guide › `voice` too. ⚠ Reinstall with `z2-macro install -f voice`.

@@ -1132,6 +1132,15 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         "ko" to "기기의 음성 인식이 사용 중입니다 (다른 앱이 사용 중일 수 있습니다). 잠시 후 다시 시도하세요."
     )
 
+    val listenEngineStuck: String = t(
+        en = "Speech recognition isn't responding. If this keeps happening, force stop the device's recognition app (such as Android System Intelligence) in Android Settings › Apps.",
+        ja = "音声認識から応答がありません。続くときは、Android の設定 › アプリ で端末の音声認識のアプリ（Android System Intelligence など）を強制停止してください。",
+        "zh-CN" to "语音识别没有响应。如果持续发生，请在 Android 设置 › 应用 中强行停止设备的语音识别应用（如 Android System Intelligence）。",
+        "zh-TW" to "語音辨識沒有回應。如果持續發生，請在 Android 設定 › 應用程式 中強制停止裝置的語音辨識應用程式（如 Android System Intelligence）。",
+        "es" to "El reconocimiento de voz no responde. Si sigue pasando, fuerza la detención de la app de reconocimiento del dispositivo (como Android System Intelligence) en Ajustes de Android › Aplicaciones.",
+        "ko" to "음성 인식이 응답하지 않습니다. 계속되면 Android 설정 › 앱에서 기기의 음성 인식 앱(Android System Intelligence 등)을 강제 중지하세요."
+    )
+
     val listenStopped: String = t(
         en = "Stopped listening.",
         ja = "聞き取りをやめました。",
