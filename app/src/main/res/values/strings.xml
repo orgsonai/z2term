@@ -1154,7 +1154,7 @@ Pick one from the tabs on the right.</string>
     <string name="guide_ask_feed_url">Feed URL to read (one at a time; you can add more later)</string>
     <string name="guide_ask_interval">How often to poll (30m / 1h …; do not go below 30 minutes)</string>
     <string name="guide_ask_qr_text">Text or URL to turn into a QR code</string>
-    <string name="guide_step_voice_setup">Register the rules for voice command, its timer and the step count (once)</string>
+    <string name="guide_step_voice_setup">Register 4 rules (once): Voice command, Voice command (locked), Voice timer and Count steps. Count steps only keeps the step counter running so you can ask for today’s steps; it never runs anything</string>
     <string name="guide_step_voice_start">Then just speak: add the \"Voice command\" tile to quick settings, or pick z2term under Settings › Apps › Default apps › Digital assistant app</string>
     <string name="guide_step_voice_listen">Or open the listening screen from here and speak</string>
     <string name="guide_step_voice_words">Open the word table to add or change what you can say</string>

@@ -1080,7 +1080,7 @@ Elige uno en las pestañas de la derecha.</string>
     <string name="guide_ask_feed_url">URL del feed que leer (de uno en uno; puedes añadir más después)</string>
     <string name="guide_ask_interval">Cada cuánto consultarlo (30m / 1h …; no bajes de 30 minutos)</string>
     <string name="guide_ask_qr_text">Texto o URL que convertir en un código QR</string>
-    <string name="guide_step_voice_setup">Registrar las reglas de Órdenes por voz, su temporizador y el recuento de pasos (una vez)</string>
+    <string name="guide_step_voice_setup">Registrar 4 reglas (una vez): Órdenes por voz, Órdenes por voz (bloqueado), Temporizador por voz y Contar pasos. Contar pasos solo mantiene activo el contador para poder preguntar por los pasos de hoy; no ejecuta nada</string>
     <string name="guide_step_voice_start">Después solo hay que hablar: añade el icono «Órdenes por voz» a los ajustes rápidos, o elige z2term en Ajustes › Aplicaciones › Aplicaciones predeterminadas › Aplicación de asistente digital</string>
     <string name="guide_step_voice_listen">O abre aquí la pantalla de escucha y habla</string>
     <string name="guide_step_voice_words">Abrir la tabla de palabras para añadir o cambiar lo que puedes decir</string>

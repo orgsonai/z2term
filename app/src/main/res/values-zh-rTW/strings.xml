@@ -1065,7 +1065,7 @@
     <string name="guide_ask_feed_url">想讀的訂閱源 URL（一次一個，之後想加多少都行）</string>
     <string name="guide_ask_interval">每隔多久去看一次（30m / 1h 等。不要短於 30 分鐘）</string>
     <string name="guide_ask_qr_text">想做成二維條碼的文字或 URL</string>
-    <string name="guide_step_voice_setup">登記語音操作、語音計時器和計步的規則（只做一次）</string>
+    <string name="guide_step_voice_setup">登記 4 條規則（只做一次）：語音操作、語音操作（鎖定時）、語音計時器、計步。計步規則只是讓計步器保持運作，以便用語音詢問今天的步數，不會執行任何操作</string>
     <string name="guide_step_voice_start">之後只要說話：在快速設定裡放上「語音操作」圖塊，或在系統設定 › 應用程式 › 預設應用程式 › 數位助理應用程式中選擇 z2term</string>
     <string name="guide_step_voice_listen">也可以從這裡打開聽取畫面後說話</string>
     <string name="guide_step_voice_words">開啟詞表，增加或更換說法</string>

@@ -28,7 +28,8 @@ fun z2VoiceMacro(lang: String): String {
         en = """# voice.sh — the receiver for "Voice command": what you say runs music, volume, timers, reminders, weather and more.
 #
 # Setup (once):
-#   sh ~/.z2term/macros/voice.sh setup    register 3 rules (voice command / voice timer / count steps)
+#   sh ~/.z2term/macros/voice.sh setup    register 4 rules (voice command / voice command while locked / voice timer / count steps)
+#   Count steps only keeps the step counter running for "how many steps today"; it never runs anything
 #   then speak through the "Voice command" quick settings tile or the digital assistant (long-press power etc.)
 #
 # From a terminal:
@@ -48,7 +49,8 @@ fun z2VoiceMacro(lang: String): String {
         ja = """# voice.sh — 「声で操作」の受け口。話した言葉で音楽・音量・タイマー・リマインド・天気などを動かす。
 #
 # 準備 (1 回だけ):
-#   sh ~/.z2term/macros/voice.sh setup    ルール 3 本を登録 (声で操作 / 声のタイマー / 歩数を数える)
+#   sh ~/.z2term/macros/voice.sh setup    ルール 4 本を登録 (声で操作 / 声で操作（ロック中） / 声のタイマー / 歩数を数える)
+#   歩数を数えるルールは、今日の歩数を聞けるように歩数計を動かすだけで、何も実行しません
 #   あとはクイック設定のタイル「声で操作」か、デジタル アシスタント (電源ボタン長押しなど) で話す
 #
 # 端末から:
@@ -68,7 +70,8 @@ fun z2VoiceMacro(lang: String): String {
         "zh-CN" to """# voice.sh — "语音操作"的接收端。用说出的话来控制音乐、音量、计时器、提醒、天气等。
 #
 # 准备 (只做一次):
-#   sh ~/.z2term/macros/voice.sh setup    登记 3 条规则 (语音操作 / 语音计时器 / 计步)
+#   sh ~/.z2term/macros/voice.sh setup    登记 4 条规则 (语音操作 / 语音操作（锁屏时） / 语音计时器 / 计步)
+#   计步规则只是让计步器保持运行，以便询问今天的步数，不会执行任何操作
 #   之后用快捷设置磁贴"语音操作"或数字助理 (长按电源键等) 说话
 #
 # 在终端里:
@@ -88,7 +91,8 @@ fun z2VoiceMacro(lang: String): String {
         "zh-TW" to """# voice.sh — "語音操作"的接收端。用說出的話來控制音樂、音量、計時器、提醒、天氣等。
 #
 # 準備 (只做一次):
-#   sh ~/.z2term/macros/voice.sh setup    登記 3 條規則 (語音操作 / 語音計時器 / 計步)
+#   sh ~/.z2term/macros/voice.sh setup    登記 4 條規則 (語音操作 / 語音操作（鎖定時） / 語音計時器 / 計步)
+#   計步規則只是讓計步器保持運作，以便詢問今天的步數，不會執行任何操作
 #   之後用快速設定圖塊"語音操作"或數位助理 (長按電源鍵等) 說話
 #
 # 在終端機裡:
@@ -108,7 +112,8 @@ fun z2VoiceMacro(lang: String): String {
         "es" to """# voice.sh — recibe las «Órdenes por voz»: lo que dices maneja música, volumen, temporizadores, recordatorios, el tiempo y más.
 #
 # Preparación (una vez):
-#   sh ~/.z2term/macros/voice.sh setup    registra 3 reglas (órdenes por voz / temporizador por voz / contar pasos)
+#   sh ~/.z2term/macros/voice.sh setup    registra 4 reglas (órdenes por voz / órdenes por voz con bloqueo / temporizador por voz / contar pasos)
+#   Contar pasos solo mantiene activo el contador para preguntar por los pasos de hoy; no ejecuta nada
 #   luego habla con el icono de ajustes rápidos «Órdenes por voz» o con el asistente digital (mantener el botón de encendido, etc.)
 #
 # Desde una terminal:
@@ -128,7 +133,8 @@ fun z2VoiceMacro(lang: String): String {
         "ko" to """# voice.sh — "음성 조작"을 받는 곳. 말한 내용으로 음악·볼륨·타이머·리마인더·날씨 등을 움직입니다.
 #
 # 준비 (한 번만):
-#   sh ~/.z2term/macros/voice.sh setup    규칙 3개를 등록 (음성 조작 / 음성 타이머 / 걸음 수 세기)
+#   sh ~/.z2term/macros/voice.sh setup    규칙 4개를 등록 (음성 조작 / 음성 조작 (잠금 중) / 음성 타이머 / 걸음 수 세기)
+#   걸음 수 세기 규칙은 오늘 걸음 수를 물을 수 있도록 측정을 유지할 뿐, 아무것도 실행하지 않습니다
 #   그다음 빠른 설정 타일 "음성 조작"이나 디지털 어시스턴트(전원 버튼 길게 누르기 등)로 말합니다
 #
 # 터미널에서:
@@ -537,6 +543,7 @@ cmd_setup() {
   msg msg_setup_done; echo
   z2-when list | grep -F "macros/voice.sh" | cut -f1,3
   echo
+  msg msg_setup_steps; echo
   msg msg_words_file file "${d}WORDS"; echo
 }
 
@@ -1234,6 +1241,7 @@ msg_ai_usage = ai: off | codex | claude | agy のどれかを指定してくだ�
 msg_ai_how = AI はオフです。使うには: sh ~/.z2term/macros/voice.sh ai {ai}  (codex / claude / agy。合図の言葉「AI」「質問」で始めたときだけ聞きます)。モデルは sh ~/.z2term/macros/voice.sh model <名前> (空でその AI の既定)
 fmt_ai_prompt = (答えは音声で読み上げます。コマンドやファイルは使わずに、日本語で 2〜3 文、記号や箇条書きを使わずに答えてください)
 msg_setup_done = 声で操作のルールを登録しました (既にあるものは足していません):
+msg_setup_steps = 歩数を数えるルール (steps:reach=1000000) は、今日の歩数を声で聞けるように歩数計を動かすだけです。100 万歩には届かない前提の条件で、何も実行しません。
 msg_words_file = 言葉の表: {file}  (書き換えると言い方を足せます。sh ~/.z2term/macros/voice.sh words で開く)"""
 
 private const val VOICE_WORDS_ZH_CN = """# 语音操作 — 词表 (简体中文)。由 voice.sh 读取。改写这里就能增加或更换说法。
@@ -1408,6 +1416,7 @@ msg_ai_usage = ai: 请指定 off | codex | claude | agy 之一
 msg_ai_how = AI 已关闭。要使用: sh ~/.z2term/macros/voice.sh ai {ai}  (codex / claude / agy。只有用提示词"AI"或"提问"开头时才会问)。模型: sh ~/.z2term/macros/voice.sh model <名字> (留空 = 该 AI 的默认)
 fmt_ai_prompt = (回答会被朗读出来。不要使用命令或文件，用中文回答 2 到 3 句，不要用符号或列表。)
 msg_setup_done = 已登记语音操作的规则 (已有的没有重复添加):
+msg_setup_steps = 计步规则 (steps:reach=1000000) 只是让计步器保持运行，以便用语音询问今天的步数。这个条件不会达到，不会执行任何操作。
 msg_words_file = 词表: {file}  (改写它就能增加说法。用 sh ~/.z2term/macros/voice.sh words 打开)"""
 
 private const val VOICE_WORDS_ZH_TW = """# 語音操作 — 詞表 (繁體中文)。由 voice.sh 讀取。改寫這裡就能增加或更換說法。
@@ -1582,6 +1591,7 @@ msg_ai_usage = ai: 請指定 off | codex | claude | agy 之一
 msg_ai_how = AI 已關閉。要使用: sh ~/.z2term/macros/voice.sh ai {ai}  (codex / claude / agy。只有用提示詞"AI"或"提問"開頭時才會問)。模型: sh ~/.z2term/macros/voice.sh model <名字> (留空 = 該 AI 的預設)
 fmt_ai_prompt = (回答會被朗讀出來。不要使用命令或檔案，用中文回答 2 到 3 句，不要用符號或清單。)
 msg_setup_done = 已登記語音操作的規則 (已有的沒有重複新增):
+msg_setup_steps = 計步規則 (steps:reach=1000000) 只是讓計步器保持運作，以便用語音詢問今天的步數。這個條件不會達到，不會執行任何操作。
 msg_words_file = 詞表: {file}  (改寫它就能增加說法。用 sh ~/.z2term/macros/voice.sh words 開啟)"""
 
 private const val VOICE_WORDS_ES = """# Órdenes por voz — tabla de palabras (español). La lee voice.sh. Edítala para añadir o cambiar lo que puedes decir.
@@ -1756,6 +1766,7 @@ msg_ai_usage = ai: indica off | codex | claude | agy
 msg_ai_how = La IA está desactivada. Para usarla: sh ~/.z2term/macros/voice.sh ai {ai}  (codex / claude / agy; solo se le pregunta si empiezas con la palabra clave, "IA" o "pregunta"). Modelo: sh ~/.z2term/macros/voice.sh model <nombre> (vacío = el de esa IA por defecto)
 fmt_ai_prompt = (La respuesta se leerá en voz alta. Sin usar órdenes ni archivos, responde en español en 2 o 3 frases, sin símbolos ni listas.)
 msg_setup_done = Reglas de Órdenes por voz registradas (las que ya existían no se han añadido otra vez):
+msg_setup_steps = La regla Contar pasos (steps:reach=1000000) solo mantiene activo el contador para preguntar por los pasos de hoy. Esa cifra no se alcanza y no ejecuta nada.
 msg_words_file = Tabla de palabras: {file}  (edítala para añadir formas de decir las cosas; sh ~/.z2term/macros/voice.sh words la abre)"""
 
 private const val VOICE_WORDS_KO = """# 음성 조작 — 낱말 표 (한국어). voice.sh가 읽습니다. 고쳐 쓰면 말하는 방법을 더하거나 바꿀 수 있습니다.
@@ -1932,6 +1943,7 @@ msg_ai_usage = ai: off | codex | claude | agy 중 하나를 지정하세요
 msg_ai_how = AI가 꺼져 있습니다. 쓰려면: sh ~/.z2term/macros/voice.sh ai {ai}  (codex / claude / agy. 신호 말 "AI" 나 "질문"으로 시작할 때만 묻습니다). 모델: sh ~/.z2term/macros/voice.sh model <이름> (비우면 그 AI의 기본값)
 fmt_ai_prompt = (답은 소리 내어 읽습니다. 명령이나 파일을 쓰지 말고, 한국어로 2~3문장, 기호나 목록 없이 답해 주세요.)
 msg_setup_done = 음성 조작 규칙을 등록했습니다 (이미 있는 것은 더하지 않았습니다):
+msg_setup_steps = 걸음 수 세기 규칙 (steps:reach=1000000) 은 오늘 걸음 수를 음성으로 물을 수 있도록 측정을 유지할 뿐입니다. 도달하지 않는 조건이며 아무것도 실행하지 않습니다.
 msg_words_file = 낱말 표: {file}  (고쳐 쓰면 말하는 법을 더할 수 있습니다. sh ~/.z2term/macros/voice.sh words 로 엽니다)"""
 
 private const val VOICE_WORDS_EN = """# Voice command — word table (English). voice.sh reads it. Edit it to add or change what you can say.
@@ -2106,4 +2118,5 @@ msg_ai_usage = ai: give one of off | codex | claude | agy
 msg_ai_how = AI is off. To use it: sh ~/.z2term/macros/voice.sh ai {ai}  (codex / claude / agy; it is only asked when you start with the cue word, "AI" or "question"). Model: sh ~/.z2term/macros/voice.sh model <name> (empty = that AI's default)
 fmt_ai_prompt = (The answer will be read aloud. Without using commands or files, answer in English in 2 or 3 sentences, with no symbols or bullet lists.)
 msg_setup_done = Voice command rules registered (ones already there were not added again):
+msg_setup_steps = The Count steps rule (steps:reach=1000000) only keeps the step counter running so you can ask for today's steps. That goal is never reached, so it runs nothing.
 msg_words_file = Word table: {file}  (edit it to add ways to say things; sh ~/.z2term/macros/voice.sh words opens it)"""

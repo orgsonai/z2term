@@ -1064,7 +1064,7 @@
     <string name="guide_ask_feed_url">읽을 피드 URL (하나씩. 나중에 더 넣을 수 있습니다)</string>
     <string name="guide_ask_interval">얼마나 자주 볼지 (30m / 1h …. 30분보다 짧게는 하지 마세요)</string>
     <string name="guide_ask_qr_text">QR 코드로 만들 글이나 URL</string>
-    <string name="guide_step_voice_setup">음성 조작, 음성 타이머, 걸음 수 규칙 등록하기 (처음에 한 번)</string>
+    <string name="guide_step_voice_setup">규칙 4개 등록하기 (처음에 한 번): 음성 조작, 음성 조작 (잠금 중), 음성 타이머, 걸음 수 세기. 걸음 수 세기 규칙은 오늘 걸음 수를 음성으로 물을 수 있도록 걸음 수 측정을 유지할 뿐, 아무것도 실행하지 않습니다</string>
     <string name="guide_step_voice_start">그다음엔 말하기만 하면 됩니다: 빠른 설정에 \"음성 조작\" 타일을 놓거나, 기기 설정 › 애플리케이션 › 기본 앱 › 디지털 어시스턴트 앱에서 z2term을 고르기</string>
     <string name="guide_step_voice_listen">여기서 듣기 화면을 열고 말하기</string>
     <string name="guide_step_voice_words">낱말 표를 열어 말하는 법을 더하거나 바꾸기</string>

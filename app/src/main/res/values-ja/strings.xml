@@ -1136,7 +1136,7 @@
     <string name="guide_ask_feed_url">読みたいフィードの URL（1 本ずつ。あとから何本でも足せます）</string>
     <string name="guide_ask_interval">どれくらいの間隔で見に行くか（30m / 1h など。30 分より短くしない）</string>
     <string name="guide_ask_qr_text">QR にしたい文字列や URL</string>
-    <string name="guide_step_voice_setup">声で操作・声のタイマー・歩数のルールを登録（最初に 1 回）</string>
+    <string name="guide_step_voice_setup">ルールを 4 本登録（最初に 1 回）: 声で操作、声で操作（ロック中）、声のタイマー、歩数を数える。歩数を数えるルールは、今日の歩数を声で聞けるように歩数計を動かすだけで、何も実行しません</string>
     <string name="guide_step_voice_start">あとは話すだけ: クイック設定に「声で操作」タイルを並べるか、端末の設定 › アプリ › 既定のアプリ › デジタル アシスタント アプリで z2term を選ぶ</string>
     <string name="guide_step_voice_listen">ここから聞き取りの画面を開いて話す</string>
     <string name="guide_step_voice_words">言葉の表を開いて、言い方を足す・変える</string>
