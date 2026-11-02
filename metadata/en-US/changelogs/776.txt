@@ -1,0 +1,4 @@
+1.0.78
+
+- The Voice command guide now names all 4 rules that voice.sh setup adds.
+- The guide and the setup output now say that the Count steps rule only keeps the step counter running and runs nothing.
