@@ -1,0 +1,5 @@
+1.0.77
+
+- Fixed voice input from the ⏎ left swipe and 🎤 sometimes being impossible to stop. Swipe (or press) again while listening to stop.
+- If recognition gives no sign of life for 10 seconds, it ends instead of waiting 90 seconds. Listening also stops when you leave the z2term screen.
+- When speech recognition has stalled, a message now says so and tells you how to recover.
