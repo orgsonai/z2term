@@ -26,15 +26,21 @@ AutoName: Z2Term
 
 RepoType: git
 Repo: https://github.com/orgsonai/z2term
+# 再現可能ビルド (1.0.81 から)。F-Droid は同じタグを自分でビルドし、ここの GitHub の APK と
+# 署名以外が 1 バイトも違わなければ、GitHub の APK (こちらの署名) をそのまま配る。
+# 一致させるための作り (NDK r27c 固定・libz2term のビルド ID なし・依存情報ブロックなし) は
+# docs/ja/DESIGN-SPEC.md の F-Droid の節。
+Binaries: https://github.com/orgsonai/z2term/releases/download/v%v/z2term-%v.apk
 
 Builds:
-  - versionName: 1.0.79
-    versionCode: 777
-    # タグ名ではなくコミットの完全なハッシュで指す (fdroiddata の決まり)。v1.0.79 のコミット。
-    commit: 94f4efde49a55ea5ee7b69661ba40ef1cdcfd1e3
+  - versionName: 1.0.81
+    versionCode: 779
+    # タグ名ではなくコミットの完全なハッシュで指す (fdroiddata の決まり)。v1.0.81 のコミット。
+    commit: 5cbec4b307b1ef35a058b174c544c2417c41683f
     subdir: app
     # NDK は fdroidserver が sdkmanager で自動導入し、パスを $$NDK$$ で渡してくる。
-    # ソースは NDK 27 以降で確認している。
+    # ⚠ app/build.gradle.kts の RELEASE_NDK_VERSION (27.2.12479018 = r27c) と揃えること。
+    #   違う NDK で作った .so は中身が変わり、再現可能ビルドが一致しなくなる。
     ndk: r27c
     # prebuild 1: AGP に使わせる NDK 版を local.properties へ書く。
     #   fdroidserver が local.properties に書くのは ndk.dir だけだが、
@@ -57,12 +63,10 @@ Builds:
     prebuild:
       - "grep Pkg.Revision $$NDK$$/source.properties | tr -d ' ' | sed s/Pkg.Revision=/ndk.version=/ >> ../local.properties"
       - "echo allowMissingBundledAssets=true >> ../gradle.properties"
-      # prebuild 3: REQUEST_INSTALL_PACKAGES をマニフェストから外す。この権限は GitHub 版のアプリ内更新
-      #   (z2-update) のためだけにあり、F-Droid から入れた版では isManagedByStore で更新そのものを断るので
-      #   使わない。審査で Reports タブの警告を「直すか説明する」よう求められ、使わないものは外すことにした
-      #   (2026-10-15)。F-Droid の APK を手で入れた場合は、更新が「許可が要る」で止まるだけ (署名も違うので
-      #   GitHub の APK では上書きできない)。サブディレクトリ app で走るのでパスは src/main/ から。
-      - "sed -i -e '/android.permission.REQUEST_INSTALL_PACKAGES/d' src/main/AndroidManifest.xml"
+      # ⛔ REQUEST_INSTALL_PACKAGES をマニフェストから外す 3 行目は 1.0.81 でやめた (再現可能ビルドでは
+      #   GitHub と同じ APK になるので、F-Droid 版だけ外すことはできない)。この権限は GitHub 版の
+      #   アプリ内更新 (z2-update) のためのもので、F-Droid から入れた場合は isManagedByStore が更新を断る。
+      #   2026-10-15 に審査の Reports の警告に対して外していたが、以後は「説明する」で答える。
     # scanner は「ソースツリーに置かれたバイナリ」を一律で弾く。次の 1 つは正当な例外:
     #   - kkc_matrix.bin     : かな漢字変換の品詞接続コスト表。int16 の数表であって
     #                          実行コードではない。出典と著作権表示は
@@ -78,8 +82,12 @@ Builds:
 #    1.0.3 までは scripts/fetch-fonts.sh がビルド前にネットワークから取る作りで、
 #    F-Droid のビルドには入らず、端末の monospace だけになっていた。
 
+# GitHub の APK の署名証明書の SHA-256 (apksigner verify --print-certs)。再現可能ビルドで配る APK は
+# この鍵で署名されたものだけ。
+AllowedAPKSigningKeys: 40461461c2b181144ad6521e61aa43925bb5ca1a69e5947f3374d02034aef25d
+
 AutoUpdateMode: Version
-# 提出は安定版から。最初は 1.0.1 で出し、審査中に 1.0.5 (フォント 4 つを含む版)、続いて 1.0.9、1.0.12、1.0.15、1.0.19、1.0.28、1.0.47、1.0.50、1.0.53、1.0.54、1.0.78、1.0.79 へ向け直した (新しい版を出したらレシピも合わせるよう審査で求められている)。-alpha 付きのタグは F-Droid では拾わない (docs/FDROID.md §6)。
+# 提出は安定版から。最初は 1.0.1 で出し、審査中に 1.0.5 (フォント 4 つを含む版)、続いて 1.0.9、1.0.12、1.0.15、1.0.19、1.0.28、1.0.47、1.0.50、1.0.53、1.0.54、1.0.78、1.0.79、1.0.81 (ここから再現可能ビルド) へ向け直した (新しい版を出したらレシピも合わせるよう審査で求められている)。-alpha 付きのタグは F-Droid では拾わない (docs/FDROID.md §6)。
 UpdateCheckMode: Tags ^v[0-9.]+$
-CurrentVersion: 1.0.79
-CurrentVersionCode: 777
+CurrentVersion: 1.0.81
+CurrentVersionCode: 779
