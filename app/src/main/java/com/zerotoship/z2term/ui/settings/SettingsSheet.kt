@@ -579,7 +579,8 @@ fun SettingsSheet(
                             AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP
                         else
                             AppSettings.MIN_PORTRAIT_KB_HEIGHT_DP..AppSettings.MAX_PORTRAIT_KB_HEIGHT_DP,
-                        steps = if (isLandscape) 14 else 12,  // 20dp 刻み
+                        // 20dp 刻み (横 140..500dp / 縦 200..460dp)。
+                        steps = if (isLandscape) 17 else 12,
                         valueLabel = { "%.0fdp".format(it) },
                         onChange = {
                             if (isLandscape) session.setLandscapeKeyboardHeightDp(it)

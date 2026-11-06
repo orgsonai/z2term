@@ -150,12 +150,12 @@ In landscape, **the toolbar moves into a vertical column on the left or right ed
 screen has height to spare nowhere and width to spare everywhere, so the space is taken from the side
 that has it — **the toolbar row's roughly 48dp of height goes straight back to the terminal / GUI**.
 
-- **The tab bar stays along the top, horizontally, as in portrait** (1.0.80; before that the tabs stood
+- **The tab bar stays horizontal as in portrait, along the top of the terminal / GUI beside the toolbar column** (1.0.81; before that the tabs stood
   in a vertical column too, and names stacked one character per line were hard to read). Reordering is
   the same as in portrait: long-press and drag sideways.
 - **Pick the toolbar's edge under ⚙ Settings › Display › Toolbar ("Left / Right")** (0.8.433; left by default).
 
-> To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. **Two sliders — height and width** — let you resize while watching the keyboard (0.8.431; before that only one of them was offered, and a side-docked landscape keyboard could only change its width). It is also listed under ⚙ Settings → **Tips** (0.8.430). The sliders overlay the terminal, so opening them does not resize it (0.9.1). **The height only goes up to what fits on screen** (1.0.80): even at the top end in landscape the keyboard does not fill the screen, so there is always room left to reach the sliders.
+> To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. **Two sliders — height and width** — let you resize while watching the keyboard (0.8.431; before that only one of them was offered, and a side-docked landscape keyboard could only change its width). It is also listed under ⚙ Settings → **Tips** (0.8.430). The sliders overlay the terminal, so opening them does not resize it (0.9.1). In landscape it goes down to 140dp (1.0.81; 200dp before). **The height only goes up to what fits on screen** (1.0.81): even at the top end in landscape the keyboard does not fill the screen, so there is always room left to reach the sliders.
 >
 > **Floating keyboard (0.9.1)**: make the bottom in-app keyboard **narrower than 100%** and it floats over the terminal. **Drag the grip on its top edge** to move it anywhere (portrait and landscape positions are remembered separately). The terminal extends to the bottom of the screen and the part under the keyboard is hidden. Back at 100% it is docked at the bottom again. GUI tabs keep it docked.
 
@@ -781,7 +781,7 @@ Notification, SMS, event and unlock-failure detection and log formats remain in 
 | Font size | 4–32 (also changeable by pinching) |
 | Scrollback lines | How many lines you can scroll back through |
 | Toolbar | **Choose which buttons appear above the terminal.** The real buttons are laid out; tap to remove or bring one back. A removed button's position is remembered. ⚙ is always rightmost and cannot be removed. If you remove 🔅 screen-on lock or 🔒 keep-alive, a switch for it appears in this section |
-| Toolbar position (landscape) | **Left / Right** — which edge the vertical toolbar column stands on in landscape (0.8.433; left by default; since 1.0.80 the tabs run along the top) |
+| Toolbar position (landscape) | **Left / Right** — which edge the vertical toolbar column stands on in landscape (0.8.433; left by default; since 1.0.81 the tabs run along the top) |
 | Distro | Alpine / Ubuntu / Arch / Kali |
 | Keyboard style | Simple / 4-direction flick |
 | Keyboard faces | Built-in **Japanese (flick and romaji), letters and numbers**, plus every saved custom layout, each have their own ON/OFF switch (0.8.413). Move any face up or down to freely choose the order used by the next-face key. At least one face always remains enabled. |
@@ -992,7 +992,7 @@ when a `z2-when` rule fired **without opening the app**.
 
 ## 9.6. Floating edge panels
 
-**They do not turn with the screen (1.0.80)**: when you turn the phone sideways, edge panels and their edge handles keep the same orientation, size and position they have in portrait, as if fixed to the phone itself. Next to the rest of a landscape screen they look turned by 90°, so hold the phone upright to use a panel.
+**They do not turn with the screen (1.0.81)**: when you turn the phone sideways, edge panels and their edge handles keep the same orientation, size and position they have in portrait, as if fixed to the phone itself. Next to the rest of a landscape screen they look turned by 90°, so hold the phone upright to use a panel. The edge handles stay flush against the same edge of the phone as in portrait; if the status or navigation bar is on that edge, a touch there may go to it instead.
 
 **Opening from Settings (0.8.654)**: Settings › Edge panels › “Open edge panel settings” also opens the settings screen. It works while the panels are off: the edge bar stays hidden and they stay off after you close it. With no panel yet the edge-panel guide opens instead, and without the overlay permission its permission screen opens.
 

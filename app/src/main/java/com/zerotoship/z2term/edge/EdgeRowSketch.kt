@@ -154,7 +154,7 @@ internal class EdgeRowSketch(
         private var startY = 0f
         private var lastX = 0f
         private var lastY = 0f
-        // 窓を回していても (画面の向きに合わせない・1.0.80)、パネルに対する向きで数える。
+        // 窓を回していても (画面の向きに合わせない・1.0.81)、パネルに対する向きで数える。
         private fun along(view: View, dx: Float, dy: Float): Float =
             EdgeOrientation.frameDelta(EdgeOrientation.turnsOf(view), dx, dy).let { if (horizontal) it.second else it.first }
         override fun onTouch(view: View, event: MotionEvent): Boolean {

@@ -1371,7 +1371,8 @@ class AppSettings(private val context: Context) {
 
         /** 横画面でのキーボード総高さ (dp)。下/左/右どの配置でも横画面の時に適用。 */
         const val DEFAULT_LANDSCAPE_KEYBOARD_HEIGHT_DP = 320f
-        const val MIN_LANDSCAPE_KB_HEIGHT_DP = 200f
+        // 1.0.81 で 200dp → 140dp (利用者の要望: 横画面では端末を広く残したい)。
+        const val MIN_LANDSCAPE_KB_HEIGHT_DP = 140f
         const val MAX_LANDSCAPE_KB_HEIGHT_DP = 500f
 
         /** 縦画面でのキーボード総高さ (dp)。横画面とは独立して保持し、向きで自動切替。 */

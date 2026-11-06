@@ -626,7 +626,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         // スタイルは面ごとに決まる。外枠の基準は4方向フリック面に固定する。
         val baseStyle = KeyboardStyle.SPACIOUS
         // キーボード高さは縦/横で別々の設定値を使う (向きが変わると自動で切り替わる)。
-        // 画面に収まる高さを超えないようにする ([keyboardHeightCapDp]・1.0.80)。
+        // 画面に収まる高さを超えないようにする ([keyboardHeightCapDp]・1.0.81)。
         val kbHeightCapDp = keyboardHeightCapDp(contentHeight)
         val kbStyle = scaledKeyboardStyle(
             baseStyle,
@@ -1485,7 +1485,7 @@ private fun GuiTabScreen(
             && !keyboardCollapsed
             && keyboardMode == KeyboardMode.CUSTOM
         val baseStyleGui = KeyboardStyle.SPACIOUS
-        // 画面に収まる高さを超えないようにする ([keyboardHeightCapDp]・1.0.80)。
+        // 画面に収まる高さを超えないようにする ([keyboardHeightCapDp]・1.0.81)。
         val kbHeightCapDpGui = keyboardHeightCapDp(contentHeight)
         val kbStyleGui = scaledKeyboardStyle(
             baseStyleGui,
@@ -2206,9 +2206,9 @@ private val RAIL_TOOLBAR_WIDTH = 48.dp
  * 縦に並べたが、**縦画面では 2 段なのに横画面だけ 1 段**になり、境目が分からず狭かった。
  * ⇒ **縦画面の 2 段をそのまま 90 度倒した「2 列」にする。** 列ごとに枠線を引いて境目を出す。
  *
- * ⛔ **タブは縦のレールに立てない (1.0.80・利用者の指摘)。** 0.8.433〜1.0.79 はタブも縦の列にして
- * いたが、**タブ名が 1 字ずつ縦に並んで読みにくかった**。⇒ **横画面でもタブは最上部に横向きで置き、
- * 縦のレールはツールバーだけにする。** タブバー 1 段ぶん高さを使うが、ツールバーの段は横へ逃がした
+ * ⛔ **タブは縦のレールに立てない (1.0.81・利用者の指摘)。** 0.8.433〜1.0.79 はタブも縦の列にして
+ * いたが、**タブ名が 1 字ずつ縦に並んで読みにくかった**。⇒ **横画面でもタブは本体の上に横向きで置き、
+ * 縦のレールはツールバーだけにする。** ツールバーの列は画面の高さいっぱいを取る (タブより優先)。 タブバー 1 段ぶん高さを使うが、ツールバーの段は横へ逃がした
  * ままなので、0.8.430 までの「2 段積み」よりは広い。
  *
  * @param railVertical true = 横画面 (ツールバーだけ縦レール)。false なら上に 2 段積む。
@@ -2243,24 +2243,26 @@ private fun TabScaffold(
         }
         return
     }
-    Column(modifier = modifier) {
-        tabs(false)
-        Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            @Composable
-            fun ToolbarLane() {
-                Column(
-                    modifier = Modifier
-                        .width(RAIL_TOOLBAR_WIDTH)
-                        .fillMaxHeight()
-                        .background(ZtsBgSecondary)
-                        .border(width = 1.dp, color = ZtsBorder),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) { toolbar(true) }
-            }
-            if (railOnLeft) ToolbarLane()
-            Body(Modifier.weight(1f).fillMaxHeight())
-            if (!railOnLeft) ToolbarLane()
+    // ⭐ ツールバーの列が画面の高さいっぱいを取り、タブバーは本体の上だけに置く (利用者の指摘:
+    // ツールバーのほうが優先)。タブを画面幅いっぱいにするとツールバーの列が短くなっていた。
+    Row(modifier = modifier) {
+        @Composable
+        fun ToolbarLane() {
+            Column(
+                modifier = Modifier
+                    .width(RAIL_TOOLBAR_WIDTH)
+                    .fillMaxHeight()
+                    .background(ZtsBgSecondary)
+                    .border(width = 1.dp, color = ZtsBorder),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) { toolbar(true) }
         }
+        if (railOnLeft) ToolbarLane()
+        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            tabs(false)
+            Body(Modifier.weight(1f).fillMaxWidth())
+        }
+        if (!railOnLeft) ToolbarLane()
     }
 }
 
@@ -3639,7 +3641,7 @@ private val KEYBOARD_SIZE_BAR_HEIGHT =
     SIZE_BAR_ROW_HEIGHT * SIZE_BAR_AXES + SIZE_BAR_V_PADDING * 2 + SIZE_BAR_BORDER * 2
 
 /**
- * 独自キーボードの高さの上限 (dp)。本体の高さ [contentHeight] から、サイズ調整帯 1 枚ぶんを残す (1.0.80)。
+ * 独自キーボードの高さの上限 (dp)。本体の高さ [contentHeight] から、サイズ調整帯 1 枚ぶんを残す (1.0.81)。
  *
  * ⛔ **設定の上限 (`MAX_*_KB_HEIGHT_DP`) だけで抑えない (利用者の指摘)。** 横画面の本体は 300dp 前後
  * しか無いのに、高さは 500dp まで上げられた。キーボードが本体を埋めると端末の領域が 0 になり、
@@ -3657,7 +3659,7 @@ internal fun keyboardHeightCapDp(contentHeight: Dp): Float =
  * - 下配置 (縦画面・横画面下): 高さ = 向きごとの dp / 幅 = 向きごとの **%** (0.8.431 で新設)
  *
  * ⚠ **高さを先に置く。** よく触るのは高さで、幅は「はみ出す/届かない」を直すときだけ触る。
- * 高さの右端は [heightCapDp] (画面に収まる高さ) で止め、表示する値も実際に出ている高さにする (1.0.80)。
+ * 高さの右端は [heightCapDp] (画面に収まる高さ) で止め、表示する値も実際に出ている高さにする (1.0.81)。
  */
 @Composable
 private fun keyboardSizeAxes(

@@ -24,7 +24,7 @@ target_link_libraries(
     ${log-lib}
 )
 
-# ビルド ID を付けない (1.0.80・F-Droid の再現可能ビルド)。AGP の release は
+# ビルド ID を付けない (1.0.81・F-Droid の再現可能ビルド)。AGP の release は
 # RelWithDebInfo (-g 付き) でビルドし、APK に入れるときにデバッグ情報を削る。
 # ビルド ID は削る前の中身から計算されるので、デバッグ情報に入る「ビルドした場所の
 # パス」で値が変わり、GitHub と F-Droid の APK がこの 20 バイトだけ一致しなかった。

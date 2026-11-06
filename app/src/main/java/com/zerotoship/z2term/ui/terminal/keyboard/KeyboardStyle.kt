@@ -28,7 +28,9 @@ data class KeyboardStyle(
      * 5 行構成全体の自然高さ (TerminalScreen がキーボード領域を
      * 自動拡張する基準値)。5 * keyHeight + 4 行間スペース + 上下 padding。
      */
-    val naturalHeight: Dp
+    val naturalHeight: Dp,
+    /** プリセットの段の数 ([naturalHeight] の内訳)。 */
+    val rows: Int = 5,
 ) {
     /**
      * 12 キー系の面 (かな [KeyboardFace.KANA] / 数字 [KeyboardFace.NUMBER]) 用に、
@@ -41,8 +43,8 @@ data class KeyboardStyle(
      */
     fun forTwelveKeyFace(): KeyboardStyle {
         val ref = SPACIOUS
-        val scale = (naturalHeight.value / ref.naturalHeight.value).coerceIn(0.6f, 2.5f)
-        val fontScale = scale.coerceIn(0.85f, 1.4f)
+        val scale = (naturalHeight.value / ref.naturalHeight.value).coerceIn(MIN_SCALE, 2.5f)
+        val fontScale = fontScaleFor(scale)
         return copy(
             keyFontSp = ref.keyFontSp * fontScale,
             mainKeyFontSp = ref.mainKeyFontSp * fontScale,
@@ -52,10 +54,10 @@ data class KeyboardStyle(
 
     /** 面ごとのスタイルを、設定されたキーボード総高さへ収める。 */
     fun scaledToHeight(targetHeight: Dp): KeyboardStyle {
-        val scale = (targetHeight.value / naturalHeight.value).coerceIn(0.6f, 2.5f)
-        val fontScale = scale.coerceIn(0.85f, 1.4f)
+        val scale = (targetHeight.value / naturalHeight.value).coerceIn(MIN_SCALE, 2.5f)
+        val fontScale = fontScaleFor(scale)
         return copy(
-            keyHeight = (keyHeight.value * scale).dp,
+            keyHeight = fittedKeyHeight(targetHeight),
             keyFontSp = keyFontSp * fontScale,
             mainKeyFontSp = mainKeyFontSp * fontScale,
             flickHintFontSp = flickHintFontSp * fontScale,
@@ -63,7 +65,32 @@ data class KeyboardStyle(
         )
     }
 
+    /**
+     * [target] の席に [rows] 段がちょうど収まるキーの高さ (1.0.81)。
+     *
+     * ⛔ **高さの比 (target / naturalHeight) でキーだけを縮めない。** 段の間の隙間 (キーが 56dp 以上で 4dp、
+     * 未満で 3dp) と上下の余白 8dp は縮まないので、比で縮めると小さい席ほどはみ出した (200dp で約 5dp、
+     * 140dp では約 10dp。端末の画面にかぶる)。横画面の下限を 140dp へ下げたとき (利用者の要望) に直した。
+     */
+    private fun fittedKeyHeight(target: Dp): Dp {
+        fun fit(spacing: Float) = (target.value - KEYBOARD_PADDING_DP - (rows - 1) * spacing) / rows
+        val wide = fit(4f)
+        return (if (wide >= 56f) wide else fit(3f)).coerceAtLeast(1f).dp
+    }
+
     companion object {
+        /** 上下の余白の合計 (TerminalKeyboard の vertical padding 4dp × 2)。 */
+        private const val KEYBOARD_PADDING_DP = 8f
+        /** 横画面の下限 140dp (= 4 方向フリックの 324dp の約 0.43 倍) まで縮められるようにする。 */
+        private const val MIN_SCALE = 0.4f
+
+        /**
+         * キーの字の倍率。0.6 倍以上はこれまでどおり 0.85〜1.4 倍に収め (小さめの席でも字を読める大きさに保つ)、
+         * それより小さい席 (横画面で 200dp 未満・1.0.81) だけ、キーに入るよう比例して小さくする。
+         */
+        private fun fontScaleFor(scale: Float): Float =
+            if (scale >= 0.6f) scale.coerceIn(0.85f, 1.4f) else 0.85f * scale / 0.6f
+
         val COMPACT = KeyboardStyle(
             id = "compact",
             displayNameRes = R.string.keyboard_style_compact,
@@ -73,7 +100,8 @@ data class KeyboardStyle(
             flickHintFontSp = 9f,
             fourDirectionFlick = false,
             // 6 行構成 (上に ESC/TAB/⇧/CTRL の特殊キーバー + 主 5 行): 6*44 + 5*3 + 8 ≒ 287
-            naturalHeight = 287.dp
+            naturalHeight = 287.dp,
+            rows = 6,
         )
         val SPACIOUS = KeyboardStyle(
             id = "spacious",

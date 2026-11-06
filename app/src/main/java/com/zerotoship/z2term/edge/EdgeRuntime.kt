@@ -76,8 +76,10 @@ object EdgeRuntime {
     private val scheduled = mutableListOf<Runnable>()
     private val retries = mutableMapOf<String, Runnable>()
     private var panelView: EdgePanelWindow? = null
-    // 窓は縦持ちの座標で出し入れする (画面が回っても本体に対して動かさない・1.0.80)。[EdgeOrientation]
-    private val windows = EdgeWindows({ wm() }, { screenArea() })
+    // 窓は縦持ちの座標で出し入れする (画面が回っても本体に対して動かさない・1.0.81)。[EdgeOrientation]
+    private val windows = EdgeWindows({ wm() }, { displaySize() }, { portraitInsets() })
+    // 縦持ちのときのシステムのバーの太さ。縦持ちで窓を組んだときに覚える ([screenArea])。
+    private var seenPortraitInsets: android.graphics.Rect? = null
     private var displayListener: android.hardware.display.DisplayManager.DisplayListener? = null
     private var builtTurns = 0
     private var editorSession: EdgeEditorSession? = null
@@ -344,27 +346,51 @@ object EdgeRuntime {
     }
 
     /**
-     * エッジの窓を組み立てる縦の枠の大きさ。画面が横に回っているときは [screenArea] の縦横を入れ替える
-     * (縦持ちのときと同じ大きさ・位置で出すため・1.0.80)。
+     * エッジの窓を組み立てる縦の枠の大きさ。画面が回っているときは、縦持ちの画面全体から縦持ちのときの
+     * システムのバーを除いた大きさ (縦持ちのときと同じ大きさ・位置で出すため・1.0.81)。[EdgeOrientation]
      */
-    private fun screenSize(): Pair<Int, Int> {
-        val (width, height) = screenArea()
-        return if (windows.turns() % 2 == 1) height to width else width to height
-    }
+    private fun screenSize(): Pair<Int, Int> = windows.frameSize() ?: screenArea()
 
     /** 実際の画面 (システムバーなどを除いた範囲) の、いまの向きでの大きさ。 */
+    private fun screenArea(): Pair<Int, Int> = screenAreaRect().let { it.width().coerceAtLeast(1) to it.height().coerceAtLeast(1) }
+
+    /** 実際の画面 (システムバーなどを除いた範囲) の、画面の座標での四角。縦持ちならバーの太さも覚える。 */
     @Suppress("DEPRECATION")
-    private fun screenArea(): Pair<Int, Int> {
+    private fun screenAreaRect(): android.graphics.Rect {
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             val metrics = wm().currentWindowMetrics
             val insets = metrics.windowInsets.getInsetsIgnoringVisibility(
                 android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
-            return (metrics.bounds.width() - insets.left - insets.right).coerceAtLeast(1) to
-                (metrics.bounds.height() - insets.top - insets.bottom).coerceAtLeast(1)
+            if (windows.turns() == 0)
+                seenPortraitInsets = android.graphics.Rect(insets.left, insets.top, insets.right, insets.bottom)
+            val b = metrics.bounds
+            return android.graphics.Rect(b.left + insets.left, b.top + insets.top, b.right - insets.right, b.bottom - insets.bottom)
         }
         val metrics = android.util.DisplayMetrics()
         wm().defaultDisplay.getMetrics(metrics)
+        return android.graphics.Rect(0, 0, metrics.widthPixels, metrics.heightPixels)
+    }
+
+    /** 画面全体 (システムのバーを含む) の、いまの向きでの大きさ。 */
+    @Suppress("DEPRECATION")
+    private fun displaySize(): Pair<Int, Int> {
+        if (android.os.Build.VERSION.SDK_INT >= 30) wm().currentWindowMetrics.bounds.let { return it.width() to it.height() }
+        val metrics = android.util.DisplayMetrics()
+        wm().defaultDisplay.getRealMetrics(metrics)
         return metrics.widthPixels to metrics.heightPixels
+    }
+
+    /**
+     * 縦持ちのときのシステムのバーの太さ。縦持ちで見たことがあればその値、まだなら Android の標準の
+     * 通知バー (上) とナビゲーション (下) の太さ (横画面のまま起動したとき)。
+     */
+    private fun portraitInsets(): android.graphics.Rect {
+        seenPortraitInsets?.let { return android.graphics.Rect(it) }
+        val res = android.content.res.Resources.getSystem()
+        @android.annotation.SuppressLint("DiscouragedApi", "InternalInsetResource")
+        fun dimen(name: String) = res.getIdentifier(name, "dimen", "android").takeIf { it != 0 }
+            ?.let { res.getDimensionPixelSize(it) } ?: 0
+        return android.graphics.Rect(0, dimen("status_bar_height"), 0, dimen("navigation_bar_height"))
     }
 
     private fun params(width: Int, height: Int, focus: Boolean = false) = WindowManager.LayoutParams(
@@ -777,15 +803,7 @@ object EdgeRuntime {
             runCatching {
                 check(AndroidActions.connected()) { app!!.getString(R.string.edge_accessibility_help) }
                 // 自動スクロールは他のアプリの画面を動かすので、縦の枠ではなく実際の画面の範囲を渡す。
-                val (width, height) = screenArea()
-                val root = windows.rootOf(view)
-                val location = IntArray(2)
-                root.getLocationOnScreen(location)
-                val layout = root.layoutParams as WindowManager.LayoutParams
-                val originX = location[0] - layout.x
-                val originY = location[1] - layout.y
-                AndroidActions.startAutoScroll(speed,
-                    android.graphics.Rect(originX, originY, originX + width, originY + height),
+                AndroidActions.startAutoScroll(speed, screenAreaRect(),
                     fields["scroll-x"]?.toFloatOrNull() ?: 50f,
                     fields["scroll-y"]?.toFloatOrNull() ?: 50f, once, requirePreviousTarget,
                     fields["scroll-how"].orEmpty().ifEmpty { "auto" }) { error ->

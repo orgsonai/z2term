@@ -64,7 +64,7 @@ internal object Workspace {
     AlertDialog(onDismissRequest = { onDismiss() }, title = { Text(stringResource(R.string.workspace_title)) },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.workspace_hint))
-            // 向きは枠で囲んだラジオボタン (1.0.80・利用者の指摘)。✓ 付きの文字だけでは、
+            // 向きは枠で囲んだラジオボタン (1.0.81・利用者の指摘)。✓ 付きの文字だけでは、
             // どちらを選んでいるかが目に入りにくかった。中の図が分割の形そのもの。
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SplitChoice(stringResource(R.string.workspace_vertical), horizontal = false,
@@ -72,7 +72,7 @@ internal object Workspace {
                 SplitChoice(stringResource(R.string.workspace_horizontal), horizontal = true,
                     selected = horizontal, onSelect = { horizontal = true }, modifier = Modifier.weight(1f))
             }
-            // 見本: いまのタブがどちらに入り、下で押したタブがどちらに入るか (1.0.80・利用者の指摘)。
+            // 見本: いまのタブがどちらに入り、下で押したタブがどちらに入るか (1.0.81・利用者の指摘)。
             // 以前は「ほかのタブ」の名前しか出ず、押すまで何と何が並ぶか分からなかった。
             // ⛔ 選んでから「分割する」で決める 2 手にはしない (利用者の判断: 手数を増やさない)。
             if (sessions.size >= 2) {

@@ -45,7 +45,7 @@ android {
     // 価値が無く、利用者に「どちらを入れるのか」を選ばせるだけだったので廃止した。
     // 実行エンジン z2root もディストロも全ビルド共通で、rootfs は初回に公式 CDN から取得する。
 
-    // 公開する APK の NDK は r27c に固定する (1.0.80)。F-Droid の再現可能ビルドは、
+    // 公開する APK の NDK は r27c に固定する (1.0.81)。F-Droid の再現可能ビルドは、
     // F-Droid がビルドした APK と GitHub の APK が 1 バイトも違わないことが条件で、
     // .so は NDK の版が違うだけで中身が変わる。以前は版を指定しておらず、CMake の
     // libz2term / libc++_shared は AGP 既定 (r28)、z2root の .so はランナーの
@@ -59,8 +59,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 778
-        versionName = "1.0.80"
+        versionCode = 779
+        versionName = "1.0.81"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -195,7 +195,7 @@ android {
         }
     }
 
-    // 署名ブロックに Google 向けの暗号化した依存情報を入れない (1.0.80)。
+    // 署名ブロックに Google 向けの暗号化した依存情報を入れない (1.0.81)。
     // F-Droid は中身を確かめられないこのブロックを認めず、再現可能ビルドでは
     // GitHub の APK の署名ブロックがそのまま F-Droid の配布物になる。
     dependenciesInfo {
@@ -263,7 +263,7 @@ val buildZ2rootNative = tasks.register<Exec>("buildZ2rootNative") {
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2usb.so"))
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2attach.so"))
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2android.so"))
-    // NDK は AGP が解決したもの (= android.ndkVersion) を明示して渡す (1.0.80)。
+    // NDK は AGP が解決したもの (= android.ndkVersion) を明示して渡す (1.0.81)。
     // 渡さないとスクリプトは親の ANDROID_NDK_HOME を最優先で拾い、GitHub のランナーでは
     // そこに入っている別の版 (r27d) で .so ができて、CMake 側 (ndkVersion) と食い違っていた。
     val ndkDir = androidComponents.sdkComponents.ndkDirectory

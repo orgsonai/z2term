@@ -63,7 +63,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
             }
             MotionEvent.ACTION_POINTER_DOWN -> swipeCandidate = false
             MotionEvent.ACTION_MOVE -> if (swipeCandidate) {
-                // 窓を回していても (画面の向きに合わせない・1.0.80)、パネルに対する向きで数える。
+                // 窓を回していても (画面の向きに合わせない・1.0.81)、パネルに対する向きで数える。
                 val (dx, dy) = EdgeOrientation.frameDelta(EdgeOrientation.turnsOf(this),
                     event.rawX - swipeStartX, event.rawY - swipeStartY)
                 val along = kotlin.math.abs(if (swipeHorizontal) dx else dy)
