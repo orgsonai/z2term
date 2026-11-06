@@ -12,12 +12,14 @@ val keystoreProps: Properties? = if (keystorePropsFile.exists()) {
 } else null
 
 // local.properties (環境ごと・git 管理外) から任意設定を読む。
-// `ndk.version` を書いておくと、その NDK を使う。書かなければ AGP 既定に任せる。
-// PC (x86_64) と スマホ z2term の PRoot (ARM64) で必要な NDK が違うため、
-// build.gradle.kts には直書きせず、各環境の local.properties で切り替える。
-//   PC      : sdk.dir=/opt/android-sdk            (ndk.version は不要 = 既定)
+// `ndk.version` を書いておくと、その NDK を使う。書かなければ下の RELEASE_NDK_VERSION。
+// スマホ z2term の PRoot (ARM64) では x86_64 用の NDK が動かないため、local.properties で差し替える。
+//   PC      : sdk.dir=/opt/android-sdk            (ndk.version は不要 = RELEASE_NDK_VERSION)
 //   z2term  : sdk.dir=/root/android-sdk
 //             ndk.version=29.0.14206865           (termux-ndk r29, ARM64 ホスト用)
+// r27c。docs/FDROID.md と F-Droid のレシピ (ndk: r27c) も同じ版を指す。
+val RELEASE_NDK_VERSION = "27.2.12479018"
+
 val localProps: Properties = Properties().apply {
     rootProject.file("local.properties").takeIf { it.exists() }
         ?.inputStream()?.use { load(it) }
@@ -43,18 +45,22 @@ android {
     // 価値が無く、利用者に「どちらを入れるのか」を選ばせるだけだったので廃止した。
     // 実行エンジン z2root もディストロも全ビルド共通で、rootfs は初回に公式 CDN から取得する。
 
-    // local.properties に ndk.version があればそれを使う (環境ごとに切替)。
-    // 無ければ設定せず AGP 既定 NDK に任せる (= PC では普段どおり)。
-    localProps.getProperty("ndk.version")?.takeIf { it.isNotBlank() }?.let {
-        ndkVersion = it
-    }
+    // 公開する APK の NDK は r27c に固定する (1.0.80)。F-Droid の再現可能ビルドは、
+    // F-Droid がビルドした APK と GitHub の APK が 1 バイトも違わないことが条件で、
+    // .so は NDK の版が違うだけで中身が変わる。以前は版を指定しておらず、CMake の
+    // libz2term / libc++_shared は AGP 既定 (r28)、z2root の .so はランナーの
+    // ANDROID_NDK_HOME (r27d) と、CI の中でも 2 つの NDK が混ざっていた。
+    // F-Droid のレシピの `ndk: r27c` と揃えること (変えるときは両方を同時に)。
+    // local.properties の ndk.version は、ARM64 のスマホでのビルド用の差し替え。
+    ndkVersion = localProps.getProperty("ndk.version")?.takeIf { it.isNotBlank() }
+        ?: RELEASE_NDK_VERSION
 
     defaultConfig {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 777
-        versionName = "1.0.79"
+        versionCode = 778
+        versionName = "1.0.80"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -189,6 +195,14 @@ android {
         }
     }
 
+    // 署名ブロックに Google 向けの暗号化した依存情報を入れない (1.0.80)。
+    // F-Droid は中身を確かめられないこのブロックを認めず、再現可能ビルドでは
+    // GitHub の APK の署名ブロックがそのまま F-Droid の配布物になる。
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -249,8 +263,12 @@ val buildZ2rootNative = tasks.register<Exec>("buildZ2rootNative") {
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2usb.so"))
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2attach.so"))
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2android.so"))
-    // NDK は build-z2root.sh が自己解決する(ANDROID_NDK_HOME 等の env / local.properties の
-    // sdk.dir+ndk.version / ANDROID_HOME 配下の ndk)。Exec は親 env を継承するため追加指定不要。
+    // NDK は AGP が解決したもの (= android.ndkVersion) を明示して渡す (1.0.80)。
+    // 渡さないとスクリプトは親の ANDROID_NDK_HOME を最優先で拾い、GitHub のランナーでは
+    // そこに入っている別の版 (r27d) で .so ができて、CMake 側 (ndkVersion) と食い違っていた。
+    val ndkDir = androidComponents.sdkComponents.ndkDirectory
+    inputs.property("ndkVersion", android.ndkVersion)
+    doFirst { environment("ANDROID_NDK_HOME", ndkDir.get().asFile.absolutePath) }
     commandLine("bash", script.absolutePath)
 }
 

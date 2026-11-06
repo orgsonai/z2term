@@ -11,6 +11,8 @@
     <string name="workspace_hint">選取並排顯示的分頁。點按窗格選擇輸入目標，拖曳分隔線調整大小。長按窗格標題並拖向另一個窗格即可互換，點按標題右端的按鈕（或點兩下標題）則只顯示該分頁。</string>
     <string name="workspace_vertical">上下</string>
     <string name="workspace_horizontal">左右</string>
+    <string name="workspace_preview_current">目前分頁</string>
+    <string name="workspace_preview_other">下面點選的分頁</string>
     <string name="workspace_need_two">請先再開啟一個終端或GUI分頁。</string>
     <string name="workspace_maximize">僅顯示此分頁</string>
     <string name="workspace_single">返回單窗格</string>

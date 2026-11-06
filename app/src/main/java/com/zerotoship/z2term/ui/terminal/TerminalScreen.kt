@@ -622,13 +622,18 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             modifier = if (railVertical) Modifier.fillMaxHeight() else Modifier
         )
         }
-    ) {
+    ) { contentHeight ->
         // スタイルは面ごとに決まる。外枠の基準は4方向フリック面に固定する。
         val baseStyle = KeyboardStyle.SPACIOUS
         // キーボード高さは縦/横で別々の設定値を使う (向きが変わると自動で切り替わる)。
+        // 画面に収まる高さを超えないようにする ([keyboardHeightCapDp]・1.0.80)。
+        val kbHeightCapDp = keyboardHeightCapDp(contentHeight)
         val kbStyle = scaledKeyboardStyle(
             baseStyle,
-            if (isLandscape) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp
+            minOf(
+                if (isLandscape) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp,
+                kbHeightCapDp
+            )
         )
         val legacyKanaAvailable = LocaleHelper.language(context) == LocaleHelper.LANG_JA
         val faceEntries = remember(
@@ -931,6 +936,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                             settings = settings,
                             isLandscape = isLandscape,
                             isSideKeyboard = isSideKB,
+                            heightCapDp = kbHeightCapDp,
                             onHeightChange = { value ->
                                 if (isLandscape) active.setLandscapeKeyboardHeightDp(value)
                                 else active.setPortraitKeyboardHeightDp(value)
@@ -1469,7 +1475,7 @@ private fun GuiTabScreen(
             modifier = if (railVertical) Modifier.fillMaxHeight() else Modifier
         )
         }
-    ) {
+    ) { contentHeight ->
 
         // 横画面 + 左/右配置 + 独自キーボード + 折りたたまれていない時のみ、サイド配置に切替。
         // (GUI 領域は onSizeChanged で実寸を測って VNC 解像度を決めるので、サイド配置で
@@ -1479,9 +1485,14 @@ private fun GuiTabScreen(
             && !keyboardCollapsed
             && keyboardMode == KeyboardMode.CUSTOM
         val baseStyleGui = KeyboardStyle.SPACIOUS
+        // 画面に収まる高さを超えないようにする ([keyboardHeightCapDp]・1.0.80)。
+        val kbHeightCapDpGui = keyboardHeightCapDp(contentHeight)
         val kbStyleGui = scaledKeyboardStyle(
             baseStyleGui,
-            if (isLandscapeGui) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp
+            minOf(
+                if (isLandscapeGui) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp,
+                kbHeightCapDpGui
+            )
         )
         val legacyKanaAvailableGui = LocaleHelper.language(context) == LocaleHelper.LANG_JA
         val faceEntries = remember(
@@ -1627,6 +1638,7 @@ private fun GuiTabScreen(
                     settings = settings,
                     isLandscape = isLandscapeGui,
                     isSideKeyboard = isSideKBGui,
+                    heightCapDp = kbHeightCapDpGui,
                     onHeightChange = { value ->
                         scope.launch {
                             if (isLandscapeGui) appSettings.setLandscapeKeyboardHeightDp(value)
@@ -2181,9 +2193,6 @@ private const val VERTICAL_TAB_CHARS = 8
 /** 横画面レールのツールバー列の幅。チップ (約 36dp) + 左右の余白。 */
 private val RAIL_TOOLBAR_WIDTH = 48.dp
 
-/** 横画面レールのタブ列の幅。タブ名は縦書きなので 1 文字ぶん + 余白で足りる。 */
-private val RAIL_TAB_WIDTH = 44.dp
-
 /**
  * ツールバーとタブの置き場 (§12-7・0.8.431 / 0.8.433 で 2 列化)。
  *
@@ -2196,13 +2205,18 @@ private val RAIL_TAB_WIDTH = 44.dp
  * ⛔ **2 つを 1 列に積まない (0.8.433・利用者の指摘)。** 0.8.432 は 1 列にツールバーとタブを
  * 縦に並べたが、**縦画面では 2 段なのに横画面だけ 1 段**になり、境目が分からず狭かった。
  * ⇒ **縦画面の 2 段をそのまま 90 度倒した「2 列」にする。** 列ごとに枠線を引いて境目を出す。
- * ⭐ **並びは縦画面と同じ順**: 本体から遠い側がツールバー、本体に接する側がタブ
- * (縦画面の 上=ツールバー / その下=タブ と同じ関係)。
  *
- * @param railVertical true = 横画面 (縦レール)。false なら従来どおり上に 2 段積む。
- * @param railOnLeft   レールを画面の左に出すか (設定 `landscapeRailPosition`)。
+ * ⛔ **タブは縦のレールに立てない (1.0.80・利用者の指摘)。** 0.8.433〜1.0.79 はタブも縦の列にして
+ * いたが、**タブ名が 1 字ずつ縦に並んで読みにくかった**。⇒ **横画面でもタブは最上部に横向きで置き、
+ * 縦のレールはツールバーだけにする。** タブバー 1 段ぶん高さを使うが、ツールバーの段は横へ逃がした
+ * ままなので、0.8.430 までの「2 段積み」よりは広い。
+ *
+ * @param railVertical true = 横画面 (ツールバーだけ縦レール)。false なら上に 2 段積む。
+ * @param railOnLeft   ツールバーのレールを画面の左に出すか (設定 `landscapeRailPosition`)。
  * @param toolbar ツールバー列。引数の Boolean をそのまま `vertical` へ渡す。
- * @param tabs    タブ列。同上。
+ * @param tabs    タブ列。どちらの向きでも横向き (`vertical` は常に false)。
+ * @param content 本体。引数は本体が使える高さ (キーボードの高さの上限を決めるのに使う。
+ *   [keyboardHeightCapDp])。
  */
 @Composable
 private fun TabScaffold(
@@ -2211,37 +2225,41 @@ private fun TabScaffold(
     modifier: Modifier = Modifier,
     toolbar: @Composable ColumnScope.(vertical: Boolean) -> Unit,
     tabs: @Composable ColumnScope.(vertical: Boolean) -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable ColumnScope.(contentHeight: Dp) -> Unit,
 ) {
+    // 本体の実際の高さを測って content に渡す。
+    @Composable
+    fun Body(bodyModifier: Modifier) {
+        BoxWithConstraints(modifier = bodyModifier) {
+            val contentHeight = maxHeight
+            Column(modifier = Modifier.fillMaxSize()) { content(contentHeight) }
+        }
+    }
     if (!railVertical) {
         Column(modifier = modifier) {
             toolbar(false)
             tabs(false)
-            content()
+            Body(Modifier.weight(1f).fillMaxWidth())
         }
         return
     }
-    Row(modifier = modifier) {
-        @Composable
-        fun Lane(width: Dp, body: @Composable ColumnScope.() -> Unit) {
-            Column(
-                modifier = Modifier
-                    .width(width)
-                    .fillMaxHeight()
-                    .background(ZtsBgSecondary)
-                    .border(width = 1.dp, color = ZtsBorder),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                content = body,
-            )
-        }
-        if (railOnLeft) {
-            Lane(RAIL_TOOLBAR_WIDTH) { toolbar(true) }
-            Lane(RAIL_TAB_WIDTH) { tabs(true) }
-        }
-        Column(modifier = Modifier.weight(1f).fillMaxHeight()) { content() }
-        if (!railOnLeft) {
-            Lane(RAIL_TAB_WIDTH) { tabs(true) }
-            Lane(RAIL_TOOLBAR_WIDTH) { toolbar(true) }
+    Column(modifier = modifier) {
+        tabs(false)
+        Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            @Composable
+            fun ToolbarLane() {
+                Column(
+                    modifier = Modifier
+                        .width(RAIL_TOOLBAR_WIDTH)
+                        .fillMaxHeight()
+                        .background(ZtsBgSecondary)
+                        .border(width = 1.dp, color = ZtsBorder),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) { toolbar(true) }
+            }
+            if (railOnLeft) ToolbarLane()
+            Body(Modifier.weight(1f).fillMaxHeight())
+            if (!railOnLeft) ToolbarLane()
         }
     }
 }
@@ -3553,14 +3571,14 @@ private fun KeyboardSizeBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(ZtsBgSecondary)
-            .border(width = 1.dp, color = ZtsBorder)
-            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .border(width = SIZE_BAR_BORDER, color = ZtsBorder)
+            .padding(horizontal = 8.dp, vertical = SIZE_BAR_V_PADDING)
     ) {
         axes.forEachIndexed { index, axis ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(40.dp),
+                    .height(SIZE_BAR_ROW_HEIGHT),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -3611,6 +3629,27 @@ private fun KeyboardSizeBar(
     }
 }
 
+// サイズ調整帯の寸法。帯の高さ ([KEYBOARD_SIZE_BAR_HEIGHT]) をキーボードの高さの上限に使うので、
+// 帯の見た目を変えるときはここを変える。軸は [keyboardSizeAxes] が返す高さ・幅の 2 本。
+private val SIZE_BAR_ROW_HEIGHT = 40.dp
+private val SIZE_BAR_V_PADDING = 2.dp
+private val SIZE_BAR_BORDER = 1.dp
+private const val SIZE_BAR_AXES = 2
+private val KEYBOARD_SIZE_BAR_HEIGHT =
+    SIZE_BAR_ROW_HEIGHT * SIZE_BAR_AXES + SIZE_BAR_V_PADDING * 2 + SIZE_BAR_BORDER * 2
+
+/**
+ * 独自キーボードの高さの上限 (dp)。本体の高さ [contentHeight] から、サイズ調整帯 1 枚ぶんを残す (1.0.80)。
+ *
+ * ⛔ **設定の上限 (`MAX_*_KB_HEIGHT_DP`) だけで抑えない (利用者の指摘)。** 横画面の本体は 300dp 前後
+ * しか無いのに、高さは 500dp まで上げられた。キーボードが本体を埋めると端末の領域が 0 になり、
+ * その上に重ねて出すサイズ調整帯がキーボードの後ろに隠れて**押せなくなり、戻す手段が無くなった**。
+ * ⇒ 実際に使える高さで抑え、端末の領域には少なくとも帯が収まる高さを必ず残す。設定値そのものは
+ * 書き換えない (画面の大きい向き・端末では、設定どおりの高さで出る)。
+ */
+internal fun keyboardHeightCapDp(contentHeight: Dp): Float =
+    (contentHeight - KEYBOARD_SIZE_BAR_HEIGHT).value
+
 /**
  * いまの向き・配置に応じたサイズ調整帯の軸を組み立てる (端末タブ / GUI タブ共通)。
  *
@@ -3618,27 +3657,32 @@ private fun KeyboardSizeBar(
  * - 下配置 (縦画面・横画面下): 高さ = 向きごとの dp / 幅 = 向きごとの **%** (0.8.431 で新設)
  *
  * ⚠ **高さを先に置く。** よく触るのは高さで、幅は「はみ出す/届かない」を直すときだけ触る。
+ * 高さの右端は [heightCapDp] (画面に収まる高さ) で止め、表示する値も実際に出ている高さにする (1.0.80)。
  */
 @Composable
 private fun keyboardSizeAxes(
     settings: AppSettings.Snapshot,
     isLandscape: Boolean,
     isSideKeyboard: Boolean,
+    heightCapDp: Float,
     onHeightChange: (Float) -> Unit,
     onWidthChange: (Float) -> Unit,
 ): List<SizeAxis> {
+    val heightMin = if (isLandscape) AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP else AppSettings.MIN_PORTRAIT_KB_HEIGHT_DP
+    val heightMax = minOf(
+        if (isLandscape) AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP else AppSettings.MAX_PORTRAIT_KB_HEIGHT_DP,
+        heightCapDp
+    ).coerceAtLeast(heightMin)
     val height = SizeAxis(
         title = stringResource(
             if (isLandscape) R.string.settings_kb_height_landscape
             else R.string.settings_kb_height_portrait
         ),
-        value = if (isLandscape) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp,
-        range = if (isLandscape) {
-            AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP
-        } else {
-            AppSettings.MIN_PORTRAIT_KB_HEIGHT_DP..AppSettings.MAX_PORTRAIT_KB_HEIGHT_DP
-        },
-        steps = if (isLandscape) 14 else 12,
+        value = (if (isLandscape) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp)
+            .coerceIn(heightMin, heightMax),
+        range = heightMin..heightMax,
+        // 20dp 刻み (以前の 200..500dp / 14 段、200..460dp / 12 段と同じ間隔)。右端が画面で変わっても刻みは保つ。
+        steps = (((heightMax - heightMin) / 20f).roundToInt() - 1).coerceAtLeast(0),
         unit = "dp",
         onChange = onHeightChange,
     )

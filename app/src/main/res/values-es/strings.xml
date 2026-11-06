@@ -753,7 +753,7 @@
     <string name="tb_pointer_mode">Cursor: relativo / absoluto</string>
     <string name="tb_clipboard_file">Enviar archivos al escritorio remoto</string>
     <string name="clipboard_file_unavailable">Este archivo no se puede leer. Elige otro.</string>
-    <string name="settings_landscape_rail_desc">En horizontal, la barra de herramientas y las pestañas se colocan en dos columnas verticales. Elige en qué borde se sitúan.</string>
+    <string name="settings_landscape_rail_desc">En horizontal, la barra de herramientas se coloca en una columna vertical (las pestañas siguen arriba, en horizontal). Elige en qué borde va.</string>
     <string name="settings_landscape_rail_left">Izquierda</string>
     <string name="settings_landscape_rail_right">Derecha</string>
     <string name="log_sheet_title">Registro de la terminal</string>

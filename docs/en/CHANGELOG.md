@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.80 (versionCode 778)**: (1) In landscape, raising the keyboard height all the way with a ⌨ triple-tap let the keyboard fill the screen and hid the size bar behind it, with no way back; fixed — the height now only goes up to what fits on screen. (2) In landscape the tab bar now runs along the top, horizontally (in the vertical column the names were written vertically and hard to read); the toolbar stays in its vertical column at the side. (3) Turning the phone sideways no longer changes edge panels and their handles: they keep their portrait orientation, size and position. (4) In "Session layout" (long-press 🖥), top/bottom and left/right are now radio choices with a diagram, plus a preview of where the current tab and the tab you tap will go. (5) The build is now set up so that F-Droid can ship the same APK as GitHub. The NDK used for the native code is pinned to r27c, `libz2term.so` no longer carries a build ID that changed with the build location, and the signature no longer carries dependency metadata for Google. The app itself works the same.
+
 **1.0.79 (versionCode 777)**: When editing a connection, a server or an automation rule, Cancel and Save now stay at the bottom of the screen, so you no longer have to scroll all the way down to reach them.
 
 **1.0.78 (versionCode 776)**: The rules that `voice.sh setup` adds are now explained. Settings › Show a guide › `voice` names all 4, and both the guide and the setup output say that the Count steps rule only keeps the step counter running and runs nothing. ⚠ Reinstall with `z2-macro install -f voice` to get the new macro text.

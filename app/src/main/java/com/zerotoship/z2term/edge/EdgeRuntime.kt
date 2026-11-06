@@ -76,6 +76,10 @@ object EdgeRuntime {
     private val scheduled = mutableListOf<Runnable>()
     private val retries = mutableMapOf<String, Runnable>()
     private var panelView: EdgePanelWindow? = null
+    // 窓は縦持ちの座標で出し入れする (画面が回っても本体に対して動かさない・1.0.80)。[EdgeOrientation]
+    private val windows = EdgeWindows({ wm() }, { screenArea() })
+    private var displayListener: android.hardware.display.DisplayManager.DisplayListener? = null
+    private var builtTurns = 0
     private var editorSession: EdgeEditorSession? = null
     private var snapPreview: View? = null
     private var openId: String? = null
@@ -218,6 +222,19 @@ object EdgeRuntime {
             override fun onConfigurationChanged(newConfig: Configuration) { rebuildWindows() }
         }
         windowContext!!.registerComponentCallbacks(configurationCallback!!)
+        // 90° ⇄ 270° (横画面のまま反対側へ倒す) は構成が変わらず onConfigurationChanged が来ないことがある。
+        // そのままだと窓が逆さに回ったまま残るので、画面の回転そのものを見て作り直す。
+        builtTurns = windows.turns()
+        displayListener = object : android.hardware.display.DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) = Unit
+            override fun onDisplayRemoved(displayId: Int) = Unit
+            override fun onDisplayChanged(displayId: Int) {
+                if (displayId != android.view.Display.DEFAULT_DISPLAY || windowContext == null) return
+                if (windows.turns() != builtTurns) rebuildWindows()
+            }
+        }
+        app!!.getSystemService(android.hardware.display.DisplayManager::class.java)
+            .registerDisplayListener(displayListener, main)
         runner = EdgeRunner(app!!)
         runCatching { TorchState.start(app!!) }
         TorchState.addListener(nativeStateListener)
@@ -243,6 +260,7 @@ object EdgeRuntime {
     }
 
     private fun rebuildWindows() {
+        builtTurns = windows.turns()
         runCatching {
             val previous = openRootId
             val wasEditing = editingItems
@@ -292,7 +310,11 @@ object EdgeRuntime {
         ScreenTimeout.removeListener(nativeStateListener)
         panels = emptyList(); values.clear(); badges.clear(); revisions.clear(); iconCache.evictAll()
         configurationCallback?.let { windowContext?.unregisterComponentCallbacks(it) }
-        configurationCallback = null; windowContext = null
+        configurationCallback = null
+        displayListener?.let { listener -> app?.getSystemService(android.hardware.display.DisplayManager::class.java)
+            ?.unregisterDisplayListener(listener) }
+        displayListener = null
+        windowContext = null
         app = null; serviceRequested = false; borrowed = false
     }
 
@@ -321,8 +343,18 @@ object EdgeRuntime {
         }
     }
 
-    @Suppress("DEPRECATION")
+    /**
+     * エッジの窓を組み立てる縦の枠の大きさ。画面が横に回っているときは [screenArea] の縦横を入れ替える
+     * (縦持ちのときと同じ大きさ・位置で出すため・1.0.80)。
+     */
     private fun screenSize(): Pair<Int, Int> {
+        val (width, height) = screenArea()
+        return if (windows.turns() % 2 == 1) height to width else width to height
+    }
+
+    /** 実際の画面 (システムバーなどを除いた範囲) の、いまの向きでの大きさ。 */
+    @Suppress("DEPRECATION")
+    private fun screenArea(): Pair<Int, Int> {
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             val metrics = wm().currentWindowMetrics
             val insets = metrics.windowInsets.getInsetsIgnoringVisibility(
@@ -342,7 +374,7 @@ object EdgeRuntime {
     ).apply { gravity = ScreenGravity.TOP_LEFT }
 
     private fun removeSnapPreview() {
-        snapPreview?.let { runCatching { wm().removeView(it) } }
+        snapPreview?.let { runCatching { windows.remove(it) } }
         snapPreview = null
     }
 
@@ -355,7 +387,7 @@ object EdgeRuntime {
             flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         }
         snapPreview = line
-        wm().addView(line, p)
+        windows.add(line, p)
     }
 
     private fun removeHandles() {
@@ -365,7 +397,7 @@ object EdgeRuntime {
         stopHandleScroll()
         removeSnapPreview()
         handleCallbacks.forEach { main.removeCallbacks(it) }; handleCallbacks.clear()
-        handles.values.forEach { runCatching { wm().removeView(it) } }
+        handles.values.forEach { runCatching { windows.remove(it) } }
         handles.clear()
     }
 
@@ -503,7 +535,9 @@ object EdgeRuntime {
                     }
                     MotionEvent.ACTION_MOVE -> {
                         if (cancelled) return@setOnTouchListener true
-                        val dx = event.rawX - startX; val dy = event.rawY - startY
+                        // 画面が回っていても、本体に対する向き (縦の枠) で数える。
+                        val (dx, dy) = EdgeOrientation.frameDelta(EdgeOrientation.turnsOf(view),
+                            event.rawX - startX, event.rawY - startY)
                         if (!relocating) gesture.move(dx, dy, right)
                         if (kotlin.math.abs(dx) > slop || kotlin.math.abs(dy) > slop) {
                             moved = true; main.removeCallbacks(longPress)
@@ -517,7 +551,7 @@ object EdgeRuntime {
                             p.x = (originalX + dx.toInt()).coerceIn(0, (width - w).coerceAtLeast(0))
                             p.y = (originalY + dy.toInt()).coerceIn(0, (height - h).coerceAtLeast(0))
                             runCatching {
-                                wm().updateViewLayout(view, p)
+                                windows.update(view, p)
                                 val targetRight = p.x + w / 2 >= width / 2
                                 if (!button && previewRight != targetRight) {
                                     previewRight = targetRight; previewSnap(targetRight)
@@ -531,7 +565,7 @@ object EdgeRuntime {
                         if (cancelled || (stopTouch && !moved)) {
                             scrollSessionAvailable = false
                             p.x = originalX; p.y = originalY
-                            runCatching { wm().updateViewLayout(view, p) }
+                            runCatching { windows.update(view, p) }
                             releaseAppearance()
                             return@setOnTouchListener true
                         }
@@ -554,7 +588,8 @@ object EdgeRuntime {
                                 panels = store(app!!).panels()
                             }.onFailure { fail(it) }
                         } else {
-                            val dx = event.rawX - startX; val dy = event.rawY - startY
+                            val (dx, dy) = EdgeOrientation.frameDelta(EdgeOrientation.turnsOf(view),
+                                event.rawX - startX, event.rawY - startY)
                             val kind = gesture.move(dx, dy, right)
                             if (kind == EdgeHandleGesture.Kind.TAP && hasDoubleTap && !editingItems && cancelAppearance == null) {
                                 if (secondTap) runHandleActions(panel, EdgeActions.Trigger.DOUBLE_TAP, view, 0f)
@@ -579,25 +614,24 @@ object EdgeRuntime {
                         main.removeCallbacks(singleTap); pendingTap = false
                         if (moved || relocating) {
                         p.x = originalX; p.y = originalY
-                        runCatching { wm().updateViewLayout(view, p) }
+                        runCatching { windows.update(view, p) }
                     }; releaseAppearance(); true }
                     else -> false
                 }
             }
-            wm().addView(view, p)
+            windows.add(view, p)
             handles[panel.id] = view
             if (!button && f["bar-color"].orEmpty() in setOf("", "auto")) {
                 contrastTargets.add(EdgeHandleContrast.Target(area = {
                     if (!view.isAttachedToWindow || !view.isShown || relocating || view.width == 0 || view.height == 0) null
                     else {
-                        val location = IntArray(2).also(view::getLocationOnScreen)
                         val visibleWidth = size.coerceAtMost(view.width)
                         val gap = dp(2).coerceAtLeast(1)
                         val strip = dp(4).coerceAtLeast(1)
                         // Exclude the bar itself so sampling cannot alternate its own colour.
-                        val x = if (right) location[0] + view.width - visibleWidth - gap - strip
-                            else location[0] + visibleWidth + gap
-                        android.graphics.Rect(x, location[1], x + strip, location[1] + view.height)
+                        val x = if (right) view.width - visibleWidth - gap - strip else visibleWidth + gap
+                        // 帯の横の細長い範囲を、回した窓でも画面の座標で返す。
+                        windows.rectOnScreen(view, android.graphics.Rect(x, 0, x + strip, view.height))
                     }
                 }, paint = { black ->
                     blackBar = black
@@ -742,10 +776,12 @@ object EdgeRuntime {
             }
             runCatching {
                 check(AndroidActions.connected()) { app!!.getString(R.string.edge_accessibility_help) }
-                val (width, height) = screenSize()
+                // 自動スクロールは他のアプリの画面を動かすので、縦の枠ではなく実際の画面の範囲を渡す。
+                val (width, height) = screenArea()
+                val root = windows.rootOf(view)
                 val location = IntArray(2)
-                view.getLocationOnScreen(location)
-                val layout = view.layoutParams as WindowManager.LayoutParams
+                root.getLocationOnScreen(location)
+                val layout = root.layoutParams as WindowManager.LayoutParams
                 val originX = location[0] - layout.x
                 val originY = location[1] - layout.y
                 AndroidActions.startAutoScroll(speed,
@@ -1229,9 +1265,12 @@ object EdgeRuntime {
                 val position = if (settings) 0f to 0f else EdgePanelPosition.fractions(root.fields)
                 gravity = ScreenGravity.TOP_LEFT
                 // Use measured content size, including changes when the keyboard appears.
+                // 入力のキーボードの余白 (overlay の padding) は、窓を回していると下以外の辺にも付く。
                 val align = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-                    body.translationX = (overlay.width - body.width).coerceAtLeast(0) * position.first
-                    body.translationY = (overlay.height - overlay.paddingBottom - body.height).coerceAtLeast(0) * position.second
+                    body.translationX = (overlay.width - overlay.paddingLeft - overlay.paddingRight - body.width)
+                        .coerceAtLeast(0) * position.first
+                    body.translationY = (overlay.height - overlay.paddingTop - overlay.paddingBottom - body.height)
+                        .coerceAtLeast(0) * position.second
                 }
                 body.addOnLayoutChangeListener(align)
                 overlay.contentAlignment = align
@@ -1252,7 +1291,7 @@ object EdgeRuntime {
             // Keep the window frame and navigation anchored. IME overlap consumes content
             // space at the bottom, without moving or repeatedly resizing the window itself.
             if (existingWindow == null) overlay.setPadding(0, 0, 0, 0)
-            if (existingWindow == null) wm().addView(overlay, p) else wm().updateViewLayout(overlay, p)
+            if (existingWindow == null) windows.add(overlay, p) else windows.update(overlay, p)
             overlay.requestFocus()
             overlay.requestApplyInsets()
             if (!settings && panel.items.any { it.type == "note" }) {
@@ -1351,7 +1390,7 @@ object EdgeRuntime {
         // Stop hidden data producers. Explicit actions can finish (including out=notify).
         runner?.cancelReads()
         if (!keepWindow) {
-            panelView?.let { runCatching { wm().removeView(it) } }
+            panelView?.let { runCatching { windows.remove(it) } }
             panelView = null
         }
         openId = null; openRootId = null; editingItems = false; renderers.clear()

@@ -64,13 +64,24 @@ internal object Workspace {
     AlertDialog(onDismissRequest = { onDismiss() }, title = { Text(stringResource(R.string.workspace_title)) },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.workspace_hint))
-            Row {
-                TextButton(onClick = { horizontal = false }) { Text((if (!horizontal) "✓ " else "") + stringResource(R.string.workspace_vertical)) }
-                TextButton(onClick = { horizontal = true }) { Text((if (horizontal) "✓ " else "") + stringResource(R.string.workspace_horizontal)) }
+            // 向きは枠で囲んだラジオボタン (1.0.80・利用者の指摘)。✓ 付きの文字だけでは、
+            // どちらを選んでいるかが目に入りにくかった。中の図が分割の形そのもの。
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SplitChoice(stringResource(R.string.workspace_vertical), horizontal = false,
+                    selected = !horizontal, onSelect = { horizontal = false }, modifier = Modifier.weight(1f))
+                SplitChoice(stringResource(R.string.workspace_horizontal), horizontal = true,
+                    selected = horizontal, onSelect = { horizontal = true }, modifier = Modifier.weight(1f))
+            }
+            // 見本: いまのタブがどちらに入り、下で押したタブがどちらに入るか (1.0.80・利用者の指摘)。
+            // 以前は「ほかのタブ」の名前しか出ず、押すまで何と何が並ぶか分からなかった。
+            // ⛔ 選んでから「分割する」で決める 2 手にはしない (利用者の判断: 手数を増やさない)。
+            if (sessions.size >= 2) {
+                val currentLabel = sessions.firstOrNull { it.id == active }?.label?.collectAsState()?.value.orEmpty()
+                SplitPreview(horizontal, currentLabel)
             }
             sessions.filter { it.id != active }.forEach { session ->
                 val label by session.label.collectAsState()
-                OutlinedButton(onClick = {
+                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
                     Workspace.layout = SessionLayout(active, session.id, 1, horizontal)
                     SessionManager.setActive(session.id); onDismiss()
                 }) { Text(label) }
@@ -91,6 +102,57 @@ internal object Workspace {
                 Text(stringResource(R.string.workspace_return))
             }
         } }, confirmButton = { TextButton(onClick = { onDismiss() }) { Text(stringResource(android.R.string.ok)) } })
+}
+
+/** 分割の向きの選択肢 1 つ。枠と丸で選んでいるかを示し、中に分割の図を描く。 */
+@Composable private fun SplitChoice(label: String, horizontal: Boolean, selected: Boolean, onSelect: () -> Unit,
+        modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .border(if (selected) 2.dp else 1.dp, if (selected) ZtsGreen else ZtsBorder,
+                androidx.compose.foundation.shape.RoundedCornerShape(6.dp))
+            .clickable(onClick = onSelect)
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null,
+            colors = RadioButtonDefaults.colors(selectedColor = ZtsGreen, unselectedColor = ZtsTextSecondary))
+        SplitShape(horizontal, if (selected) ZtsGreen else ZtsTextSecondary, Modifier.size(width = 28.dp, height = 22.dp))
+        Text(label, color = if (selected) ZtsTextPrimary else ZtsTextSecondary)
+    }
+}
+
+/** 2 つに分けた四角。[horizontal] なら左右、そうでなければ上下。 */
+@Composable private fun SplitShape(horizontal: Boolean, color: androidx.compose.ui.graphics.Color, modifier: Modifier) {
+    val pane = Modifier.border(1.5.dp, color)
+    if (horizontal) Row(modifier) { Box(pane.weight(1f).fillMaxHeight()); Box(pane.weight(1f).fillMaxHeight()) }
+    else Column(modifier) { Box(pane.weight(1f).fillMaxWidth()); Box(pane.weight(1f).fillMaxWidth()) }
+}
+
+/** 選んだ向きで、いまのタブ ([currentLabel]) と下で押すタブがどこに入るかを見せる。 */
+@Composable private fun SplitPreview(horizontal: Boolean, currentLabel: String) {
+    @Composable fun Pane(title: String, name: String?, current: Boolean, modifier: Modifier) {
+        Column(
+            modifier = modifier
+                .border(if (current) 2.dp else 1.dp, if (current) ZtsGreen else ZtsBorder)
+                .padding(6.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(title, color = ZtsTextSecondary, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            if (name != null) Text(name, color = ZtsTextPrimary, maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
+    }
+    val first = stringResource(R.string.workspace_preview_current)
+    val second = stringResource(R.string.workspace_preview_other)
+    if (horizontal) Row(Modifier.fillMaxWidth().height(64.dp)) {
+        Pane(first, currentLabel, true, Modifier.weight(1f).fillMaxHeight())
+        Pane(second, null, false, Modifier.weight(1f).fillMaxHeight())
+    } else Column(Modifier.fillMaxWidth()) {
+        Pane(first, currentLabel, true, Modifier.fillMaxWidth().height(48.dp))
+        Pane(second, null, false, Modifier.fillMaxWidth().height(48.dp))
+    }
 }
 
 /** Only the focused pane hosts the existing toolbar/keyboard input path. A first tap focuses the other pane. */

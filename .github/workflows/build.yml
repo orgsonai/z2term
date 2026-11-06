@@ -41,7 +41,7 @@ jobs:
         with:
           # 既定の 'tools'(廃止メタパッケージ)は emulator を引き込みダウンロード破損で失敗する。
           # ビルド/lint/ユニットテストに emulator は不要なので platform-tools のみ入れる。
-          packages: 'platform-tools'
+          packages: 'platform-tools ndk;27.2.12479018'
 
       - name: Grant gradlew exec permission
         run: chmod +x ./gradlew
@@ -129,7 +129,7 @@ jobs:
         with:
           # 既定の 'tools'(廃止メタパッケージ)は emulator を引き込みダウンロード破損で失敗する。
           # release APK ビルドに emulator は不要なので platform-tools のみ入れる。
-          packages: 'platform-tools'
+          packages: 'platform-tools ndk;27.2.12479018'
 
       - name: Decode keystore
         env:

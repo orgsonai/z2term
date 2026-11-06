@@ -150,21 +150,29 @@ internal class EdgeRowSketch(
 
     /** Drags on a rule (across a horizontal one, along a vertical one); reports each step, then done on release. */
     private fun resizer(horizontal: Boolean, change: (Float, Boolean) -> Unit) = object : OnTouchListener {
-        private var start = 0f
-        private var last = 0f
+        private var startX = 0f
+        private var startY = 0f
+        private var lastX = 0f
+        private var lastY = 0f
+        // 窓を回していても (画面の向きに合わせない・1.0.80)、パネルに対する向きで数える。
+        private fun along(view: View, dx: Float, dy: Float): Float =
+            EdgeOrientation.frameDelta(EdgeOrientation.turnsOf(view), dx, dy).let { if (horizontal) it.second else it.first }
         override fun onTouch(view: View, event: MotionEvent): Boolean {
-            val at = if (horizontal) event.rawY else event.rawX
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    start = at; last = at
+                    startX = event.rawX; startY = event.rawY; lastX = startX; lastY = startY
                     view.parent.requestDisallowInterceptTouchEvent(true)
                     view.background = rule(horizontal, active = true)
                 }
-                MotionEvent.ACTION_MOVE -> { change(at - last, false); last = at }
+                MotionEvent.ACTION_MOVE -> {
+                    change(along(view, event.rawX - lastX, event.rawY - lastY), false)
+                    lastX = event.rawX; lastY = event.rawY
+                }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     view.background = rule(horizontal, active = false)
                     view.parent.requestDisallowInterceptTouchEvent(false)
-                    if (event.actionMasked == MotionEvent.ACTION_UP && kotlin.math.abs(at - start) > dp(2)) change(0f, true)
+                    if (event.actionMasked == MotionEvent.ACTION_UP &&
+                        kotlin.math.abs(along(view, event.rawX - startX, event.rawY - startY)) > dp(2)) change(0f, true)
                 }
             }
             return true

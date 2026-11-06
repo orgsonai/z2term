@@ -737,7 +737,7 @@
     <string name="tb_pointer_mode">커서: 상대 / 절대</string>
     <string name="tb_clipboard_file">원격 데스크톱으로 파일 보내기</string>
     <string name="clipboard_file_unavailable">이 파일은 읽을 수 없습니다. 다른 파일을 고르세요.</string>
-    <string name="settings_landscape_rail_desc">가로 화면에서는 툴바와 탭이 세로 두 줄로 섭니다. 어느 쪽 가장자리에 둘지 고르세요.</string>
+    <string name="settings_landscape_rail_desc">가로 화면에서는 툴바가 세로 줄로 섭니다 (탭은 위쪽에 가로로 그대로). 어느 쪽 가장자리에 둘지 고르세요.</string>
     <string name="settings_landscape_rail_left">왼쪽</string>
     <string name="settings_landscape_rail_right">오른쪽</string>
     <string name="log_sheet_title">터미널 로그</string>

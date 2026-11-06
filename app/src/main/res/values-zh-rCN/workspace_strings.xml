@@ -11,6 +11,8 @@
     <string name="workspace_hint">选择并排显示的标签。点按窗格选择输入目标，拖动分隔线调整大小。长按窗格标题并拖向另一个窗格即可互换，点按标题右端的按钮（或双击标题）则只显示该标签。</string>
     <string name="workspace_vertical">上下</string>
     <string name="workspace_horizontal">左右</string>
+    <string name="workspace_preview_current">当前标签</string>
+    <string name="workspace_preview_other">下面点选的标签</string>
     <string name="workspace_need_two">请先再打开一个终端或GUI标签。</string>
     <string name="workspace_maximize">仅显示此标签</string>
     <string name="workspace_single">返回单窗格</string>

@@ -11,6 +11,8 @@
     <string name="workspace_hint">Choose a second tab. Tap a pane to focus it; drag the divider to resize. The keyboard controls the focused pane. Long-press a pane title and drag it toward the other pane to swap them; use the button at the right end of a title (or double-tap the title) to show only that tab.</string>
     <string name="workspace_vertical">Top / bottom</string>
     <string name="workspace_horizontal">Left / right</string>
+    <string name="workspace_preview_current">This tab</string>
+    <string name="workspace_preview_other">The tab you tap below</string>
     <string name="workspace_need_two">Open another terminal or GUI tab first.</string>
     <string name="workspace_maximize">Show only this tab</string>
     <string name="workspace_single">One pane</string>

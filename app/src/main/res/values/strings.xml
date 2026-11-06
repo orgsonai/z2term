@@ -809,7 +809,7 @@
     <string name="tb_pointer_mode">Cursor: relative / absolute</string>
     <string name="tb_clipboard_file">Send files to remote desktop</string>
     <string name="clipboard_file_unavailable">This file cannot be read. Choose another file.</string>
-    <string name="settings_landscape_rail_desc">In landscape the toolbar and tabs stand in two vertical columns. Pick which edge they sit on.</string>
+    <string name="settings_landscape_rail_desc">In landscape the toolbar stands in a vertical column (the tabs stay along the top). Pick which edge it sits on.</string>
     <string name="settings_landscape_rail_left">Left</string>
     <string name="settings_landscape_rail_right">Right</string>
     <string name="log_sheet_title">Terminal log</string>

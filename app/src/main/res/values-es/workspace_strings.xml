@@ -11,6 +11,8 @@
     <string name="workspace_hint">Elige otra pestaña. Toca un panel para activarlo y arrastra el separador para cambiar su tamaño. Mantén pulsado el título de un panel y arrástralo hacia el otro para intercambiarlos; usa el botón del extremo derecho de un título (o tócalo dos veces) para ver solo esa pestaña.</string>
     <string name="workspace_vertical">Arriba / abajo</string>
     <string name="workspace_horizontal">Izquierda / derecha</string>
+    <string name="workspace_preview_current">Esta pestaña</string>
+    <string name="workspace_preview_other">La pestaña que toques abajo</string>
     <string name="workspace_need_two">Abre otra pestaña de terminal o GUI.</string>
     <string name="workspace_maximize">Mostrar solo esta pestaña</string>
     <string name="workspace_single">Un panel</string>

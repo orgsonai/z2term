@@ -63,8 +63,9 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
             }
             MotionEvent.ACTION_POINTER_DOWN -> swipeCandidate = false
             MotionEvent.ACTION_MOVE -> if (swipeCandidate) {
-                val dx = event.rawX - swipeStartX
-                val dy = event.rawY - swipeStartY
+                // 窓を回していても (画面の向きに合わせない・1.0.80)、パネルに対する向きで数える。
+                val (dx, dy) = EdgeOrientation.frameDelta(EdgeOrientation.turnsOf(this),
+                    event.rawX - swipeStartX, event.rawY - swipeStartY)
                 val along = kotlin.math.abs(if (swipeHorizontal) dx else dy)
                 val across = kotlin.math.abs(if (swipeHorizontal) dy else dx)
                 // Once the result starts a vertical scroll, do not steal a later sideways move.
@@ -91,7 +92,9 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
         if (!swiping) return super.onTouchEvent(event)
         if (event.actionMasked == MotionEvent.ACTION_POINTER_DOWN) swipeCandidate = false
         if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
-            val delta = if (swipeHorizontal) event.rawX - swipeStartX else event.rawY - swipeStartY
+            val (dx, dy) = EdgeOrientation.frameDelta(EdgeOrientation.turnsOf(this),
+                event.rawX - swipeStartX, event.rawY - swipeStartY)
+            val delta = if (swipeHorizontal) dx else dy
             val navigate = event.actionMasked == MotionEvent.ACTION_UP && swipeCandidate &&
                 kotlin.math.abs(delta) > swipeDistance
             swiping = false
@@ -155,8 +158,9 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
             if (wasImeVisible && !visible) releaseInputFocus()
             wasImeVisible = visible
             if (Build.VERSION.SDK_INT >= 30) {
-                val bottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-                setPadding(0, 0, 0, bottom)
+                // 窓を回していると ([PortraitFrame])、画面の下に出るキーボードはパネルの左右や上に当たる。
+                val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+                setPadding(ime.left, ime.top, ime.right, ime.bottom)
             }
             insets
         }
