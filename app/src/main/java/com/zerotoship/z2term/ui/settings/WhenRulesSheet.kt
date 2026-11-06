@@ -95,6 +95,10 @@ import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsWarning
 import com.zerotoship.z2term.ui.components.ReorderHandle
+import com.zerotoship.z2term.ui.components.StickyFooter
+import com.zerotoship.z2term.ui.components.StickyFooterSlot
+import com.zerotoship.z2term.ui.components.ProvideStickyFooter
+import com.zerotoship.z2term.ui.components.rememberStickyFooterHost
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.components.rememberReorderState
 import com.zerotoship.z2term.ui.components.reorderItem
@@ -146,14 +150,20 @@ fun WhenRulesSheet(onDismiss: () -> Unit) {
         dragHandle = { Z2TermDragHandle(onClose = closeSheet) }
     ) {
         BackHandler(onBack = closeSheet)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp)
-        ) {
-            WhenRulesBody()
+        // 編集中の「やめる / 保存」はスクロールの外 (下端) に固定する (1.0.79)。
+        val footer = rememberStickyFooterHost()
+        ProvideStickyFooter(footer) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp)
+            ) {
+                WhenRulesBody()
+            }
+            StickyFooterSlot(footer)
         }
     }
 }
@@ -941,50 +951,55 @@ private fun WhenRuleEditForm(
         )
     }
 
-    error?.let { message ->
-        Text(
-            text = message,
-            color = ZtsError,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace
-        )
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        PillButton(label = stringResource(R.string.action_cancel), onClick = onCancel)
-        Box(modifier = Modifier.weight(1f))
-        PillButton(label = stringResource(R.string.action_save), accent = true) {
-            val t = edited.trigger
-            val r = edited.run
-            // 綴りが 1 文字違うだけで「一覧に並ぶのに一生動かないルール」になるので、
-            // 保存の前に必ず見る（CLI が登録時に検査しているのと同じ理由・同じ判定）。
-            val problem = when (WhenTriggerCatalog.triggerProblem(t)) {
-                WhenTriggerCatalog.Problem.EMPTY -> msgTriggerEmpty
-                WhenTriggerCatalog.Problem.UNKNOWN_KIND -> msgTriggerUnknown.format(t.substringBefore(':'))
-                WhenTriggerCatalog.Problem.BAD_SPEC -> msgTriggerBadSpec.format(t)
-                null -> when (WhenTriggerCatalog.runProblem(r)) {
-                    WhenTriggerCatalog.RunProblem.EMPTY -> msgRunEmpty
-                    WhenTriggerCatalog.RunProblem.MULTILINE -> msgRunMultiline
-                    null -> if (advanced) {
-                        (unknownConditionKey(condition) ?: unknownConditionKey(conditionAny))
-                            ?.let { msgIfUnknown.format(it) }
-                    } else null
-                }
+    // やめる / 保存 (と保存できない理由) はシート下端に固定する (1.0.79)。
+    StickyFooter {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+            error?.let { message ->
+                Text(
+                    text = message,
+                    color = ZtsError,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
             }
-            // ビルダーで組んだ条件は**往復で検証する** (組み立てた文字列を読み直せなければ、
-            // 値の入れ忘れなどで画面の見た目と実際の式がズレている)。
-            val incomplete = builtSpec != null && WhenConditionSpec.parse(builtSpec) == null
-            // 隠す返事は、中身が保存済みか今回入れたものでないと送るものが無い。
-            val secretRows = answerRows.filter { it.secret && it.prompt.isNotBlank() }
-            val secretMissing = secretRows.any { it.text.isEmpty() && it.prompt.trim() !in storedSecrets }
-            error = problem ?: if (incomplete) msgCondIncomplete
-                else if (secretMissing) msgAnswerSecretMissing else null
-            // 画面に出ているコマンドと同じもの ([edited]) をそのまま保存する。
-            if (error == null) {
-                onSave(edited, secretRows.filter { it.text.isNotEmpty() }.associate { it.prompt.trim() to it.text })
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PillButton(label = stringResource(R.string.action_cancel), onClick = onCancel)
+                Box(modifier = Modifier.weight(1f))
+                PillButton(label = stringResource(R.string.action_save), accent = true) {
+                    val t = edited.trigger
+                    val r = edited.run
+                    // 綴りが 1 文字違うだけで「一覧に並ぶのに一生動かないルール」になるので、
+                    // 保存の前に必ず見る（CLI が登録時に検査しているのと同じ理由・同じ判定）。
+                    val problem = when (WhenTriggerCatalog.triggerProblem(t)) {
+                        WhenTriggerCatalog.Problem.EMPTY -> msgTriggerEmpty
+                        WhenTriggerCatalog.Problem.UNKNOWN_KIND -> msgTriggerUnknown.format(t.substringBefore(':'))
+                        WhenTriggerCatalog.Problem.BAD_SPEC -> msgTriggerBadSpec.format(t)
+                        null -> when (WhenTriggerCatalog.runProblem(r)) {
+                            WhenTriggerCatalog.RunProblem.EMPTY -> msgRunEmpty
+                            WhenTriggerCatalog.RunProblem.MULTILINE -> msgRunMultiline
+                            null -> if (advanced) {
+                                (unknownConditionKey(condition) ?: unknownConditionKey(conditionAny))
+                                    ?.let { msgIfUnknown.format(it) }
+                            } else null
+                        }
+                    }
+                    // ビルダーで組んだ条件は**往復で検証する** (組み立てた文字列を読み直せなければ、
+                    // 値の入れ忘れなどで画面の見た目と実際の式がズレている)。
+                    val incomplete = builtSpec != null && WhenConditionSpec.parse(builtSpec) == null
+                    // 隠す返事は、中身が保存済みか今回入れたものでないと送るものが無い。
+                    val secretRows = answerRows.filter { it.secret && it.prompt.isNotBlank() }
+                    val secretMissing = secretRows.any { it.text.isEmpty() && it.prompt.trim() !in storedSecrets }
+                    error = problem ?: if (incomplete) msgCondIncomplete
+                        else if (secretMissing) msgAnswerSecretMissing else null
+                    // 画面に出ているコマンドと同じもの ([edited]) をそのまま保存する。
+                    if (error == null) {
+                        onSave(edited, secretRows.filter { it.text.isNotEmpty() }.associate { it.prompt.trim() to it.text })
+                    }
+                }
             }
         }
     }

@@ -67,6 +67,7 @@ import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.components.ConfirmDialog
+import com.zerotoship.z2term.ui.components.StickyFooter
 import com.zerotoship.z2term.ui.theme.ZtsError
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
@@ -614,65 +615,68 @@ private fun EditForm(
         }
     }
 
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        SmallButton(label = stringResource(R.string.action_cancel), onClick = onCancel)
-        Box(modifier = Modifier.weight(1f))
-        SmallButton(
-            label = stringResource(R.string.action_save),
-            accent = true,
-            onClick = {
-                val defaultPort = when (protocol) {
-                    ConnectionProtocol.SSH -> 22
-                    ConnectionProtocol.WEBDAV -> 443
-                    ConnectionProtocol.SMB -> 445
+    // やめる / 保存はシート下端に固定する (1.0.79)。
+    StickyFooter {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SmallButton(label = stringResource(R.string.action_cancel), onClick = onCancel)
+            Box(modifier = Modifier.weight(1f))
+            SmallButton(
+                label = stringResource(R.string.action_save),
+                accent = true,
+                onClick = {
+                    val defaultPort = when (protocol) {
+                        ConnectionProtocol.SSH -> 22
+                        ConnectionProtocol.WEBDAV -> 443
+                        ConnectionProtocol.SMB -> 445
+                    }
+                    val portNum = port.toIntOrNull()?.coerceIn(1, 65535) ?: defaultPort
+                    val ssh = protocol == ConnectionProtocol.SSH
+                    val saved = initial.copy(
+                        name = name,
+                        protocol = protocol,
+                        host = if (protocol == ConnectionProtocol.WEBDAV) {
+                            host.trim()
+                        } else {
+                            HostAddress.normalize(host)
+                        },
+                        port = portNum,
+                        lanHost = if (ssh) HostAddress.normalize(lanHost) else "",
+                        lanPort = if (ssh) lanPort.toIntOrNull()?.takeIf { it in 1..65535 } ?: 0 else 0,
+                        user = user,
+                        remotePath = if (protocol == ConnectionProtocol.SMB) remotePath.trim('/') else "",
+                        domain = if (protocol == ConnectionProtocol.SMB) domain else "",
+                        authType = if (ssh) auth else SshProfile.AuthType.PASSWORD,
+                        password = if (!ssh || auth == SshProfile.AuthType.PASSWORD) password else "",
+                        privateKey = if (ssh && auth == SshProfile.AuthType.PUBLIC_KEY) privateKey else "",
+                        keyPassphrase = if (ssh && auth == SshProfile.AuthType.PUBLIC_KEY) keyPassphrase else "",
+                        initCommand = if (ssh) initCmd else "",
+                        // ⚠ ホストか利用者が空の段は経路にならないので保存しない (途中で必ず折れる)。
+                        jumpHosts = if (ssh) jumpHosts.filter {
+                            it.host.isNotBlank() && it.user.isNotBlank()
+                        }.map { it.copy(host = HostAddress.normalize(it.host)) } else emptyList(),
+                        forwards = if (ssh) forwards.filter {
+                            it.localPort in 1..65535 && it.remotePort in 1..65535 && it.remoteHost.isNotBlank()
+                        }.map {
+                            it.copy(
+                                bindAddress = HostAddress.normalize(it.bindAddress),
+                                remoteHost = HostAddress.normalize(it.remoteHost),
+                            )
+                        } else emptyList(),
+                        residentTunnel = ssh && resident && forwards.isNotEmpty(),
+                        services = if (ssh) services.filter {
+                            (!it.useSshTunnel || it.host.isNotBlank()) &&
+                                it.remotePort in 1..65535 && it.localPort in 0..65535
+                        }.map {
+                            it.copy(host = HostAddress.normalize(it.host))
+                        } else initial.services,
+                    )
+                    onSave(saved)
                 }
-                val portNum = port.toIntOrNull()?.coerceIn(1, 65535) ?: defaultPort
-                val ssh = protocol == ConnectionProtocol.SSH
-                val saved = initial.copy(
-                    name = name,
-                    protocol = protocol,
-                    host = if (protocol == ConnectionProtocol.WEBDAV) {
-                        host.trim()
-                    } else {
-                        HostAddress.normalize(host)
-                    },
-                    port = portNum,
-                    lanHost = if (ssh) HostAddress.normalize(lanHost) else "",
-                    lanPort = if (ssh) lanPort.toIntOrNull()?.takeIf { it in 1..65535 } ?: 0 else 0,
-                    user = user,
-                    remotePath = if (protocol == ConnectionProtocol.SMB) remotePath.trim('/') else "",
-                    domain = if (protocol == ConnectionProtocol.SMB) domain else "",
-                    authType = if (ssh) auth else SshProfile.AuthType.PASSWORD,
-                    password = if (!ssh || auth == SshProfile.AuthType.PASSWORD) password else "",
-                    privateKey = if (ssh && auth == SshProfile.AuthType.PUBLIC_KEY) privateKey else "",
-                    keyPassphrase = if (ssh && auth == SshProfile.AuthType.PUBLIC_KEY) keyPassphrase else "",
-                    initCommand = if (ssh) initCmd else "",
-                    // ⚠ ホストか利用者が空の段は経路にならないので保存しない (途中で必ず折れる)。
-                    jumpHosts = if (ssh) jumpHosts.filter {
-                        it.host.isNotBlank() && it.user.isNotBlank()
-                    }.map { it.copy(host = HostAddress.normalize(it.host)) } else emptyList(),
-                    forwards = if (ssh) forwards.filter {
-                        it.localPort in 1..65535 && it.remotePort in 1..65535 && it.remoteHost.isNotBlank()
-                    }.map {
-                        it.copy(
-                            bindAddress = HostAddress.normalize(it.bindAddress),
-                            remoteHost = HostAddress.normalize(it.remoteHost),
-                        )
-                    } else emptyList(),
-                    residentTunnel = ssh && resident && forwards.isNotEmpty(),
-                    services = if (ssh) services.filter {
-                        (!it.useSshTunnel || it.host.isNotBlank()) &&
-                            it.remotePort in 1..65535 && it.localPort in 0..65535
-                    }.map {
-                        it.copy(host = HostAddress.normalize(it.host))
-                    } else initial.services,
-                )
-                onSave(saved)
-            }
-        )
+            )
+        }
     }
 }
 

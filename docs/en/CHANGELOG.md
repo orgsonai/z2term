@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.79 (versionCode 777)**: When editing a connection, a server or an automation rule, Cancel and Save now stay at the bottom of the screen, so you no longer have to scroll all the way down to reach them.
+
 **1.0.78 (versionCode 776)**: The rules that `voice.sh setup` adds are now explained. Settings › Show a guide › `voice` names all 4, and both the guide and the setup output say that the Count steps rule only keeps the step counter running and runs nothing. ⚠ Reinstall with `z2-macro install -f voice` to get the new macro text.
 
 **1.0.77 (versionCode 775)**: When the device's speech recognition has stalled, the message is now **"Speech recognition isn't responding"** instead of "Timed out", with how to recover (force stop Android System Intelligence or similar in Android Settings › Apps). `z2-listen` exits with 2 in this case.

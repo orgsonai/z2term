@@ -74,6 +74,9 @@ import com.zerotoship.z2term.snippets.SnippetTemplate
 import com.zerotoship.z2term.snippets.SnippetStore
 import com.zerotoship.z2term.ui.components.REORDER_SETTLE_MS
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
+import com.zerotoship.z2term.ui.components.StickyFooterSlot
+import com.zerotoship.z2term.ui.components.ProvideStickyFooter
+import com.zerotoship.z2term.ui.components.rememberStickyFooterHost
 import com.zerotoship.z2term.ui.settings.ServersBody
 import com.zerotoship.z2term.ui.settings.UiBridgeBody
 import com.zerotoship.z2term.ui.settings.WhenRulesBody
@@ -193,22 +196,27 @@ fun SnippetsSheet(
             if (tab == ToolsTab.WHEN && automationTab == AutomationTab.ACTIONS) {
                 ActionMacrosBody(actionMacros, Modifier.weight(1f).fillMaxWidth(), onClose = requestClose)
             } else {
-                Column(
-                    Modifier.weight(1f).fillMaxWidth().verticalScroll(scrollState)
-                        .padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    when (tab) {
-                        ToolsTab.SNIPPETS -> SnippetsBody(onRun = onRun, onDismiss = onDismiss)
-                        ToolsTab.HISTORY -> HistoryBody(onRun = { cmd -> onRun(cmd); onDismiss() })
-                        ToolsTab.SSH -> SshProfilesBody(
-                            onConnect = { p -> onConnect(p); onDismiss() },
-                            onSftp = { p -> onSftp(p); onDismiss() },
-                            onService = { p, service -> onService(p, service); onDismiss() }
-                        )
-                        ToolsTab.SERVERS -> serverSession?.let { ServersBody(session = it) }
-                        ToolsTab.WHEN -> if (automationTab == AutomationTab.AI) UiBridgeBody() else WhenRulesBody()
+                // 接続先・サーバー・自動化ルールの編集中は「やめる / 保存」を下端に固定する (1.0.79)。
+                val footer = rememberStickyFooterHost()
+                ProvideStickyFooter(footer) {
+                    Column(
+                        Modifier.weight(1f).fillMaxWidth().verticalScroll(scrollState)
+                            .padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        when (tab) {
+                            ToolsTab.SNIPPETS -> SnippetsBody(onRun = onRun, onDismiss = onDismiss)
+                            ToolsTab.HISTORY -> HistoryBody(onRun = { cmd -> onRun(cmd); onDismiss() })
+                            ToolsTab.SSH -> SshProfilesBody(
+                                onConnect = { p -> onConnect(p); onDismiss() },
+                                onSftp = { p -> onSftp(p); onDismiss() },
+                                onService = { p, service -> onService(p, service); onDismiss() }
+                            )
+                            ToolsTab.SERVERS -> serverSession?.let { ServersBody(session = it) }
+                            ToolsTab.WHEN -> if (automationTab == AutomationTab.AI) UiBridgeBody() else WhenRulesBody()
+                        }
                     }
+                    StickyFooterSlot(footer)
                 }
             }
         }

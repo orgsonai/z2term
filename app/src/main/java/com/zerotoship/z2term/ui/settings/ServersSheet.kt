@@ -59,6 +59,10 @@ import com.zerotoship.z2term.service.ServerDaemonService
 import com.zerotoship.z2term.settings.ServerEntry
 import com.zerotoship.z2term.ui.components.ConfirmDialog
 import com.zerotoship.z2term.ui.components.ReorderHandle
+import com.zerotoship.z2term.ui.components.StickyFooter
+import com.zerotoship.z2term.ui.components.StickyFooterSlot
+import com.zerotoship.z2term.ui.components.ProvideStickyFooter
+import com.zerotoship.z2term.ui.components.rememberStickyFooterHost
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.components.rememberReorderState
 import com.zerotoship.z2term.ui.components.reorderItem
@@ -114,14 +118,20 @@ fun ServersSheet(
         dragHandle = { Z2TermDragHandle(onClose = closeSheet) }
     ) {
         BackHandler(onBack = closeSheet)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp)
-        ) {
-            ServersBody(session = session)
+        // 編集中の「やめる / 保存」はスクロールの外 (下端) に固定する (1.0.79)。
+        val footer = rememberStickyFooterHost()
+        ProvideStickyFooter(footer) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp)
+            ) {
+                ServersBody(session = session)
+            }
+            StickyFooterSlot(footer)
         }
     }
 }
@@ -527,15 +537,18 @@ private fun ServerEditForm(
         multiline = true
     )
 
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        PillButton(label = stringResource(R.string.action_cancel), onClick = onCancel)
-        Box(modifier = Modifier.weight(1f))
-        PillButton(label = stringResource(R.string.action_save), accent = true) {
-            if (command.isNotBlank()) {
-                onSave(initial.copy(name = name.trim(), command = command.trim()))
+    // やめる / 保存はシート下端に固定する (1.0.79)。
+    StickyFooter {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            PillButton(label = stringResource(R.string.action_cancel), onClick = onCancel)
+            Box(modifier = Modifier.weight(1f))
+            PillButton(label = stringResource(R.string.action_save), accent = true) {
+                if (command.isNotBlank()) {
+                    onSave(initial.copy(name = name.trim(), command = command.trim()))
+                }
             }
         }
     }
