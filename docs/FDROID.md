@@ -169,8 +169,8 @@ done
 
 ### いま提出先に決めてあるタグ
 
-`metadata/com.zerotoship.z2term.yml` の `Builds:` は **1.0.81 (versionCode 779) /
-`v1.0.81` のコミット**を指している。2026-10-11 に、候補の 0.9.x ではなく**安定版から提出する**方針に決め、
+`metadata/com.zerotoship.z2term.yml` の `Builds:` は **1.0.79 (versionCode 777) /
+`v1.0.79` のコミット**を指している (fdroiddata にマージされた形と同じ)。2026-10-11 に、候補の 0.9.x ではなく**安定版から提出する**方針に決め、
 その時点の最新だった 1.0.1 (699) で提出した。同じ日の審査中に、フォント 4 つ (自作の Z2 Mono を含む) が
 入る 1.0.5 へ向け直した (審査の途中で版を上げるのは差し支えない。レシピの prebuild / scanignore は同じ)。
 2026-10-12 に 1.0.9 を出したので、レシピも 1.0.9 へ向け直した (マージ前に新しい版を出したら合わせるよう審査で求められている。変えたのは版数とコミットだけ)。
@@ -183,7 +183,8 @@ done
 2026-10-22 に 1.0.53 へ向け直した (1.0.51・1.0.52 はタグを打っていない)。1.0.53 のタグには `changelogs/751.txt` が入っているので、店頭に更新内容が出る。
 2026-10-23 に 1.0.54、2026-11-05 に 1.0.78 へ向け直した (1.0.58 はレシピの控えだけ変え、MR へは出していない)。1.0.78 のタグには `changelogs/776.txt` が入っている。マイクの権限 `RECORD_AUDIO` は 1.0.59 で増えたもので、音声機能を初めて使うときに求め、認識は端末内だけで行う。
 2026-11-06 に 1.0.79 へ向け直した (変えたのは版数とコミットだけ。`fdroid lint` は指摘なし)。1.0.79 のタグには `changelogs/777.txt` が入っている。
-2026-11-07 に 1.0.81 へ向け直し、**再現可能ビルドに切り替えた** (審査で linsui から勧められた)。レシピの prebuild 3 行目 (REQUEST_INSTALL_PACKAGES を外す) を消し、`Binaries:` と `AllowedAPKSigningKeys:` を足した。buildserver で `fdroid build` が「compared built binary to supplied reference binary successfully」と出し、全ファイルが一致した (1.0.80 はタグを打っていない欠番)。1.0.81 のタグには `changelogs/779.txt` が入っている。
+✅ **2026-11-07 (日本時間 0:46) に linsui がこの 1.0.79 のレシピのままマージした** (F-Droid の鍵で署名・prebuild 3 行目で REQUEST_INSTALL_PACKAGES を外す形)。以後の版はタグから自動で足される (§6)。
+審査の最後に再現可能ビルドを勧められ、1.0.81 でどこでビルドしても同じ APK になる作りにし、buildserver で GitHub の v1.0.81 と一致するところまで確かめた (fork の `ec791be282`、マージには入っていない)。ただしマージ後に linsui が「REQUEST_INSTALL_PACKAGES を外す処理は残したい。2 種類のビルドを保守するなら試そう」と返し、利用者は **F-Droid の鍵のまま (2 種類にしない)** を選んだ。1.0.80 はタグを打っていない欠番。1.0.81 のタグには `changelogs/779.txt` が入っている。
 2026-10-12 に審査の指摘を受け、ネイティブを作る prebuild の 3 行目と jniLibs の `scanignore` を外した (§1)。
 `v1.0.0` 〜 `v1.0.5` と `v1.0.9`・`v1.0.12`・`v1.0.14`・`v1.0.15`・`v1.0.17`〜`v1.0.19`・`v1.0.25`・`v1.0.28`〜`v1.0.50`・`v1.0.53`・`v1.0.54`・`v1.0.58`・`v1.0.78`・`v1.0.79`・`v1.0.81` の一部は GitHub に公開済み (1.0.6〜1.0.8・1.0.10〜1.0.11・1.0.13・1.0.16 はタグを打っていない)。
 
@@ -223,11 +224,12 @@ git push origin com.zerotoship.z2term
   `metadata/<locale>/` から読まれるので、重ねて書くと外すよう求められる。
 - 提出するのは `fdroid rewritemeta` で整えた形 (コメント無し)。控えのコメントは提出物に入らない。
 - fork は公開のままにし、ブランチを保護しない。
-- **再現可能ビルド (Reproducible Builds) を使う (1.0.81 から)。** F-Droid は同じタグをビルドし、
-  `Binaries:` の GitHub の APK と一致すれば、こちらの署名のまま配る。GitHub 版と F-Droid 版は同じ APK・
-  同じ署名なので、利用者は入れ直さずに行き来できる。⚠ 配信が始まったあとに F-Droid の鍵へ切り替える
-  (またはその逆) と、利用者は入れ直しになる。最初は F-Droid の鍵で出すつもりだったが、マージ前に
-  審査で勧められて切り替えた (2026-11-07)。
+- **再現可能ビルド (Reproducible Builds) は使っていない。** F-Droid が自分の鍵で署名する形でマージされた
+  (2026-11-07)。GitHub 版とは署名が違うので、行き来するには入れ直しになる。⚠ 配信が始まったあとに
+  再現可能ビルドへ切り替えると、F-Droid から入れた人も入れ直しになる。切り替えるなら、F-Droid 版から
+  REQUEST_INSTALL_PACKAGES を外したまま一致させる必要があり (審査の linsui の希望)、権限なしの
+  F-Droid 用 APK を GitHub にも出す 2 種類のビルドが要る。アプリ側のビルドは 1.0.81 で一致する作りにしてある
+  (`docs/ja/DESIGN-SPEC.md` の F-Droid の節)。
 - GitLab の新しいアカウントは、本人確認をするまで fork 先の自動検査 (pipeline) が動かない。
   電話番号やカードは入れず、申請の説明欄にその旨を書けば F-Droid 側が検査を起動する。
 - fork 先のプロジェクト名は何でもよい (2026-10-11 の提出では `orgsonai/z-2-term` になった)。
@@ -332,7 +334,7 @@ fdroid build -v -l com.zerotoship.z2term            # 本番と同じビルド
 |---|---|
 | 実行時に rootfs を落として実行する | 初回起動で利用者が配布元を選んで同意したうえで、公式 CDN から取得し SHA-256 で検証する。取得物は自由ソフトウェア。同じ作りの端末アプリが先例として F-Droid にある (AntiFeature も付いていない) |
 | アプリ内更新 (`z2-update`) | インストール元が `org.fdroid*` のときは**断って F-Droid 側へ誘導する** (`app/src/main/java/com/zerotoship/z2term/update/UpdateInstaller.kt` の `isManagedByStore`) |
-| `REQUEST_INSTALL_PACKAGES` | 上のアプリ内更新のための宣言で、F-Droid から入れた版では使わない。2026-10-15〜1.0.79 はレシピの prebuild 3 行目で F-Droid 版のマニフェストから外していたが、**1.0.81 で再現可能ビルドにしたのでやめた** (GitHub と同じ APK なので外せない)。F-Droid から入れた場合は `isManagedByStore` がアプリ内更新を断る。Reports タブの警告には「説明する」で答える |
+| `REQUEST_INSTALL_PACKAGES` | 上のアプリ内更新のための宣言で、F-Droid から入れた版では使わない。**2026-10-15 から、レシピの prebuild 3 行目で F-Droid 版のマニフェストから外している** (審査で Reports タブの警告を「直すか説明する」よう求められたため。マージされた形もこれ)。GitHub 版には残る。F-Droid の APK を手で入れた場合は、アプリ内更新が「許可が要る」で止まるだけ |
 | 同梱バイナリ | 無し。実行エンジン z2root / z2accept / z2attach は毎ビルド、ソースから生成する |
 | 依存ライブラリ | AndroidX / Compose / DataStore / Kotlin 標準ライブラリ・Coroutines / JSch (mwiede fork) / BouncyCastle / XZ for Java / OkHttp・Okio / SMBJ (+ asn-one・MBassador・SLF4J API) / ZXing Core・ZXing Android Embedded / Guava ListenableFuture / JetBrains Annotations。取得元は `google()` と `mavenCentral()` だけ。すべて FOSS で、Google Play Services や Firebase は入っていない (一覧と版は `legal/OssComponents.kt`、実際に入るものは `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` で確かめられる) |
 | フォント | IBM Plex Mono / JetBrains Mono / Fira Code の 3 つ (いずれも SIL Open Font License 1.1・改変なし) と、1.0.5 から自作の Z2 Mono (OFL-1.1。生成スクリプトは `scripts/z2-mono/build.py` で、TTF はそこから作ったもの)。**1.0.4 から git に入っており、F-Droid ビルドにも入る。** アプリ内のライセンス一覧にすべて載せ、OFL-1.1 の本文も同梱している。1.0.3 までの版では git に無く、F-Droid ビルドには入らない (端末の monospace へ自動フォールバック) |
@@ -358,14 +360,13 @@ versionName を読んでビルド定義を自動で足す。**タグ名の付け
 ただし `prebuild` や `scanignore` の中身を変えたくなったときは、
 fdroiddata 側へもう一度マージリクエストを出す必要がある。
 
-⚠ **再現可能ビルドなので、どの版も GitHub の APK と 1 バイトも違わずに作れなければならない。**
-一致しない版は F-Droid に出ない (前の版のまま止まる)。崩しやすいのは次の 3 つ:
+⭐ アプリ側のビルドは 1.0.81 から、どこでビルドしても同じ APK になる作りにしてある (再現可能ビルドは
+使っていないが、切り替えるときの備え)。崩さないために次の 3 つは守る:
 
-- **NDK の版**: `app/build.gradle.kts` の `RELEASE_NDK_VERSION`、CI の `ndk;…`、レシピの `ndk:` を必ず同時に変える。
+- **NDK の版**: `app/build.gradle.kts` の `RELEASE_NDK_VERSION`、CI の `ndk;…`、レシピの `ndk:` を揃える。
 - **ビルドした場所で変わる値**: ネイティブにビルド ID を付けない (`CMakeLists.txt` の `--build-id=none`)。
   ビルド日時・ホスト名などを APK に入れない。
-- **依存の更新**: AGP・Gradle・Kotlin を上げたら、タグの前に §4 の手順で buildserver のビルドと GitHub の APK
-  (またはローカルの assembleRelease) を比べる。
+- **依存の更新**: AGP・Gradle・Kotlin を上げても、F-Droid のビルドが通るかは §4 の手順で確かめられる。
 
 ---
 
