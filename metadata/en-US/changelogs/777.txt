@@ -1,0 +1,3 @@
+1.0.79
+
+- When editing a connection, a server or an automation rule, Cancel and Save now stay at the bottom of the screen, so you no longer have to scroll down to reach them.
