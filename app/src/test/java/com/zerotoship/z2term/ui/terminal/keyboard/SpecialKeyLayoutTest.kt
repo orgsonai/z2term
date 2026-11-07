@@ -15,6 +15,8 @@ class SpecialKeyLayoutTest {
         assertEquals(listOf(KeyAction.Chord(setOf(ModKey.CTRL), text = "c")),
             layout.allKeys()[8].actionsFor(KeyGesture.TAP))
         assertTrue(layout.allKeys()[7].repeatable)
+        // 補助キーバーの ⏎ は左はらいで 🎤 にしない (1.0.83)。
+        assertEquals(setOf(KeyGesture.TAP), layout.allKeys()[7].bindings.keys)
         assertEquals(listOf(KeyAction.Named(NamedKey.F12)), layout.allKeys().last().actionsFor(KeyGesture.TAP))
     }
 

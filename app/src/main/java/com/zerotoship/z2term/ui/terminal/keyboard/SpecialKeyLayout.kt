@@ -21,7 +21,8 @@ fun specialKeyLayout(name: String = "ESC / TAB / CTRL"): KeyLayout {
         KeyDef.named("↓", NamedKey.DOWN),
         KeyDef.named("↑", NamedKey.UP),
         KeyDef.named("→", NamedKey.RIGHT),
-        KeyDef.enter(),
+        // ⏎ の左はらいに 🎤 は付けない (1.0.83・利用者の指定)。内蔵キーボードの ⏎ ([KeyDef.enter]) とは別。
+        KeyDef.named("⏎", NamedKey.ENTER, repeatable = true),
         control("^C", "c"), control("^D", "d"), control("^L", "l"),
     ) + (1..12).map { KeyDef.named("F$it", NamedKey.valueOf("F$it")) }
     val rows = listOf(KeyRow(keys.map { KeySlot(SlotContent.Single(it)) }))

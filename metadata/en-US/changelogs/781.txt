@@ -1,0 +1,3 @@
+1.0.83
+
+- Flicking ⏎ left on the accessory bar no longer starts voice input.

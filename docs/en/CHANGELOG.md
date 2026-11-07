@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.83 (versionCode 781)**: Flicking ⏎ left on the accessory bar no longer starts voice input; the accessory bar's ⏎ only taps and repeats. Flicking ⏎ left on the built-in keyboard still types by voice as before.
+
 **1.0.82 (versionCode 780)**: Closing an edge panel (by tapping outside it and so on) no longer briefly shows the keyboard, including when closing over the z2term screen or after using a text field in the panel. Tapping a text field in a panel still brings up the keyboard as before.
 
 **1.0.81 (versionCode 779)**: (1) In landscape, raising the keyboard height all the way with a ⌨ triple-tap let the keyboard fill the screen and hid the size bar behind it, with no way back; fixed — the height now only goes up to what fits on screen, and in landscape it goes down to 140dp (200dp before). (2) In landscape the tab bar now runs horizontally beside the toolbar column (in the vertical column the names were written vertically and hard to read); the toolbar keeps its full-height vertical column at the side. (3) Turning the phone sideways no longer changes edge panels and their handles: they keep their portrait orientation, size and position, with handles flush against the same edge of the phone. (4) In "Session layout" (long-press 🖥), top/bottom and left/right are now radio choices with a diagram, plus a preview of where the current tab and the tab you tap will go. (5) The build now produces the same APK wherever it is built. The NDK used for the native code is pinned to r27c, `libz2term.so` no longer carries a build ID that changed with the build location, and the signature no longer carries dependency metadata for Google. The app itself works the same.
