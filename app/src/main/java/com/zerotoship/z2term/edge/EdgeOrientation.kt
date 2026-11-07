@@ -200,6 +200,8 @@ internal class EdgeWindows(
     }
 
     fun add(view: View, p: WindowManager.LayoutParams) {
+        // 次のパネルを出す頃には、キーボードの相手は下の窓へ移り終わっている。
+        if (p.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE == 0) flushRetired()
         val turns = turns()
         if (turns == 0) { wm().addView(view, p); return }
         // 画面いっぱいの窓は中身を縦持ちのシステムのバーの内側へ、小さい窓は位置を写すだけ。
@@ -217,8 +219,37 @@ internal class EdgeWindows(
 
     fun remove(view: View) {
         val root = roots.remove(view)
-        if (root == null) { wm().removeView(view); return }
-        try { wm().removeView(root) } finally { root.removeView(view) }
+        val window = root ?: view
+        val manager = wm()
+        val detach = {
+            if (root == null) manager.removeView(view)
+            else try { manager.removeView(root) } finally { root.removeView(view) }
+        }
+        val p = window.layoutParams as? WindowManager.LayoutParams
+        if (p == null || p.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE != 0 || !window.hasWindowFocus()) {
+            detach(); return
+        }
+        // ⚠ フォーカスを持つ窓 (パネル) は、閉じても外さずに隠して残し、次に窓を出すとき外す ([flushRetired])。
+        // 入力欄を使った窓は Android の「キーボードの相手」のままで、相手が移るのは次の窓が入力を
+        // 始めてから。その前に外すと相手が居なくなり、Android がその隙にキーボードを出して、次に前へ来た
+        // アプリがすぐ隠す (閉じるたびにキーボードが一瞬出ていた)。残しておけば相手はふつうに移る。
+        // 隠した窓は描かず (GONE は描く面も持たない)、フォーカスも触れも受けない。
+        flushRetired()
+        p.flags = p.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        window.visibility = View.GONE
+        try { manager.updateViewLayout(window, p) } catch (e: Exception) { runCatching { detach() }; return }
+        retired = detach
+    }
+
+    /** 閉じて隠しておいた窓 ([remove])。 */
+    private var retired: (() -> Unit)? = null
+
+    /** 隠しておいた窓を外す。次の窓を出すときと、エッジを止めるときに呼ぶ。 */
+    fun flushRetired() {
+        val detach = retired ?: return
+        retired = null
+        runCatching { detach() }
     }
 
     /** [view] の中の [local] (view の座標) を、画面の座標の四角に直す。 */

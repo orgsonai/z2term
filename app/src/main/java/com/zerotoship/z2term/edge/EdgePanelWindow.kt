@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewConfiguration
 import android.view.WindowInsets
+import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.window.OnBackInvokedCallback
@@ -166,6 +167,42 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
         }
     }
 
+    /** 入力欄にフォーカスがあるか。 */
+    fun editing(): Boolean = findFocus() is android.widget.EditText
+
+    /**
+     * 入力欄を編集している間だけ、この窓をキーボードの相手にする (それ以外は FLAG_ALT_FOCUSABLE_IM)。
+     *
+     * ⚠ パネルはフォーカスを取るので、そのままだと入力欄を使わなくても Android がキーボードの相手を
+     * パネルへ移す。相手のまま窓を外すと相手が居なくなり、その隙にキーボードが一瞬出ていた
+     * (z2term 本体の上で閉じたとき。本体はパネルと同じプロセスで、相手を取り戻す知らせが遅れる)。
+     * 相手にしなければ、キーボードの相手は下の窓のまま動かない (Android の AlertDialog と同じ扱い)。
+     */
+    private fun imeTarget(on: Boolean) {
+        val root = rootView
+        val p = root.layoutParams as? WindowManager.LayoutParams ?: return
+        val alt = WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
+        val flags = if (on) p.flags and alt.inv() else p.flags or alt
+        if (flags == p.flags) return
+        p.flags = flags
+        runCatching { context.getSystemService(WindowManager::class.java).updateViewLayout(root, p) }.onFailure { return }
+        if (!on) return
+        // 相手になるのは次の描画で窓の設定が届いてから。タップで出したキーボードの要求はその前に
+        // 捨てられているので、届いた後で出し直す。
+        root.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                if (root.viewTreeObserver.isAlive) root.viewTreeObserver.removeOnPreDrawListener(this)
+                root.post {
+                    val field = findFocus() as? android.widget.EditText ?: return@post
+                    context.getSystemService(InputMethodManager::class.java).showSoftInput(field, 0)
+                }
+                return true
+            }
+        })
+    }
+
+    private val imeFocus = android.view.ViewTreeObserver.OnGlobalFocusChangeListener { _, _ -> imeTarget(editing()) }
+
     private fun imeVisible(): Boolean =
         ViewCompat.getRootWindowInsets(this)?.isVisible(WindowInsetsCompat.Type.ime()) == true
 
@@ -220,6 +257,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        viewTreeObserver.addOnGlobalFocusChangeListener(imeFocus)
         if (Build.VERSION.SDK_INT >= 33) {
             backDispatcher = findOnBackInvokedDispatcher()
             // The IME retains its higher priority for gesture navigation.
@@ -229,6 +267,7 @@ internal class EdgePanelWindow(context: Context) : FrameLayout(context) {
     }
 
     override fun onDetachedFromWindow() {
+        if (viewTreeObserver.isAlive) viewTreeObserver.removeOnGlobalFocusChangeListener(imeFocus)
         if (Build.VERSION.SDK_INT >= 33) backDispatcher?.unregisterOnBackInvokedCallback(backCallback!!)
         backDispatcher = null
         super.onDetachedFromWindow()

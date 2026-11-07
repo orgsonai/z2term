@@ -302,7 +302,7 @@ object EdgeRuntime {
 
     fun destroy() = onMain {
         cancelWakeRestore()
-        close(); removeHandles()
+        close(); removeHandles(); windows.flushRetired()
         terminalStates.values.forEach { it.close() }; terminalStates.clear()
         receiver?.let { r -> app?.let { runCatching { it.unregisterReceiver(r) } } }
         receiver = null
@@ -1299,6 +1299,8 @@ object EdgeRuntime {
             val p = params(-1, -1, focus = true).apply {
                 flags = flags and (WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH).inv()
+                // 入力欄を編集していない間はキーボードの相手にしない ([EdgePanelWindow.imeTarget])。
+                if (!overlay.editing()) flags = flags or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
                 softInputMode = if (android.os.Build.VERSION.SDK_INT >= 30)
                     WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING else WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
                 if (android.os.Build.VERSION.SDK_INT >= 30) setFitInsetsTypes(

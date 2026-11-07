@@ -1,7 +1,0 @@
-1.0.81
-
-- In landscape, raising the keyboard height all the way no longer hides the size bar.
-- In landscape the tab bar now runs along the top.
-- Edge panels no longer turn with the screen; they keep their portrait layout.
-- Session layout shows the split direction and where each tab goes more clearly.
-- The build now lets F-Droid ship the same APK as GitHub.
