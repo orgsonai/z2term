@@ -45,7 +45,7 @@ phone, and everything came in one APK?**
 | Event-driven automation | Built in — `z2-when` (charging, battery level, time / cron, Wi-Fi, connectivity, boot, share, SMS, sensors, notifications, new files) with an Automation tab, logs and a kill switch | A separate companion app, usually paired with a third-party automation app |
 | Japanese input | Built-in IME (conversion, prediction, learning), also selectable as the OS input method | The OS keyboard |
 | SSH / SFTP, FTP, WebDAV and SMB clients, plus `sshd` | Built in; services use SSH port forwarding by default, SSH keys held by the Android Keystore | Install the packages yourself |
-| Distribution | GitHub Releases (this repo) | F-Droid and its own repository |
+| Distribution | GitHub Releases (this repo) and F-Droid | F-Droid and its own repository |
 
 Both are GPL-3.0 and neither collects telemetry. If you already have a Termux setup you are
 happy with, Z2Term's reason to exist is the second, third and fourth rows of that table.
@@ -71,6 +71,15 @@ two files. If you are on a `full` install, this APK updates it in place (same pa
 Tap the APK on your Android device → allow "Install from unknown sources" to install.
 (Not distributed on Google Play.)
 
+**Also on F-Droid**: <https://f-droid.org/packages/com.zerotoship.z2term/> (since 2026-11-09, starting with 1.0.79).
+F-Droid builds the app from this repository's source and signs it with its own key.
+
+- ⚠ **The signature differs from the GitHub APK**, so you cannot install one over the other.
+  To switch between them, uninstall first (this removes the app's data, including the Linux environment).
+- F-Droid picks up new version tags on its own, but builds and publishes them later than GitHub Releases.
+- The F-Droid build does not have the install-packages permission, so updates come from F-Droid itself
+  (in-app update is not available there).
+
 ### Keeping it updated
 
 Pick whichever fits:
@@ -82,6 +91,7 @@ Pick whichever fits:
   silently. The first time, allow "Install unknown apps" for z2term. From the terminal it is
   **`z2-update`** (`--check` / `--keep` / `--dir`). The downloaded APK is deleted after the update by
   default. ⚠ Installed from F-Droid or a store? Then it refuses and points you back there.
+- **F-Droid** — if you installed from F-Droid, update from the F-Droid app.
 - **Manual** — download the newer APK from Releases and tap it (installs over the top; your data stays).
 - **Automatic** — add `https://github.com/orgsonai/z2term` to
   [Obtainium](https://github.com/ImranR98/Obtainium). It watches these Releases and updates the app
@@ -328,7 +338,7 @@ From the settings screen → "OSS licenses / corresponding source", you can also
 | Channel | Status |
 |---|---|
 | **GitHub Releases / direct APK** | Primary channel; one APK per release |
-| **F-Droid** | Prepared for submission, not published yet. Runtime-downloaded rootfs; fully source-built engine (`docs/FDROID.md`) |
+| **F-Droid** | Published since 2026-11-09 (first version 1.0.79), signed with F-Droid's key: <https://f-droid.org/packages/com.zerotoship.z2term/>. Runtime-downloaded rootfs; fully source-built engine (`docs/FDROID.md`) |
 | **Google Play** | No distribution planned |
 
 ## Default behavior of the SSH server (sshd)

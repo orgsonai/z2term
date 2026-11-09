@@ -45,7 +45,7 @@ Termux が正解です。Z2Term は別の問いから作られています —
 | イベント駆動の自動化 | **内蔵**（`z2-when`: 充電・電池残量・時刻/cron・Wi-Fi・回線・起動・共有・SMS・センサー・通知・ファイル追加）。自動化タブ・実行ログ・一括停止つき | 別アプリ + 多くは市販の自動化アプリと併用 |
 | 日本語入力 | **IME 内蔵**（変換・予測・学習）。OS の入力メソッドとしても選べる | OS のキーボード |
 | SSH / SFTP・FTP・WebDAV・SMB クライアントと `sshd` | 内蔵。各サービスは既定で SSH ポートフォワードし、SSH 鍵は Android Keystore が保持 | 自分でパッケージを入れる |
-| 配布 | GitHub Releases（本リポジトリ） | F-Droid と独自リポジトリ |
+| 配布 | GitHub Releases（本リポジトリ）・F-Droid | F-Droid と独自リポジトリ |
 
 どちらも GPL-3.0 で、どちらもテレメトリを取りません。既に満足している Termux 環境がある人にとって、
 Z2Term の存在理由は上の表の**2・3・4 行目**です。
@@ -71,6 +71,14 @@ OS も第三者 prebuilt も同梱していないので、初回は ⚙設定 �
 Android 端末で APK をタップ → 「提供元不明のアプリ」のインストールを許可するとインストールできます。
 （Google Play では配布していません）
 
+**F-Droid でも配信しています**: <https://f-droid.org/packages/com.zerotoship.z2term/>（2026-11-09 から。最初の版は 1.0.79）。
+F-Droid がこのリポジトリのソースからビルドし、F-Droid の鍵で署名して配っています。
+
+- ⚠ **GitHub の APK とは署名が違う**ので、互いに上書きインストールはできません。
+  乗り換えるときは一度アンインストールしてください（Linux 環境を含むアプリのデータも消えます）。
+- 新しい版のタグは F-Droid が自動で拾いますが、ビルドと配信は GitHub Releases より遅れて届きます。
+- F-Droid 版にはアプリを入れる権限が無いので、更新は F-Droid から行います（アプリ内の更新は使えません）。
+
 ### アップデートの方法
 
 合うものを選んでください。
@@ -81,6 +89,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
   必ずご自身**です（アプリが黙って自分を入れ替えることはできません）。初回だけ「不明なアプリのインストール」の
   許可が要ります。端末からは **`z2-update`**（`--check` / `--keep` / `--dir` あり）。落とした APK は既定で
   入れ替え後に消えます。⚠ F-Droid など配布元から入れた版では断ります（更新はそちらから）。
+- **F-Droid** — F-Droid から入れた場合は、F-Droid アプリから更新します。
 - **手動** — Releases から新しい APK を落としてタップ（上書きインストールされ、データは残ります）。
 - **自動** — [Obtainium](https://github.com/ImranR98/Obtainium) に
   `https://github.com/orgsonai/z2term` を登録します。Releases を監視し、新版が出ると**ワンタップで更新**（ストア不要）。
@@ -321,7 +330,7 @@ Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://gith
 | チャネル | 状況 |
 |---|---|
 | **GitHub Releases / 直接 APK 配布** | 主たる配布経路。1 リリースにつき APK 1 つ |
-| **F-Droid** | 提出準備済み・未公開。rootfs は実行時取得、実行エンジンはソースビルド（`docs/FDROID.md`）|
+| **F-Droid** | 2026-11-09 から配信中（最初の版は 1.0.79）。F-Droid の鍵で署名: <https://f-droid.org/packages/com.zerotoship.z2term/>。rootfs は実行時取得、実行エンジンはソースビルド（`docs/FDROID.md`）|
 | **Google Play** | 配布予定なし |
 
 ## SSH サーバ (sshd) の既定挙動

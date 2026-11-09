@@ -1,6 +1,9 @@
 # Z2Term F-Droid 提出手順
 
-最終更新: 2026-10-12
+最終更新: 2026-11-09
+
+✅ **2026-11-09 に F-Droid での配信が始まった** (最初の版は 1.0.79 / versionCode 777)。
+店頭: <https://f-droid.org/packages/com.zerotoship.z2term/>
 
 F-Droid は「APK を受け取って配る」ところではなく、**ソースから自分でビルドして配る**ところ。
 だから提出物は APK ではなく、`fdroiddata` という F-Droid 側のリポジトリに置く
@@ -234,7 +237,19 @@ git push origin com.zerotoship.z2term
   電話番号やカードは入れず、申請の説明欄にその旨を書けば F-Droid 側が検査を起動する。
 - fork 先のプロジェクト名は何でもよい (2026-10-11 の提出では `orgsonai/z-2-term` になった)。
 
-マージされてから実際に配信に載るまで **24〜48 時間**かかる。
+マージされてから実際に配信に載るまで **24〜48 時間**かかる、とされている。実際は **約 2 日半**かかった
+(2026-11-07 0:46 マージ → 11-09 配信)。F-Droid は全アプリのビルドを一巡させてから、署名 (publish)・
+一覧の更新 (update)・配信 (deploy) をまとめて行う。今回はマージ後に始まったビルドの一巡に約 2 日かかった
+(11-07 05:30 〜 11-09 01:26)。進み具合は次で確かめられる:
+
+```sh
+# 配信されたか (まだなら {"error":"NOT_FOUND"})
+curl -s https://f-droid.org/api/v1/packages/com.zerotoship.z2term
+# ビルドの一巡の進み具合と、z2term のビルドが成功したか (successfulBuildIds / failedBuilds)
+curl -s https://f-droid.org/repo/status/running.json
+# 署名・一覧の更新・配信が最後に動いた時刻
+curl -s https://f-droid.org/repo/status/publish.json   # update.json / deploy.json も同じ形
+```
 
 ---
 
