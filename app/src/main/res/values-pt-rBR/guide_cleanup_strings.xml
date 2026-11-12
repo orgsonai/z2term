@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_guide_cleanup">Desfazer</string>
+    <string name="settings_guides_cleanup_desc">“Desfazer” mostra os passos que removem o que um guia adicionou, no mesmo tipo de cartões. Nada é removido até você tocar num cartão.</string>
+    <string name="guide_cleanup_heading">remover o que isto adicionou</string>
+    <string name="guide_cleanup_hint">Toque para executar (Ctrl-C antes, para que uma linha digitada pela metade não se misture) / ✕ para manter</string>
+    <string name="guide_undo_rules">Remover as regras de automação que chamam esta macro</string>
+    <string name="guide_undo_macro">Remover a macro (para sem remover se você mesmo a editou)</string>
+    <string name="guide_undo_notify_off">Se nada mais a usa: Configurações -> desative “Detecção de notificações”</string>
+    <string name="guide_undo_sms_off">Se nada mais a usa: Configurações -> desative “Detecção de SMS”</string>
+    <string name="guide_undo_remind_all">Cancelar todos os lembretes que você registrou</string>
+    <string name="guide_undo_remind_tiles">Esvaziar os blocos que executam remind.sh</string>
+    <string name="guide_undo_remind_data">Excluir os registros de lembretes (✕ para mantê-los)</string>
+    <string name="guide_undo_rss_data">Excluir a lista de feeds e os artigos coletados (✕ para mantê-los)</string>
+    <string name="guide_undo_voice_data">Excluir a tabela de palavras, as notas e as configurações do comando de voz (✕ para mantê-las)</string>
+    <string name="guide_undo_edge_main">Excluir o painel de apps de exemplo “main” (os itens que você adicionou a ele também vão)</string>
+    <string name="guide_undo_edge_samples">Excluir os painéis de exemplo (o texto da nota também vai)</string>
+    <string name="guide_undo_edge_off">Se você não usa outro painel, desative os painéis (a barra some)</string>
+    <string name="guide_undo_permissions">“Sobrepor a outros apps” e a acessibilidade só podem ser desativadas nas configurações do Android. Deixe-as ativadas se outro recurso as usa.</string>
+</resources>

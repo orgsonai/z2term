@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">Escolhendo ou copiando um documento…</string>
+    <string name="process_text_title">Processar com o z2term</string>
+    <string name="process_text_enable">Oferecer para texto selecionado</string>
+    <string name="process_text_contract">O comando escolhido recebe o texto original pela entrada padrão (stdin). Confira a saída (stdout) antes de substituir a seleção.</string>
+    <string name="process_text_setup">Registre um comando em Comandos → Trechos e ative “Oferecer para texto selecionado”.</string>
+    <string name="process_text_replace">Substituir a seleção</string>
+    <string name="process_text_too_large">O texto precisa ser válido, sem NUL, com até 64 KiB.</string>
+    <string name="workspace_title">Disposição das sessões</string>
+    <string name="workspace_hint">Escolha uma segunda aba. Toque num painel para focá-lo; arraste o divisor para mudar o tamanho. O teclado controla o painel em foco. Mantenha pressionado o título de um painel e arraste-o em direção ao outro para trocá-los; use o botão na ponta direita de um título (ou toque duas vezes no título) para mostrar só aquela aba.</string>
+    <string name="workspace_vertical">Em cima / embaixo</string>
+    <string name="workspace_horizontal">Esquerda / direita</string>
+    <string name="workspace_preview_current">Esta aba</string>
+    <string name="workspace_preview_other">A aba que você tocar abaixo</string>
+    <string name="workspace_need_two">Abra antes outra aba de terminal ou de GUI.</string>
+    <string name="workspace_maximize">Mostrar só esta aba</string>
+    <string name="workspace_single">Um painel</string>
+    <string name="workspace_external_hint">Mostra a aba atual numa tela externa. O celular pode controlá-la ou mostrar outra aba.</string>
+    <string name="workspace_no_display">Não há tela externa disponível.</string>
+    <string name="workspace_return">Voltar ao celular</string>
+    <string name="workspace_projected">Mostrado na tela externa. O teclado controla essa sessão.</string>
+    <string name="workspace_controller">Tela externa: use esta área como touchpad e o teclado abaixo para digitar.</string>
+    <string name="workspace_display_failed">Não é possível usar esta tela. A sessão continua em execução.</string>
+    <string name="settings_gui_direct">Exibição direta da GUI local (experimental)</string>
+    <string name="settings_gui_direct_desc">Lê o framebuffer local diretamente. Usa o Xvfb para exibir e o x11vnc só para a entrada; os pacotes são baixados no primeiro uso. Vale para as abas de GUI abertas depois disso. Resolução inicial fixa; sem aceleração por GPU.</string>
+    <string name="tip_gui_split_title">Mantenha GUI pressionado para dividir GUI e terminal</string>
+    <string name="tip_gui_split_body">Mantenha pressionado o botão GUI (🖥) ao lado do + para abrir a disposição das sessões. Escolha em cima/embaixo ou esquerda/direita e outra aba para usar GUI e terminal (CUI) juntos. O mesmo menu volta a um painel só ou escolhe uma tela externa. Um toque curto abre a GUI como antes.</string>
+</resources>

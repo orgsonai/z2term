@@ -143,12 +143,14 @@ class VoiceScriptTest {
         assertTrue(next, next.lines().contains(tokyo))
     }
 
-    /** 6 言語とも表を持ち、アプリの言語がその表の既定になる。表の無い言語は英語。 */
+    /** 名簿の言語はどれも表を持ち、アプリの言語がその表の既定になる。表の無い言語は英語。 */
     @Test
     fun everyLanguageHasItsTable() {
         mapOf(
             "ja" to "次の曲", "en" to "next song", "zh-CN" to "下一首", "zh-TW" to "下一首",
-            "es" to "siguiente canción", "ko" to "다음 곡", "fr" to "next song",
+            "es" to "siguiente canción", "ko" to "다음 곡", "pt-BR" to "próxima música",
+            // ⛔ 表の無い言語の例に、名簿に載りうる言語を使わない (載せた日に前提が崩れる)
+            "zz" to "next song",
         ).forEach { (lang, phrase) -> assertHeard(lang, phrase, "z2-media next") }
         assertHeard("zh-CN", "每周一上午9点提醒我浇花", "remind weekly mon 09:00 浇花")
         assertHeard("es", "recuérdame mañana a las 7 de la mañana sacar la basura", "remind tomorrow 07:00 sacar la basura")

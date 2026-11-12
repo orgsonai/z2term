@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">Miniterminal</string>
+    <string name="edge_terminal_command">Comando de uma linha</string>
+    <string name="edge_terminal_result">Saída do comando</string>
+    <string name="edge_terminal_stop">Parar</string>
+    <string name="edge_terminal_copy">Copiar</string>
+    <string name="edge_terminal_clear">Limpar</string>
+    <string name="edge_terminal_ready">Nova sessão</string>
+    <string name="edge_terminal_starting">Iniciando…</string>
+    <string name="edge_terminal_running">Executando…</string>
+    <string name="edge_terminal_exit">Saída: %1$d</string>
+    <string name="edge_terminal_ended">Encerrada · atualize para iniciar uma nova sessão</string>
+    <string name="edge_terminal_truncated">Mostrando os últimos 64 KiB de caracteres</string>
+    <string name="edge_terminal_help">Fechar o painel ou trocar de aba mantém o shell, a saída e o rascunho. Atualizar os reinicia manualmente. Enquanto um comando roda, o campo responde a ele e Parar encerra só esse comando. Para programas de tela cheia, use uma aba de terminal comum.</string>
+    <string name="edge_terminal_one_line_required">O miniterminal aceita comandos de uma linha com até 16.384 caracteres. Para trechos de várias linhas, use um terminal comum.</string>
+    <string name="edge_terminal_refresh">Atualizar a sessão</string>
+    <string name="edge_terminal_answer">Responder ao comando em execução (vazio envia Enter)</string>
+    <string name="edge_terminal_send">Enviar</string>
+</resources>

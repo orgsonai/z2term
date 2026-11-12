@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="guide_desc_edge_panel">Abrir uma lista de apps a partir de uma barra na borda da tela</string>
+    <string name="guide_step_edge_overlay">Permita que o z2term se sobreponha a outros apps</string>
+    <string name="guide_step_edge_accessibility">Ative o serviço de acessibilidade “z2term Android actions” (usado para rolar ao deslizar a barra para cima e para baixo)</string>
+    <string name="guide_step_edge_panel">Crie um painel de exemplo com os apps z2term, navegador, câmera, telefone, mensagens e configurações encontrados neste dispositivo</string>
+    <string name="guide_step_edge_on">Ative o painel (aparece uma barra na borda direita; deslize-a para dentro para abrir a lista de apps)</string>
+    <string name="guide_step_edge_settings">Com o painel aberto, mantenha pressionado fora do menu para abrir as configurações dele</string>
+</resources>

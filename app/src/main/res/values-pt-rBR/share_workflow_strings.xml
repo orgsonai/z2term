@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">Entradas do comando</string>
+    <string name="snippet_inputs_file">Escolher arquivo</string>
+    <string name="snippet_inputs_invalid">Confira a definição das entradas e os valores. Coloque cada marcador fora das aspas, como um argumento separado.</string>
+    <string name="snippet_inputs_preview">Prévia do comando</string>
+    <string name="snippet_inputs_hint">O comando é inserido no terminal. Confira e depois pressione Enter. Os arquivos escolhidos são copiados para a pasta pessoal do shell local.</string>
+    <string name="snippet_inputs_enable">Pedir as entradas antes de inserir</string>
+    <string name="snippet_inputs_definition">No comando: {{text}}, {{width:number=1080}}, {{format:choice=png|jpg}}, {{image:file}}. Os nomes viram os rótulos dos campos. Coloque os marcadores fora das aspas.</string>
+    <string name="snippet_share_action">Oferecer depois de receber um compartilhamento</string>
+    <string name="snippet_share_action_hint">O comando pode ler $Z2_SHARE_TEXT e $Z2_SHARE_MANIFEST (JSON do recebimento). As entradas de arquivo podem usar os anexos recebidos.</string>
+    <string name="share_intake_title">Conteúdo recebido</string>
+    <string name="share_intake_hint">O texto e os anexos são salvos juntos. Escolha um comando salvo ou insira o conteúdo original. Os comandos rodam depois que você pressiona Enter.</string>
+    <string name="share_intake_insert">Inserir no terminal</string>
+    <string name="share_intake_close">Manter salvo e fechar</string>
+</resources>

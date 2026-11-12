@@ -406,7 +406,7 @@ internal object CliEs : CliLanguage {
 #   KIND ... once|repeat   PLAN ... etiqueta que se muestra   SPEC ... lo que toma z2-alarm/z2-when   USED ... palabras usadas""",
             "macro.pDaily" to "diario ",
             "macro.pWeekday" to "laborables ",
-            "macro.pWeekly" to "semanal",
+            "macro.pWeekly" to "semanal ",
             "macro.pMonthly" to "mensual ",
             "macro.pYearly" to "anual ",
             "macro.mDay" to "",
@@ -726,7 +726,7 @@ after_label() {
 #   voice.sh words                 abre la tabla de palabras (~/.z2term/voice/words-<idioma>.txt; añade o cambia frases)
 #   voice.sh try <frase>           prueba una sin hablar (p. ej. voice.sh try siguiente canción)
 #   voice.sh listen                abre la pantalla de escucha y habla (igual que el icono)
-#   voice.sh lang [idioma]         idioma de la tabla de palabras (en / ja / zh-CN / zh-TW / es / ko)
+#   voice.sh lang [idioma]         idioma de la tabla de palabras (voice.sh lang - los lista)
 #   voice.sh ai [off|codex|claude|agy]   si se usa la IA (desactivada al principio)
 #   voice.sh model [nombre]        el modelo de la IA (vacío = el de esa IA por defecto)
 #   voice.sh setup / help

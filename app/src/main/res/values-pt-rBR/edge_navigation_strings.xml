@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">Descartar as alterações não salvas?</string>
+    <string name="edge_discard_message">As edições não salvas serão perdidas.</string>
+    <string name="edge_discard">Descartar</string>
+    <string name="edge_keep_editing">Continuar editando</string>
+    <string name="edge_select_tab">Escolher aba</string>
+    <string name="edge_finish_title">Salvar as alterações?</string>
+    <string name="edge_finish_message">Algumas edições ainda não foram salvas. O nome de uma aba ou de um painel digitado mas não adicionado não é salvo.</string>
+    <string name="edge_choose_panel">Escolha um painel</string>
+</resources>

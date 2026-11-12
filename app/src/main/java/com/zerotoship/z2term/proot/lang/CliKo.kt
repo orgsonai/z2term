@@ -762,7 +762,7 @@ after_label() {
 #   voice.sh words                 낱말 표 열기 (~/.z2term/voice/words-<언어>.txt. 말하는 법을 더하거나 바꿈)
 #   voice.sh try <말>              말하지 않고 시험 (예: voice.sh try 다음 곡)
 #   voice.sh listen                듣기 화면을 열고 말하기 (타일과 같음)
-#   voice.sh lang [언어]           낱말 표의 언어 (en / ja / zh-CN / zh-TW / es / ko)
+#   voice.sh lang [언어]           낱말 표의 언어 (voice.sh lang - 로 목록 보기)
 #   voice.sh ai [off|codex|claude|agy]   AI를 쓸지 (처음에는 off)
 #   voice.sh model [이름]          AI의 모델 (비우면 그 AI의 기본값)
 #   voice.sh setup / help

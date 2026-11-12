@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qr_history_title">Histórico</string>
+    <string name="qr_history_clear">Limpar tudo</string>
+    <string name="qr_history_clear_title">Limpar histórico</string>
+    <string name="qr_history_clear_message">Limpa todo o histórico, exceto os itens fixados.</string>
+    <string name="qr_history_pin">Fixar</string>
+    <string name="qr_history_unpin">Desafixar</string>
+    <string name="qr_history_delete">Excluir</string>
+    <string name="qr_history_pinned">Fixados</string>
+    <string name="qr_history_menu">Fixar ou excluir</string>
+    <string name="qr_history_note">Toque para mostrar de novo. Mantenha pressionado para fixar ou excluir. O histórico guarda o que você lê só neste dispositivo, incluindo conteúdos como senhas de Wi-Fi. São mantidos até 50 itens não fixados.</string>
+</resources>

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-12 / Target version: 1.0.85 (versionCode 783)
+Last updated: 2026-11-12 / Target version: 1.0.86 (versionCode 784)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3705,6 +3705,18 @@ existing flick mechanism (up/down/left/right per key) already covers them.
 - **The count changed too** (436 → 462): text that was never counted (`Z2MenuScript` and others), `${t(…)}` embedded inside strings, and the voice word tables. That is 339 script texts, 120 catalogue messages and 3 bundles.
 - **The move was done by a script, and every language was checked to be character-for-character identical afterwards** (337 script texts, 119 messages, the GUI and sshd bundles, the word tables). The three places the checking tool skipped (two embedded in strings, one with a comment between arguments) were moved by hand.
 - ⚠ **That one place had a mistranslation**: in the `z2-session key` message refusing Shift, the Spanish stopped mid-sentence and the second half of the Korean was Spanish. The Spanish now finishes its sentence and the Korean was retranslated (with no particle right after a variable — the 은/는 in `'$x'은` depends on what the variable holds).
+
+#### Brazilian Portuguese added (1.0.86)
+
+**The first language added after the 1.0.84 split.** No text in the code that uses it was touched (one roster line, `res/values-pt-rBR/`, `proot/lang/CliPtBr.kt`, one line in `CliLanguages`). The 19 res files (about 2,000 strings) and the 462 terminal texts were translated from English, and `cliComplete` is set.
+
+- **Terms were fixed first** (the lesson from Korean): aba (tab) / tocar (tap) / arquivo (file) / tela (screen) / Salvar (save) / Configurações (settings) / área de transferência / bloco (tile) / painel lateral (edge panel). ⚠ **Brazilian usage throughout** — not the European ficheiro / ecrã / Guardar. Words you type (subcommands, daily, …) stay in English.
+- **Phones set to European Portuguese (`pt-PT`) get `pt-BR` too** (the language-only step of `matchDeviceLocale`; the wording differs a little, but it reads better than English). Pinned in `AppLanguagesTest`.
+- ⛔ **No parentheses in a roster language name.** It was first written "Português (Brasil)"; `scripts/i18n_status.py` reads the roster with `Entry\((.*?)\)`, so the parenthesis cut the arguments and the `cliComplete` mark was lost ⇒ "Português do Brasil".
+- **A voice-command word table** was added too (`voiceWords`). ⚠ `clock_hour` is "em ponto" — "horas" would collide with the time unit (`unit_hour`) and read "daqui a 2 horas" (in 2 hours) as a clock time (same reasoning as Spanish "en punto"). The rule names `voice.sh setup` gives come from the table's `title_rule_*`, so the res guide (`guide_step_voice_setup`) uses the same names.
+- **Language lists are no longer written into the code**: `voice.sh`'s `known_lang`, the `lang` hint and the default language are built from `VOICE_WORDS` (a table in a language file is picked up by itself). The help's "(en / ja / …)" now says "`voice.sh lang -` lists them" (an unknown name already prints the list).
+- ⛔ **Never use a language that might join the roster as a test's "language without a table"**: `VoiceScriptTest` used `fr`, now `zz` (the same trap as `CliTextTest` with Simplified Chinese). `CliTextTest.everyLanguageFileIsUsed` walks `CliLanguages.all`, so a new language is covered automatically.
+- Found on the way: only the Spanish `macro.pWeekly` lacked its trailing space, so it came out glued as "semanallun 09:00" ⇒ fixed.
 
 ### 6.8.1 App lock (A2, 0.8.421)
 

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="editor_save">Salvar</string>
+    <string name="editor_saved">Salvo</string>
+    <string name="editor_save_and_close">Salvar e fechar</string>
+    <string name="editor_gone">Não salvo: o z2-edit que abriu isto já terminou.</string>
+    <string name="editor_unreadable">Não foi possível abrir: não é um arquivo de texto UTF-8 ou tem mais de 1 MiB.</string>
+</resources>

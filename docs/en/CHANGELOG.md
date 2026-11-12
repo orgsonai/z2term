@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.86 (versionCode 784)**: **Brazilian Portuguese** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language; a phone set to European Portuguese gets it too. Also fixed: in Spanish reminders, the "weekly" label ran into the next word.
+
 **1.0.85 (versionCode 783)**: Settings › Edge panels gains “Long-press outside an open panel to open its settings”. Turn it off and a long press outside the panel no longer opens its settings; it just closes the panel, like a tap (it is on by default, as before). The settings still open from “Open edge panel settings” or from the panel’s ⚙. A long press on an empty spot inside the panel still opens the settings as before.
 
 **1.0.84 (versionCode 782)**: Translations of the text shown in the terminal (`z2-*` help and messages, the notes in the sample macros, and so on) now live in one file per language, so adding a language no longer makes the code that uses the text any longer. Everything reads the same as before, except for one fix: when `z2-session key` is given a key with Shift, the Spanish message stopped mid-sentence and the second half of the Korean one was in Spanish.

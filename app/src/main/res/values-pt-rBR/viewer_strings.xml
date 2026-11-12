@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="viewer_missing">Essa página não existe mais.</string>
+    <string name="viewer_no_browser">Nenhum app deste celular consegue abrir esse link.</string>
+    <string name="viewer_expand">Expandir</string>
+    <string name="viewer_close">Fechar</string>
+    <string name="viewer_component">Visualização (z2-view)</string>
+    <string name="viewer_empty">Ainda não há página. Defina um comando que chame o z2-view, ou envie uma página para este item.</string>
+    <string name="viewer_required">Preencha %1$s.</string>
+    <string name="viewer_show_refresh">Mostrar o botão Atualizar</string>
+    <string name="viewer_show_expand">Mostrar o botão Expandir</string>
+    <string name="viewer_update_mode">Modo de atualização da visualização</string>
+    <string name="viewer_update_manual">Só manual</string>
+    <string name="viewer_update_auto">Automático</string>
+    <string name="viewer_update_help">Só manual: ao abrir ou trocar de aba, usa a última página sem executar o comando. Na primeira vez, pressione Atualizar. Automático: atualiza ao abrir e no intervalo definido em Configurações avançadas. Um intervalo vazio ou zero atualiza só ao abrir. Atualizações da página vindas de ações como adicionar ou excluir aparecem nos dois modos.</string>
+    <string name="viewer_empty_manual">Ainda não há página. Pressione Atualizar para executar o comando configurado e exibi-lo.</string>
+    <string name="viewer_empty_hidden">Ainda não há página. Ative o botão Atualizar nas configurações deste item, ou envie uma página para este item a partir de uma macro.</string>
+    <string name="viewer_find">Localizar</string>
+    <string name="viewer_find_hint">Localizar na página</string>
+    <string name="viewer_find_previous">Ocorrência anterior</string>
+    <string name="viewer_find_next">Próxima ocorrência</string>
+    <string name="viewer_find_close">Fechar a busca</string>
+    <string name="viewer_show_find">Mostrar o botão Localizar</string>
+    <string name="viewer_number">Digite %1$s como número.</string>
+    <string name="viewer_pinch" formatted="false">Pinça</string>
+    <string name="viewer_pinch_text" formatted="false">Ajustar o tamanho do texto</string>
+    <string name="viewer_pinch_page" formatted="false">Ampliar a página inteira</string>
+    <string name="viewer_text_size" formatted="false">Tamanho do texto (%)</string>
+    <string name="viewer_text_size_help" formatted="false">50–300; vazio significa 100. Com “Ajustar o tamanho do texto”, um gesto de pinça preenche este campo.</string>
+</resources>

@@ -118,6 +118,17 @@ class AppLanguagesTest {
         assertEquals("ko", AppLanguages.matchDeviceLocale("ko-KP"))
     }
 
+    /**
+     * ポルトガル語はブラジルの言い方で 1 つだけ載せている (1.0.86)。ポルトガル (pt-PT) の端末も
+     * 英語ではなく pt-BR へ寄せる (語は少し違うが、英語より読める)。
+     */
+    @Test
+    fun portugueseRegionsGoToBrazilianPortuguese() {
+        assertEquals("pt-BR", AppLanguages.matchDeviceLocale("pt-BR"))
+        assertEquals("pt-BR", AppLanguages.matchDeviceLocale("pt-PT"))
+        assertEquals("pt-BR", AppLanguages.matchDeviceLocale("pt"))
+    }
+
     /** 名簿に無ければ英語。⛔ 日本語へ倒さない。 */
     @Test
     fun anythingElseGoesToEnglish() {

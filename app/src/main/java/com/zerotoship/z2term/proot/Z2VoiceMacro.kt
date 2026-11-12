@@ -36,7 +36,7 @@ fun z2VoiceMacro(lang: String): String {
 #   voice.sh words                 open the word table (~/.z2term/voice/words-<lang>.txt; add or change phrases)
 #   voice.sh try <phrase>          try one without speaking (e.g. voice.sh try next song)
 #   voice.sh listen                open the listening screen and speak (the same as the tile)
-#   voice.sh lang [lang]           the word table's language (en / ja / zh-CN / zh-TW / es / ko)
+#   voice.sh lang [lang]           the word table's language (voice.sh lang - lists them)
 #   voice.sh ai [off|codex|claude|agy]   whether to use AI (off at first)
 #   voice.sh model [name]          the AI's model (empty = that AI's default)
 #   voice.sh setup / help
@@ -57,7 +57,7 @@ fun z2VoiceMacro(lang: String): String {
 #   voice.sh words                 言葉の表を開く (~/.z2term/voice/words-<言語>.txt。言い方を足す・変える)
 #   voice.sh try <言葉>            話さずに試す (例: voice.sh try 次の曲)
 #   voice.sh listen                聞き取りの画面を開いて話す (タイルと同じ)
-#   voice.sh lang [言語]           言葉の表の言語 (en / ja / zh-CN / zh-TW / es / ko)
+#   voice.sh lang [言語]           言葉の表の言語 (一覧は voice.sh lang -)
 #   voice.sh ai [off|codex|claude|agy]   AI を使うか (最初は off)
 #   voice.sh model [名前]          AI のモデル (空でその AI の既定)
 #   voice.sh setup / help
@@ -69,12 +69,14 @@ fun z2VoiceMacro(lang: String): String {
 # z2-run: sh ~/.z2term/macros/voice.sh setup"""
     )
     // 言葉の表の既定の言語 = アプリの言語 (表の無い言語は英語)。voice.sh lang で変えられる。
-    val defaultLang = when (lang) {
-        "ja", "zh-CN", "zh-TW", "es", "ko" -> lang
-        else -> "en"
-    }
+    // ⭐ 表を持つ言語は [VOICE_WORDS] から引く (言語ファイルに voiceWords を置けば自動で加わる)。
+    val defaultLang = if (VOICE_WORDS.any { it.first == lang }) lang else "en"
     return "#!/bin/sh\n" + head + "\n\n" + voiceBody(d, defaultLang)
 }
+
+/** 表を持つ言語の一覧 (sh の case に書く形 `en|ja|…` と、案内に出す形 `en | ja | …`)。 */
+private val voiceLangCase: String get() = VOICE_WORDS.map { it.first }.sortedBy { if (it == "en") 0 else 1 }.joinToString("|")
+private val voiceLangList: String get() = voiceLangCase.replace("|", " | ")
 
 /** 振り分けの本体 (言語に依らない 1 本)。 */
 private fun voiceBody(d: String, defaultLang: String): String = """VOICE_LANG_DEFAULT=$defaultLang
@@ -109,7 +111,7 @@ conf_set() {
   mv "${d}CONFIG.tmp" "${d}CONFIG"
 }
 
-known_lang() { case ${d}1 in en|ja|zh-CN|zh-TW|es|ko) return 0 ;; esac; return 1; }
+known_lang() { case ${d}1 in $voiceLangCase) return 0 ;; esac; return 1; }
 VLANG=${d}(conf_get lang)
 known_lang "${d}VLANG" || VLANG=${d}VOICE_LANG_DEFAULT
 WORDS=${d}DIR/words-${d}VLANG.txt
@@ -487,7 +489,7 @@ case "${d}{1:-}" in
     ;;
   lang)
     if [ -n "${d}{2:-}" ]; then
-      known_lang "${d}2" || { echo "lang: en | ja | zh-CN | zh-TW | es | ko" >&2; exit 2; }
+      known_lang "${d}2" || { echo "lang: $voiceLangList" >&2; exit 2; }
       conf_set lang "${d}2"; VLANG=${d}2; WORDS=${d}DIR/words-${d}VLANG.txt; load_words
     fi
     ensure_words

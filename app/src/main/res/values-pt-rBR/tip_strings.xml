@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tip_word_select_title">Toque duas vezes num texto do terminal para selecionar uma palavra</string>
+    <string name="tip_word_select_body">Um caminho, um nome de host ou um endereço IP é selecionado como uma peça só, mesmo quando continua na linha seguinte. Depois, arraste as alças das duas pontas para mudar o trecho. Numa tela em que um app lê o mouse, o toque duplo vai para esse app.</string>
+</resources>

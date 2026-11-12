@@ -72,7 +72,7 @@ class CliTextTest {
      */
     @Test
     fun everyLanguageFileIsUsed() {
-        for (lang in listOf("zh-CN", "zh-TW", "es", "ko")) {
+        for (lang in CliLanguages.all.map { it.code }) {
             assertNotNull("$lang: 言語ファイルが一覧に無い", CliLanguages.of(lang))
             assertNotEquals("$lang: z2doctor が英語のまま", z2doctorScript("en"), z2doctorScript(lang))
             assertNotEquals("$lang: z2-* が英語のまま", z2ApiScripts("en"), z2ApiScripts(lang))

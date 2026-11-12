@@ -78,6 +78,7 @@ object AppLanguages {
         Entry("zh-TW", "繁體中文", cliComplete = true),
         Entry("es", "Español", cliComplete = true),
         Entry("ko", "한국어", cliComplete = true),
+        Entry("pt-BR", "Português do Brasil", cliComplete = true),
     )
 
     /** 対応言語のコードだけ。 */

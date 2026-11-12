@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qr_action_open">Abrir</string>
+    <string name="qr_action_dial">Abrir o discador</string>
+    <string name="qr_action_email">Escrever e-mail</string>
+    <string name="qr_action_sms">Escrever SMS</string>
+    <string name="qr_action_wifi">Conectar ao Wi-Fi</string>
+    <string name="qr_action_contact">Adicionar aos contatos</string>
+    <string name="qr_action_event">Adicionar à agenda</string>
+    <string name="qr_action_no_app">Nenhum app deste dispositivo consegue abrir isto.</string>
+    <string name="qr_action_wifi_copied">A senha do Wi-Fi foi copiada. Escolha a rede na lista e cole-a.</string>
+    <string name="settings_group_qr_tools">Ferramentas de QR</string>
+    <string name="settings_group_qr_tools_desc">Ler pela câmera ou por imagens e criar códigos QR</string>
+    <string name="settings_qr_tools_open">Abrir as ferramentas de QR</string>
+    <string name="settings_qr_tools_hint">O z2-qr começa a ler com a câmera. Você pode colocá-lo num bloco de Configurações rápidas ou num painel lateral.</string>
+</resources>

@@ -718,7 +718,7 @@ after_label() {
 #   voice.sh words                 打开词表 (~/.z2term/voice/words-<语言>.txt。增加或更换说法)
 #   voice.sh try <话>              不说话也能试 (例: voice.sh try 下一首)
 #   voice.sh listen                打开听取画面后说话 (与磁贴相同)
-#   voice.sh lang [语言]           词表的语言 (en / ja / zh-CN / zh-TW / es / ko)
+#   voice.sh lang [语言]           词表的语言 (用 voice.sh lang - 列出)
 #   voice.sh ai [off|codex|claude|agy]   是否使用 AI (一开始是 off)
 #   voice.sh model [名字]          AI 的模型 (留空 = 该 AI 的默认)
 #   voice.sh setup / help
