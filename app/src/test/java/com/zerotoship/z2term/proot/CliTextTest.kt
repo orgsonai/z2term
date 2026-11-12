@@ -59,10 +59,11 @@ class CliTextTest {
     /** 文字列でないもの ([CliText.of]) も同じ規則。型が違う値は英語へ落ちる。 */
     @Test
     fun nonTextValuesFollowTheSameRule() {
-        assertEquals(8, CliText("ja").of("macro.cols", en = 7, ja = 8))
-        assertEquals(7, CliText("zz").of("macro.cols", en = 7, ja = 8))
-        assertEquals(9, CliText("xx", fake).of("macro.cols", en = 7, ja = 8))
-        assertEquals(7, CliText("xx", fake).of("macro.wrongType", en = 7, ja = 8))
+        // 型は明示する。省くと assertEquals(Long, Long) に引かれて T が Long になり、Int の 9 が「違う型」として落ちる。
+        assertEquals(8, CliText("ja").of<Int>("macro.cols", en = 7, ja = 8))
+        assertEquals(7, CliText("zz").of<Int>("macro.cols", en = 7, ja = 8))
+        assertEquals(9, CliText("xx", fake).of<Int>("macro.cols", en = 7, ja = 8))
+        assertEquals(7, CliText("xx", fake).of<Int>("macro.wrongType", en = 7, ja = 8))
     }
 
     /**

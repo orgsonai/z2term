@@ -71,7 +71,8 @@ class AppLanguagesTest {
         assertEquals("ja", AppLanguages.matchDeviceLocale("ja-JP"))
         assertEquals("ja", AppLanguages.matchDeviceLocale("ja_JP"))
         assertEquals("en", AppLanguages.matchDeviceLocale("en-US"))
-        assertEquals(AppLanguages.FALLBACK, AppLanguages.matchDeviceLocale("de-DE"))
+        assertEquals("de", AppLanguages.matchDeviceLocale("de-DE"))
+        assertEquals(AppLanguages.FALLBACK, AppLanguages.matchDeviceLocale("ru-RU"))
     }
 
     /**
