@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.93 (versionCode 791)**: Adding an app to the edge panel no longer crashes when the same app is installed both in your own profile and in another one.
+
 **1.0.92 (versionCode 790)**: The edge panel can now hold apps installed in another profile, such as a work profile. They appear in the app list with the profile's badge and name. From the command line, `z2-intent -p PACKAGE --profile N` opens them (N is in the command saved when you add that app). Apps in another profile cannot open in split screen.
 
 **1.0.91 (versionCode 789)**: Voice command now matches what was heard even when the recognizer starts with an accented or Cyrillic capital (É, Ü, С…), and phrases written with a typographic apostrophe in the French and Italian tables (l’heure, l’ora) now match too.

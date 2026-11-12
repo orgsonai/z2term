@@ -16,9 +16,13 @@ import java.util.concurrent.TimeUnit
 /** The panel entry writes a definition; the CLI entry returns the selected package. */
 class AppPickerActivity : Activity() {
     /** [profile] is the serial of another profile, or null for z2term's own. [label] carries that profile's badge. */
-    private class Entry(val pkg: String, val sortLabel: String, val label: String, val profile: Long?,
+    internal class Entry(val pkg: String, val sortLabel: String, val label: String, val profile: Long?,
         val loadIcon: () -> android.graphics.drawable.Drawable?) {
         val icon get() = profile?.let { "@app:$pkg@$it" } ?: "@app:$pkg"
+        companion object {
+            /** By name; the same app in z2term's own profile comes before its copies in other profiles. */
+            val order: Comparator<Entry> = compareBy<Entry> { it.sortLabel }.thenBy { it.profile ?: -1L }
+        }
     }
 
     private val main = Handler(Looper.getMainLooper())
@@ -45,7 +49,7 @@ class AppPickerActivity : Activity() {
                     AppProfiles.serial(this, info.user)) { info.getBadgedIcon(0) }
             }
         }.getOrDefault(emptyList())
-        val entries = (own + others).sortedWith(compareBy<Entry> { it.sortLabel }.thenBy { it.profile ?: -1 })
+        val entries = (own + others).sortedWith(Entry.order)
         title = getString(R.string.edge_pick_app)
         fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
         var visible = entries
