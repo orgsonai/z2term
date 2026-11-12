@@ -1,0 +1,7 @@
+1.0.94
+
+- The edge panel can hold apps from another profile, such as a work profile; z2-intent --profile opens them too.
+- Added German, French, Indonesian, Italian and Portuguese (Brazil).
+- Choose whether a long press outside the panel opens its settings.
+- Voice command matches words that start with accented capitals or use a typographic apostrophe.
+- The app picker, left open behind another app, no longer brings up the settings two minutes later.
