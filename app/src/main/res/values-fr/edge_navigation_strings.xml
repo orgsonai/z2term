@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">Abandonner les modifications non enregistrées ?</string>
+    <string name="edge_discard_message">Vos modifications non enregistrées seront perdues.</string>
+    <string name="edge_discard">Abandonner</string>
+    <string name="edge_keep_editing">Continuer à modifier</string>
+    <string name="edge_select_tab">Choisir l’onglet</string>
+    <string name="edge_finish_title">Enregistrer les modifications ?</string>
+    <string name="edge_finish_message">Certaines modifications ne sont pas encore enregistrées. Un nom d’onglet ou de panneau saisi mais non ajouté n’est pas enregistré.</string>
+    <string name="edge_choose_panel">Choisir un panneau</string>
+</resources>

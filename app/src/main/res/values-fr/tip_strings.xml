@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tip_word_select_title">Appuyez deux fois sur un texte du terminal pour sélectionner un mot</string>
+    <string name="tip_word_select_body">Un chemin, un nom d’hôte ou une adresse IP est sélectionné d’un seul bloc, même s’il passe à la ligne suivante. Ensuite, faites glisser les poignées aux deux bouts pour changer la sélection. Sur un écran où une application lit la souris, le double appui va à cette application.</string>
+</resources>

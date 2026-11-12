@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-11-12 / 対象バージョン: 1.0.87 (versionCode 785)
+最終更新: 2026-11-12 / 対象バージョン: 1.0.88 (versionCode 786)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -3651,6 +3651,14 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 - **声で操作の表**: 「nachrichten」はニュース（`news`）とメッセージアプリ（`open_messages`）の両方に当たるので、メッセージ側は「nachrichten app」にした。「ruf * an」のように `*` を真ん中に置く言い方を使う（英語の「set a * timer」と同じ）。
 - ⛔ **`CliTextTest` が「訳の無い言語」の例に `de` を使っていた** ⇒ `zz` に替えた（`VoiceScriptTest` の `fr` と同じ罠）。
 - ⚠ ドイツ語は語が長い。ボタンや一覧ではみ出していないかは実機で見ること。
+
+#### フランス語を追加（1.0.88）
+
+同じ手順（名簿に 1 行・`res/values-fr/`・`proot/lang/CliFr.kt`・`CliLanguages` に 1 行）。
+
+- **用語**: onglet（タブ）/ appuyer・appui long / balayer（フリック）/ fichier / dossier / Paramètres / presse-papiers / tuile（タイル）/ panneau latéral（エッジパネル）/ serveur résident。呼びかけは Android と同じく **vous**。
+- ⛔ **アポストロフィは活字の ’（U+2019）を使う。** res では素の `'` が aapt のエラーになる（`\'` が要る）。端末に出る文言はシェルスクリプトに埋め込まれるので、`'` だと引用符とぶつかる。⇒ 文中は全部 ’ にした（res の書式点検でも素の `'` が 0 件であることを確かめた）。
+- **地域つき（`fr-CA` / `fr-BE`）は `fr` へ**（`AppLanguagesTest`）。複数形は es・pt と同じく many を足した。
 
 ### 6.8.1 アプリロック (A2・0.8.421)
 

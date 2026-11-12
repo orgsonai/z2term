@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">Mini-terminal</string>
+    <string name="edge_terminal_command">Commande sur une ligne</string>
+    <string name="edge_terminal_result">Sortie de la commande</string>
+    <string name="edge_terminal_stop">Arrêter</string>
+    <string name="edge_terminal_copy">Copier</string>
+    <string name="edge_terminal_clear">Effacer</string>
+    <string name="edge_terminal_ready">Nouvelle session</string>
+    <string name="edge_terminal_starting">Démarrage…</string>
+    <string name="edge_terminal_running">En cours…</string>
+    <string name="edge_terminal_exit">Sortie : %1$d</string>
+    <string name="edge_terminal_ended">Terminée · actualisez pour démarrer une nouvelle session</string>
+    <string name="edge_terminal_truncated">Affichage des 64 derniers Kio de caractères</string>
+    <string name="edge_terminal_help">Fermer le panneau ou changer d’onglet garde le shell, la sortie et le brouillon. Actualiser les réinitialise manuellement. Pendant qu’une commande tourne, le champ lui répond et Arrêter ne termine que cette commande. Pour les programmes plein écran, utilisez un onglet de terminal normal.</string>
+    <string name="edge_terminal_one_line_required">Le mini-terminal accepte des commandes d’une ligne jusqu’à 16 384 caractères. Pour plusieurs lignes, utilisez un terminal normal.</string>
+    <string name="edge_terminal_refresh">Actualiser la session</string>
+    <string name="edge_terminal_answer">Répondre à la commande en cours (vide envoie Entrée)</string>
+    <string name="edge_terminal_send">Envoyer</string>
+</resources>

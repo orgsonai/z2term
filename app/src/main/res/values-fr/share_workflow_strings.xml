@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">Saisies de la commande</string>
+    <string name="snippet_inputs_file">Choisir un fichier</string>
+    <string name="snippet_inputs_invalid">Vérifiez la définition des saisies et les valeurs. Placez chaque espace réservé hors des guillemets, comme argument séparé.</string>
+    <string name="snippet_inputs_preview">Aperçu de la commande</string>
+    <string name="snippet_inputs_hint">La commande est insérée dans le terminal. Vérifiez-la, puis appuyez sur Entrée. Les fichiers choisis sont copiés dans le dossier personnel du shell local.</string>
+    <string name="snippet_inputs_enable">Demander les saisies avant d’insérer</string>
+    <string name="snippet_inputs_definition">Dans la commande : {{text}}, {{width:number=1080}}, {{format:choice=png|jpg}}, {{image:file}}. Les noms deviennent les libellés des champs. Placez les espaces réservés hors des guillemets.</string>
+    <string name="snippet_share_action">Proposer après la réception d’un partage</string>
+    <string name="snippet_share_action_hint">La commande peut lire $Z2_SHARE_TEXT et $Z2_SHARE_MANIFEST (JSON de réception). Les saisies de fichier peuvent utiliser les pièces jointes reçues.</string>
+    <string name="share_intake_title">Contenu reçu</string>
+    <string name="share_intake_hint">Le texte et les pièces jointes sont enregistrés ensemble. Choisissez une commande enregistrée ou insérez le contenu d’origine. Les commandes s’exécutent après que vous appuyez sur Entrée.</string>
+    <string name="share_intake_insert">Insérer dans le terminal</string>
+    <string name="share_intake_close">Garder enregistré et fermer</string>
+</resources>

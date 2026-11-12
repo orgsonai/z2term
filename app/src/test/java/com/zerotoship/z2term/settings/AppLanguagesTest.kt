@@ -137,6 +137,14 @@ class AppLanguagesTest {
         assertEquals("de", AppLanguages.matchDeviceLocale("de-CH"))
     }
 
+    /** 地域つきのフランス語 (カナダ・ベルギー・スイス) は `fr` へ (1.0.88)。 */
+    @Test
+    fun frenchRegionsCollapseToTheBaseLanguage() {
+        assertEquals("fr", AppLanguages.matchDeviceLocale("fr-FR"))
+        assertEquals("fr", AppLanguages.matchDeviceLocale("fr-CA"))
+        assertEquals("fr", AppLanguages.matchDeviceLocale("fr-BE"))
+    }
+
     /** 名簿に無ければ英語。⛔ 日本語へ倒さない。 */
     @Test
     fun anythingElseGoesToEnglish() {

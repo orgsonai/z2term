@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qr_history_title">Historique</string>
+    <string name="qr_history_clear">Tout effacer</string>
+    <string name="qr_history_clear_title">Effacer l’historique</string>
+    <string name="qr_history_clear_message">Efface tout l’historique sauf les éléments épinglés.</string>
+    <string name="qr_history_pin">Épingler</string>
+    <string name="qr_history_unpin">Désépingler</string>
+    <string name="qr_history_delete">Supprimer</string>
+    <string name="qr_history_pinned">Épinglés</string>
+    <string name="qr_history_menu">Épingler ou supprimer</string>
+    <string name="qr_history_note">Appuyez pour l’afficher à nouveau. Appui long pour épingler ou supprimer. L’historique garde ce que vous scannez sur cet appareil uniquement, y compris des contenus comme les mots de passe Wi-Fi. Jusqu’à 50 éléments non épinglés sont conservés.</string>
+</resources>

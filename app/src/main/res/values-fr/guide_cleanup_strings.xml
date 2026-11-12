@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_guide_cleanup">Nettoyer</string>
+    <string name="settings_guides_cleanup_desc">« Nettoyer » montre les étapes qui retirent ce qu’un guide a ajouté, sous la même forme de cartes. Rien n’est retiré tant que vous n’appuyez pas sur une carte.</string>
+    <string name="guide_cleanup_heading">retirer ce que ceci a ajouté</string>
+    <string name="guide_cleanup_hint">Appuyez pour exécuter (Ctrl-C d’abord, pour qu’une ligne à moitié saisie ne s’y mêle pas) / ✕ pour garder</string>
+    <string name="guide_undo_rules">Retirer les règles d’automatisation qui appellent cette macro</string>
+    <string name="guide_undo_macro">Retirer la macro (s’arrête sans la retirer si vous l’avez modifiée vous-même)</string>
+    <string name="guide_undo_notify_off">Si rien d’autre ne l’utilise : Paramètres -> désactiver « Détection des notifications »</string>
+    <string name="guide_undo_sms_off">Si rien d’autre ne l’utilise : Paramètres -> désactiver « Détection des SMS »</string>
+    <string name="guide_undo_remind_all">Annuler tous les rappels que vous avez enregistrés</string>
+    <string name="guide_undo_remind_tiles">Vider les emplacements de tuile qui exécutent remind.sh</string>
+    <string name="guide_undo_remind_data">Supprimer les données des rappels (✕ pour les garder)</string>
+    <string name="guide_undo_rss_data">Supprimer la liste des flux et les articles collectés (✕ pour les garder)</string>
+    <string name="guide_undo_voice_data">Supprimer la table de mots, les notes et les réglages de la commande vocale (✕ pour les garder)</string>
+    <string name="guide_undo_edge_main">Supprimer le panneau d’applications d’exemple « main » (les éléments que vous y avez ajoutés partent aussi)</string>
+    <string name="guide_undo_edge_samples">Supprimer les panneaux d’exemple (le texte de la note part aussi)</string>
+    <string name="guide_undo_edge_off">Si vous n’utilisez aucun autre panneau, désactiver les panneaux (la barre disparaît)</string>
+    <string name="guide_undo_permissions">« Superposer aux autres applis » et l’accessibilité ne se désactivent que dans les paramètres Android. Laissez-les si une autre fonction les utilise.</string>
+</resources>

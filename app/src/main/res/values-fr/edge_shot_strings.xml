@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shot_busy">Terminez d’abord la capture en cours.</string>
+    <string name="shot_needs_android11">Capturer une zone nécessite Android 11 ou plus récent.</string>
+    <string name="shot_capture_failed">Android n’a pas renvoyé d’image de l’écran. Réessayez.</string>
+    <string name="shot_too_small">Cette zone est trop petite. Dessinez-en une plus grande.</string>
+    <string name="shot_hint_free">Faites le tour de ce que vous voulez, puis levez le doigt.</string>
+    <string name="shot_hint_box">Faites glisser d’un coin au coin opposé, puis levez le doigt.</string>
+    <string name="shot_hint_move">Faites glisser l’image pour ajuster ce qui est dedans.</string>
+    <string name="shot_shape_free">Libre</string>
+    <string name="shot_shape_rect">Rectangle</string>
+    <string name="shot_shape_oval">Ovale</string>
+    <string name="shot_shape_circle">Cercle</string>
+    <string name="shot_bg_transparent">Extérieur : transparent</string>
+    <string name="shot_bg_keep">Extérieur : conservé</string>
+    <string name="shot_redo">Refaire</string>
+    <string name="shot_save">Enregistrer</string>
+    <string name="shot_share">Partager</string>
+    <string name="shot_saved">%1$s enregistré dans %2$s.</string>
+    <string name="shot_save_failed">Impossible d’écrire l’image.</string>
+</resources>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">Choix ou copie d’un document…</string>
+    <string name="process_text_title">Traiter avec z2term</string>
+    <string name="process_text_enable">Proposer pour le texte sélectionné</string>
+    <string name="process_text_contract">La commande choisie reçoit le texte d’origine sur stdin. Vérifiez stdout avant de remplacer la sélection.</string>
+    <string name="process_text_setup">Enregistrez une commande dans Commandes → Extraits et activez « Proposer pour le texte sélectionné ».</string>
+    <string name="process_text_replace">Remplacer la sélection</string>
+    <string name="process_text_too_large">Le texte doit être valide, sans NUL, jusqu’à 64 Kio.</string>
+    <string name="workspace_title">Disposition des sessions</string>
+    <string name="workspace_hint">Choisissez un deuxième onglet. Appuyez sur un volet pour lui donner le focus ; faites glisser le séparateur pour redimensionner. Le clavier contrôle le volet actif. Appuyez longuement sur le titre d’un volet et faites-le glisser vers l’autre pour les échanger ; le bouton au bout droit d’un titre (ou un double appui sur le titre) n’affiche que cet onglet.</string>
+    <string name="workspace_vertical">Haut / bas</string>
+    <string name="workspace_horizontal">Gauche / droite</string>
+    <string name="workspace_preview_current">Cet onglet</string>
+    <string name="workspace_preview_other">L’onglet sur lequel vous appuyez ci-dessous</string>
+    <string name="workspace_need_two">Ouvrez d’abord un autre onglet de terminal ou d’interface graphique.</string>
+    <string name="workspace_maximize">N’afficher que cet onglet</string>
+    <string name="workspace_single">Un seul volet</string>
+    <string name="workspace_external_hint">Affiche l’onglet actuel sur un écran externe. Le téléphone peut le contrôler ou afficher un autre onglet.</string>
+    <string name="workspace_no_display">Aucun écran externe disponible.</string>
+    <string name="workspace_return">Revenir au téléphone</string>
+    <string name="workspace_projected">Affiché sur l’écran externe. Le clavier contrôle cette session.</string>
+    <string name="workspace_controller">Écran externe : utilisez cette zone comme pavé tactile et le clavier ci-dessous pour la saisie.</string>
+    <string name="workspace_display_failed">Impossible d’utiliser cet écran. La session continue de tourner.</string>
+    <string name="settings_gui_direct">Affichage local direct de la GUI (expérimental)</string>
+    <string name="settings_gui_direct_desc">Lit directement le framebuffer local. Utilise Xvfb pour l’affichage et x11vnc seulement pour la saisie ; les paquets sont téléchargés à la première utilisation. S’applique aux onglets GUI ouverts ensuite. Résolution de départ fixe ; pas d’accélération GPU.</string>
+    <string name="tip_gui_split_title">Appui long sur GUI pour partager GUI et terminal</string>
+    <string name="tip_gui_split_body">Appuyez longuement sur le bouton GUI (🖥) à côté du + pour ouvrir la disposition des sessions. Choisissez haut/bas ou gauche/droite et un autre onglet pour utiliser GUI et terminal (CUI) ensemble. Le même menu revient à un seul volet ou choisit un écran externe. Un appui court ouvre la GUI comme avant.</string>
+</resources>

@@ -80,6 +80,7 @@ object AppLanguages {
         Entry("ko", "한국어", cliComplete = true),
         Entry("pt-BR", "Português do Brasil", cliComplete = true),
         Entry("de", "Deutsch", cliComplete = true),
+        Entry("fr", "Français", cliComplete = true),
     )
 
     /** 対応言語のコードだけ。 */

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-12 / Target version: 1.0.87 (versionCode 785)
+Last updated: 2026-11-12 / Target version: 1.0.88 (versionCode 786)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3727,6 +3727,14 @@ Added the same way as Portuguese (one roster line, `res/values-de/`, `proot/lang
 - **Voice word table**: "nachrichten" fits both news (`news`) and the messaging app (`open_messages`), so the latter uses "nachrichten app". Phrases with `*` in the middle such as "ruf * an" are used (like English "set a * timer").
 - ⛔ **`CliTextTest` used `de` as its "untranslated language"** ⇒ now `zz` (the same trap as `fr` in `VoiceScriptTest`).
 - ⚠ German words are long; check on a device that buttons and lists do not overflow.
+
+#### French added (1.0.88)
+
+Same procedure (one roster line, `res/values-fr/`, `proot/lang/CliFr.kt`, one line in `CliLanguages`).
+
+- **Terms**: onglet (tab) / appuyer, appui long / balayer (flick) / fichier / dossier / Paramètres / presse-papiers / tuile (tile) / panneau latéral (edge panel) / serveur résident. Addressed as **vous**, as Android does.
+- ⛔ **Apostrophes are the typographic ’ (U+2019).** In res a bare `'` is an aapt error (it needs `\'`); terminal text is embedded in shell scripts, where `'` collides with quoting ⇒ all prose uses ’ (the res format check confirmed zero bare `'`).
+- **Regional French (`fr-CA` / `fr-BE`) goes to `fr`** (`AppLanguagesTest`). Plurals add many, as for es and pt.
 
 ### 6.8.1 App lock (A2, 0.8.421)
 

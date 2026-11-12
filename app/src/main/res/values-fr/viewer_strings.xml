@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="viewer_missing">Cette page n’existe plus.</string>
+    <string name="viewer_no_browser">Aucune application de ce téléphone ne peut ouvrir ce lien.</string>
+    <string name="viewer_expand">Agrandir</string>
+    <string name="viewer_close">Fermer</string>
+    <string name="viewer_component">Vue (z2-view)</string>
+    <string name="viewer_empty">Pas encore de page. Définissez une commande qui appelle z2-view, ou envoyez une page à cet élément.</string>
+    <string name="viewer_required">Saisissez %1$s.</string>
+    <string name="viewer_show_refresh">Afficher le bouton Actualiser</string>
+    <string name="viewer_show_expand">Afficher le bouton Agrandir</string>
+    <string name="viewer_update_mode">Actualisation de la vue</string>
+    <string name="viewer_update_manual">Manuelle uniquement</string>
+    <string name="viewer_update_auto">Automatique</string>
+    <string name="viewer_update_help">Manuelle uniquement : à l’ouverture ou au changement d’onglet, la dernière page est utilisée sans exécuter la commande. Appuyez sur Actualiser la première fois. Automatique : actualise à l’ouverture et à l’intervalle de Paramètres avancés. Un intervalle vide ou nul n’actualise qu’à l’ouverture. Les mises à jour de page venant d’actions comme ajouter ou supprimer apparaissent dans les deux modes.</string>
+    <string name="viewer_empty_manual">Pas encore de page. Appuyez sur Actualiser pour exécuter la commande configurée et l’afficher.</string>
+    <string name="viewer_empty_hidden">Pas encore de page. Activez le bouton Actualiser dans les paramètres de cet élément, ou envoyez-lui une page depuis une macro.</string>
+    <string name="viewer_find">Rechercher</string>
+    <string name="viewer_find_hint">Rechercher dans la page</string>
+    <string name="viewer_find_previous">Résultat précédent</string>
+    <string name="viewer_find_next">Résultat suivant</string>
+    <string name="viewer_find_close">Fermer la recherche</string>
+    <string name="viewer_show_find">Afficher le bouton Rechercher</string>
+    <string name="viewer_number">Saisissez %1$s sous forme de nombre.</string>
+    <string name="viewer_pinch" formatted="false">Pincer</string>
+    <string name="viewer_pinch_text" formatted="false">Taille du texte</string>
+    <string name="viewer_pinch_page" formatted="false">Zoomer toute la page</string>
+    <string name="viewer_text_size" formatted="false">Taille du texte (%)</string>
+    <string name="viewer_text_size_help" formatted="false">50–300 ; vide signifie 100. Avec « Taille du texte », un pincement remplit ce champ.</string>
+</resources>

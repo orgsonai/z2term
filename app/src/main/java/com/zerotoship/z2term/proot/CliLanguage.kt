@@ -2,6 +2,7 @@ package com.zerotoship.z2term.proot
 
 import com.zerotoship.z2term.proot.lang.CliDe
 import com.zerotoship.z2term.proot.lang.CliEs
+import com.zerotoship.z2term.proot.lang.CliFr
 import com.zerotoship.z2term.proot.lang.CliKo
 import com.zerotoship.z2term.proot.lang.CliPtBr
 import com.zerotoship.z2term.proot.lang.CliZhCn
@@ -82,6 +83,7 @@ internal object CliLanguages {
             CliKo,
             CliPtBr,
             CliDe,
+            CliFr,
         )
     }
 
