@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="viewer_missing">Quella pagina non c’è più.</string>
+    <string name="viewer_no_browser">Nessuna app su questo telefono può aprire quel link.</string>
+    <string name="viewer_expand">Espandi</string>
+    <string name="viewer_close">Chiudi</string>
+    <string name="viewer_component">Vista (z2-view)</string>
+    <string name="viewer_empty">Ancora nessuna pagina. Imposta un comando che chiama z2-view, o invia una pagina a questo elemento.</string>
+    <string name="viewer_required">Inserisci %1$s.</string>
+    <string name="viewer_show_refresh">Mostra il pulsante Aggiorna</string>
+    <string name="viewer_show_expand">Mostra il pulsante Espandi</string>
+    <string name="viewer_update_mode">Modalità di aggiornamento della vista</string>
+    <string name="viewer_update_manual">Solo manuale</string>
+    <string name="viewer_update_auto">Automatico</string>
+    <string name="viewer_update_help">Solo manuale: aprire o cambiare scheda usa l’ultima pagina senza eseguire il comando. Premi Aggiorna la prima volta. Automatico: aggiorna all’apertura e all’intervallo delle Impostazioni avanzate. Un intervallo vuoto o zero aggiorna solo all’apertura. Gli aggiornamenti di pagina da azioni come aggiungere o eliminare compaiono comunque in entrambe le modalità.</string>
+    <string name="viewer_empty_manual">Ancora nessuna pagina. Premi Aggiorna per eseguire il comando configurato e mostrarla.</string>
+    <string name="viewer_empty_hidden">Ancora nessuna pagina. Attiva il pulsante Aggiorna nelle impostazioni di questo elemento, o invia una pagina a questo elemento da una macro.</string>
+    <string name="viewer_find">Trova</string>
+    <string name="viewer_find_hint">Trova nella pagina</string>
+    <string name="viewer_find_previous">Risultato precedente</string>
+    <string name="viewer_find_next">Risultato successivo</string>
+    <string name="viewer_find_close">Chiudi la ricerca</string>
+    <string name="viewer_show_find">Mostra il pulsante Trova</string>
+    <string name="viewer_number">Inserisci %1$s come numero.</string>
+    <string name="viewer_pinch" formatted="false">Pizzico</string>
+    <string name="viewer_pinch_text" formatted="false">Ridimensiona il testo</string>
+    <string name="viewer_pinch_page" formatted="false">Ingrandisci l’intera pagina</string>
+    <string name="viewer_text_size" formatted="false">Dimensione del testo (%)</string>
+    <string name="viewer_text_size_help" formatted="false">50–300; vuoto significa 100. Con \"Ridimensiona il testo\", un pizzico compila questo valore.</string>
+</resources>

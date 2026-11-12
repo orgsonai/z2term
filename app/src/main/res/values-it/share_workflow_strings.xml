@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">Input del comando</string>
+    <string name="snippet_inputs_file">Scegli file</string>
+    <string name="snippet_inputs_invalid">Controlla la definizione degli input e i valori. Metti ogni segnaposto fuori dalle virgolette come argomento separato.</string>
+    <string name="snippet_inputs_preview">Anteprima del comando</string>
+    <string name="snippet_inputs_hint">Il comando viene inserito nel terminale. Controllalo, poi premi Invio. I file scelti vengono copiati nella home della shell locale.</string>
+    <string name="snippet_inputs_enable">Chiedi gli input prima di inserire</string>
+    <string name="snippet_inputs_definition">Nel comando: {{text}}, {{width:number=1080}}, {{format:choice=png|jpg}}, {{image:file}}. I nomi diventano le etichette dei campi. Metti i segnaposto fuori dalle virgolette.</string>
+    <string name="snippet_share_action">Proponi dopo aver ricevuto una condivisione</string>
+    <string name="snippet_share_action_hint">Il comando può leggere $Z2_SHARE_TEXT e $Z2_SHARE_MANIFEST (JSON della ricezione). Gli input di tipo file possono usare gli allegati ricevuti.</string>
+    <string name="share_intake_title">Contenuto ricevuto</string>
+    <string name="share_intake_hint">Il testo e gli allegati vengono salvati insieme. Scegli un comando salvato o inserisci il contenuto originale. I comandi partono dopo che premi Invio.</string>
+    <string name="share_intake_insert">Inserisci nel terminale</string>
+    <string name="share_intake_close">Tieni salvato e chiudi</string>
+</resources>

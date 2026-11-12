@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_help_start" formatted="false">Usa Aggiungi app per le app, o Aggiungi slot libero per visualizzazioni, input e comandi. Scegli un componente e un comportamento per vedere istruzioni ed esempi qui sotto. Dopo aver salvato, tocca Fine per tornare al pannello.</string>
+    <string name="edge_help_choose" formatted="false">Scegliere un componente</string>
+    <string name="edge_help_components" formatted="false">Pulsante: esegue un comando al tocco\nVisualizzazione: mostra risultati, testo fisso o una vista HTML\nInserimento: passa testo, salva note o usa una shell\nScelta: seleziona un valore tra opzioni preparate\nInterruttore: legge e cambia uno stato\nElenco: agisce su un elenco generato da un comando\n\nCollega inserimenti e scelte → un pulsante → una visualizzazione del risultato per costruire un modulo.</string>
+    <string name="edge_help_execute" formatted="false">Esegue un comando quando viene toccato. Inizia con un’etichetta e un comando. Usa Collegamenti per scegliere i valori di input o una visualizzazione del risultato.</string>
+    <string name="edge_help_state_button" formatted="false">Un pulsante che mostra ON/OFF. Imposta i comandi per accenderlo e spegnerlo, poi scegli come leggerne lo stato. Un comando di stato dovrebbe stampare on oppure off.</string>
+    <string name="edge_help_receive" formatted="false">Mostra l’output di un pulsante. Salva questo campo, poi selezionalo in Collegamenti → Visualizzazione del risultato nell’editor del pulsante. Qui non serve alcun comando.</string>
+    <string name="edge_help_fixed" formatted="false">Mostra un valore fisso. Inserisci il contenuto in Valore iniziale o fisso. Un pulsante collegato può anche passarlo come argomento.</string>
+    <string name="edge_help_read" formatted="false">Esegue un comando all’apertura e ne mostra l’output di testo. Per esempio, date mostra la data e l’ora attuali. Imposta l’aggiornamento automatico nelle Impostazioni avanzate.</string>
+    <string name="edge_help_view" formatted="false">Mostra HTML dentro il pannello. Imposta una macro che chiama z2-view, o un comando che apre un file HTML preparato. Per l’esempio qui sotto crea prima page.html. Scegli l’aggiornamento manuale o automatico. Le macro definiscono moduli e pulsanti di azione. Salva, poi tocca Fine per vedere la vista.</string>
+    <string name="edge_help_value" formatted="false">Passa a un altro componente il testo inserito dall’utente. Salva questo campo, poi selezionalo come input in Collegamenti nell’editor del pulsante. Se serve, imposta un valore predefinito o rendi l’input obbligatorio.</string>
+    <string name="edge_help_choice" formatted="false">Permette all’utente di scegliere tra valori preparati. Separa le opzioni con |, salva, poi seleziona questo campo in Collegamenti nell’editor del pulsante. Il valore predefinito deve corrispondere a una delle opzioni.</string>
+    <string name="edge_help_file" formatted="false">Una nota che salva ciò che scrivi. Lascia vuoto il percorso del file per iniziare. Il contenuto resta dopo la chiusura del pannello e può essere passato a un pulsante collegato.</string>
+    <string name="edge_help_send" formatted="false">Scrivi un testo e tocca Invia per passarlo al comando come input standard. Per esempio, cat restituisce il testo inserito invariato.</string>
+    <string name="edge_help_shell" formatted="false">Usa una shell dentro il pannello. In questo editor non serve alcun comando. Salva e tocca Fine per iniziare a scrivere. La shell, l’output e la bozza restano dopo la chiusura. Usa una normale scheda del terminale per i programmi interattivi.</string>
+    <string name="edge_help_state" formatted="false">Legge e cambia lo stato attuale. Il comando di stato dovrebbe stampare on oppure off; il comando di esecuzione dovrebbe invertirlo. Lo stato viene riletto dopo l’azione.</string>
+    <string name="edge_help_select" formatted="false">Trasforma ogni riga di output in un elemento selezionabile. Toccare una riga esegue il comando di selezione, che riceve il valore come \"$1\". Per usare etichette e valori diversi, stampa etichetta + tab + valore su ogni riga.</string>
+    <string name="edge_help_command" formatted="false">Inserisci un comando shell disponibile su questo dispositivo. Scegli una macro installata qui sotto e aggiungi gli argomenti che le servono. Provalo prima in una normale scheda del terminale.</string>
+    <string name="edge_help_every" formatted="false">Vuoto o 0 disattiva l’aggiornamento periodico. Un valore di 5–86400 secondi aggiorna solo mentre il pannello è visibile. Le viste ripetono il comando di visualizzazione; le macro possono definire un’azione diversa per il pulsante Aggiorna manuale.</string>
+    <string name="edge_help_timeout" formatted="false">Vuoto significa 30 secondi. Aumenta fino a 1–300 secondi per lavori più lenti come le richieste di rete.</string>
+    <string name="edge_help_note_path" formatted="false">Vuoto usa un file dedicato a questo elemento. Per usare un file esistente, indica un percorso dentro la home condivisa dell’app.</string>
+    <string name="edge_help_default" formatted="false">Il valore usato all’apertura. Per un campo di scelta, usa una delle sue opzioni.</string>
+    <string name="edge_help_choices" formatted="false">Separa le opzioni con |. Le opzioni vuote o duplicate non sono ammesse.</string>
+    <string name="edge_help_rows" formatted="false">Vuoto usa il valore predefinito del componente. Imposta 1–20 righe per scegliere l’altezza della visualizzazione.</string>
+    <string name="edge_help_size" formatted="false">Vuoto significa automatico. Un numero usa dp; % usa la larghezza della colonna o l’altezza del pannello.</string>
+    <string name="edge_help_example">Esempio: %1$s</string>
+    <string name="edge_help_use_example">Usa l’esempio</string>
+</resources>

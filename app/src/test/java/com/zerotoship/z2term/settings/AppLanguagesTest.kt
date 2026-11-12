@@ -154,6 +154,13 @@ class AppLanguagesTest {
         assertEquals("id", AppLanguages.matchDeviceLocale("in"))
     }
 
+    /** 地域つきのイタリア語 (スイス) は `it` へ (1.0.90)。 */
+    @Test
+    fun italianRegionsCollapseToTheBaseLanguage() {
+        assertEquals("it", AppLanguages.matchDeviceLocale("it-IT"))
+        assertEquals("it", AppLanguages.matchDeviceLocale("it-CH"))
+    }
+
     /** 名簿に無ければ英語。⛔ 日本語へ倒さない。 */
     @Test
     fun anythingElseGoesToEnglish() {

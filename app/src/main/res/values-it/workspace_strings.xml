@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">Scelta o copia di un documento in corso…</string>
+    <string name="process_text_title">Elabora con z2term</string>
+    <string name="process_text_enable">Proponi per il testo selezionato</string>
+    <string name="process_text_contract">Il comando selezionato riceve il testo originale su stdin. Controlla stdout prima di sostituire la selezione.</string>
+    <string name="process_text_setup">Registra un comando in Comandi → Frammenti e attiva “Proponi per il testo selezionato”.</string>
+    <string name="process_text_replace">Sostituisci la selezione</string>
+    <string name="process_text_too_large">Il testo deve essere testo valido senza NUL, fino a 64 KiB.</string>
+    <string name="workspace_title">Disposizione delle sessioni</string>
+    <string name="workspace_hint">Scegli una seconda scheda. Tocca un riquadro per metterlo a fuoco; trascina il divisore per ridimensionare. La tastiera controlla il riquadro a fuoco. Tieni premuto il titolo di un riquadro e trascinalo verso l’altro per scambiarli; usa il pulsante all’estremità destra di un titolo (o tocca due volte il titolo) per mostrare solo quella scheda.</string>
+    <string name="workspace_vertical">Sopra / sotto</string>
+    <string name="workspace_horizontal">Sinistra / destra</string>
+    <string name="workspace_preview_current">Questa scheda</string>
+    <string name="workspace_preview_other">La scheda che tocchi qui sotto</string>
+    <string name="workspace_need_two">Apri prima un’altra scheda del terminale o della GUI.</string>
+    <string name="workspace_maximize">Mostra solo questa scheda</string>
+    <string name="workspace_single">Un riquadro</string>
+    <string name="workspace_external_hint">Mostra la scheda attuale su un display esterno. Il telefono può controllarla o mostrare un’altra scheda.</string>
+    <string name="workspace_no_display">Nessun display esterno disponibile.</string>
+    <string name="workspace_return">Torna al telefono</string>
+    <string name="workspace_projected">Mostrata sul display esterno. La tastiera controlla quella sessione.</string>
+    <string name="workspace_controller">Display esterno: usa quest’area come touchpad e la tastiera qui sotto per l’input.</string>
+    <string name="workspace_display_failed">Impossibile usare questo display. La sessione è ancora in esecuzione.</string>
+    <string name="settings_gui_direct">Visualizzazione diretta della GUI locale (sperimentale)</string>
+    <string name="settings_gui_direct_desc">Legge direttamente il framebuffer locale. Usa Xvfb per la visualizzazione e x11vnc solo per l’input; i pacchetti vengono scaricati al primo utilizzo. Si applica alle schede GUI aperte da ora. Risoluzione iniziale fissa; nessuna accelerazione GPU.</string>
+    <string name="tip_gui_split_title">Tieni premuto GUI per dividere GUI e terminale</string>
+    <string name="tip_gui_split_body">Tieni premuto il pulsante GUI (🖥) accanto a + per aprire la disposizione delle sessioni. Scegli sopra/sotto o sinistra/destra e un’altra scheda per usare insieme GUI e terminale (CUI). Lo stesso menu ripristina un solo riquadro o sceglie un display esterno. Un tocco breve apre la GUI come prima.</string>
+</resources>

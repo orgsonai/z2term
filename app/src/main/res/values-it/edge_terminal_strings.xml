@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">Mini terminale</string>
+    <string name="edge_terminal_command">Comando su una riga</string>
+    <string name="edge_terminal_result">Output del comando</string>
+    <string name="edge_terminal_stop">Ferma</string>
+    <string name="edge_terminal_copy">Copia</string>
+    <string name="edge_terminal_clear">Cancella</string>
+    <string name="edge_terminal_ready">Nuova sessione</string>
+    <string name="edge_terminal_starting">Avvio…</string>
+    <string name="edge_terminal_running">In esecuzione…</string>
+    <string name="edge_terminal_exit">Uscita: %1$d</string>
+    <string name="edge_terminal_ended">Terminata · aggiorna per avviare una nuova sessione</string>
+    <string name="edge_terminal_truncated">Mostro gli ultimi 64 KiB di caratteri</string>
+    <string name="edge_terminal_help">Chiudere il pannello o cambiare scheda conserva la shell, l’output e la bozza. Aggiorna li reimposta manualmente. Mentre un comando è in esecuzione, il campo gli risponde e Ferma termina solo quel comando. Usa una normale scheda del terminale per i programmi a schermo intero.</string>
+    <string name="edge_terminal_one_line_required">Il mini terminale accetta comandi su una riga fino a 16.384 caratteri. Usa un terminale normale per frammenti su più righe.</string>
+    <string name="edge_terminal_refresh">Aggiorna sessione</string>
+    <string name="edge_terminal_answer">Rispondi al comando in esecuzione (vuoto invia Invio)</string>
+    <string name="edge_terminal_send">Invia</string>
+</resources>

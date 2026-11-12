@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-12 / Target version: 1.0.89 (versionCode 787)
+Last updated: 2026-11-12 / Target version: 1.0.90 (versionCode 788)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3743,6 +3743,14 @@ Same procedure (one roster line, `res/values-in/`, `proot/lang/CliId.kt`, one li
 - **Terms**: tab / ketuk (tap) / tekan lama (long-press) / usap (flick) / Setelan (settings) / papan klip / kartu (tile) / panel tepi (edge panel) / server residen. Addressed as **Anda**.
 - ⚠ **The language has two codes.** The roster uses today's `id`, but Java / Android may still report the old `in` (`Locale.getLanguage()` and the like) ⇒ the res folder is **`values-in/`** (`values-id/` is not found on older devices), and a device reporting `in` / `in-ID` is mapped to `id` by `AppLanguages.matchIn` (`AppLanguagesTest`). `scripts/i18n_status.py` looks up res through the same table (`LEGACY_RES`; Hebrew `iw` and Yiddish `ji` are treated alike).
 - Indonesian has no singular/plural distinction, so plurals only carry **other**.
+
+#### Italian added (1.0.90)
+
+Same procedure (one roster line, `res/values-it/`, `proot/lang/CliIt.kt`, one line in `CliLanguages`).
+
+- **Terms**: scheda (tab) / toccare, tenere premuto / scorrere (flick) / file / cartella / Impostazioni / appunti / riquadro (tile) / pannello laterale (edge panel) / server residente. Addressed as **tu**, as Android does.
+- ⛔ **Apostrophes are the typographic ’ (U+2019)**, for the same reason as French (Italian uses them constantly: l’app, dell’). The res format check confirmed zero bare `'`.
+- **Regional Italian (`it-CH`) goes to `it`** (`AppLanguagesTest`). Plurals add many, as for es, pt and fr.
 
 ### 6.8.1 App lock (A2, 0.8.421)
 

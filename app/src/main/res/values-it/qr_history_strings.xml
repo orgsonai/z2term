@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qr_history_title">Cronologia</string>
+    <string name="qr_history_clear">Cancella tutto</string>
+    <string name="qr_history_clear_title">Cancella cronologia</string>
+    <string name="qr_history_clear_message">Cancella tutta la cronologia tranne gli elementi fissati.</string>
+    <string name="qr_history_pin">Fissa</string>
+    <string name="qr_history_unpin">Sblocca</string>
+    <string name="qr_history_delete">Elimina</string>
+    <string name="qr_history_pinned">Fissato</string>
+    <string name="qr_history_menu">Fissa o elimina</string>
+    <string name="qr_history_note">Tocca per mostrarlo di nuovo. Tieni premuto per fissarlo o eliminarlo. La cronologia conserva ciò che scansioni solo su questo dispositivo, compresi contenuti come le password Wi-Fi. Vengono conservati fino a 50 elementi non fissati.</string>
+</resources>

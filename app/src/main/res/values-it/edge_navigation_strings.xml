@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">Eliminare le modifiche non salvate?</string>
+    <string name="edge_discard_message">Le modifiche non salvate andranno perse.</string>
+    <string name="edge_discard">Elimina</string>
+    <string name="edge_keep_editing">Continua a modificare</string>
+    <string name="edge_select_tab">Seleziona scheda</string>
+    <string name="edge_finish_title">Salvare le modifiche?</string>
+    <string name="edge_finish_message">Alcune modifiche non sono ancora salvate. Il nome di una scheda o di un pannello digitato ma non aggiunto non viene salvato.</string>
+    <string name="edge_choose_panel">Scegli un pannello</string>
+</resources>

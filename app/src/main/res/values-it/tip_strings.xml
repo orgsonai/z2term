@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tip_word_select_title">Tocca due volte il testo nel terminale per selezionare una parola</string>
+    <string name="tip_word_select_body">Un percorso, un nome host o un indirizzo IP viene selezionato come un unico pezzo, anche quando va a capo sulla riga successiva. Poi trascina le maniglie alle due estremità per cambiare l’intervallo. Su una schermata in cui un’app legge il mouse, il doppio tocco va invece a quell’app.</string>
+</resources>

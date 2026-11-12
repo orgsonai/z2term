@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_guide_cleanup">Pulisci</string>
+    <string name="settings_guides_cleanup_desc">\"Pulisci\" mostra i passaggi che rimuovono ciò che una guida ha aggiunto, con lo stesso tipo di schede. Nulla viene rimosso finché non tocchi una scheda.</string>
+    <string name="guide_cleanup_heading">rimuovi ciò che è stato aggiunto</string>
+    <string name="guide_cleanup_hint">Tocca per eseguire (prima Ctrl-C, così una riga scritta a metà non si mescola) / ✕ per tenerlo</string>
+    <string name="guide_undo_rules">Rimuovi le regole di automazione che chiamano questa macro</string>
+    <string name="guide_undo_macro">Rimuovi la macro (si ferma senza rimuoverla se l’hai modificata tu)</string>
+    <string name="guide_undo_notify_off">Se nient’altro la usa: Impostazioni -> disattiva \"Rilevamento notifiche\"</string>
+    <string name="guide_undo_sms_off">Se nient’altro la usa: Impostazioni -> disattiva \"Rilevamento SMS\"</string>
+    <string name="guide_undo_remind_all">Annulla tutti i promemoria che hai registrato</string>
+    <string name="guide_undo_remind_tiles">Svuota gli slot dei riquadri che eseguono remind.sh</string>
+    <string name="guide_undo_remind_data">Elimina i dati dei promemoria (✕ per tenerli)</string>
+    <string name="guide_undo_rss_data">Elimina l’elenco dei feed e gli articoli raccolti (✕ per tenerli)</string>
+    <string name="guide_undo_voice_data">Elimina la tabella delle parole, le note e le impostazioni del comando vocale (✕ per tenerle)</string>
+    <string name="guide_undo_edge_main">Elimina il pannello di app di esempio \"main\" (anche gli elementi che vi hai aggiunto)</string>
+    <string name="guide_undo_edge_samples">Elimina i pannelli di esempio (anche il testo della nota)</string>
+    <string name="guide_undo_edge_off">Se non usi altri pannelli, disattiva i pannelli (la barra scompare)</string>
+    <string name="guide_undo_permissions">\"Mostra sopra altre app\" e l’accessibilità si possono disattivare solo nelle impostazioni di Android. Lasciali attivi se un’altra funzione li usa.</string>
+</resources>

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-11-12 / 対象バージョン: 1.0.89 (versionCode 787)
+最終更新: 2026-11-12 / 対象バージョン: 1.0.90 (versionCode 788)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -3667,6 +3667,14 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 - **用語**: tab / ketuk（タップ）/ tekan lama（長押し）/ usap（フリック）/ Setelan（設定）/ papan klip / kartu（タイル）/ panel tepi（エッジパネル）/ server residen。呼びかけは **Anda**。
 - ⚠ **言語コードが 2 つある。** 名簿のコードは今の `id` だが、Java / Android は古い `in` を使うことがある（`Locale.getLanguage()` など）。⇒ res のフォルダは **`values-in/`**（`values-id/` は古い端末で引けない）。端末から `in` / `in-ID` が来ても `AppLanguages.matchIn` が `id` に読み替える（`AppLanguagesTest`）。`scripts/i18n_status.py` も同じ対応表（`LEGACY_RES`。ヘブライ語 `iw`・イディッシュ語 `ji` も同じ扱い）で res を探す。
 - インドネシア語には単数・複数の区別が無いので、plurals は **other だけ**を書いた。
+
+#### イタリア語を追加（1.0.90）
+
+同じ手順（名簿に 1 行・`res/values-it/`・`proot/lang/CliIt.kt`・`CliLanguages` に 1 行）。
+
+- **用語**: scheda（タブ）/ toccare・tenere premuto / scorrere（フリック）/ file / cartella / Impostazioni / appunti / riquadro（タイル）/ pannello laterale（エッジパネル）/ server residente。呼びかけは Android と同じく **tu**。
+- ⛔ **アポストロフィは活字の ’（U+2019）を使う**（フランス語と同じ理由。イタリア語は l’app・dell’ のように頻繁に出る）。res の書式点検で素の `'` が 0 件であることを確かめた。
+- **地域つき（`it-CH`）は `it` へ**（`AppLanguagesTest`）。複数形は es・pt・fr と同じく many を足した。
 
 ### 6.8.1 アプリロック (A2・0.8.421)
 

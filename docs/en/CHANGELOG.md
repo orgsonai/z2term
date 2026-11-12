@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.90 (versionCode 788)**: **Italian** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language; phones set to Swiss Italian get it too.
+
 **1.0.89 (versionCode 787)**: **Indonesian** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language.
 
 **1.0.88 (versionCode 786)**: **French** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language; phones set to Canadian or Belgian French get it too.

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qr_action_open">Apri</string>
+    <string name="qr_action_dial">Apri il tastierino</string>
+    <string name="qr_action_email">Scrivi email</string>
+    <string name="qr_action_sms">Scrivi SMS</string>
+    <string name="qr_action_wifi">Connetti al Wi-Fi</string>
+    <string name="qr_action_contact">Aggiungi ai contatti</string>
+    <string name="qr_action_event">Aggiungi al calendario</string>
+    <string name="qr_action_no_app">Nessuna app su questo dispositivo può aprirlo.</string>
+    <string name="qr_action_wifi_copied">La password Wi-Fi è stata copiata. Scegli la rete nell’elenco e incollala.</string>
+    <string name="settings_group_qr_tools">Strumenti QR</string>
+    <string name="settings_group_qr_tools_desc">Scansiona dalla fotocamera o da immagini e crea codici QR</string>
+    <string name="settings_qr_tools_open">Apri strumenti QR</string>
+    <string name="settings_qr_tools_hint">z2-qr avvia la scansione con la fotocamera. Puoi metterlo su un riquadro delle impostazioni rapide o in un pannello laterale.</string>
+</resources>

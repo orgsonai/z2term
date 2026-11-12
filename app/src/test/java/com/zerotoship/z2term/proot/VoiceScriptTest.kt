@@ -148,7 +148,7 @@ class VoiceScriptTest {
     fun everyLanguageHasItsTable() {
         mapOf(
             "ja" to "次の曲", "en" to "next song", "zh-CN" to "下一首", "zh-TW" to "下一首",
-            "es" to "siguiente canción", "ko" to "다음 곡", "pt-BR" to "próxima música", "de" to "nächstes lied", "fr" to "chanson suivante", "id" to "lagu berikutnya",
+            "es" to "siguiente canción", "ko" to "다음 곡", "pt-BR" to "próxima música", "de" to "nächstes lied", "fr" to "chanson suivante", "id" to "lagu berikutnya", "it" to "prossima canzone",
             // ⛔ 表の無い言語の例に、名簿に載りうる言語を使わない (載せた日に前提が崩れる)
             "zz" to "next song",
         ).forEach { (lang, phrase) -> assertHeard(lang, phrase, "z2-media next") }
