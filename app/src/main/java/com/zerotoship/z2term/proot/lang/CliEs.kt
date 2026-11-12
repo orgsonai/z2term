@@ -1031,6 +1031,7 @@ private class ApiMsgEs(d: String) : Z2ApiMsg("es", d) {
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# Lanza cualquier Intent de Android (startActivity por omisión). El primer argumento que no sea una opción es la ACCIÓN.
         |# --window full|freeform|split|ask elige el modo. Freeform reutiliza tareas y deja el tamaño al sistema.
+        |# --profile N abre la app (-p/-n) en otro perfil, como el de trabajo. Sin pantalla dividida. N figura en el comando que el panel lateral guarda para esa app.
         |# --reuse-task / --os-bounds siguen aceptándose; --bounds-only pide un tamaño del 80% y excluye --os-bounds.
         |# --no-scale desactiva la solicitud de ventana libre reducida de Motorola.
     """.trimMargin()

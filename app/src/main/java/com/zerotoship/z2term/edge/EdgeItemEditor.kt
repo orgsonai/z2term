@@ -46,6 +46,10 @@ object EdgeItemEditor {
         val initialMode = AppLaunchCommand.modeFrom(appCommand.orEmpty())
         val initialScale = AppLaunchCommand.scalesFreeform(appCommand.orEmpty())
         var launchMode = initialMode
+        // An app in another profile has no split screen (AppProfiles).
+        val modeChoices = AppLaunch.modes.filter { it != "split" || AppLaunchCommand.profileFrom(appCommand.orEmpty()) == null }
+        val modeLabels = mapOf("full" to R.string.edge_window_full, "freeform" to R.string.edge_window_freeform,
+            "split" to R.string.edge_window_split, "ask" to R.string.edge_window_ask)
         var scaleFreeform = initialScale
         val initial = EdgeItemComponent.from(item)
         var selection = initial
@@ -95,11 +99,11 @@ object EdgeItemEditor {
             val mode = EdgeSettingsUi.dress(context, Spinner(context)).apply {
                 contentDescription = context.getString(R.string.edge_window_mode)
                 adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
-                    listOf(R.string.edge_window_full, R.string.edge_window_freeform, R.string.edge_window_split, R.string.edge_window_ask).map { context.getString(it) })
-                setSelection(AppLaunch.modes.indexOf(launchMode))
+                    modeChoices.map { context.getString(modeLabels.getValue(it)) })
+                setSelection(modeChoices.indexOf(launchMode).coerceAtLeast(0))
                 onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                     override fun onNothingSelected(parent: AdapterView<*>?) = Unit
-                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { launchMode = AppLaunch.modes[position] }
+                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { launchMode = modeChoices[position] }
                 }
             }
             EdgeSettingsUi.labeled(context, kind, context.getString(R.string.edge_window_mode), mode)
@@ -412,7 +416,7 @@ object EdgeItemEditor {
             viewFindButton.isChecked = initialViewOptions.showFind
             viewPinch.setSelection(if (initialViewOptions.pagePinch) 1 else 0)
             viewUpdateMode.setSelection(if (initialViewOptions.automatic) 1 else 0)
-            launchMode = initialMode; windowMode?.setSelection(AppLaunch.modes.indexOf(initialMode))
+            launchMode = initialMode; windowMode?.setSelection(modeChoices.indexOf(initialMode).coerceAtLeast(0))
             scaleFreeform = initialScale; scale?.setSelection(if (initialScale) 0 else 1)
             showFields()
         }

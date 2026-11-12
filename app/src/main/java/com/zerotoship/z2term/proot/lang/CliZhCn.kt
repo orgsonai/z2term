@@ -1015,6 +1015,7 @@ private class ApiMsgZhCn(d: String) : Z2ApiMsg("zh-CN", d) {
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 触发任意 Android Intent (默认是 startActivity)。开头的非选项参数即 ACTION。
         |# --window full|freeform|split|ask 指定窗口模式。freeform 默认复用任务，由系统决定大小。
+        |# --profile N 在其他配置文件（如工作资料）中打开应用 (-p/-n)。不支持分屏。N 见边缘面板为该应用保存的命令。
         |# --reuse-task / --os-bounds 保持兼容；--bounds-only 只请求80%大小，不可与 --os-bounds 同用。
         |# --no-scale 停用 Motorola 的缩放自由窗口请求。
     """.trimMargin()

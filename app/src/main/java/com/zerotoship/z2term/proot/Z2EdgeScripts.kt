@@ -73,7 +73,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# run/state を省略すれば push/state でのみ更新。イベント更新は z2-when から push。
         |# 定義: ~/.z2term/edge/ID/panel.conf と 項目.item（UTF-8、1行1フィールド）。
         |# 項目ID・パネルIDは英数字・_・-。値に改行は不可。スクリプトは別ファイルに置きます。
-        |# icon=文字 | @app:パッケージ | @z2:絵の名前 | @file:~/絵.png
+        |# icon=文字 | @app:パッケージ[@プロファイル] | @z2:絵の名前 | @file:~/絵.png
         |# icon 省略時、単純な z2-intent -p パッケージ からアプリの絵を自動取得します。
         |# 閉じる・消灯・再読込で状態を読むコマンドを停止。押した操作は完了まで続行（off で停止）。
         |# 最大64パネル・各64項目・同時4実行。表示は64KiBまで。状態はアプリ再起動で消えます。
@@ -146,7 +146,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# Omit run/state for push-only items. Use z2-when with push for event updates.
         |# Definitions: ~/.z2term/edge/ID/panel.conf and item.item, UTF-8 key=value lines.
         |# IDs: letters/digits/_/-. No multiline values; put scripts in separate files.
-        |# icon=text | @app:package | @z2:sample | @file:~/image.png
+        |# icon=text | @app:package[@profile] | @z2:sample | @file:~/image.png
         |# Simple z2-intent -p package commands get application icons automatically.
         |# Close/screen-off/reload stop readers; explicit actions finish unless off is requested.
         |# Dragging a button saves its position.

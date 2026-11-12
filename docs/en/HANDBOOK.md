@@ -1308,6 +1308,8 @@ An open deleted panel closes and its handle disappears. Use `remove ID:item` to 
 App addition offers Full screen (normal launch), Freeform, Split screen, and Ask every time.
 The choice is saved in `run=z2-intent -p PACKAGE --window full|freeform|split|ask` and can also be edited through the CLI.
 
+The app list also shows apps from the device's other profiles, such as a work profile, with the badge and name Android gives that profile (1.0.92). Picking one saves `run=z2-intent -p PACKAGE --profile N --window …`, which opens the app in that profile. N is the profile's serial number, which survives reboots. Apps in another profile open through Android's launcher API (LauncherApps), so split screen is not offered, and `--profile` takes only the app (`-p` / `-n`) and the window choice, not `-a`, `-d`, `--es` and the like. A paused or removed profile is an error; z2term never opens its own copy of the app instead. Profiles Android hides from z2term, such as a private space, are neither listed nor accepted.
+
 Add item and Edit support all six item types. Blank optional fields clear their settings. Cancel discards input; saving an item changed externally is rejected.
 Screen off hides panels and handles. Wake and unlock notifications trigger another check of unlock state before restoring handles. Screen off and service shutdown cancel waiting. Transient drawing failures no longer unregister wake notifications.
 

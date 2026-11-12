@@ -1033,6 +1033,7 @@ private class ApiMsgDe(d: String) : Z2ApiMsg("de", d) {
         |# --bounds-only fordert 80%-Grenzen ohne Modusschlüssel an; nicht mit --os-bounds kombinierbar.
         |# --no-scale schaltet die verkleinerte Freiform-Anfrage von Motorola für diesen Start ab.
         |# -p PKG allein startet diese App. --window full|freeform|split|ask wählt die Startanfrage (Systemunterstützung nötig).
+        |# --profile N öffnet die App (-p/-n) in einem anderen Profil, etwa dem Arbeitsprofil. Kein geteilter Bildschirm. N steht im Befehl, den die Edge-Leiste für diese App speichert.
     """.trimMargin()
 
     override val stateHelp: String get() = """

@@ -1531,7 +1531,7 @@ object EdgeRuntime {
                 cell.contentDescription = name
                 if (item.type == "run") {
                     addIcon(cell, item.fields["icon"]?.takeIf { it.isNotBlank() }
-                        ?: packageFrom(item.command)?.let { "@app:$it" } ?: name.take(1), 24)
+                        ?: AppLaunchCommand.iconFrom(item.command) ?: name.take(1), 24)
                     if (labels != "off" && alone) cell.addView(EdgeSettingsUi.caption(ui(), name).apply {
                         maxLines = 1; setPadding(dp(8), 0, 0, 0)
                     })
@@ -1559,7 +1559,6 @@ object EdgeRuntime {
     }
 
     private fun addSettingsItem(rows: LinearLayout, panelId: String, item: EdgeStore.Item, lines: List<List<String>>) {
-        val pkg = packageFrom(item.command)
         val row = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
         rows.addView(EdgeSettingsUi.hairline(ui()))
         val heading = LinearLayout(ui()).apply {
@@ -1568,7 +1567,7 @@ object EdgeRuntime {
             setPadding(dp(EdgeSettingsUi.GUTTER), dp(6), dp(6), dp(6))
             background = EdgeSettingsUi.ripple(ui(), null)
         }
-        addIcon(heading, item.fields["icon"] ?: pkg?.let { "@app:$it" } ?: "≡", 32)
+        addIcon(heading, item.fields["icon"] ?: AppLaunchCommand.iconFrom(item.command) ?: "≡", 32)
         val name = item.fields["label"]?.takeIf { it.isNotBlank() }
             ?: app!!.getString(EdgeComponentLabels.component(EdgeItemComponent.from(item).component))
         // Name over kind: two items called the same still read apart.
@@ -1783,7 +1782,7 @@ object EdgeRuntime {
             val pm = app!!.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(it, 0)).toString()
         }.getOrNull() }, app!!.getString(R.string.edge_run))
         val showTitle = label.isNotBlank()
-        if (showTitle || item.type == "run") addIcon(title, item.fields["icon"]?.takeIf { it.isNotBlank() } ?: pkg?.let { "@app:$it" } ?: if (iconOnly) label.take(1) else null, iconSize)
+        if (showTitle || item.type == "run") addIcon(title, item.fields["icon"]?.takeIf { it.isNotBlank() } ?: AppLaunchCommand.iconFrom(item.command) ?: if (iconOnly) label.take(1) else null, iconSize)
         title.minimumHeight = if (tight) 0 else dp(48)
         title.contentDescription = label
         title.tooltipText = label
@@ -2224,7 +2223,12 @@ object EdgeRuntime {
         }
         val drawable = iconCache.get(value) ?: runCatching {
             when {
-                value.startsWith("@app:") -> app!!.packageManager.getApplicationIcon(value.removePrefix("@app:"))
+                // @app:<package>@<profile> is an app in another profile (AppProfiles), drawn with that profile's badge.
+                value.startsWith("@app:") -> value.removePrefix("@app:").let { name ->
+                    val pkg = name.substringBefore('@')
+                    name.substringAfter('@', "").toLongOrNull()?.let { AppProfiles.icon(app!!, pkg, it) }
+                        ?: app!!.packageManager.getApplicationIcon(pkg)
+                }
                 value.startsWith("@file:") -> {
                     val path = value.removePrefix("@file:")
                     val file = when {

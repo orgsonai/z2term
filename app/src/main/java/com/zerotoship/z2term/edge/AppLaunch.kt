@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.os.UserHandle
 import android.widget.Toast
 import com.zerotoship.z2term.MainActivity
 import android.provider.Settings
@@ -38,12 +39,12 @@ object AppLaunch {
     }
 
     val modes = listOf("full", "freeform", "split", "ask")
-    fun choose(context: Context, includeAsk: Boolean = true, selected: (String) -> Unit) {
-        val choices = if (includeAsk) modes else modes.dropLast(1)
-        val labels = listOf(R.string.edge_window_full, R.string.edge_window_freeform,
-            R.string.edge_window_split, R.string.edge_window_ask)
+    fun choose(context: Context, includeAsk: Boolean = true, includeSplit: Boolean = true, selected: (String) -> Unit) {
+        val choices = modes.filter { (includeAsk || it != "ask") && (includeSplit || it != "split") }
+        val labels = mapOf("full" to R.string.edge_window_full, "freeform" to R.string.edge_window_freeform,
+            "split" to R.string.edge_window_split, "ask" to R.string.edge_window_ask)
         AlertDialog.Builder(context).setTitle(R.string.edge_window_mode)
-            .setItems(choices.indices.map { context.getString(labels[it]) }.toTypedArray()) { _, index -> selected(choices[index]) }
+            .setItems(choices.map { context.getString(labels.getValue(it)) }.toTypedArray()) { _, index -> selected(choices[index]) }
             .setNegativeButton(android.R.string.cancel, null).show()
     }
 
@@ -69,12 +70,16 @@ object AppLaunch {
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
             runCatching { Settings.Global.getInt(context.contentResolver, "enable_freeform_support", 0) == 1 }.getOrDefault(false)
 
-    fun launch(context: Context, target: Intent, mode: String, freeform: FreeformOptions = FreeformOptions()) {
+    /** [user] is another profile ([AppProfiles]); its launch goes through LauncherApps, which cannot open a split pane. */
+    fun launch(context: Context, target: Intent, mode: String, freeform: FreeformOptions = FreeformOptions(),
+        user: UserHandle? = null) {
         freeform.validate(mode)
         require(mode in modes) { "window: full|freeform|split|ask" }
+        require(user == null || mode != "split") { "Split screen cannot open an app in another profile" }
         if (mode == "ask") {
             context.startActivity(Intent(context, LaunchModeActivity::class.java)
-                .putExtra("target", target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                .putExtra("target", target).apply { user?.let { putExtra("profile", it) } }
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             return
         }
         if (mode == "split") {
@@ -124,6 +129,7 @@ object AppLaunch {
                 bundle.putInt(key, bundle.getInt(key, 0) or 0x100000 /* FLAG_INHERITABLE_MOTO_GLOBAL_FREEFORM */)
             }
         }
-        context.startActivity(intent, bundle)
+        if (user != null) AppProfiles.start(context, requireNotNull(intent.component), user, bundle)
+        else context.startActivity(intent, bundle)
     }
 }

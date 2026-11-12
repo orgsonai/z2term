@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-12 / Target version: 1.0.91 (versionCode 789)
+Last updated: 2026-11-12 / Target version: 1.0.92 (versionCode 790)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -2841,6 +2841,8 @@ An open deleted panel closes and its handle disappears. Use `remove ID:item` to 
 App addition offers Full screen (normal launch), Freeform, Split screen, and Ask every time.
 The choice is saved in `run=z2-intent -p PACKAGE --window full|freeform|split|ask` and can also be edited through the CLI.
 
+The app list also shows apps from the device's other profiles, such as a work profile, with the badge and name Android gives that profile (1.0.92). Picking one saves `run=z2-intent -p PACKAGE --profile N --window …`, which opens the app in that profile. N is the profile's serial number, which survives reboots. Apps in another profile open through Android's launcher API (LauncherApps), so split screen is not offered, and `--profile` takes only the app (`-p` / `-n`) and the window choice, not `-a`, `-d`, `--es` and the like. A paused or removed profile is an error; z2term never opens its own copy of the app instead. Profiles Android hides from z2term, such as a private space, are neither listed nor accepted.
+
 Add item and Edit support all six item types. Blank optional fields clear their settings. Cancel discards input; saving an item changed externally is rejected.
 Screen off hides panels and handles. Wake and unlock notifications trigger another check of unlock state before restoring handles. Screen off and service shutdown cancel waiting. Transient drawing failures no longer unregister wake notifications.
 
@@ -2951,7 +2953,7 @@ means no periodic work. Omit `run`/`state` for externally updated items. Command
 Live values and badges reset on app restart. A newer push wins over an older command result.
 Event updates use existing `z2-when` rules invoking `push`; there is no duplicate trigger language.
 
-Icons support text, `@app:package`, `@z2:sample` and `@file:~/image.png`. Simple `z2-intent -p package`
+Icons support text, `@app:package` (`@app:package@N` for another profile), `@z2:sample` and `@file:~/image.png`. Simple `z2-intent -p package`
 commands automatically use the application label/icon unless overridden. Missing icons do not remove items;
 reload clears the cache. `z2-app list` returns package/label JSON for MAIN/LAUNCHER apps; `icon package -o file.png`
 exports PNG. Manifest visibility is restricted to MAIN/LAUNCHER; no `QUERY_ALL_PACKAGES` permission.

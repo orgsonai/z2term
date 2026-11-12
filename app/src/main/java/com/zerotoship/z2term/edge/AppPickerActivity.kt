@@ -15,6 +15,12 @@ import java.util.concurrent.TimeUnit
 
 /** The panel entry writes a definition; the CLI entry returns the selected package. */
 class AppPickerActivity : Activity() {
+    /** [profile] is the serial of another profile, or null for z2term's own. [label] carries that profile's badge. */
+    private class Entry(val pkg: String, val sortLabel: String, val label: String, val profile: Long?,
+        val loadIcon: () -> android.graphics.drawable.Drawable?) {
+        val icon get() = profile?.let { "@app:$pkg@$it" } ?: "@app:$pkg"
+    }
+
     private val main = Handler(Looper.getMainLooper())
     private val expire = Runnable { finish() }
     private var selected = false
@@ -25,12 +31,23 @@ class AppPickerActivity : Activity() {
         super.onCreate(savedInstanceState)
         val request = intent.getStringExtra("request")
         if (request != null && !pending.containsKey(request)) { finish(); return }
-        val entries = packageManager.queryIntentActivities(
+        val own = packageManager.queryIntentActivities(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0
-        ).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(packageManager).toString() }
+        ).distinctBy { it.activityInfo.packageName }.map { info ->
+            val label = info.loadLabel(packageManager).toString()
+            Entry(info.activityInfo.packageName, label, label, null) { info.loadIcon(packageManager) }
+        }
+        // The panel can also open apps of the other profiles (a work profile). The CLI pick answers a package only.
+        val others = if (request != null) emptyList() else runCatching {
+            AppProfiles.activities(this).distinctBy { it.componentName.packageName to it.user }.map { info ->
+                val label = info.label.toString()
+                Entry(info.componentName.packageName, label, packageManager.getUserBadgedLabel(label, info.user).toString(),
+                    AppProfiles.serial(this, info.user)) { info.getBadgedIcon(0) }
+            }
+        }.getOrDefault(emptyList())
+        val entries = (own + others).sortedWith(compareBy<Entry> { it.sortLabel }.thenBy { it.profile ?: -1 })
         title = getString(R.string.edge_pick_app)
         fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-        val labels = entries.associateWith { it.loadLabel(packageManager).toString() }
         var visible = entries
         val icons = android.util.LruCache<String, android.graphics.drawable.Drawable>(64)
         val body = android.widget.LinearLayout(this).apply {
@@ -66,20 +83,19 @@ class AppPickerActivity : Activity() {
                     }, android.widget.LinearLayout.LayoutParams(0, -2, 1f))
                 }
                 val entry = visible[position]
-                val pkg = entry.activityInfo.packageName
-                val icon = icons[pkg] ?: runCatching { entry.loadIcon(packageManager) }.getOrNull()?.also { icons.put(pkg, it) }
+                val icon = icons[entry.icon] ?: runCatching { entry.loadIcon() }.getOrNull()?.also { icons.put(entry.icon, it) }
                 (row.getChildAt(0) as android.widget.ImageView).setImageDrawable(icon)
                 val text = row.getChildAt(1) as android.widget.LinearLayout
-                (text.getChildAt(0) as android.widget.TextView).text = labels[entry]
-                (text.getChildAt(1) as android.widget.TextView).text = pkg
+                (text.getChildAt(0) as android.widget.TextView).text = entry.label
+                (text.getChildAt(1) as android.widget.TextView).text = entry.pkg
                 return row
             }
         }
         list.adapter = adapter
         fun filter() {
             val query = search.text.toString().trim()
-            visible = entries.filter { labels[it].orEmpty().contains(query, ignoreCase = true) ||
-                it.activityInfo.packageName.contains(query, ignoreCase = true) }
+            visible = entries.filter { it.label.contains(query, ignoreCase = true) ||
+                it.pkg.contains(query, ignoreCase = true) }
             adapter.notifyDataSetChanged()
         }
         search.addTextChangedListener(object : android.text.TextWatcher {
@@ -101,7 +117,7 @@ class AppPickerActivity : Activity() {
         }
         list.setOnItemClickListener { _, _, index, _ ->
                 val entry = visible[index]
-                val pkg = entry.activityInfo.packageName
+                val pkg = entry.pkg
                 fun save(windowMode: String) {
                 runCatching {
                     val panel = intent.getStringExtra("panel")
@@ -113,9 +129,10 @@ class AppPickerActivity : Activity() {
                         val placement = EdgeRows.rowForNewApp(existing)?.let { row ->
                             mapOf("row" to row.toString(), "order" to ((existing.maxOfOrNull { it.order } ?: -1) + 1).toString())
                         }.orEmpty()
-                        store.setItem("$panel:$id", mapOf("type" to "run", "run" to "z2-intent -p $pkg --window $windowMode",
-                            "label" to entry.loadLabel(packageManager).toString().replace('\n', ' ').replace('\r', ' '),
-                            "icon" to "@app:$pkg") + placement)
+                        val profile = entry.profile?.let { " --profile $it" }.orEmpty()
+                        store.setItem("$panel:$id", mapOf("type" to "run", "run" to "z2-intent -p $pkg$profile --window $windowMode",
+                            "label" to entry.label.replace('\n', ' ').replace('\r', ' '),
+                            "icon" to entry.icon) + placement)
                         EdgeRuntime.reload(this)
                         reopen(panel)
                     }
@@ -124,7 +141,8 @@ class AppPickerActivity : Activity() {
                 }.onFailure { Toast.makeText(this, it.message, Toast.LENGTH_LONG).show() }
                 finish()
                 }
-                if (intent.hasExtra("panel")) AppLaunch.choose(this) { save(it) } else save("full")
+                if (intent.hasExtra("panel")) AppLaunch.choose(this, includeSplit = entry.profile == null) { save(it) }
+                else save("full")
         }
         val deadline = intent.getLongExtra("deadline", 0L).takeIf { it > 0 }
             ?: (android.os.SystemClock.elapsedRealtime() + 120_000).also { intent.putExtra("deadline", it) }

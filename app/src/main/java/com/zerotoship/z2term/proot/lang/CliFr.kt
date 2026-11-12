@@ -1034,6 +1034,7 @@ private class ApiMsgFr(d: String) : Z2ApiMsg("fr", d) {
         |# --bounds-only demande des limites de 80 % sans clé de mode ; ne se combine pas avec --os-bounds.
         |# --no-scale désactive pour ce lancement la demande de fenêtre libre réduite de Motorola.
         |# -p PKG seul lance cette appli. --window full|freeform|split|ask choisit la demande de lancement (prise en charge du système nécessaire).
+        |# --profile N ouvre l’appli (-p/-n) dans un autre profil, comme le profil professionnel. Pas d’écran partagé. N figure dans la commande que le panneau latéral enregistre pour cette appli.
     """.trimMargin()
 
     override val stateHelp: String get() = """

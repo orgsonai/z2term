@@ -1034,6 +1034,7 @@ private class ApiMsgPtBr(d: String) : Z2ApiMsg("pt-BR", d) {
         |# --bounds-only pede limites de 80% sem uma chave de modo; não combina com --os-bounds.
         |# --no-scale desativa o pedido de janela livre reduzida da Motorola nesta abertura.
         |# -p PKG sozinho abre esse app. --window full|freeform|split|ask escolhe o pedido de abertura (precisa de suporte do sistema).
+        |# --profile N abre o app (-p/-n) em outro perfil, como o de trabalho. Sem tela dividida. N está no comando que o painel lateral salva para esse app.
     """.trimMargin()
 
     override val stateHelp: String get() = """

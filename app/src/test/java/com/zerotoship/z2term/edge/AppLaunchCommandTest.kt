@@ -38,6 +38,21 @@ class AppLaunchCommandTest {
             AppLaunchCommand.withMode(unscaled, "full"))
     }
 
+    @Test fun aProfileStaysWithTheCommandAndNamesTheBadgedIcon() {
+        val command = "z2-intent -p org.example.app --profile 10 --window freeform"
+        assertEquals("org.example.app", AppLaunchCommand.packageFrom(command))
+        assertEquals(10L, AppLaunchCommand.profileFrom(command))
+        assertEquals("@app:org.example.app@10", AppLaunchCommand.iconFrom(command))
+        assertEquals("z2-intent -p org.example.app --profile 10 --window full", AppLaunchCommand.withMode(command, "full"))
+        assertEquals(10L, AppLaunchCommand.profileFrom("z2-intent -p org.example.app --window full --profile 10"))
+        assertNull(AppLaunchCommand.profileFrom("z2-intent -p org.example.app --window full"))
+        assertEquals("@app:org.example.app", AppLaunchCommand.iconFrom("z2-intent -p org.example.app --window full"))
+        try { AppLaunchCommand.withMode(command, "split"); fail("Split must be refused for another profile") }
+        catch (_: IllegalArgumentException) { }
+        assertNull(AppLaunchCommand.packageFrom("z2-intent -p org.example.app --profile work"))
+        assertNull(AppLaunchCommand.packageFrom("z2-intent -p org.example.app --profile 10; echo other"))
+    }
+
     @Test fun recognitionDoesNotInterpretShellCommands() {
         assertNull(AppLaunchCommand.packageFrom("z2-intent -p org.example.app; echo other"))
         assertNull(AppLaunchCommand.packageFrom("z2-intent -p org.example.app --window freeform | cat"))

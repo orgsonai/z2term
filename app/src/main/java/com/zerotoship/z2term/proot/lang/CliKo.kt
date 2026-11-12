@@ -1065,6 +1065,7 @@ private class ApiMsgKo(d: String) : Z2ApiMsg("ko", d) {
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 어떤 Android Intent든 띄웁니다 (기본값은 startActivity). 옵션이 아닌 첫 인수가 액션입니다.
         |# --window full|freeform|split|ask로 창 모드를 선택합니다. freeform은 작업을 재사용하고 크기를 OS에 맡깁니다.
+        |# --profile N은 다른 프로필(업무용 등)의 앱(-p/-n)을 엽니다. 화면 분할은 안 됩니다. N은 엣지 패널에 그 앱을 등록하면 저장되는 명령에 있습니다.
         |# --reuse-task / --os-bounds는 호환용입니다. --bounds-only는 80% 크기만 요청하며 --os-bounds와 함께 쓸 수 없습니다.
         |# --no-scale은 Motorola의 축소 자유형 창 요청을 끕니다.
     """.trimMargin()

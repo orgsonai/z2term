@@ -1034,6 +1034,7 @@ private class ApiMsgId(d: String) : Z2ApiMsg("id", d) {
         |# --bounds-only meminta batas 80% tanpa kunci mode; tidak bisa digabung dengan --os-bounds.
         |# --no-scale menonaktifkan permintaan jendela bebas yang diperkecil dari Motorola untuk peluncuran ini.
         |# -p PKG saja meluncurkan aplikasi itu. --window full|freeform|split|ask memilih permintaan peluncuran (perlu dukungan sistem).
+        |# --profile N membuka aplikasi (-p/-n) di profil lain, seperti profil kerja. Tanpa layar terpisah. N ada di perintah yang disimpan panel tepi untuk aplikasi itu.
     """.trimMargin()
 
     override val stateHelp: String get() = """

@@ -402,6 +402,7 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
         |# --bounds-only requests 80% bounds without a mode key; cannot combine with --os-bounds.
         |# --no-scale disables Motorola's scaled freeform request for this launch.
         |# -p PKG alone launches that app. --window full|freeform|split|ask selects the launch request (OS support required).
+        |# --profile N opens the app (-p/-n) in another profile, such as a work profile. No split. N is in the command the edge panel saves for that app.
     """.trimMargin(),
         ja = """
         |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-c CATEGORY] [-f FLAGS]
@@ -411,6 +412,7 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
         |# --bounds-only は窓モードを指定せず80%の寸法だけ要求。--os-bounds との併用不可。
         |# --no-scale はこの起動だけMotorolaの縮小フリーフォーム指定を無効にする。
         |# -p PKG だけでアプリを起動。--window full|freeform|split|ask で開き方を指定（OS対応が必要）。
+        |# --profile N で別プロファイル（仕事用など）のアプリ (-p/-n) を開く。分割は不可。N はエッジパネルにそのアプリを登録すると保存されるコマンドにある。
     """.trimMargin()
     )
 
