@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tip_word_select_title">Tippe im Terminal doppelt auf Text, um ein Wort auszuwählen</string>
+    <string name="tip_word_select_body">Ein Pfad, ein Hostname oder eine IP-Adresse wird als ein Stück ausgewählt, auch wenn er in die nächste Zeile umbricht. Danach ziehst du die Griffe an beiden Enden, um den Bereich zu ändern. Auf einem Bildschirm, auf dem eine App die Maus liest, geht das doppelte Tippen stattdessen an diese App.</string>
+</resources>

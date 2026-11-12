@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">Mini-Terminal</string>
+    <string name="edge_terminal_command">Einzeiliger Befehl</string>
+    <string name="edge_terminal_result">Befehlsausgabe</string>
+    <string name="edge_terminal_stop">Stopp</string>
+    <string name="edge_terminal_copy">Kopieren</string>
+    <string name="edge_terminal_clear">Leeren</string>
+    <string name="edge_terminal_ready">Neue Sitzung</string>
+    <string name="edge_terminal_starting">Startet…</string>
+    <string name="edge_terminal_running">Läuft…</string>
+    <string name="edge_terminal_exit">Exit: %1$d</string>
+    <string name="edge_terminal_ended">Beendet · aktualisieren, um eine neue Sitzung zu starten</string>
+    <string name="edge_terminal_truncated">Zeige die letzten 64 KiB Zeichen</string>
+    <string name="edge_terminal_help">Schließen des Panels oder Wechseln des Tabs behält Shell, Ausgabe und Entwurf. Aktualisieren setzt sie manuell zurück. Während ein Befehl läuft, antwortet das Feld darauf und Stopp beendet nur diesen Befehl. Für Vollbildprogramme nimm einen normalen Terminal-Tab.</string>
+    <string name="edge_terminal_one_line_required">Das Mini-Terminal nimmt einzeilige Befehle bis 16.384 Zeichen an. Für mehrzeilige Schnipsel nimm ein normales Terminal.</string>
+    <string name="edge_terminal_refresh">Sitzung aktualisieren</string>
+    <string name="edge_terminal_answer">Dem laufenden Befehl antworten (leer sendet Enter)</string>
+    <string name="edge_terminal_send">Senden</string>
+</resources>

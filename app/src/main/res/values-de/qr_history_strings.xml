@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qr_history_title">Verlauf</string>
+    <string name="qr_history_clear">Alles löschen</string>
+    <string name="qr_history_clear_title">Verlauf löschen</string>
+    <string name="qr_history_clear_message">Löscht den gesamten Verlauf außer angehefteten Einträgen.</string>
+    <string name="qr_history_pin">Anheften</string>
+    <string name="qr_history_unpin">Lösen</string>
+    <string name="qr_history_delete">Löschen</string>
+    <string name="qr_history_pinned">Angeheftet</string>
+    <string name="qr_history_menu">Anheften oder löschen</string>
+    <string name="qr_history_note">Tippe, um es erneut anzuzeigen. Drücke lange zum Anheften oder Löschen. Der Verlauf speichert nur auf diesem Gerät, was du scannst, auch Inhalte wie WLAN-Passwörter. Bis zu 50 nicht angeheftete Einträge werden behalten.</string>
+</resources>

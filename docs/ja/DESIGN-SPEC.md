@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-11-12 / 対象バージョン: 1.0.86 (versionCode 784)
+最終更新: 2026-11-12 / 対象バージョン: 1.0.87 (versionCode 785)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -3641,6 +3641,16 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 - **言語の一覧をコードに直書きしない**ようにした: `voice.sh` の `known_lang` / `lang` の案内と既定の言語は `VOICE_WORDS` から組み立てる（言語ファイルに表を置けば自動で加わる）。ヘルプの「(en / ja / …)」は「`voice.sh lang -` で一覧」に変えた（知らない名前を渡すと一覧を出す、今ある動き）。
 - ⛔ **テストで「表の無い言語」の例に、名簿に載りうる言語を使わない**: `VoiceScriptTest` が `fr` を使っていたので `zz` に替えた（簡体字のときの `CliTextTest` と同じ罠）。`CliTextTest.everyLanguageFileIsUsed` は `CliLanguages.all` を回すので、言語を足すと自動で対象になる。
 - ついでに見つけた誤り: スペイン語の `macro.pWeekly` だけ末尾の空白が抜けていて「semanallun 09:00」とつながって出ていた ⇒ 直した。
+
+#### ドイツ語を追加（1.0.87）
+
+ポルトガル語と同じ手順で足した（名簿に 1 行・`res/values-de/`・`proot/lang/CliDe.kt`・`CliLanguages` に 1 行）。使う側のコードの文言には触っていない。
+
+- **用語**: Tab / tippen（タップ）/ lange drücken（長押し）/ wischen（フリック）/ Datei / Ordner / Einstellungen / Zwischenablage / Makro / Kachel（タイル）/ Randpanel（エッジパネル）/ Hintergrundserver（常駐サーバー）。呼びかけは Android と同じく **du**。
+- **地域つき（`de-AT` / `de-CH`）は `de` へ**（`AppLanguagesTest`）。
+- **声で操作の表**: 「nachrichten」はニュース（`news`）とメッセージアプリ（`open_messages`）の両方に当たるので、メッセージ側は「nachrichten app」にした。「ruf * an」のように `*` を真ん中に置く言い方を使う（英語の「set a * timer」と同じ）。
+- ⛔ **`CliTextTest` が「訳の無い言語」の例に `de` を使っていた** ⇒ `zz` に替えた（`VoiceScriptTest` の `fr` と同じ罠）。
+- ⚠ ドイツ語は語が長い。ボタンや一覧ではみ出していないかは実機で見ること。
 
 ### 6.8.1 アプリロック (A2・0.8.421)
 

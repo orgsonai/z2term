@@ -129,6 +129,14 @@ class AppLanguagesTest {
         assertEquals("pt-BR", AppLanguages.matchDeviceLocale("pt"))
     }
 
+    /** 地域つきのドイツ語 (オーストリア・スイス) は `de` へ (1.0.87)。 */
+    @Test
+    fun germanRegionsCollapseToTheBaseLanguage() {
+        assertEquals("de", AppLanguages.matchDeviceLocale("de-DE"))
+        assertEquals("de", AppLanguages.matchDeviceLocale("de-AT"))
+        assertEquals("de", AppLanguages.matchDeviceLocale("de-CH"))
+    }
+
     /** 名簿に無ければ英語。⛔ 日本語へ倒さない。 */
     @Test
     fun anythingElseGoesToEnglish() {

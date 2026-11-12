@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">Befehlseingaben</string>
+    <string name="snippet_inputs_file">Datei auswählen</string>
+    <string name="snippet_inputs_invalid">Prüfe die Eingabedefinition und die Werte. Setze jeden Platzhalter außerhalb von Anführungszeichen als eigenes Argument.</string>
+    <string name="snippet_inputs_preview">Befehlsvorschau</string>
+    <string name="snippet_inputs_hint">Der Befehl wird ins Terminal eingefügt. Prüfe ihn und drücke dann Enter. Ausgewählte Dateien werden in den Home-Ordner der lokalen Shell kopiert.</string>
+    <string name="snippet_inputs_enable">Vor dem Einfügen nach Eingaben fragen</string>
+    <string name="snippet_inputs_definition">Im Befehl: {{text}}, {{width:number=1080}}, {{format:choice=png|jpg}}, {{image:file}}. Die Namen werden zu Feldbeschriftungen. Setze Platzhalter außerhalb von Anführungszeichen.</string>
+    <string name="snippet_share_action">Nach dem Empfang einer Freigabe anbieten</string>
+    <string name="snippet_share_action_hint">Der Befehl kann $Z2_SHARE_TEXT und $Z2_SHARE_MANIFEST (Empfangs-JSON) lesen. Dateieingaben können empfangene Anhänge verwenden.</string>
+    <string name="share_intake_title">Empfangener Inhalt</string>
+    <string name="share_intake_hint">Text und Anhänge werden zusammen gespeichert. Wähle einen gespeicherten Befehl oder füge den ursprünglichen Inhalt ein. Befehle laufen erst, nachdem du Enter drückst.</string>
+    <string name="share_intake_insert">Ins Terminal einfügen</string>
+    <string name="share_intake_close">Gespeichert lassen und schließen</string>
+</resources>

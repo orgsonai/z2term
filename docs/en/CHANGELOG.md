@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.87 (versionCode 785)**: **German** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language; phones set to Austrian or Swiss German get it too.
+
 **1.0.86 (versionCode 784)**: **Brazilian Portuguese** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language; a phone set to European Portuguese gets it too. Also fixed: in Spanish reminders, the "weekly" label ran into the next word.
 
 **1.0.85 (versionCode 783)**: Settings › Edge panels gains “Long-press outside an open panel to open its settings”. Turn it off and a long press outside the panel no longer opens its settings; it just closes the panel, like a tap (it is on by default, as before). The settings still open from “Open edge panel settings” or from the panel’s ⚙. A long press on an empty spot inside the panel still opens the settings as before.

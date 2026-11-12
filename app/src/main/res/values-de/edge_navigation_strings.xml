@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">Ungespeicherte Änderungen verwerfen?</string>
+    <string name="edge_discard_message">Deine ungespeicherten Änderungen gehen verloren.</string>
+    <string name="edge_discard">Verwerfen</string>
+    <string name="edge_keep_editing">Weiter bearbeiten</string>
+    <string name="edge_select_tab">Tab auswählen</string>
+    <string name="edge_finish_title">Änderungen speichern?</string>
+    <string name="edge_finish_message">Einige Änderungen sind noch nicht gespeichert. Ein eingegebener, aber nicht hinzugefügter Tab- oder Panelname wird nicht gespeichert.</string>
+    <string name="edge_choose_panel">Panel auswählen</string>
+</resources>

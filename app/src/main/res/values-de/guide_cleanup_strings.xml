@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_guide_cleanup">Aufräumen</string>
+    <string name="settings_guides_cleanup_desc">„Aufräumen“ zeigt die Schritte, die entfernen, was eine Anleitung hinzugefügt hat, als die gleiche Art Karten. Nichts wird entfernt, bis du auf eine Karte tippst.</string>
+    <string name="guide_cleanup_heading">entfernen, was dies hinzugefügt hat</string>
+    <string name="guide_cleanup_hint">Tippen zum Ausführen (vorher Strg-C, damit sich keine halb getippte Zeile einmischt) / ✕ zum Behalten</string>
+    <string name="guide_undo_rules">Die Automatisierungsregeln entfernen, die dieses Makro aufrufen</string>
+    <string name="guide_undo_macro">Das Makro entfernen (bricht ab, ohne es zu entfernen, wenn du es selbst bearbeitet hast)</string>
+    <string name="guide_undo_notify_off">Wenn nichts anderes es nutzt: Einstellungen -> „Benachrichtigungserkennung“ ausschalten</string>
+    <string name="guide_undo_sms_off">Wenn nichts anderes es nutzt: Einstellungen -> „SMS-Erkennung“ ausschalten</string>
+    <string name="guide_undo_remind_all">Alle Erinnerungen abbrechen, die du angelegt hast</string>
+    <string name="guide_undo_remind_tiles">Die Kachelplätze leeren, die remind.sh ausführen</string>
+    <string name="guide_undo_remind_data">Die Erinnerungsdaten löschen (✕ zum Behalten)</string>
+    <string name="guide_undo_rss_data">Die Feedliste und die gesammelten Artikel löschen (✕ zum Behalten)</string>
+    <string name="guide_undo_voice_data">Wörtertabelle, Notizen und Einstellungen des Sprachbefehls löschen (✕ zum Behalten)</string>
+    <string name="guide_undo_edge_main">Das Beispiel-App-Panel „main“ löschen (die Einträge, die du hinzugefügt hast, gehen mit)</string>
+    <string name="guide_undo_edge_samples">Die Beispielpanels löschen (der Text der Notiz geht mit)</string>
+    <string name="guide_undo_edge_off">Wenn du kein anderes Panel nutzt, Panels ausschalten (die Leiste verschwindet)</string>
+    <string name="guide_undo_permissions">„Über anderen Apps einblenden“ und die Bedienungshilfe lassen sich nur in den Android-Einstellungen ausschalten. Lass sie an, wenn eine andere Funktion sie nutzt.</string>
+</resources>

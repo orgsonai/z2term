@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="guide_desc_edge_panel">Eine App-Liste über eine Leiste am Bildschirmrand öffnen</string>
+    <string name="guide_step_edge_overlay">Erlaube z2term, über anderen Apps eingeblendet zu werden</string>
+    <string name="guide_step_edge_accessibility">Schalte die Bedienungshilfe „z2term Android actions“ ein (damit die Leiste durch Wischen nach oben und unten scrollt)</string>
+    <string name="guide_step_edge_panel">Lege ein Beispielpanel mit den Apps z2term, Browser, Kamera, Telefon, Nachrichten und Einstellungen an, die auf diesem Gerät gefunden werden</string>
+    <string name="guide_step_edge_on">Schalte das Panel ein (am rechten Rand erscheint eine Leiste; wische sie nach innen, um die App-Liste zu öffnen)</string>
+    <string name="guide_step_edge_settings">Drücke bei geöffnetem Panel lange außerhalb des Menüs, um seine Einstellungen zu öffnen</string>
+</resources>

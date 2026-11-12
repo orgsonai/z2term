@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-12 / Target version: 1.0.86 (versionCode 784)
+Last updated: 2026-11-12 / Target version: 1.0.87 (versionCode 785)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3717,6 +3717,16 @@ existing flick mechanism (up/down/left/right per key) already covers them.
 - **Language lists are no longer written into the code**: `voice.sh`'s `known_lang`, the `lang` hint and the default language are built from `VOICE_WORDS` (a table in a language file is picked up by itself). The help's "(en / ja / …)" now says "`voice.sh lang -` lists them" (an unknown name already prints the list).
 - ⛔ **Never use a language that might join the roster as a test's "language without a table"**: `VoiceScriptTest` used `fr`, now `zz` (the same trap as `CliTextTest` with Simplified Chinese). `CliTextTest.everyLanguageFileIsUsed` walks `CliLanguages.all`, so a new language is covered automatically.
 - Found on the way: only the Spanish `macro.pWeekly` lacked its trailing space, so it came out glued as "semanallun 09:00" ⇒ fixed.
+
+#### German added (1.0.87)
+
+Added the same way as Portuguese (one roster line, `res/values-de/`, `proot/lang/CliDe.kt`, one line in `CliLanguages`); no text in the code that uses it was touched.
+
+- **Terms**: Tab / tippen (tap) / lange drücken (long-press) / wischen (flick) / Datei / Ordner / Einstellungen / Zwischenablage / Makro / Kachel (tile) / Randpanel (edge panel) / Hintergrundserver (resident server). Addressed as **du**, as Android does.
+- **Regional German (`de-AT` / `de-CH`) goes to `de`** (`AppLanguagesTest`).
+- **Voice word table**: "nachrichten" fits both news (`news`) and the messaging app (`open_messages`), so the latter uses "nachrichten app". Phrases with `*` in the middle such as "ruf * an" are used (like English "set a * timer").
+- ⛔ **`CliTextTest` used `de` as its "untranslated language"** ⇒ now `zz` (the same trap as `fr` in `VoiceScriptTest`).
+- ⚠ German words are long; check on a device that buttons and lists do not overflow.
 
 ### 6.8.1 App lock (A2, 0.8.421)
 

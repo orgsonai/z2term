@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="viewer_missing">Diese Seite ist nicht mehr da.</string>
+    <string name="viewer_no_browser">Keine App auf diesem Smartphone kann diesen Link öffnen.</string>
+    <string name="viewer_expand">Vergrößern</string>
+    <string name="viewer_close">Schließen</string>
+    <string name="viewer_component">Ansicht (z2-view)</string>
+    <string name="viewer_empty">Noch keine Seite. Lege einen Befehl fest, der z2-view aufruft, oder sende eine Seite an diesen Eintrag.</string>
+    <string name="viewer_required">Gib %1$s ein.</string>
+    <string name="viewer_show_refresh">Schaltfläche Aktualisieren zeigen</string>
+    <string name="viewer_show_expand">Schaltfläche Vergrößern zeigen</string>
+    <string name="viewer_update_mode">Aktualisierung der Ansicht</string>
+    <string name="viewer_update_manual">Nur manuell</string>
+    <string name="viewer_update_auto">Automatisch</string>
+    <string name="viewer_update_help">Nur manuell: Beim Öffnen oder Tabwechsel wird die letzte Seite ohne Ausführen des Befehls genutzt. Drücke beim ersten Mal Aktualisieren. Automatisch: aktualisiert beim Öffnen und im Intervall aus Erweiterte Einstellungen. Ein leeres oder Null-Intervall aktualisiert nur beim Öffnen. Seitenänderungen durch Aktionen wie Hinzufügen oder Löschen erscheinen in beiden Modi.</string>
+    <string name="viewer_empty_manual">Noch keine Seite. Drücke Aktualisieren, um den eingestellten Befehl auszuführen und anzuzeigen.</string>
+    <string name="viewer_empty_hidden">Noch keine Seite. Aktiviere die Schaltfläche Aktualisieren in den Einstellungen dieses Eintrags oder sende aus einem Makro eine Seite an ihn.</string>
+    <string name="viewer_find">Suchen</string>
+    <string name="viewer_find_hint">Auf der Seite suchen</string>
+    <string name="viewer_find_previous">Vorheriger Treffer</string>
+    <string name="viewer_find_next">Nächster Treffer</string>
+    <string name="viewer_find_close">Suche schließen</string>
+    <string name="viewer_show_find">Schaltfläche Suchen zeigen</string>
+    <string name="viewer_number">Gib %1$s als Zahl ein.</string>
+    <string name="viewer_pinch" formatted="false">Zwei-Finger-Zoom</string>
+    <string name="viewer_pinch_text" formatted="false">Textgröße ändern</string>
+    <string name="viewer_pinch_page" formatted="false">Ganze Seite zoomen</string>
+    <string name="viewer_text_size" formatted="false">Textgröße (%)</string>
+    <string name="viewer_text_size_help" formatted="false">50–300; leer bedeutet 100. Mit „Textgröße ändern“ füllt ein Zwei-Finger-Zoom dieses Feld aus.</string>
+</resources>

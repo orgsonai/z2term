@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">Dokument wird ausgewählt oder kopiert…</string>
+    <string name="process_text_title">Mit z2term verarbeiten</string>
+    <string name="process_text_enable">Für ausgewählten Text anbieten</string>
+    <string name="process_text_contract">Der gewählte Befehl erhält den ursprünglichen Text über stdin. Prüfe stdout, bevor du die Auswahl ersetzt.</string>
+    <string name="process_text_setup">Registriere einen Befehl unter Befehle → Snippets und aktiviere „Für ausgewählten Text anbieten“.</string>
+    <string name="process_text_replace">Auswahl ersetzen</string>
+    <string name="process_text_too_large">Der Text muss gültiger Text ohne NUL sein, bis 64 KiB.</string>
+    <string name="workspace_title">Sitzungsanordnung</string>
+    <string name="workspace_hint">Wähle einen zweiten Tab. Tippe auf einen Bereich, um ihn zu fokussieren; ziehe den Trenner zum Ändern der Größe. Die Tastatur steuert den fokussierten Bereich. Drücke lange auf einen Bereichstitel und ziehe ihn zum anderen Bereich, um sie zu tauschen; mit der Schaltfläche rechts am Titel (oder doppeltem Tippen auf den Titel) zeigst du nur diesen Tab.</string>
+    <string name="workspace_vertical">Oben / unten</string>
+    <string name="workspace_horizontal">Links / rechts</string>
+    <string name="workspace_preview_current">Dieser Tab</string>
+    <string name="workspace_preview_other">Der Tab, auf den du unten tippst</string>
+    <string name="workspace_need_two">Öffne zuerst einen weiteren Terminal- oder GUI-Tab.</string>
+    <string name="workspace_maximize">Nur diesen Tab zeigen</string>
+    <string name="workspace_single">Ein Bereich</string>
+    <string name="workspace_external_hint">Zeigt den aktuellen Tab auf einem externen Display. Das Smartphone kann ihn steuern oder einen anderen Tab zeigen.</string>
+    <string name="workspace_no_display">Kein externes Display verfügbar.</string>
+    <string name="workspace_return">Zurück zum Smartphone</string>
+    <string name="workspace_projected">Auf dem externen Display angezeigt. Die Tastatur steuert diese Sitzung.</string>
+    <string name="workspace_controller">Externes Display: Nutze diesen Bereich als Touchpad und die Tastatur unten zur Eingabe.</string>
+    <string name="workspace_display_failed">Dieses Display kann nicht genutzt werden. Die Sitzung läuft weiter.</string>
+    <string name="settings_gui_direct">Direkte lokale GUI-Anzeige (experimentell)</string>
+    <string name="settings_gui_direct_desc">Liest den lokalen Framebuffer direkt. Nutzt Xvfb zur Anzeige und x11vnc nur für die Eingabe; Pakete werden beim ersten Mal heruntergeladen. Gilt für neu geöffnete GUI-Tabs. Feste Startauflösung; keine GPU-Beschleunigung.</string>
+    <string name="tip_gui_split_title">Drücke lange auf GUI, um GUI und Terminal zu teilen</string>
+    <string name="tip_gui_split_body">Drücke lange auf die Schaltfläche GUI (🖥) neben +, um die Sitzungsanordnung zu öffnen. Wähle oben/unten oder links/rechts und einen weiteren Tab, um GUI und Terminal (CUI) zusammen zu nutzen. Dasselbe Menü stellt einen Bereich wieder her oder wählt ein externes Display. Kurzes Tippen öffnet die GUI wie bisher.</string>
+</resources>

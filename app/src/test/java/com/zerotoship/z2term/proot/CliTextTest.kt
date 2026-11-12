@@ -32,7 +32,7 @@ class CliTextTest {
     /** 訳の無い言語は英語。⛔ 日本語へ倒さない。 */
     @Test
     fun languageWithoutAVariantFallsBackToEnglish() {
-        assertEquals("hello", CliText("de")("k", en = "hello", ja = "こんにちは"))
+        assertEquals("hello", CliText("zz")("k", en = "hello", ja = "こんにちは"))
         assertEquals("hello", CliText("")("k", en = "hello", ja = "こんにちは"))
         // 言語ファイルはあるが、その名前の訳が無い
         assertEquals("hello", CliText("xx", fake)("nope", en = "hello", ja = "こんにちは"))
@@ -52,7 +52,7 @@ class CliTextTest {
         val en = listOf("a", "b")
         val ja = listOf("あ", "い")
         assertEquals(ja, CliText("ja").lines("macro.head", en = en, ja = ja))
-        assertEquals(en, CliText("de").lines("macro.head", en = en, ja = ja))
+        assertEquals(en, CliText("zz").lines("macro.head", en = en, ja = ja))
         assertEquals(listOf("甲"), CliText("xx", fake).lines("macro.head", en = en, ja = ja))
     }
 
@@ -60,7 +60,7 @@ class CliTextTest {
     @Test
     fun nonTextValuesFollowTheSameRule() {
         assertEquals(8, CliText("ja").of("macro.cols", en = 7, ja = 8))
-        assertEquals(7, CliText("de").of("macro.cols", en = 7, ja = 8))
+        assertEquals(7, CliText("zz").of("macro.cols", en = 7, ja = 8))
         assertEquals(9, CliText("xx", fake).of("macro.cols", en = 7, ja = 8))
         assertEquals(7, CliText("xx", fake).of("macro.wrongType", en = 7, ja = 8))
     }
