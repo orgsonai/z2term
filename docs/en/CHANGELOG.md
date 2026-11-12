@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.94 (versionCode 792)**: Leaving the edge panel's app picker open and switching to another app no longer brings the edge panel settings up over that app two minutes later, when the picker times out. A picker that times out in the background now closes without showing anything.
+
 **1.0.93 (versionCode 791)**: Adding an app to the edge panel no longer crashes when the same app is installed both in your own profile and in another one.
 
 **1.0.92 (versionCode 790)**: The edge panel can now hold apps installed in another profile, such as a work profile. They appear in the app list with the profile's badge and name. From the command line, `z2-intent -p PACKAGE --profile N` opens them (N is in the command saved when you add that app). Apps in another profile cannot open in split screen.

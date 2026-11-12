@@ -26,8 +26,11 @@ class AppPickerActivity : Activity() {
     }
 
     private val main = Handler(Looper.getMainLooper())
-    private val expire = Runnable { finish() }
+    // Expiring behind another app means the user went elsewhere: close quietly, without bringing the settings back.
+    private val expire = Runnable { if (!foreground) abandoned = true; finish() }
     private var selected = false
+    private var foreground = false
+    private var abandoned = false
     private lateinit var search: android.widget.EditText
 
     @Suppress("DEPRECATION")
@@ -165,9 +168,12 @@ class AppPickerActivity : Activity() {
         super.onSaveInstanceState(outState)
     }
 
+    override fun onResume() { super.onResume(); foreground = true }
+    override fun onPause() { foreground = false; super.onPause() }
+
     override fun onDestroy() {
         main.removeCallbacks(expire)
-        if (isFinishing && !isChangingConfigurations && !selected && intent.hasExtra("panel")) {
+        if (isFinishing && !isChangingConfigurations && !selected && !abandoned && intent.hasExtra("panel")) {
             intent.getStringExtra("panel")?.let { panel ->
                 runCatching { reopen(panel) }
             }
