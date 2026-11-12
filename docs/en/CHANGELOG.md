@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.91 (versionCode 789)**: Voice command now matches what was heard even when the recognizer starts with an accented or Cyrillic capital (É, Ü, С…), and phrases written with a typographic apostrophe in the French and Italian tables (l’heure, l’ora) now match too.
+
 **1.0.90 (versionCode 788)**: **Italian** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language; phones set to Swiss Italian get it too.
 
 **1.0.89 (versionCode 787)**: **Indonesian** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language.

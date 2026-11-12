@@ -78,6 +78,14 @@ fun z2VoiceMacro(lang: String): String {
 private val voiceLangCase: String get() = VOICE_WORDS.map { it.first }.sortedBy { if (it == "en") 0 else 1 }.joinToString("|")
 private val voiceLangList: String get() = voiceLangCase.replace("|", " | ")
 
+/**
+ * norm() の sed に足す、A–Z 以外の大文字 → 小文字 (1.0.91)。`tr` は 1 バイトずつしか見ないので
+ * 多バイトの文字は 1 文字まるごとの置換で書く。⚠ 1 文字が 1 文字に対応するものだけ (トルコ語の İ は入れない)。
+ */
+private const val LOWER_FROM = "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝŒŸАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
+private const val LOWER_TO = "àáâãäåæçèéêëìíîïñòóôõöøùúûüýœÿабвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+private val lowerSed: String get() = LOWER_FROM.zip(LOWER_TO).joinToString(" ") { (u, l) -> "-e 's/$u/$l/g'" }
+
 /** 振り分けの本体 (言語に依らない 1 本)。 */
 private fun voiceBody(d: String, defaultLang: String): String = """VOICE_LANG_DEFAULT=$defaultLang
 
@@ -124,7 +132,8 @@ ensure_words() { [ -f "${d}WORDS" ] || bundled_words "${d}VLANG" > "${d}WORDS"; 
 # Load "key = value" lines into W_<key>. The bundled table comes first and the user's file second:
 # a key missing from an older file keeps working, and "key =" with nothing after it turns it off.
 # Word lists are lowercased (A-Z only) so they compare with what was heard; say_/msg_/fmt_/title_
-# lines are text to show or speak and are kept as written.
+# lines are text to show or speak and are kept as written. A typographic ’ in a word list becomes ',
+# because norm() turns the heard ’ into ' as well (French / Italian tables write l’heure, l’ora).
 load_words() {
   eval "${d}({ bundled_words "${d}VLANG"; [ -f "${d}WORDS" ] && cat "${d}WORDS"; } | awk -v q="'" '
     # The list as an ERE group for grep -E (R_<key>), escaped here once instead of per use.
@@ -145,7 +154,7 @@ load_words() {
       if (k !~ /^[a-z0-9_]+${d}/) next
       v = ${d}0; sub(/^[^=]*=/, "", v); sub(/^[ \t]+/, "", v); sub(/[ \t\r]+${d}/, "", v)
       r = ""
-      if (k !~ /^(say|msg|fmt|title)_/) { v = lc(v); gsub(/[ \t]*\|[ \t]*/, "|", v); if (v != "") r = "(" esc(v) ")" }
+      if (k !~ /^(say|msg|fmt|title)_/) { gsub(/’/, q, v); v = lc(v); gsub(/[ \t]*\|[ \t]*/, "|", v); if (v != "") r = "(" esc(v) ")" }
       gsub(q, q "\\" q q, v); gsub(q, q "\\" q q, r)
       print "W_" k "=" q v q
       print "R_" k "=" q r q
@@ -176,8 +185,11 @@ nosp() {
 
 # Lowercase A-Z, drop punctuation and squeeze spaces. ⚠ No tr/[] on multibyte characters: they
 # work byte by byte and would break Japanese; each mark is removed as a whole string instead.
+# Accented Latin and Cyrillic capitals are lowered the same way, one whole letter at a time
+# (a recognizer may start "Écris…" / "Следующая…" with a capital, while the tables are lowercase).
 norm() {
   printf '%s' "${d}1" | tr 'A-Z' 'a-z' | sed \
+    $lowerSed \
     -e 's/。//g' -e 's/、//g' -e 's/，//g' -e 's/．//g' -e 's/！//g' -e 's/？//g' \
     -e 's/¿//g' -e 's/¡//g' -e "s/’/'/g" -e 's/[!?,.;"]//g' \
     -e 's/　/ /g' -e "s/${d}TAB/ /g" -e 's/  */ /g' -e 's/ *| */|/g' -e 's/^ //' -e 's/ ${d}//'

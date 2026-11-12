@@ -143,6 +143,18 @@ class VoiceScriptTest {
         assertTrue(next, next.lines().contains(tokyo))
     }
 
+    /**
+     * 認識結果が A–Z 以外の大文字で始まっても、表の ’ と聞こえた ' が違っても外さない (1.0.91)。
+     * 0.9 系までは `tr 'A-Z' 'a-z'` だけで、É・Ü やキリル文字の大文字が小文字にならず、
+     * 表の l’ora (活字の ’) は聞こえた l'ora (norm() で ’ も ' になる) と一致しなかった。
+     */
+    @Test
+    fun capitalsAndApostrophesDoNotMiss() {
+        assertHeard("fr", "Éteins la torche", "z2-torch off")
+        assertHeard("it", "togli l'audio", "z2-volume mute")
+        assertHeard("it", "togli l’audio", "z2-volume mute")
+    }
+
     /** 名簿の言語はどれも表を持ち、アプリの言語がその表の既定になる。表の無い言語は英語。 */
     @Test
     fun everyLanguageHasItsTable() {
