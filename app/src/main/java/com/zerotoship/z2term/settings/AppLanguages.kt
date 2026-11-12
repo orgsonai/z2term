@@ -14,10 +14,11 @@ package com.zerotoship.z2term.settings
  * 2. `app/src/main/res/values-<コード>/strings.xml` を作る（アプリ画面の文言）。
  *    ⚠ 中国語のように地域を伴うものは Android の作法に従って `values-zh-rCN` のように書く。
  *    このコードは **`Locale.forLanguageTag` が解釈できる形** (`zh-CN` 等) にしておく。
- * 3. 端末に出る文言（`z2-*` CLI・同梱スクリプト・サンプルマクロ）に、その言語の
- *    変わり値を足す。呼び出し側は [com.zerotoship.z2term.proot.CliText] の
- *    `t(en = …, ja = …)` なので、`"<コード>" to "…"` を足すだけでよい。
- *    ⚠ **足さなくても壊れない** — 変わり値の無い文言は [FALLBACK]（英語）で出る。
+ * 3. 端末に出る文言（`z2-*` CLI・同梱スクリプト・サンプルマクロ）の訳を
+ *    `proot/lang/Cli<言語>.kt` に **1 ファイルで**書き、`CliLanguages` の一覧に 1 行足す
+ *    （書き方は [com.zerotoship.z2term.proot.CliLanguage]）。⭐ 文言を使う側のコードは触らない
+ *    （英語と日本語だけがそこにあり、他の言語は名前で引かれる）。
+ *    ⚠ **全部訳さなくても壊れない** — 訳の無い文言は [FALLBACK]（英語）で出る。
  * 4. `bash scripts/i18n-status.sh` で埋まり具合を見る。
  *    未訳の一覧は `bash scripts/i18n-status.sh --missing <コード>`。
  * 5. 端末に出る文言が 100% になったら [Entry.cliComplete] に `true` を付ける。

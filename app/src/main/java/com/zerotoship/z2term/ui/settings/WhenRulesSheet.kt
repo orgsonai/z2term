@@ -1566,7 +1566,7 @@ private fun TriggerRequirement(trigger: String) {
 /** `z2-when events` の一覧 (名前 → 説明)。CLI と同じ文言を使い、言い回しを 2 か所に持たない。 */
 private fun eventChoices(context: Context): List<Pair<String, String>> =
     runCatching {
-        Z2ApiMsg(lang = LocaleHelper.language(context), d = "$").whenEventList.lines().mapNotNull { line ->
+        Z2ApiMsg.of(lang = LocaleHelper.language(context), d = "$").whenEventList.lines().mapNotNull { line ->
             val t = line.trim()
             if (t.isEmpty() || t.startsWith("#")) return@mapNotNull null
             val name = t.substringBefore(' ')

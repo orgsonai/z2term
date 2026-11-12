@@ -96,94 +96,19 @@ data class SshdScriptStrings(
             authKeysHint = "ℹ ~/.ssh/authorized_keys is empty. Register a client public key to connect.",
             authKeysExample = "   e.g. cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
         )
-        fun zhCN(): SshdScriptStrings = SshdScriptStrings(
-            invalidPort = "❌ 端口号不正确",
-            configOk = "sshd(dropbear) 配置 OK",
-            installingDropbear = "📦 没有 dropbear，正在安装…",
-            dropbearInstallFailed = "❌ 无法安装 dropbear。请确认网络连接和软件包名称。",
-            privilegedPortWarn = "⚠️ 特权端口。在 proot(非 root) 下很可能 bind 不上 (建议用 1024 以上)。",
-            lanExposeWarn = "⚠️ 局域网/广域网开放模式: 必须用密钥认证，并且要用强密钥。",
-            noAuthorizedKeys = "⛔ ~/.ssh/authorized_keys 还没有设置。已中止以局域网开放方式启动。",
-            noAuthorizedKeysHint = "   请先把公钥登记到 ~/.ssh/authorized_keys 再重新执行。",
-            loopbackBind = "🔒 只在 loopback 上启动。要对局域网开放请用 --lan 或 Z2_SSHD_LAN=1。",
-            foregroundStart = "▶ 以前台方式启动 dropbear (Ctrl-C 停止)",
-            listeningLan = "✅ dropbear listening (root，仅密钥认证)",
-            listeningLoopback = "✅ dropbear listening (root，仅密钥认证，仅 loopback)",
-            startupFailed = "❌ dropbear 启动失败。日志:",
-            deviceIp = "设备IP",
-            authKeysHint = "ℹ ~/.ssh/authorized_keys 还没有设置。登记客户端的公钥之后就能连接了。",
-            authKeysExample = "   例: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-        )
-        fun zhTW(): SshdScriptStrings = SshdScriptStrings(
-            invalidPort = "❌ 連接埠號不正確",
-            configOk = "sshd(dropbear) 設定 OK",
-            installingDropbear = "📦 沒有 dropbear，正在安裝…",
-            dropbearInstallFailed = "❌ 無法安裝 dropbear。請確認網路連線和套件名稱。",
-            privilegedPortWarn = "⚠️ 特權連接埠。在 proot(非 root) 下很可能 bind 不上 (建議用 1024 以上)。",
-            lanExposeWarn = "⚠️ 區域網路/廣域網開放模式: 必須用金鑰認證，並且要用強金鑰。",
-            noAuthorizedKeys = "⛔ ~/.ssh/authorized_keys 還沒有設定。已中止以區域網路開放方式啟動。",
-            noAuthorizedKeysHint = "   請先把公鑰登記到 ~/.ssh/authorized_keys 再重新執行。",
-            loopbackBind = "🔒 只在 loopback 上啟動。要對區域網路開放請用 --lan 或 Z2_SSHD_LAN=1。",
-            foregroundStart = "▶ 以前景方式啟動 dropbear (Ctrl-C 停止)",
-            listeningLan = "✅ dropbear listening (root，僅金鑰認證)",
-            listeningLoopback = "✅ dropbear listening (root，僅金鑰認證，僅 loopback)",
-            startupFailed = "❌ dropbear 啟動失敗。日誌:",
-            deviceIp = "裝置IP",
-            authKeysHint = "ℹ ~/.ssh/authorized_keys 還沒有設定。登記用戶端的公鑰之後就能連線了。",
-            authKeysExample = "   例: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-        )
-        fun es(): SshdScriptStrings = SshdScriptStrings(
-            invalidPort = "❌ Número de puerto no válido",
-            configOk = "sshd(dropbear) configuración correcta",
-            installingDropbear = "📦 No hay dropbear; instalándolo…",
-            dropbearInstallFailed = "❌ No se pudo instalar dropbear. Comprueba la red y el nombre del paquete.",
-            privilegedPortWarn = "⚠️ Puerto privilegiado; con proot (sin root) es muy probable que no se pueda enlazar (usa 1024 o más).",
-            lanExposeWarn = "⚠️ Modo abierto a LAN/WAN: hace falta autenticación por clave; usa una clave fuerte.",
-            noAuthorizedKeys = "⛔ ~/.ssh/authorized_keys está vacío. Se cancela el arranque abierto a la red.",
-            noAuthorizedKeysHint = "   Registra tu clave pública en ~/.ssh/authorized_keys y vuelve a ejecutarlo.",
-            loopbackBind = "🔒 Solo en loopback. Para abrirlo a la LAN, pasa --lan o define Z2_SSHD_LAN=1.",
-            foregroundStart = "▶ dropbear en primer plano (Ctrl-C para pararlo)",
-            listeningLan = "✅ dropbear listening (root, solo autenticación por clave)",
-            listeningLoopback = "✅ dropbear listening (root, solo clave, solo loopback)",
-            startupFailed = "❌ Falló el arranque de dropbear. Registro:",
-            deviceIp = "IP del dispositivo",
-            authKeysHint = "ℹ ~/.ssh/authorized_keys está vacío. Registra la clave pública del cliente para poder conectar.",
-            authKeysExample = "   p. ej.: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-        )
-        fun ko(): SshdScriptStrings = SshdScriptStrings(
-            invalidPort = "❌ 포트 번호가 올바르지 않습니다",
-            configOk = "sshd(dropbear) 설정에 문제가 없습니다",
-            installingDropbear = "📦 dropbear가 없어 설치합니다…",
-            dropbearInstallFailed = "❌ dropbear를 설치하지 못했습니다. 네트워크와 패키지 이름을 확인하세요.",
-            privilegedPortWarn = "⚠️ 특권 포트입니다. proot(root 없이)에서는 열지 못할 가능성이 큽니다 (1024 이상을 쓰세요).",
-            lanExposeWarn = "⚠️ LAN/WAN에 여는 모드입니다: 키 인증이 필요하며, 강한 키를 쓰세요.",
-            noAuthorizedKeys = "⛔ ~/.ssh/authorized_keys가 비어 있습니다. 네트워크에 여는 시작을 취소합니다.",
-            noAuthorizedKeysHint = "   공개 키를 ~/.ssh/authorized_keys에 등록한 뒤 다시 실행하세요.",
-            loopbackBind = "🔒 loopback에서만 듣습니다. LAN에 열려면 --lan을 붙이거나 Z2_SSHD_LAN=1을 정하세요.",
-            foregroundStart = "▶ dropbear를 앞에서 실행합니다 (멈추려면 Ctrl-C)",
-            listeningLan = "✅ dropbear listening (root, 키 인증만)",
-            listeningLoopback = "✅ dropbear listening (root, 키 인증만, loopback만)",
-            startupFailed = "❌ dropbear를 띄우지 못했습니다. 로그:",
-            deviceIp = "기기의 IP",
-            authKeysHint = "ℹ ~/.ssh/authorized_keys가 비어 있습니다. 접속하려면 클라이언트의 공개 키를 등록하세요.",
-            authKeysExample = "   예: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-        )
         /**
-         * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
+         * 言語ごとの組。英語と日本語はここ、⭐ **それ以外の言語は言語ファイル**
+         * (`proot/lang/Cli<言語>.kt` の `sshd()`) にある ([CliLanguage])。
          * 名簿 ([AppLanguages]) にあっても訳が無い言語は英語へ落ちる。
+         *
+         * ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。
          */
-        private val byLang: Map<String, () -> SshdScriptStrings> = mapOf(
-            "en" to ::en,
-            "ja" to ::ja,
-            "zh-CN" to ::zhCN,
-            "zh-TW" to ::zhTW,
-            "es" to ::es,
-            "ko" to ::ko,
-        )
-
-        /** ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。 */
         fun forLang(lang: String): SshdScriptStrings =
-            (byLang[AppLanguages.resolve(lang)] ?: byLang.getValue(AppLanguages.FALLBACK))()
+            when (val code = AppLanguages.resolve(lang)) {
+                "ja" -> ja()
+                AppLanguages.FALLBACK -> en()
+                else -> CliLanguages.of(code)?.sshd() ?: en()
+            }
     }
 }
 

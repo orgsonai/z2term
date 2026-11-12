@@ -2,13 +2,9 @@ package com.zerotoship.z2term.proot
 
 /** Shell-side example of the public viewer protocol; no Android reminder model or UI is involved. */
 internal fun reminderViewFunctions(d: String, t: CliText): String {
-    val labels = t(
+    val labels = t("reminderView.labels",
         en = "Reminders|Add|Delete|Content|Date and time|Repeat|Once|Daily|Weekdays|Weekly (selected weekday)|Schedule text (optional; overrides date and repeat)|Scheduled|Repeating|Notified|No reminders|Delete this reminder and its pending notifications?",
-        ja = "リマインダー|追加|削除|内容|日時|繰り返し|なし|毎日|平日|毎週（選んだ日付の曜日）|日時を文字で指定（任意・日時と繰り返しより優先）|予定|繰り返し|通知済み|予定はありません|この予定と残っている通知予約を削除しますか？",
-        "zh-CN" to "提醒|添加|删除|内容|日期和时间|重复|不重复|每天|工作日|每周（所选日期的星期）|文字指定时间（可选；优先于日期和重复）|已安排|重复|已通知|没有提醒|删除此提醒和待发的通知预约？",
-        "zh-TW" to "提醒|新增|刪除|內容|日期與時間|重複|不重複|每天|工作日|每週（所選日期的星期）|文字指定時間（選填；優先於日期和重複）|已安排|重複|已通知|沒有提醒|刪除此提醒與待發的通知預約？",
-        "es" to "Recordatorios|Añadir|Eliminar|Contenido|Fecha y hora|Repetición|Una vez|A diario|Días laborables|Semanal (día seleccionado)|Horario escrito (opcional; sustituye fecha y repetición)|Programados|Recurrentes|Notificados|No hay recordatorios|¿Eliminar este recordatorio y sus avisos pendientes?",
-        "ko" to "리마인더|추가|삭제|내용|날짜와 시간|반복|한 번|매일|평일|매주 (선택한 날짜의 요일)|시간 직접 입력 (선택 사항, 날짜와 반복보다 우선)|예정|반복|알림 보냄|리마인더가 없습니다|이 리마인더와 남은 알림 예약을 삭제할까요?"
+        ja = "リマインダー|追加|削除|内容|日時|繰り返し|なし|毎日|平日|毎週（選んだ日付の曜日）|日時を文字で指定（任意・日時と繰り返しより優先）|予定|繰り返し|通知済み|予定はありません|この予定と残っている通知予約を削除しますか？"
     )
     return """
 # Render data and controls separately. All external text is escaped, never treated as markup or code.

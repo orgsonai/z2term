@@ -1,14 +1,13 @@
 package com.zerotoship.z2term.proot
 
 /** Subscription changes use the same public viewer actions as other macros. */
-internal fun rssFeedsLabel(t: CliText): String = t(
+internal fun rssFeedsLabel(t: CliText): String = t("rssFeeds.rssFeedsLabel",
     en = "Subscriptions", ja = "購読先",
-    "zh-CN" to "订阅源", "zh-TW" to "訂閱源", "es" to "Suscripciones", "ko" to "구독",
 )
 
 internal fun rssFeedsScript(d: String, t: CliText): String {
     // Keep the label order in sync with the Python tuple below.
-    val labels = t.lines(
+    val labels = t.lines("rssFeeds.labels",
         en = listOf(
             "Subscriptions", "Add", "Articles", "Change", "Remove", "Feed URL",
             "Remove this subscription? Collected articles will be kept.",
@@ -30,50 +29,6 @@ internal fun rssFeedsScript(d: String, t: CliText): String {
             "この購読先は変更されています。一覧を更新してやり直してください。",
             "別の変更を保存中です。もう一度お試しください。",
             "前へ", "次へ",
-        ),
-        "zh-CN" to listOf(
-            "订阅源", "添加", "文章列表", "修改", "删除", "订阅源 URL",
-            "删除此订阅源？已获取的文章将保留。",
-            "更改将在下次抓取时生效。已获取的文章将保留。",
-            "没有订阅源。请通过“添加”输入 RSS / Atom URL。",
-            "请输入不含空白或认证信息的 HTTP(S) URL（最多 2048 个字符）。",
-            "此订阅源已存在。",
-            "此订阅源已更改。请刷新列表后重试。",
-            "正在保存其他更改。请重试。",
-            "上一页", "下一页",
-        ),
-        "zh-TW" to listOf(
-            "訂閱源", "新增", "文章列表", "修改", "刪除", "訂閱源 URL",
-            "刪除此訂閱源？已取得的文章將保留。",
-            "變更將在下次擷取時生效。已取得的文章將保留。",
-            "沒有訂閱源。請透過「新增」輸入 RSS / Atom URL。",
-            "請輸入不含空白或認證資訊的 HTTP(S) URL（最多 2048 個字元）。",
-            "此訂閱源已存在。",
-            "此訂閱源已變更。請重新整理列表後重試。",
-            "正在儲存其他變更。請重試。",
-            "上一頁", "下一頁",
-        ),
-        "es" to listOf(
-            "Suscripciones", "Añadir", "Artículos", "Cambiar", "Eliminar", "URL del feed",
-            "¿Eliminar esta suscripción? Los artículos guardados se conservarán.",
-            "Los cambios se aplican en la próxima consulta. Se conservan los artículos guardados.",
-            "No hay suscripciones. Usa Añadir para introducir una URL RSS / Atom.",
-            "Introduce una URL HTTP(S) sin espacios ni credenciales (máximo 2048 caracteres).",
-            "Esta suscripción ya existe.",
-            "Esta suscripción ha cambiado. Actualiza la lista e inténtalo de nuevo.",
-            "Se está guardando otro cambio. Inténtalo de nuevo.",
-            "Anterior", "Siguiente",
-        ),
-        "ko" to listOf(
-            "구독", "추가", "글 목록", "변경", "삭제", "피드 URL",
-            "이 구독을 삭제할까요? 수집한 글은 유지됩니다.",
-            "변경은 다음 수집부터 반영됩니다. 수집한 글은 유지됩니다.",
-            "구독이 없습니다. 추가를 눌러 RSS / Atom URL을 입력하세요.",
-            "공백이나 인증 정보가 없는 HTTP(S) URL을 입력하세요 (2048자 이내).",
-            "이미 등록된 구독입니다.",
-            "이 구독이 변경되었습니다. 목록을 새로 고친 후 다시 시도하세요.",
-            "다른 변경을 저장 중입니다. 다시 시도하세요.",
-            "이전", "다음",
         ),
     ).joinToString(" ") { "'" + it.replace("'", "'\"'\"'") + "'" }
     val quotedTitle = "'" + rssFeedsLabel(t).replace("'", "'\"'\"'") + "'"

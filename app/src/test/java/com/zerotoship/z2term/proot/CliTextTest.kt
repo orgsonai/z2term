@@ -2,6 +2,7 @@ package com.zerotoship.z2term.proot
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 
 /**
@@ -14,30 +15,35 @@ import org.junit.Test
  */
 class CliTextTest {
 
+    /** 英語・日本語以外の訳の代わり (テスト用)。 */
+    private val fake = object : CliLanguage {
+        override val code = "xx"
+        override val texts = mapOf("toast.usage" to "用法: z2-toast <消息>")
+        override val lineSets = mapOf("macro.head" to listOf("甲"))
+        override val values = mapOf<String, Any>("macro.cols" to 9, "macro.wrongType" to "9")
+    }
+
     @Test
     fun picksTheRequestedLanguage() {
-        assertEquals("hello", CliText("en")(en = "hello", ja = "こんにちは"))
-        assertEquals("こんにちは", CliText("ja")(en = "hello", ja = "こんにちは"))
+        assertEquals("hello", CliText("en")("k", en = "hello", ja = "こんにちは"))
+        assertEquals("こんにちは", CliText("ja")("k", en = "hello", ja = "こんにちは"))
     }
 
-    /** 変わり値の無い言語は英語。⛔ 日本語へ倒さない。 */
+    /** 訳の無い言語は英語。⛔ 日本語へ倒さない。 */
     @Test
     fun languageWithoutAVariantFallsBackToEnglish() {
-        assertEquals("hello", CliText("zh-CN")(en = "hello", ja = "こんにちは"))
-        assertEquals("hello", CliText("de")(en = "hello", ja = "こんにちは"))
-        assertEquals("hello", CliText("")(en = "hello", ja = "こんにちは"))
+        assertEquals("hello", CliText("de")("k", en = "hello", ja = "こんにちは"))
+        assertEquals("hello", CliText("")("k", en = "hello", ja = "こんにちは"))
+        // 言語ファイルはあるが、その名前の訳が無い
+        assertEquals("hello", CliText("xx", fake)("nope", en = "hello", ja = "こんにちは"))
     }
 
-    /** ⭐ 3 言語目を足す口。挙げた言語はそのまま出る（この口が死んでいないことの確認）。 */
+    /** ⭐ 3 言語目の口。言語ファイルにある訳はその名前で出る（この口が死んでいないことの確認）。 */
     @Test
-    fun aThirdLanguageCanBeAdded() {
+    fun aThirdLanguageComesFromItsLanguageFile() {
         assertEquals(
             "用法: z2-toast <消息>",
-            CliText("zh-CN")(
-                en = "usage: z2-toast <message>",
-                ja = "usage: z2-toast <メッセージ>",
-                "zh-CN" to "用法: z2-toast <消息>",
-            )
+            CliText("xx", fake)("toast.usage", en = "usage: z2-toast <message>", ja = "usage: z2-toast <メッセージ>")
         )
     }
 
@@ -45,19 +51,40 @@ class CliTextTest {
     fun linesFollowTheSameRule() {
         val en = listOf("a", "b")
         val ja = listOf("あ", "い")
-        assertEquals(ja, CliText("ja").lines(en = en, ja = ja))
-        assertEquals(en, CliText("zh-CN").lines(en = en, ja = ja))
-        assertEquals(
-            listOf("甲"),
-            CliText("zh-CN").lines(en = en, ja = ja, "zh-CN" to listOf("甲"))
-        )
+        assertEquals(ja, CliText("ja").lines("macro.head", en = en, ja = ja))
+        assertEquals(en, CliText("de").lines("macro.head", en = en, ja = ja))
+        assertEquals(listOf("甲"), CliText("xx", fake).lines("macro.head", en = en, ja = ja))
     }
 
-    /** 文字列でないもの ([CliText.of]) も同じ規則。 */
+    /** 文字列でないもの ([CliText.of]) も同じ規則。型が違う値は英語へ落ちる。 */
     @Test
     fun nonTextValuesFollowTheSameRule() {
-        assertEquals(8, CliText("ja").of(en = 7, ja = 8))
-        assertEquals(7, CliText("zh-CN").of(en = 7, ja = 8))
+        assertEquals(8, CliText("ja").of("macro.cols", en = 7, ja = 8))
+        assertEquals(7, CliText("de").of("macro.cols", en = 7, ja = 8))
+        assertEquals(9, CliText("xx", fake).of("macro.cols", en = 7, ja = 8))
+        assertEquals(7, CliText("xx", fake).of("macro.wrongType", en = 7, ja = 8))
+    }
+
+    /**
+     * ⭐ **言語ファイルが実際に使われていること。** 1.0.84 で訳を `proot/lang/` へ移したので、
+     * 一覧 ([CliLanguages]) への登録漏れや、[Z2ApiMsg.of] を通さずに作った箇所があると、
+     * その言語だけ黙って英語に戻る。生成物が英語版と違うことで押さえる。
+     */
+    @Test
+    fun everyLanguageFileIsUsed() {
+        for (lang in listOf("zh-CN", "zh-TW", "es", "ko")) {
+            assertNotNull("$lang: 言語ファイルが一覧に無い", CliLanguages.of(lang))
+            assertNotEquals("$lang: z2doctor が英語のまま", z2doctorScript("en"), z2doctorScript(lang))
+            assertNotEquals("$lang: z2-* が英語のまま", z2ApiScripts("en"), z2ApiScripts(lang))
+            assertNotEquals("$lang: サンプルマクロが英語のまま", z2MacroSamples("en"), z2MacroSamples(lang))
+            assertNotEquals(
+                "$lang: Z2ApiMsg が上書きされていない",
+                Z2ApiMsg.of("en", "$").usbHelp,
+                Z2ApiMsg.of(lang, "$").usbHelp
+            )
+            assertNotEquals("$lang: GUI の組が英語のまま", GuiScriptStrings.en(), GuiScriptStrings.forLang(lang))
+            assertNotEquals("$lang: sshd の組が英語のまま", SshdScriptStrings.en(), SshdScriptStrings.forLang(lang))
+        }
     }
 
     /**

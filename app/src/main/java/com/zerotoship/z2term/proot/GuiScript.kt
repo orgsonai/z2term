@@ -135,134 +135,19 @@ data class GuiScriptStrings(
             menuNextDesktop = "Next desktop",
             menuReload = "Reload menu"
         )
-        fun zhCN(): GuiScriptStrings = GuiScriptStrings(
-            installing = "📦 正在安装整套图形环境",
-            cleanInstalling = "🧹 正在全新安装图形环境",
-            noPackageManager = "❌ 找不到支持的包管理器 (apk/apt-get/pacman)。",
-            invalidGeometry = "❌ 分辨率的写法不正确",
-            noXvnc = "❌ 没有 Xvnc/Xtigervnc (tigervnc 未安装)",
-            alreadyRunning = "✅ 图形环境已经在运行",
-            startingXvnc = "▶ 启动",
-            xvncFailed = "❌ Xvnc 启动失败。日志:",
-            ready = "✅ 图形环境准备完成。请从 z2term 的图形标签页连接。",
-            running = "✅ 图形环境运行中",
-            stopped = "⏹ 图形环境已停止",
-            stoppedMsg = "⏹ 已停止",
-            usage = "用法: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
-            installFailed = "❌ 没能安装整套图形环境 (Xvnc / openbox / D-Bus)。",
-            installFailedHint = "   请确认网络连接。需要恢复时，可在终端中运行 z2gui clean。",
-            audioInstalling = "🔊 图形界面声音: 正在安装 PulseAudio",
-            audioNoPulse = "⚠️ 图形界面声音: 没有 pulseaudio，将以无声继续",
-            audioNoPactl = "⚠️ 图形界面声音: 没有 pactl，将以无声继续",
-            audioStartFailed = "⚠️ 图形界面声音: PulseAudio 启动失败",
-            audioReady = "🔊 图形界面声音: z2sink.monitor →",
-            menuApps = "应用",
-            menuWindows = "窗口",
-            menuDesktops = "虚拟桌面",
-            menuPreviousDesktop = "上一个桌面",
-            menuNextDesktop = "下一个桌面",
-            menuReload = "重新载入菜单"
-        )
-        fun zhTW(): GuiScriptStrings = GuiScriptStrings(
-            installing = "📦 正在安裝整套圖形環境",
-            cleanInstalling = "🧹 正在全新安裝圖形環境",
-            noPackageManager = "❌ 找不到支援的套件管理器 (apk/apt-get/pacman)。",
-            invalidGeometry = "❌ 解析度的寫法不正確",
-            noXvnc = "❌ 沒有 Xvnc/Xtigervnc (tigervnc 未安裝)",
-            alreadyRunning = "✅ 圖形環境已經在執行",
-            startingXvnc = "▶ 啟動",
-            xvncFailed = "❌ Xvnc 啟動失敗。日誌:",
-            ready = "✅ 圖形環境準備完成。請從 z2term 的圖形分頁連線。",
-            running = "✅ 圖形環境執行中",
-            stopped = "⏹ 圖形環境已停止",
-            stoppedMsg = "⏹ 已停止",
-            usage = "用法: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
-            installFailed = "❌ 沒能安裝整套圖形環境 (Xvnc / openbox / D-Bus)。",
-            installFailedHint = "   請確認網路連線。需要還原時，可在終端中執行 z2gui clean。",
-            audioInstalling = "🔊 圖形介面聲音: 正在安裝 PulseAudio",
-            audioNoPulse = "⚠️ 圖形介面聲音: 沒有 pulseaudio，將以無聲繼續",
-            audioNoPactl = "⚠️ 圖形介面聲音: 沒有 pactl，將以無聲繼續",
-            audioStartFailed = "⚠️ 圖形介面聲音: PulseAudio 啟動失敗",
-            audioReady = "🔊 圖形介面聲音: z2sink.monitor →",
-            menuApps = "應用程式",
-            menuWindows = "視窗",
-            menuDesktops = "虛擬桌面",
-            menuPreviousDesktop = "上一個桌面",
-            menuNextDesktop = "下一個桌面",
-            menuReload = "重新載入選單"
-        )
-        fun es(): GuiScriptStrings = GuiScriptStrings(
-            installing = "📦 Instalando el entorno gráfico",
-            cleanInstalling = "🧹 Instalando el entorno gráfico desde cero",
-            noPackageManager = "❌ No se encontró ningún gestor de paquetes compatible (apk/apt-get/pacman).",
-            invalidGeometry = "❌ Resolución mal escrita",
-            noXvnc = "❌ No hay Xvnc/Xtigervnc (tigervnc no está instalado)",
-            alreadyRunning = "✅ El entorno gráfico ya está en marcha",
-            startingXvnc = "▶ Iniciando",
-            xvncFailed = "❌ Falló el arranque de Xvnc. Registro:",
-            ready = "✅ Entorno gráfico listo. Conéctate desde una pestaña gráfica de z2term.",
-            running = "✅ Entorno gráfico en marcha",
-            stopped = "⏹ El entorno gráfico está parado",
-            stoppedMsg = "⏹ Parado",
-            usage = "Uso: z2gui [start [AxA] [clean] | stop | status | install | clean | check]",
-            installFailed = "❌ No se pudo instalar el entorno gráfico (Xvnc / openbox / D-Bus).",
-            installFailedHint = "   Comprueba la red. Para recuperarlo, puedes ejecutar z2gui clean en una terminal.",
-            audioInstalling = "🔊 Audio del entorno gráfico: instalando PulseAudio",
-            audioNoPulse = "⚠️ Audio del entorno gráfico: no hay pulseaudio; se sigue sin sonido",
-            audioNoPactl = "⚠️ Audio del entorno gráfico: no hay pactl; se sigue sin sonido",
-            audioStartFailed = "⚠️ Audio del entorno gráfico: PulseAudio no arrancó",
-            audioReady = "🔊 Audio del entorno gráfico: z2sink.monitor →",
-            menuApps = "Aplicaciones",
-            menuWindows = "Ventanas",
-            menuDesktops = "Escritorios virtuales",
-            menuPreviousDesktop = "Escritorio anterior",
-            menuNextDesktop = "Escritorio siguiente",
-            menuReload = "Recargar el menú"
-        )
-        fun ko(): GuiScriptStrings = GuiScriptStrings(
-            installing = "📦 GUI 한 벌을 설치합니다",
-            cleanInstalling = "🧹 GUI를 처음부터 다시 설치합니다",
-            noPackageManager = "❌ 지원하는 패키지 관리자(apk/apt-get/pacman)를 찾지 못했습니다.",
-            invalidGeometry = "❌ 해상도를 잘못 적었습니다",
-            noXvnc = "❌ Xvnc/Xtigervnc가 없습니다 (tigervnc가 설치되어 있지 않습니다)",
-            alreadyRunning = "✅ GUI가 이미 돌고 있습니다",
-            startingXvnc = "▶ 시작하는 중",
-            xvncFailed = "❌ Xvnc를 띄우지 못했습니다. 로그:",
-            ready = "✅ GUI가 준비되었습니다. z2term의 GUI 탭에서 접속하세요.",
-            running = "✅ GUI가 돌고 있습니다",
-            stopped = "⏹ GUI가 멈춰 있습니다",
-            stoppedMsg = "⏹ 멈췄습니다",
-            usage = "사용법: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
-            installFailed = "❌ GUI 한 벌(Xvnc / openbox / D-Bus)을 설치하지 못했습니다.",
-            installFailedHint = "   네트워크를 확인하세요. 되살리려면 터미널에서 z2gui clean을 실행할 수 있습니다.",
-            audioInstalling = "🔊 GUI 소리: PulseAudio를 설치합니다",
-            audioNoPulse = "⚠️ GUI 소리: pulseaudio가 없어 소리 없이 계속합니다",
-            audioNoPactl = "⚠️ GUI 소리: pactl이 없어 소리 없이 계속합니다",
-            audioStartFailed = "⚠️ GUI 소리: PulseAudio가 시작되지 않았습니다",
-            audioReady = "🔊 GUI 소리: z2sink.monitor →",
-            menuApps = "애플리케이션",
-            menuWindows = "창",
-            menuDesktops = "가상 데스크톱",
-            menuPreviousDesktop = "이전 데스크톱",
-            menuNextDesktop = "다음 데스크톱",
-            menuReload = "메뉴 다시 읽기"
-        )
         /**
-         * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
+         * 言語ごとの組。英語と日本語はここ、⭐ **それ以外の言語は言語ファイル**
+         * (`proot/lang/Cli<言語>.kt` の `gui()`) にある ([CliLanguage])。
          * 名簿 ([AppLanguages]) にあっても訳が無い言語は英語へ落ちる。
+         *
+         * ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。
          */
-        private val byLang: Map<String, () -> GuiScriptStrings> = mapOf(
-            "en" to ::en,
-            "ja" to ::ja,
-            "zh-CN" to ::zhCN,
-            "zh-TW" to ::zhTW,
-            "es" to ::es,
-            "ko" to ::ko,
-        )
-
-        /** ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。 */
         fun forLang(lang: String): GuiScriptStrings =
-            (byLang[AppLanguages.resolve(lang)] ?: byLang.getValue(AppLanguages.FALLBACK))()
+            when (val code = AppLanguages.resolve(lang)) {
+                "ja" -> ja()
+                AppLanguages.FALLBACK -> en()
+                else -> CliLanguages.of(code)?.gui() ?: en()
+            }
     }
 }
 

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-07 / Target version: 1.0.83 (versionCode 781)
+Last updated: 2026-11-12 / Target version: 1.0.84 (versionCode 782)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3587,7 +3587,7 @@ place where a third language can go.**
 | | Where | Count | How |
 |---|---|---|---|
 | App screens | `res/values[-<lang>]/strings.xml` | 1,129 | Android standard |
-| Text in the terminal | `t(en = …, ja = …)` in `proot/*.kt` | 351 | `CliText` (these are the bodies of shell scripts written into the rootfs, so `res` cannot hold them) |
+| Text in the terminal | English and Japanese in `t("name", en = …, ja = …)` in `proot/*.kt`; other languages in `proot/lang/Cli<lang>.kt` (from 1.0.84) | 462 | `CliText` / `CliLanguage` (these are the bodies of shell scripts written into the rootfs, so `res` cannot hold them) |
 
 - ⭐ **One roster: [`AppLanguages`](../../app/src/main/java/com/zerotoship/z2term/settings/AppLanguages.kt).** Adding a line there makes the settings screen, the terminal-side text and the `Locale` all learn about the language at once. The step-by-step for adding one is at the top of that file.
 - ⛔ **Never write "not English means Japanese".** Up to 0.8.421 `val ja = lang != "en"` would have handed **Japanese** to anyone picking a third language (`z2-macro` and `pacman-keyring` really were written that way). The fallback is always English, and `CliTextTest` pins that **at the level of the generated output** (a script built for an untranslated language must not differ from the English one by a single byte).
@@ -3683,6 +3683,27 @@ existing flick mechanism (up/down/left/right per key) already covers them.
 - **Spanish**: needs only the letters (`ñ`, accented vowels, `¿` `¡`) — **no conversion engine**. One extra key layout makes it work as a system input method too.
 - **Chinese (Simplified and Traditional)**: ⛔ **does not work.** It needs pinyin/zhuyin → hanzi conversion, and Traditional has no single input method (Taiwan uses zhuyin, Hong Kong uses Cangjie/Quick). **Translate the UI and messages only, and say plainly that the keyboard does not do Chinese input.**
 - ⚠ "Predictive input" exists everywhere but means **different things**: Japanese and Chinese need **conversion** (a reading turned into another script — without it you cannot type at all), Korean needs **composition** of jamo, and Latin-script languages get **prediction and autocorrect** (convenient, never required). **Only the first two are mandatory**, and conflating them leads to estimating an IME for every language.
+
+#### Other languages moved to one file per language (1.0.84)
+
+**English and Japanese stay where the text is used; every other language's translations moved to `proot/lang/Cli<lang>.kt`.** The output is unchanged (apart from one mistranslation fixed, below).
+
+- **Why**: through 1.0.83 every call listed all six languages (`Z2MacroScript.kt` was 6,384 lines, `Z2ApiMessages.kt` 4,024). Each new language buried the logic further under translations, so the split came before adding the next one.
+- **Three ways of holding text**:
+
+  | Text | English / Japanese (where it is used) | Other languages (language file) |
+  |---|---|---|
+  | Text inside scripts | `t("doctor.head", en = …, ja = …)` (likewise `t.lines` / `t.of`) | `texts` / `lineSets` / `values`, under the same name |
+  | `z2-*` message catalogue | `open val` / `open fun` in `Z2ApiMsg` | a class that **overrides** `Z2ApiMsg` (some messages take arguments, so they are not looked up by name) |
+  | GUI / sshd bundles, voice word tables | `GuiScriptStrings.en()` `ja()` etc. / `VOICE_WORDS_EN` `_JA` | `gui()` / `sshd()` / `voiceWords` |
+
+- **Names** are `<short file name>.<variable>` (`doctor.head`, `macro.rssBody.head`). ⚠ **Do not rename when rewording** — a new name detaches every translation and they fall back to English. Do rename when the meaning changes, so an old translation does not keep showing for new meaning.
+- ⛔ **Build `Z2ApiMsg` with `Z2ApiMsg.of(lang, d)`.** Calling the constructor directly gives English for every language other than English and Japanese. Messages are getters (`get()`), so the base class never reads an overridden message while it is still initialising.
+- **Adding a language** means one language file plus one line in `CliLanguages`; the code that uses the text is not touched. `bash scripts/i18n-status.sh --missing <lang>` prints everything untranslated **with the English source and where it goes**.
+- **What `--check` now also fails on**: duplicate names, **unused names** left in a language file (the text was removed or renamed, so that translation no longer shows), a `t(en = …)` without a name, and the wrong slot (a `t.lines` translation placed in `texts`, etc.). ⚠ Duplicates and unused names fail even for languages without the `cliComplete` mark — both silently detach translations.
+- **The count changed too** (436 → 462): text that was never counted (`Z2MenuScript` and others), `${t(…)}` embedded inside strings, and the voice word tables. That is 339 script texts, 120 catalogue messages and 3 bundles.
+- **The move was done by a script, and every language was checked to be character-for-character identical afterwards** (337 script texts, 119 messages, the GUI and sshd bundles, the word tables). The three places the checking tool skipped (two embedded in strings, one with a comment between arguments) were moved by hand.
+- ⚠ **That one place had a mistranslation**: in the `z2-session key` message refusing Shift, the Spanish stopped mid-sentence and the second half of the Korean was Spanish. The Spanish now finishes its sentence and the Korean was retranslated (with no particle right after a variable — the 은/는 in `'$x'은` depends on what the variable holds).
 
 ### 6.8.1 App lock (A2, 0.8.421)
 

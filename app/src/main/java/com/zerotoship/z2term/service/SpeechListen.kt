@@ -95,7 +95,7 @@ internal object SpeechListen {
         main.post { begin(context.applicationContext, lang, bias, onHeard) }
     }
 
-    private fun msg(context: Context) = Z2ApiMsg(lang = LocaleHelper.language(context), d = "$")
+    private fun msg(context: Context) = Z2ApiMsg.of(lang = LocaleHelper.language(context), d = "$")
 
     /** いま聞いているもの (Main からだけ触る)。 */
     private var current: Request? = null

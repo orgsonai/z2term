@@ -24,7 +24,7 @@ internal object VoiceInput {
     private val INTERRUPT_WORDS = listOf("コントロールC", "コントロールシー", "中断", "control c", "ctrl c")
 
     fun start(context: Context, onText: (String) -> Unit, onEnter: () -> Unit, onInterrupt: () -> Unit) {
-        val m = Z2ApiMsg(lang = LocaleHelper.language(context), d = "$")
+        val m = Z2ApiMsg.of(lang = LocaleHelper.language(context), d = "$")
         // 聞いている最中にもう一度押したら止める (1.0.76)。これが無いと止める手段が無かった。
         if (SpeechListen.listening.value) {
             SpeechListen.cancel()

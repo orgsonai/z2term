@@ -5,7 +5,8 @@
 # 英語」になるので、両方を 1 つの表で見られるようにする。
 #
 #   1. アプリ画面    app/src/main/res/values[-<言語>]/strings.xml   (Android 標準)
-#   2. 端末に出る文言 app/src/main/java/.../proot/*.kt の t(en = …, ja = …)
+#   2. 端末に出る文言 英語・日本語は app/src/main/java/.../proot/*.kt の t("名前", en = …, ja = …)、
+#                     他の言語は proot/lang/Cli<言語>.kt (1 言語 = 1 ファイル)
 #                     (rootfs へ書き出すシェルスクリプトの中身なので res では持てない)
 #
 # 対応言語の名簿は app/src/main/java/.../settings/AppLanguages.kt が正本。

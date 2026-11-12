@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.84 (versionCode 782)**: Translations of the text shown in the terminal (`z2-*` help and messages, the notes in the sample macros, and so on) now live in one file per language, so adding a language no longer makes the code that uses the text any longer. Everything reads the same as before, except for one fix: when `z2-session key` is given a key with Shift, the Spanish message stopped mid-sentence and the second half of the Korean one was in Spanish.
+
 **1.0.83 (versionCode 781)**: Flicking ⏎ left on the accessory bar no longer starts voice input; the accessory bar's ⏎ only taps and repeats. Flicking ⏎ left on the built-in keyboard still types by voice as before.
 
 **1.0.82 (versionCode 780)**: Closing an edge panel (by tapping outside it and so on) no longer briefly shows the keyboard, including when closing over the z2term screen or after using a text field in the panel. Tapping a text field in a panel still brings up the keyboard as before.

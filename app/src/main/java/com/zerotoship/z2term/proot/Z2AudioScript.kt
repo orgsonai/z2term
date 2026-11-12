@@ -4,29 +4,17 @@ package com.zerotoship.z2term.proot
 fun z2AudioScript(lang: String): String {
     val d = '$'
     val t = CliText(lang)
-    val description = t(
+    val description = t("audio.description",
         en = "Play sound from a local Linux command on Android, without opening a GUI.\ninstall: install PulseAudio in the current Linux OS (downloads packages).\nrun COMMAND [ARG...]: connect audio, run the command, then stop its audio server.\nRun a shell to enable sound for several commands. No configuration files are overwritten.\nRequires a local terminal tab and a PulseAudio-compatible player. SSH is not supported.",
-        ja = "GUIを開かず、ローカルLinuxコマンドの音をAndroidで鳴らします。\ninstall: 現在のLinux OSへPulseAudioを導入します（パッケージを取得）。\nrun コマンド [引数...]: 音声を接続して実行し、終了時に専用の音声サーバーを停止。\nシェルを指定すれば、その中の複数コマンドで音を使えます。既存の設定ファイルは上書きしません。\nローカル端末タブとPulseAudio対応プレイヤーが必要です。SSHには対応しません。",
-        "zh-CN" to "无需打开GUI，即可在Android播放本地Linux命令的声音。\ninstall: 在当前Linux系统安装PulseAudio（下载软件包）。\nrun 命令 [参数...]: 连接音频并执行命令，结束时停止专用音频服务器。\n指定Shell可为其中的多个命令启用声音。不会覆盖现有配置文件。\n需要本地终端标签页及支持PulseAudio的播放器。不支持SSH。",
-        "zh-TW" to "無需開啟GUI，即可在Android播放本機Linux命令的聲音。\ninstall: 在目前Linux系統安裝PulseAudio（下載套件）。\nrun 命令 [參數...]: 連接音訊並執行命令，結束時停止專用音訊伺服器。\n指定Shell可為其中多個命令啟用聲音。不會覆寫現有設定檔。\n需要本機終端分頁及支援PulseAudio的播放器。不支援SSH。",
-        "es" to "Reproduce en Android el sonido de un comando Linux local sin abrir el escritorio.\ninstall: instala PulseAudio en el sistema Linux actual (descarga paquetes).\nrun COMANDO [ARG...]: conecta el audio, ejecuta el comando y detiene su servidor al terminar.\nEjecuta un shell para usar sonido en varios comandos. No sobrescribe archivos de configuración.\nRequiere una pestaña local y un reproductor compatible con PulseAudio. No admite SSH.",
-        "ko" to "GUI를 열지 않고 로컬 Linux 명령의 소리를 Android에서 재생합니다.\ninstall: 현재 Linux OS에 PulseAudio를 설치합니다(패키지 다운로드).\nrun 명령 [인수...]: 오디오를 연결하고 명령을 실행한 뒤 전용 서버를 종료합니다.\n셸을 지정하면 여러 명령에서 소리를 사용할 수 있습니다. 기존 설정 파일은 덮어쓰지 않습니다.\n로컬 터미널 탭과 PulseAudio 호환 플레이어가 필요합니다. SSH는 지원하지 않습니다."
+        ja = "GUIを開かず、ローカルLinuxコマンドの音をAndroidで鳴らします。\ninstall: 現在のLinux OSへPulseAudioを導入します（パッケージを取得）。\nrun コマンド [引数...]: 音声を接続して実行し、終了時に専用の音声サーバーを停止。\nシェルを指定すれば、その中の複数コマンドで音を使えます。既存の設定ファイルは上書きしません。\nローカル端末タブとPulseAudio対応プレイヤーが必要です。SSHには対応しません。"
     )
-    val missing = t(
+    val missing = t("audio.missing",
         en = "Audio tools are missing. Run: z2-audio install",
-        ja = "音声用ツールがありません。z2-audio install を実行してください。",
-        "zh-CN" to "缺少音频工具。请运行：z2-audio install",
-        "zh-TW" to "缺少音訊工具。請執行：z2-audio install",
-        "es" to "Faltan herramientas de audio. Ejecuta: z2-audio install",
-        "ko" to "오디오 도구가 없습니다. z2-audio install을 실행하세요."
+        ja = "音声用ツールがありません。z2-audio install を実行してください。"
     )
-    val failed = t(
+    val failed = t("audio.failed",
         en = "Audio connection failed; the command was not started.",
-        ja = "音声を接続できなかったため、指定コマンドは起動していません。",
-        "zh-CN" to "音频连接失败，未启动指定命令。",
-        "zh-TW" to "音訊連接失敗，未啟動指定命令。",
-        "es" to "Falló la conexión de audio; no se inició el comando.",
-        "ko" to "오디오 연결에 실패하여 지정한 명령을 시작하지 않았습니다."
+        ja = "音声を接続できなかったため、指定コマンドは起動していません。"
     )
     val header = description.lines().joinToString("\n") { "# $it" }
     return "#!/bin/sh\n$header\n" + """

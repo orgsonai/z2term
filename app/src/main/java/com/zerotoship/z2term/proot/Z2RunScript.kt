@@ -30,13 +30,9 @@ fun z2runScript(lang: String = "ja"): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
     // Xvnc 起動失敗時のエラー文 (z2run は 1 行しかメッセージを出さない)
     val t = CliText(lang)
-    val errMsg = t(
+    val errMsg = t("run.errMsg",
         en = "z2run: Xvnc :${d}{DISPLAY_NUM} did not start. See /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log.",
-        ja = "z2run: Xvnc :${d}{DISPLAY_NUM} が起動しませんでした。/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log を確認してください。",
-        "zh-CN" to "z2run: Xvnc :${d}{DISPLAY_NUM} 没有启动。请查看 /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log。",
-        "zh-TW" to "z2run: Xvnc :${d}{DISPLAY_NUM} 沒有啟動。請查看 /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log。",
-        "es" to "z2run: Xvnc :${d}{DISPLAY_NUM} no se inició. Consulta /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log.",
-        "ko" to "z2run: Xvnc :${d}{DISPLAY_NUM}이(가) 시작되지 않았습니다. /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log를 보세요."
+        ja = "z2run: Xvnc :${d}{DISPLAY_NUM} が起動しませんでした。/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log を確認してください。"
     )
     return """
         |#!/bin/sh

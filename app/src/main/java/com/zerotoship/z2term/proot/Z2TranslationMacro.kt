@@ -4,21 +4,11 @@ package com.zerotoship.z2term.proot
 fun z2TranslationMacro(lang: String): String {
     val t = CliText(lang)
     val d = '$'
-    val description = t(en = "Translate text using a separately installed command.", ja = "別途導入したコマンドで文章を翻訳します。",
-        "zh-CN" to "使用另行安装的命令翻译文本。", "zh-TW" to "使用另行安裝的命令翻譯文字。",
-        "es" to "Traduce texto con un comando instalado por separado.", "ko" to "별도로 설치한 명령으로 텍스트를 번역합니다.")
-    val missing = t(en = "The trans command is not installed in this local environment. Install your translation CLI yourself, then retry. Nothing is downloaded automatically.",
-        ja = "このローカル環境には trans コマンドがありません。翻訳CLIをユーザー自身で導入してから再実行してください。自動ダウンロードは行いません。",
-        "zh-CN" to "此本地环境未安装 trans 命令。请自行安装翻译 CLI 后重试。不会自动下载。",
-        "zh-TW" to "此本機環境未安裝 trans 命令。請自行安裝翻譯 CLI 後重試。不會自動下載。",
-        "es" to "Falta el comando trans en este entorno local. Instala la CLI de traducción y reintenta. No hay descarga automática.",
-        "ko" to "이 로컬 환경에 trans 명령이 없습니다. 번역 CLI를 직접 설치한 뒤 다시 실행하세요. 자동 다운로드는 하지 않습니다.")
-    val network = t(en = "Translation text is sent to the external service used by your CLI. Its terms and network availability apply.",
-        ja = "翻訳文はCLIが利用する外部サービスへ送信されます。接続先の利用条件・通信状況に従います。",
-        "zh-CN" to "翻译文本会发送至 CLI 使用的外部服务，受其条款和网络状态影响。",
-        "zh-TW" to "翻譯文字會傳送至 CLI 使用的外部服務，受其條款與網路狀態影響。",
-        "es" to "El texto se envía al servicio externo de la CLI. Se aplican sus condiciones y disponibilidad de red.",
-        "ko" to "텍스트는 CLI의 외부 서비스로 전송됩니다. 해당 이용 조건과 네트워크 상태가 적용됩니다.")
+    val description = t("translationMacro.description", en = "Translate text using a separately installed command.", ja = "別途導入したコマンドで文章を翻訳します。")
+    val missing = t("translationMacro.missing", en = "The trans command is not installed in this local environment. Install your translation CLI yourself, then retry. Nothing is downloaded automatically.",
+        ja = "このローカル環境には trans コマンドがありません。翻訳CLIをユーザー自身で導入してから再実行してください。自動ダウンロードは行いません。")
+    val network = t("translationMacro.network", en = "Translation text is sent to the external service used by your CLI. Its terms and network availability apply.",
+        ja = "翻訳文はCLIが利用する外部サービスへ送信されます。接続先の利用条件・通信状況に従います。")
     val setup = z2TranslationSetup(lang)
     return """
         |#!/bin/sh
