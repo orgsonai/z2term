@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">Terminal mini</string>
+    <string name="edge_terminal_command">Perintah satu baris</string>
+    <string name="edge_terminal_result">Keluaran perintah</string>
+    <string name="edge_terminal_stop">Berhenti</string>
+    <string name="edge_terminal_copy">Salin</string>
+    <string name="edge_terminal_clear">Bersihkan</string>
+    <string name="edge_terminal_ready">Sesi baru</string>
+    <string name="edge_terminal_starting">Memulai…</string>
+    <string name="edge_terminal_running">Berjalan…</string>
+    <string name="edge_terminal_exit">Keluar: %1$d</string>
+    <string name="edge_terminal_ended">Berakhir · segarkan untuk memulai sesi baru</string>
+    <string name="edge_terminal_truncated">Menampilkan 64 KiB karakter terakhir</string>
+    <string name="edge_terminal_help">Menutup panel atau berganti tab tetap menyimpan shell, keluaran, dan draf. Segarkan mengaturnya ulang secara manual. Saat perintah berjalan, kolom ini menjawabnya dan Berhenti hanya mengakhiri perintah itu. Untuk program layar penuh, pakai tab terminal biasa.</string>
+    <string name="edge_terminal_one_line_required">Terminal mini menerima perintah satu baris hingga 16.384 karakter. Untuk potongan beberapa baris, pakai terminal biasa.</string>
+    <string name="edge_terminal_refresh">Segarkan sesi</string>
+    <string name="edge_terminal_answer">Jawab perintah yang berjalan (kosong mengirim Enter)</string>
+    <string name="edge_terminal_send">Kirim</string>
+</resources>

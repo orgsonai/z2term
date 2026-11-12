@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_guide_cleanup">Bereskan</string>
+    <string name="settings_guides_cleanup_desc">“Bereskan” menampilkan langkah yang menghapus apa yang ditambahkan panduan, dalam bentuk kartu yang sama. Tidak ada yang dihapus sampai Anda mengetuk kartu.</string>
+    <string name="guide_cleanup_heading">hapus apa yang ditambahkan ini</string>
+    <string name="guide_cleanup_hint">Ketuk untuk menjalankan (Ctrl-C dulu, agar baris yang setengah diketik tidak tercampur) / ✕ untuk menyimpannya</string>
+    <string name="guide_undo_rules">Hapus aturan otomatisasi yang memanggil makro ini</string>
+    <string name="guide_undo_macro">Hapus makro (berhenti tanpa menghapus jika Anda sendiri menyuntingnya)</string>
+    <string name="guide_undo_notify_off">Jika tidak ada lagi yang memakainya: Setelan -> nonaktifkan “Deteksi notifikasi”</string>
+    <string name="guide_undo_sms_off">Jika tidak ada lagi yang memakainya: Setelan -> nonaktifkan “Deteksi SMS”</string>
+    <string name="guide_undo_remind_all">Batalkan semua pengingat yang Anda daftarkan</string>
+    <string name="guide_undo_remind_tiles">Kosongkan slot kartu yang menjalankan remind.sh</string>
+    <string name="guide_undo_remind_data">Hapus data pengingat (✕ untuk menyimpannya)</string>
+    <string name="guide_undo_rss_data">Hapus daftar feed dan artikel yang terkumpul (✕ untuk menyimpannya)</string>
+    <string name="guide_undo_voice_data">Hapus tabel kata, catatan, dan setelan perintah suara (✕ untuk menyimpannya)</string>
+    <string name="guide_undo_edge_main">Hapus panel aplikasi contoh “main” (item yang Anda tambahkan ikut terhapus)</string>
+    <string name="guide_undo_edge_samples">Hapus panel contoh (teks catatannya ikut terhapus)</string>
+    <string name="guide_undo_edge_off">Jika Anda tidak memakai panel lain, nonaktifkan panel (bilahnya hilang)</string>
+    <string name="guide_undo_permissions">“Tampilkan di atas aplikasi lain” dan aksesibilitas hanya bisa dinonaktifkan di setelan Android. Biarkan aktif jika fitur lain memakainya.</string>
+</resources>

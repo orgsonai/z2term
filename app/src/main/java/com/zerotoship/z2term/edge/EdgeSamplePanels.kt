@@ -35,7 +35,7 @@ internal object EdgeSamplePanels {
                 EdgeStore.Item("source", mapOf("type" to "argument", "label" to label(R.string.guide_sample_source),
                     "rows" to "3", "required" to "on", "order" to "10")),
                 EdgeStore.Item("language", mapOf("type" to "argument", "label" to label(R.string.guide_sample_language),
-                    "argument-kind" to "choice", "choices" to "ja|en|zh-CN|zh-TW|es|ko|pt-BR|de|fr",
+                    "argument-kind" to "choice", "choices" to "ja|en|zh-CN|zh-TW|es|ko|pt-BR|de|fr|id",
                     "default" to targetLanguage, "order" to "20")),
                 EdgeStore.Item("translate", mapOf("type" to "run", "label" to label(R.string.guide_sample_translate),
                     "run" to "sh \"\$HOME/.z2term/macros/translate.sh\" --", "args" to "source,language",
@@ -55,6 +55,7 @@ internal object EdgeSamplePanels {
             "ja", "en", "es", "ko", "de", "fr" -> locale.language
             "zh" -> if (locale.country in setOf("TW", "HK", "MO")) "zh-TW" else "zh-CN"
             "pt" -> "pt-BR"
+            "in", "id" -> "id"
             else -> "en"
         }
         val create = command({ context.getString(it) }, language)

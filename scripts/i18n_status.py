@@ -60,10 +60,16 @@ def roster() -> list[tuple[str, bool]]:
     return out
 
 
+# 名簿の言語コード -> res のフォルダ名に使う古いコード (Java / Android の決まり)
+LEGACY_RES = {"id": "in", "he": "iw", "yi": "ji"}
+
+
 def res_dir(lang: str) -> Path:
     """言語コードから res のディレクトリ名。`zh-CN` は Android 流に `values-zh-rCN`。"""
     if lang == "en":
         return RES / "values"          # 既定 (values/) が英語
+    # ⚠ Android の res は古い言語コードで書く (インドネシア語は values-in。values-id は古い端末で引けない)
+    lang = LEGACY_RES.get(lang, lang)
     if "-" in lang:
         base, region = lang.split("-", 1)
         return RES / f"values-{base}-r{region}"

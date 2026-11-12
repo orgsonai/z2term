@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">Buang perubahan yang belum disimpan?</string>
+    <string name="edge_discard_message">Suntingan yang belum disimpan akan hilang.</string>
+    <string name="edge_discard">Buang</string>
+    <string name="edge_keep_editing">Lanjut menyunting</string>
+    <string name="edge_select_tab">Pilih tab</string>
+    <string name="edge_finish_title">Simpan perubahan?</string>
+    <string name="edge_finish_message">Beberapa suntingan belum disimpan. Nama tab atau panel yang diketik tetapi belum ditambahkan tidak disimpan.</string>
+    <string name="edge_choose_panel">Pilih panel</string>
+</resources>

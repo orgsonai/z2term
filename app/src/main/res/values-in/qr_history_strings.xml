@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qr_history_title">Riwayat</string>
+    <string name="qr_history_clear">Hapus semua</string>
+    <string name="qr_history_clear_title">Hapus riwayat</string>
+    <string name="qr_history_clear_message">Menghapus semua riwayat kecuali item yang disematkan.</string>
+    <string name="qr_history_pin">Sematkan</string>
+    <string name="qr_history_unpin">Lepas sematan</string>
+    <string name="qr_history_delete">Hapus</string>
+    <string name="qr_history_pinned">Disematkan</string>
+    <string name="qr_history_menu">Sematkan atau hapus</string>
+    <string name="qr_history_note">Ketuk untuk menampilkannya lagi. Tekan lama untuk menyematkan atau menghapus. Riwayat menyimpan apa yang Anda pindai hanya di perangkat ini, termasuk isi seperti sandi Wi-Fi. Hingga 50 item yang tidak disematkan disimpan.</string>
+</resources>

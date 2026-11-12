@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="editor_save">Simpan</string>
+    <string name="editor_saved">Tersimpan</string>
+    <string name="editor_save_and_close">Simpan dan tutup</string>
+    <string name="editor_gone">Tidak disimpan: z2-edit yang membuka ini sudah berakhir.</string>
+    <string name="editor_unreadable">Tidak bisa dibuka: bukan file teks UTF-8, atau lebih dari 1 MiB.</string>
+</resources>

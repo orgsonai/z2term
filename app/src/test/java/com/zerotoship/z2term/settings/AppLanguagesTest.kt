@@ -145,6 +145,15 @@ class AppLanguagesTest {
         assertEquals("fr", AppLanguages.matchDeviceLocale("fr-BE"))
     }
 
+    /** インドネシア語は今のコード `id` でも古いコード `in` でも `id` へ (1.0.89)。 */
+    @Test
+    fun indonesianAcceptsTheLegacyCode() {
+        assertEquals("id", AppLanguages.matchDeviceLocale("id-ID"))
+        assertEquals("id", AppLanguages.matchDeviceLocale("in-ID"))
+        assertEquals("id", AppLanguages.matchDeviceLocale("in_ID"))
+        assertEquals("id", AppLanguages.matchDeviceLocale("in"))
+    }
+
     /** 名簿に無ければ英語。⛔ 日本語へ倒さない。 */
     @Test
     fun anythingElseGoesToEnglish() {

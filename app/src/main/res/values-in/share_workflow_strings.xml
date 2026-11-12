@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">Masukan perintah</string>
+    <string name="snippet_inputs_file">Pilih file</string>
+    <string name="snippet_inputs_invalid">Periksa definisi masukan dan nilainya. Taruh setiap placeholder di luar tanda kutip sebagai argumen terpisah.</string>
+    <string name="snippet_inputs_preview">Pratinjau perintah</string>
+    <string name="snippet_inputs_hint">Perintah disisipkan ke terminal. Periksa, lalu tekan Enter. File yang dipilih disalin ke home shell lokal.</string>
+    <string name="snippet_inputs_enable">Minta masukan sebelum menyisipkan</string>
+    <string name="snippet_inputs_definition">Dalam perintah: {{text}}, {{width:number=1080}}, {{format:choice=png|jpg}}, {{image:file}}. Nama menjadi label kolom. Taruh placeholder di luar tanda kutip.</string>
+    <string name="snippet_share_action">Tawarkan setelah menerima bagikan</string>
+    <string name="snippet_share_action_hint">Perintah bisa membaca $Z2_SHARE_TEXT dan $Z2_SHARE_MANIFEST (JSON penerimaan). Masukan file bisa memakai lampiran yang diterima.</string>
+    <string name="share_intake_title">Konten yang diterima</string>
+    <string name="share_intake_hint">Teks dan lampiran disimpan bersama. Pilih perintah tersimpan atau sisipkan konten aslinya. Perintah dijalankan setelah Anda menekan Enter.</string>
+    <string name="share_intake_insert">Sisipkan ke terminal</string>
+    <string name="share_intake_close">Tetap simpan dan tutup</string>
+</resources>

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-12 / Target version: 1.0.88 (versionCode 786)
+Last updated: 2026-11-12 / Target version: 1.0.89 (versionCode 787)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3735,6 +3735,14 @@ Same procedure (one roster line, `res/values-fr/`, `proot/lang/CliFr.kt`, one li
 - **Terms**: onglet (tab) / appuyer, appui long / balayer (flick) / fichier / dossier / Paramètres / presse-papiers / tuile (tile) / panneau latéral (edge panel) / serveur résident. Addressed as **vous**, as Android does.
 - ⛔ **Apostrophes are the typographic ’ (U+2019).** In res a bare `'` is an aapt error (it needs `\'`); terminal text is embedded in shell scripts, where `'` collides with quoting ⇒ all prose uses ’ (the res format check confirmed zero bare `'`).
 - **Regional French (`fr-CA` / `fr-BE`) goes to `fr`** (`AppLanguagesTest`). Plurals add many, as for es and pt.
+
+#### Indonesian added (1.0.89)
+
+Same procedure (one roster line, `res/values-in/`, `proot/lang/CliId.kt`, one line in `CliLanguages`).
+
+- **Terms**: tab / ketuk (tap) / tekan lama (long-press) / usap (flick) / Setelan (settings) / papan klip / kartu (tile) / panel tepi (edge panel) / server residen. Addressed as **Anda**.
+- ⚠ **The language has two codes.** The roster uses today's `id`, but Java / Android may still report the old `in` (`Locale.getLanguage()` and the like) ⇒ the res folder is **`values-in/`** (`values-id/` is not found on older devices), and a device reporting `in` / `in-ID` is mapped to `id` by `AppLanguages.matchIn` (`AppLanguagesTest`). `scripts/i18n_status.py` looks up res through the same table (`LEGACY_RES`; Hebrew `iw` and Yiddish `ji` are treated alike).
+- Indonesian has no singular/plural distinction, so plurals only carry **other**.
 
 ### 6.8.1 App lock (A2, 0.8.421)
 

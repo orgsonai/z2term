@@ -81,6 +81,8 @@ object AppLanguages {
         Entry("pt-BR", "Português do Brasil", cliComplete = true),
         Entry("de", "Deutsch", cliComplete = true),
         Entry("fr", "Français", cliComplete = true),
+        // ⚠ res は values-in (Android の古いコード)。端末が `in` と返しても [matchIn] が `id` に読み替える。
+        Entry("id", "Bahasa Indonesia", cliComplete = true),
     )
 
     /** 対応言語のコードだけ。 */
@@ -88,6 +90,13 @@ object AppLanguages {
 
     /** 名簿にある言語ならそのまま、無ければ [FALLBACK]。 */
     fun resolve(lang: String): String = if (lang in CODES) lang else FALLBACK
+
+    /**
+     * Java / Android の古い言語コード → 今のコード (1.0.89)。`Locale.getLanguage()` や
+     * `toString()` は今もインドネシア語を `in` と返すことがあるので、どちらで来ても同じ答えにする。
+     * ⚠ res のフォルダ名は逆に古い方で書く (`values-in`)。
+     */
+    private val LEGACY_LANGUAGE = mapOf("in" to "id", "iw" to "he", "ji" to "yi")
 
     /**
      * 中国語の**書き方**（script サブタグ）から、名簿で使う代表のコードへの対応表。
@@ -129,6 +138,7 @@ object AppLanguages {
      */
     internal fun matchIn(languageTag: String, codes: List<String>): String {
         val parts = languageTag.replace('_', '-').split('-').filter { it.isNotEmpty() }
+            .mapIndexed { i, p -> if (i == 0) LEGACY_LANGUAGE[p.lowercase()] ?: p else p }
         if (parts.isEmpty()) return FALLBACK
 
         fun pick(candidate: String?): String? =

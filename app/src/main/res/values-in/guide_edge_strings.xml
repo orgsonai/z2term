@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="guide_desc_edge_panel">Buka daftar aplikasi dari bilah di tepi layar</string>
+    <string name="guide_step_edge_overlay">Izinkan z2term tampil di atas aplikasi lain</string>
+    <string name="guide_step_edge_accessibility">Aktifkan layanan aksesibilitas “z2term Android actions” (dipakai untuk menggulir dengan mengusap bilah ke atas dan ke bawah)</string>
+    <string name="guide_step_edge_panel">Buat panel contoh berisi aplikasi z2term, browser, kamera, telepon, pesan, dan setelan yang ditemukan di perangkat ini</string>
+    <string name="guide_step_edge_on">Aktifkan panel (bilah muncul di tepi kanan; usap ke dalam untuk membuka daftar aplikasi)</string>
+    <string name="guide_step_edge_settings">Saat panel terbuka, tekan lama di luar menu untuk membuka setelannya</string>
+</resources>

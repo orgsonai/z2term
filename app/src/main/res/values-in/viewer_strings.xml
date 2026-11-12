@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="viewer_missing">Halaman itu sudah tidak ada.</string>
+    <string name="viewer_no_browser">Tidak ada aplikasi di ponsel ini yang bisa membuka tautan itu.</string>
+    <string name="viewer_expand">Perbesar</string>
+    <string name="viewer_close">Tutup</string>
+    <string name="viewer_component">Tampilan (z2-view)</string>
+    <string name="viewer_empty">Belum ada halaman. Atur perintah yang memanggil z2-view, atau kirim halaman ke item ini.</string>
+    <string name="viewer_required">Masukkan %1$s.</string>
+    <string name="viewer_show_refresh">Tampilkan tombol Segarkan</string>
+    <string name="viewer_show_expand">Tampilkan tombol Perbesar</string>
+    <string name="viewer_update_mode">Mode penyegaran tampilan</string>
+    <string name="viewer_update_manual">Hanya manual</string>
+    <string name="viewer_update_auto">Otomatis</string>
+    <string name="viewer_update_help">Hanya manual: membuka atau berganti tab memakai halaman terakhir tanpa menjalankan perintah. Tekan Segarkan pertama kali. Otomatis: menyegarkan saat dibuka dan pada interval di Setelan lanjutan. Interval kosong atau nol hanya menyegarkan saat dibuka. Pembaruan halaman dari aksi seperti menambah atau menghapus tetap muncul di kedua mode.</string>
+    <string name="viewer_empty_manual">Belum ada halaman. Tekan Segarkan untuk menjalankan perintah yang diatur dan menampilkannya.</string>
+    <string name="viewer_empty_hidden">Belum ada halaman. Aktifkan tombol Segarkan di setelan item ini, atau kirim halaman ke item ini dari makro.</string>
+    <string name="viewer_find">Cari</string>
+    <string name="viewer_find_hint">Cari di halaman</string>
+    <string name="viewer_find_previous">Hasil sebelumnya</string>
+    <string name="viewer_find_next">Hasil berikutnya</string>
+    <string name="viewer_find_close">Tutup pencarian</string>
+    <string name="viewer_show_find">Tampilkan tombol Cari</string>
+    <string name="viewer_number">Masukkan %1$s sebagai angka.</string>
+    <string name="viewer_pinch" formatted="false">Cubit</string>
+    <string name="viewer_pinch_text" formatted="false">Ubah ukuran teks</string>
+    <string name="viewer_pinch_page" formatted="false">Perbesar seluruh halaman</string>
+    <string name="viewer_text_size" formatted="false">Ukuran teks (%)</string>
+    <string name="viewer_text_size_help" formatted="false">50–300; kosong berarti 100. Dengan “Ubah ukuran teks”, cubitan mengisi kolom ini.</string>
+</resources>

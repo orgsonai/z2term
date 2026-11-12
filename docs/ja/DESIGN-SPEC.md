@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-11-12 / 対象バージョン: 1.0.88 (versionCode 786)
+最終更新: 2026-11-12 / 対象バージョン: 1.0.89 (versionCode 787)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -3659,6 +3659,14 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 - **用語**: onglet（タブ）/ appuyer・appui long / balayer（フリック）/ fichier / dossier / Paramètres / presse-papiers / tuile（タイル）/ panneau latéral（エッジパネル）/ serveur résident。呼びかけは Android と同じく **vous**。
 - ⛔ **アポストロフィは活字の ’（U+2019）を使う。** res では素の `'` が aapt のエラーになる（`\'` が要る）。端末に出る文言はシェルスクリプトに埋め込まれるので、`'` だと引用符とぶつかる。⇒ 文中は全部 ’ にした（res の書式点検でも素の `'` が 0 件であることを確かめた）。
 - **地域つき（`fr-CA` / `fr-BE`）は `fr` へ**（`AppLanguagesTest`）。複数形は es・pt と同じく many を足した。
+
+#### インドネシア語を追加（1.0.89）
+
+同じ手順（名簿に 1 行・`res/values-in/`・`proot/lang/CliId.kt`・`CliLanguages` に 1 行）。
+
+- **用語**: tab / ketuk（タップ）/ tekan lama（長押し）/ usap（フリック）/ Setelan（設定）/ papan klip / kartu（タイル）/ panel tepi（エッジパネル）/ server residen。呼びかけは **Anda**。
+- ⚠ **言語コードが 2 つある。** 名簿のコードは今の `id` だが、Java / Android は古い `in` を使うことがある（`Locale.getLanguage()` など）。⇒ res のフォルダは **`values-in/`**（`values-id/` は古い端末で引けない）。端末から `in` / `in-ID` が来ても `AppLanguages.matchIn` が `id` に読み替える（`AppLanguagesTest`）。`scripts/i18n_status.py` も同じ対応表（`LEGACY_RES`。ヘブライ語 `iw`・イディッシュ語 `ji` も同じ扱い）で res を探す。
+- インドネシア語には単数・複数の区別が無いので、plurals は **other だけ**を書いた。
 
 ### 6.8.1 アプリロック (A2・0.8.421)
 

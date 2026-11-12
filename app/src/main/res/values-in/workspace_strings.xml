@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">Memilih atau menyalin dokumen…</string>
+    <string name="process_text_title">Proses dengan z2term</string>
+    <string name="process_text_enable">Tawarkan untuk teks yang dipilih</string>
+    <string name="process_text_contract">Perintah yang dipilih menerima teks asli di stdin. Periksa stdout sebelum mengganti pilihan.</string>
+    <string name="process_text_setup">Daftarkan perintah di Perintah → Cuplikan dan aktifkan “Tawarkan untuk teks yang dipilih”.</string>
+    <string name="process_text_replace">Ganti pilihan</string>
+    <string name="process_text_too_large">Teks harus teks yang valid tanpa NUL, hingga 64 KiB.</string>
+    <string name="workspace_title">Tata letak sesi</string>
+    <string name="workspace_hint">Pilih tab kedua. Ketuk panel untuk memfokuskannya; seret pembatas untuk mengubah ukuran. Keyboard mengendalikan panel yang difokuskan. Tekan lama judul panel dan seret ke panel lain untuk menukarnya; pakai tombol di ujung kanan judul (atau ketuk dua kali judul) untuk hanya menampilkan tab itu.</string>
+    <string name="workspace_vertical">Atas / bawah</string>
+    <string name="workspace_horizontal">Kiri / kanan</string>
+    <string name="workspace_preview_current">Tab ini</string>
+    <string name="workspace_preview_other">Tab yang Anda ketuk di bawah</string>
+    <string name="workspace_need_two">Buka dulu tab terminal atau GUI lain.</string>
+    <string name="workspace_maximize">Hanya tampilkan tab ini</string>
+    <string name="workspace_single">Satu panel</string>
+    <string name="workspace_external_hint">Menampilkan tab saat ini di layar eksternal. Ponsel bisa mengendalikannya atau menampilkan tab lain.</string>
+    <string name="workspace_no_display">Tidak ada layar eksternal.</string>
+    <string name="workspace_return">Kembali ke ponsel</string>
+    <string name="workspace_projected">Ditampilkan di layar eksternal. Keyboard mengendalikan sesi itu.</string>
+    <string name="workspace_controller">Layar eksternal: pakai area ini sebagai touchpad dan keyboard di bawah untuk mengetik.</string>
+    <string name="workspace_display_failed">Layar ini tidak bisa dipakai. Sesi tetap berjalan.</string>
+    <string name="settings_gui_direct">Tampilan GUI lokal langsung (eksperimental)</string>
+    <string name="settings_gui_direct_desc">Membaca framebuffer lokal secara langsung. Memakai Xvfb untuk tampilan dan x11vnc hanya untuk masukan; paket diunduh saat pertama dipakai. Berlaku untuk tab GUI yang dibuka setelahnya. Resolusi awal tetap; tanpa akselerasi GPU.</string>
+    <string name="tip_gui_split_title">Tekan lama GUI untuk membagi GUI dan terminal</string>
+    <string name="tip_gui_split_body">Tekan lama tombol GUI (🖥) di samping + untuk membuka tata letak sesi. Pilih atas/bawah atau kiri/kanan dan tab lain untuk memakai GUI dan terminal (CUI) bersama. Menu yang sama mengembalikan ke satu panel atau memilih layar eksternal. Ketuk singkat membuka GUI seperti biasa.</string>
+</resources>

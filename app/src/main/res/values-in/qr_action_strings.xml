@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="qr_action_open">Buka</string>
+    <string name="qr_action_dial">Buka aplikasi telepon</string>
+    <string name="qr_action_email">Tulis email</string>
+    <string name="qr_action_sms">Tulis SMS</string>
+    <string name="qr_action_wifi">Sambungkan ke Wi-Fi</string>
+    <string name="qr_action_contact">Tambahkan ke kontak</string>
+    <string name="qr_action_event">Tambahkan ke kalender</string>
+    <string name="qr_action_no_app">Tidak ada aplikasi di perangkat ini yang bisa membuka ini.</string>
+    <string name="qr_action_wifi_copied">Sandi Wi-Fi sudah disalin. Pilih jaringan di daftar lalu tempelkan.</string>
+    <string name="settings_group_qr_tools">Alat QR</string>
+    <string name="settings_group_qr_tools_desc">Pindai dari kamera atau gambar, dan buat kode QR</string>
+    <string name="settings_qr_tools_open">Buka alat QR</string>
+    <string name="settings_qr_tools_hint">z2-qr mulai memindai dengan kamera. Anda bisa menaruhnya di kartu Setelan Cepat atau di panel tepi.</string>
+</resources>

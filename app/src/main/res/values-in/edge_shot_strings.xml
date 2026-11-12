@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shot_busy">Selesaikan dulu tangkapan yang sedang berjalan.</string>
+    <string name="shot_needs_android11">Menangkap area perlu Android 11 atau lebih baru.</string>
+    <string name="shot_capture_failed">Android tidak mengembalikan gambar layar. Coba lagi.</string>
+    <string name="shot_too_small">Area itu terlalu kecil. Gambar yang lebih besar.</string>
+    <string name="shot_hint_free">Lingkari yang Anda mau, lalu angkat jari.</string>
+    <string name="shot_hint_box">Seret dari satu sudut ke sudut seberangnya, lalu angkat jari.</string>
+    <string name="shot_hint_move">Seret gambar untuk menyesuaikan isinya.</string>
+    <string name="shot_shape_free">Bebas</string>
+    <string name="shot_shape_rect">Persegi panjang</string>
+    <string name="shot_shape_oval">Oval</string>
+    <string name="shot_shape_circle">Lingkaran</string>
+    <string name="shot_bg_transparent">Luar: transparan</string>
+    <string name="shot_bg_keep">Luar: dipertahankan</string>
+    <string name="shot_redo">Ulangi</string>
+    <string name="shot_save">Simpan</string>
+    <string name="shot_share">Bagikan</string>
+    <string name="shot_saved">%1$s disimpan di %2$s.</string>
+    <string name="shot_save_failed">Gambar tidak bisa ditulis.</string>
+</resources>

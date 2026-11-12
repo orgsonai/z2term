@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_help_start" formatted="false">Pakai Tambah aplikasi untuk aplikasi, atau Tambah slot bebas untuk tampilan, masukan, dan perintah. Pilih komponen dan perilaku untuk melihat petunjuk dan contoh di bawah. Setelah menyimpan, ketuk Selesai untuk kembali ke panel.</string>
+    <string name="edge_help_choose" formatted="false">Memilih komponen</string>
+    <string name="edge_help_components" formatted="false">Tombol: menjalankan perintah saat diketuk\nTampilan: menampilkan hasil, teks tetap, atau tampilan HTML\nMasukan: mengirim teks, menyimpan catatan, atau memakai shell\nPilihan: memilih nilai dari opsi yang disiapkan\nSakelar: membaca dan mengubah status\nDaftar: bertindak pada daftar yang dibuat perintah\n\nHubungkan masukan dan pilihan → tombol → tampilan hasil untuk membuat formulir.</string>
+    <string name="edge_help_execute" formatted="false">Menjalankan perintah saat diketuk. Mulai dengan label dan perintah. Pakai Koneksi untuk memilih nilai masukan atau tampilan hasil.</string>
+    <string name="edge_help_state_button" formatted="false">Tombol yang menampilkan ON/OFF. Atur perintah untuk menyalakan dan mematikan, lalu pilih cara membaca statusnya. Perintah status harus mencetak on atau off.</string>
+    <string name="edge_help_receive" formatted="false">Menampilkan keluaran tombol. Simpan kolom ini, lalu pilih di Koneksi → Tampilan hasil pada editor tombol. Di sini tidak perlu perintah.</string>
+    <string name="edge_help_fixed" formatted="false">Menampilkan nilai tetap. Masukkan isinya di Nilai awal atau tetap. Tombol yang terhubung juga bisa mengirimnya sebagai argumen.</string>
+    <string name="edge_help_read" formatted="false">Menjalankan perintah saat dibuka dan menampilkan keluaran teksnya. Misalnya, date menampilkan tanggal dan jam saat ini. Atur penyegaran otomatis di Setelan lanjutan.</string>
+    <string name="edge_help_view" formatted="false">Menampilkan HTML di dalam panel. Atur makro yang memanggil z2-view, atau perintah yang membuka file HTML yang sudah disiapkan. Untuk contoh di bawah, buat page.html dulu. Pilih penyegaran manual atau otomatis. Makro menentukan formulir dan tombol aksi. Simpan, lalu ketuk Selesai untuk melihat tampilannya.</string>
+    <string name="edge_help_value" formatted="false">Mengirim teks yang dimasukkan pengguna ke komponen lain. Simpan kolom ini, lalu pilih sebagai masukan di Koneksi pada editor tombol. Atur nilai bawaan atau jadikan wajib jika perlu.</string>
+    <string name="edge_help_choice" formatted="false">Memungkinkan pengguna memilih dari nilai yang disiapkan. Pisahkan opsi dengan |, simpan, lalu pilih kolom ini di Koneksi pada editor tombol. Nilai bawaan harus salah satu opsi.</string>
+    <string name="edge_help_file" formatted="false">Catatan yang menyimpan apa yang Anda tulis. Biarkan path file kosong untuk memulai. Isinya tetap ada setelah panel ditutup dan bisa dikirim ke tombol yang terhubung.</string>
+    <string name="edge_help_send" formatted="false">Ketik teks lalu ketuk Kirim untuk mengirimnya ke perintah sebagai masukan standar. Misalnya, cat mengembalikan teks yang dimasukkan apa adanya.</string>
+    <string name="edge_help_shell" formatted="false">Pakai shell di dalam panel. Di editor ini tidak perlu perintah. Simpan lalu ketuk Selesai untuk mulai mengetik. Shell, keluaran, dan draf tetap ada setelah ditutup. Untuk program interaktif, pakai tab terminal biasa.</string>
+    <string name="edge_help_state" formatted="false">Membaca dan mengubah status saat ini. Perintah status harus mencetak on atau off; perintah jalankan harus mengubahnya. Status dibaca lagi setelah aksi.</string>
+    <string name="edge_help_select" formatted="false">Mengubah setiap baris keluaran menjadi item yang bisa dipilih. Mengetuk baris menjalankan perintah pilihan, yang menerima nilainya sebagai \"$1\". Untuk label dan nilai yang berbeda, cetak label + tab + nilai di setiap baris.</string>
+    <string name="edge_help_command" formatted="false">Masukkan perintah shell yang tersedia di perangkat ini. Pilih makro terpasang di bawah dan tambahkan argumen yang diperlukan. Coba dulu di tab terminal biasa.</string>
+    <string name="edge_help_every" formatted="false">Kosong atau 0 menonaktifkan penyegaran berkala. Nilai 5–86400 detik hanya menyegarkan selama panel terlihat. Tampilan mengulang perintah tampilan; makro bisa menentukan aksi lain untuk tombol Segarkan manual.</string>
+    <string name="edge_help_timeout" formatted="false">Kosong berarti 30 detik. Naikkan ke 1–300 detik untuk pekerjaan lebih lambat seperti permintaan jaringan.</string>
+    <string name="edge_help_note_path" formatted="false">Kosong memakai file khusus untuk item ini. Untuk memakai file yang ada, tentukan path di dalam home bersama aplikasi.</string>
+    <string name="edge_help_default" formatted="false">Nilai yang dipakai saat dibuka. Untuk kolom pilihan, pakai salah satu opsinya.</string>
+    <string name="edge_help_choices" formatted="false">Pisahkan opsi dengan |. Opsi kosong atau ganda tidak diizinkan.</string>
+    <string name="edge_help_rows" formatted="false">Kosong memakai bawaan komponen. Atur 1–20 baris untuk memilih tinggi tampilan.</string>
+    <string name="edge_help_size" formatted="false">Kosong berarti otomatis. Angka memakai dp; % memakai lebar kolom atau tinggi panel.</string>
+    <string name="edge_help_example">Contoh: %1$s</string>
+    <string name="edge_help_use_example">Pakai contoh</string>
+</resources>

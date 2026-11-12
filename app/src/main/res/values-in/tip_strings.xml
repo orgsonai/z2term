@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tip_word_select_title">Ketuk dua kali teks di terminal untuk memilih satu kata</string>
+    <string name="tip_word_select_body">Path, nama host, atau alamat IP dipilih sebagai satu kesatuan, meskipun berlanjut ke baris berikutnya. Setelah itu, seret pegangan di kedua ujung untuk mengubah rentangnya. Di layar yang aplikasinya membaca mouse, ketuk dua kali diteruskan ke aplikasi itu.</string>
+</resources>
