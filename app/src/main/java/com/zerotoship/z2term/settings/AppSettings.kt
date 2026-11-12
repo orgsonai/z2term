@@ -501,7 +501,13 @@ class AppSettings(private val context: Context) {
          * `0` = すぐ (離れたら毎回) / `-1` = [APP_LOCK_GRACE_LAUNCH_ONLY] = アプリの起動時だけ。
          * ⚠ 起動時は猶予に関係なく必ず掛かる (猶予は「戻ってきたとき」の話)。
          */
-        val appLockGraceSec: Int = DEFAULT_APP_LOCK_GRACE
+        val appLockGraceSec: Int = DEFAULT_APP_LOCK_GRACE,
+        /**
+         * 開いたエッジパネルの**外側**を長押ししたら、そのパネルの設定を開くか (1.0.85・既定 ON)。
+         * OFF でも、設定 › エッジパネル の入口と、パネルの ⚙ (表示していれば) からは開ける。
+         * ⚠ パネルの中の空いたところの長押しはこの設定に関係なく開く (外側だけの話)。
+         */
+        val edgeOutsideLongPressSettings: Boolean = DEFAULT_EDGE_OUTSIDE_LONG_PRESS_SETTINGS
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -673,7 +679,9 @@ class AppSettings(private val context: Context) {
             netLimitWifiExempt = p[KEY_NET_LIMIT_WIFI_EXEMPT] ?: DEFAULT_NET_LIMIT_WIFI_EXEMPT,
             netLimitNotifiedPeriod = p[KEY_NET_LIMIT_NOTIFIED] ?: 0L,
             appLockEnabled = p[KEY_APP_LOCK] ?: DEFAULT_APP_LOCK,
-            appLockGraceSec = p[KEY_APP_LOCK_GRACE] ?: DEFAULT_APP_LOCK_GRACE
+            appLockGraceSec = p[KEY_APP_LOCK_GRACE] ?: DEFAULT_APP_LOCK_GRACE,
+            edgeOutsideLongPressSettings = p[KEY_EDGE_OUTSIDE_LONG_PRESS_SETTINGS]
+                ?: DEFAULT_EDGE_OUTSIDE_LONG_PRESS_SETTINGS
         )
     }.onEach { lastKnown = it }
 
@@ -847,6 +855,10 @@ class AppSettings(private val context: Context) {
 
     suspend fun setAppLockGraceSec(seconds: Int) {
         context.dataStore.edit { it[KEY_APP_LOCK_GRACE] = seconds }
+    }
+
+    suspend fun setEdgeOutsideLongPressSettings(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_EDGE_OUTSIDE_LONG_PRESS_SETTINGS] = enabled }
     }
 
     suspend fun setKittyExternalFileEnabled(value: Boolean) {
@@ -1273,6 +1285,7 @@ class AppSettings(private val context: Context) {
         private val KEY_NET_LIMIT_NOTIFIED = longPreferencesKey("net_limit_notified_period")
         private val KEY_APP_LOCK = booleanPreferencesKey("app_lock_enabled")
         private val KEY_APP_LOCK_GRACE = intPreferencesKey("app_lock_grace_sec")
+        private val KEY_EDGE_OUTSIDE_LONG_PRESS_SETTINGS = booleanPreferencesKey("edge_outside_long_press_settings")
         private val KEY_SMS_LOG_FORMAT = stringPreferencesKey("sms_log_format")
         private val KEY_SMS_LOG_PREPEND = booleanPreferencesKey("sms_log_prepend")
         private val KEY_SMS_LOG_KEEP_DAYS = intPreferencesKey("sms_log_keep_days")
@@ -1311,6 +1324,9 @@ class AppSettings(private val context: Context) {
          * 端末に登録されていない人を締め出すことになる。
          */
         const val DEFAULT_APP_LOCK = false
+
+        /** エッジパネルの外側の長押しで設定を開く。既定 ON (1.0.84 までの動き)。 */
+        const val DEFAULT_EDGE_OUTSIDE_LONG_PRESS_SETTINGS = true
 
         /** 猶予の選択肢 (秒)。`-1` は「アプリの起動時だけ」。 */
         const val APP_LOCK_GRACE_LAUNCH_ONLY = -1

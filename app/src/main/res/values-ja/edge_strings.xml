@@ -233,6 +233,8 @@
     <string name="settings_group_edge_desc">パネルの設定を開く・パネルを作る</string>
     <string name="settings_edge_open">エッジパネルの設定を開く</string>
     <string name="settings_edge_hint">エッジパネルがオフでも開けます。そのときは端のバーを出さず、閉じたあともオフのままです。パネルがまだ無いときは作り方の案内を出します。</string>
+    <string name="settings_edge_outside_long_press">開いたパネルの外側を長押しして設定を開く</string>
+    <string name="settings_edge_outside_long_press_desc">オフにすると、パネルの外側を長押ししてもタップと同じく閉じるだけになります。設定は、上の「エッジパネルの設定を開く」か、パネルの ⚙（表示している場合）から開けます。</string>
     <string name="settings_edge_overlay">「他のアプリの上に重ねて表示」を許可してから、もう一度押してください。</string>
     <string name="edge_section_colors">配色</string>
     <string name="edge_scheme">パネルの配色</string>

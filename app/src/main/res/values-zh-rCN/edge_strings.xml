@@ -220,6 +220,8 @@
     <string name="settings_group_edge_desc">打开面板设置、创建面板</string>
     <string name="settings_edge_open">打开边缘面板设置</string>
     <string name="settings_edge_hint">边缘面板关闭时也能打开：此时不显示边缘条，关闭设置后仍保持关闭。还没有面板时会打开创建指南。</string>
+    <string name="settings_edge_outside_long_press">长按已打开面板的外侧来打开它的设置</string>
+    <string name="settings_edge_outside_long_press_desc">关闭后，长按面板外侧只会像轻点一样关闭面板。仍可从上面的“打开边缘面板设置”，或面板上的 ⚙（如已显示）打开设置。</string>
     <string name="settings_edge_overlay">请允许 z2term 显示在其他应用上层，然后再点一次。</string>
     <string name="edge_section_colors">配色</string>
     <string name="edge_scheme">面板配色</string>

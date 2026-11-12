@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.85 (versionCode 783)**: Settings › Edge panels gains “Long-press outside an open panel to open its settings”. Turn it off and a long press outside the panel no longer opens its settings; it just closes the panel, like a tap (it is on by default, as before). The settings still open from “Open edge panel settings” or from the panel’s ⚙. A long press on an empty spot inside the panel still opens the settings as before.
+
 **1.0.84 (versionCode 782)**: Translations of the text shown in the terminal (`z2-*` help and messages, the notes in the sample macros, and so on) now live in one file per language, so adding a language no longer makes the code that uses the text any longer. Everything reads the same as before, except for one fix: when `z2-session key` is given a key with Shift, the Spanish message stopped mid-sentence and the second half of the Korean one was in Spanish.
 
 **1.0.83 (versionCode 781)**: Flicking ⏎ left on the accessory bar no longer starts voice input; the accessory bar's ⏎ only taps and repeats. Flicking ⏎ left on the built-in keyboard still types by voice as before.

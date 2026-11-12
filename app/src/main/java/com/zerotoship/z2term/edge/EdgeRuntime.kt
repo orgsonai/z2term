@@ -35,6 +35,9 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.service.HeadlessRun
 import com.zerotoship.z2term.service.ScreenTimeout
 import com.zerotoship.z2term.service.TorchState
+import com.zerotoship.z2term.settings.AppSettings
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
@@ -1273,6 +1276,9 @@ object EdgeRuntime {
                 }
                 setOnClickListener { if (!finishInput()) session.leave { close() } }
                 setOnLongClickListener(if (settings) null else View.OnLongClickListener {
+                    // 外側の長押しで設定を開くかは利用者が選ぶ (1.0.85・設定 › エッジパネル)。
+                    // OFF のときは長押しを受け取らず、外側のタップと同じく閉じる。
+                    if (!outsideLongPressOpensSettings()) return@OnLongClickListener false
                     runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }
                     true
                 })
@@ -1372,6 +1378,14 @@ object EdgeRuntime {
      * Opens panel settings from the app's settings screen. While the panels are off, only the
      * settings window appears (no edge bar and no service), and closing it leaves them off.
      */
+    /**
+     * 開いたパネルの外側を長押ししたら設定を開くか ([AppSettings.Snapshot.edgeOutsideLongPressSettings])。
+     * 長押しした瞬間に読む (設定を変えてすぐ効くように)。読めなければ既定 (開く)。
+     */
+    private fun outsideLongPressOpensSettings(): Boolean = runCatching {
+        runBlocking { AppSettings(app!!).flow.first() }.edgeOutsideLongPressSettings
+    }.getOrDefault(AppSettings.DEFAULT_EDGE_OUTSIDE_LONG_PRESS_SETTINGS)
+
     fun openSettings(context: Context, panelId: String? = null): Unit = onMain {
         require(Settings.canDrawOverlays(context)) { context.getString(R.string.edge_overlay_help) }
         require(unlockedContext(context)) { "Unlock the screen before opening the panel" }

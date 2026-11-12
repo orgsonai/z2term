@@ -996,6 +996,8 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Opening from Settings (0.8.654)**: Settings › Edge panels › “Open edge panel settings” also opens the settings screen. It works while the panels are off: the edge bar stays hidden and they stay off after you close it. With no panel yet the edge-panel guide opens instead, and without the overlay permission its permission screen opens.
 
+**Choosing whether a long press outside opens the settings (1.0.85)**: turn off Settings › Edge panels › “Long-press outside an open panel to open its settings” and a long press outside an open panel no longer opens its settings; it just closes the panel, like a tap (on by default). The settings still open from “Open edge panel settings” or from the panel’s ⚙ if it is shown. A long press on an empty spot inside the panel opens the settings regardless of this switch.
+
 **Sample panel and guide (0.8.601, 0.8.603)**: Turning panels on does not create a panel. Settings › Maintenance › Show a guide › “edge-panel” lets you tap through the overlay permission, the accessibility service, creating the sample panel and turning the panel on. The sample is an app list opened from a bar on the right edge, listing the z2term, browser, camera, phone, messages and settings apps found on this device. Its guide card shows the exact `z2-edge panel` and `z2-edge set` line it sends. Swipe the bar inward to open it. Add apps with the panel's “+”. Scrolling by swiping the bar up and down requires the “z2term Android actions” accessibility service. With the panel open, long-press outside the menu to open settings. 0.8.601–0.8.602 created the sample automatically when panels were turned on with none defined.
 
 **ON/OFF buttons (0.8.589)**: In the panel editor, edit an application, macro or run item and enable **Show ON/OFF**. ON uses a thicker coloured border and background; OFF uses a subtle border. No ON/OFF text or check marks are added to the menu, including icon-only layouts. The optional OFF command defaults to the same command. A state query should return `on/off`, `true/false` or `1/0`. Without a query, successful toggles are remembered; external changes and application exits are not detected. Failed or timed-out commands do not flip the state. State survives reopening and app restart, and command-definition changes invalidate it. Queries run on opening, after successful actions and at the configured refresh interval. Macros can also report state with `z2-edge state PANEL:ITEM on` / `off`.
@@ -1020,7 +1022,7 @@ when a `z2-when` rule fired **without opening the app**.
 
 **Add a view from the editor**
 
-1. Tap ⚙ in the edge panel. If it is hidden, leave the panel open and long-press the space outside it.
+1. Tap ⚙ in the edge panel. If it is hidden, leave the panel open and long-press the space outside it (if that long press is turned off, use Settings › Edge panels › “Open edge panel settings”).
 2. Open Layout → Add custom slot (macro / command).
 3. Choose Display, then View (z2-view). In 0.8.640, the component is called Text display.
 4. Enter a label and a command that produces HTML and calls `z2-view`. With the updated macros installed, use `rss.sh view` or `remind.sh view`. For your own prepared HTML, use `z2-view "$HOME/page.html"`.

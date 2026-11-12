@@ -233,6 +233,8 @@
     <string name="settings_group_edge_desc">Open panel settings and add panels</string>
     <string name="settings_edge_open">Open edge panel settings</string>
     <string name="settings_edge_hint">Works while the panels are off: the edge bar stays hidden and they stay off after you close it. With no panel yet, the setup guide opens instead.</string>
+    <string name="settings_edge_outside_long_press">Long-press outside an open panel to open its settings</string>
+    <string name="settings_edge_outside_long_press_desc">When off, a long press outside the panel closes it like a tap. You can still open the settings from Open edge panel settings above, or from the panel\'s ⚙ if it is shown.</string>
     <string name="settings_edge_overlay">Allow z2term to display over other apps, then tap again.</string>
     <string name="edge_section_colors">Colours</string>
     <string name="edge_scheme">Colour scheme</string>

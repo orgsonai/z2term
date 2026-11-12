@@ -1490,6 +1490,14 @@ fun SettingsSheet(
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                // 開いたパネルの外側の長押しで設定を開くか (1.0.85・利用者の指定。既定 ON)。
+                ToggleField(
+                    title = stringResource(R.string.settings_edge_outside_long_press),
+                    description = stringResource(R.string.settings_edge_outside_long_press_desc),
+                    checked = settings.edgeOutsideLongPressSettings,
+                    onChange = { session.setEdgeOutsideLongPressSettings(it) }
+                )
             }
 
             SettingsGroupSection(SettingsGroup.QR_TOOLS) {
