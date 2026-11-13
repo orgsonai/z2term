@@ -35,4 +35,23 @@ class ActionStoreTest {
             assertEquals("keep", original.readText())
         } finally { dir.deleteRecursively() }
     }
+    @Test fun arrangedOrderSurvivesNewAndDeletedMacros() {
+        val dir = Files.createTempDirectory("action-order").toFile()
+        try {
+            val store = ActionStore(dir)
+            val screen = ActionDefinition.Screen(100, 200, 0)
+            for (name in listOf("a", "b", "c")) store.save(name, "version=1\nwait 1", screen)
+            assertEquals(listOf("a", "b", "c"), store.names())
+            store.reorder(listOf("c", "a", "b"))
+            assertEquals(listOf("c", "a", "b"), ActionStore(dir).names())
+            // A macro saved later goes to the end; a deleted one simply drops out.
+            store.save("0new", "version=1\nwait 1", screen)
+            store.delete("a")
+            assertEquals(listOf("c", "b", "0new"), store.names())
+            // Unknown names in a request are ignored and missing ones keep the end.
+            store.reorder(listOf("ghost", "b"))
+            assertEquals(listOf("b", "c", "0new"), store.names())
+            assertFalse(dir.listFiles().orEmpty().any { it.name.endsWith(".tmp") })
+        } finally { dir.deleteRecursively() }
+    }
 }

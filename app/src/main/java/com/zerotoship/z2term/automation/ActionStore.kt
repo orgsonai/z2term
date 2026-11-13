@@ -12,9 +12,37 @@ internal class ActionStore(private val root: File) {
         require(!Files.isSymbolicLink(file.toPath())) { "Macro files cannot be symbolic links" }
         return file
     }
+    /**
+     * In the order the user arranged them ([ORDER_FILE], one name per line). Names the file does not
+     * list yet (new, renamed, saved from the CLI) follow in name order; names it lists that no longer
+     * exist are skipped, so a deleted macro needs no cleanup here.
+     */
     fun names(): List<String> = synchronized(lock) {
-        root.listFiles().orEmpty().filter { it.isFile && it.extension == "actions" && !Files.isSymbolicLink(it.toPath()) }
+        val saved = root.listFiles().orEmpty().filter { it.isFile && it.extension == "actions" && !Files.isSymbolicLink(it.toPath()) }
             .map { it.nameWithoutExtension }.sorted()
+        val arranged = readOrder().filter { it in saved }.distinct()
+        arranged + saved.filter { it !in arranged }
+    }
+
+    /** Saves the list order. [order] holds every name in its new place; unknown names are dropped. */
+    fun reorder(order: List<String>) = synchronized(lock) {
+        val saved = names()
+        val arranged = order.filter { it in saved }.distinct()
+        val text = (arranged + saved.filter { it !in arranged }).joinToString("\n", postfix = "\n")
+        check(root.isDirectory || root.mkdirs()) { "Cannot create action macro directory" }
+        val target = File(root, ORDER_FILE)
+        require(!Files.isSymbolicLink(target.toPath())) { "Macro files cannot be symbolic links" }
+        val temp = Files.createTempFile(root.toPath(), ".order-", ".tmp")
+        try {
+            temp.toFile().writeText(text)
+            Files.move(temp, target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } finally { Files.deleteIfExists(temp) }
+    }
+
+    private fun readOrder(): List<String> {
+        val file = File(root, ORDER_FILE)
+        if (!file.isFile || Files.isSymbolicLink(file.toPath()) || file.length() > 64 * 1024) return emptyList()
+        return runCatching { file.readLines() }.getOrDefault(emptyList()).map { it.trim() }.filter { it.isNotEmpty() }
     }
     fun snapshot(name: String): ActionProgram = synchronized(lock) { ActionProgram.load(name, ::read) }
 
@@ -75,5 +103,7 @@ internal class ActionStore(private val root: File) {
     }
     companion object {
         private val lock = Any()
+        /** Next to the definitions, so it travels with them; not an `.actions` file, so never a macro. */
+        const val ORDER_FILE = ".order"
     }
 }

@@ -238,13 +238,7 @@ internal object ActionRuntime {
             is ActionDefinition.Step.Scroll -> {
                 run.target = target(step.target)
                 checkDevice(run)
-                // Scrolling places fingers along a vertical line at step.x; keep the stop bar off that band.
-                val lineX = (run.screen.width * step.x / 100f).toInt()
-                val band = ActionUi.dp(run.context, 48)
-                return ActionRunOverlay.clear({ box -> lineX + band > box.left && lineX - band < box.right }, ::schedule, ::done) { finished ->
-                    check(current === run) { "Stopped" }
-                    scroll(run, step, finished)
-                }
+                return scroll(run, step, ::done)
             }
         }
         return null
@@ -253,8 +247,25 @@ internal object ActionRuntime {
         var ending = false
         var cancelTimer: (() -> Unit)? = null
         var cancelDrain: (() -> Unit)? = null
-        AndroidActions.startAutoScroll(step.speed, Rect(0, 0, run.screen.width, run.screen.height), step.x, step.y) { error ->
-            if (!ending) { ending = true; cancelTimer?.invoke(); done(error ?: "Scrolling was interrupted") }
+        var cancelOverlay: (() -> Unit)? = null
+        // Set while the stop bar is out of the way; calling it brings the bar back shortly after.
+        var overlayFinished: ((String?) -> Unit)? = null
+        fun end(error: String?) { overlayFinished?.invoke(null); overlayFinished = null; done(error) }
+        val band = ActionUi.dp(run.context, 48)
+        // The bar steps aside only when a finger is really placed and its line crosses the bar: scrolling
+        // the view directly places no finger, and the line covers 60% of the window height, not all of it.
+        AndroidActions.startAutoScroll(step.speed, Rect(0, 0, run.screen.width, run.screen.height), step.x, step.y,
+            fingers = { track, go ->
+                cancelOverlay = ActionRunOverlay.clear({ box ->
+                    track.left - band < box.right && box.left < track.right + band &&
+                        track.top < box.bottom && box.top < track.bottom
+                }, ::schedule, {}) { finished ->
+                    overlayFinished = finished
+                    if (!ending && current === run) go()
+                    null
+                }
+            }) { error ->
+            if (!ending) { ending = true; cancelTimer?.invoke(); end(error ?: "Scrolling was interrupted") }
         }
         if (!ending) cancelTimer = schedule(step.ms) {
             ending = true
@@ -262,11 +273,14 @@ internal object ActionRuntime {
             // The final stroke still owns the input stream until its completion callback.
             fun drain() {
                 if (current !== run) return
-                if (AndroidActions.gesturesInFlight()) cancelDrain = schedule(20) { drain() } else done(null)
+                if (AndroidActions.gesturesInFlight()) cancelDrain = schedule(20) { drain() } else end(null)
             }
             drain()
         }
-        return { ending = true; cancelTimer?.invoke(); cancelDrain?.invoke(); AndroidActions.stopAutoScroll(); Unit }
+        return {
+            ending = true; cancelTimer?.invoke(); cancelDrain?.invoke(); cancelOverlay?.invoke()
+            AndroidActions.stopAutoScroll(); overlayFinished?.invoke(null); overlayFinished = null
+        }
     }
     fun stop(id: String? = null, reason: String = "Stopped"): JSONObject = EdgeRuntime.onMain {
         val run = current

@@ -76,14 +76,12 @@ internal class AndroidAutoScroll(private val service: AccessibilityService) {
         val refreshRate = display?.refreshRate
         val sampleMs = if (android.os.Build.VERSION.SDK_INT >= 30 && refreshRate != null &&
             refreshRate.isFinite() && refreshRate > 0f) (1000 / refreshRate).toInt().coerceIn(1, 1000) else 100
-        val x = bounds.left + bounds.width() * xPercent.coerceIn(10f, 90f) / 100f
+        val track = track(bounds, xPercent, yPercent)
+        val x = track.left
         val centerY = bounds.top + bounds.height() * yPercent.coerceIn(10f, 90f) / 100f
-        // Keep the pointer off the top and bottom bars. A browser shows its toolbar again while
-        // scrolling up, and a downward stroke starting on that toolbar does not scroll the page.
-        val span = bounds.height() * 0.6f
-        val margin = bounds.height() * 0.15f
-        val low = (centerY - span / 2).coerceIn(bounds.top + margin, bounds.bottom - margin - span)
-        val high = low + span
+        val span = track.height()
+        val low = track.top
+        val high = track.bottom
         val direction = sign(speedDp)
         val segmentMs = maxOf(80L, sampleMs * 3L + 1L)
         // px per ms. Each pointer crosses the range in at least one sample, so at most two are down.
@@ -187,10 +185,25 @@ internal class AndroidAutoScroll(private val service: AccessibilityService) {
         stop(service.getString(com.zerotoship.z2term.R.string.edge_scroll_failed), releasePointer = false)
     }
 
-    private companion object {
+    companion object {
+        /**
+         * The vertical line the continuous scroll's pointer travels on (left == right == x).
+         * Shared with the macro's stop bar, which steps aside only where a finger actually goes.
+         * Keep the pointer off the top and bottom bars: a browser shows its toolbar again while
+         * scrolling up, and a downward stroke starting on that toolbar does not scroll the page.
+         */
+        fun track(bounds: Rect, xPercent: Float, yPercent: Float): android.graphics.RectF {
+            val x = bounds.left + bounds.width() * xPercent.coerceIn(10f, 90f) / 100f
+            val centerY = bounds.top + bounds.height() * yPercent.coerceIn(10f, 90f) / 100f
+            val span = bounds.height() * 0.6f
+            val margin = bounds.height() * 0.15f
+            val low = (centerY - span / 2).coerceIn(bounds.top + margin, bounds.bottom - margin - span)
+            return android.graphics.RectF(x, low, x, low + span)
+        }
+
         /** Segments queued ahead: a callback may arrive this many segments late without a pause. */
-        const val AHEAD = 3
+        private const val AHEAD = 3
         /** Releases belong to no scroll session; their results never stop a new one. */
-        const val NO_OWNER = -1
+        private const val NO_OWNER = -1
     }
 }

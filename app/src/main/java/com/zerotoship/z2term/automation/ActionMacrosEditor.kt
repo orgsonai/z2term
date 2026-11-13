@@ -62,6 +62,8 @@ internal class ActionMacrosEditor(
     private var pickedScreen: String? = null
     private var stepDialog: Dialog? = null
     private var names = emptyList<String>()
+    /** The list shows ↑ ↓ in place of each row's actions while the user arranges it. */
+    private var arranging = false
     private var apps = emptyList<AppCatalog.LaunchableApp>()
     private lateinit var body: LinearLayout
     private var statusView: TextView? = null
@@ -327,7 +329,12 @@ internal class ActionMacrosEditor(
         add(pill(R.string.action_edit_permission) {
             runCatching { AndroidActions.command(this, listOf("permission")) }.onFailure { message(it.message.orEmpty()) }
         })
-        pills(act(R.string.action_edit_history) { showHistory() }, act(R.string.action_edit_refresh) { refresh() })
+        // Same words as the rules and snippets tabs; nothing to arrange with fewer than two.
+        if (names.size < 2) arranging = false
+        pills(*listOfNotNull(act(R.string.action_edit_history) { showHistory() }, act(R.string.action_edit_refresh) { refresh() },
+            if (names.size >= 2) act(if (arranging) R.string.list_reorder_done else R.string.list_reorder, accent = arranging) {
+                arranging = !arranging; render()
+            } else null).toTypedArray())
         if (names.isEmpty()) add(note(R.string.action_edit_empty))
         names.forEach { savedName ->
             // One bordered row per macro; the actions are glyphs at its right edge, as in the rules tab.
@@ -339,6 +346,18 @@ internal class ActionMacrosEditor(
             }, LinearLayout.LayoutParams(0, -2, 1f))
             fun icon(glyph: String, label: Int, danger: Boolean = false, size: Float = 15f, action: () -> Unit) =
                 row.addView(ActionUi.iconCell(this, glyph, getString(label), danger, size, action))
+            if (arranging) {
+                val at = names.indexOf(savedName)
+                // The end rows keep the cell so the arrows stay in one column.
+                fun move(glyph: String, label: Int, to: Int) = row.addView(
+                    ActionUi.iconCell(this, glyph, getString(label)) { moveSaved(savedName, to) }.apply {
+                        if (to !in names.indices) { isEnabled = false; alpha = 0.3f }
+                    })
+                move("↑", R.string.action_edit_up, at - 1)
+                move("↓", R.string.action_edit_down, at + 1)
+                add(row)
+                return@forEach
+            }
             icon("▶", R.string.action_edit_run) { runSaved(savedName) }
             // No glyph for duplicate reads reliably in every font, so it keeps its word.
             icon(getString(R.string.action_edit_duplicate), R.string.action_edit_duplicate, size = 12f) {
@@ -354,6 +373,14 @@ internal class ActionMacrosEditor(
             add(row)
         }
         add(note(R.string.action_edit_intro))
+    }
+    /** Saves at once, so leaving the tab mid-arrangement loses nothing. */
+    private fun moveSaved(savedName: String, to: Int) {
+        val order = names.toMutableList()
+        if (to !in order.indices || !order.remove(savedName)) return
+        order.add(to, savedName)
+        names = order; render()
+        io({ store.reorder(order); store.names() }) { names = it; if (!editing) render() }
     }
     private fun openEditor(savedName: String, saved: String?, source: String = ActionEditorDocument.EMPTY) {
         editorScrollY = 0; renderedEditing = false

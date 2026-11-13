@@ -205,10 +205,15 @@ class AndroidActions : AccessibilityService() {
          * [how] は `auto` / `node` / `swipe` (空欄は `auto`)。
          * `node` は縦方向の部品操作のみ。`swipe` は常に縦スワイプ。
          * `auto` の連続スクロールは端末本文へ直接頼み、その他の画面では連続縦スワイプで速度を制御する。
+         *
+         * [fingers] は連続スクロール (once でない) で**指を置くと決まったときだけ**、指が通る縦の線
+         * ([AndroidAutoScroll.track]) と開始の関数を受け取る。マクロの停止ボタンの帯は、ここで線に
+         * 重なるときだけ避ける (部品へ直接頼む方は指を置かないので呼ばない)。開始を呼ばなければ始まらない。
          */
         fun startAutoScroll(speedDp: Float, bounds: android.graphics.Rect, xPercent: Float = 50f,
             yPercent: Float = 50f, once: Boolean = false, requirePreviousTarget: Boolean = false,
-            how: String = "auto", done: (String?) -> Unit) {
+            how: String = "auto", fingers: ((android.graphics.RectF, () -> Unit) -> Unit)? = null,
+            done: (String?) -> Unit) {
             val service = active ?: error("Enable z2term Android actions in Accessibility settings")
             check(!service.coordinateStroke.inFlight) { "Wait for the previous coordinate gesture to finish" }
             val target = service.focusedTarget()
@@ -237,7 +242,13 @@ class AndroidActions : AccessibilityService() {
             check(area.height() >= 96 * service.resources.displayMetrics.density) {
                 service.getString(com.zerotoship.z2term.R.string.edge_scroll_no_window)
             }
-            service.autoScroll.start(speedDp, area, xPercent, yPercent, once, stillTarget, done)
+            val gate = fingers?.takeIf { !once }
+                ?: return service.autoScroll.start(speedDp, area, xPercent, yPercent, once, stillTarget, done)
+            gate(AndroidAutoScroll.track(area, xPercent, yPercent)) {
+                // 帯が退くのを待った後に始まることがあるので、失敗は投げずに done で返す。
+                try { service.autoScroll.start(speedDp, area, xPercent, yPercent, false, stillTarget, done) }
+                catch (e: Exception) { done(e.message ?: service.getString(com.zerotoship.z2term.R.string.edge_scroll_failed)) }
+            }
         }
 
         fun stopAutoScroll(): Boolean {

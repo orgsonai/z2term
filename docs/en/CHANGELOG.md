@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.100 (versionCode 798)**: While an action macro scrolled, the stop bar shown over other apps stayed hidden wherever it was placed: the whole column from top to bottom was treated as the finger path, so on a phone the bar always overlapped it. It now hides only when the line a finger is really placed on (60% of the window height) crosses it, and not at all when the scroll needs no finger. The macro list in Command list → Automation → Screen actions also gains Reorder: each row turns into ↑ ↓ and every press saves the order, which `z2-action list` follows too.
+
 **1.0.99 (versionCode 797)**: The switches in the Screen actions tab and the edge panel settings are back to their shape before 1.0.98.
 
 **1.0.98 (versionCode 796)**: Moved the “Reset settings” button from “About this app” to “Maintenance” in ⚙ Settings. The Maintenance description already listed resetting settings, but the button lived elsewhere; it now sits with Reset terminal and the other operations that cannot be undone. The switches in the Screen actions tab (“Show a stop button over other apps”) and in the edge panel settings now have the same shape as the other settings switches, with an outline while OFF, so OFF reads as clearly as ON.
