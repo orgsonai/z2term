@@ -224,7 +224,7 @@ API references: [AccessibilityNodeInfo](https://developer.android.com/reference/
 | `z2-action status [RUN_ID]` | Read JSON state, step index and result |
 | `z2-action stop [RUN_ID]` | Stop remaining steps; omitting the ID stops the current run |
 | `z2-action pause [RUN_ID]` | Pause (1.0.97). The step in progress is sent again from its start on resume. Returns the status JSON |
-| `z2-action resume [RUN_ID]` | Resume (1.0.97) once a foreground screen other than z2term has settled for about 500 ms; if none appears within 5 seconds the run stays paused. Typed from z2term itself, switch to the screen to operate in the meantime |
+| `z2-action resume [RUN_ID]` | Resume (1.0.97) once a foreground screen other than z2term has settled for about 500 ms; if none appears within 5 seconds the run stays paused. It answers once the outcome is known (1.0.101): state `running` with exit status 0, or `paused` (or the final state if the run was stopped meanwhile) with a non-zero exit. Typed from z2term itself, switch to the screen to operate in the meantime |
 | `z2-action inspect PACKAGE` | Inspect visible text, descriptions and IDs in the focused target app as JSON |
 | `z2-action screen` | Print `screen=WIDTHxHEIGHT@ROTATION`, where rotation is 0/1/2/3 |
 | `z2-action history` | Read up to 256 run-start, step-start, branch and finish records as JSON |

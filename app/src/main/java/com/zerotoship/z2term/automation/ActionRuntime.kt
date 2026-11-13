@@ -28,7 +28,9 @@ internal object ActionRuntime {
     private val main = Handler(Looper.getMainLooper())
     private data class Run(val id: String, val name: String, val program: ActionProgram, val context: Context,
         val screen: ActionDefinition.Screen, val engine: ActionExecution, val runner: EdgeRunner,
-        val listeners: MutableList<(JSONObject) -> Unit> = mutableListOf(), var step: Int = 0,
+        val listeners: MutableList<(JSONObject) -> Unit> = mutableListOf(),
+        /** `z2-action resume` callers waiting for the pending resume to settle (running or still paused). */
+        val resumeWaiters: MutableList<(JSONObject) -> Unit> = mutableListOf(), var step: Int = 0,
         val history: MutableList<String> = mutableListOf(), var historyLoaded: Boolean = false,
         var cancelHistoryFlush: (() -> Unit)? = null,
         val awaitBackground: Boolean = false, val allowOwnForeground: Boolean = false, var cancelStart: (() -> Unit)? = null,
@@ -309,8 +311,36 @@ internal object ActionRuntime {
      * five seconds the run stays paused.
      */
     fun resume(id: String? = null, background: (() -> Unit)? = null): JSONObject = EdgeRuntime.onMain {
+        resumeNow(id, background, null)
+    }
+    /**
+     * Same as [resume], but [settled] receives the status once the outcome is known: `running` after
+     * the run continued, `paused` when no screen settled, or the final state if the run ended meanwhile.
+     * A run that is not paused answers at once. Used by `z2-action resume` so a script reads the result.
+     */
+    fun resume(id: String?, settled: (JSONObject) -> Unit) = EdgeRuntime.onMain {
+        val pending = current?.takeIf { (id == null || it.id == id) && it.engine.paused && it.cancelStart != null }
+        if (pending != null) {
+            // Another resume is already waiting for its screen; share its outcome instead of a second wait.
+            require(pending.resumeWaiters.size < 16) { "Too many waiters" }
+            pending.resumeWaiters += settled
+            return@onMain
+        }
+        // The screen may already be there, so the wait can settle before resumeNow returns: answer once.
+        var answered = false
+        val answer: (JSONObject) -> Unit = { if (!answered) { answered = true; settled(it) } }
+        val status = resumeNow(id, null, answer)
+        if (current?.resumeWaiters?.contains(answer) != true) answer(status)
+    }
+    private fun settleResume(run: Run) {
+        val status = status(run.id)
+        run.resumeWaiters.toList().forEach { waiter -> runCatching { waiter(status) } }
+        run.resumeWaiters.clear()
+    }
+    private fun resumeNow(id: String?, background: (() -> Unit)?, settled: ((JSONObject) -> Unit)?): JSONObject {
         val run = current?.takeIf { (id == null || it.id == id) && it.engine.paused && it.cancelStart == null }
         if (run != null) {
+            settled?.let { run.resumeWaiters += it }
             AndroidActions.dismissShade()
             run.cancelStart = ActionForegroundWait(::schedule).start(if (run.allowOwnForeground) "" else run.context.packageName, {
                 checkDevice(run)
@@ -324,11 +354,12 @@ internal object ActionRuntime {
                     } else { log(run, "resumed"); run.engine.resume() }
                     refresh(run)
                 }
+                if (current === run) settleResume(run)
             }
             refresh(run)
             background?.let { runCatching(it) }
         }
-        if (id != null) status(id) else status()
+        return if (id != null) status(id) else status()
     }
     /** Brings the stop bar and the notification in line with the run's state. */
     private fun refresh(run: Run) {
@@ -351,6 +382,9 @@ internal object ActionRuntime {
         val response = json(run, result.state).put("step", result.step).put("error", result.error ?: JSONObject.NULL)
         results[run.id] = response
         while (results.size > 32) results.remove(results.keys.first())
+        // A stop during the resume wait cancels that wait without a callback; answer its callers here.
+        run.resumeWaiters.toList().forEach { waiter -> runCatching { waiter(response) } }
+        run.resumeWaiters.clear()
         runCatching { log(run, result.state, result.error) }
         retiringService = run.service
         runCatching { run.service?.stopSelf() }

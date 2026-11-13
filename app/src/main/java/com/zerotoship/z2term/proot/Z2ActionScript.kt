@@ -17,8 +17,8 @@ fun z2ActionScript(lang: String): String {
         ja = "version=2 では click 対象、long-click 対象、wait-ui ミリ秒 対象 も使えます。\n対象は text=次へ、desc=その他、id=org.example.app:id/next。完全一致で、空白を引用符で囲みません。\n先に target または launch を指定します。wait-ui は250ミリ秒間隔、1〜30000ミリ秒まで検索。複数一致は失敗です。\n操作は1回だけ送り、次の画面には wait-ui を使います。入力欄・パスワード欄は対象外です。\ninspect パッケージ名 は、前面の対象アプリの表示文字・説明・IDをJSONで返します。"
     )
     val pauseHelp = t("action.pauseHelp",
-        en = "pause [RUN_ID] holds the run; the step in progress is sent again from its start. Opening the notification shade also pauses.\nresume [RUN_ID] continues once a screen other than z2term stays in front (up to 5 seconds; otherwise it stays paused). The time limit stops while paused.",
-        ja = "pause [実行ID] で一時停止。途中の手順は再開時に最初から送ります。通知欄を下ろしても一時停止します。\nresume [実行ID] は z2term 以外の画面が前に出て落ち着いてから続けます（5秒まで。出なければ一時停止のまま）。一時停止の間は制限時間が止まります。"
+        en = "pause [RUN_ID] holds the run; the step in progress is sent again from its start. Opening the notification shade also pauses.\nresume [RUN_ID] continues once a screen other than z2term stays in front (up to 5 seconds; otherwise it stays paused). It answers after that: state running and exit 0, or paused and a non-zero exit. The time limit stops while paused.",
+        ja = "pause [実行ID] で一時停止。途中の手順は再開時に最初から送ります。通知欄を下ろしても一時停止します。\nresume [実行ID] は z2term 以外の画面が前に出て落ち着いてから続けます（5秒まで。出なければ一時停止のまま）。結果が出てから返り、再開できれば state は running で終了コード 0、一時停止のままなら paused で 0 以外です。一時停止の間は制限時間が止まります。"
     )
     val header = (description + "\n" + pauseHelp + "\n" + controlHelp + "\n" + uiHelp).lines().joinToString("\n") { "# $it" }
     return "#!/bin/sh\n$header\n" + """
@@ -61,6 +61,7 @@ fun z2ActionScript(lang: String): String {
         |    trap - HUP INT TERM
         |    exit "${d}action_status" ;;
         |  wait) Z2API_WAIT=3100 exec z2api 1 action "${d}@" ;;
+        |  resume) Z2API_WAIT=100 exec z2api 1 action "${d}@" ;;
         |  *) exec z2api 1 action "${d}@" ;;
         |esac
     """.trimMargin() + "\n"

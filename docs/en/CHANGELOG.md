@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.101 (versionCode 799)**: `z2-action resume` now answers once it knows whether the run continued. It used to return as soon as the request was taken, still showing `"state":"paused"` while it waited. Now it returns `"state":"running"` with exit status 0 when the run continued, or `"state":"paused"` with a non-zero exit when no screen to operate appeared within 5 seconds, so a shell macro can branch with `if z2-action resume; then …`.
+
 **1.0.100 (versionCode 798)**: While an action macro scrolled, the stop bar shown over other apps stayed hidden wherever it was placed: the whole column from top to bottom was treated as the finger path, so on a phone the bar always overlapped it. It now hides only when the line a finger is really placed on (60% of the window height) crosses it, and not at all when the scroll needs no finger. The macro list in Command list → Automation → Screen actions also gains Reorder: each row turns into ↑ ↓ and every press saves the order, which `z2-action list` follows too.
 
 **1.0.99 (versionCode 797)**: The switches in the Screen actions tab and the edge panel settings are back to their shape before 1.0.98.
