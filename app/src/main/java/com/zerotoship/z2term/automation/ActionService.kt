@@ -20,6 +20,11 @@ import androidx.core.net.toUri
 /** Foreground only during a requested macro. Interrupted runs never resume automatically. */
 class ActionService : Service() {
     private var runId: String? = null
+    private var runName = ""
+    private var progressText = ""
+    private var shownProgressAt = 0L
+    private var pendingProgress: Runnable? = null
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
     private val screenOff = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) { runId?.let { ActionRuntime.stop(it, "Screen turned off") } }
     }
@@ -30,9 +35,16 @@ class ActionService : Service() {
         showRun("")
     }
     internal fun showRun(name: String) {
+        runName = name
         val manager = getSystemService(NotificationManager::class.java)
+        // ⚠ 1.0.94 までの「低」の重要度では、通知欄の「サイレント」の段にたたまれて出て、
+        // 開かないと「停止」ボタンが見えなかった (利用者の指摘)。音もバイブも無しのまま「既定」の
+        // 重要度にして、ふつうの段に出す。重要度は作ったあとで変えられないので、チャネルを作り直す。
+        manager.deleteNotificationChannel(LEGACY_CHANNEL)
         manager.createNotificationChannel(NotificationChannel(CHANNEL, getString(R.string.action_macro_title),
-            NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
+            NotificationManager.IMPORTANCE_DEFAULT).apply {
+            setShowBadge(false); setSound(null, null); enableVibration(false)
+        })
         val stop = PendingIntent.getService(this, 7811,
             Intent(this, ActionService::class.java).setAction(STOP)
                 .setData("z2term-action:${runId.orEmpty()}".toUri())
@@ -41,12 +53,28 @@ class ActionService : Service() {
         val notification = NotificationCompat.Builder(this, CHANNEL)
             .setZ2SmallIcon(this)
             .setContentTitle(getString(R.string.action_macro_title))
-            .setContentText(getString(R.string.action_macro_running, name))
+            .setContentText(getString(R.string.action_macro_running, name) +
+                if (progressText.isNotEmpty()) " · $progressText" else "")
             .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false)
             .setCategory(NotificationCompat.CATEGORY_SERVICE).setBadgeIconType(NotificationCompat.BADGE_ICON_NONE)
             .addAction(0, getString(R.string.action_macro_stop), stop).build()
         if (Build.VERSION.SDK_INT >= 34) startForeground(7811, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         else startForeground(7811, notification)
+    }
+    /**
+     * 進み具合を通知の本文に足す。繰り返しの速いマクロでは手順ごとに通知を出し直すと Android に
+     * 間引かれるので、1 秒に 1 回までにまとめる (最後の値は必ず出す)。
+     */
+    internal fun showProgress(text: String) {
+        progressText = text
+        if (pendingProgress != null) return
+        val wait = shownProgressAt + PROGRESS_INTERVAL_MS - android.os.SystemClock.uptimeMillis()
+        val task = Runnable {
+            pendingProgress = null
+            shownProgressAt = android.os.SystemClock.uptimeMillis()
+            if (runId != null) runCatching { showRun(runName) }
+        }
+        if (wait <= 0) task.run() else { pendingProgress = task; main.postDelayed(task, wait) }
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == STOP) {
@@ -64,12 +92,15 @@ class ActionService : Service() {
         return START_NOT_STICKY
     }
     override fun onDestroy() {
+        pendingProgress?.let(main::removeCallbacks); pendingProgress = null
         unregisterReceiver(screenOff)
         ActionRuntime.serviceDestroyed(this)
         super.onDestroy()
     }
     companion object {
-        private const val CHANNEL = "z2term_actions_v1"
+        private const val CHANNEL = "z2term_actions_v2"
+        private const val LEGACY_CHANNEL = "z2term_actions_v1"
+        private const val PROGRESS_INTERVAL_MS = 1000L
         private const val STOP = "com.zerotoship.z2term.ACTION_MACRO_STOP"
     }
 }

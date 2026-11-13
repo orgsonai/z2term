@@ -169,4 +169,9 @@
     <string name="action_pick_points_summary">%1$d 个点</string>
     <string name="action_pick_undo">撤销一个</string>
     <string name="action_pick_points_full">最多 %1$d 个点</string>
+    <string name="action_overlay_setting">在其他应用上方显示停止按钮</string>
+    <string name="action_overlay_setting_desc">宏运行时，在被操作的应用上方显示带有 ■ 和进度的小条。可以拖到任意位置；宏点按其下方时会短暂隐藏。</string>
+    <string name="action_overlay_loop">第 %1$d/%2$d 次</string>
+    <string name="action_overlay_loop_endless">第 %1$d 次</string>
+    <string name="action_overlay_step">步骤 %1$d/%2$d</string>
 </resources>

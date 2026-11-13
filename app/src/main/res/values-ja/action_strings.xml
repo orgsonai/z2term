@@ -169,4 +169,9 @@
     <string name="action_pick_points_summary">%1$d 点</string>
     <string name="action_pick_undo">1 つ戻す</string>
     <string name="action_pick_points_full">点は %1$d 個までです</string>
+    <string name="action_overlay_setting">ほかのアプリの上に停止ボタンを出す</string>
+    <string name="action_overlay_setting_desc">実行中、操作先のアプリの上に ■ と進み具合の小さな帯を出します。指で好きな場所へ動かせます。マクロがその下を押すときだけ一瞬隠れます。</string>
+    <string name="action_overlay_loop">%1$d/%2$d回目</string>
+    <string name="action_overlay_loop_endless">%1$d回目</string>
+    <string name="action_overlay_step">手順 %1$d/%2$d</string>
 </resources>

@@ -100,6 +100,7 @@ internal object ActionRuntime {
         if (run.service != null) return true
         run.service = service
         service.showRun(run.name)
+        ActionRunOverlay.show(AndroidActions.overlayHost(), run.name) { runCatching { stop(run.id) } }
         if (run.awaitBackground) {
             run.cancelStart = ActionForegroundWait(::schedule).start(if (run.allowOwnForeground) "" else run.context.packageName, {
                 checkDevice(run)
@@ -120,6 +121,8 @@ internal object ActionRuntime {
         if (current !== run) return
         run.engine.start(run.definition, { step, done -> execute(run, step, done) }, { index, step ->
             run.step = index
+            ActionRunOverlay.update(run.engine.loops, run.engine.blockStep, run.engine.blockSize)
+            run.service?.showProgress(ActionRunOverlay.describe(run.context, run.engine.loops, run.engine.blockStep, run.engine.blockSize))
             log(run, "step", when (step) {
                 is ActionDefinition.Step.Repeat -> "repeat"
                 is ActionDefinition.Step.Branch -> "if"
@@ -202,31 +205,45 @@ internal object ActionRuntime {
             is ActionDefinition.Step.Stroke -> {
                 val resolved = step.copy(target = target(step.target))
                 run.target = resolved.target
-                return AndroidActions.stroke(resolved, run.screen, ::done)
+                // Only where a finger lands decides which window receives it; avoid the stop bar along the whole path.
+                val points = resolved.tracks(run.screen).flatten()
+                return ActionRunOverlay.clear({ box -> points.any { box.contains(it.x.toInt(), it.y.toInt()) } }, ::schedule, ::done) { finished ->
+                    check(current === run) { "Stopped" }
+                    AndroidActions.stroke(resolved, run.screen, finished)
+                }
             }
             is ActionDefinition.Step.Scroll -> {
                 run.target = target(step.target)
                 checkDevice(run)
-                var ending = false
-                var cancelTimer: (() -> Unit)? = null
-                var cancelDrain: (() -> Unit)? = null
-                AndroidActions.startAutoScroll(step.speed, Rect(0, 0, run.screen.width, run.screen.height), step.x, step.y) { error ->
-                    if (!ending) { ending = true; cancelTimer?.invoke(); done(error ?: "Scrolling was interrupted") }
+                // Scrolling places fingers along a vertical line at step.x; keep the stop bar off that band.
+                val lineX = (run.screen.width * step.x / 100f).toInt()
+                val band = ActionUi.dp(run.context, 48)
+                return ActionRunOverlay.clear({ box -> lineX + band > box.left && lineX - band < box.right }, ::schedule, ::done) { finished ->
+                    check(current === run) { "Stopped" }
+                    scroll(run, step, finished)
                 }
-                if (!ending) cancelTimer = schedule(step.ms) {
-                    ending = true
-                    AndroidActions.stopAutoScroll()
-                    // The final stroke still owns the input stream until its completion callback.
-                    fun drain() {
-                        if (current !== run) return
-                        if (AndroidActions.gesturesInFlight()) cancelDrain = schedule(20) { drain() } else done(null)
-                    }
-                    drain()
-                }
-                return { ending = true; cancelTimer?.invoke(); cancelDrain?.invoke(); AndroidActions.stopAutoScroll(); Unit }
             }
         }
         return null
+    }
+    private fun scroll(run: Run, step: ActionDefinition.Step.Scroll, done: (String?) -> Unit): () -> Unit {
+        var ending = false
+        var cancelTimer: (() -> Unit)? = null
+        var cancelDrain: (() -> Unit)? = null
+        AndroidActions.startAutoScroll(step.speed, Rect(0, 0, run.screen.width, run.screen.height), step.x, step.y) { error ->
+            if (!ending) { ending = true; cancelTimer?.invoke(); done(error ?: "Scrolling was interrupted") }
+        }
+        if (!ending) cancelTimer = schedule(step.ms) {
+            ending = true
+            AndroidActions.stopAutoScroll()
+            // The final stroke still owns the input stream until its completion callback.
+            fun drain() {
+                if (current !== run) return
+                if (AndroidActions.gesturesInFlight()) cancelDrain = schedule(20) { drain() } else done(null)
+            }
+            drain()
+        }
+        return { ending = true; cancelTimer?.invoke(); cancelDrain?.invoke(); AndroidActions.stopAutoScroll(); Unit }
     }
     fun stop(id: String? = null, reason: String = "Stopped"): JSONObject = EdgeRuntime.onMain {
         val run = current
@@ -246,6 +263,7 @@ internal object ActionRuntime {
         current = null
         run.cancelStart?.invoke(); run.cancelStart = null
         run.watchdog?.let(main::removeCallbacks)
+        ActionRunOverlay.dismiss()
         run.runner.cancelAll()
         AndroidActions.stopAutoScroll()
         val response = json(run, result.state).put("step", result.step).put("error", result.error ?: JSONObject.NULL)

@@ -168,4 +168,9 @@
     <string name="action_pick_points_summary">%1$d titik</string>
     <string name="action_pick_undo">Urungkan</string>
     <string name="action_pick_points_full">Paling banyak %1$d titik</string>
+    <string name="action_overlay_setting">Tampilkan tombol berhenti di atas aplikasi lain</string>
+    <string name="action_overlay_setting_desc">Selama makro berjalan, bilah kecil berisi ■ dan kemajuannya tetap di atas aplikasi yang dioperasikan. Bisa digeser; bilah tersembunyi sesaat saat makro menyentuh di bawahnya.</string>
+    <string name="action_overlay_loop">putaran %1$d/%2$d</string>
+    <string name="action_overlay_loop_endless">putaran %1$d</string>
+    <string name="action_overlay_step">langkah %1$d/%2$d</string>
 </resources>

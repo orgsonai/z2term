@@ -290,6 +290,23 @@ internal class ActionMacrosEditor(
         }.also { running.addView(it, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) }) }
         add(running)
         updateStatus()
+        // The run card above cannot be reached once the macro brings its target app forward.
+        val overlaySwitch = com.zerotoship.z2term.edge.EdgeSettingsUi.switchOf(this, ActionRunOverlay.enabled(this)).apply {
+            contentDescription = getString(R.string.action_overlay_setting)
+            setOnCheckedChangeListener { _, value -> ActionRunOverlay.setEnabled(this@ActionMacrosEditor, value) }
+        }
+        add(ActionUi.card(this, vertical = false).apply {
+            foreground = ActionUi.pressable(this@ActionMacrosEditor, 8)
+            isClickable = true
+            setOnClickListener { overlaySwitch.toggle() }
+            addView(column().apply {
+                addView(ActionUi.label(this@ActionMacrosEditor, getString(R.string.action_overlay_setting), 13f))
+                addView(ActionUi.caption(this@ActionMacrosEditor, getString(R.string.action_overlay_setting_desc)).apply {
+                    setPadding(0, dp(2), 0, 0)
+                })
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(overlaySwitch, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8) })
+        })
         // Nothing here runs without it, so the permission stays above the list rather than under it.
         add(pill(R.string.action_edit_permission) {
             runCatching { AndroidActions.command(this, listOf("permission")) }.onFailure { message(it.message.orEmpty()) }

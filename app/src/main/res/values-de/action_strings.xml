@@ -168,4 +168,9 @@
     <string name="action_pick_points_summary">%1$d Punkte</string>
     <string name="action_pick_undo">Rückgängig</string>
     <string name="action_pick_points_full">Höchstens %1$d Punkte</string>
+    <string name="action_overlay_setting">Stopp-Taste über anderen Apps zeigen</string>
+    <string name="action_overlay_setting_desc">Während ein Makro läuft, bleibt eine kleine Leiste mit ■ und dem Fortschritt über der bedienten App. Sie lässt sich verschieben und verschwindet kurz, wenn das Makro darunter tippt.</string>
+    <string name="action_overlay_loop">Durchlauf %1$d/%2$d</string>
+    <string name="action_overlay_loop_endless">Durchlauf %1$d</string>
+    <string name="action_overlay_step">Schritt %1$d/%2$d</string>
 </resources>

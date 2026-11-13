@@ -168,4 +168,9 @@
     <string name="action_pick_points_summary">%1$d punti</string>
     <string name="action_pick_undo">Annulla</string>
     <string name="action_pick_points_full">Al massimo %1$d punti</string>
+    <string name="action_overlay_setting">Mostra un pulsante di arresto sopra le altre app</string>
+    <string name="action_overlay_setting_desc">Mentre una macro è in esecuzione, una piccola barra con ■ e l’avanzamento resta sopra l’app controllata. Puoi trascinarla; si nasconde per un attimo quando la macro tocca sotto.</string>
+    <string name="action_overlay_loop">ripetizione %1$d/%2$d</string>
+    <string name="action_overlay_loop_endless">ripetizione %1$d</string>
+    <string name="action_overlay_step">passo %1$d/%2$d</string>
 </resources>

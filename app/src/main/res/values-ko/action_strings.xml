@@ -169,4 +169,9 @@
     <string name="action_pick_points_summary">%1$d개 점</string>
     <string name="action_pick_undo">하나 되돌리기</string>
     <string name="action_pick_points_full">점은 %1$d개까지입니다</string>
+    <string name="action_overlay_setting">다른 앱 위에 정지 버튼 표시</string>
+    <string name="action_overlay_setting_desc">매크로 실행 중 조작 대상 앱 위에 ■ 와 진행 상황을 담은 작은 막대를 표시합니다. 손가락으로 옮길 수 있으며, 매크로가 그 아래를 누를 때만 잠깐 숨겨집니다.</string>
+    <string name="action_overlay_loop">%1$d/%2$d회차</string>
+    <string name="action_overlay_loop_endless">%1$d회차</string>
+    <string name="action_overlay_step">단계 %1$d/%2$d</string>
 </resources>

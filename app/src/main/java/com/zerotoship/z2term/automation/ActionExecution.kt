@@ -19,6 +19,14 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         private set
     var callDepth = 1
         private set
+    /** Every enclosing repeat, outermost first: (current pass, count or null for endless). */
+    var loops: List<Pair<Int, Int?>> = emptyList()
+        private set
+    /** Position of the running step inside its own block (1-based) and that block's length. */
+    var blockStep = 0
+        private set
+    var blockSize = 0
+        private set
     private var generation = 0
     private var cancelStep: (() -> Unit)? = null
     private var cancelDeadline: (() -> Unit)? = null
@@ -45,6 +53,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         check(!running) { "An action macro is already running" }
         running = true; step = 0; completed = done
         macro = name; path = ""; iteration = 1; callDepth = 1
+        loops = emptyList(); blockStep = 0; blockSize = 0
         frames += Frame(definition.steps, name)
         val token = ++generation
         cancelDeadline = schedule(definition.timeoutMs) { if (token == generation) finish("timeout", "Macro timed out") }
@@ -70,6 +79,8 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
             macro = frame.macro; path = frame.prefix + frame.index
             iteration = frames.lastOrNull { it.loop }?.iteration ?: 1
             callDepth = 1 + frames.count { it.call }
+            loops = frames.filter { it.loop }.map { it.iteration to it.repeats }
+            blockStep = frame.index; blockSize = frame.steps.size
             if (step >= MAX_EXECUTED_STEPS) { finish("failed", "Execution exceeds $MAX_EXECUTED_STEPS instructions"); return }
             val index = ++step
             var delivered = false

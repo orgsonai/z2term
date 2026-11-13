@@ -260,6 +260,9 @@ class AndroidActions : AccessibilityService() {
 
         internal fun contrastService(): AndroidActions? = active
 
+        /** The service that owns the macro's stop bar window ([com.zerotoship.z2term.automation.ActionRunOverlay]). */
+        internal fun overlayHost(): AndroidActions? = active
+
         /** Uses package metadata from window events without retrieving UI nodes. */
         internal fun focusedPackage(): String? {
             val service = active ?: return null

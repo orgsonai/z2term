@@ -169,4 +169,9 @@
     <string name="action_pick_points_summary">%1$d 個點</string>
     <string name="action_pick_undo">復原一個</string>
     <string name="action_pick_points_full">最多 %1$d 個點</string>
+    <string name="action_overlay_setting">在其他應用程式上方顯示停止按鈕</string>
+    <string name="action_overlay_setting_desc">巨集執行時，在被操作的應用程式上方顯示含 ■ 與進度的小列。可拖曳到任意位置；巨集點按其下方時會短暫隱藏。</string>
+    <string name="action_overlay_loop">第 %1$d/%2$d 次</string>
+    <string name="action_overlay_loop_endless">第 %1$d 次</string>
+    <string name="action_overlay_step">步驟 %1$d/%2$d</string>
 </resources>

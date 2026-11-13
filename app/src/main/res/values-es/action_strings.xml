@@ -169,4 +169,9 @@
     <string name="action_pick_points_summary">%1$d puntos</string>
     <string name="action_pick_undo">Deshacer</string>
     <string name="action_pick_points_full">Como máximo %1$d puntos</string>
+    <string name="action_overlay_setting">Mostrar un botón de parada sobre otras apps</string>
+    <string name="action_overlay_setting_desc">Mientras se ejecuta una macro, una pequeña barra con ■ y su progreso queda sobre la app que controla. Puedes arrastrarla; se oculta un instante cuando la macro toca debajo.</string>
+    <string name="action_overlay_loop">repetición %1$d/%2$d</string>
+    <string name="action_overlay_loop_endless">repetición %1$d</string>
+    <string name="action_overlay_step">paso %1$d/%2$d</string>
 </resources>

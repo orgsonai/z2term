@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.95 (versionCode 793)**: While an action macro runs, a **small bar with a stop button (■) and the progress** can now stay on top of the app it operates. Turn it on in Command list → Automation → Screen actions with “Show a stop button over other apps” (off by default). The bar reads like “pass 3/10 · step 2/5”: which pass of each repeat, and which step of the current block. Drag it anywhere; the next run opens it in the same place. It hides for a moment whenever a macro tap or swipe passes under it, so the macro never presses the bar itself. The run notification also no longer folds into the Silent section of the shade, where its Stop button stayed hidden; it now sits with ordinary notifications (still without sound or vibration) and shows the same progress.
+
 **1.0.94 (versionCode 792)**: Leaving the edge panel's app picker open and switching to another app no longer brings the edge panel settings up over that app two minutes later, when the picker times out. A picker that times out in the background now closes without showing anything.
 
 **1.0.93 (versionCode 791)**: Adding an app to the edge panel no longer crashes when the same app is installed both in your own profile and in another one.
