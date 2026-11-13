@@ -289,6 +289,8 @@ class IconStoreTest {
         assertEquals("battery", IconSamples.guess("battery-alert.sh"))
         assertEquals("warning", IconSamples.guess("unknown-call.sh"))
         assertEquals("mic", IconSamples.guess("voice.sh"))
+        assertEquals("macro", IconSamples.guess("z2-action pick"))
+        assertNull(IconSamples.guess("z2-action start test"))
         // 当たらないものは当てない (意味の合わない絵が黙って付く方が分かりにくい)。
         assertNull(IconSamples.guess("ls -la"))
         assertNull(IconSamples.guess("./run"))

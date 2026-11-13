@@ -377,7 +377,9 @@ object EdgeItemEditor {
             if (resultControls.isVisible) values["result-controls"] = if (resultControls.isChecked) "on" else "off"
             if (values["type"] == "run" && values["label"].isNullOrBlank() && values["icon"].isNullOrBlank() &&
                 AppLaunchCommand.packageFrom(values["run"].orEmpty()) == null) {
-                values["label"] = context.getString(R.string.edge_run)
+                values["label"] = context.getString(
+                    if (com.zerotoship.z2term.automation.ActionMacroReference.isPick(values["run"].orEmpty()))
+                        R.string.action_chooser_title else R.string.edge_run)
             }
             EdgeStore.validateItem(values)
             return values

@@ -1531,7 +1531,7 @@ object EdgeRuntime {
                 cell.contentDescription = name
                 if (item.type == "run") {
                     addIcon(cell, item.fields["icon"]?.takeIf { it.isNotBlank() }
-                        ?: AppLaunchCommand.iconFrom(item.command) ?: name.take(1), 24)
+                        ?: autoIcon(item.command) ?: name.take(1), 24)
                     if (labels != "off" && alone) cell.addView(EdgeSettingsUi.caption(ui(), name).apply {
                         maxLines = 1; setPadding(dp(8), 0, 0, 0)
                     })
@@ -1782,7 +1782,7 @@ object EdgeRuntime {
             val pm = app!!.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(it, 0)).toString()
         }.getOrNull() }, app!!.getString(R.string.edge_run))
         val showTitle = label.isNotBlank()
-        if (showTitle || item.type == "run") addIcon(title, item.fields["icon"]?.takeIf { it.isNotBlank() } ?: AppLaunchCommand.iconFrom(item.command) ?: if (iconOnly) label.take(1) else null, iconSize)
+        if (showTitle || item.type == "run") addIcon(title, item.fields["icon"]?.takeIf { it.isNotBlank() } ?: autoIcon(item.command) ?: if (iconOnly) label.take(1) else null, iconSize)
         title.minimumHeight = if (tight) 0 else dp(48)
         title.contentDescription = label
         title.tooltipText = label
@@ -2225,6 +2225,10 @@ object EdgeRuntime {
 
     // "/sdcard/" is recognised as the prefix a user writes in an icon path, not built from it.
     @SuppressLint("SdCardPath")
+    /** アイコン欄が空のときの絵。アプリ起動はそのアプリ、マクロを選んで実行する帯は内蔵の「macro」(1.0.104)。 */
+    private fun autoIcon(command: String): String? = AppLaunchCommand.iconFrom(command)
+        ?: if (com.zerotoship.z2term.automation.ActionMacroReference.isPick(command)) "@z2:macro" else null
+
     private fun addIcon(row: LinearLayout, value: String?, iconSize: Int = 40) {
         if (value.isNullOrBlank()) return
         if (!value.startsWith('@')) {
