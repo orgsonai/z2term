@@ -1,0 +1,6 @@
+1.0.101
+
+- While an action macro runs, a stop button with its progress can sit over the target app (turn it on in Screen actions).
+- Pulling down the notification shade pauses a macro, and Resume continues it; z2-action pause / resume do the same.
+- The macro list in Screen actions can be reordered.
+- Reset settings moved to Maintenance.
