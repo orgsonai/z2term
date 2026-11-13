@@ -61,7 +61,8 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * ⭐ **通知まで指が届かないときのために、操作先の上に帯を出す (1.0.102、issue #2)。** 常駐通知を出している間、
  * [ActionRunOverlay] の帯に ‖ (▶) と ■ を置く。通知欄を下ろしたときも一時停止する ([shadeWatch])。
- * 帯は合成の入力 (AI の指) では押せないので、AI が自分で再開することはできない。
+ * 帯は合成の入力 (AI の指) では押せない。AI がシェルで操作マクロを書いて z2term の「再開」を押す回り道は、
+ * 一時停止・停止の間はマクロに z2term 自身を操作させないことで塞ぐ ([holdsOwnScreen])。
  *
  * ⚠ **通知のボタンは [controlToken] を持つ。** AI は同じ uid で `cmd activity broadcast` を
  * 打てるので、印の無い放送を受け付けると「再開」「許可」を AI 自身が押せてしまう。印はこの
@@ -95,6 +96,9 @@ internal object UiBridge {
     /** 操作を送っている最中。z2-action はこの間始めない。 */
     val busy get() = busyFlag.get()
     val isPaused get() = paused
+
+    /** 一時停止・停止の間。操作マクロに z2term 自身の画面を操作させない (AI が回り道で再開できないように、1.0.103)。 */
+    fun holdsOwnScreen(context: Context): Boolean = paused || UiBridgeSettings(context).stopped
 
     private class Pending(val nonce: String, val minutes: Int) {
         val latch = CountDownLatch(1)

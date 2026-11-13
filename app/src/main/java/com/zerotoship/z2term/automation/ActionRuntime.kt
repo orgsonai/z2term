@@ -179,6 +179,18 @@ internal object ActionRuntime {
             name = run.name,
             branch = { _, matched -> log(run, "branch", matched.toString()) })
     }
+    /**
+     * While AI operation (z2-ui) is paused or stopped, a macro may not operate z2term's own screen (1.0.103).
+     * The AI has a shell, so it could otherwise save a macro that presses Resume (or turns AI operation on)
+     * in z2term's settings and lift the user's pause itself. Macros on other apps run as usual; the
+     * notification shade is already out of reach because it pauses the macro.
+     */
+    private fun guardOwnScreen(run: Run) {
+        if (!UiBridge.holdsOwnScreen(run.context)) return
+        check(AndroidActions.focusedPackage() != run.context.packageName) {
+            "AI operation is paused or stopped; until it is resumed or turned on again in z2term, macros cannot operate z2term itself"
+        }
+    }
     private fun checkDevice(run: Run) {
         check(run.context.getSystemService(PowerManager::class.java).isInteractive &&
             !run.context.getSystemService(KeyguardManager::class.java).isKeyguardLocked) { "Screen is off or locked" }
@@ -211,6 +223,8 @@ internal object ActionRuntime {
     }
     private fun executeStep(run: Run, step: ActionDefinition.Step, completed: (String?) -> Unit): (() -> Unit)? {
         checkDevice(run)
+        if (step is ActionDefinition.Step.Stroke || step is ActionDefinition.Step.Scroll || step is ActionDefinition.Step.Key ||
+            (step is ActionDefinition.Step.Ui && step.operation != "wait-ui")) guardOwnScreen(run)
         fun done(error: String?) { run.target = null; completed(error) }
         fun target(requested: String): String = if (requested == ActionDefinition.CURRENT_TARGET)
             AndroidActions.focusedPackage() ?: error(run.context.getString(com.zerotoship.z2term.R.string.action_run_no_foreground))

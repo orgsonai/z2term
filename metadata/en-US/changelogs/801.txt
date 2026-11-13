@@ -1,0 +1,3 @@
+1.0.103
+
+- While AI operation is paused or stopped, action macros can no longer operate z2term's own screen, so the AI cannot use a macro to resume itself.
