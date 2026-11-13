@@ -64,6 +64,24 @@ class AndroidActions : AccessibilityService() {
         } finally { currentWindows.forEach { it.recycle() } }
     }
 
+    /**
+     * The package of an application window. Normally learned from its window-state event; a window that has
+     * not sent one since this service connected (right after an update, or the app in front never changed)
+     * is read from its root node once and remembered (1.0.108). Until then a macro could not tell which app
+     * was in front and failed its start with "could not find the screen behind z2term". Main thread.
+     */
+    private fun packageOf(windowId: Int): String? {
+        windowPackages[windowId]?.let { return it }
+        val current = windows
+        try {
+            val root = current.firstOrNull { it.id == windowId }?.root ?: return null
+            val name = try { root.packageName?.toString() } finally { root.recycle() } ?: return null
+            windowPackages[windowId] = name
+            while (windowPackages.size > 64) windowPackages.remove(windowPackages.keys.first())
+            return name
+        } finally { current.forEach { it.recycle() } }
+    }
+
     override fun onServiceConnected() {
         serviceInfo = serviceInfo.apply { flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS }
         active = this
@@ -297,11 +315,11 @@ class AndroidActions : AccessibilityService() {
             if (Build.VERSION.SDK_INT >= 31) runCatching { service.performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE) }
         }
 
-        /** Uses package metadata from window events without retrieving UI nodes. */
+        /** Uses package metadata from window events; a window not yet seen in one is read once ([packageOf]). */
         internal fun focusedPackage(): String? {
             val service = active ?: return null
             val target = service.focusedTarget() ?: return null
-            return service.windowPackages[target.id]
+            return service.packageOf(target.id)
         }
 
         /** z2-ui の相手にする前面の窓。キーボードより下は除いた範囲。メインスレッドから呼ぶ。 */
@@ -310,13 +328,13 @@ class AndroidActions : AccessibilityService() {
         internal fun foreground(): Foreground? {
             val service = active ?: return null
             val target = service.focusedTarget() ?: return null
-            return Foreground(service, target.id, Rect(target.bounds), service.windowPackages[target.id])
+            return Foreground(service, target.id, Rect(target.bounds), service.packageOf(target.id))
         }
 
         internal fun targetMatches(packageName: String): Boolean {
             val service = active ?: return false
             val target = service.focusedTarget() ?: return false
-            return service.windowPackages[target.id] == packageName
+            return service.packageOf(target.id) == packageName
         }
 
         private fun uiTarget(service: AndroidActions, targetPackage: String): AndroidUiElements.Window {
@@ -324,7 +342,7 @@ class AndroidActions : AccessibilityService() {
             check(service.getSystemService(android.os.PowerManager::class.java).isInteractive &&
                 !service.getSystemService(android.app.KeyguardManager::class.java).isKeyguardLocked) { "Screen is off or locked" }
             val target = service.focusedTarget() ?: error("No focused application window")
-            check(service.windowPackages[target.id] == targetPackage) { "Target app is not focused" }
+            check(service.packageOf(target.id) == targetPackage) { "Target app is not focused" }
             return AndroidUiElements.Window(target.id, Rect(target.bounds))
         }
 
@@ -369,7 +387,7 @@ class AndroidActions : AccessibilityService() {
             val service = active ?: error("Enable z2term Android actions in Accessibility settings")
             check(!service.autoScroll.running && !service.autoScroll.inFlight) { "Wait for scrolling to finish" }
             val target = service.focusedTarget() ?: error("No focused application window")
-            check(service.windowPackages[target.id] == step.target) { "Target app is not focused; switch to ${step.target}" }
+            check(service.packageOf(target.id) == step.target) { "Target app is not focused; switch to ${step.target}" }
             val points = step.tracks(screen).flatten()
             check(points.all { target.bounds.contains(it.x.toInt(), it.y.toInt()) }) {
                 "Coordinates must be inside the visible target window, above the keyboard"
@@ -377,7 +395,7 @@ class AndroidActions : AccessibilityService() {
             return service.coordinateStroke.dispatch(step, screen, stillTarget = {
                 val current = service.focusedTarget()
                 current != null && current.id == target.id && current.bounds == target.bounds &&
-                    service.windowPackages[current.id] == step.target &&
+                    service.packageOf(current.id) == step.target &&
                     com.zerotoship.z2term.automation.ActionRuntime.screen(service) == screen
             }, done = done)
         }

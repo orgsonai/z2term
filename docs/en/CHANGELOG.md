@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.108 (versionCode 806)**: Right after an update, for example, an action macro could wait 5 seconds and fail to start with "could not find the screen behind z2term". The app in front was known only from the notice sent when the screen changes, so after the accessibility service restarted it stayed unknown until the app in front changed. A window whose app is not known yet is now read directly once and remembered. z2-ui uses the same lookup for its target app.
+
 **1.0.107 (versionCode 805)**: Pulling the command sheet down from the Screen actions list made it shake. The list moves down with the sheet, so the finger seemed to travel back, and the sheet alternated between following the finger and backing off. The finger is now measured against the screen.
 
 **1.0.106 (versionCode 804)**: Since 1.0.105, in the Screen actions tab the command sheet could be pulled down to close only from its handle at the very top: the pull left over once the content reached its top never reached the sheet. As in the other tabs, pulling down on the content now closes the sheet when the content is at its top (while editing it still does not close, to keep unsaved changes).
