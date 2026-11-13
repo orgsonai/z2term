@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-11-13 / 対象バージョン: 1.0.97 (versionCode 795)
+最終更新: 2026-11-13 / 対象バージョン: 1.0.98 (versionCode 796)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -3963,7 +3963,7 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 
 `noInstallTimeout`（インストールタイムアウト無効化）等も DataStore (`z2term_settings`) に保持。SSH プロファイルは別 DataStore (`z2term_ssh`) に JSON で保存。
 
-**設定を初期化**（アクション）: 設定末尾（アプリ情報とライセンスの間）の「設定を初期化」ボタン（`danger` 表示）は、確認ダイアログを挟んで `AppSettings.resetToDefaults()`（DataStore `z2term_settings` を `clear()`）を呼ぶ。全キーが消えるので上表の各値・裏設定の解放フラグ・常駐サーバー定義・ツールバー並び順・各種ログ設定がすべて既定へ戻る（実行エンジンも既定 z2root に戻る）。rootfs（インストール済み OS）・ユーザファイル・言語（別 SharedPrefs `z2term_locale`）には触れない。
+**設定を初期化**（アクション）: メンテナンスの「設定を初期化」ボタン（`danger` 表示。1.0.98 で設定末尾のアプリ情報とライセンスの間から、端末リセット・キャッシュ削除の行と「すべて停止して終了」の下へ移した）は、確認ダイアログを挟んで `AppSettings.resetToDefaults()`（DataStore `z2term_settings` を `clear()`）を呼ぶ。全キーが消えるので上表の各値・裏設定の解放フラグ・常駐サーバー定義・ツールバー並び順・各種ログ設定がすべて既定へ戻る（実行エンジンも既定 z2root に戻る）。rootfs（インストール済み OS）・ユーザファイル・言語（別 SharedPrefs `z2term_locale`）には触れない。
 
 **更新を確認**（アクション、0.8.290）: アプリ情報セクションのバージョン行直下に置く「更新を確認」ボタン。押した瞬間だけ `UpdateChecker.check()`（`update/UpdateChecker.kt`）が GitHub Releases API（`/releases/latest`）へ 1 回 GET し、`tag_name` の major.minor.patch を `BuildConfig.VERSION_NAME` と数値比較する。**設定を開いただけでは通信せず、自動チェック・起動時チェック・バックグラウンド通信はしない**（ユーザーが押したときだけ通信する方針）。新版があれば版数を表示し「リリースページを開く」で `html_url` を `ACTION_VIEW` で開く。設定は保持しない（押すたびに問い合わせる一過性の状態）。判定の網羅は `numbersOf` の先頭 3 数値抽出で、`-alpha` や過去タグの commit ハッシュ（数字混じり）を比較に混ぜない。
 

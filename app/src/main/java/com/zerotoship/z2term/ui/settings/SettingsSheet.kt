@@ -1690,6 +1690,14 @@ fun SettingsSheet(
                     danger = true,
                     onClick = { pendingTaskKill = true }
                 )
+                // 設定の初期化 (すべての設定を既定値へ戻す)。グループの説明どおりメンテナンスに置き、
+                // 元に戻せない操作をここへまとめる (1.0.98 で「このアプリについて」から移した・利用者判断)。
+                // 横並びの 2 つには足さず 1 行で置く。ワンタップでは戻さず確認ダイアログを挟む。
+                ActionButton(
+                    label = stringResource(R.string.settings_reset_settings),
+                    danger = true,
+                    onClick = { pendingReset = true }
+                )
             }
 
             SettingsGroupSection(SettingsGroup.DEVELOPER) {
@@ -1831,8 +1839,6 @@ fun SettingsSheet(
                     updateDownloadDir = settings.updateDownloadDir,
                     onUpdateKeepApk = { session.setUpdateKeepApk(it) },
                     onUpdateDownloadDir = { session.setUpdateDownloadDir(it) },
-                    // 設定の初期化はアプリ情報とライセンスの間に置く (設定の一番下・要望)。
-                    onResetSettings = { pendingReset = true },
                     onToggle = {
                         // 7タップで z2root/chroot の診断設定を表示する。
                         if (settings.engineSelectorUnlocked) {
@@ -2051,7 +2057,6 @@ private fun AppInfoSection(
     updateDownloadDir: String,
     onUpdateKeepApk: (Boolean) -> Unit,
     onUpdateDownloadDir: (String) -> Unit,
-    onResetSettings: () -> Unit,
     onToggle: () -> Unit
 ) {
     val context = LocalContext.current
@@ -2252,14 +2257,6 @@ private fun AppInfoSection(
             fontFamily = FontFamily.Monospace
         )
     }
-    // 設定の初期化 (すべての設定を既定値へ戻す)。ワンタップでは戻さず確認ダイアログを挟む。
-    // 普段触らない操作なので、設定の末尾 (ライセンスの直前) に置く。
-    ActionButton(
-        label = stringResource(R.string.settings_reset_settings),
-        danger = true,
-        onClick = onResetSettings
-    )
-
     // 設定シート内にずらりと並べると視認性が悪いので、タップで開く Dialog に切り出す。
     var showLicensesDialog by remember { mutableStateOf(false) }
     Section(title = stringResource(R.string.settings_section_licenses)) {

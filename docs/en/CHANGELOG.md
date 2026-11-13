@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.98 (versionCode 796)**: Moved the “Reset settings” button from “About this app” to “Maintenance” in ⚙ Settings. The Maintenance description already listed resetting settings, but the button lived elsewhere; it now sits with Reset terminal and the other operations that cannot be undone. The switches in the Screen actions tab (“Show a stop button over other apps”) and in the edge panel settings now have the same shape as the other settings switches, with an outline while OFF, so OFF reads as clearly as ON.
+
 **1.0.97 (versionCode 795)**: Added `z2-action pause [RUN_ID]` and `z2-action resume [RUN_ID]`, the same pause and resume as the notification and the floating bar, for shell macros and `z2-when`. `resume` waits up to 5 seconds for a screen other than z2term to settle in front, so when typing it in z2term, switch to the screen to operate meanwhile.
 
 **1.0.96 (versionCode 794)**: Action macros can now be **paused and resumed**. Pulling down the notification shade during a run used to end it as a failure (“Cannot identify the foreground screen to operate”), and the notification vanished with its Stop button. Now the run pauses on the spot and the notification offers Resume and Stop macro. Closing the shade does not restart it; Resume closes the shade and continues once the target screen has settled. A step cut off midway is sent again from its start. The floating bar gains ‖ (pause), which turns into ▶ (resume) while paused, and the Screen actions tab has a Pause/Resume button. The macro's time limit does not run while it is paused.

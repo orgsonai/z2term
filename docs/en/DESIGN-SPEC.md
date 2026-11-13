@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-13 / Target version: 1.0.97 (versionCode 795)
+Last updated: 2026-11-13 / Target version: 1.0.98 (versionCode 796)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -4063,7 +4063,7 @@ built-in keyboard**".
 
 `noInstallTimeout` (disable install timeout), etc. are also kept in DataStore (`z2term_settings`). SSH profiles are saved as JSON in a separate DataStore (`z2term_ssh`).
 
-**Reset settings** (action): the "Reset settings" button at the end of the settings screen (between App info and Licenses) (`danger` style) shows a confirmation and then calls `AppSettings.resetToDefaults()` (which `clear()`s the `z2term_settings` DataStore). Clearing every key returns all values above, the hidden unlock flags, saved servers, toolbar order and log settings to their defaults (the execution engine goes back to the default z2root). The rootfs (installed OS), user files and language (separate SharedPrefs `z2term_locale`) are untouched.
+**Reset settings** (action): the "Reset settings" button in Maintenance (`danger` style; moved in 1.0.98 from the end of the settings screen, between App info and Licenses, to below the Reset terminal / Clear cache row and “Stop everything and quit”) shows a confirmation and then calls `AppSettings.resetToDefaults()` (which `clear()`s the `z2term_settings` DataStore). Clearing every key returns all values above, the hidden unlock flags, saved servers, toolbar order and log settings to their defaults (the execution engine goes back to the default z2root). The rootfs (installed OS), user files and language (separate SharedPrefs `z2term_locale`) are untouched.
 
 **Check for updates** (action, 0.8.290): a button placed directly under the version row in the App info section. Only when tapped does `UpdateChecker.check()` (`update/UpdateChecker.kt`) issue a single GET to the GitHub Releases API (`/releases/latest`) and compare the `tag_name`'s major.minor.patch numerically against `BuildConfig.VERSION_NAME`. **Merely opening settings touches no network; there is no automatic check, no launch-time check and no background traffic** (the network is contacted only on the user's tap). If a newer version exists it shows the number and "Open the release page" opens `html_url` via `ACTION_VIEW`. No setting is persisted (a transient state re-fetched on each tap). Version parsing (`numbersOf`) takes only the first three numbers so `-alpha` and the digit-bearing commit hashes of old tags never leak into the comparison.
 
