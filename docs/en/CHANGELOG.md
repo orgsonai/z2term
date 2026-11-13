@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.107 (versionCode 805)**: Pulling the command sheet down from the Screen actions list made it shake. The list moves down with the sheet, so the finger seemed to travel back, and the sheet alternated between following the finger and backing off. The finger is now measured against the screen.
+
 **1.0.106 (versionCode 804)**: Since 1.0.105, in the Screen actions tab the command sheet could be pulled down to close only from its handle at the very top: the pull left over once the content reached its top never reached the sheet. As in the other tabs, pulling down on the content now closes the sheet when the content is at its top (while editing it still does not close, to keep unsaved changes).
 
 **1.0.105 (versionCode 803)**: In Command list → Automation → Screen actions, the macro editor did not scroll, leaving its lower part out of reach. This screen is drawn with Android Views embedded in the sheet, and the sheet's own drag (pulling it to close) took every vertical drag before the editor saw it. The editor now takes the finger as soon as it touches; pulling down further at the top still moves the sheet.

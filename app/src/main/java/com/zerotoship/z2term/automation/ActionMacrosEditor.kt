@@ -257,9 +257,19 @@ internal class ActionMacrosEditor(
             // after the sheet's own drag has seen it. The sheet took every vertical drag, so the editor never
             // scrolled and its lower part stayed out of reach (1.0.105). Claim the finger on touch-down; scrolling
             // past the top still reaches the sheet through nested scrolling, so pulling it down to close works.
+            // ⚠ Measure the finger against the screen, not this view (1.0.107). Pulling down at the top moves the
+            // sheet, and this view with it; Compose moves it on the next frame, so nested scrolling reports no
+            // offset and the finger seemed to travel back by the sheet's own movement. The sheet then shook
+            // between following the finger and backing off.
+            private var screenTop = 0f
             override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-                if (ev.actionMasked == MotionEvent.ACTION_DOWN) parent?.requestDisallowInterceptTouchEvent(true)
-                return super.dispatchTouchEvent(ev)
+                if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                    screenTop = ev.rawY - ev.y
+                }
+                val shift = ev.rawY - screenTop - ev.y
+                ev.offsetLocation(0f, shift)
+                try { return super.dispatchTouchEvent(ev) } finally { ev.offsetLocation(0f, -shift) }
             }
         }.apply {
             isFillViewport = true
