@@ -174,4 +174,10 @@
     <string name="action_overlay_loop">%1$d/%2$d回目</string>
     <string name="action_overlay_loop_endless">%1$d回目</string>
     <string name="action_overlay_step">手順 %1$d/%2$d</string>
+    <string name="action_macro_pause">一時停止</string>
+    <string name="action_macro_resume">再開</string>
+    <string name="action_macro_paused">一時停止中: %1$s</string>
+    <string name="action_state_paused">一時停止中</string>
+    <string name="action_macro_resuming">再開を待っています: %1$s</string>
+    <string name="action_resume_no_screen">操作する画面が見つからないため、一時停止のままにしました。その画面を開いてから、もう一度「再開」を押してください。</string>
 </resources>

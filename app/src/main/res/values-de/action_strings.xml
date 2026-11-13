@@ -173,4 +173,10 @@
     <string name="action_overlay_loop">Durchlauf %1$d/%2$d</string>
     <string name="action_overlay_loop_endless">Durchlauf %1$d</string>
     <string name="action_overlay_step">Schritt %1$d/%2$d</string>
+    <string name="action_macro_pause">Pausieren</string>
+    <string name="action_macro_resume">Fortsetzen</string>
+    <string name="action_macro_paused">Pausiert: %1$s</string>
+    <string name="action_state_paused">Pausiert</string>
+    <string name="action_macro_resuming">Wird fortgesetzt: %1$s</string>
+    <string name="action_resume_no_screen">Der zu bedienende Bildschirm wurde nicht gefunden, das Makro bleibt pausiert. Öffne ihn und tippe erneut auf Fortsetzen.</string>
 </resources>

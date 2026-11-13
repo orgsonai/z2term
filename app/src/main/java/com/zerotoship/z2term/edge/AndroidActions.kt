@@ -263,6 +263,29 @@ class AndroidActions : AccessibilityService() {
         /** The service that owns the macro's stop bar window ([com.zerotoship.z2term.automation.ActionRunOverlay]). */
         internal fun overlayHost(): AndroidActions? = active
 
+        /**
+         * The notification shade (or another system window such as the power menu) is in front and has
+         * taken input. An app window is then no longer focused, so a macro cannot tell where to operate;
+         * the macro pauses instead of failing (1.0.96). The collapsed status bar never takes focus.
+         */
+        @Suppress("DEPRECATION")
+        internal fun systemUiFocused(): Boolean {
+            val service = active ?: return false
+            val current = service.windows
+            return try {
+                current.any {
+                    it.type == AccessibilityWindowInfo.TYPE_SYSTEM && (it.isFocused || it.isActive) &&
+                        (Build.VERSION.SDK_INT < 30 || it.displayId == android.view.Display.DEFAULT_DISPLAY)
+                }
+            } finally { current.forEach { it.recycle() } }
+        }
+
+        /** Closes the notification shade before a paused macro resumes (Android 12 and later). */
+        internal fun dismissShade() {
+            val service = active ?: return
+            if (Build.VERSION.SDK_INT >= 31) runCatching { service.performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE) }
+        }
+
         /** Uses package metadata from window events without retrieving UI nodes. */
         internal fun focusedPackage(): String? {
             val service = active ?: return null

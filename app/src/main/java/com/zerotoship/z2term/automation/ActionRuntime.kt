@@ -39,6 +39,12 @@ internal object ActionRuntime {
     private var retiringService: ActionService? = null
     private val results = linkedMapOf<String, JSONObject>()
     val running get() = current != null
+    /** For the notification: whether the current run is paused, and whether a resume is waiting for its screen. */
+    val paused get() = current?.engine?.paused == true
+    val resuming get() = current?.let { it.engine.paused && it.cancelStart != null } == true
+    /** A gesture cancelled by a real touch fails before the shade that touch opens takes focus. */
+    private const val SHADE_GRACE_MS = 400L
+    private const val SHADE_REASON = "Notification shade opened"
     fun store(context: Context) = ActionStore(File(context.filesDir, "shared_home/.z2term/actions"))
 
     @Suppress("DEPRECATION")
@@ -80,6 +86,7 @@ internal object ActionRuntime {
                     override fun run() {
                         if (current !== run) return
                         try { checkDevice(run) } catch (e: Exception) { stop(run.id, e.message ?: "Device changed"); return }
+                        if (run.engine.running && !run.engine.paused && AndroidActions.systemUiFocused()) pause(run, SHADE_REASON)
                         main.postDelayed(this, 100)
                     }
                 }
@@ -100,7 +107,8 @@ internal object ActionRuntime {
         if (run.service != null) return true
         run.service = service
         service.showRun(run.name)
-        ActionRunOverlay.show(AndroidActions.overlayHost(), run.name) { runCatching { stop(run.id) } }
+        ActionRunOverlay.show(AndroidActions.overlayHost(), run.name, stop = { runCatching { stop(run.id) } },
+            toggle = { runCatching { if (run.engine.paused) resume(run.id) else pause(run.id) } })
         if (run.awaitBackground) {
             run.cancelStart = ActionForegroundWait(::schedule).start(if (run.allowOwnForeground) "" else run.context.packageName, {
                 checkDevice(run)
@@ -161,7 +169,22 @@ internal object ActionRuntime {
             check(focused == null || focused == target) { "Target application changed" }
         }
     }
+    /**
+     * The notification shade pauses the run instead of failing it (1.0.96). Pulling the shade is a real touch,
+     * so it first cancels a gesture in flight or hides the foreground app; a failure is reported only when
+     * the shade has not come up [SHADE_GRACE_MS] later.
+     */
     private fun execute(run: Run, step: ActionDefinition.Step, completed: (String?) -> Unit): (() -> Unit)? {
+        if (AndroidActions.systemUiFocused()) { main.post { if (current === run) pause(run, SHADE_REASON) }; return null }
+        val guarded: (String?) -> Unit = { error ->
+            if (error == null) completed(null)
+            else schedule(SHADE_GRACE_MS) {
+                if (current === run) { if (AndroidActions.systemUiFocused()) pause(run, SHADE_REASON) else completed(error) }
+            }
+        }
+        return try { executeStep(run, step, guarded) } catch (e: Exception) { guarded(e.message ?: "Action failed"); null }
+    }
+    private fun executeStep(run: Run, step: ActionDefinition.Step, completed: (String?) -> Unit): (() -> Unit)? {
         checkDevice(run)
         fun done(error: String?) { run.target = null; completed(error) }
         fun target(requested: String): String = if (requested == ActionDefinition.CURRENT_TARGET)
@@ -253,6 +276,51 @@ internal object ActionRuntime {
         }
         if (id != null) status(id) else status()
     }
+    /** Holds the run where it is; [resume] sends the interrupted step again from its start. */
+    fun pause(id: String? = null): JSONObject = EdgeRuntime.onMain {
+        current?.takeIf { id == null || it.id == id }?.let { pause(it, "Paused") }
+        if (id != null) status(id) else status()
+    }
+    private fun pause(run: Run, reason: String) {
+        // Before the first step there is nothing to hold; the start still waits for its screen.
+        if (!run.engine.running || !run.engine.pause()) return
+        run.target = null
+        AndroidActions.stopAutoScroll()
+        log(run, "paused", reason)
+        refresh(run)
+    }
+    /**
+     * Continues once a screen other than z2term has stayed in front for half a second, as at the start.
+     * [background] moves z2term away first when resuming from its own screen. If no screen settles within
+     * five seconds the run stays paused.
+     */
+    fun resume(id: String? = null, background: (() -> Unit)? = null): JSONObject = EdgeRuntime.onMain {
+        val run = current?.takeIf { (id == null || it.id == id) && it.engine.paused && it.cancelStart == null }
+        if (run != null) {
+            AndroidActions.dismissShade()
+            run.cancelStart = ActionForegroundWait(::schedule).start(if (run.allowOwnForeground) "" else run.context.packageName, {
+                checkDevice(run)
+                if (AndroidActions.systemUiFocused()) null else AndroidActions.focusedPackage()
+            }, run.context.getString(com.zerotoship.z2term.R.string.action_resume_no_screen)) { error ->
+                run.cancelStart = null
+                if (current === run && run.engine.paused) {
+                    if (error != null) {
+                        log(run, "paused", error)
+                        android.widget.Toast.makeText(run.context, error, android.widget.Toast.LENGTH_LONG).show()
+                    } else { log(run, "resumed"); run.engine.resume() }
+                    refresh(run)
+                }
+            }
+            refresh(run)
+            background?.let { runCatching(it) }
+        }
+        if (id != null) status(id) else status()
+    }
+    /** Brings the stop bar and the notification in line with the run's state. */
+    private fun refresh(run: Run) {
+        ActionRunOverlay.setPaused(run.engine.paused, run.cancelStart != null)
+        runCatching { run.service?.showRun(run.name) }
+    }
     fun serviceDestroyed(service: ActionService) {
         if (retiringService === service) retiringService = null
         current?.takeIf { it.service === service }?.let { stop(it.id, "Execution service stopped") }
@@ -284,7 +352,8 @@ internal object ActionRuntime {
     }
     fun status(id: String? = null): JSONObject = EdgeRuntime.onMain {
         val run = current
-        if (run != null && (id == null || run.id == id)) json(run, if (run.engine.running) "running" else "queued")
+        if (run != null && (id == null || run.id == id)) json(run, when {
+            run.engine.paused -> "paused"; run.engine.running -> "running"; else -> "queued" })
         else if (id != null) results[id] ?: error("No retained run: $id")
         else results.values.lastOrNull() ?: JSONObject().put("state", "idle")
     }

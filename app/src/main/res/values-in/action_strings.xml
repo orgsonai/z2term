@@ -173,4 +173,10 @@
     <string name="action_overlay_loop">putaran %1$d/%2$d</string>
     <string name="action_overlay_loop_endless">putaran %1$d</string>
     <string name="action_overlay_step">langkah %1$d/%2$d</string>
+    <string name="action_macro_pause">Jeda</string>
+    <string name="action_macro_resume">Lanjutkan</string>
+    <string name="action_macro_paused">Dijeda: %1$s</string>
+    <string name="action_state_paused">Dijeda</string>
+    <string name="action_macro_resuming">Melanjutkan: %1$s</string>
+    <string name="action_resume_no_screen">Layar yang akan dioperasikan tidak ditemukan, jadi makro tetap dijeda. Buka layar itu lalu tekan Lanjutkan lagi.</string>
 </resources>

@@ -27,7 +27,7 @@ import kotlin.math.abs
  * (「他のアプリの上に表示」の許可は要らない)。既定 OFF (操作マクロのタブで ON にする)。
  *
  * - 帯は指で動かせる。置いた場所は覚えておき、次の実行も同じ場所に出す。
- * - ■ だけが停止。帯のほかの場所は動かすための取っ手で、押しても止めない。
+ * - ■ が停止、‖ が一時停止 (一時停止中は ▶ で再開)。帯のほかの場所は動かすための取っ手で、押しても何も起きない。
  * - 前面の窓の判定 ([com.zerotoship.z2term.edge.AndroidActions] の focusedTarget) は
  *   TYPE_APPLICATION の窓だけを見るので、この重ね窓は操作先・要素の検索に混ざらない。
  *   フォーカスも取らない (FLAG_NOT_FOCUSABLE)。
@@ -58,12 +58,15 @@ internal object ActionRunOverlay {
     private var root: LinearLayout? = null
     private var params: WindowManager.LayoutParams? = null
     private var progress: TextView? = null
+    private var nameView: TextView? = null
+    private var toggleView: TextView? = null
+    private var runName = ""
     private var hidden = false
     private var cancelRestore: (() -> Unit)? = null
 
     /** 実行が始まったとき (メインスレッド)。OFF・ユーザー補助なしなら何もしない。 */
     @SuppressLint("ClickableViewAccessibility")
-    fun show(host: AccessibilityService?, name: String, stop: () -> Unit) {
+    fun show(host: AccessibilityService?, name: String, stop: () -> Unit, toggle: () -> Unit) {
         dismiss()
         if (host == null || !enabled(host)) return
         fun dp(value: Int) = ActionUi.dp(host, value)
@@ -75,12 +78,20 @@ internal object ActionRunOverlay {
             // 幅を先に取っておく: 文字が増えて帯が伸びると、右端に置いた帯が画面からはみ出す。
             maxLines = 1; maxWidth = dp(160); minWidth = dp(120)
         }
-        val stopText = ActionUi.label(host, "■", 18f, ActionUi.dangerColor).apply {
+        // 押すのは指 (帯の onTouch) で判定する。読み上げからは各ボタンを直接押せる。
+        fun control(glyph: String, color: Int, label: String, action: () -> Unit) = ActionUi.label(host, glyph, 18f, color).apply {
             gravity = Gravity.CENTER
             minWidth = dp(48); minHeight = dp(48)
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            contentDescription = label
+            // performClick は押せない状態でも呼び出しを通すので、ここで弾く。
+            setOnClickListener { if (isEnabled) action() }
         }
-        val bar = LinearLayout(host).apply {
+        val toggleText = control("‖", ActionUi.textColor, host.getString(R.string.action_macro_pause), toggle)
+        val stopText = control("■", ActionUi.dangerColor, host.getString(R.string.action_macro_stop), stop)
+        // 子のボタンにタッチを渡さず、帯がすべて受けて「動かす／押す」を決める。
+        val bar = object : LinearLayout(host) {
+            override fun onInterceptTouchEvent(ev: MotionEvent?) = true
+        }.apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = GradientDrawable().apply {
@@ -91,11 +102,8 @@ internal object ActionRunOverlay {
                 orientation = LinearLayout.VERTICAL
                 addView(nameView); addView(progressView)
             }, LinearLayout.LayoutParams(-2, -2))
-            addView(stopText, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(4) })
-            // 読み上げでは帯全体を 1 つの停止ボタンとして扱う。
-            contentDescription = host.getString(R.string.action_macro_stop)
-            isClickable = true
-            setOnClickListener { stop() }
+            addView(toggleText, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(4) })
+            addView(stopText, LinearLayout.LayoutParams(-2, -2))
         }
         val saved = prefs(host)
         val lp = WindowManager.LayoutParams(
@@ -130,7 +138,8 @@ internal object ActionRunOverlay {
                 MotionEvent.ACTION_UP -> if (tracking) {
                     tracking = false
                     if (dragging) prefs(host).edit().putInt(KEY_X, lp.x).putInt(KEY_Y, lp.y).apply()
-                    else if (event.x >= stopText.left - dp(4)) { view.performClick() }
+                    else if (event.x >= stopText.left) stopText.performClick()
+                    else if (event.x >= toggleText.left - dp(4)) toggleText.performClick()
                 }
                 MotionEvent.ACTION_CANCEL -> tracking = false
             }
@@ -138,6 +147,7 @@ internal object ActionRunOverlay {
         }
         if (runCatching { wm.addView(bar, lp) }.isFailure) return
         service = host; root = bar; params = lp; progress = progressView
+        this.nameView = nameView; toggleView = toggleText; runName = name
         // 初回 (まだ動かしていない) は右上。大きさが決まってから置く。前回の位置も画面の中に収める。
         bar.post {
             if (root !== bar) return@post
@@ -163,12 +173,27 @@ internal object ActionRunOverlay {
         return parts.joinToString(" · ")
     }
 
+    /** 一時停止中は ‖ を ▶ に変え、名前の前に「一時停止中」と出す。再開の画面待ちの間は ▶ を押せない。 */
+    fun setPaused(paused: Boolean, resuming: Boolean) {
+        val toggle = toggleView ?: return
+        val context = toggle.context
+        toggle.text = if (paused) "▶" else "‖"
+        toggle.contentDescription = context.getString(if (paused) R.string.action_macro_resume else R.string.action_macro_pause)
+        toggle.isEnabled = !resuming
+        toggle.alpha = if (resuming) 0.4f else 1f
+        nameView?.text = when {
+            resuming -> context.getString(R.string.action_macro_resuming, runName)
+            paused -> context.getString(R.string.action_macro_paused, runName)
+            else -> runName
+        }
+    }
+
     /** 実行が終わったとき。 */
     fun dismiss() {
         cancelRestore?.invoke(); cancelRestore = null
         val view = root
         if (view != null) runCatching { service?.getSystemService(WindowManager::class.java)?.removeViewImmediate(view) }
-        service = null; root = null; params = null; progress = null; hidden = false
+        service = null; root = null; params = null; progress = null; nameView = null; toggleView = null; hidden = false
     }
 
     /**

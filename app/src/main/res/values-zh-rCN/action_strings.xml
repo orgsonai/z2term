@@ -174,4 +174,10 @@
     <string name="action_overlay_loop">第 %1$d/%2$d 次</string>
     <string name="action_overlay_loop_endless">第 %1$d 次</string>
     <string name="action_overlay_step">步骤 %1$d/%2$d</string>
+    <string name="action_macro_pause">暂停</string>
+    <string name="action_macro_resume">继续</string>
+    <string name="action_macro_paused">已暂停：%1$s</string>
+    <string name="action_state_paused">已暂停</string>
+    <string name="action_macro_resuming">正在继续：%1$s</string>
+    <string name="action_resume_no_screen">找不到要操作的画面，宏仍保持暂停。请打开该画面后再按“继续”。</string>
 </resources>

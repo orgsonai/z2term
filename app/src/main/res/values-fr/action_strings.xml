@@ -173,4 +173,10 @@
     <string name="action_overlay_loop">passage %1$d/%2$d</string>
     <string name="action_overlay_loop_endless">passage %1$d</string>
     <string name="action_overlay_step">étape %1$d/%2$d</string>
+    <string name="action_macro_pause">Pause</string>
+    <string name="action_macro_resume">Reprendre</string>
+    <string name="action_macro_paused">En pause : %1$s</string>
+    <string name="action_state_paused">En pause</string>
+    <string name="action_macro_resuming">Reprise : %1$s</string>
+    <string name="action_resume_no_screen">L’écran à piloter est introuvable, la macro reste en pause. Ouvrez cet écran puis appuyez de nouveau sur Reprendre.</string>
 </resources>

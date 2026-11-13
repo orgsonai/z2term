@@ -173,4 +173,10 @@
     <string name="action_overlay_loop">repetição %1$d/%2$d</string>
     <string name="action_overlay_loop_endless">repetição %1$d</string>
     <string name="action_overlay_step">passo %1$d/%2$d</string>
+    <string name="action_macro_pause">Pausar</string>
+    <string name="action_macro_resume">Retomar</string>
+    <string name="action_macro_paused">Pausada: %1$s</string>
+    <string name="action_state_paused">Pausada</string>
+    <string name="action_macro_resuming">Retomando: %1$s</string>
+    <string name="action_resume_no_screen">A tela a controlar não foi encontrada, então a macro continua pausada. Abra essa tela e toque em Retomar de novo.</string>
 </resources>

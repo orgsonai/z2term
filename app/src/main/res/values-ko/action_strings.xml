@@ -174,4 +174,10 @@
     <string name="action_overlay_loop">%1$d/%2$d회차</string>
     <string name="action_overlay_loop_endless">%1$d회차</string>
     <string name="action_overlay_step">단계 %1$d/%2$d</string>
+    <string name="action_macro_pause">일시정지</string>
+    <string name="action_macro_resume">재개</string>
+    <string name="action_macro_paused">일시정지됨: %1$s</string>
+    <string name="action_state_paused">일시정지됨</string>
+    <string name="action_macro_resuming">재개 대기 중: %1$s</string>
+    <string name="action_resume_no_screen">조작할 화면을 찾지 못해 일시정지 상태로 두었습니다. 그 화면을 연 뒤 다시 재개를 누르세요.</string>
 </resources>

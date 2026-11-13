@@ -45,19 +45,29 @@ class ActionService : Service() {
             NotificationManager.IMPORTANCE_DEFAULT).apply {
             setShowBadge(false); setSound(null, null); enableVibration(false)
         })
-        val stop = PendingIntent.getService(this, 7811,
-            Intent(this, ActionService::class.java).setAction(STOP)
+        fun control(action: String, code: Int) = PendingIntent.getService(this, code,
+            Intent(this, ActionService::class.java).setAction(action)
                 .setData("z2term-action:${runId.orEmpty()}".toUri())
                 .putExtra("run_id", runId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val notification = NotificationCompat.Builder(this, CHANNEL)
+        val stop = control(STOP, 7811)
+        // Paused: Resume and Stop. Waiting for the screen after Resume: Stop only. Running: Pause and Stop.
+        val paused = ActionRuntime.paused
+        val resuming = ActionRuntime.resuming
+        val state = getString(when {
+            resuming -> R.string.action_macro_resuming
+            paused -> R.string.action_macro_paused
+            else -> R.string.action_macro_running
+        }, name)
+        val builder = NotificationCompat.Builder(this, CHANNEL)
             .setZ2SmallIcon(this)
             .setContentTitle(getString(R.string.action_macro_title))
-            .setContentText(getString(R.string.action_macro_running, name) +
-                if (progressText.isNotEmpty()) " · $progressText" else "")
+            .setContentText(state + if (progressText.isNotEmpty()) " · $progressText" else "")
             .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false)
             .setCategory(NotificationCompat.CATEGORY_SERVICE).setBadgeIconType(NotificationCompat.BADGE_ICON_NONE)
-            .addAction(0, getString(R.string.action_macro_stop), stop).build()
+        if (runId != null && !resuming) builder.addAction(0, getString(if (paused) R.string.action_macro_resume else R.string.action_macro_pause),
+            control(if (paused) RESUME else PAUSE, 7812))
+        val notification = builder.addAction(0, getString(R.string.action_macro_stop), stop).build()
         if (Build.VERSION.SDK_INT >= 34) startForeground(7811, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         else startForeground(7811, notification)
     }
@@ -80,6 +90,10 @@ class ActionService : Service() {
         if (intent?.action == STOP) {
             intent.getStringExtra("run_id")?.let { runCatching { ActionRuntime.stop(it) } }
             if (!ActionRuntime.running) stopSelf()
+        } else if (intent?.action == PAUSE || intent?.action == RESUME) {
+            intent.getStringExtra("run_id")?.let { id ->
+                runCatching { if (intent.action == PAUSE) ActionRuntime.pause(id) else ActionRuntime.resume(id) }
+            }
         } else {
             runId = intent?.getStringExtra("run_id")
             try {
@@ -102,5 +116,7 @@ class ActionService : Service() {
         private const val LEGACY_CHANNEL = "z2term_actions_v1"
         private const val PROGRESS_INTERVAL_MS = 1000L
         private const val STOP = "com.zerotoship.z2term.ACTION_MACRO_STOP"
+        private const val PAUSE = "com.zerotoship.z2term.ACTION_MACRO_PAUSE"
+        private const val RESUME = "com.zerotoship.z2term.ACTION_MACRO_RESUME"
     }
 }

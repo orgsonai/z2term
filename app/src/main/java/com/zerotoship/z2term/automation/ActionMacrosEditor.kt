@@ -66,6 +66,7 @@ internal class ActionMacrosEditor(
     private lateinit var body: LinearLayout
     private var statusView: TextView? = null
     private var stopButton: TextView? = null
+    private var pauseButton: TextView? = null
     private var statusJob: Job? = null
     private val dialogs = mutableListOf<Dialog>()
     private var scrollView: NestedScrollView? = null
@@ -253,7 +254,7 @@ internal class ActionMacrosEditor(
         }
         view.removeAllViews()
         view.addView(scroll, FrameLayout.LayoutParams(-1, -1))
-        statusView = null; stopButton = null
+        statusView = null; stopButton = null; pauseButton = null
         val unlocked = AppLock.state.value == AppLock.State.UNLOCKED
         header(unlocked)
         if (!unlocked) {
@@ -287,7 +288,22 @@ internal class ActionMacrosEditor(
             val id = stopButton?.tag as? String
             if (id != null) runCatching { ActionRuntime.stop(id) }.onFailure { message(it.message.orEmpty()) }
             updateStatus()
-        }.also { running.addView(it, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) }) }
+        }
+        pauseButton = pill(R.string.action_macro_pause) {
+            val id = pauseButton?.tag as? String ?: return@pill
+            runCatching {
+                if (ActionRuntime.status(id).optString("state") == "paused") ActionRuntime.resume(id, background = {
+                    // Same as Run: the macro continues on the screen behind z2term.
+                    if (!embedded) com.zerotoship.z2term.MainActivity.moveToBackground()
+                    activity.moveTaskToBack(true)
+                }) else ActionRuntime.pause(id)
+            }.onFailure { message(it.message.orEmpty()) }
+            updateStatus()
+        }
+        running.addView(LinearLayout(this).apply {
+            addView(pauseButton, LinearLayout.LayoutParams(-2, -2))
+            addView(stopButton, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8) })
+        }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(8) })
         add(running)
         updateStatus()
         // The run card above cannot be reached once the macro brings its target app forward.
@@ -588,14 +604,19 @@ internal class ActionMacrosEditor(
         if (statusView == null) return
         val status = ActionRuntime.status()
         statusView?.text = formatStatus(status)
-        val running = status.optString("state") in listOf("queued", "running")
+        val running = status.optString("state") in listOf("queued", "running", "paused")
         stopButton?.isEnabled = running
         stopButton?.tag = status.optString("id").takeIf { running }
+        val paused = status.optString("state") == "paused"
+        pauseButton?.text = getString(if (paused) R.string.action_macro_resume else R.string.action_macro_pause)
+        pauseButton?.isEnabled = running && status.optString("state") != "queued"
+        pauseButton?.tag = status.optString("id").takeIf { running }
     }
     private fun formatStatus(status: JSONObject): String {
         val state = when (status.optString("state")) {
             "queued" -> R.string.action_state_queued
-            "running", "step" -> R.string.action_state_running
+            "running", "step", "resumed" -> R.string.action_state_running
+            "paused" -> R.string.action_state_paused
             "branch" -> if (status.optString("detail") == "true") R.string.action_branch_true else R.string.action_branch_false
             "completed" -> R.string.action_state_completed
             "cancelled" -> R.string.action_state_cancelled

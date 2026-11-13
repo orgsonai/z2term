@@ -22,6 +22,7 @@ class ActionExecutionTest {
             }
             time = to
         }
+        fun now() = time
     }
     private fun definition() = ActionDefinition.parse("version=1\ntimeout=1\nwait 10\nwait 20")
     @Test fun completionNotInvocationAdvancesAndDuplicateCallbacksAreIgnored() {
@@ -38,6 +39,38 @@ class ActionExecutionTest {
         assertEquals("completed", results.single().state)
         assertEquals(2, results.single().step)
         assertFalse(engine.running)
+    }
+    @Test fun pauseCancelsTheStepHoldsTheDeadlineAndResumeSendsTheStepAgain() {
+        val clock = Clock(); val engine = ActionExecution(clock::schedule, clock::now)
+        val callbacks = mutableListOf<(String?) -> Unit>(); val results = mutableListOf<ActionExecution.Result>()
+        var cancelled = 0; val indexes = mutableListOf<Int>()
+        engine.start(definition(), { _, done -> callbacks += done; { cancelled++ } }, { index, _ -> indexes += index }, results::add)
+        clock.advance(80)
+        assertTrue(engine.pause()); assertFalse(engine.pause())
+        assertEquals(1, cancelled)
+        callbacks[0](null)
+        // Longer than timeout=1 (s): a paused run does not time out and sends nothing.
+        clock.advance(5000)
+        assertTrue(engine.running); assertTrue(results.isEmpty()); assertEquals(1, callbacks.size)
+        assertTrue(engine.resume()); assertFalse(engine.resume())
+        clock.advance(5020)
+        assertEquals(2, callbacks.size)
+        assertEquals(listOf(1, 1), indexes)
+        callbacks[1](null); clock.advance(5040)
+        callbacks[2](null); clock.advance(5060)
+        assertEquals("completed", results.single().state)
+        assertEquals(2, results.single().step)
+    }
+    @Test fun resumedRunStillTimesOutWithTheTimeLeftBeforeThePause() {
+        val clock = Clock(); val engine = ActionExecution(clock::schedule, clock::now)
+        val results = mutableListOf<ActionExecution.Result>()
+        engine.start(definition(), { _, _ -> null }, { _, _ -> }, results::add)
+        clock.advance(400); engine.pause()
+        clock.advance(10_000); engine.resume()
+        clock.advance(10_599)
+        assertTrue(results.isEmpty())
+        clock.advance(10_600)
+        assertEquals("timeout", results.single().state)
     }
     @Test fun stopCancelsCurrentStepAndInvalidatesItsLateCallbackAcrossRuns() {
         val clock = Clock(); val engine = ActionExecution(clock::schedule)

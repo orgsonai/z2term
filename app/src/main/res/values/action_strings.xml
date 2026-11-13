@@ -174,4 +174,10 @@
     <string name="action_overlay_loop">pass %1$d/%2$d</string>
     <string name="action_overlay_loop_endless">pass %1$d</string>
     <string name="action_overlay_step">step %1$d/%2$d</string>
+    <string name="action_macro_pause">Pause</string>
+    <string name="action_macro_resume">Resume</string>
+    <string name="action_macro_paused">Paused: %1$s</string>
+    <string name="action_state_paused">Paused</string>
+    <string name="action_macro_resuming">Resuming: %1$s</string>
+    <string name="action_resume_no_screen">Could not find the screen to operate, so the macro stays paused. Open that screen and press Resume again.</string>
 </resources>
