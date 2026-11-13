@@ -221,6 +221,8 @@ long-click desc=その他の操作
 | `z2-action wait RUN_ID` | 指定した実行の完了待ち |
 | `z2-action status [RUN_ID]` | JSONで状態・手順番号・結果を取得 |
 | `z2-action stop [RUN_ID]` | 残りの手順を停止。ID省略時は現在の実行 |
+| `z2-action pause [RUN_ID]` | 一時停止（1.0.97）。途中の手順は再開時に最初から送る。状態のJSONを返す |
+| `z2-action resume [RUN_ID]` | 再開（1.0.97）。z2term 以外の前面画面が約500ミリ秒落ち着いてから続ける。5秒以内に出なければ一時停止のまま。z2term の画面から打った場合は、その間に操作したい画面へ切り替える |
 | `z2-action inspect PACKAGE` | 前面の対象アプリの表示文字・説明・IDをJSONで取得 |
 | `z2-action screen` | `screen=幅x高さ@向き` を取得。向きは0/1/2/3 |
 | `z2-action history` | 最近256件までの開始・手順開始・分岐判定・終了記録をJSONで取得 |

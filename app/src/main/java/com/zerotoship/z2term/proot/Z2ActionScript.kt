@@ -16,10 +16,14 @@ fun z2ActionScript(lang: String): String {
         en = "version=2 also supports click SELECTOR, long-click SELECTOR and wait-ui MS SELECTOR.\nSelectors: text=Continue, desc=More options, id=org.example.app:id/next. Exact matches; no quoting around spaces.\nSet target or launch first. wait-ui searches every 250ms for up to 1–30000ms; multiple matches fail.\nActions are sent once; use wait-ui for the next screen. Input/password fields are excluded.\ninspect PACKAGE returns visible text, descriptions and IDs from the focused target app as JSON.",
         ja = "version=2 では click 対象、long-click 対象、wait-ui ミリ秒 対象 も使えます。\n対象は text=次へ、desc=その他、id=org.example.app:id/next。完全一致で、空白を引用符で囲みません。\n先に target または launch を指定します。wait-ui は250ミリ秒間隔、1〜30000ミリ秒まで検索。複数一致は失敗です。\n操作は1回だけ送り、次の画面には wait-ui を使います。入力欄・パスワード欄は対象外です。\ninspect パッケージ名 は、前面の対象アプリの表示文字・説明・IDをJSONで返します。"
     )
-    val header = (description + "\n" + controlHelp + "\n" + uiHelp).lines().joinToString("\n") { "# $it" }
+    val pauseHelp = t("action.pauseHelp",
+        en = "pause [RUN_ID] holds the run; the step in progress is sent again from its start. Opening the notification shade also pauses.\nresume [RUN_ID] continues once a screen other than z2term stays in front (up to 5 seconds; otherwise it stays paused). The time limit stops while paused.",
+        ja = "pause [実行ID] で一時停止。途中の手順は再開時に最初から送ります。通知欄を下ろしても一時停止します。\nresume [実行ID] は z2term 以外の画面が前に出て落ち着いてから続けます（5秒まで。出なければ一時停止のまま）。一時停止の間は制限時間が止まります。"
+    )
+    val header = (description + "\n" + pauseHelp + "\n" + controlHelp + "\n" + uiHelp).lines().joinToString("\n") { "# $it" }
     return "#!/bin/sh\n$header\n" + """
         |# z2-action list | show NAME | save NAME FILE|- | delete NAME
-        |# z2-action run NAME | start NAME | wait RUN_ID | status [RUN_ID] | stop [RUN_ID]
+        |# z2-action run NAME | start NAME | wait RUN_ID | status [RUN_ID] | stop [RUN_ID] | pause [RUN_ID] | resume [RUN_ID]
         |# z2-action screen | history | inspect PACKAGE
         |# version=1|2 / timeout=30 / screen=current
         |# target PACKAGE / launch PACKAGE / wait MILLISECONDS / key back|home|recents|shade|quicksettings|screenshot|split

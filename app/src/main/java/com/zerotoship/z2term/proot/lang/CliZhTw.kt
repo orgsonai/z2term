@@ -87,6 +87,7 @@ internal object CliZhTw : CliLanguage {
             "keyring.msgPopulateFail" to "❌ pacman-key --populate 失敗了。下次開啟這個分頁時會再試一次。",
             "action.description" to "具名的Android操作巨集。用 z2-key permission 啟用Android操作。\n儲存時驗證並取代定義；screen=current 記錄目前螢幕尺寸。\nrun 等待完成，start 傳回執行ID。中斷 run 會停止該次執行。\n同時執行一個，定義最多64條指令、1–300秒。可從通知或 stop 停止後續步驟。\n座標操作需要目標應用程式及相符的螢幕尺寸、方向。單次操作最多3秒。\n手勢入口使用 start，Shell巨集或 z2-when 使用 run。\n儲存於 /root/.z2term/actions/NAME.actions（共用家目錄）。也可用 z2-macro actions。",
             "action.controlHelp" to "version=2 支援 repeat 次數|forever ... end、if 條件 ... else ... end 及 call 名稱。\n條件使用 z2-state 鍵或 foreground=套件名稱；逗號表示AND，!表示否定。\n無法取得條件狀態時執行失敗。執行前驗證並固定所有呼叫的巨集。\n每個定義最多64條指令，每次執行最多10000條。父巨集和子巨集的逾時均有效。",
+            "action.pauseHelp" to "pause [執行ID] 暫停執行；進行中的步驟在繼續時從頭重新送出。下拉通知欄也會暫停。\nresume [執行ID] 在 z2term 以外的畫面穩定在前景後繼續（最多5秒，否則保持暫停）。暫停期間時間限制停止計時。",
             "action.uiHelp" to "version=2還支援click 選擇器、long-click 選擇器和wait-ui 毫秒 選擇器。\n選擇器範例：text=繼續、desc=更多選項、id=org.example.app:id/next。精確比對，空格不加引號。\n先設定target或launch。wait-ui每250毫秒查詢，期限1–30000毫秒；多項符合時失敗。\n操作僅傳送一次，下一畫面使用wait-ui等待。輸入欄位及密碼欄位除外。\ninspect 套件名稱以JSON傳回前景目標應用程式的顯示文字、說明和ID。",
             "adb.mNoPm" to "z2adb: 找不到支援的套件管理器 (apk/apt-get/pacman)。",
             "adb.mInstalling" to "z2adb: 正在用 ${d}PM 安裝 adb 用戶端 (${d}ADB_PKG) ...",

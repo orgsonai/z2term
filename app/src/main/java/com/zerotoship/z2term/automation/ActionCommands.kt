@@ -22,9 +22,16 @@ internal object ActionCommands {
             }
             "screen" -> { count(1); "screen=${ActionRuntime.screen(context)}" }
             "start" -> { count(2); ActionRuntime.start(context, args[1]) }
-            "status", "stop" -> {
-                require(args.size in 1..2) { "status|stop [RUN_ID]" }
-                (if (args[0] == "stop") ActionRuntime.stop(args.getOrNull(1)) else ActionRuntime.status(args.getOrNull(1))).toString()
+            "status", "stop", "pause", "resume" -> {
+                require(args.size in 1..2) { "status|stop|pause|resume [RUN_ID]" }
+                val id = args.getOrNull(1)
+                when (args[0]) {
+                    "stop" -> ActionRuntime.stop(id)
+                    "pause" -> ActionRuntime.pause(id)
+                    // From the shell, z2term is not moved away; the run waits for another screen as at the start.
+                    "resume" -> ActionRuntime.resume(id)
+                    else -> ActionRuntime.status(id)
+                }.toString()
             }
             "history" -> { count(1); ActionRuntime.history(context) }
             else -> throw IllegalArgumentException("See z2-action --help")
