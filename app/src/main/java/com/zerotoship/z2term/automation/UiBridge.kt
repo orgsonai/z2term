@@ -71,7 +71,12 @@ import java.util.concurrent.atomic.AtomicInteger
 @SuppressLint("MissingPermission")
 internal object UiBridge {
     private const val TAG = "UiBridge"
-    private const val CHANNEL = "z2term_ui"
+    // ⚠ 1.0.108 までの "z2term_ui" は「低」の重要度で、通知欄の「サイレント」の段で z2term の常駐通知と
+    // 一緒に「z2term 3」へたたまれ、まとめと通知を 2 回広げないと「再開」「停止」を押せなかった。
+    // 操作マクロの通知 (1.0.95) と同じく、音もバイブも無しの「既定」にしてふつうの段に出す (1.0.109)。
+    // 重要度は作ったあとで変えられないので、チャネルを作り直す。
+    private const val CHANNEL = "z2term_ui_v2"
+    private const val LEGACY_CHANNEL = "z2term_ui"
     private const val CHANNEL_ASK = "z2term_ui_ask"
     private const val NOTIFY_RUNNING = 7820
     private const val NOTIFY_ASK = 7821
@@ -1025,9 +1030,10 @@ internal object UiBridge {
 
     private fun channels(app: Context) {
         val manager = app.getSystemService(NotificationManager::class.java)
+        if (manager.getNotificationChannel(LEGACY_CHANNEL) != null) manager.deleteNotificationChannel(LEGACY_CHANNEL)
         if (manager.getNotificationChannel(CHANNEL) == null) manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, app.getString(R.string.ui_bridge_channel), NotificationManager.IMPORTANCE_LOW)
-                .apply { setShowBadge(false) })
+            NotificationChannel(CHANNEL, app.getString(R.string.ui_bridge_channel), NotificationManager.IMPORTANCE_DEFAULT)
+                .apply { setShowBadge(false); setSound(null, null); enableVibration(false) })
         // 承認は対象アプリの上にバナーで出したいので、高い重要度の別チャンネルにする。
         if (manager.getNotificationChannel(CHANNEL_ASK) == null) manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ASK, app.getString(R.string.ui_bridge_ask_channel), NotificationManager.IMPORTANCE_HIGH))

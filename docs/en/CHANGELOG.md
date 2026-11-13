@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.109 (versionCode 807)**: The notification shown while the AI operates an app was folded into the "Silent" section together with z2term's other ongoing notifications (for example "z2term 3"), so Resume and Stop took two expansions to reach. Like the action macro notification (1.0.95), it now appears in the regular section, still without sound or vibration. Its notification channel is recreated (if you had turned the old one off, turn it off again).
+
 **1.0.108 (versionCode 806)**: Right after an update, for example, an action macro could wait 5 seconds and fail to start with "could not find the screen behind z2term". The app in front was known only from the notice sent when the screen changes, so after the accessibility service restarted it stayed unknown until the app in front changed. A window whose app is not known yet is now read directly once and remembered. z2-ui uses the same lookup for its target app.
 
 **1.0.107 (versionCode 805)**: Pulling the command sheet down from the Screen actions list made it shake. The list moves down with the sheet, so the finger seemed to travel back, and the sheet alternated between following the finger and backing off. The finger is now measured against the screen.

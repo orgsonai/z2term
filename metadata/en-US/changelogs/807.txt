@@ -1,0 +1,3 @@
+1.0.109
+
+- The notification shown while the AI operates an app is no longer folded in with z2term's other ongoing notifications, so Resume and Stop are easy to reach.
