@@ -1361,5 +1361,6 @@ Painéis laterais: %12$d, notas: %13$d</string>
     <string name="voice_no_mic">O acesso ao microfone não está permitido. Permita para usar os comandos de voz.</string>
     <string name="ui_bridge_bar_name">Controle da IA</string>
     <string name="ui_bridge_show_bar">Mostrar um botão de parada sobre o app</string>
-    <string name="ui_bridge_show_bar_desc">Enquanto a IA opera, uma pequena barra com ‖ (pausar) e ■ (parar) fica sobre o app. Dá para arrastar. Puxar a aba de notificações também pausa. A IA não consegue tocar na barra.</string>
+    <string name="ui_bridge_show_bar_desc">Enquanto a IA opera, uma pequena barra com ‖ (pausar) e ■ (encerrar) fica sobre o app. ■ encerra a tarefa atual e mantém o controle pela IA ativado; Parar na notificação também o desativa. Dá para arrastar. Puxar a aba de notificações também pausa. A IA não consegue tocar na barra.</string>
+    <string name="ui_bridge_end">Encerrar a tarefa da IA</string>
 </resources>

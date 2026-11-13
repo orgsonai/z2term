@@ -60,7 +60,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * (待ち・承認待ち) は [generation] が進んだ時点で止める。
  *
  * ⭐ **通知まで指が届かないときのために、操作先の上に帯を出す (1.0.102、issue #2)。** 常駐通知を出している間、
- * [ActionRunOverlay] の帯に ‖ (▶) と ■ を置く。通知欄を下ろしたときも一時停止する ([shadeWatch])。
+ * [ActionRunOverlay] の帯に ‖ (▶) と ■ (許可を外さずに終わらせる [end]) を置く。通知欄を下ろしたときも一時停止する ([shadeWatch])。
  * 帯は合成の入力 (AI の指) では押せない。AI がシェルで操作マクロを書いて z2term の「再開」を押す回り道は、
  * 一時停止・停止の間はマクロに z2term 自身を操作させないことで塞ぐ ([holdsOwnScreen])。
  *
@@ -94,6 +94,8 @@ internal object UiBridge {
     private val grants = ConcurrentHashMap<String, Long>()
     @Volatile private var paused = false
     @Volatile private var message: String? = null
+    /** 帯の ■ で終わらせた印。次の呼び出しに 1 回だけ `ended` を返す (許可はそのまま、1.0.110)。 */
+    @Volatile private var ended = false
     @Volatile private var lastPackage: String? = null
     @Volatile private var pending: Pending? = null
     private var protectedCache: Set<String>? = null
@@ -731,6 +733,7 @@ internal object UiBridge {
     /** 呼び出しの入口。溜まっている指示はここで 1 回だけ渡す。 */
     private fun enter(settings: UiBridgeSettings, operation: Boolean): Int {
         message?.let { message = null; throw Refusal("interrupted", it) }
+        if (ended) { ended = false; throw Refusal("ended", "The user ended this task from the stop bar; stop and report what you did") }
         if (settings.stopped) throw Refusal("stopped", "Stopped from the notification; the user must turn AI operation on again")
         if (!settings.enabled) throw Refusal("disabled", "AI operation is off (commands → automation → AI)")
         if (!AndroidActions.connected()) throw Refusal("no_accessibility", "Enable z2term Android actions: z2-key permission")
@@ -743,6 +746,7 @@ internal object UiBridge {
         if (generation.get() == gen) return
         val settings = UiBridgeSettings(app)
         message?.let { message = null; throw Refusal("interrupted", it) }
+        if (ended) { ended = false; throw Refusal("ended", "The user ended this task from the stop bar; stop and report what you did") }
         if (settings.stopped) throw Refusal("stopped", "Stopped from the notification")
         if (paused) throw Refusal("paused", "Paused from the notification")
     }
@@ -779,6 +783,24 @@ internal object UiBridge {
         val settings = UiBridgeSettings(app)
         settings.enabled = false
         settings.stopped = true
+        paused = false
+        message = null
+        grants.clear()
+        generation.incrementAndGet()
+        pending?.let { it.answer = "deny"; it.latch.countDown() }
+        AndroidUiLook.forget()
+        deleteShots(app)
+        main.post { NotificationManagerCompat.from(app).cancel(NOTIFY_RUNNING); endSession() }
+    }
+
+    /**
+     * 帯の ■ (1.0.110)。実行中の 1 手と承認待ちを止め、AI の次の呼び出しに 1 回だけ `ended` を返して作業を
+     * 終えさせる。帯と常駐通知も消す。[stop] と違って**許可は外さない**ので、次の作業はそのまま始められる。
+     * 許可まで外す非常停止は、通知の「停止」と設定の OFF に残す。
+     */
+    fun end(app: Context) {
+        UiBridgeRecorder.mark()
+        ended = true
         paused = false
         message = null
         grants.clear()
@@ -1090,8 +1112,8 @@ internal object UiBridge {
         if (!UiBridgeSettings(app).showBar || ActionRuntime.running) { ActionRunOverlay.dismiss(ActionRunOverlay.Owner.AI); return }
         if (ActionRunOverlay.owner != ActionRunOverlay.Owner.AI) {
             val shown = ActionRunOverlay.show(AndroidActions.overlayHost(), app.getString(R.string.ui_bridge_bar_name),
-                stop = { stop(app) }, toggle = { if (paused) resume(app) else pause(app) },
-                force = true, owner = ActionRunOverlay.Owner.AI)
+                stop = { end(app) }, toggle = { if (paused) resume(app) else pause(app) },
+                force = true, owner = ActionRunOverlay.Owner.AI, stopLabel = app.getString(R.string.ui_bridge_end))
             if (!shown) return
         }
         ActionRunOverlay.setDetail(lastPackage?.let { label(app, it) }.orEmpty())

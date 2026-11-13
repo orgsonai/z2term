@@ -1352,5 +1352,6 @@ SSH 連線目標 %3$d 個
     <string name="voice_no_mic">沒有麥克風權限。要用語音操作，請允許。</string>
     <string name="ui_bridge_bar_name">AI 操作</string>
     <string name="ui_bridge_show_bar">在被操作的應用程式上方顯示停止按鈕</string>
-    <string name="ui_bridge_show_bar_desc">AI 操作期間，在應用程式上方顯示帶有 ‖（暫停）和 ■（停止）的小條。可用手指拖到任意位置。下拉通知欄也會暫停。AI 無法按這個小條。</string>
+    <string name="ui_bridge_show_bar_desc">AI 操作期間，在應用程式上方顯示帶有 ‖（暫停）和 ■（結束）的小條。■ 結束目前的工作，並保留 AI 操作的許可（通知中的停止會同時關閉許可）。可用手指拖到任意位置。下拉通知欄也會暫停。AI 無法按這個小條。</string>
+    <string name="ui_bridge_end">結束 AI 的工作</string>
 </resources>

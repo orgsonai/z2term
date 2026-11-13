@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.110 (versionCode 808)**: ■ on the bar shown while the AI operates an app now ends the current task without turning AI operation off. It used to act like the notification's Stop and switch AI operation off, so it had to be turned back on in the settings every time. ■ now stops the current move, answers the AI's next call once with `ended` (the user ended the task) so it finishes, and removes the bar and the notification. AI operation stays on for the next task. The emergency stop that also turns it off remains in the notification's Stop and the setting.
+
 **1.0.109 (versionCode 807)**: The notification shown while the AI operates an app was folded into the "Silent" section together with z2term's other ongoing notifications (for example "z2term 3"), so Resume and Stop took two expansions to reach. Like the action macro notification (1.0.95), it now appears in the regular section, still without sound or vibration. Its notification channel is recreated (if you had turned the old one off, turn it off again).
 
 **1.0.108 (versionCode 806)**: Right after an update, for example, an action macro could wait 5 seconds and fail to start with "could not find the screen behind z2term". The app in front was known only from the notice sent when the screen changes, so after the accessibility service restarted it stayed unknown until the app in front changed. A window whose app is not known yet is now read directly once and remembered. z2-ui uses the same lookup for its target app.

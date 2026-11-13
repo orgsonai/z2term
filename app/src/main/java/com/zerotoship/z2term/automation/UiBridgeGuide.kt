@@ -285,7 +285,7 @@ can be computed does not need you:
   false (`not_met`, `stale`, `changed`, ...), colours it does not expect, or a limit on rounds or time. Then you take
   a `shot`, decide, and start the script again. Print a short reason when it stops so you know where it was.
 - The script is held to the same rules as you: levels, approvals, pause, instructions and stop apply to every call,
-  and it must stop at once on `paused`, `interrupted` or `stopped` and pass the message on. Never use the script to
+  and it must stop at once on `paused`, `interrupted`, `ended` or `stopped` and pass the message on. Never use the script to
   do what z2-ui refused.
 - Write it only when the user asked for the repetition, tell the user what it does before running it, and keep it
   in a file the user can read (for example in your notes or the home directory). Many apps and online services
@@ -301,6 +301,9 @@ notification. You learn about it as the reply to your next call:
 - `paused`: the user paused you. Operations are refused until they press Resume; look still works.
   Do not loop rapidly. Wait (for example 10 to 30 seconds), check `z2-ui status` (`paused`), or stop and tell the user
   you are waiting. You cannot resume yourself.
+- `ended`: the user pressed ■ on the stop bar to end this task. Stop now, do not call operations again for this
+  task, and report what you did and what is left. AI operation stays on, so the user may give you a new task later.
+  It is delivered once.
 - `stopped`: the user stopped AI operation. End the task now, do not call operations again, and report what you did
   and what is left. Only the user can turn it back on.
 - `locked`: the screen is off or locked. Ask the user to unlock; do not try to unlock it yourself.
@@ -376,6 +379,7 @@ notification. You learn about it as the reply to your next call:
 | error | meaning | what to do |
 |---|---|---|
 | disabled | AI operation is off | ask the user to turn it on |
+| ended | the user ended this task (stop bar ■) | end the task and report |
 | stopped | the user pressed Stop | end the task and report |
 | paused | the user paused you | wait; you cannot resume |
 | interrupted | new instruction in `message` | follow the message |

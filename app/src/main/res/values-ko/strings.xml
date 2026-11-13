@@ -1345,5 +1345,6 @@ SSH 연결: %3$d
     <string name="voice_no_mic">마이크 권한이 없습니다. 음성 조작을 쓰려면 허용하세요.</string>
     <string name="ui_bridge_bar_name">AI 조작</string>
     <string name="ui_bridge_show_bar">조작 중인 앱 위에 정지 버튼 표시</string>
-    <string name="ui_bridge_show_bar_desc">AI가 조작하는 동안 앱 위에 ‖ (일시정지)와 ■ (정지)가 있는 작은 막대를 표시합니다. 손가락으로 옮길 수 있습니다. 알림창을 내려도 일시정지합니다. AI는 막대를 누를 수 없습니다.</string>
+    <string name="ui_bridge_show_bar_desc">AI가 조작하는 동안 앱 위에 ‖ (일시정지)와 ■ (끝내기)가 있는 작은 막대를 표시합니다. ■는 지금 작업을 끝내고 AI 조작 허용은 그대로 둡니다 (알림의 정지는 허용도 끕니다). 손가락으로 옮길 수 있습니다. 알림창을 내려도 일시정지합니다. AI는 막대를 누를 수 없습니다.</string>
+    <string name="ui_bridge_end">AI 작업 끝내기</string>
 </resources>

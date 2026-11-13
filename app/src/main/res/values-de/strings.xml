@@ -1351,5 +1351,6 @@ Randpanels: %12$d, Notizen: %13$d</string>
     <string name="voice_no_mic">Mikrofonzugriff ist nicht erlaubt. Erlaube ihn, um Sprachbefehle zu nutzen.</string>
     <string name="ui_bridge_bar_name">KI-Bedienung</string>
     <string name="ui_bridge_show_bar">Stopptaste über der App zeigen</string>
-    <string name="ui_bridge_show_bar_desc">Während die KI bedient, bleibt eine kleine Leiste mit ‖ (Pause) und ■ (Stopp) über der App. Mit dem Finger verschiebbar. Auch das Herunterziehen der Benachrichtigungsleiste pausiert. Die KI kann die Leiste nicht drücken.</string>
+    <string name="ui_bridge_show_bar_desc">Während die KI bedient, bleibt eine kleine Leiste mit ‖ (Pause) und ■ (Beenden) über der App. ■ beendet die aktuelle Aufgabe und lässt die KI-Bedienung an; Stopp in der Benachrichtigung schaltet sie auch aus. Mit dem Finger verschiebbar. Auch das Herunterziehen der Benachrichtigungsleiste pausiert. Die KI kann die Leiste nicht drücken.</string>
+    <string name="ui_bridge_end">KI-Aufgabe beenden</string>
 </resources>

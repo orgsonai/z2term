@@ -95,7 +95,7 @@ internal object ActionRunOverlay {
      * ユーザー補助なしなら何もしない。出せたら true。
      */
     fun show(host: AccessibilityService?, name: String, stop: () -> Unit, toggle: () -> Unit,
-        force: Boolean = false, owner: Owner = Owner.MACRO): Boolean {
+        force: Boolean = false, owner: Owner = Owner.MACRO, stopLabel: String? = null): Boolean {
         dismiss()
         if (host == null || !(force || enabled(host))) return false
         fun dp(value: Int) = ActionUi.dp(host, value)
@@ -107,7 +107,7 @@ internal object ActionRunOverlay {
             maxLines = 1; ellipsize = TextUtils.TruncateAt.END; maxWidth = dp(160); minWidth = dp(120)
         }
         val toggleText = control(host, "‖", ActionUi.textColor, host.getString(R.string.action_macro_pause), toggle)
-        val stopText = control(host, "■", ActionUi.dangerColor, host.getString(R.string.action_macro_stop), stop)
+        val stopText = control(host, "■", ActionUi.dangerColor, stopLabel ?: host.getString(R.string.action_macro_stop), stop)
         val bar = handle(host).apply {
             setPadding(dp(12), dp(4), dp(4), dp(4))
             addView(LinearLayout(host).apply {

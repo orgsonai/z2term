@@ -1450,5 +1450,6 @@ Edge panels: %12$d, notes: %13$d</string>
     <string name="voice_no_mic">Microphone access is not allowed. Allow it to use voice commands.</string>
     <string name="ui_bridge_bar_name">AI operation</string>
     <string name="ui_bridge_show_bar">Show a stop button over the app</string>
-    <string name="ui_bridge_show_bar_desc">While the AI operates, a small bar with ‖ (pause) and ■ (stop) stays on top of the app. Drag it anywhere. Pulling down the notification shade also pauses. The AI cannot press the bar.</string>
+    <string name="ui_bridge_show_bar_desc">While the AI operates, a small bar with ‖ (pause) and ■ (end) stays on top of the app. ■ ends the current task and keeps AI operation on; Stop in the notification also turns it off. Drag the bar anywhere. Pulling down the notification shade also pauses. The AI cannot press the bar.</string>
+    <string name="ui_bridge_end">End the AI\'s task</string>
 </resources>
