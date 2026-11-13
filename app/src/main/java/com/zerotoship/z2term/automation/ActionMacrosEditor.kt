@@ -42,7 +42,10 @@ internal class ActionMacrosEditor(
     private val embedded: Boolean = false,
     private val onClose: () -> Unit
 ) : ContextThemeWrapper(activity, android.R.style.Theme_DeviceDefault_DayNight) {
-    val view = FrameLayout(this)
+    // ⚠ Compose's AndroidView forwards nested scrolling only when this outermost view has it enabled
+    // (AndroidViewHolder asks the hosted view). Without it, the drag the editor leaves over at its top was
+    // dropped, so pulling the command sheet down to close worked only from its handle (1.0.106).
+    val view = FrameLayout(this).apply { isNestedScrollingEnabled = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var disposed = false
     var editing = false

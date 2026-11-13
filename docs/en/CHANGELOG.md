@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.106 (versionCode 804)**: Since 1.0.105, in the Screen actions tab the command sheet could be pulled down to close only from its handle at the very top: the pull left over once the content reached its top never reached the sheet. As in the other tabs, pulling down on the content now closes the sheet when the content is at its top (while editing it still does not close, to keep unsaved changes).
+
 **1.0.105 (versionCode 803)**: In Command list → Automation → Screen actions, the macro editor did not scroll, leaving its lower part out of reach. This screen is drawn with Android Views embedded in the sheet, and the sheet's own drag (pulling it to close) took every vertical drag before the editor saw it. The editor now takes the finger as soon as it touches; pulling down further at the top still moves the sheet.
 
 **1.0.104 (versionCode 802)**: The bar for choosing and running a macro (`z2-action pick`) gets its own icon: a large ▶ with three lines beside it. An edge panel item with an empty icon field shows it automatically (and an empty label becomes "Action macro"); a tile gets it automatically too. The drawing is added as "macro" at the end of the `z2-icon` list and the icon picker, so other items can use it as well.

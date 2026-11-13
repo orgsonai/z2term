@@ -1,0 +1,3 @@
+1.0.106
+
+- In the Screen actions tab, pulling down on the content closes the command sheet again.
