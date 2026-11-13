@@ -22,6 +22,7 @@ internal object ActionCommands {
             }
             "screen" -> { count(1); "screen=${ActionRuntime.screen(context)}" }
             "start" -> { count(2); ActionRuntime.start(context, args[1]) }
+            "pick" -> { count(1); ActionRuntime.pick(context) }
             "status", "stop", "pause", "resume" -> {
                 require(args.size in 1..2) { "status|stop|pause|resume [RUN_ID]" }
                 val id = args.getOrNull(1)

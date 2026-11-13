@@ -1359,4 +1359,7 @@ Pannelli laterali: %12$d, note: %13$d</string>
     <string name="voice_no_rule">Ancora niente reagisce a questo. In un terminale esegui z2-macro install voice, poi sh ~/.z2term/macros/voice.sh setup (Impostazioni › Mostra una guida › voice ti guida passo passo).</string>
     <string name="voice_no_locked_rule">Non c’è ancora una regola per ciò che dici a telefono bloccato. In un terminale esegui di nuovo sh ~/.z2term/macros/voice.sh setup.</string>
     <string name="voice_no_mic">L’accesso al microfono non è consentito. Consentilo per usare i comandi vocali.</string>
+    <string name="ui_bridge_bar_name">Controllo dell’IA</string>
+    <string name="ui_bridge_show_bar">Mostra un pulsante di arresto sopra l’app</string>
+    <string name="ui_bridge_show_bar_desc">Mentre l’IA opera, una piccola barra con ‖ (pausa) e ■ (stop) resta sopra l’app. Si può trascinare. Anche abbassare la tendina delle notifiche mette in pausa. L’IA non può premere la barra.</string>
 </resources>

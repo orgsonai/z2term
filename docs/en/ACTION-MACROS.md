@@ -69,6 +69,8 @@ Choose **Place** beside a saved macro to select a Quick Settings slot or an exis
 
 Placement stores `z2-action start NAME`. An exact standalone reference in a tile or a normal panel run item with no output closes the shade/panel and waits for the foreground app to remain stable for about 500 ms. These entry points can also operate z2term itself. If no foreground screen is confirmed within five seconds, playback ends without sending actions. Compound shell commands and items with output/state keep their shell behavior.
 
+**Bar to choose and run (1.0.102)**: `z2-action pick` shows a bar over the current foreground app for choosing a macro and running it. Put it on an edge panel or a tile and one icon covers every macro (the item editor's macro list offers it as "Action macro: choose and run"). Open the list with "name ▾" (in the order set by Reorder in the Screen actions tab), run with ▶, or close with ×. The last choice is remembered. ▶ starts the run like a placed `z2-action start`, once the foreground screen has settled for about 500 ms. The bar then turns into the stop bar (even when "Show a stop button over other apps" is off) and closes when the macro ends; both bars share one position. Only a real finger can press it. With a macro already running, or no macro saved, it is not shown and an error is returned.
+
 **Build and device behavior are not verified.**
 
 ### Drag through points (1.0.35)
@@ -220,6 +222,7 @@ API references: [AccessibilityNodeInfo](https://developer.android.com/reference/
 | `z2-action delete NAME` | Delete a definition |
 | `z2-action run NAME` | Wait for completion; exit 0 on success, nonzero on failure, cancellation or timeout |
 | `z2-action start NAME` | Request execution and return a run ID |
+| `z2-action pick` | Show the bar for choosing a macro and running it over the foreground app (1.0.102) |
 | `z2-action wait RUN_ID` | Wait for that run |
 | `z2-action status [RUN_ID]` | Read JSON state, step index and result |
 | `z2-action stop [RUN_ID]` | Stop remaining steps; omitting the ID stops the current run |

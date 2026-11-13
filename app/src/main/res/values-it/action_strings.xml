@@ -179,4 +179,10 @@
     <string name="action_state_paused">In pausa</string>
     <string name="action_macro_resuming">Ripresa: %1$s</string>
     <string name="action_resume_no_screen">Schermata da controllare non trovata, la macro resta in pausa. Apri quella schermata e premi di nuovo Riprendi.</string>
+    <string name="action_chooser_title">Macro di azioni</string>
+    <string name="action_chooser_open">Scegli una macro (ora: %1$s)</string>
+    <string name="action_chooser_run">Esegui la macro scelta</string>
+    <string name="action_chooser_close">Chiudi</string>
+    <string name="action_chooser_empty">Nessuna macro di azioni salvata</string>
+    <string name="action_chooser_entry">Macro di azioni: scegli ed esegui</string>
 </resources>

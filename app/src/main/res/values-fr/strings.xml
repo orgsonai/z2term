@@ -1359,4 +1359,7 @@ Panneaux latéraux : %12$d, notes : %13$d</string>
     <string name="voice_no_rule">Rien ne réagit encore à cela. Dans un terminal, exécutez z2-macro install voice, puis sh ~/.z2term/macros/voice.sh setup (Paramètres › Afficher un guide › voice vous guide).</string>
     <string name="voice_no_locked_rule">Il n’y a pas encore de règle pour ce que vous dites écran verrouillé. Dans un terminal, exécutez à nouveau sh ~/.z2term/macros/voice.sh setup.</string>
     <string name="voice_no_mic">L’accès au micro n’est pas autorisé. Autorisez-le pour utiliser les commandes vocales.</string>
+    <string name="ui_bridge_bar_name">Commande par l’IA</string>
+    <string name="ui_bridge_show_bar">Afficher un bouton d’arrêt sur l’app</string>
+    <string name="ui_bridge_show_bar_desc">Pendant que l’IA agit, une petite barre avec ‖ (pause) et ■ (arrêt) reste au-dessus de l’app. Déplaçable au doigt. Tirer le volet des notifications met aussi en pause. L’IA ne peut pas appuyer sur la barre.</string>
 </resources>

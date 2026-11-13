@@ -59,6 +59,10 @@ import java.util.concurrent.atomic.AtomicInteger
  * AI が次に `z2-ui` を呼んだときに `paused` / `interrupted` / `stopped` を返す。実行中の 1 手
  * (待ち・承認待ち) は [generation] が進んだ時点で止める。
  *
+ * ⭐ **通知まで指が届かないときのために、操作先の上に帯を出す (1.0.102、issue #2)。** 常駐通知を出している間、
+ * [ActionRunOverlay] の帯に ‖ (▶) と ■ を置く。通知欄を下ろしたときも一時停止する ([shadeWatch])。
+ * 帯は合成の入力 (AI の指) では押せないので、AI が自分で再開することはできない。
+ *
  * ⚠ **通知のボタンは [controlToken] を持つ。** AI は同じ uid で `cmd activity broadcast` を
  * 打てるので、印の無い放送を受け付けると「再開」「許可」を AI 自身が押せてしまう。印はこの
  * プロセスのメモリにしか無い。
@@ -746,9 +750,11 @@ internal object UiBridge {
         showRunning(app)
     }
 
-    /** 再開は通知と設定画面からだけ。AI が自分で一時停止を解けないよう、CLI には無い。 */
+    /** 再開は通知・設定画面・帯からだけ。AI が自分で一時停止を解けないよう、CLI には無い。 */
     fun resume(app: Context) {
         paused = false
+        // 通知欄から再開したときは閉じておく (AI の次の操作が通知欄に阻まれないように)。
+        AndroidActions.dismissShade()
         showRunning(app)
     }
 
@@ -771,7 +777,7 @@ internal object UiBridge {
         pending?.let { it.answer = "deny"; it.latch.countDown() }
         AndroidUiLook.forget()
         deleteShots(app)
-        main.post { NotificationManagerCompat.from(app).cancel(NOTIFY_RUNNING) }
+        main.post { NotificationManagerCompat.from(app).cancel(NOTIFY_RUNNING); endSession() }
     }
 
     /** 設定画面から OFF にしたときも、実行中の 1 手と承認待ちを止める。 */
@@ -782,7 +788,7 @@ internal object UiBridge {
         generation.incrementAndGet()
         pending?.let { it.answer = "deny"; it.latch.countDown() }
         deleteShots(app)
-        main.post { NotificationManagerCompat.from(app).cancel(NOTIFY_RUNNING) }
+        main.post { NotificationManagerCompat.from(app).cancel(NOTIFY_RUNNING); endSession() }
     }
 
     /**
@@ -907,6 +913,8 @@ internal object UiBridge {
             alive(app, gen)
         }
         val before = runBlocking { AndroidUiLook.fingerprint() }
+        // 機種によっては「最近」の画面がシステム UI の窓で、通知欄と見分けられない。AI が開いたものでは止めない。
+        if (name == "recents") shadeQuietUntil = SystemClock.uptimeMillis() + 2000
         runBlocking { withContext(Dispatchers.Main) { AndroidActions.command(app, listOf(name)) } }
         return success().put("changed", runBlocking { changedAfter(before) })
     }
@@ -1031,8 +1039,66 @@ internal object UiBridge {
     private val idle = Runnable {
         appContext?.let { app ->
             worker.execute { deleteShots(app) }
-            if (!paused) NotificationManagerCompat.from(app).cancel(NOTIFY_RUNNING)
+            if (!paused) { NotificationManagerCompat.from(app).cancel(NOTIFY_RUNNING); endSession() }
         }
+    }
+
+    // --- 停止の帯と通知欄 (1.0.102、issue #2) ---
+
+    private const val SHADE_POLL_MS = 150L
+    /** 常駐通知を出している間 (= AI の操作が続いている間)。メインスレッドだけで触る。 */
+    private var session = false
+    /** 前回見たときに通知欄が開いていたか。開いた瞬間だけ一時停止する。 */
+    private var shadeOpen = false
+    /** この時刻まではシステム UI が前に出ても止めない (AI が開いた「最近」の画面)。 */
+    @Volatile private var shadeQuietUntil = 0L
+
+    /**
+     * 通知欄を下ろしたら一時停止する。AI が続けて操作していると、通知の「停止」を押すまでに次の操作が
+     * 来るため。開いた瞬間だけ見るので、通知欄から「再開」を押したときに止め直さない。承認を
+     * 待っている間は止めない (承認するには通知欄を下ろすことがあるため)。
+     */
+    private val shadeWatch = object : Runnable {
+        override fun run() {
+            if (!session) return
+            val open = AndroidActions.systemUiFocused()
+            if (open && !shadeOpen && !paused && pending == null && SystemClock.uptimeMillis() >= shadeQuietUntil)
+                appContext?.let { pause(it) }
+            shadeOpen = open
+            main.postDelayed(this, SHADE_POLL_MS)
+        }
+    }
+
+    /** 通知を出し直すたびに呼ぶ (メインスレッド)。帯を出して状態を揃え、通知欄の見張りを始める。 */
+    private fun syncBar(app: Context) {
+        if (!session) {
+            session = true
+            shadeOpen = AndroidActions.systemUiFocused()
+            main.postDelayed(shadeWatch, SHADE_POLL_MS)
+        }
+        // 操作マクロの実行中はマクロの帯に任せる (同時には動かない)。
+        if (!UiBridgeSettings(app).showBar || ActionRuntime.running) { ActionRunOverlay.dismiss(ActionRunOverlay.Owner.AI); return }
+        if (ActionRunOverlay.owner != ActionRunOverlay.Owner.AI) {
+            val shown = ActionRunOverlay.show(AndroidActions.overlayHost(), app.getString(R.string.ui_bridge_bar_name),
+                stop = { stop(app) }, toggle = { if (paused) resume(app) else pause(app) },
+                force = true, owner = ActionRunOverlay.Owner.AI)
+            if (!shown) return
+        }
+        ActionRunOverlay.setDetail(lastPackage?.let { label(app, it) }.orEmpty())
+        ActionRunOverlay.setPaused(paused, false)
+    }
+
+    /** 常駐通知を消したとき (メインスレッド)。 */
+    private fun endSession() {
+        session = false
+        main.removeCallbacks(shadeWatch)
+        ActionRunOverlay.dismiss(ActionRunOverlay.Owner.AI)
+    }
+
+    /** 設定で帯の ON/OFF を変えたとき。AI の操作中ならすぐ反映する。 */
+    fun barChanged(context: Context) {
+        val app = context.applicationContext
+        main.post { if (session) syncBar(app) }
     }
 
     /** 呼ばれたアプリを覚え、常駐通知を出し直す。しばらく呼ばれなければ消す。 */
@@ -1061,10 +1127,12 @@ internal object UiBridge {
                 .addAction(0, app.getString(R.string.ui_bridge_stop), broadcast(app, UiBridgeReceiver.STOP, 7824))
                 .build()
             NotificationManagerCompat.from(app).notify(NOTIFY_RUNNING, notification)
-            appContext = app
-            main.removeCallbacks(idle)
-            main.postDelayed(idle, IDLE_MS)
         }.onFailure { Log.w(TAG, "running notification failed", it) }
+        // 通知が出せなくても帯は出す (止める手段がほかに無くなるため)。
+        appContext = app
+        runCatching { syncBar(app) }.onFailure { Log.w(TAG, "stop bar failed", it) }
+        main.removeCallbacks(idle)
+        main.postDelayed(idle, IDLE_MS)
     }
 
     /**

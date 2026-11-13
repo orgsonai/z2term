@@ -179,4 +179,10 @@
     <string name="action_state_paused">Pausiert</string>
     <string name="action_macro_resuming">Wird fortgesetzt: %1$s</string>
     <string name="action_resume_no_screen">Der zu bedienende Bildschirm wurde nicht gefunden, das Makro bleibt pausiert. Öffne ihn und tippe erneut auf Fortsetzen.</string>
+    <string name="action_chooser_title">Aktionsmakro</string>
+    <string name="action_chooser_open">Makro wählen (jetzt: %1$s)</string>
+    <string name="action_chooser_run">Gewähltes Makro ausführen</string>
+    <string name="action_chooser_close">Schließen</string>
+    <string name="action_chooser_empty">Noch keine Aktionsmakros gespeichert</string>
+    <string name="action_chooser_entry">Aktionsmakro: wählen und ausführen</string>
 </resources>

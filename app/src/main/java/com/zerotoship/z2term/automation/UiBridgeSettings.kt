@@ -47,6 +47,14 @@ internal class UiBridgeSettings(context: Context) {
         get() = prefs.getBoolean(KEY_SHOW_TRAIL, false)
         set(value) { prefs.edit().putBoolean(KEY_SHOW_TRAIL, value).apply() }
 
+    /**
+     * AI の操作中、操作先のアプリの上に ‖ と ■ の帯を出すか (1.0.102、issue #2)。既定 ON。
+     * AI が続けて操作していると、通知欄の「停止」まで指が届かないため。
+     */
+    var showBar: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_BAR, true)
+        set(value) { prefs.edit().putBoolean(KEY_SHOW_BAR, value).apply() }
+
     var grantMinutes: Int
         get() = UiBridgePolicy.grantMinutes(prefs.getInt(KEY_GRANT, UiBridgePolicy.GRANT_DEFAULT_MINUTES))
         set(value) { prefs.edit().putInt(KEY_GRANT, UiBridgePolicy.grantMinutes(value)).apply() }
@@ -73,5 +81,6 @@ internal class UiBridgeSettings(context: Context) {
         private const val KEY_LEVELS = "levels"
         private const val KEY_STRICT_SETTLE = "strict_settle"
         private const val KEY_SHOW_TRAIL = "show_trail"
+        private const val KEY_SHOW_BAR = "show_bar"
     }
 }

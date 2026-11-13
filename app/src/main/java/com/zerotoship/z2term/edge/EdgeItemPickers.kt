@@ -24,7 +24,10 @@ internal object EdgeItemPickers {
     fun macros(context: Context, group: LinearLayout, entry: EditText) {
         val commands = linkedMapOf<String, String>()
         WidgetStore.availableMacros(context).forEach { commands[it] = it }
-        com.zerotoship.z2term.automation.ActionRuntime.store(context).names().forEach { name ->
+        val actions = com.zerotoship.z2term.automation.ActionRuntime.store(context).names()
+        if (actions.isNotEmpty()) commands[context.getString(R.string.action_chooser_entry)] =
+            com.zerotoship.z2term.automation.ActionMacroReference.PICK
+        actions.forEach { name ->
             commands["${context.getString(R.string.action_macro_title)}: $name"] = "z2-action start $name"
         }
         picker(context, group, entry, R.string.edge_pick_macro, commands.keys.toList()) { commands.getValue(it) }

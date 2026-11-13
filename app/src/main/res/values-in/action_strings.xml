@@ -179,4 +179,10 @@
     <string name="action_state_paused">Dijeda</string>
     <string name="action_macro_resuming">Melanjutkan: %1$s</string>
     <string name="action_resume_no_screen">Layar yang akan dioperasikan tidak ditemukan, jadi makro tetap dijeda. Buka layar itu lalu tekan Lanjutkan lagi.</string>
+    <string name="action_chooser_title">Makro aksi</string>
+    <string name="action_chooser_open">Pilih makro (sekarang: %1$s)</string>
+    <string name="action_chooser_run">Jalankan makro yang dipilih</string>
+    <string name="action_chooser_close">Tutup</string>
+    <string name="action_chooser_empty">Belum ada makro aksi yang disimpan</string>
+    <string name="action_chooser_entry">Makro aksi: pilih dan jalankan</string>
 </resources>

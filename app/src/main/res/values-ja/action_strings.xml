@@ -180,4 +180,10 @@
     <string name="action_state_paused">一時停止中</string>
     <string name="action_macro_resuming">再開を待っています: %1$s</string>
     <string name="action_resume_no_screen">操作する画面が見つからないため、一時停止のままにしました。その画面を開いてから、もう一度「再開」を押してください。</string>
+    <string name="action_chooser_title">操作マクロ</string>
+    <string name="action_chooser_open">マクロを選ぶ (いま: %1$s)</string>
+    <string name="action_chooser_run">選んだマクロを実行</string>
+    <string name="action_chooser_close">閉じる</string>
+    <string name="action_chooser_empty">保存した操作マクロがありません</string>
+    <string name="action_chooser_entry">操作マクロ: 選んで実行</string>
 </resources>

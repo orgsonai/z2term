@@ -14,6 +14,9 @@ internal object ActionMacroReference {
     fun name(command: String): String? = Regex("z2-action[ \t]+start[ \t]+([A-Za-z0-9_-]{1,64})")
         .matchEntire(command.trim())?.groupValues?.get(1)
     fun command(name: String) = "z2-action start " + ActionDefinition.macroName(name)
+    /** The bar that picks a macro and runs it (1.0.102). */
+    const val PICK = "z2-action pick"
+    fun isPick(command: String) = Regex("z2-action[ \t]+pick").matches(command.trim())
 }
 
 internal object ActionMacroPlacement {

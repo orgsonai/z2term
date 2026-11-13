@@ -1349,4 +1349,7 @@ Randpanels: %12$d, Notizen: %13$d</string>
     <string name="voice_no_rule">Darauf reagiert noch nichts. Führe in einem Terminal z2-macro install voice und dann sh ~/.z2term/macros/voice.sh setup aus (Einstellungen › Anleitung zeigen › voice führt dich durch).</string>
     <string name="voice_no_locked_rule">Für das, was du bei gesperrtem Bildschirm sagst, gibt es noch keine Regel. Führe in einem Terminal erneut sh ~/.z2term/macros/voice.sh setup aus.</string>
     <string name="voice_no_mic">Mikrofonzugriff ist nicht erlaubt. Erlaube ihn, um Sprachbefehle zu nutzen.</string>
+    <string name="ui_bridge_bar_name">KI-Bedienung</string>
+    <string name="ui_bridge_show_bar">Stopptaste über der App zeigen</string>
+    <string name="ui_bridge_show_bar_desc">Während die KI bedient, bleibt eine kleine Leiste mit ‖ (Pause) und ■ (Stopp) über der App. Mit dem Finger verschiebbar. Auch das Herunterziehen der Benachrichtigungsleiste pausiert. Die KI kann die Leiste nicht drücken.</string>
 </resources>

@@ -8,10 +8,12 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
+import com.zerotoship.z2term.automation.ActionRunOverlay
 import com.zerotoship.z2term.automation.Refusal
 import com.zerotoship.z2term.automation.UiBridgePolicy
 import com.zerotoship.z2term.automation.UiBridgePolicy.Target
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -594,6 +596,9 @@ internal object AndroidUiLook {
 
     @androidx.annotation.RequiresApi(30)
     private suspend fun capture(service: AccessibilityService): android.graphics.Bitmap {
+        // 前の操作で退かした停止の帯は、撮る前に戻しておく。撮るたびに写ったり写らなかったりすると
+        // 「画面が変わった」と読まれるため (1.0.102)。
+        if (withContext(Dispatchers.Main) { ActionRunOverlay.restoreNow() }) delay(ActionRunOverlay.SETTLE_MS)
         // 指の軌跡は撮影に写るので、撮る前に消す (AI に届く画像と色を軌跡なしに保つ)。
         UiTrail.clear()
         repeat(2) { attempt ->
@@ -634,7 +639,32 @@ internal object AndroidUiLook {
      * 撮影は操作の終わりを待たずに並べて走らせる (以前は 1 つずつで、指を離すまで撮れなかった)。
      */
     private suspend fun gesture(service: AccessibilityService, points: List<Pair<Int, Int>>, ms: Long, peek: Peek? = null,
-        holdMs: Long = 0) = coroutineScope {
+        holdMs: Long = 0) {
+        // 指が停止の帯 (AI の操作中に出す ‖ ■) に当たると、帯が受け取って操作先へ届かない。指が通る線が
+        // 帯に重なるときだけ帯を退かし、入力に反映されるのを待ってから送る (1.0.102)。
+        val stepped = withContext(Dispatchers.Main) { ActionRunOverlay.stepAside { box -> crosses(points, box) } }
+        try {
+            if (stepped == true) delay(ActionRunOverlay.SETTLE_MS)
+            strokes(service, points, ms, peek, holdMs)
+        } finally {
+            if (stepped != null) withContext(NonCancellable + Dispatchers.Main) { ActionRunOverlay.stepBack() }
+        }
+    }
+
+    /** 点を結ぶ線が [box] を通るか。線の上を 8px ごとに見る。 */
+    private fun crosses(points: List<Pair<Int, Int>>, box: Rect): Boolean {
+        if (points.any { (x, y) -> box.contains(x, y) }) return true
+        return points.zipWithNext().any { (a, b) ->
+            val dx = (b.first - a.first).toDouble(); val dy = (b.second - a.second).toDouble()
+            val steps = (kotlin.math.hypot(dx, dy) / 8).toInt().coerceIn(1, 1024)
+            (1 until steps).any { i ->
+                box.contains((a.first + dx * i / steps).toInt(), (a.second + dy * i / steps).toInt())
+            }
+        }
+    }
+
+    private suspend fun strokes(service: AccessibilityService, points: List<Pair<Int, Int>>, ms: Long, peek: Peek?,
+        holdMs: Long) = coroutineScope {
         val path = Path().apply {
             moveTo(points[0].first.toFloat(), points[0].second.toFloat())
             points.drop(1).forEach { (x, y) -> lineTo(x.toFloat(), y.toFloat()) }

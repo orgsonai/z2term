@@ -156,6 +156,9 @@ would only add a second. Check the result with `shot`.
 [--grid X0,Y0 DX,DY COLSxROWS [--radius R] [--hex]]` (S from 0.1 to 1, default 1; the MCP tool defaults to 0.5 and JPEG).
 - Saves only the foreground app window to `/root/.z2term/ui/shot.png` (or `shot.jpg` with `--jpeg`, which is faster to
   write and smaller). The status bar, notification shade and other apps are cut off.
+- While you operate, the user may keep a small z2term bar with ‖ and ■ on top of the app (their stop button). It
+  can appear in shots but is not part of the app: do not try to press it (it ignores your taps). A tap or drag under
+  it still reaches the app, because the bar steps aside first; use `look` if it hides something you need to read.
 - Shots can be taken about three times per second (Android's limit); a shot right after another waits for that gap.
 - `--stable [MS]` waits until the screen stops moving (two consecutive frames nearly identical, at most MS, default 3000)
   and saves that frame. `stable` tells whether it settled; `waited_ms` how long it took. Use it instead of taking

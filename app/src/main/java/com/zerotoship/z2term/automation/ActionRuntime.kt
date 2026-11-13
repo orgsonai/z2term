@@ -34,7 +34,9 @@ internal object ActionRuntime {
         val history: MutableList<String> = mutableListOf(), var historyLoaded: Boolean = false,
         var cancelHistoryFlush: (() -> Unit)? = null,
         val awaitBackground: Boolean = false, val allowOwnForeground: Boolean = false, var cancelStart: (() -> Unit)? = null,
-        var target: String? = null, var service: ActionService? = null, var watchdog: Runnable? = null) {
+        var target: String? = null, var service: ActionService? = null, var watchdog: Runnable? = null,
+        /** Started from the macro chooser: show the stop bar even when its setting is off. */
+        val bar: Boolean = false) {
         val definition get() = program.root
     }
     private var current: Run? = null
@@ -61,7 +63,27 @@ internal object ActionRuntime {
         main.postDelayed(task, ms)
         return { main.removeCallbacks(task) }
     }
-    fun start(context: Context, name: String, background: (() -> Unit)? = null, waitForForeground: Boolean = false): String {
+    /**
+     * Shows the bar that picks a macro and runs it (`z2-action pick`, 1.0.102, issue #2). One edge item or
+     * tile then covers every macro. The run it starts keeps the bar as its stop bar, and the bar closes when
+     * that run ends.
+     */
+    fun pick(context: Context): String = EdgeRuntime.onMain {
+        check(current == null) { "An action macro is already running; use z2-action status or stop" }
+        val host = AndroidActions.overlayHost() ?: error("Enable z2term Android actions using z2-key permission")
+        val names = store(context).names()
+        check(names.isNotEmpty()) { context.getString(com.zerotoship.z2term.R.string.action_chooser_empty) }
+        val app = context.applicationContext
+        ActionRunOverlay.showPicker(host, names) { name ->
+            try { start(app, name, waitForForeground = true, bar = true); true } catch (e: Exception) {
+                android.widget.Toast.makeText(app, e.message, android.widget.Toast.LENGTH_LONG).show()
+                false
+            }
+        }
+        ""
+    }
+    fun start(context: Context, name: String, background: (() -> Unit)? = null, waitForForeground: Boolean = false,
+        bar: Boolean = false): String {
         val program = store(context).snapshot(name)
         return EdgeRuntime.onMain {
             check(!ActionCoordinatePicker.active) { context.getString(com.zerotoship.z2term.R.string.action_pick_busy) }
@@ -78,7 +100,8 @@ internal object ActionRuntime {
             }
             val app = context.applicationContext
             val run = Run(UUID.randomUUID().toString(), name, program, app, geometry, ActionExecution(::schedule), EdgeRunner(app),
-                awaitBackground = waitForForeground || (program.usesCurrentTarget && background != null), allowOwnForeground = waitForForeground)
+                awaitBackground = waitForForeground || (program.usesCurrentTarget && background != null), allowOwnForeground = waitForForeground,
+                bar = bar)
             checkDevice(run)
             current = run
             try {
@@ -110,7 +133,7 @@ internal object ActionRuntime {
         run.service = service
         service.showRun(run.name)
         ActionRunOverlay.show(AndroidActions.overlayHost(), run.name, stop = { runCatching { stop(run.id) } },
-            toggle = { runCatching { if (run.engine.paused) resume(run.id) else pause(run.id) } })
+            toggle = { runCatching { if (run.engine.paused) resume(run.id) else pause(run.id) } }, force = run.bar)
         if (run.awaitBackground) {
             run.cancelStart = ActionForegroundWait(::schedule).start(if (run.allowOwnForeground) "" else run.context.packageName, {
                 checkDevice(run)
@@ -376,7 +399,7 @@ internal object ActionRuntime {
         current = null
         run.cancelStart?.invoke(); run.cancelStart = null
         run.watchdog?.let(main::removeCallbacks)
-        ActionRunOverlay.dismiss()
+        ActionRunOverlay.dismiss(ActionRunOverlay.Owner.MACRO)
         run.runner.cancelAll()
         AndroidActions.stopAutoScroll()
         val response = json(run, result.state).put("step", result.step).put("error", result.error ?: JSONObject.NULL)

@@ -180,4 +180,10 @@
     <string name="action_state_paused">已暫停</string>
     <string name="action_macro_resuming">正在繼續：%1$s</string>
     <string name="action_resume_no_screen">找不到要操作的畫面，巨集仍保持暫停。請開啟該畫面後再按「繼續」。</string>
+    <string name="action_chooser_title">操作巨集</string>
+    <string name="action_chooser_open">選擇巨集（目前：%1$s）</string>
+    <string name="action_chooser_run">執行所選的巨集</string>
+    <string name="action_chooser_close">關閉</string>
+    <string name="action_chooser_empty">還沒有儲存的操作巨集</string>
+    <string name="action_chooser_entry">操作巨集：選擇後執行</string>
 </resources>

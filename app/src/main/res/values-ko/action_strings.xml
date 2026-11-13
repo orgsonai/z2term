@@ -180,4 +180,10 @@
     <string name="action_state_paused">일시정지됨</string>
     <string name="action_macro_resuming">재개 대기 중: %1$s</string>
     <string name="action_resume_no_screen">조작할 화면을 찾지 못해 일시정지 상태로 두었습니다. 그 화면을 연 뒤 다시 재개를 누르세요.</string>
+    <string name="action_chooser_title">동작 매크로</string>
+    <string name="action_chooser_open">매크로 선택 (현재: %1$s)</string>
+    <string name="action_chooser_run">선택한 매크로 실행</string>
+    <string name="action_chooser_close">닫기</string>
+    <string name="action_chooser_empty">저장된 동작 매크로가 없습니다</string>
+    <string name="action_chooser_entry">동작 매크로: 선택해서 실행</string>
 </resources>

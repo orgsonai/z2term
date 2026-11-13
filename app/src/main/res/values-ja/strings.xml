@@ -1428,4 +1428,7 @@ SSH 接続先 %3$d 件
     <string name="voice_no_rule">これを受けるルールがまだありません。端末で z2-macro install voice を実行してから sh ~/.z2term/macros/voice.sh setup を実行してください（⚙設定 › 案内を表示 › voice でも案内します）。</string>
     <string name="voice_no_locked_rule">ロック中に話したことを受けるルールがまだありません。端末で sh ~/.z2term/macros/voice.sh setup をもう一度実行してください。</string>
     <string name="voice_no_mic">マイクが許可されていません。声で操作するには許可してください。</string>
+    <string name="ui_bridge_bar_name">AI の操作</string>
+    <string name="ui_bridge_show_bar">操作先の上に停止ボタンを出す</string>
+    <string name="ui_bridge_show_bar_desc">AI の操作中、操作先のアプリの上に ‖ (一時停止) と ■ (停止) の小さな帯を出します。指で好きな場所へ動かせます。通知欄を下ろしても一時停止します。AI は帯を押せません。</string>
 </resources>

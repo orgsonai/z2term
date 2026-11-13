@@ -1339,4 +1339,7 @@ Panel tepi: %12$d, catatan: %13$d</string>
     <string name="voice_no_rule">Belum ada yang bereaksi terhadap ini. Di terminal jalankan z2-macro install voice, lalu sh ~/.z2term/macros/voice.sh setup (Setelan › Tampilkan panduan › voice memandu Anda).</string>
     <string name="voice_no_locked_rule">Belum ada aturan untuk ucapan saat terkunci. Di terminal jalankan lagi sh ~/.z2term/macros/voice.sh setup.</string>
     <string name="voice_no_mic">Akses mikrofon tidak diizinkan. Izinkan untuk memakai perintah suara.</string>
+    <string name="ui_bridge_bar_name">Operasi AI</string>
+    <string name="ui_bridge_show_bar">Tampilkan tombol berhenti di atas aplikasi</string>
+    <string name="ui_bridge_show_bar_desc">Selama AI mengoperasikan, bilah kecil dengan ‖ (jeda) dan ■ (berhenti) tetap di atas aplikasi. Bisa digeser dengan jari. Menarik panel notifikasi juga menjeda. AI tidak bisa menekan bilah ini.</string>
 </resources>

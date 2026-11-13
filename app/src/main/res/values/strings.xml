@@ -1448,4 +1448,7 @@ Edge panels: %12$d, notes: %13$d</string>
     <string name="voice_no_rule">Nothing reacts to this yet. In a terminal run z2-macro install voice, then sh ~/.z2term/macros/voice.sh setup (Settings › Show a guide › voice walks you through it).</string>
     <string name="voice_no_locked_rule">There is no rule for what you say while locked yet. In a terminal run sh ~/.z2term/macros/voice.sh setup again.</string>
     <string name="voice_no_mic">Microphone access is not allowed. Allow it to use voice commands.</string>
+    <string name="ui_bridge_bar_name">AI operation</string>
+    <string name="ui_bridge_show_bar">Show a stop button over the app</string>
+    <string name="ui_bridge_show_bar_desc">While the AI operates, a small bar with ‖ (pause) and ■ (stop) stays on top of the app. Drag it anywhere. Pulling down the notification shade also pauses. The AI cannot press the bar.</string>
 </resources>

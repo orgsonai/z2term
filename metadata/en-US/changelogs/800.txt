@@ -1,0 +1,4 @@
+1.0.102
+
+- Put "Action macro: choose and run" on an edge panel or a tile to pick a macro from a bar and run it with ▶; one icon covers every macro.
+- While the AI operates an app, a pause/stop bar now stays over that app too, and pulling down the notification shade pauses it.

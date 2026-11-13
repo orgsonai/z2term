@@ -25,6 +25,7 @@ fun z2ActionScript(lang: String): String {
         |# z2-action list | show NAME | save NAME FILE|- | delete NAME
         |# z2-action run NAME | start NAME | wait RUN_ID | status [RUN_ID] | stop [RUN_ID] | pause [RUN_ID] | resume [RUN_ID]
         |# z2-action screen | history | inspect PACKAGE
+        |# z2-action pick   (a bar over the current app: choose a macro, run it with ▶; it then becomes the stop bar)
         |# version=1|2 / timeout=30 / screen=current
         |# target PACKAGE / launch PACKAGE / wait MILLISECONDS / key back|home|recents|shade|quicksettings|screenshot|split
         |# tap px|percent X Y / long-press px|percent X Y MILLISECONDS

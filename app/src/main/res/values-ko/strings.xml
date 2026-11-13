@@ -1343,4 +1343,7 @@ SSH 연결: %3$d
     <string name="voice_no_rule">아직 이것을 받는 규칙이 없습니다. 터미널에서 z2-macro install voice 를 실행한 뒤 sh ~/.z2term/macros/voice.sh setup 을 실행하세요 (설정 › 안내 보기 › voice 에서도 안내합니다).</string>
     <string name="voice_no_locked_rule">잠금 중에 말한 것을 받는 규칙이 아직 없습니다. 터미널에서 sh ~/.z2term/macros/voice.sh setup 을 다시 실행하세요.</string>
     <string name="voice_no_mic">마이크 권한이 없습니다. 음성 조작을 쓰려면 허용하세요.</string>
+    <string name="ui_bridge_bar_name">AI 조작</string>
+    <string name="ui_bridge_show_bar">조작 중인 앱 위에 정지 버튼 표시</string>
+    <string name="ui_bridge_show_bar_desc">AI가 조작하는 동안 앱 위에 ‖ (일시정지)와 ■ (정지)가 있는 작은 막대를 표시합니다. 손가락으로 옮길 수 있습니다. 알림창을 내려도 일시정지합니다. AI는 막대를 누를 수 없습니다.</string>
 </resources>

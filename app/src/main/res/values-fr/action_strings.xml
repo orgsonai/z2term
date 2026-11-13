@@ -179,4 +179,10 @@
     <string name="action_state_paused">En pause</string>
     <string name="action_macro_resuming">Reprise : %1$s</string>
     <string name="action_resume_no_screen">L’écran à piloter est introuvable, la macro reste en pause. Ouvrez cet écran puis appuyez de nouveau sur Reprendre.</string>
+    <string name="action_chooser_title">Macro d’actions</string>
+    <string name="action_chooser_open">Choisir une macro (actuelle : %1$s)</string>
+    <string name="action_chooser_run">Lancer la macro choisie</string>
+    <string name="action_chooser_close">Fermer</string>
+    <string name="action_chooser_empty">Aucune macro d’actions enregistrée</string>
+    <string name="action_chooser_entry">Macro d’actions : choisir et lancer</string>
 </resources>

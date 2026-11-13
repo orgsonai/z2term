@@ -79,6 +79,7 @@ fun UiBridgeBody() {
     val minutes = remember(tick) { settings.grantMinutes }
     val strictSettle = remember(tick) { settings.strictSettle }
     val showTrail = remember(tick) { settings.showTrail }
+    val showBar = remember(tick) { settings.showBar }
     var editingGrant by remember { mutableStateOf(false) }
     var paused by remember { mutableStateOf(UiBridge.isPaused) }
 
@@ -155,6 +156,14 @@ fun UiBridgeBody() {
         desc = stringResource(R.string.ui_bridge_strict_settle_desc),
         checked = strictSettle,
         onChange = { settings.strictSettle = it }
+    )
+
+    // AI の操作中、操作先の上に ‖ と ■ の帯を出す (1.0.102)。通知欄まで指が届かないときの非常停止。
+    ToggleRow(
+        title = stringResource(R.string.ui_bridge_show_bar),
+        desc = stringResource(R.string.ui_bridge_show_bar_desc),
+        checked = showBar,
+        onChange = { settings.showBar = it; UiBridge.barChanged(context) }
     )
 
     // AI の指の軌跡を画面に描く (1.0.46)。AI が撮る画像には写さない。

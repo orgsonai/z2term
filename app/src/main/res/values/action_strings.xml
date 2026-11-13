@@ -180,4 +180,11 @@
     <string name="action_state_paused">Paused</string>
     <string name="action_macro_resuming">Resuming: %1$s</string>
     <string name="action_resume_no_screen">Could not find the screen to operate, so the macro stays paused. Open that screen and press Resume again.</string>
+    <string name="action_chooser_title">Action macro</string>
+    <string name="action_chooser_choice" translatable="false">%1$s ▾</string>
+    <string name="action_chooser_open">Choose a macro (now: %1$s)</string>
+    <string name="action_chooser_run">Run the chosen macro</string>
+    <string name="action_chooser_close">Close</string>
+    <string name="action_chooser_empty">No action macros are saved yet</string>
+    <string name="action_chooser_entry">Action macro: choose and run</string>
 </resources>
