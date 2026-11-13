@@ -9,6 +9,7 @@ import android.text.InputType
 import android.text.TextUtils
 import android.view.ContextThemeWrapper
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.*
 import androidx.activity.ComponentActivity
@@ -248,7 +249,16 @@ internal class ActionMacrosEditor(
         renderedEditing = editing && AppLock.state.value == AppLock.State.UNLOCKED
         // The body of every command-sheet tab: 16dp sides, 10dp above, 24dp below, 10dp between items.
         body = column().apply { setPadding(dp(ActionUi.GUTTER), dp(10), dp(ActionUi.GUTTER), dp(24)) }
-        val scroll = NestedScrollView(this).apply {
+        val scroll = object : NestedScrollView(this) {
+            // ⚠ In the command sheet this view sits inside Compose, which hands a finger to an embedded View only
+            // after the sheet's own drag has seen it. The sheet took every vertical drag, so the editor never
+            // scrolled and its lower part stayed out of reach (1.0.105). Claim the finger on touch-down; scrolling
+            // past the top still reaches the sheet through nested scrolling, so pulling it down to close works.
+            override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+                if (ev.actionMasked == MotionEvent.ACTION_DOWN) parent?.requestDisallowInterceptTouchEvent(true)
+                return super.dispatchTouchEvent(ev)
+            }
+        }.apply {
             isFillViewport = true
             setBackgroundColor(ActionUi.groundColor)
             addView(body)
