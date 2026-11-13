@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.99 (versionCode 797)**: The switches in the Screen actions tab and the edge panel settings are back to their shape before 1.0.98.
+
 **1.0.98 (versionCode 796)**: Moved the “Reset settings” button from “About this app” to “Maintenance” in ⚙ Settings. The Maintenance description already listed resetting settings, but the button lived elsewhere; it now sits with Reset terminal and the other operations that cannot be undone. The switches in the Screen actions tab (“Show a stop button over other apps”) and in the edge panel settings now have the same shape as the other settings switches, with an outline while OFF, so OFF reads as clearly as ON.
 
 **1.0.97 (versionCode 795)**: Added `z2-action pause [RUN_ID]` and `z2-action resume [RUN_ID]`, the same pause and resume as the notification and the floating bar, for shell macros and `z2-when`. `resume` waits up to 5 seconds for a screen other than z2term to settle in front, so when typing it in z2term, switch to the screen to operate meanwhile.

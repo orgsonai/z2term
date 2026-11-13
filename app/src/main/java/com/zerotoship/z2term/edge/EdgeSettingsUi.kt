@@ -375,37 +375,12 @@ internal object EdgeSettingsUi {
     /**
      * A switch has to read as clearly OFF as it does ON, so both sides are coloured; leaving the
      * unchecked side to the platform makes it vanish into a dark ground.
-     *
-     * Drawn in the shape of the Compose switches on the settings and rules screens (52 x 32 track,
-     * 2dp outline while OFF, 24dp / 16dp thumb) so the two kinds look the same side by side.
-     * The platform track takes a tint only, so the OFF outline needs drawables of its own.
      */
     fun switchOf(context: Context, checked: Boolean): Switch = Switch(context).apply {
         isChecked = checked
-        val on = intArrayOf(android.R.attr.state_checked)
-        val height = dp(context, 32)
-        fun track(fill: Int, stroke: Int) = box(fill, stroke, dp(context, 2), height / 2).apply {
-            setSize(dp(context, 52), height)
-        }
-        // Thumb bounds are half the track wide and the track tall; the inset leaves a circle.
-        // InsetDrawable reports the circle plus the insets, i.e. 26 x 32.
-        fun thumb(color: Int, size: Int): Drawable {
-            val circle = dp(context, size)
-            val side = (dp(context, 26) - circle) / 2
-            val top = (height - circle) / 2
-            return android.graphics.drawable.InsetDrawable(
-                GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color); setSize(circle, circle) },
-                side, top, dp(context, 26) - circle - side, height - circle - top
-            )
-        }
-        trackDrawable = StateListDrawable().apply {
-            addState(on, track(tint(accent(context), 0x4d), tint(accent(context), 0x4d)))
-            addState(intArrayOf(), track(surface(context), line(context)))
-        }
-        thumbDrawable = StateListDrawable().apply {
-            addState(on, thumb(accent(context), 24))
-            addState(intArrayOf(), thumb(muted(context), 16))
-        }
+        val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
+        thumbTintList = ColorStateList(states, intArrayOf(accent(context), strong(context)))
+        trackTintList = ColorStateList(states, intArrayOf(tint(accent(context), 0x70), line(context)))
     }
 
     /**
