@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.115 (versionCode 813)**: Progress on the stop bar that does not fit even at full screen width (for example several nested repeats) now scrolls instead of being cut with "…". It rests at the start for 1.2 seconds, scrolls left, rests at the end for 1.2 seconds and returns to the start, repeatedly. Text updates as steps advance do not restart the scroll. Progress that fits does not move.
+
 **1.0.114 (versionCode 812)**: With long progress on the stop bar (for example several nested repeats), ‖ and ■ on its right were squeezed and cut off, which made them hard to press. Android first measures an overlay window that wraps its content at a dialog width of about 320dp, so the long progress took the space first and nothing was left for the buttons. The bar now measures its own size with the screen width as the limit, so the buttons always keep their full size. When the progress does not fit the screen width, only its end is shortened with "…".
 
 **1.0.113 (versionCode 811)**: Two fixes to the stop bar (shown during action macros and AI operation).

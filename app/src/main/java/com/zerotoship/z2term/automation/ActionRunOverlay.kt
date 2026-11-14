@@ -106,13 +106,13 @@ internal object ActionRunOverlay {
         val nameView = ActionUi.label(host, name, 11f, ActionUi.mutedColor).apply {
             maxLines = 1; ellipsize = TextUtils.TruncateAt.END; maxWidth = dp(160)
         }
-        val progressView = ActionUi.label(host, "", 13f, ActionUi.textColor, ActionUi.medium).apply {
-            // ⚠ 進み具合は削らない (1.0.112)。160dp で切ると「1/6回目 · 手順 2/4」でも … になって回数が読めなかった。
-            // 帯が伸びても画面からはみ出さないよう、大きさが変わるたびに [attach] が画面の中へ収め直す。
-            // 上限は画面の幅からボタンと余白を引いた分だけ。
-            // 最小の幅は、手順ごとに帯の幅が変わってちらつかないため。
-            maxLines = 1; ellipsize = TextUtils.TruncateAt.END; minWidth = dp(120)
-            maxWidth = ActionRuntime.screen(host).width - dp(12 + 4 + 48 + 48 + 4 + 16)
+        // ⚠ 進み具合は削らない (1.0.112)。160dp で切ると「1/6回目 · 手順 2/4」でも … になって回数が読めなかった。
+        // 帯が伸びても画面からはみ出さないよう、文字が変わるたびに [refit] が画面の中へ収め直す。
+        // 幅の上限は画面の幅からボタンと余白を引いた分。それでも入りきらない分は流して見せる ([Ticker]、1.0.115)。
+        // 最小の幅は、手順ごとに帯の幅が変わってちらつかないため。
+        val progressView = ActionUi.label(host, "", 13f, ActionUi.textColor, ActionUi.medium).apply { maxLines = 1 }
+        val progressBox = Ticker(host, progressView, ActionRuntime.screen(host).width - dp(12 + 4 + 48 + 48 + 4 + 16)).apply {
+            minimumWidth = dp(120)
         }
         val toggleText = control(host, "‖", ActionUi.textColor, host.getString(R.string.action_macro_pause), toggle)
         val stopText = control(host, "■", ActionUi.dangerColor, stopLabel ?: host.getString(R.string.action_macro_stop), stop)
@@ -120,7 +120,7 @@ internal object ActionRunOverlay {
             setPadding(dp(12), dp(4), dp(4), dp(4))
             addView(LinearLayout(host).apply {
                 orientation = LinearLayout.VERTICAL
-                addView(nameView); addView(progressView)
+                addView(nameView); addView(progressBox)
             }, LinearLayout.LayoutParams(-2, -2))
             addView(toggleText, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(4) })
             addView(stopText, LinearLayout.LayoutParams(-2, -2))
@@ -481,4 +481,64 @@ internal object ActionRunOverlay {
 
     private fun synthetic(event: MotionEvent) = event.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD &&
         event.getToolType(0) == MotionEvent.TOOL_TYPE_UNKNOWN
+}
+
+/**
+ * 入りきらない 1 行の文字を、左へ流して全部見せる欄 (1.0.115、停止の帯の進み具合)。
+ * 幅は [limit] まで。文字が入りきるときは流さない。
+ *
+ * ⚠ TextView の marquee は使わない。文字を書き換えるたびに先頭から流し直すので、0.25 秒ごとに
+ * 書き換わる進み具合では末尾まで届かない。ここでは流す位置を時刻で決め、書き換えても続きから流す。
+ * 先頭で [HOLD_MS] 止まる → [SPEED_DP] dp/秒で左へ流す → 末尾で [HOLD_MS] 止まる → 先頭へ戻る。
+ */
+private class Ticker(context: Context, private val text: TextView, private val limit: Int) : android.view.ViewGroup(context) {
+    private var cycleStart = 0L
+    private var running = false
+    private val speed = ActionUi.dp(context, SPEED_DP).toFloat()
+    private val frame = Runnable { tick() }
+
+    init {
+        clipChildren = true
+        addView(text)
+    }
+
+    private val overflow get() = (text.measuredWidth - width).coerceAtLeast(0)
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        text.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+        val room = if (MeasureSpec.getMode(widthMeasureSpec) == MeasureSpec.UNSPECIFIED) limit
+            else minOf(limit, MeasureSpec.getSize(widthMeasureSpec))
+        setMeasuredDimension(maxOf(minimumWidth, minOf(text.measuredWidth, room)), text.measuredHeight)
+    }
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        text.layout(0, 0, text.measuredWidth, text.measuredHeight)
+        if (overflow > 0 && !running && isAttachedToWindow) { running = true; cycleStart = now(); tick() }
+        else if (overflow == 0) text.translationX = 0f
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        removeCallbacks(frame); running = false
+    }
+
+    private fun now() = android.os.SystemClock.uptimeMillis()
+
+    private fun tick() {
+        val over = overflow
+        if (over == 0 || !isAttachedToWindow) { text.translationX = 0f; running = false; return }
+        val travel = (over / speed * 1000).toLong()
+        var t = now() - cycleStart
+        if (t >= HOLD_MS * 2 + travel) { cycleStart = now(); t = 0 }
+        when {
+            t < HOLD_MS -> { text.translationX = 0f; postDelayed(frame, HOLD_MS - t) }
+            t < HOLD_MS + travel -> { text.translationX = -minOf(over.toFloat(), (t - HOLD_MS) * speed / 1000); postOnAnimation(frame) }
+            else -> { text.translationX = -over.toFloat(); postDelayed(frame, HOLD_MS * 2 + travel - t) }
+        }
+    }
+
+    private companion object {
+        const val HOLD_MS = 1200L
+        const val SPEED_DP = 40
+    }
 }

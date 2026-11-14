@@ -1,0 +1,3 @@
+1.0.115
+
+- Progress too long for the stop bar now scrolls instead of being cut off.
