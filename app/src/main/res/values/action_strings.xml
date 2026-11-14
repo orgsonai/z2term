@@ -187,4 +187,5 @@
     <string name="action_chooser_close">Close</string>
     <string name="action_chooser_empty">No action macros are saved yet</string>
     <string name="action_chooser_entry">Action macro: choose and run</string>
+    <string name="action_launch_timeout">%1$s did not come to the front within %2$d seconds after launch</string>
 </resources>

@@ -185,4 +185,5 @@
     <string name="action_chooser_close">Chiudi</string>
     <string name="action_chooser_empty">Nessuna macro di azioni salvata</string>
     <string name="action_chooser_entry">Macro di azioni: scegli ed esegui</string>
+    <string name="action_launch_timeout">%1$s non è passata in primo piano entro %2$d secondi dall’avvio</string>
 </resources>

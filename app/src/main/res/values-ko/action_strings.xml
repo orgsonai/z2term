@@ -186,4 +186,5 @@
     <string name="action_chooser_close">닫기</string>
     <string name="action_chooser_empty">저장된 동작 매크로가 없습니다</string>
     <string name="action_chooser_entry">동작 매크로: 선택해서 실행</string>
+    <string name="action_launch_timeout">%1$s을(를) 연 뒤 %2$d초가 지나도 앞에 나오지 않았습니다</string>
 </resources>

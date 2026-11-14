@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.111 (versionCode 809)**: An action macro's `launch` now waits until the launched app is in front before the next step (up to 10 seconds). It used to move on as soon as the launch was requested, so on a slow start the next scroll or tap took the screen behind as its target and stopped with "Target application changed" once the app arrived (the Settings app once took 1.7 seconds, longer than the macro's `wait 1200`). If the app is not in front within 10 seconds, the step fails.
+
 **1.0.110 (versionCode 808)**: ■ on the bar shown while the AI operates an app now ends the current task without turning AI operation off. It used to act like the notification's Stop and switch AI operation off, so it had to be turned back on in the settings every time. ■ now stops the current move, answers the AI's next call once with `ended` (the user ended the task) so it finishes, and removes the bar and the notification. AI operation stays on for the next task. The emergency stop that also turns it off remains in the notification's Stop and the setting.
 
 **1.0.109 (versionCode 807)**: The notification shown while the AI operates an app was folded into the "Silent" section together with z2term's other ongoing notifications (for example "z2term 3"), so Resume and Stop took two expansions to reach. Like the action macro notification (1.0.95), it now appears in the regular section, still without sound or vibration. Its notification channel is recreated (if you had turned the old one off, turn it off again).

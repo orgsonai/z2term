@@ -186,4 +186,5 @@
     <string name="action_chooser_close">閉じる</string>
     <string name="action_chooser_empty">保存した操作マクロがありません</string>
     <string name="action_chooser_entry">操作マクロ: 選んで実行</string>
+    <string name="action_launch_timeout">%1$s を開いてから %2$d 秒たっても前面に出ませんでした</string>
 </resources>

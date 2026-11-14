@@ -186,4 +186,5 @@
     <string name="action_chooser_close">關閉</string>
     <string name="action_chooser_empty">還沒有儲存的操作巨集</string>
     <string name="action_chooser_entry">操作巨集：選擇後執行</string>
+    <string name="action_launch_timeout">開啟 %1$s 後 %2$d 秒內未切換到前景</string>
 </resources>

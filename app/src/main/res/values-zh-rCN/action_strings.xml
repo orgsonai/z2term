@@ -186,4 +186,5 @@
     <string name="action_chooser_close">关闭</string>
     <string name="action_chooser_empty">还没有保存的操作宏</string>
     <string name="action_chooser_entry">操作宏：选择后运行</string>
+    <string name="action_launch_timeout">打开 %1$s 后 %2$d 秒内未切换到前台</string>
 </resources>

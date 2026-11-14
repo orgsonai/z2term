@@ -252,7 +252,7 @@ Headers precede the body. Use one step per line. Blank lines and lines starting 
 | `screen=1080x2400@0` | Explicit display geometry |
 | `target PACKAGE` | Set the target app for subsequent coordinates, scrolling and UI elements without launching it |
 | `target current` | Use the foreground app at the start of each subsequent step; the default when no target is specified |
-| `launch PACKAGE` | Request app launch and update the target |
+| `launch PACKAGE` | Launch the app and wait until it is in front (up to 10 seconds, 1.0.111); also updates the target |
 | `wait MS` | Wait 0–30000 milliseconds |
 | `key NAME` | back/home/recents/shade/quicksettings/screenshot/split |
 | `tap UNIT X Y` | An 80ms tap |
@@ -273,7 +273,7 @@ EASING is `linear`, `accelerate` or `decelerate`. Manual pinch and two-finger sw
 
 All points of both touch paths must be inside the visible target application window, excluding the keyboard. A mismatched display size/rotation, wrong focused app, screen off/lock, or Accessibility disconnect stops execution. If the target cannot yet be identified after enabling Accessibility, switch to that app before running.
 
-Each step waits for completion: shell exit code or Android's gesture callback. Rejection, cancellation or a missing callback prevents successors. Timed scrolling also waits for its final dispatched stroke to end. `launch` completes when the request is accepted, so insert an explicit `wait` for screen preparation.
+Each step waits for completion: shell exit code or Android's gesture callback. Rejection, cancellation or a missing callback prevents successors. Timed scrolling also waits for its final dispatched stroke to end. `launch` waits until the launched app is in front before the next step (1.0.111). It used to complete when the request was accepted, so on a slow start the next step took the screen behind as its target and stopped with "Target application changed" once the app arrived. If the app is not in front within 10 seconds, the step fails. To wait for the app's content to settle after it is in front, keep using `wait` or `wait-ui`.
 
 Limits: 64 source instructions and 64KiB per macro, 64 saved definitions, and names of 1–64 letters, digits, underscores or hyphens. Panels and handles are temporarily hidden during execution. Unsaved panel edits must be saved or cancelled before a macro can start.
 

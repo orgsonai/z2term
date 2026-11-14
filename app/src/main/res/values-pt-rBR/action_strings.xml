@@ -185,4 +185,5 @@
     <string name="action_chooser_close">Fechar</string>
     <string name="action_chooser_empty">Nenhuma macro de ações salva ainda</string>
     <string name="action_chooser_entry">Macro de ações: escolher e executar</string>
+    <string name="action_launch_timeout">%1$s não veio para a frente em %2$d segundos depois de aberto</string>
 </resources>

@@ -49,6 +49,8 @@ internal object ActionRuntime {
     /** A gesture cancelled by a real touch fails before the shade that touch opens takes focus. */
     private const val SHADE_GRACE_MS = 400L
     private const val SHADE_REASON = "Notification shade opened"
+    /** How long a launch step waits for the launched app to come to the front. */
+    private const val LAUNCH_WAIT_MS = 10_000L
     fun store(context: Context) = ActionStore(File(context.filesDir, "shared_home/.z2term/actions"))
 
     @Suppress("DEPRECATION")
@@ -257,7 +259,17 @@ internal object ActionRuntime {
             is ActionDefinition.Step.Wait -> return schedule(step.ms) { done(null) }
             is ActionDefinition.Step.Launch -> {
                 val intent = run.context.packageManager.getLaunchIntentForPackage(step.packageName) ?: error("No launchable app: ${step.packageName}")
-                run.context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); done(null)
+                run.context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                // ⚠ startActivity returns before the app is in front. A cold start can take seconds (Settings took
+                // 1.7 s), and a following step on the current app then took the screen behind it as its target and
+                // failed with "Target application changed" once the app arrived (1.0.111). Finish the step only when
+                // the launched app is in front.
+                return ActionUiWait(::schedule).start(LAUNCH_WAIT_MS, { callback ->
+                    callback(AndroidActions.focusedPackage() == step.packageName, null)
+                    val noWork: () -> Unit = {}
+                    noWork
+                }, ::done, run.context.getString(com.zerotoship.z2term.R.string.action_launch_timeout, step.packageName,
+                    (LAUNCH_WAIT_MS / 1000).toInt()))
             }
             is ActionDefinition.Step.Key -> { AndroidActions.command(run.context, listOf(step.name)); done(null) }
             is ActionDefinition.Step.Command -> {

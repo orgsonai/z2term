@@ -185,4 +185,5 @@
     <string name="action_chooser_close">Tutup</string>
     <string name="action_chooser_empty">Belum ada makro aksi yang disimpan</string>
     <string name="action_chooser_entry">Makro aksi: pilih dan jalankan</string>
+    <string name="action_launch_timeout">%1$s tidak muncul di depan dalam %2$d detik setelah dibuka</string>
 </resources>

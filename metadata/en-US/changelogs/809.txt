@@ -1,0 +1,3 @@
+1.0.111
+
+- An action macro's launch step now waits until the app is in front before the next step, so slow-starting apps no longer stop the macro.

@@ -185,4 +185,5 @@
     <string name="action_chooser_close">Schließen</string>
     <string name="action_chooser_empty">Noch keine Aktionsmakros gespeichert</string>
     <string name="action_chooser_entry">Aktionsmakro: wählen und ausführen</string>
+    <string name="action_launch_timeout">%1$s kam nach dem Start nicht innerhalb von %2$d Sekunden in den Vordergrund</string>
 </resources>
