@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="viewer_missing">Этой страницы больше нет.</string>
+    <string name="viewer_no_browser">На этом телефоне нет приложения, которое может открыть эту ссылку.</string>
+    <string name="viewer_expand">Развернуть</string>
+    <string name="viewer_close">Закрыть</string>
+    <string name="viewer_component">Просмотр (z2-view)</string>
+    <string name="viewer_empty">Страницы пока нет. Задайте команду, которая вызывает z2-view, или отправьте страницу в этот элемент.</string>
+    <string name="viewer_required">Введите %1$s.</string>
+    <string name="viewer_show_refresh">Показывать кнопку «Обновить»</string>
+    <string name="viewer_show_expand">Показывать кнопку «Развернуть»</string>
+    <string name="viewer_update_mode">Режим обновления просмотра</string>
+    <string name="viewer_update_manual">Только вручную</string>
+    <string name="viewer_update_auto">Автоматически</string>
+    <string name="viewer_update_help">Только вручную: при открытии или смене вкладки показывается последняя страница без запуска команды. В первый раз нажмите «Обновить». Автоматически: обновляется при открытии и с интервалом из «Дополнительных настроек». Пустой или нулевой интервал обновляет только при открытии. Обновления страницы от действий вроде добавления или удаления появляются в любом режиме.</string>
+    <string name="viewer_empty_manual">Страницы пока нет. Нажмите «Обновить», чтобы выполнить заданную команду и показать результат.</string>
+    <string name="viewer_empty_hidden">Страницы пока нет. Включите кнопку «Обновить» в настройках этого элемента или отправьте страницу в этот элемент из макроса.</string>
+    <string name="viewer_find">Найти</string>
+    <string name="viewer_find_hint">Найти на странице</string>
+    <string name="viewer_find_previous">Предыдущее совпадение</string>
+    <string name="viewer_find_next">Следующее совпадение</string>
+    <string name="viewer_find_close">Закрыть поиск</string>
+    <string name="viewer_show_find">Показывать кнопку «Найти»</string>
+    <string name="viewer_number">Введите %1$s числом.</string>
+    <string name="viewer_pinch" formatted="false">Щипок</string>
+    <string name="viewer_pinch_text" formatted="false">Менять размер текста</string>
+    <string name="viewer_pinch_page" formatted="false">Масштабировать всю страницу</string>
+    <string name="viewer_text_size" formatted="false">Размер текста (%)</string>
+    <string name="viewer_text_size_help" formatted="false">50–300; пусто — 100. При «Менять размер текста» щипок заполняет это поле.</string>
+</resources>

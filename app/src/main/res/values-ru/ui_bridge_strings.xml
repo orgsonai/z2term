@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- z2-ui (AI からのアプリ操作)。設計は docs/ja/AI-BRIDGE.md。 -->
+<resources>
+    <string name="tools_automation_ai">ИИ</string>
+    <string name="ui_bridge_title">Управление приложениями ИИ</string>
+    <string name="ui_bridge_desc">Если включено, ИИ, работающий в терминале, может командой z2-ui читать экраны других приложений, нажимать и вводить текст. Пока он работает, в уведомлении можно поставить его на паузу, отправить ему указание или остановить его.</string>
+    <string name="ui_bridge_enable">Разрешить ИИ управлять приложениями</string>
+    <string name="ui_bridge_stopped_note">Остановлено из уведомления. Включите снова, чтобы продолжить.</string>
+    <string name="ui_bridge_paused_note">Пауза. ИИ может читать экран, но не может им управлять.</string>
+    <string name="ui_bridge_accessibility_needed">Нужна служба специальных возможностей «z2term Android actions».</string>
+    <string name="ui_bridge_open_accessibility">Открыть настройки специальных возможностей</string>
+    <string name="ui_bridge_apps_title">Разрешения по приложениям</string>
+    <string name="ui_bridge_add_app">+ Добавить приложение</string>
+    <string name="ui_bridge_grant_title">Срок одобрения</string>
+    <string name="ui_bridge_grant_value">%1$d мин</string>
+    <string name="ui_bridge_grant_desc">Для приложений с «Спрашивать каждый раз» нажатие «Разрешить на %1$d мин» позволяет ИИ продолжать без вопросов всё это время.</string>
+    <string name="ui_bridge_grant_input_title">Введите минуты</string>
+    <string name="ui_bridge_grant_input_hint">1–1440</string>
+    <string name="ui_bridge_set">Задать</string>
+    <string name="ui_bridge_protected_note">z2term, настройки Android, установщики и шторка уведомлений никогда не доступны ИИ, какими бы ни были разрешения.</string>
+    <string name="ui_bridge_log_note">Журнал действий: ~/.z2term/ui/log.jsonl (вводимый текст не записывается)</string>
+    <string name="ui_bridge_channel">Управление приложениями ИИ</string>
+    <string name="ui_bridge_ask_channel">Одобрение действий ИИ</string>
+    <string name="ui_bridge_running_title">ИИ управляет приложением</string>
+    <string name="ui_bridge_paused_title">Управление ИИ на паузе</string>
+    <string name="ui_bridge_grant_left">Без одобрения · осталось %1$d мин</string>
+    <string name="ui_bridge_pause">Пауза</string>
+    <string name="ui_bridge_resume">Продолжить</string>
+    <string name="ui_bridge_say">Отправить указание</string>
+    <string name="ui_bridge_say_hint">Указание для ИИ</string>
+    <string name="ui_bridge_stop">Стоп</string>
+    <string name="ui_bridge_ask_title">Разрешить это действие ИИ?</string>
+    <string name="ui_bridge_allow">Разрешить</string>
+    <string name="ui_bridge_deny">Запретить</string>
+    <string name="ui_bridge_allow_for">Разрешить на %1$d мин</string>
+    <string name="ui_bridge_change_title">ИИ просит изменить своё разрешение</string>
+    <string name="ui_bridge_change_level">Установить для %1$s «%2$s»</string>
+    <string name="ui_bridge_change_grant">Установить срок одобрения %1$d мин</string>
+    <string name="ui_bridge_default_apps">Приложения не из списка</string>
+    <string name="ui_bridge_level_off">Выкл.</string>
+    <string name="ui_bridge_level_look">Только чтение</string>
+    <string name="ui_bridge_level_ask">Спрашивать каждый раз</string>
+    <string name="ui_bridge_level_auto">Без одобрения</string>
+    <string name="ui_bridge_op_tap">Нажать «%2$s» в %1$s</string>
+    <string name="ui_bridge_op_long">Нажать и удерживать «%2$s» в %1$s</string>
+    <string name="ui_bridge_op_type">Ввести «%3$s» в «%2$s» в %1$s</string>
+    <string name="ui_bridge_op_enter">Нажать Enter в «%2$s» в %1$s</string>
+    <string name="ui_bridge_op_back">Нажать «Назад» в %1$s</string>
+    <string name="ui_bridge_op_open">Открыть в %1$s: %2$s</string>
+    <string name="ui_bridge_point">точка (%1$d, %2$d)</string>
+    <string name="ui_bridge_op_scroll">Прокрутить «%2$s» в %1$s (%3$s)</string>
+    <string name="ui_bridge_op_swipe">Свайп в %1$s от (%2$d, %3$d) до (%4$d, %5$d)</string>
+    <string name="ui_bridge_op_noti">Нажать «%2$s» в уведомлении %1$s</string>
+    <string name="ui_bridge_op_noti_reply">Отправить «%3$s» через «%2$s» в уведомлении %1$s</string>
+    <string name="ui_bridge_op_drag">Протянуть через %2$d точек в %1$s</string>
+</resources>

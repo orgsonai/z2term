@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">Ввод для команды</string>
+    <string name="snippet_inputs_file">Выбрать файл</string>
+    <string name="snippet_inputs_invalid">Проверьте описание полей и значения. Ставьте каждый заполнитель вне кавычек как отдельный аргумент.</string>
+    <string name="snippet_inputs_preview">Предпросмотр команды</string>
+    <string name="snippet_inputs_hint">Команда вставляется в терминал. Проверьте её и нажмите Enter. Выбранные файлы копируются в домашнюю папку локальной оболочки.</string>
+    <string name="snippet_inputs_enable">Запрашивать ввод перед вставкой</string>
+    <string name="snippet_inputs_definition">В команде: {{text}}, {{width:number=1080}}, {{format:choice=png|jpg}}, {{image:file}}. Имена становятся подписями полей. Ставьте заполнители вне кавычек.</string>
+    <string name="snippet_share_action">Предлагать после получения через «Поделиться»</string>
+    <string name="snippet_share_action_hint">Команда может читать $Z2_SHARE_TEXT и $Z2_SHARE_MANIFEST (JSON о полученном). Поля файлов могут использовать полученные вложения.</string>
+    <string name="share_intake_title">Полученное содержимое</string>
+    <string name="share_intake_hint">Текст и вложения сохраняются вместе. Выберите сохранённую команду или вставьте исходное содержимое. Команды выполняются после нажатия Enter.</string>
+    <string name="share_intake_insert">Вставить в терминал</string>
+    <string name="share_intake_close">Оставить сохранённым и закрыть</string>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内: エッジパネル (0.8.601)。Guide.EDGE_PANEL -->
+    <string name="guide_desc_edge_panel">Открывать список приложений с полоски у края экрана</string>
+    <string name="guide_step_edge_overlay">Разрешить z2term показываться поверх других приложений</string>
+    <string name="guide_step_edge_accessibility">Включить службу специальных возможностей «z2term Android actions» (нужна, чтобы прокручивать, проводя по полоске вверх и вниз)</string>
+    <string name="guide_step_edge_panel">Создать пример панели с z2term, браузером, камерой, телефоном, сообщениями и настройками, найденными на этом устройстве</string>
+    <string name="guide_step_edge_on">Включить панель (у правого края появится полоска; проведите по ней внутрь, чтобы открыть список приложений)</string>
+    <string name="guide_step_edge_settings">Когда панель открыта, нажмите и удерживайте за пределами меню, чтобы открыть её настройки</string>
+</resources>

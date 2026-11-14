@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">Выбор или копирование документа…</string>
+    <string name="process_text_title">Обработать в z2term</string>
+    <string name="process_text_enable">Предлагать для выделенного текста</string>
+    <string name="process_text_contract">Выбранная команда получает исходный текст на stdin. Проверьте stdout перед заменой выделения.</string>
+    <string name="process_text_setup">Зарегистрируйте команду в «Команды → Фрагменты» и включите «Предлагать для выделенного текста».</string>
+    <string name="process_text_replace">Заменить выделение</string>
+    <string name="process_text_too_large">Текст должен быть корректным текстом без NUL, не больше 64 КиБ.</string>
+    <string name="workspace_title">Расположение сеансов</string>
+    <string name="workspace_hint">Выберите вторую вкладку. Нажмите на панель, чтобы сделать её активной; потяните разделитель, чтобы изменить размер. Клавиатура управляет активной панелью. Нажмите и удерживайте заголовок панели и потяните его к другой панели, чтобы поменять их местами; кнопка справа в заголовке (или двойное нажатие на заголовок) оставляет только эту вкладку.</string>
+    <string name="workspace_vertical">Сверху / снизу</string>
+    <string name="workspace_horizontal">Слева / справа</string>
+    <string name="workspace_preview_current">Эта вкладка</string>
+    <string name="workspace_preview_other">Вкладка, которую вы выберете ниже</string>
+    <string name="workspace_need_two">Сначала откройте ещё одну вкладку терминала или GUI.</string>
+    <string name="workspace_maximize">Показать только эту вкладку</string>
+    <string name="workspace_single">Одна панель</string>
+    <string name="workspace_external_hint">Показать текущую вкладку на внешнем дисплее. Телефон может управлять ею или показывать другую вкладку.</string>
+    <string name="workspace_no_display">Внешний дисплей недоступен.</string>
+    <string name="workspace_return">Вернуть на телефон</string>
+    <string name="workspace_projected">Показано на внешнем дисплее. Клавиатура управляет этим сеансом.</string>
+    <string name="workspace_controller">Внешний дисплей: используйте эту область как тачпад, а клавиатуру ниже — для ввода.</string>
+    <string name="workspace_display_failed">Этот дисплей использовать нельзя. Сеанс продолжает работать.</string>
+    <string name="settings_gui_direct">Прямой вывод локального GUI (экспериментально)</string>
+    <string name="settings_gui_direct_desc">Читает локальный кадровый буфер напрямую. Для показа используется Xvfb, а x11vnc — только для ввода; пакеты скачиваются при первом использовании. Действует на новые вкладки GUI. Начальное разрешение фиксировано; без ускорения GPU.</string>
+    <string name="tip_gui_split_title">Нажмите и удерживайте GUI, чтобы разделить экран между GUI и терминалом</string>
+    <string name="tip_gui_split_body">Нажмите и удерживайте кнопку GUI (🖥) рядом с +, чтобы открыть расположение сеансов. Выберите «сверху/снизу» или «слева/справа» и другую вкладку, чтобы пользоваться GUI и терминалом (CUI) вместе. В том же меню можно вернуть одну панель или выбрать внешний дисплей. Короткое нажатие, как и раньше, открывает GUI.</string>
+</resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">Отменить несохранённые изменения?</string>
+    <string name="edge_discard_message">Несохранённые правки будут потеряны.</string>
+    <string name="edge_discard">Отменить</string>
+    <string name="edge_keep_editing">Продолжить</string>
+    <string name="edge_select_tab">Выбрать вкладку</string>
+    <string name="edge_finish_title">Сохранить изменения?</string>
+    <string name="edge_finish_message">Часть правок ещё не сохранена. Имя вкладки или панели, которое введено, но не добавлено, не сохраняется.</string>
+    <string name="edge_choose_panel">Выберите панель</string>
+</resources>

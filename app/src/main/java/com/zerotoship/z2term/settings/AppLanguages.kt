@@ -84,6 +84,7 @@ object AppLanguages {
         // ⚠ res は values-in (Android の古いコード)。端末が `in` と返しても [matchIn] が `id` に読み替える。
         Entry("id", "Bahasa Indonesia", cliComplete = true),
         Entry("it", "Italiano", cliComplete = true),
+        Entry("ru", "Русский", cliComplete = true),
     )
 
     /** 対応言語のコードだけ。 */

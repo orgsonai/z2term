@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">Мини-терминал</string>
+    <string name="edge_terminal_command">Однострочная команда</string>
+    <string name="edge_terminal_result">Вывод команды</string>
+    <string name="edge_terminal_stop">Стоп</string>
+    <string name="edge_terminal_copy">Копировать</string>
+    <string name="edge_terminal_clear">Очистить</string>
+    <string name="edge_terminal_ready">Новый сеанс</string>
+    <string name="edge_terminal_starting">Запуск…</string>
+    <string name="edge_terminal_running">Выполняется…</string>
+    <string name="edge_terminal_exit">Код выхода: %1$d</string>
+    <string name="edge_terminal_ended">Завершено · обновите, чтобы начать новый сеанс</string>
+    <string name="edge_terminal_truncated">Показаны последние 64 КиБ символов</string>
+    <string name="edge_terminal_help">Закрытие панели или смена вкладки сохраняет оболочку, вывод и черновик. «Обновить» сбрасывает их вручную. Пока команда выполняется, поле отвечает ей, а «Стоп» завершает только эту команду. Для полноэкранных программ используйте обычную вкладку терминала.</string>
+    <string name="edge_terminal_one_line_required">Мини-терминал принимает однострочные команды длиной до 16 384 символов. Для многострочных фрагментов используйте обычный терминал.</string>
+    <string name="edge_terminal_refresh">Обновить сеанс</string>
+    <string name="edge_terminal_answer">Ответ выполняющейся команде (пустой отправляет Enter)</string>
+    <string name="edge_terminal_send">Отправить</string>
+</resources>

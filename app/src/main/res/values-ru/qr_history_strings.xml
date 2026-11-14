@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR ツールの履歴 (0.8.603)。QrHistorySection -->
+    <string name="qr_history_title">История</string>
+    <string name="qr_history_clear">Очистить всё</string>
+    <string name="qr_history_clear_title">Очистить историю</string>
+    <string name="qr_history_clear_message">Удаляет всю историю, кроме закреплённых записей.</string>
+    <string name="qr_history_pin">Закрепить</string>
+    <string name="qr_history_unpin">Открепить</string>
+    <string name="qr_history_delete">Удалить</string>
+    <string name="qr_history_pinned">Закреплено</string>
+    <string name="qr_history_menu">Закрепить или удалить</string>
+    <string name="qr_history_note">Нажмите, чтобы показать снова. Нажмите и удерживайте, чтобы закрепить или удалить. История хранит отсканированное только на этом устройстве, включая такие данные, как пароли Wi-Fi. Хранится до 50 незакреплённых записей.</string>
+</resources>

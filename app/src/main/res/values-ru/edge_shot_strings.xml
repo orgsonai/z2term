@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shot_busy">Сначала завершите текущий снимок.</string>
+    <string name="shot_needs_android11">Для снимка области нужен Android 11 или новее.</string>
+    <string name="shot_capture_failed">Android не вернул изображение экрана. Попробуйте ещё раз.</string>
+    <string name="shot_too_small">Область слишком мала. Нарисуйте побольше.</string>
+    <string name="shot_hint_free">Обведите нужное и отпустите палец.</string>
+    <string name="shot_hint_box">Проведите от одного угла к противоположному и отпустите палец.</string>
+    <string name="shot_hint_move">Перетащите изображение, чтобы поправить содержимое.</string>
+    <string name="shot_shape_free">Свободно</string>
+    <string name="shot_shape_rect">Прямоугольник</string>
+    <string name="shot_shape_oval">Овал</string>
+    <string name="shot_shape_circle">Круг</string>
+    <string name="shot_bg_transparent">Снаружи: прозрачно</string>
+    <string name="shot_bg_keep">Снаружи: оставить</string>
+    <string name="shot_redo">Заново</string>
+    <string name="shot_save">Сохранить</string>
+    <string name="shot_share">Поделиться</string>
+    <string name="shot_saved">%1$s сохранён в %2$s.</string>
+    <string name="shot_save_failed">Не удалось записать изображение.</string>
+</resources>

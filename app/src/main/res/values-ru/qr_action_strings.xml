@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR の読み取り結果を開くボタン (0.8.602)。QrAction / QrActionLauncher -->
+    <string name="qr_action_open">Открыть</string>
+    <string name="qr_action_dial">Открыть набор номера</string>
+    <string name="qr_action_email">Написать письмо</string>
+    <string name="qr_action_sms">Написать SMS</string>
+    <string name="qr_action_wifi">Подключиться к Wi-Fi</string>
+    <string name="qr_action_contact">Добавить в контакты</string>
+    <string name="qr_action_event">Добавить в календарь</string>
+    <string name="qr_action_no_app">На этом устройстве нет приложения, которое может это открыть.</string>
+    <string name="qr_action_wifi_copied">Пароль Wi-Fi скопирован. Выберите сеть в списке и вставьте его.</string>
+    <!-- ⚙設定の「QRツール」(0.8.602)。SettingsGroup.QR_TOOLS -->
+    <string name="settings_group_qr_tools">QR-инструменты</string>
+    <string name="settings_group_qr_tools_desc">Сканирование с камеры или изображений и создание QR-кодов</string>
+    <string name="settings_qr_tools_open">Открыть QR-инструменты</string>
+    <string name="settings_qr_tools_hint">z2-qr запускает сканирование камерой. Его можно поставить на плитку быстрых настроек или на боковую панель.</string>
+</resources>

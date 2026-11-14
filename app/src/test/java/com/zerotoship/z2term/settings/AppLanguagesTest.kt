@@ -72,7 +72,8 @@ class AppLanguagesTest {
         assertEquals("ja", AppLanguages.matchDeviceLocale("ja_JP"))
         assertEquals("en", AppLanguages.matchDeviceLocale("en-US"))
         assertEquals("de", AppLanguages.matchDeviceLocale("de-DE"))
-        assertEquals(AppLanguages.FALLBACK, AppLanguages.matchDeviceLocale("ru-RU"))
+        // ⛔ 名簿に無い言語の例に、名簿に載りうる言語を使わない (ru は 1.0.118 で載った)
+        assertEquals(AppLanguages.FALLBACK, AppLanguages.matchDeviceLocale("zz-ZZ"))
     }
 
     /**
@@ -160,6 +161,14 @@ class AppLanguagesTest {
     fun italianRegionsCollapseToTheBaseLanguage() {
         assertEquals("it", AppLanguages.matchDeviceLocale("it-IT"))
         assertEquals("it", AppLanguages.matchDeviceLocale("it-CH"))
+    }
+
+    /** 地域つきのロシア語 (ウクライナ・カザフスタンなど) は `ru` へ (1.0.118)。 */
+    @Test
+    fun russianRegionsCollapseToTheBaseLanguage() {
+        assertEquals("ru", AppLanguages.matchDeviceLocale("ru-RU"))
+        assertEquals("ru", AppLanguages.matchDeviceLocale("ru-UA"))
+        assertEquals("ru", AppLanguages.matchDeviceLocale("ru-KZ"))
     }
 
     /** 名簿に無ければ英語。⛔ 日本語へ倒さない。 */

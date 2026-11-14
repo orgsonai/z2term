@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="editor_save">Сохранить</string>
+    <string name="editor_saved">Сохранено</string>
+    <string name="editor_save_and_close">Сохранить и закрыть</string>
+    <string name="editor_gone">Не сохранено: z2-edit, открывший этот файл, уже завершился.</string>
+    <string name="editor_unreadable">Не удаётся открыть: это не текстовый файл UTF-8 или он больше 1 МиБ.</string>
+</resources>

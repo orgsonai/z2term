@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内の片付け (1.0.6)。Guide.cleanup -->
+    <string name="settings_guide_cleanup">Убрать</string>
+    <string name="settings_guides_cleanup_desc">«Убрать» показывает шаги, удаляющие добавленное руководством, в виде таких же карточек. Ничего не удаляется, пока вы не нажмёте карточку.</string>
+    <string name="guide_cleanup_heading">удалить добавленное</string>
+    <string name="guide_cleanup_hint">Нажмите, чтобы выполнить (сначала Ctrl-C, чтобы не примешалась недописанная строка) / ✕ — оставить</string>
+    <string name="guide_undo_rules">Удалить правила автоматизации, которые вызывают этот макрос</string>
+    <string name="guide_undo_macro">Удалить макрос (если вы его меняли, он останавливается, но не удаляется)</string>
+    <string name="guide_undo_notify_off">Если больше ничто не использует: Настройки -> выключить «Обнаружение уведомлений»</string>
+    <string name="guide_undo_sms_off">Если больше ничто не использует: Настройки -> выключить «Обнаружение SMS»</string>
+    <string name="guide_undo_remind_all">Отменить все зарегистрированные напоминания</string>
+    <string name="guide_undo_remind_tiles">Очистить ячейки плиток, которые запускают remind.sh</string>
+    <string name="guide_undo_remind_data">Удалить записи напоминаний (✕ — оставить)</string>
+    <string name="guide_undo_rss_data">Удалить список лент и собранные статьи (✕ — оставить)</string>
+    <string name="guide_undo_voice_data">Удалить таблицу слов, заметки и настройки голосовых команд (✕ — оставить)</string>
+    <string name="guide_undo_edge_main">Удалить пример панели приложений «main» (добавленные в неё элементы тоже удалятся)</string>
+    <string name="guide_undo_edge_samples">Удалить примеры панелей (текст в заметке тоже удалится)</string>
+    <string name="guide_undo_edge_off">Если других панелей нет, выключить панели (полоска исчезнет)</string>
+    <string name="guide_undo_permissions">«Поверх других приложений» и специальные возможности выключаются только в настройках Android. Оставьте их, если ими пользуется другая функция.</string>
+</resources>

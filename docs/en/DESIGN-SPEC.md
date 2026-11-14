@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-14 / Target version: 1.0.117 (versionCode 815)
+Last updated: 2026-11-14 / Target version: 1.0.118 (versionCode 816)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3753,6 +3753,17 @@ Same procedure (one roster line, `res/values-it/`, `proot/lang/CliIt.kt`, one li
 - **Terms**: scheda (tab) / toccare, tenere premuto / scorrere (flick) / file / cartella / Impostazioni / appunti / riquadro (tile) / pannello laterale (edge panel) / server residente. Addressed as **tu**, as Android does.
 - ⛔ **Apostrophes are the typographic ’ (U+2019)**, for the same reason as French (Italian uses them constantly: l’app, dell’). The res format check confirmed zero bare `'`.
 - **Regional Italian (`it-CH`) goes to `it`** (`AppLanguagesTest`). Plurals add many, as for es, pt and fr.
+
+#### Russian added (1.0.118)
+
+Same procedure (one roster line, `res/values-ru/`, `proot/lang/CliRu.kt`, one line in `CliLanguages`).
+
+- **Terms**: вкладка (tab) / нажать, нажать и удерживать (long press) / свайп, флик / файл / папка / Настройки / буфер обмена / плитка (tile) / боковая панель (edge panel) / фоновый сервер (resident server). Addressed as **вы** (lower case), as Android does.
+- **Quotes are «»**. Russian uses no apostrophes, so nothing collides with shell quoting.
+- **Plurals carry all four forms, one / few / many / other** (the word changes for 1, 2–4 and 5–20). Strings that count without being plurals (such as “%1$d words”) put the number last (“Слов: %1$d”), so no form has to be chosen.
+- **Regional Russian (`ru-UA`, `ru-KZ` and so on) goes to `ru`** (`AppLanguagesTest`). ⚠ `AppLanguagesTest` used `ru-RU` as its example of a language outside the roster; it now uses `zz-ZZ`.
+- The words the reminder macro expands “every …” into (`macro.eDaily` and the rest) **stay in English** (daily / weekly / monthly / yearly), because the `case` that reads them back only matches Japanese and English (`毎日|daily`).
+- ⚠ **No Cyrillic layout is bundled**. Switch to the OS input method to type Russian.
 
 ### 6.8.1 App lock (A2, 0.8.421)
 
