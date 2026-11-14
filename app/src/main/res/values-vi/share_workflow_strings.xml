@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">Dữ liệu nhập cho lệnh</string>
+    <string name="snippet_inputs_file">Chọn tệp</string>
+    <string name="snippet_inputs_invalid">Kiểm tra định nghĩa và giá trị nhập. Đặt mỗi chỗ giữ chỗ bên ngoài dấu ngoặc kép như một đối số riêng.</string>
+    <string name="snippet_inputs_preview">Xem trước lệnh</string>
+    <string name="snippet_inputs_hint">Lệnh được chèn vào terminal. Kiểm tra lại rồi nhấn Enter. Các tệp đã chọn được sao chép vào thư mục chính của shell cục bộ.</string>
+    <string name="snippet_inputs_enable">Hỏi dữ liệu nhập trước khi chèn</string>
+    <string name="snippet_inputs_definition">Trong lệnh: {{text}}, {{width:number=1080}}, {{format:choice=png|jpg}}, {{image:file}}. Tên trở thành nhãn của trường. Đặt chỗ giữ chỗ bên ngoài dấu ngoặc kép.</string>
+    <string name="snippet_share_action">Đề xuất sau khi nhận nội dung chia sẻ</string>
+    <string name="snippet_share_action_hint">Lệnh có thể đọc $Z2_SHARE_TEXT và $Z2_SHARE_MANIFEST (JSON biên nhận). Trường tệp có thể dùng các tệp đính kèm đã nhận.</string>
+    <string name="share_intake_title">Nội dung đã nhận</string>
+    <string name="share_intake_hint">Văn bản và tệp đính kèm được lưu cùng nhau. Chọn một lệnh đã lưu hoặc chèn nội dung gốc. Lệnh chạy sau khi bạn nhấn Enter.</string>
+    <string name="share_intake_insert">Chèn vào terminal</string>
+    <string name="share_intake_close">Giữ đã lưu và đóng</string>
+</resources>

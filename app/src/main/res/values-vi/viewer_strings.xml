@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="viewer_missing">Trang đó không còn nữa.</string>
+    <string name="viewer_no_browser">Không có ứng dụng nào trên điện thoại mở được liên kết đó.</string>
+    <string name="viewer_expand">Mở rộng</string>
+    <string name="viewer_close">Đóng</string>
+    <string name="viewer_component">Trang xem (z2-view)</string>
+    <string name="viewer_empty">Chưa có trang. Đặt một lệnh gọi z2-view, hoặc gửi một trang đến mục này.</string>
+    <string name="viewer_required">Nhập %1$s.</string>
+    <string name="viewer_show_refresh">Hiện nút Làm mới</string>
+    <string name="viewer_show_expand">Hiện nút Mở rộng</string>
+    <string name="viewer_update_mode">Chế độ làm mới trang xem</string>
+    <string name="viewer_update_manual">Chỉ thủ công</string>
+    <string name="viewer_update_auto">Tự động</string>
+    <string name="viewer_update_help">Chỉ thủ công: khi mở hoặc chuyển thẻ sẽ dùng trang gần nhất mà không chạy lệnh. Lần đầu hãy nhấn Làm mới. Tự động: làm mới khi mở và theo khoảng thời gian trong Cài đặt nâng cao. Khoảng trống hoặc bằng không chỉ làm mới khi mở. Cập nhật trang từ thao tác như thêm hoặc xóa vẫn hiện ở cả hai chế độ.</string>
+    <string name="viewer_empty_manual">Chưa có trang. Nhấn Làm mới để chạy lệnh đã đặt và hiển thị.</string>
+    <string name="viewer_empty_hidden">Chưa có trang. Bật nút Làm mới trong cài đặt của mục này, hoặc gửi trang đến mục này từ một macro.</string>
+    <string name="viewer_find">Tìm</string>
+    <string name="viewer_find_hint">Tìm trong trang</string>
+    <string name="viewer_find_previous">Kết quả trước</string>
+    <string name="viewer_find_next">Kết quả tiếp theo</string>
+    <string name="viewer_find_close">Đóng tìm kiếm</string>
+    <string name="viewer_show_find">Hiện nút Tìm</string>
+    <string name="viewer_number">Nhập %1$s bằng số.</string>
+    <string name="viewer_pinch" formatted="false">Chụm ngón tay</string>
+    <string name="viewer_pinch_text" formatted="false">Đổi cỡ chữ</string>
+    <string name="viewer_pinch_page" formatted="false">Thu phóng cả trang</string>
+    <string name="viewer_text_size" formatted="false">Cỡ chữ (%)</string>
+    <string name="viewer_text_size_help" formatted="false">50–300; để trống là 100. Với “Đổi cỡ chữ”, thao tác chụm sẽ điền giá trị này.</string>
+</resources>

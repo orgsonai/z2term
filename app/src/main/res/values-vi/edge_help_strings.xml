@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_help_start" formatted="false">Dùng “+ Ứng dụng” cho ứng dụng, hoặc “Thêm vị trí tùy chỉnh” cho hiển thị, nhập liệu và lệnh. Chọn thành phần và hành vi để xem hướng dẫn và ví dụ bên dưới. Sau khi lưu, chạm Xong để trở về bảng.</string>
+    <string name="edge_help_choose" formatted="false">Chọn thành phần</string>
+    <string name="edge_help_components" formatted="false">Nút: chạy lệnh khi chạm\nHiển thị: hiện kết quả, văn bản cố định hoặc trang HTML\nNhập: truyền văn bản, lưu ghi chú hoặc dùng shell\nLựa chọn: chọn một giá trị từ các tùy chọn có sẵn\nCông tắc: đọc và thay đổi một trạng thái\nDanh sách: thao tác trên danh sách do lệnh tạo ra\n\nNối ô nhập và lựa chọn → một nút → một ô hiển thị kết quả để tạo biểu mẫu.</string>
+    <string name="edge_help_execute" formatted="false">Chạy lệnh khi được chạm. Bắt đầu với nhãn và lệnh. Dùng Kết nối để chọn giá trị đầu vào hoặc ô hiển thị kết quả.</string>
+    <string name="edge_help_state_button" formatted="false">Nút hiển thị BẬT/TẮT. Đặt lệnh để bật và tắt, rồi chọn cách đọc trạng thái. Lệnh trạng thái nên in ra on hoặc off.</string>
+    <string name="edge_help_receive" formatted="false">Hiển thị kết quả của một nút. Lưu trường này, rồi chọn nó trong Kết nối → Nơi hiển thị kết quả ở trình chỉnh sửa nút. Ở đây không cần lệnh.</string>
+    <string name="edge_help_fixed" formatted="false">Hiển thị một giá trị cố định. Nhập nội dung vào “Giá trị ban đầu hoặc cố định”. Nút được nối cũng có thể truyền nó làm đối số.</string>
+    <string name="edge_help_read" formatted="false">Chạy lệnh khi mở và hiển thị văn bản kết quả. Ví dụ, date hiện ngày giờ hiện tại. Đặt làm mới tự động trong Cài đặt nâng cao.</string>
+    <string name="edge_help_view" formatted="false">Hiển thị HTML bên trong bảng. Đặt một macro gọi z2-view, hoặc một lệnh mở tệp HTML đã chuẩn bị. Hãy tạo page.html trước cho ví dụ bên dưới. Chọn làm mới thủ công hoặc tự động. Macro định nghĩa biểu mẫu và nút thao tác. Lưu rồi chạm Xong để xem trang.</string>
+    <string name="edge_help_value" formatted="false">Truyền văn bản người dùng nhập cho thành phần khác. Lưu trường này, rồi chọn nó làm đầu vào trong Kết nối ở trình chỉnh sửa nút. Đặt giá trị mặc định hoặc bắt buộc nhập nếu cần.</string>
+    <string name="edge_help_choice" formatted="false">Cho người dùng chọn từ các giá trị có sẵn. Phân tách tùy chọn bằng |, lưu, rồi chọn trường này trong Kết nối ở trình chỉnh sửa nút. Giá trị mặc định phải trùng một tùy chọn.</string>
+    <string name="edge_help_file" formatted="false">Ghi chú lưu những gì bạn viết. Để trống đường dẫn tệp để bắt đầu. Nội dung còn lại sau khi đóng bảng và có thể truyền cho nút được nối.</string>
+    <string name="edge_help_send" formatted="false">Nhập văn bản rồi chạm Gửi để truyền cho lệnh qua đầu vào chuẩn. Ví dụ, cat trả lại văn bản đã nhập y nguyên.</string>
+    <string name="edge_help_shell" formatted="false">Dùng shell bên trong bảng. Trình chỉnh sửa này không cần lệnh. Lưu và chạm Xong để bắt đầu gõ. Shell, kết quả và bản nháp còn lại sau khi đóng. Dùng thẻ terminal thường cho chương trình tương tác.</string>
+    <string name="edge_help_state" formatted="false">Đọc và thay đổi trạng thái hiện tại. Lệnh trạng thái nên in on hoặc off; lệnh chạy nên đảo trạng thái. Trạng thái được đọc lại sau thao tác.</string>
+    <string name="edge_help_select" formatted="false">Biến mỗi dòng kết quả thành một mục có thể chọn. Chạm vào một dòng sẽ chạy lệnh chọn, nhận giá trị dưới dạng \"$1\". Để nhãn và giá trị khác nhau, in nhãn + tab + giá trị trên mỗi dòng.</string>
+    <string name="edge_help_command" formatted="false">Nhập một lệnh shell có trên thiết bị này. Chọn một macro đã cài bên dưới và thêm các đối số nó cần. Hãy thử trước trong thẻ terminal thường.</string>
+    <string name="edge_help_every" formatted="false">Để trống hoặc 0 sẽ tắt làm mới định kỳ. Giá trị 5–86400 giây chỉ làm mới khi bảng đang hiển thị. Trang xem lặp lại lệnh hiển thị; macro có thể định nghĩa thao tác khác cho nút Làm mới thủ công.</string>
+    <string name="edge_help_timeout" formatted="false">Để trống là 30 giây. Tăng lên 1–300 giây cho việc chậm như yêu cầu mạng.</string>
+    <string name="edge_help_note_path" formatted="false">Để trống sẽ dùng một tệp riêng cho mục này. Để dùng tệp có sẵn, hãy chỉ định đường dẫn trong thư mục chính dùng chung của ứng dụng.</string>
+    <string name="edge_help_default" formatted="false">Giá trị dùng khi mở. Với trường lựa chọn, hãy dùng một trong các tùy chọn.</string>
+    <string name="edge_help_choices" formatted="false">Phân tách tùy chọn bằng |. Không cho phép tùy chọn trống hoặc trùng lặp.</string>
+    <string name="edge_help_rows" formatted="false">Để trống sẽ dùng mặc định của thành phần. Đặt 1–20 dòng để chọn chiều cao hiển thị.</string>
+    <string name="edge_help_size" formatted="false">Để trống là tự động. Số dùng đơn vị dp; % dùng chiều rộng cột hoặc chiều cao bảng.</string>
+    <string name="edge_help_example">Ví dụ: %1$s</string>
+    <string name="edge_help_use_example">Dùng ví dụ</string>
+</resources>

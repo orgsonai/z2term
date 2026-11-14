@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR ツールの履歴 (0.8.603)。QrHistorySection -->
+    <string name="qr_history_title">Lịch sử</string>
+    <string name="qr_history_clear">Xóa tất cả</string>
+    <string name="qr_history_clear_title">Xóa lịch sử</string>
+    <string name="qr_history_clear_message">Xóa toàn bộ lịch sử trừ các mục đã ghim.</string>
+    <string name="qr_history_pin">Ghim</string>
+    <string name="qr_history_unpin">Bỏ ghim</string>
+    <string name="qr_history_delete">Xóa</string>
+    <string name="qr_history_pinned">Đã ghim</string>
+    <string name="qr_history_menu">Ghim hoặc xóa</string>
+    <string name="qr_history_note">Chạm để hiển thị lại. Nhấn giữ để ghim hoặc xóa. Lịch sử chỉ lưu những gì bạn quét trên thiết bị này, kể cả nội dung như mật khẩu Wi-Fi. Giữ tối đa 50 mục chưa ghim.</string>
+</resources>

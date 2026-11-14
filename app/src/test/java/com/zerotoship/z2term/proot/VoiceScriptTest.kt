@@ -165,6 +165,16 @@ class VoiceScriptTest {
         assertHeard("tr", "İleri", "z2-media next")
     }
 
+    /** ベトナム語の大文字 (Đ・声調つきの母音) も小文字にしてから表と比べる (1.0.121)。 */
+    @Test
+    fun vietnameseCapitalsLower() {
+        assertHeard("vi", "Đèn pin", "z2-torch on")
+        assertHeard("vi", "Tắt Đèn Pin", "z2-torch off")
+        assertHeard("vi", "nhắc tôi đổ rác lúc 7 giờ sáng mai", "remind tomorrow 07:00 đổ rác")
+        assertHeard("vi", "nhắc tôi tưới cây lúc 9 giờ thứ bảy", "remind sat 09:00 tưới cây")
+        assertHeard("tr", "yarın sabah saat 7 çöpü çıkar hatırlat", "remind tomorrow 07:00 çöpü çıkar")
+    }
+
     /**
      * 曜日の名前が別の曜日の名前に含まれていても取り違えない (1.0.120)。
      * トルコ語は cuma (金) が cumartesi (土) の頭にそのまま入っている。
@@ -180,7 +190,7 @@ class VoiceScriptTest {
     fun everyLanguageHasItsTable() {
         mapOf(
             "ja" to "次の曲", "en" to "next song", "zh-CN" to "下一首", "zh-TW" to "下一首",
-            "es" to "siguiente canción", "ko" to "다음 곡", "pt-BR" to "próxima música", "de" to "nächstes lied", "fr" to "chanson suivante", "id" to "lagu berikutnya", "it" to "prossima canzone", "ru" to "следующая песня", "tr" to "sonraki şarkı",
+            "es" to "siguiente canción", "ko" to "다음 곡", "pt-BR" to "próxima música", "de" to "nächstes lied", "fr" to "chanson suivante", "id" to "lagu berikutnya", "it" to "prossima canzone", "ru" to "следующая песня", "tr" to "sonraki şarkı", "vi" to "bài tiếp theo",
             // ⛔ 表の無い言語の例に、名簿に載りうる言語を使わない (載せた日に前提が崩れる)
             "zz" to "next song",
         ).forEach { (lang, phrase) -> assertHeard(lang, phrase, "z2-media next") }

@@ -2166,6 +2166,7 @@ after_label() {
         en = """# The "delete" button: ask for a number and hand it to [cmd_del] (the same path as the CLI).""",
         ja = """# 「消す」ボタン。番号を聞いて [cmd_del] へ渡すだけ (端末の remind.sh del と同じ経路)。"""
     )
+    // ⚠ ボタンのラベルはそのまま case の型にもなる (cmd_reply)。引用符で囲んであるので空白を含んでもよい (1.0.121)。
     val bS1 = t("macro.bS1", en = "+10min", ja = "10分後")
     val bS2 = t("macro.bS2", en = "+1h", ja = "1時間後")
     val mAgain = t("macro.mAgain", en = "- again in", ja = "にもう一度:")
@@ -2609,7 +2610,7 @@ cmd_fire() {
   [ -f "${d}f" ] || exit 0
   kind=${d}(cut -f1 "${d}f"); body=${d}(cut -f4- "${d}f")
 
-  z2-notify -h -n "r${d}id" -b $bDone -b $bS1 -b $bS2 "⏰ ${d}body"
+  z2-notify -h -n "r${d}id" -b "$bDone" -b "$bS1" -b "$bS2" "⏰ ${d}body"
 
   if [ "${d}kind" = once ]; then
     plan=${d}(cut -f2 "${d}f"); wid=${d}(cut -f3 "${d}f")
@@ -2629,15 +2630,15 @@ cmd_reply() {
   kind=${d}(cut -f1 "${d}f"); wid=${d}(cut -f3 "${d}f"); body=${d}(cut -f4- "${d}f")
 
   case ${d}2 in
-    $bDone)
+    "$bDone")
 $cKeepRepeat
       if [ "${d}kind" != repeat ]; then
         z2-alarm cancel "r${d}id" >/dev/null 2>&1   # $cSnoozeCancel
         rm -f "${d}f"
       fi
       z2-toast "✅ ${d}body" ;;
-    $bS1|$bS2)
-      case ${d}2 in $bS1) sp=${d}SNOOZE1 ;; *) sp=${d}SNOOZE2 ;; esac
+    "$bS1"|"$bS2")
+      case ${d}2 in "$bS1") sp=${d}SNOOZE1 ;; *) sp=${d}SNOOZE2 ;; esac
       z2-alarm in "${d}sp" "r${d}id" >/dev/null || exit 1
       [ "${d}kind" = repeat ] ||
         printf '%s\t%s\t%s\t%s\n' once "${d}(after_label "${d}sp")" "${d}wid" "${d}body" > "${d}f"
@@ -2677,7 +2678,7 @@ cmd_peek() {
     z2-notify -h -n remind-list "$mTitle" "$mNone"
     return
   fi
-  z2-notify -h -n remind-list -b $bDelete "$mTitle" "${d}out"
+  z2-notify -h -n remind-list -b "$bDelete" "$mTitle" "${d}out"
 }
 
 $cAskDel
@@ -2767,8 +2768,8 @@ cmd_setup() {
 $cTiles
   free=${d}(z2-tile list | awk -F'\t' '${d}2=="-" || index(${d}3, "remind") { print ${d}1 }')
   set -- ${d}free
-  [ -n "${d}1" ] && z2-tile set "${d}1" 'remind.sh ask'  -l $lRemind >/dev/null
-  [ -n "${d}2" ] && z2-tile set "${d}2" 'remind.sh peek' -l $lList >/dev/null
+  [ -n "${d}1" ] && z2-tile set "${d}1" 'remind.sh ask'  -l "$lRemind" >/dev/null
+  [ -n "${d}2" ] && z2-tile set "${d}2" 'remind.sh peek' -l "$lList" >/dev/null
 
   echo "$mSetupHooks"
   z2-when list | grep "${d}SELF" | cut -f1,3

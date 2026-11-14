@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- z2-ui (AI からのアプリ操作)。設計は docs/ja/AI-BRIDGE.md。 -->
+<resources>
+    <string name="tools_automation_ai">AI</string>
+    <string name="ui_bridge_title">AI điều khiển ứng dụng</string>
+    <string name="ui_bridge_desc">Khi bật, AI chạy trong terminal có thể dùng lệnh z2-ui để đọc màn hình ứng dụng khác, chạm và nhập văn bản. Trong lúc nó làm việc, thông báo cho phép bạn tạm dừng, gửi chỉ dẫn hoặc dừng nó.</string>
+    <string name="ui_bridge_enable">Cho phép AI điều khiển ứng dụng</string>
+    <string name="ui_bridge_stopped_note">Đã dừng từ thông báo. Bật lại để tiếp tục.</string>
+    <string name="ui_bridge_paused_note">Đã tạm dừng. AI có thể đọc màn hình nhưng không thao tác được.</string>
+    <string name="ui_bridge_accessibility_needed">Cần dịch vụ hỗ trợ tiếp cận “z2term Android actions”.</string>
+    <string name="ui_bridge_open_accessibility">Mở cài đặt hỗ trợ tiếp cận</string>
+    <string name="ui_bridge_apps_title">Quyền theo ứng dụng</string>
+    <string name="ui_bridge_add_app">+ Thêm ứng dụng</string>
+    <string name="ui_bridge_grant_title">Thời hạn phê duyệt</string>
+    <string name="ui_bridge_grant_value">%1$d phút</string>
+    <string name="ui_bridge_grant_desc">Với ứng dụng đặt “Hỏi mỗi lần”, nhấn “Cho phép %1$d phút” cho AI tiếp tục mà không hỏi trong khoảng đó.</string>
+    <string name="ui_bridge_grant_input_title">Nhập số phút</string>
+    <string name="ui_bridge_grant_input_hint">1–1440</string>
+    <string name="ui_bridge_set">Đặt</string>
+    <string name="ui_bridge_protected_note">z2term, cài đặt Android, trình cài đặt và ngăn thông báo không bao giờ dành cho AI, bất kể quyền.</string>
+    <string name="ui_bridge_log_note">Nhật ký hoạt động: ~/.z2term/ui/log.jsonl (văn bản đã nhập không được ghi)</string>
+    <string name="ui_bridge_channel">AI điều khiển ứng dụng</string>
+    <string name="ui_bridge_ask_channel">Phê duyệt thao tác AI</string>
+    <string name="ui_bridge_running_title">AI đang điều khiển một ứng dụng</string>
+    <string name="ui_bridge_paused_title">Đã tạm dừng điều khiển AI</string>
+    <string name="ui_bridge_grant_left">Không cần phê duyệt · còn %1$d phút</string>
+    <string name="ui_bridge_pause">Tạm dừng</string>
+    <string name="ui_bridge_resume">Tiếp tục</string>
+    <string name="ui_bridge_say">Gửi chỉ dẫn</string>
+    <string name="ui_bridge_say_hint">Chỉ dẫn cho AI</string>
+    <string name="ui_bridge_stop">Dừng</string>
+    <string name="ui_bridge_ask_title">Cho phép thao tác AI này?</string>
+    <string name="ui_bridge_allow">Cho phép</string>
+    <string name="ui_bridge_deny">Từ chối</string>
+    <string name="ui_bridge_allow_for">Cho phép %1$d phút</string>
+    <string name="ui_bridge_change_title">AI đang xin đổi quyền của nó</string>
+    <string name="ui_bridge_change_level">Đặt %1$s thành “%2$s”</string>
+    <string name="ui_bridge_change_grant">Đặt thời hạn phê duyệt %1$d phút</string>
+    <string name="ui_bridge_default_apps">Ứng dụng không có trong danh sách</string>
+    <string name="ui_bridge_level_off">Tắt</string>
+    <string name="ui_bridge_level_look">Chỉ đọc</string>
+    <string name="ui_bridge_level_ask">Hỏi mỗi lần</string>
+    <string name="ui_bridge_level_auto">Không cần phê duyệt</string>
+    <string name="ui_bridge_op_tap">Chạm “%2$s” trong %1$s</string>
+    <string name="ui_bridge_op_long">Nhấn giữ “%2$s” trong %1$s</string>
+    <string name="ui_bridge_op_type">Nhập “%3$s” vào “%2$s” trong %1$s</string>
+    <string name="ui_bridge_op_enter">Nhấn Enter trong “%2$s” ở %1$s</string>
+    <string name="ui_bridge_op_back">Nhấn Quay lại trong %1$s</string>
+    <string name="ui_bridge_op_open">Mở trong %1$s: %2$s</string>
+    <string name="ui_bridge_point">điểm (%1$d, %2$d)</string>
+    <string name="ui_bridge_op_scroll">Cuộn “%2$s” trong %1$s (%3$s)</string>
+    <string name="ui_bridge_op_swipe">Vuốt trong %1$s từ (%2$d, %3$d) đến (%4$d, %5$d)</string>
+    <string name="ui_bridge_op_noti">Nhấn “%2$s” trên thông báo của %1$s</string>
+    <string name="ui_bridge_op_noti_reply">Gửi “%3$s” bằng “%2$s” trên thông báo của %1$s</string>
+    <string name="ui_bridge_op_drag">Kéo qua %2$d điểm trong %1$s</string>
+</resources>

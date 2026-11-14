@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 小技 (Tips): 端末のダブルタップ選択 (1.0.6)。TipsSection -->
+    <string name="tip_word_select_title">Chạm hai lần vào văn bản trong terminal để chọn một từ</string>
+    <string name="tip_word_select_body">Đường dẫn, tên máy chủ hoặc địa chỉ IP được chọn thành một khối, kể cả khi xuống dòng tiếp theo. Sau đó kéo hai tay cầm ở hai đầu để thay đổi phạm vi. Trên màn hình mà ứng dụng đọc chuột, lần chạm hai lần sẽ được chuyển cho ứng dụng đó.</string>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内: エッジパネル (0.8.601)。Guide.EDGE_PANEL -->
+    <string name="guide_desc_edge_panel">Mở danh sách ứng dụng từ một thanh ở cạnh màn hình</string>
+    <string name="guide_step_edge_overlay">Cho phép z2term hiển thị trên các ứng dụng khác</string>
+    <string name="guide_step_edge_accessibility">Bật dịch vụ hỗ trợ tiếp cận “z2term Android actions” (dùng để cuộn bằng cách vuốt thanh lên xuống)</string>
+    <string name="guide_step_edge_panel">Tạo một bảng mẫu với z2term, trình duyệt, máy ảnh, điện thoại, tin nhắn và cài đặt có trên thiết bị này</string>
+    <string name="guide_step_edge_on">Bật bảng (một thanh xuất hiện ở cạnh phải; vuốt vào trong để mở danh sách ứng dụng)</string>
+    <string name="guide_step_edge_settings">Khi bảng đang mở, nhấn giữ bên ngoài menu để mở cài đặt của bảng</string>
+</resources>

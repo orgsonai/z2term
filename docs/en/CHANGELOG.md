@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.121 (versionCode 819)**: **Vietnamese** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language. Voice commands also catch phrases heard with a Vietnamese capital (Đ or a toned vowel) at the start. The reminder macro no longer uses its notification button names unquoted (in a language whose names contain a space, the whole macro would have stopped working).
+
 **1.0.120 (versionCode 818)**: **Turkish** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language; phones set to Turkish from Cyprus get it too. Two voice-command fixes come with it: a Turkish phrase heard with a capital I at the start no longer misses the word table, and a weekday whose name contains another one (Turkish cumartesi, Saturday, contains cuma, Friday) is no longer mistaken for it.
 
 **1.0.119 (versionCode 817)**: The reminder macro (remind.sh) forms “every 19:00” and “every wed 19:00” failed with “cannot read the time” whenever the app language was neither Japanese nor English; fixed. The description of “Show a stop button over other apps” in the settings now matches what the bar does: when the macro touches under it, the bar turns faint and lets the touch through instead of hiding (the behaviour since 1.0.113).

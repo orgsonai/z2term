@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shot_busy">Hãy hoàn tất lần chụp hiện tại trước.</string>
+    <string name="shot_needs_android11">Chụp một vùng cần Android 11 trở lên.</string>
+    <string name="shot_capture_failed">Android không trả về hình ảnh màn hình. Hãy thử lại.</string>
+    <string name="shot_too_small">Vùng này quá nhỏ. Hãy vẽ vùng lớn hơn.</string>
+    <string name="shot_hint_free">Vẽ quanh thứ bạn muốn, rồi nhấc ngón tay.</string>
+    <string name="shot_hint_box">Kéo từ một góc sang góc đối diện, rồi nhấc ngón tay.</string>
+    <string name="shot_hint_move">Kéo hình ảnh để điều chỉnh phần bên trong.</string>
+    <string name="shot_shape_free">Tự do</string>
+    <string name="shot_shape_rect">Hình chữ nhật</string>
+    <string name="shot_shape_oval">Hình bầu dục</string>
+    <string name="shot_shape_circle">Hình tròn</string>
+    <string name="shot_bg_transparent">Bên ngoài: trong suốt</string>
+    <string name="shot_bg_keep">Bên ngoài: giữ nguyên</string>
+    <string name="shot_redo">Làm lại</string>
+    <string name="shot_save">Lưu</string>
+    <string name="shot_share">Chia sẻ</string>
+    <string name="shot_saved">Đã lưu %1$s vào %2$s.</string>
+    <string name="shot_save_failed">Không ghi được hình ảnh.</string>
+</resources>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">Đang chọn hoặc sao chép tài liệu…</string>
+    <string name="process_text_title">Xử lý bằng z2term</string>
+    <string name="process_text_enable">Đề xuất cho văn bản đã chọn</string>
+    <string name="process_text_contract">Lệnh được chọn nhận văn bản gốc qua stdin. Kiểm tra stdout trước khi thay thế vùng chọn.</string>
+    <string name="process_text_setup">Đăng ký một lệnh trong Lệnh → Đoạn lệnh và bật “Đề xuất cho văn bản đã chọn”.</string>
+    <string name="process_text_replace">Thay thế vùng chọn</string>
+    <string name="process_text_too_large">Văn bản phải hợp lệ, không chứa NUL, tối đa 64 KiB.</string>
+    <string name="workspace_title">Bố cục phiên</string>
+    <string name="workspace_hint">Chọn thẻ thứ hai. Chạm vào một khung để lấy tiêu điểm; kéo đường phân cách để đổi kích thước. Bàn phím điều khiển khung đang có tiêu điểm. Nhấn giữ tiêu đề khung và kéo về phía khung kia để hoán đổi; dùng nút ở đầu phải tiêu đề (hoặc chạm hai lần vào tiêu đề) để chỉ hiển thị thẻ đó.</string>
+    <string name="workspace_vertical">Trên / dưới</string>
+    <string name="workspace_horizontal">Trái / phải</string>
+    <string name="workspace_preview_current">Thẻ này</string>
+    <string name="workspace_preview_other">Thẻ bạn chạm bên dưới</string>
+    <string name="workspace_need_two">Hãy mở thêm một thẻ terminal hoặc GUI trước.</string>
+    <string name="workspace_maximize">Chỉ hiển thị thẻ này</string>
+    <string name="workspace_single">Một khung</string>
+    <string name="workspace_external_hint">Hiển thị thẻ hiện tại trên màn hình ngoài. Điện thoại có thể điều khiển nó hoặc hiển thị thẻ khác.</string>
+    <string name="workspace_no_display">Không có màn hình ngoài.</string>
+    <string name="workspace_return">Trở về điện thoại</string>
+    <string name="workspace_projected">Đang hiển thị trên màn hình ngoài. Bàn phím điều khiển phiên đó.</string>
+    <string name="workspace_controller">Màn hình ngoài: dùng vùng này làm bàn di chuột và bàn phím bên dưới để nhập.</string>
+    <string name="workspace_display_failed">Không dùng được màn hình này. Phiên vẫn đang chạy.</string>
+    <string name="settings_gui_direct">Hiển thị GUI cục bộ trực tiếp (thử nghiệm)</string>
+    <string name="settings_gui_direct_desc">Đọc trực tiếp bộ đệm khung cục bộ. Dùng Xvfb để hiển thị và x11vnc chỉ để nhập; các gói được tải về khi dùng lần đầu. Áp dụng cho các thẻ GUI mới mở. Độ phân giải ban đầu cố định; không tăng tốc GPU.</string>
+    <string name="tip_gui_split_title">Nhấn giữ GUI để chia màn hình GUI và terminal</string>
+    <string name="tip_gui_split_body">Nhấn giữ nút GUI (🖥) cạnh + để mở bố cục phiên. Chọn trên/dưới hoặc trái/phải và một thẻ khác để dùng GUI và terminal (CUI) cùng lúc. Cùng menu đó khôi phục một khung hoặc chọn màn hình ngoài. Chạm nhanh vẫn mở GUI như trước.</string>
+</resources>

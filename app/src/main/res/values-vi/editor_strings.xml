@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="editor_save">Lưu</string>
+    <string name="editor_saved">Đã lưu</string>
+    <string name="editor_save_and_close">Lưu và đóng</string>
+    <string name="editor_gone">Chưa lưu: z2-edit đã mở tệp này đã kết thúc.</string>
+    <string name="editor_unreadable">Không mở được: không phải tệp văn bản UTF-8 hoặc lớn hơn 1 MiB.</string>
+</resources>

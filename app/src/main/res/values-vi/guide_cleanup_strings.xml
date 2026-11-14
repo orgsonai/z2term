@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内の片付け (1.0.6)。Guide.cleanup -->
+    <string name="settings_guide_cleanup">Dọn dẹp</string>
+    <string name="settings_guides_cleanup_desc">“Dọn dẹp” hiển thị các bước gỡ những gì một hướng dẫn đã thêm, dưới dạng thẻ giống nhau. Không có gì bị gỡ cho đến khi bạn chạm vào một thẻ.</string>
+    <string name="guide_cleanup_heading">gỡ những gì hướng dẫn này đã thêm</string>
+    <string name="guide_cleanup_hint">Chạm để chạy (Ctrl-C trước, để dòng gõ dở không bị lẫn vào) / ✕ để giữ lại</string>
+    <string name="guide_undo_rules">Gỡ các quy tắc tự động hóa gọi macro này</string>
+    <string name="guide_undo_macro">Gỡ macro (dừng mà không gỡ nếu bạn đã tự sửa)</string>
+    <string name="guide_undo_notify_off">Nếu không còn gì dùng đến: Cài đặt -> tắt “Phát hiện thông báo”</string>
+    <string name="guide_undo_sms_off">Nếu không còn gì dùng đến: Cài đặt -> tắt “Phát hiện SMS”</string>
+    <string name="guide_undo_remind_all">Hủy mọi lời nhắc bạn đã đăng ký</string>
+    <string name="guide_undo_remind_tiles">Làm trống các vị trí ô chạy remind.sh</string>
+    <string name="guide_undo_remind_data">Xóa dữ liệu lời nhắc (✕ để giữ lại)</string>
+    <string name="guide_undo_rss_data">Xóa danh sách nguồn tin và các bài đã thu thập (✕ để giữ lại)</string>
+    <string name="guide_undo_voice_data">Xóa bảng từ, ghi chú và cài đặt của lệnh giọng nói (✕ để giữ lại)</string>
+    <string name="guide_undo_edge_main">Xóa bảng ứng dụng mẫu “main” (các mục bạn đã thêm vào cũng bị xóa)</string>
+    <string name="guide_undo_edge_samples">Xóa các bảng mẫu (văn bản trong ghi chú cũng bị xóa)</string>
+    <string name="guide_undo_edge_off">Nếu bạn không dùng bảng nào khác, hãy tắt bảng (thanh sẽ biến mất)</string>
+    <string name="guide_undo_permissions">“Hiển thị trên ứng dụng khác” và hỗ trợ tiếp cận chỉ tắt được trong cài đặt Android. Hãy giữ chúng nếu tính năng khác đang dùng.</string>
+</resources>

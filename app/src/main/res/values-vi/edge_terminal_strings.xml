@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">Terminal mini</string>
+    <string name="edge_terminal_command">Lệnh một dòng</string>
+    <string name="edge_terminal_result">Kết quả lệnh</string>
+    <string name="edge_terminal_stop">Dừng</string>
+    <string name="edge_terminal_copy">Sao chép</string>
+    <string name="edge_terminal_clear">Xóa</string>
+    <string name="edge_terminal_ready">Phiên mới</string>
+    <string name="edge_terminal_starting">Đang khởi động…</string>
+    <string name="edge_terminal_running">Đang chạy…</string>
+    <string name="edge_terminal_exit">Mã thoát: %1$d</string>
+    <string name="edge_terminal_ended">Đã kết thúc · làm mới để bắt đầu phiên mới</string>
+    <string name="edge_terminal_truncated">Đang hiển thị 64 KiB ký tự cuối</string>
+    <string name="edge_terminal_help">Đóng bảng hoặc chuyển thẻ vẫn giữ shell, kết quả và bản nháp. Làm mới sẽ đặt lại chúng thủ công. Khi một lệnh đang chạy, ô nhập sẽ trả lời lệnh đó và Dừng chỉ kết thúc lệnh đó. Dùng thẻ terminal thường cho chương trình toàn màn hình.</string>
+    <string name="edge_terminal_one_line_required">Terminal mini nhận lệnh một dòng dài tối đa 16.384 ký tự. Dùng terminal thường cho đoạn nhiều dòng.</string>
+    <string name="edge_terminal_refresh">Làm mới phiên</string>
+    <string name="edge_terminal_answer">Trả lời lệnh đang chạy (để trống sẽ gửi Enter)</string>
+    <string name="edge_terminal_send">Gửi</string>
+</resources>

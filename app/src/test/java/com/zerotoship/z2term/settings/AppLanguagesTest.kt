@@ -178,6 +178,12 @@ class AppLanguagesTest {
         assertEquals("tr", AppLanguages.matchDeviceLocale("tr-CY"))
     }
 
+    /** ベトナムの端末 (`vi-VN`) は `vi` へ (1.0.121)。 */
+    @Test
+    fun vietnameseRegionCollapsesToTheBaseLanguage() {
+        assertEquals("vi", AppLanguages.matchDeviceLocale("vi-VN"))
+    }
+
     /** 名簿に無ければ英語。⛔ 日本語へ倒さない。 */
     @Test
     fun anythingElseGoesToEnglish() {

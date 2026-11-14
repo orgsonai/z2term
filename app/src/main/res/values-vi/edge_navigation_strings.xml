@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">Bỏ các thay đổi chưa lưu?</string>
+    <string name="edge_discard_message">Các chỉnh sửa chưa lưu sẽ bị mất.</string>
+    <string name="edge_discard">Bỏ</string>
+    <string name="edge_keep_editing">Tiếp tục chỉnh sửa</string>
+    <string name="edge_select_tab">Chọn thẻ</string>
+    <string name="edge_finish_title">Lưu thay đổi?</string>
+    <string name="edge_finish_message">Một số chỉnh sửa chưa được lưu. Tên thẻ hoặc bảng đã nhập nhưng chưa thêm sẽ không được lưu.</string>
+    <string name="edge_choose_panel">Chọn một bảng</string>
+</resources>

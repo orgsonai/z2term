@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR の読み取り結果を開くボタン (0.8.602)。QrAction / QrActionLauncher -->
+    <string name="qr_action_open">Mở</string>
+    <string name="qr_action_dial">Mở bàn phím quay số</string>
+    <string name="qr_action_email">Soạn email</string>
+    <string name="qr_action_sms">Soạn SMS</string>
+    <string name="qr_action_wifi">Kết nối Wi-Fi</string>
+    <string name="qr_action_contact">Thêm vào danh bạ</string>
+    <string name="qr_action_event">Thêm vào lịch</string>
+    <string name="qr_action_no_app">Không có ứng dụng nào trên thiết bị này mở được nội dung này.</string>
+    <string name="qr_action_wifi_copied">Đã sao chép mật khẩu Wi-Fi. Chọn mạng trong danh sách rồi dán vào.</string>
+    <!-- ⚙設定の「QRツール」(0.8.602)。SettingsGroup.QR_TOOLS -->
+    <string name="settings_group_qr_tools">Công cụ QR</string>
+    <string name="settings_group_qr_tools_desc">Quét từ máy ảnh hoặc hình ảnh và tạo mã QR</string>
+    <string name="settings_qr_tools_open">Mở công cụ QR</string>
+    <string name="settings_qr_tools_hint">z2-qr bắt đầu quét bằng máy ảnh. Bạn có thể đặt nó lên ô Cài đặt nhanh hoặc bảng cạnh.</string>
+</resources>

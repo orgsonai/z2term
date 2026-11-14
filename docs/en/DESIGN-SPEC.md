@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-14 / Target version: 1.0.120 (versionCode 818)
+Last updated: 2026-11-14 / Target version: 1.0.121 (versionCode 819)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3777,6 +3777,16 @@ Same procedure (one roster line, `res/values-tr/`, `proot/lang/CliTr.kt`, one li
 - **Voice commands' `norm()`**: a heard capital I becomes ı only when the word table is Turkish, and i as before otherwise; İ becomes i in every language. Ğ and Ş join the one-letter replacement table (`VoiceScriptTest.turkishCapitalsLowerTheTurkishWay`).
 - **The weekday is decided by the longest matching name** (`hitlen`). Before, the days were checked from Monday on and the first one contained in the text won, so cumartesi (Saturday), which starts with cuma (Friday), became Friday (`VoiceScriptTest.longerWeekdayNameWins`, confirmed to fail before the fix).
 - Turkish puts the verb last, like Japanese and Korean, so the word table puts the * first, as in `*hatırlat` (remind me of …). Times read “saat 9” and “saat 9’da”; the ’da of 9’da and the like are dropped through remind_filler.
+
+#### Vietnamese added (1.0.121)
+
+Same procedure (one roster line, `res/values-vi/`, `proot/lang/CliVi.kt`, one line in `CliLanguages`).
+
+- **Terms**: thẻ (tab) / chạm, nhấn giữ (long press) / vuốt (flick) / tệp / thư mục / Cài đặt / khay nhớ tạm / ô (tile) / bảng cạnh (edge panel) / máy chủ thường trú (resident server) / đoạn lệnh (snippet). Addressed as bạn.
+- Vietnamese has no singular/plural distinction, so plurals only carry **other** (as for Indonesian).
+- **Voice commands' `norm()`**: the one-letter replacement table gains the Vietnamese capitals (Ă Â Đ Ê Ô Ơ Ư and the toned capitals of U+1EA0–U+1EF9), so a phrase heard as “Đèn pin” with a capital start still hits the table (`VoiceScriptTest.vietnameseCapitalsLower`).
+- Weekdays are “thứ hai”–“thứ bảy”, “thứ 2”–“thứ 7” and “chủ nhật”. Times read “lúc 7 giờ sáng” and “7 giờ rưỡi”.
+- ⛔ **Translated text is never placed outside quotes in shell.** The reminder macro used the notification button labels (`macro.bDone`, `macro.bS1` and so on) unquoted, as `case` patterns and as `-b` arguments, so the space in Vietnamese “+10 phút” made all of remind.sh a syntax error. Every use of those labels is now quoted. A test now runs **every bundled macro and `z2-macro` itself through `sh -n` in every language** (`MacroSamplesSyntaxTest`); z2gui and z2-audio already had one, the macros did not. The test was confirmed to fail without the fix.
 
 ### 6.8.1 App lock (A2, 0.8.421)
 
