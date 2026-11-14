@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.112 (versionCode 810)**: The progress on the action macro stop bar ("pass 1/6 · step 2/4" and so on) was cut off with "…" because its width had a cap. It is now shown in full, and when the bar grows it moves itself back inside the screen.
+
 **1.0.111 (versionCode 809)**: An action macro's `launch` now waits until the launched app is in front before the next step (up to 10 seconds). It used to move on as soon as the launch was requested, so on a slow start the next scroll or tap took the screen behind as its target and stopped with "Target application changed" once the app arrived (the Settings app once took 1.7 seconds, longer than the macro's `wait 1200`). If the app is not in front within 10 seconds, the step fails.
 
 **1.0.110 (versionCode 808)**: ■ on the bar shown while the AI operates an app now ends the current task without turning AI operation off. It used to act like the notification's Stop and switch AI operation off, so it had to be turned back on in the settings every time. ■ now stops the current move, answers the AI's next call once with `ended` (the user ended the task) so it finishes, and removes the bar and the notification. AI operation stays on for the next task. The emergency stop that also turns it off remains in the notification's Stop and the setting.

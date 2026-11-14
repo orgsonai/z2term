@@ -103,8 +103,12 @@ internal object ActionRunOverlay {
             maxLines = 1; ellipsize = TextUtils.TruncateAt.END; maxWidth = dp(160)
         }
         val progressView = ActionUi.label(host, "", 13f, ActionUi.textColor, ActionUi.medium).apply {
-            // 幅を先に取っておく: 文字が増えて帯が伸びると、右端に置いた帯が画面からはみ出す。
-            maxLines = 1; ellipsize = TextUtils.TruncateAt.END; maxWidth = dp(160); minWidth = dp(120)
+            // ⚠ 進み具合は削らない (1.0.112)。160dp で切ると「1/6回目 · 手順 2/4」でも … になって回数が読めなかった。
+            // 帯が伸びても画面からはみ出さないよう、大きさが変わるたびに [attach] が画面の中へ収め直す。
+            // 上限は画面の幅からボタンと余白を引いた分だけ (それより長い文字は無い)。
+            // 最小の幅は、手順ごとに帯の幅が変わってちらつかないため。
+            maxLines = 1; ellipsize = TextUtils.TruncateAt.END; minWidth = dp(120)
+            maxWidth = ActionRuntime.screen(host).width - dp(12 + 4 + 48 + 48 + 4 + 16)
         }
         val toggleText = control(host, "‖", ActionUi.textColor, host.getString(R.string.action_macro_pause), toggle)
         val stopText = control(host, "■", ActionUi.dangerColor, stopLabel ?: host.getString(R.string.action_macro_stop), stop)
@@ -299,6 +303,13 @@ internal object ActionRunOverlay {
         }
         if (runCatching { wm.addView(window, lp) }.isFailure) return false
         service = host; root = window; params = lp; this.owner = owner
+        // 中身が伸び縮みして大きさが変わったら、画面からはみ出さないよう置き直す (進み具合・一覧の開閉)。
+        window.addOnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            if (root !== view || (right - left == oldRight - oldLeft && bottom - top == oldBottom - oldTop)) return@addOnLayoutChangeListener
+            val x = lp.x; val y = lp.y
+            clamp(host, view, lp)
+            if (lp.x != x || lp.y != y) runCatching { wm.updateViewLayout(view, lp) }
+        }
         // 初回 (まだ動かしていない) は右上。大きさが決まってから置く。前回の位置も画面の中に収める。
         window.post {
             if (root !== window) return@post
