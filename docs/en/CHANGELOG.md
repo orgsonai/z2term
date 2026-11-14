@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.114 (versionCode 812)**: With long progress on the stop bar (for example several nested repeats), ‖ and ■ on its right were squeezed and cut off, which made them hard to press. Android first measures an overlay window that wraps its content at a dialog width of about 320dp, so the long progress took the space first and nothing was left for the buttons. The bar now measures its own size with the screen width as the limit, so the buttons always keep their full size. When the progress does not fit the screen width, only its end is shortened with "…".
+
 **1.0.113 (versionCode 811)**: Two fixes to the stop bar (shown during action macros and AI operation).
 - After 1.0.112 the progress still ended in "…" when the bar sat at the right edge of the screen. Android cuts this bar at the screen edge, so a bar at the right edge could not grow to the right and kept its cut width. The bar now measures its new width first whenever its text changes, and moves left until that width fits before it is drawn.
 - When a macro or AI finger passes under the bar, the bar no longer disappears. It turns faint and stays visible; meanwhile it cannot be pressed and the finger goes through to the app below. It returns to full strength 700 ms after the gesture.

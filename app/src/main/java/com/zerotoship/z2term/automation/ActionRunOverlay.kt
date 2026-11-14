@@ -300,17 +300,13 @@ internal object ActionRunOverlay {
             }
             true
         }
+        // 初回 (まだ動かしていない) は右上。前回の位置も画面の中に収める。大きさも出す前に決める ([clamp])。
+        if (lp.x < 0 || lp.y < 0) { lp.x = Int.MAX_VALUE; lp.y = ActionUi.dp(host, 96) }
+        clamp(host, window, lp)
         if (runCatching { wm.addView(window, lp) }.isFailure) return false
         service = host; root = window; params = lp; this.owner = owner
-        // 文字が変わったら (進み具合・一時停止中・選んだ名前)、伸びた後の幅で画面の中へ置き直す。
+        // 文字が変わったら (進み具合・一時停止中・選んだ名前)、伸びた後の大きさで画面の中へ置き直す。
         texts.forEach { it.doAfterTextChanged { refit() } }
-        // 初回 (まだ動かしていない) は右上。大きさが決まってから置く。前回の位置も画面の中に収める。
-        window.post {
-            if (root !== window) return@post
-            if (lp.x < 0 || lp.y < 0) { lp.x = Int.MAX_VALUE; lp.y = ActionUi.dp(host, 96) }
-            clamp(host, window, lp)
-            runCatching { wm.updateViewLayout(window, lp) }
-        }
         return true
     }
 
@@ -324,9 +320,9 @@ internal object ActionRunOverlay {
         val view = root ?: return
         val lp = params ?: return
         val host = service ?: return
-        val x = lp.x; val y = lp.y
+        val before = listOf(lp.x, lp.y, lp.width, lp.height)
         clamp(host, view, lp)
-        if (lp.x != x || lp.y != y) runCatching { host.getSystemService(WindowManager::class.java).updateViewLayout(view, lp) }
+        if (listOf(lp.x, lp.y, lp.width, lp.height) != before) runCatching { host.getSystemService(WindowManager::class.java).updateViewLayout(view, lp) }
     }
 
     /** 進み具合を書き換える。[loops] は外側から順に (何回目, 回数 または 無限なら null)。 */
@@ -466,13 +462,19 @@ internal object ActionRunOverlay {
     }
 
     /**
-     * 帯がはみ出さないよう画面の中へ収める。⚠ 大きさは view.width ではなく測り直した値を使う。
-     * 画面の端で切られた窓の幅は、中身が求める幅より狭いことがある ([refit])。
+     * 帯の大きさを測って窓の大きさに決め、はみ出さないよう画面の中へ収める。
+     * ⚠ 大きさは view.width ではなく測り直した値を使う。画面の端で切られた窓の幅は、中身が求める幅より
+     * 狭いことがある ([refit])。
+     * ⚠ 窓の大きさを「中身に合わせる (WRAP_CONTENT)」のままにしない (1.0.114)。Android はそういう窓を
+     * まずダイアログ向けの幅 (スマホで 320dp ほど) で測り、足りないと言われたときだけ広げる。進み具合が
+     * その幅を超えると、文字が先に場所を取り、後ろの ‖ と ■ が押しつぶされて見切れていた
+     * (文字は … で収まるので「足りない」とは言われない)。そこで画面の幅を上限に自分で測った大きさを渡す。
      */
     private fun clamp(context: Context, view: View, lp: WindowManager.LayoutParams) {
         val screen = ActionRuntime.screen(context)
         view.measure(View.MeasureSpec.makeMeasureSpec(screen.width, View.MeasureSpec.AT_MOST),
             View.MeasureSpec.makeMeasureSpec(screen.height, View.MeasureSpec.AT_MOST))
+        lp.width = view.measuredWidth; lp.height = view.measuredHeight
         lp.x = lp.x.coerceIn(0, maxOf(0, screen.width - view.measuredWidth))
         lp.y = lp.y.coerceIn(0, maxOf(0, screen.height - view.measuredHeight))
     }
