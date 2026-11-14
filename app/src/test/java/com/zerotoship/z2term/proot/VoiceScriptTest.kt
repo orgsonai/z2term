@@ -155,12 +155,32 @@ class VoiceScriptTest {
         assertHeard("it", "togli l’audio", "z2-volume mute")
     }
 
+    /**
+     * トルコ語の I / İ (1.0.120)。トルコ語の大文字 I の小文字は ı で、英語の i ではない。
+     * İ はどの言語でも i。聞き取りが文頭を大文字にしても表 (小文字) と当たること。
+     */
+    @Test
+    fun turkishCapitalsLowerTheTurkishWay() {
+        assertHeard("tr", "Işığı aç", "z2-torch on")
+        assertHeard("tr", "İleri", "z2-media next")
+    }
+
+    /**
+     * 曜日の名前が別の曜日の名前に含まれていても取り違えない (1.0.120)。
+     * トルコ語は cuma (金) が cumartesi (土) の頭にそのまま入っている。
+     */
+    @Test
+    fun longerWeekdayNameWins() {
+        assertHeard("tr", "her cumartesi saat 9 çiçekleri sula hatırlat", "remind weekly sat 09:00 çiçekleri sula")
+        assertHeard("tr", "her cuma saat 9 çiçekleri sula hatırlat", "remind weekly fri 09:00 çiçekleri sula")
+    }
+
     /** 名簿の言語はどれも表を持ち、アプリの言語がその表の既定になる。表の無い言語は英語。 */
     @Test
     fun everyLanguageHasItsTable() {
         mapOf(
             "ja" to "次の曲", "en" to "next song", "zh-CN" to "下一首", "zh-TW" to "下一首",
-            "es" to "siguiente canción", "ko" to "다음 곡", "pt-BR" to "próxima música", "de" to "nächstes lied", "fr" to "chanson suivante", "id" to "lagu berikutnya", "it" to "prossima canzone", "ru" to "следующая песня",
+            "es" to "siguiente canción", "ko" to "다음 곡", "pt-BR" to "próxima música", "de" to "nächstes lied", "fr" to "chanson suivante", "id" to "lagu berikutnya", "it" to "prossima canzone", "ru" to "следующая песня", "tr" to "sonraki şarkı",
             // ⛔ 表の無い言語の例に、名簿に載りうる言語を使わない (載せた日に前提が崩れる)
             "zz" to "next song",
         ).forEach { (lang, phrase) -> assertHeard(lang, phrase, "z2-media next") }

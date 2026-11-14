@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_terminal">Mini terminal</string>
+    <string name="edge_terminal_command">Tek satırlık komut</string>
+    <string name="edge_terminal_result">Komut çıktısı</string>
+    <string name="edge_terminal_stop">Durdur</string>
+    <string name="edge_terminal_copy">Kopyala</string>
+    <string name="edge_terminal_clear">Temizle</string>
+    <string name="edge_terminal_ready">Yeni oturum</string>
+    <string name="edge_terminal_starting">Başlatılıyor…</string>
+    <string name="edge_terminal_running">Çalışıyor…</string>
+    <string name="edge_terminal_exit">Çıkış: %1$d</string>
+    <string name="edge_terminal_ended">Bitti · yeni oturum için yenileyin</string>
+    <string name="edge_terminal_truncated">Son 64 KiB karakter gösteriliyor</string>
+    <string name="edge_terminal_help">Paneli kapatmak veya sekme değiştirmek kabuğu, çıktıyı ve taslağı korur. Yenile bunları elle sıfırlar. Bir komut çalışırken alan ona yanıt verir ve Durdur yalnızca o komutu bitirir. Tam ekran programlar için normal bir terminal sekmesi kullanın.</string>
+    <string name="edge_terminal_one_line_required">Mini terminal en fazla 16.384 karakterlik tek satırlık komutları kabul eder. Çok satırlı parçalar için normal terminali kullanın.</string>
+    <string name="edge_terminal_refresh">Oturumu yenile</string>
+    <string name="edge_terminal_answer">Çalışan komuta yanıt verin (boş bırakmak Enter gönderir)</string>
+    <string name="edge_terminal_send">Gönder</string>
+</resources>

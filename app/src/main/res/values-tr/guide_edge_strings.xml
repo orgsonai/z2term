@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内: エッジパネル (0.8.601)。Guide.EDGE_PANEL -->
+    <string name="guide_desc_edge_panel">Ekran kenarındaki bir çubuktan uygulama listesi açın</string>
+    <string name="guide_step_edge_overlay">z2term’ün diğer uygulamaların üzerinde gösterilmesine izin verin</string>
+    <string name="guide_step_edge_accessibility">“z2term Android actions” erişilebilirlik hizmetini açın (çubuğu yukarı ve aşağı kaydırarak kaydırma için kullanılır)</string>
+    <string name="guide_step_edge_panel">Bu cihazda bulunan z2term, tarayıcı, kamera, telefon, mesajlar ve ayarlar uygulamalarıyla örnek bir panel oluşturun</string>
+    <string name="guide_step_edge_on">Paneli açın (sağ kenarda bir çubuk belirir; uygulama listesini açmak için içeri doğru kaydırın)</string>
+    <string name="guide_step_edge_settings">Panel açıkken ayarlarını açmak için menünün dışına uzun basın</string>
+</resources>

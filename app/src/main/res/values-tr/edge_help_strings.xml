@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_help_start" formatted="false">Uygulamalar için “+ Uygulama”yı, gösterim, giriş ve komutlar için “Özel yuva ekle”yi kullanın. Aşağıda talimatları ve örnekleri görmek için bir bileşen ve davranış seçin. Kaydettikten sonra panele dönmek için Bitti’ye dokunun.</string>
+    <string name="edge_help_choose" formatted="false">Bileşen seçimi</string>
+    <string name="edge_help_components" formatted="false">Düğme: dokununca komut çalıştırır\nGösterim: sonuçları, sabit metni veya HTML görünümünü gösterir\nGiriş: metin aktarır, not kaydeder veya kabuk kullanır\nSeçim: hazır seçeneklerden bir değer seçer\nAnahtar: bir durumu okur ve değiştirir\nListe: komutun ürettiği bir liste üzerinde işlem yapar\n\nForm kurmak için girişleri ve seçimleri → bir düğmeye → bir sonuç gösterimine bağlayın.</string>
+    <string name="edge_help_execute" formatted="false">Dokunulduğunda bir komut çalıştırır. Bir etiket ve komutla başlayın. Girdi değerlerini veya sonuç gösterimini Bağlantılar’dan seçin.</string>
+    <string name="edge_help_state_button" formatted="false">AÇIK/KAPALI gösteren bir düğme. Açma ve kapama komutlarını ayarlayın, sonra durumun nasıl okunacağını seçin. Durum komutu on veya off yazdırmalıdır.</string>
+    <string name="edge_help_receive" formatted="false">Bir düğmenin çıktısını gösterir. Bu alanı kaydedin, sonra düğme düzenleyicisinde Bağlantılar → Sonucun gösterileceği yer altında seçin. Burada komut gerekmez.</string>
+    <string name="edge_help_fixed" formatted="false">Sabit bir değer gösterir. İçeriği “Başlangıç veya sabit değer”e girin. Bağlı bir düğme bunu bağımsız değişken olarak da aktarabilir.</string>
+    <string name="edge_help_read" formatted="false">Açıldığında bir komut çalıştırır ve metin çıktısını gösterir. Örneğin date geçerli tarih ve saati gösterir. Otomatik yenilemeyi Gelişmiş ayarlardan ayarlayın.</string>
+    <string name="edge_help_view" formatted="false">Panelin içinde HTML gösterir. z2-view çağıran bir makro veya hazır bir HTML dosyasını açan bir komut ayarlayın. Aşağıdaki örnek için önce page.html oluşturun. Elle veya otomatik yenilemeyi seçin. Makrolar formları ve işlem düğmelerini tanımlar. Görünümü görmek için kaydedip Bitti’ye dokunun.</string>
+    <string name="edge_help_value" formatted="false">Kullanıcının girdiği metni başka bir bileşene aktarır. Bu alanı kaydedin, sonra düğme düzenleyicisinde Bağlantılar altında girdi olarak seçin. Gerekirse varsayılan değer ayarlayın veya girişi zorunlu yapın.</string>
+    <string name="edge_help_choice" formatted="false">Kullanıcının hazır değerlerden seçmesini sağlar. Seçenekleri | ile ayırın, kaydedin, sonra düğme düzenleyicisinde Bağlantılar altında bu alanı seçin. Varsayılan değer seçeneklerden biriyle eşleşmelidir.</string>
+    <string name="edge_help_file" formatted="false">Yazdıklarınızı kaydeden bir not. Başlamak için dosya yolunu boş bırakın. İçerik panel kapandıktan sonra kalır ve bağlı bir düğmeye aktarılabilir.</string>
+    <string name="edge_help_send" formatted="false">Metni standart girdi olarak komuta aktarmak için yazıp Gönder’e dokunun. Örneğin cat girilen metni olduğu gibi döndürür.</string>
+    <string name="edge_help_shell" formatted="false">Panelin içinde bir kabuk kullanın. Bu düzenleyicide komut gerekmez. Yazmaya başlamak için kaydedip Bitti’ye dokunun. Kabuk, çıktı ve taslak kapandıktan sonra kalır. Etkileşimli programlar için normal bir terminal sekmesi kullanın.</string>
+    <string name="edge_help_state" formatted="false">Geçerli durumu okur ve değiştirir. Durum komutu on veya off yazdırmalı, çalıştırma komutu onu değiştirmelidir. İşlemden sonra durum yeniden okunur.</string>
+    <string name="edge_help_select" formatted="false">Her çıktı satırını seçilebilir bir öğeye dönüştürür. Bir satıra dokunmak, değeri \"$1\" olarak alan seçim komutunu çalıştırır. Farklı etiket ve değerler için her satıra etiket + sekme + değer yazdırın.</string>
+    <string name="edge_help_command" formatted="false">Bu cihazda kullanılabilen bir kabuk komutu girin. Aşağıdan kurulu bir makro seçip gereken bağımsız değişkenleri ekleyin. Önce normal bir terminal sekmesinde deneyin.</string>
+    <string name="edge_help_every" formatted="false">Boş veya 0 periyodik yenilemeyi kapatır. 5–86400 saniyelik bir değer yalnızca panel görünürken yeniler. Görünümler gösterim komutunu tekrarlar; makrolar elle Yenile düğmesi için farklı bir işlem tanımlayabilir.</string>
+    <string name="edge_help_timeout" formatted="false">Boş 30 saniye demektir. Ağ istekleri gibi yavaş işler için 1–300 saniyeye çıkarın.</string>
+    <string name="edge_help_note_path" formatted="false">Boş bırakılırsa bu öğeye ayrılmış bir dosya kullanılır. Var olan bir dosyayı kullanmak için uygulamanın paylaşılan ana klasöründe bir yol belirtin.</string>
+    <string name="edge_help_default" formatted="false">Açılırken kullanılan değer. Seçim alanı için seçeneklerinden birini kullanın.</string>
+    <string name="edge_help_choices" formatted="false">Seçenekleri | ile ayırın. Boş veya yinelenen seçeneklere izin verilmez.</string>
+    <string name="edge_help_rows" formatted="false">Boş, bileşenin varsayılanını kullanır. Gösterim yüksekliği için 1–20 satır ayarlayın.</string>
+    <string name="edge_help_size" formatted="false">Boş otomatik demektir. Sayı dp kullanır; % sütun genişliğini veya panel yüksekliğini kullanır.</string>
+    <string name="edge_help_example">Örnek: %1$s</string>
+    <string name="edge_help_use_example">Örneği kullan</string>
+</resources>

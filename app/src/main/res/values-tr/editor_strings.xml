@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="editor_save">Kaydet</string>
+    <string name="editor_saved">Kaydedildi</string>
+    <string name="editor_save_and_close">Kaydet ve kapat</string>
+    <string name="editor_gone">Kaydedilmedi: bunu açan z2-edit sona erdi.</string>
+    <string name="editor_unreadable">Açılamıyor: UTF-8 metin dosyası değil veya 1 MiB’den büyük.</string>
+</resources>

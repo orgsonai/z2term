@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 小技 (Tips): 端末のダブルタップ選択 (1.0.6)。TipsSection -->
+    <string name="tip_word_select_title">Bir kelimeyi seçmek için terminaldeki metne iki kez dokunun</string>
+    <string name="tip_word_select_body">Bir yol, ana bilgisayar adı veya IP adresi, sonraki satıra taşsa bile tek parça olarak seçilir. Ardından aralığı değiştirmek için iki uçtaki tutamaçları sürükleyin. Bir uygulamanın fareyi okuduğu ekranda iki kez dokunma o uygulamaya gider.</string>
+</resources>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_waiting">Belge seçiliyor veya kopyalanıyor…</string>
+    <string name="process_text_title">z2term ile işle</string>
+    <string name="process_text_enable">Seçili metin için öner</string>
+    <string name="process_text_contract">Seçilen komut özgün metni stdin’den alır. Seçimi değiştirmeden önce stdout’u kontrol edin.</string>
+    <string name="process_text_setup">Komutlar → Parçacıklar’da bir komut kaydedip “Seçili metin için öner”i açın.</string>
+    <string name="process_text_replace">Seçimi değiştir</string>
+    <string name="process_text_too_large">Metin NUL içermeyen geçerli bir metin olmalı, en fazla 64 KiB.</string>
+    <string name="workspace_title">Oturum düzeni</string>
+    <string name="workspace_hint">İkinci bir sekme seçin. Odaklamak için bir bölmeye dokunun; boyutlandırmak için ayırıcıyı sürükleyin. Klavye odaktaki bölmeyi kontrol eder. Yer değiştirmek için bir bölme başlığına uzun basıp diğer bölmeye doğru sürükleyin; yalnızca o sekmeyi göstermek için başlığın sağ ucundaki düğmeyi kullanın (veya başlığa iki kez dokunun).</string>
+    <string name="workspace_vertical">Üst / alt</string>
+    <string name="workspace_horizontal">Sol / sağ</string>
+    <string name="workspace_preview_current">Bu sekme</string>
+    <string name="workspace_preview_other">Aşağıda dokunduğunuz sekme</string>
+    <string name="workspace_need_two">Önce başka bir terminal veya GUI sekmesi açın.</string>
+    <string name="workspace_maximize">Yalnızca bu sekmeyi göster</string>
+    <string name="workspace_single">Tek bölme</string>
+    <string name="workspace_external_hint">Mevcut sekmeyi harici ekranda gösterin. Telefon onu kontrol edebilir veya farklı bir sekme gösterebilir.</string>
+    <string name="workspace_no_display">Kullanılabilir harici ekran yok.</string>
+    <string name="workspace_return">Telefona dön</string>
+    <string name="workspace_projected">Harici ekranda gösteriliyor. Klavye o oturumu kontrol eder.</string>
+    <string name="workspace_controller">Harici ekran: bu alanı dokunmatik yüzey, alttaki klavyeyi giriş için kullanın.</string>
+    <string name="workspace_display_failed">Bu ekran kullanılamıyor. Oturum çalışmaya devam ediyor.</string>
+    <string name="settings_gui_direct">Doğrudan yerel GUI gösterimi (deneysel)</string>
+    <string name="settings_gui_direct_desc">Yerel çerçeve arabelleğini doğrudan okur. Gösterim için Xvfb, yalnızca giriş için x11vnc kullanır; paketler ilk kullanımda indirilir. Yeni açılan GUI sekmelerine uygulanır. Başlangıç çözünürlüğü sabittir; GPU hızlandırma yoktur.</string>
+    <string name="tip_gui_split_title">GUI ile terminali bölmek için GUI’ye uzun basın</string>
+    <string name="tip_gui_split_body">Oturum düzenini açmak için + yanındaki GUI (🖥) düğmesine uzun basın. GUI ile terminali (CUI) birlikte kullanmak için üst/alt veya sol/sağ ve başka bir sekme seçin. Aynı menü tek bölmeye döner veya harici ekran seçer. Kısa dokunma GUI’yi eskisi gibi açar.</string>
+</resources>

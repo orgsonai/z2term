@@ -171,6 +171,13 @@ class AppLanguagesTest {
         assertEquals("ru", AppLanguages.matchDeviceLocale("ru-KZ"))
     }
 
+    /** 地域つきのトルコ語 (キプロスなど) は `tr` へ (1.0.120)。 */
+    @Test
+    fun turkishRegionsCollapseToTheBaseLanguage() {
+        assertEquals("tr", AppLanguages.matchDeviceLocale("tr-TR"))
+        assertEquals("tr", AppLanguages.matchDeviceLocale("tr-CY"))
+    }
+
     /** 名簿に無ければ英語。⛔ 日本語へ倒さない。 */
     @Test
     fun anythingElseGoesToEnglish() {

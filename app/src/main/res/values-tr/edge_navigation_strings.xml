@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">Kaydedilmemiş değişiklikler atılsın mı?</string>
+    <string name="edge_discard_message">Kaydedilmemiş düzenlemeleriniz kaybolacak.</string>
+    <string name="edge_discard">At</string>
+    <string name="edge_keep_editing">Düzenlemeye devam et</string>
+    <string name="edge_select_tab">Sekme seçin</string>
+    <string name="edge_finish_title">Değişiklikler kaydedilsin mi?</string>
+    <string name="edge_finish_message">Bazı düzenlemeler henüz kaydedilmedi. Yazılıp eklenmemiş bir sekme veya panel adı kaydedilmez.</string>
+    <string name="edge_choose_panel">Bir panel seçin</string>
+</resources>

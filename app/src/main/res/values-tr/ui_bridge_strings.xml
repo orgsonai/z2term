@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- z2-ui (AI からのアプリ操作)。設計は docs/ja/AI-BRIDGE.md。 -->
+<resources>
+    <string name="tools_automation_ai">YZ</string>
+    <string name="ui_bridge_title">YZ uygulama kontrolü</string>
+    <string name="ui_bridge_desc">Açıkken terminalde çalışan bir yapay zekâ, z2-ui komutuyla diğer uygulamaların ekranlarını okuyabilir, dokunabilir ve metin girebilir. Çalışırken bildirimden onu duraklatabilir, ona talimat gönderebilir veya durdurabilirsiniz.</string>
+    <string name="ui_bridge_enable">YZ’nin uygulamaları kontrol etmesine izin ver</string>
+    <string name="ui_bridge_stopped_note">Bildirimden durduruldu. Devam etmek için yeniden açın.</string>
+    <string name="ui_bridge_paused_note">Duraklatıldı. YZ ekranı okuyabilir ama kullanamaz.</string>
+    <string name="ui_bridge_accessibility_needed">“z2term Android actions” erişilebilirlik hizmeti gerekir.</string>
+    <string name="ui_bridge_open_accessibility">Erişilebilirlik ayarlarını aç</string>
+    <string name="ui_bridge_apps_title">Uygulama başına izin</string>
+    <string name="ui_bridge_add_app">+ Uygulama ekle</string>
+    <string name="ui_bridge_grant_title">Onay süresi</string>
+    <string name="ui_bridge_grant_value">%1$d dk</string>
+    <string name="ui_bridge_grant_desc">“Her seferinde sor” olarak ayarlı uygulamalarda “%1$d dk izin ver”e basmak, YZ’nin o süre boyunca sormadan devam etmesini sağlar.</string>
+    <string name="ui_bridge_grant_input_title">Dakika girin</string>
+    <string name="ui_bridge_grant_input_hint">1–1440</string>
+    <string name="ui_bridge_set">Ayarla</string>
+    <string name="ui_bridge_protected_note">z2term, Android ayarları, yükleyiciler ve bildirim paneli izinden bağımsız olarak YZ’ye asla açık değildir.</string>
+    <string name="ui_bridge_log_note">Etkinlik kaydı: ~/.z2term/ui/log.jsonl (yazılan metin kaydedilmez)</string>
+    <string name="ui_bridge_channel">YZ uygulama kontrolü</string>
+    <string name="ui_bridge_ask_channel">YZ işlem onayı</string>
+    <string name="ui_bridge_running_title">YZ bir uygulamayı kontrol ediyor</string>
+    <string name="ui_bridge_paused_title">YZ kontrolü duraklatıldı</string>
+    <string name="ui_bridge_grant_left">Onay gerekmiyor · %1$d dk kaldı</string>
+    <string name="ui_bridge_pause">Duraklat</string>
+    <string name="ui_bridge_resume">Devam et</string>
+    <string name="ui_bridge_say">Talimat gönder</string>
+    <string name="ui_bridge_say_hint">YZ için talimat</string>
+    <string name="ui_bridge_stop">Durdur</string>
+    <string name="ui_bridge_ask_title">Bu YZ işlemine izin verilsin mi?</string>
+    <string name="ui_bridge_allow">İzin ver</string>
+    <string name="ui_bridge_deny">Reddet</string>
+    <string name="ui_bridge_allow_for">%1$d dk izin ver</string>
+    <string name="ui_bridge_change_title">YZ iznini değiştirmek istiyor</string>
+    <string name="ui_bridge_change_level">%1$s için “%2$s” ayarla</string>
+    <string name="ui_bridge_change_grant">Onay süresini %1$d dk yap</string>
+    <string name="ui_bridge_default_apps">Listede olmayan uygulamalar</string>
+    <string name="ui_bridge_level_off">Kapalı</string>
+    <string name="ui_bridge_level_look">Yalnızca okuma</string>
+    <string name="ui_bridge_level_ask">Her seferinde sor</string>
+    <string name="ui_bridge_level_auto">Onaysız</string>
+    <string name="ui_bridge_op_tap">%1$s içinde “%2$s” öğesine dokun</string>
+    <string name="ui_bridge_op_long">%1$s içinde “%2$s” öğesine uzun bas</string>
+    <string name="ui_bridge_op_type">%1$s içinde “%2$s” alanına “%3$s” gir</string>
+    <string name="ui_bridge_op_enter">%1$s içinde “%2$s” alanında Enter’a bas</string>
+    <string name="ui_bridge_op_back">%1$s içinde Geri’ye bas</string>
+    <string name="ui_bridge_op_open">%1$s içinde aç: %2$s</string>
+    <string name="ui_bridge_point">nokta (%1$d, %2$d)</string>
+    <string name="ui_bridge_op_scroll">%1$s içinde “%2$s” kaydır (%3$s)</string>
+    <string name="ui_bridge_op_swipe">%1$s içinde (%2$d, %3$d) noktasından (%4$d, %5$d) noktasına kaydır</string>
+    <string name="ui_bridge_op_noti">%1$s bildiriminde “%2$s” düğmesine bas</string>
+    <string name="ui_bridge_op_noti_reply">%1$s bildiriminde “%2$s” ile “%3$s” gönder</string>
+    <string name="ui_bridge_op_drag">%1$s içinde %2$d noktadan geçerek sürükle</string>
+</resources>

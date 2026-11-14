@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="viewer_missing">Bu sayfa artık yok.</string>
+    <string name="viewer_no_browser">Bu telefonda bu bağlantıyı açabilecek uygulama yok.</string>
+    <string name="viewer_expand">Genişlet</string>
+    <string name="viewer_close">Kapat</string>
+    <string name="viewer_component">Görünüm (z2-view)</string>
+    <string name="viewer_empty">Henüz sayfa yok. z2-view çağıran bir komut ayarlayın veya bu öğeye bir sayfa gönderin.</string>
+    <string name="viewer_required">%1$s girin.</string>
+    <string name="viewer_show_refresh">Yenile düğmesini göster</string>
+    <string name="viewer_show_expand">Genişlet düğmesini göster</string>
+    <string name="viewer_update_mode">Görünüm yenileme modu</string>
+    <string name="viewer_update_manual">Yalnızca elle</string>
+    <string name="viewer_update_auto">Otomatik</string>
+    <string name="viewer_update_help">Yalnızca elle: açarken veya sekme değiştirirken komutu çalıştırmadan son sayfa kullanılır. İlk seferde Yenile’ye basın. Otomatik: açılışta ve Gelişmiş ayarlardaki aralıkla yenilenir. Boş veya sıfır aralık yalnızca açılışta yeniler. Ekleme veya silme gibi işlemlerden gelen sayfa güncellemeleri her iki modda da görünür.</string>
+    <string name="viewer_empty_manual">Henüz sayfa yok. Ayarlı komutu çalıştırıp göstermek için Yenile’ye basın.</string>
+    <string name="viewer_empty_hidden">Henüz sayfa yok. Bu öğenin ayarlarında Yenile düğmesini açın veya bir makrodan bu öğeye sayfa gönderin.</string>
+    <string name="viewer_find">Bul</string>
+    <string name="viewer_find_hint">Sayfada bul</string>
+    <string name="viewer_find_previous">Önceki eşleşme</string>
+    <string name="viewer_find_next">Sonraki eşleşme</string>
+    <string name="viewer_find_close">Aramayı kapat</string>
+    <string name="viewer_show_find">Bul düğmesini göster</string>
+    <string name="viewer_number">%1$s değerini sayı olarak girin.</string>
+    <string name="viewer_pinch" formatted="false">İki parmakla yakınlaştırma</string>
+    <string name="viewer_pinch_text" formatted="false">Metni boyutlandır</string>
+    <string name="viewer_pinch_page" formatted="false">Tüm sayfayı yakınlaştır</string>
+    <string name="viewer_text_size" formatted="false">Metin boyutu (%)</string>
+    <string name="viewer_text_size_help" formatted="false">50–300; boş 100 demektir. “Metni boyutlandır” seçiliyken iki parmak hareketi bunu doldurur.</string>
+</resources>

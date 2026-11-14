@@ -85,6 +85,7 @@ object AppLanguages {
         Entry("id", "Bahasa Indonesia", cliComplete = true),
         Entry("it", "Italiano", cliComplete = true),
         Entry("ru", "Русский", cliComplete = true),
+        Entry("tr", "Türkçe", cliComplete = true),
     )
 
     /** 対応言語のコードだけ。 */

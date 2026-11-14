@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="snippet_inputs_title">Komut girdileri</string>
+    <string name="snippet_inputs_file">Dosya seç</string>
+    <string name="snippet_inputs_invalid">Girdi tanımını ve değerleri kontrol edin. Her yer tutucuyu tırnakların dışına ayrı bir bağımsız değişken olarak koyun.</string>
+    <string name="snippet_inputs_preview">Komut önizlemesi</string>
+    <string name="snippet_inputs_hint">Komut terminale eklenir. Gözden geçirip Enter’a basın. Seçilen dosyalar yerel kabuğun ana klasörüne kopyalanır.</string>
+    <string name="snippet_inputs_enable">Eklemeden önce girdi iste</string>
+    <string name="snippet_inputs_definition">Komutta: {{text}}, {{width:number=1080}}, {{format:choice=png|jpg}}, {{image:file}}. Adlar alan etiketleri olur. Yer tutucuları tırnakların dışına koyun.</string>
+    <string name="snippet_share_action">Paylaşım alındıktan sonra öner</string>
+    <string name="snippet_share_action_hint">Komut $Z2_SHARE_TEXT ve $Z2_SHARE_MANIFEST’i (alındı JSON’u) okuyabilir. Dosya girdileri alınan ekleri kullanabilir.</string>
+    <string name="share_intake_title">Alınan içerik</string>
+    <string name="share_intake_hint">Metin ve ekler birlikte kaydedilir. Kayıtlı bir komut seçin veya özgün içeriği ekleyin. Komutlar Enter’a bastıktan sonra çalışır.</string>
+    <string name="share_intake_insert">Terminale ekle</string>
+    <string name="share_intake_close">Kayıtlı tut ve kapat</string>
+</resources>

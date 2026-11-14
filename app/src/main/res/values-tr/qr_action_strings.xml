@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR の読み取り結果を開くボタン (0.8.602)。QrAction / QrActionLauncher -->
+    <string name="qr_action_open">Aç</string>
+    <string name="qr_action_dial">Tuş takımını aç</string>
+    <string name="qr_action_email">E-posta yaz</string>
+    <string name="qr_action_sms">SMS yaz</string>
+    <string name="qr_action_wifi">Wi-Fi’ye bağlan</string>
+    <string name="qr_action_contact">Kişilere ekle</string>
+    <string name="qr_action_event">Takvime ekle</string>
+    <string name="qr_action_no_app">Bu cihazda bunu açabilecek uygulama yok.</string>
+    <string name="qr_action_wifi_copied">Wi-Fi şifresi kopyalandı. Listeden ağı seçip yapıştırın.</string>
+    <!-- ⚙設定の「QRツール」(0.8.602)。SettingsGroup.QR_TOOLS -->
+    <string name="settings_group_qr_tools">QR araçları</string>
+    <string name="settings_group_qr_tools_desc">Kameradan veya görüntülerden tarayın, QR kodu oluşturun</string>
+    <string name="settings_qr_tools_open">QR araçlarını aç</string>
+    <string name="settings_qr_tools_hint">z2-qr kamerayla taramayı başlatır. Bunu bir Hızlı Ayarlar kutucuğuna veya kenar paneline koyabilirsiniz.</string>
+</resources>

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-11-14 / 対象バージョン: 1.0.119 (versionCode 817)
+最終更新: 2026-11-14 / 対象バージョン: 1.0.120 (versionCode 818)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -3688,6 +3688,19 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 - **地域つき（`ru-UA`・`ru-KZ` など）は `ru` へ**（`AppLanguagesTest`）。⚠ それまで `AppLanguagesTest` は「名簿に無い言語」の例に `ru-RU` を使っていたので、`zz-ZZ` に替えた。
 - 催促マクロの「every …」を展開する語は訳さない（1.0.119 で全言語とも daily / weekly / monthly / yearly に固定した）。展開した語を読む `case` が `毎日|daily` のように日本語と英語しか拾わないため。
 - ⚠ **キリル文字の配列は内蔵していない**。ロシア語を打つときは OS の入力方法に切り替える。
+
+#### トルコ語を追加（1.0.120）
+
+同じ手順（名簿に 1 行・`res/values-tr/`・`proot/lang/CliTr.kt`・`CliLanguages` に 1 行）。
+
+- **用語**: sekme（タブ）/ dokunmak・uzun basmak（長押し）/ kaydırmak（フリック）/ dosya / klasör / Ayarlar / pano / kutucuk（タイル）/ kenar paneli（エッジパネル）/ kalıcı sunucu（常駐サーバー）/ YZ（AI）。呼びかけは丁寧な命令形（-in / -ın）。
+- ⛔ **固有名詞の接尾辞のアポストロフィ（z2term’ü・Android’in）は活字の ’（U+2019）**。res の点検で素の `'` が 0 件であることを確かめた。
+- 複数形は数のあとの名詞が単数のまま（3 satır）なので、plurals の one と other は同じ文。
+- **地域つき（`tr-CY`）は `tr` へ**（`AppLanguagesTest`）。
+- ⚠ **大文字・小文字の変換を端末の言語に頼っていない**ことを確かめた（トルコ語の端末では英語の I が ı に化ける）。Kotlin の `lowercase()` は言語に依らず、シェルは常に `LANG=C.UTF-8` で動く。
+- **声で操作の `norm()`**: 聞き取った文の大文字 I は、表の言語がトルコ語のときだけ ı に、それ以外は今までどおり i にする。İ はどの言語でも i。Ğ・Ş は 1 文字ずつの置換表に足した（`VoiceScriptTest.turkishCapitalsLowerTheTurkishWay`）。
+- **曜日は、いちばん長く一致した名前で決める**（`hitlen`）。それまでは月曜から順に「含まれるか」を見て最初に当たった曜日にしていたため、cuma（金）が頭に入っている cumartesi（土）が金曜になっていた（`VoiceScriptTest.longerWeekdayNameWins`。直す前に落ちることを確かめた）。
+- トルコ語は語順が日本語・韓国語と同じで述語が後ろに来るので、言い方の表は `*hatırlat`（〜を思い出させて）のように * を前に置く形にした。時刻は「saat 9」「saat 9’da」を読み、9’da の ’da などは remind_filler で落とす。
 
 ### 6.8.1 アプリロック (A2・0.8.421)
 

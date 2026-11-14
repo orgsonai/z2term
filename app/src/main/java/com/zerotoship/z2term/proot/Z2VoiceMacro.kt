@@ -80,10 +80,11 @@ private val voiceLangList: String get() = voiceLangCase.replace("|", " | ")
 
 /**
  * norm() の sed に足す、A–Z 以外の大文字 → 小文字 (1.0.91)。`tr` は 1 バイトずつしか見ないので
- * 多バイトの文字は 1 文字まるごとの置換で書く。⚠ 1 文字が 1 文字に対応するものだけ (トルコ語の İ は入れない)。
+ * 多バイトの文字は 1 文字まるごとの置換で書く。⚠ 1 文字が 1 文字に対応するものだけ。トルコ語の I / İ は norm() で
+ * 別に扱う (I → ı はトルコ語のときだけ、İ → i はどの言語でも。1.0.120)。
  */
-private const val LOWER_FROM = "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝŒŸАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
-private const val LOWER_TO = "àáâãäåæçèéêëìíîïñòóôõöøùúûüýœÿабвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+private const val LOWER_FROM = "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝŒŸĞŞАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
+private const val LOWER_TO = "àáâãäåæçèéêëìíîïñòóôõöøùúûüýœÿğşабвгдеёжзийклмнопрстуфхцчшщъыьэюя"
 private val lowerSed: String get() = LOWER_FROM.zip(LOWER_TO).joinToString(" ") { (u, l) -> "-e 's/$u/$l/g'" }
 
 /** 振り分けの本体 (言語に依らない 1 本)。 */
@@ -188,7 +189,9 @@ nosp() {
 # Accented Latin and Cyrillic capitals are lowered the same way, one whole letter at a time
 # (a recognizer may start "Écris…" / "Следующая…" with a capital, while the tables are lowercase).
 norm() {
-  printf '%s' "${d}1" | tr 'A-Z' 'a-z' | sed \
+  # Turkish dotless I: the capital I lowers to ı there, to i everywhere else (İ is i in every language).
+  if [ "${d}VLANG" = tr ]; then printf '%s' "${d}1" | sed -e 's/I/ı/g'; else printf '%s' "${d}1"; fi | tr 'A-Z' 'a-z' | sed \
+    -e 's/İ/i/g' \
     $lowerSed \
     -e 's/。//g' -e 's/、//g' -e 's/，//g' -e 's/．//g' -e 's/！//g' -e 's/？//g' \
     -e 's/¿//g' -e 's/¡//g' -e "s/’/'/g" -e 's/[!?,.;"]//g' \
@@ -261,6 +264,24 @@ has() {
   done
   IFS=${d}OIFS
   return 1
+}
+
+# hitlen KEY TEXT — the length of the longest word of KEY found in TEXT -> HITLEN (false when none).
+# For weekdays: one name can sit inside another (Turkish cuma = Friday inside cumartesi = Saturday),
+# so the longest hit decides, not the first day checked.
+hitlen() {
+  HITLEN=0
+  eval "list=\${d}{W_${d}1-}"
+  [ -n "${d}list" ] || return 1
+  nosp "${d}2"; hay=${d}NOSP
+  IFS='|'
+  for p in ${d}list; do
+    nosp "${d}p"
+    [ -n "${d}NOSP" ] || continue
+    case ${d}hay in *"${d}NOSP"*) [ ${d}{#NOSP} -gt ${d}HITLEN ] && HITLEN=${d}{#NOSP} ;; esac
+  done
+  IFS=${d}OIFS
+  [ "${d}HITLEN" -gt 0 ]
 }
 
 # re KEY — the word list as an ERE group "(a|b)", or empty when the list is empty.
@@ -348,7 +369,10 @@ when_of() {
     elif has day_tomorrow "${d}g"; then day=tomorrow
     elif has day_today "${d}g"; then day=today
     else
-      for w in mon tue wed thu fri sat sun; do has "wd_${d}w" "${d}g" && { day=${d}w; break; }; done
+      best=0
+      for w in mon tue wed thu fri sat sun; do
+        hitlen "wd_${d}w" "${d}g" && [ "${d}HITLEN" -gt "${d}best" ] && { day=${d}w; best=${d}HITLEN; }
+      done
       [ -n "${d}every" ] && grab "${d}g" "^${d}every" && day="weekly ${d}day"
       GOT=${d}g
     fi

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shot_busy">Önce mevcut yakalamayı bitirin.</string>
+    <string name="shot_needs_android11">Bir bölgeyi yakalamak için Android 11 veya üstü gerekir.</string>
+    <string name="shot_capture_failed">Android ekran görüntüsü döndürmedi. Tekrar deneyin.</string>
+    <string name="shot_too_small">Bu alan çok küçük. Daha büyük çizin.</string>
+    <string name="shot_hint_free">İstediğiniz şeyin etrafını çizin, sonra parmağınızı kaldırın.</string>
+    <string name="shot_hint_box">Bir köşeden karşı köşeye sürükleyin, sonra parmağınızı kaldırın.</string>
+    <string name="shot_hint_move">İçeriği ayarlamak için görüntüyü sürükleyin.</string>
+    <string name="shot_shape_free">Serbest</string>
+    <string name="shot_shape_rect">Dikdörtgen</string>
+    <string name="shot_shape_oval">Oval</string>
+    <string name="shot_shape_circle">Daire</string>
+    <string name="shot_bg_transparent">Dış: şeffaf</string>
+    <string name="shot_bg_keep">Dış: korunur</string>
+    <string name="shot_redo">Yeniden</string>
+    <string name="shot_save">Kaydet</string>
+    <string name="shot_share">Paylaş</string>
+    <string name="shot_saved">%1$s, %2$s içine kaydedildi.</string>
+    <string name="shot_save_failed">Görüntü yazılamadı.</string>
+</resources>

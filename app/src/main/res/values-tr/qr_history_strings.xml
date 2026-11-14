@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QR ツールの履歴 (0.8.603)。QrHistorySection -->
+    <string name="qr_history_title">Geçmiş</string>
+    <string name="qr_history_clear">Tümünü temizle</string>
+    <string name="qr_history_clear_title">Geçmişi temizle</string>
+    <string name="qr_history_clear_message">Sabitlenen öğeler dışında tüm geçmişi temizler.</string>
+    <string name="qr_history_pin">Sabitle</string>
+    <string name="qr_history_unpin">Sabitlemeyi kaldır</string>
+    <string name="qr_history_delete">Sil</string>
+    <string name="qr_history_pinned">Sabitlendi</string>
+    <string name="qr_history_menu">Sabitle veya sil</string>
+    <string name="qr_history_note">Yeniden göstermek için dokunun. Sabitlemek veya silmek için uzun basın. Geçmiş, taradıklarınızı Wi-Fi şifreleri gibi içerikler dahil yalnızca bu cihazda tutar. En fazla 50 sabitlenmemiş öğe tutulur.</string>
+</resources>

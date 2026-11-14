@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-14 / Target version: 1.0.119 (versionCode 817)
+Last updated: 2026-11-14 / Target version: 1.0.120 (versionCode 818)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3764,6 +3764,19 @@ Same procedure (one roster line, `res/values-ru/`, `proot/lang/CliRu.kt`, one li
 - **Regional Russian (`ru-UA`, `ru-KZ` and so on) goes to `ru`** (`AppLanguagesTest`). ⚠ `AppLanguagesTest` used `ru-RU` as its example of a language outside the roster; it now uses `zz-ZZ`.
 - The words the reminder macro expands “every …” into are not translated (since 1.0.119 they are fixed to daily / weekly / monthly / yearly in every language), because the `case` that reads them back only matches Japanese and English (`毎日|daily`).
 - ⚠ **No Cyrillic layout is bundled**. Switch to the OS input method to type Russian.
+
+#### Turkish added (1.0.120)
+
+Same procedure (one roster line, `res/values-tr/`, `proot/lang/CliTr.kt`, one line in `CliLanguages`).
+
+- **Terms**: sekme (tab) / dokunmak, uzun basmak (long press) / kaydırmak (flick) / dosya / klasör / Ayarlar / pano / kutucuk (tile) / kenar paneli (edge panel) / kalıcı sunucu (resident server) / YZ (AI). Addressed with the polite imperative (-in / -ın).
+- ⛔ **The apostrophe before suffixes on names (z2term’ü, Android’in) is the typographic ’ (U+2019)**. The res check confirmed zero bare `'`.
+- A noun after a number stays singular (3 satır), so plurals carry the same text for one and other.
+- **Regional Turkish (`tr-CY`) goes to `tr`** (`AppLanguagesTest`).
+- ⚠ Confirmed that **no case conversion depends on the device language** (a Turkish device turns the English I into ı). Kotlin's `lowercase()` is language-independent and the shell always runs with `LANG=C.UTF-8`.
+- **Voice commands' `norm()`**: a heard capital I becomes ı only when the word table is Turkish, and i as before otherwise; İ becomes i in every language. Ğ and Ş join the one-letter replacement table (`VoiceScriptTest.turkishCapitalsLowerTheTurkishWay`).
+- **The weekday is decided by the longest matching name** (`hitlen`). Before, the days were checked from Monday on and the first one contained in the text won, so cumartesi (Saturday), which starts with cuma (Friday), became Friday (`VoiceScriptTest.longerWeekdayNameWins`, confirmed to fail before the fix).
+- Turkish puts the verb last, like Japanese and Korean, so the word table puts the * first, as in `*hatırlat` (remind me of …). Times read “saat 9” and “saat 9’da”; the ’da of 9’da and the like are dropped through remind_filler.
 
 ### 6.8.1 App lock (A2, 0.8.421)
 

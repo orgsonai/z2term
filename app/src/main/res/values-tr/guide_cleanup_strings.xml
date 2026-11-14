@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 案内の片付け (1.0.6)。Guide.cleanup -->
+    <string name="settings_guide_cleanup">Temizle</string>
+    <string name="settings_guides_cleanup_desc">“Temizle”, bir rehberin eklediklerini kaldıran adımları aynı tür kartlar olarak gösterir. Bir karta dokunana kadar hiçbir şey kaldırılmaz.</string>
+    <string name="guide_cleanup_heading">bunun eklediklerini kaldır</string>
+    <string name="guide_cleanup_hint">Çalıştırmak için dokunun (önce Ctrl-C, böylece yarım yazılmış bir satır karışmaz) / tutmak için ✕</string>
+    <string name="guide_undo_rules">Bu makroyu çağıran otomasyon kurallarını kaldır</string>
+    <string name="guide_undo_macro">Makroyu kaldır (kendiniz düzenlediyseniz kaldırmadan durur)</string>
+    <string name="guide_undo_notify_off">Başka bir şey kullanmıyorsa: Ayarlar -> “Bildirim algılama”yı kapatın</string>
+    <string name="guide_undo_sms_off">Başka bir şey kullanmıyorsa: Ayarlar -> “SMS algılama”yı kapatın</string>
+    <string name="guide_undo_remind_all">Kaydettiğiniz tüm hatırlatıcıları iptal et</string>
+    <string name="guide_undo_remind_tiles">remind.sh çalıştıran kutucuk yuvalarını boşalt</string>
+    <string name="guide_undo_remind_data">Hatırlatıcı kayıtlarını sil (tutmak için ✕)</string>
+    <string name="guide_undo_rss_data">Akış listesini ve toplanan makaleleri sil (tutmak için ✕)</string>
+    <string name="guide_undo_voice_data">Sesli komutun kelime tablosunu, notlarını ve ayarlarını sil (tutmak için ✕)</string>
+    <string name="guide_undo_edge_main">Örnek uygulama paneli “main”i sil (ona eklediğiniz öğeler de gider)</string>
+    <string name="guide_undo_edge_samples">Örnek panelleri sil (notlardaki metin de gider)</string>
+    <string name="guide_undo_edge_off">Başka panel kullanmıyorsanız panelleri kapatın (çubuk kaybolur)</string>
+    <string name="guide_undo_permissions">“Diğer uygulamaların üzerinde göster” ve erişilebilirlik yalnızca Android ayarlarından kapatılabilir. Başka bir özellik kullanıyorsa açık bırakın.</string>
+</resources>
