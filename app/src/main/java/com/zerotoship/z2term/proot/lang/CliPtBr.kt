@@ -419,10 +419,6 @@ internal object CliPtBr : CliLanguage {
             "macro.pMonthly" to "mensal ",
             "macro.pYearly" to "anual ",
             "macro.mDay" to "",
-            "macro.eDaily" to "diário",
-            "macro.eWeekly" to "semanal",
-            "macro.eMonthly" to "mensal",
-            "macro.eYearly" to "anual",
             "macro.mBadDate" to "essa data não existe (ex.: 07/30):",
             "macro.cEvery" to """  # A forma curta "every ...". **O formato da palavra seguinte** escolhe daily/weekly/monthly/yearly:
   #   every 19:00 -> daily / every wed 19:00 -> weekly / every 15 19:00 -> monthly /

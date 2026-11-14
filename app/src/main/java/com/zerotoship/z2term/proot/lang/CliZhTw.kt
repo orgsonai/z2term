@@ -413,10 +413,6 @@ internal object CliZhTw : CliLanguage {
             "macro.pMonthly" to "每月 ",
             "macro.pYearly" to "每年 ",
             "macro.mDay" to "日",
-            "macro.eDaily" to "每天",
-            "macro.eWeekly" to "每週",
-            "macro.eMonthly" to "每月",
-            "macro.eYearly" to "每年",
             "macro.mBadDate" to "沒有這個日期 (例: 07/30):",
             "macro.cEvery" to """  # 「every …」的簡寫。**後面那個詞的形狀**決定是每天/每週/每月/每年:
   #   every 19:00 -> 每天 / every wed 19:00 -> 每週 / every 15 19:00 -> 每月 /

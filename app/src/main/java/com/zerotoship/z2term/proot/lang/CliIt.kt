@@ -419,10 +419,6 @@ internal object CliIt : CliLanguage {
             "macro.pMonthly" to "ogni mese il ",
             "macro.pYearly" to "ogni anno ",
             "macro.mDay" to "",
-            "macro.eDaily" to "giornaliero",
-            "macro.eWeekly" to "settimanale",
-            "macro.eMonthly" to "mensile",
-            "macro.eYearly" to "annuale",
             "macro.mBadDate" to "questa data non esiste (es. 07/30):",
             "macro.cEvery" to """  # La forma breve "every ...". **La forma della parola successiva** sceglie daily/weekly/monthly/yearly:
   #   every 19:00 -> daily / every wed 19:00 -> weekly / every 15 19:00 -> monthly /

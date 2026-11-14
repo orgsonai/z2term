@@ -1,0 +1,4 @@
+1.0.119
+
+- The reminder macro form “every 19:00” works in every app language, not only Japanese and English.
+- The stop-bar setting description matches what the bar does now.

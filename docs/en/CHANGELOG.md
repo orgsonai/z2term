@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.119 (versionCode 817)**: The reminder macro (remind.sh) forms “every 19:00” and “every wed 19:00” failed with “cannot read the time” whenever the app language was neither Japanese nor English; fixed. The description of “Show a stop button over other apps” in the settings now matches what the bar does: when the macro touches under it, the bar turns faint and lets the touch through instead of hiding (the behaviour since 1.0.113).
+
 **1.0.118 (versionCode 816)**: **Russian** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language; phones set to a regional Russian (Ukraine, Kazakhstan and so on) get it too. No Cyrillic keyboard layout is bundled, so switch to your OS input method to type Russian.
 
 **1.0.117 (versionCode 815)**: Learning history and User dictionary in the settings now sit together in a “Japanese input” group, since both are used only for Japanese input. Tap the heading to open or fold it. When Japanese input is not available (the app language is not Japanese and the Japanese faces, kana and romaji, are off), the group starts folded. The app language alone never hides it: with any display language you can turn on a Japanese face and type Japanese. With the faces off, opening the group still lets you review and delete registered dictionaries and learned words. Inside the group, “Japanese IME learning history” is shortened to “Learning history”.

@@ -420,10 +420,6 @@ internal object CliKo : CliLanguage {
             "macro.pMonthly" to "매달 ",
             "macro.pYearly" to "매년 ",
             "macro.mDay" to "",
-            "macro.eDaily" to "매일",
-            "macro.eWeekly" to "매주",
-            "macro.eMonthly" to "매달",
-            "macro.eYearly" to "매년",
             "macro.mBadDate" to "그런 날짜가 없습니다 (예: 07/30):",
             "macro.cEvery" to """
   # 짧은 「every ...」 형태. **다음 낱말의 생김새**로 매일/매주/매달/매년을 고릅니다:

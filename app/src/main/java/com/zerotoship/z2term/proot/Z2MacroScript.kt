@@ -2029,11 +2029,13 @@ private fun remindBody(d: String, t: CliText): String {
     val pMonthly = t("macro.pMonthly", en = "monthly ", ja = "毎月 ")
     val pYearly = t("macro.pYearly", en = "yearly ", ja = "毎年 ")
     val mDay = t("macro.mDay", en = "", ja = "日")
-    // 「毎 …」の展開先。⚠ **その言語で case が拾える語**であること (日本語面なら「毎日」等)。
-    val eDaily = t("macro.eDaily", en = "daily", ja = "毎日")
-    val eWeekly = t("macro.eWeekly", en = "weekly", ja = "毎週")
-    val eMonthly = t("macro.eMonthly", en = "monthly", ja = "毎月")
-    val eYearly = t("macro.eYearly", en = "yearly", ja = "毎年")
+    // 「毎 …」の展開先。⛔ **訳さない** — 展開した語は下の parse_when の case が読み戻す語で、
+    // そこが拾うのは 毎日|daily のような日本語と英語だけ。以前は言語ごとに訳していて
+    // (täglich 等)、日本語・英語以外では every が全部「読めない」で落ちていた (1.0.118)。
+    val eDaily = "daily"
+    val eWeekly = "weekly"
+    val eMonthly = "monthly"
+    val eYearly = "yearly"
     val mBadDate = t("macro.mBadDate",
         en =         "no such date (e.g. 07/30):",
         ja =         "その日付はありません (例: 07/30):"

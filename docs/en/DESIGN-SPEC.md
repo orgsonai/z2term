@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-14 / Target version: 1.0.118 (versionCode 816)
+Last updated: 2026-11-14 / Target version: 1.0.119 (versionCode 817)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3762,7 +3762,7 @@ Same procedure (one roster line, `res/values-ru/`, `proot/lang/CliRu.kt`, one li
 - **Quotes are «»**. Russian uses no apostrophes, so nothing collides with shell quoting.
 - **Plurals carry all four forms, one / few / many / other** (the word changes for 1, 2–4 and 5–20). Strings that count without being plurals (such as “%1$d words”) put the number last (“Слов: %1$d”), so no form has to be chosen.
 - **Regional Russian (`ru-UA`, `ru-KZ` and so on) goes to `ru`** (`AppLanguagesTest`). ⚠ `AppLanguagesTest` used `ru-RU` as its example of a language outside the roster; it now uses `zz-ZZ`.
-- The words the reminder macro expands “every …” into (`macro.eDaily` and the rest) **stay in English** (daily / weekly / monthly / yearly), because the `case` that reads them back only matches Japanese and English (`毎日|daily`).
+- The words the reminder macro expands “every …” into are not translated (since 1.0.119 they are fixed to daily / weekly / monthly / yearly in every language), because the `case` that reads them back only matches Japanese and English (`毎日|daily`).
 - ⚠ **No Cyrillic layout is bundled**. Switch to the OS input method to type Russian.
 
 ### 6.8.1 App lock (A2, 0.8.421)

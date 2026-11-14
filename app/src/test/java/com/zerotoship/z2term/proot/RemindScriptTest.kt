@@ -463,6 +463,26 @@ class RemindScriptTest {
         assertTrue("every wed が毎週になっていない: $t3", t3.contains("time:cron=0 19 * * 3"))
     }
 
+    /**
+     * every の展開先は、どの言語のスクリプトでも読み戻せる語であること (1.0.118)。
+     * 以前は展開先の語まで訳していて (täglich 等)、それを拾う case が 毎日|daily しか無いため、
+     * 日本語・英語以外では every が全部「読めない」で落ちていた。
+     */
+    @Test
+    fun `every はどの言語でも読める`() {
+        assumeTrue(sh != null)
+        for (lang in com.zerotoship.z2term.settings.AppLanguages.CODES) {
+            val (_, _, daily) = runTraced(lang, true, "every", "19:00", "x")
+            assertTrue("$lang: every 19:00 が毎日にならない: $daily", daily.contains("time:daily=19:00"))
+            val (_, _, weekly) = runTraced(lang, true, "every", "wed", "19:00", "x")
+            assertTrue("$lang: every wed が毎週にならない: $weekly", weekly.contains("time:cron=0 19 * * 3"))
+            val (_, _, monthly) = runTraced(lang, true, "every", "15", "09:00", "x")
+            assertTrue("$lang: every 15 が毎月にならない: $monthly", monthly.contains("time:cron=0 9 15 * *"))
+            val (_, _, yearly) = runTraced(lang, true, "every", "07/30", "19:00", "x")
+            assertTrue("$lang: every 07/30 が毎年にならない: $yearly", yearly.contains("time:cron=0 19 30 7 *"))
+        }
+    }
+
     @Test
     fun `英語の tomorrow も読める`() {
         assumeTrue(sh != null)

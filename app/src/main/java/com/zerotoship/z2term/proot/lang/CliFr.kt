@@ -419,10 +419,6 @@ internal object CliFr : CliLanguage {
             "macro.pMonthly" to "chaque mois le ",
             "macro.pYearly" to "chaque année ",
             "macro.mDay" to "",
-            "macro.eDaily" to "quotidien",
-            "macro.eWeekly" to "hebdomadaire",
-            "macro.eMonthly" to "mensuel",
-            "macro.eYearly" to "annuel",
             "macro.mBadDate" to "cette date n’existe pas (ex. 07/30) :",
             "macro.cEvery" to """  # La forme courte « every ... ». **La forme du mot suivant** choisit daily/weekly/monthly/yearly :
   #   every 19:00 -> daily / every wed 19:00 -> weekly / every 15 19:00 -> monthly /
