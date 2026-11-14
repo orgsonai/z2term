@@ -1,0 +1,4 @@
+1.0.113
+
+- The pass and step count on the stop bar is shown in full even when the bar sits at the right edge.
+- When a macro or AI finger passes under the stop bar, the bar turns faint instead of disappearing.

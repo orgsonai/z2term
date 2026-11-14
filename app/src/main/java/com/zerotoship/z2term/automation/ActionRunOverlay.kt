@@ -18,6 +18,7 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.core.widget.doAfterTextChanged
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.edge.ScreenGravity
 import kotlin.math.abs
@@ -45,9 +46,10 @@ import kotlin.math.abs
  *
  * ⚠ **マクロや AI の指がこの帯に当たると、操作先ではなく帯が受け取る。** Android は指を置いた位置の
  * いちばん上の窓へタッチを渡すため。そこで座標の操作を送る前に、指が通る範囲が帯に重なるなら
- * 帯を隠し (触れない窓にして) から送る ([clear] はマクロ、[stepAside] は z2-ui)。窓の変更が入力に
- * 反映されるまで [SETTLE_MS] 待つ。送り終えたら [RESTORE_MS] 後に戻す (続けて同じ場所を押すときに
- * 毎回待たせないため)。重ならない操作は待たせない。
+ * 帯を触れない窓にして (指は下のアプリへ素通りする) から送る ([clear] はマクロ、[stepAside] は z2-ui)。
+ * 帯は消さずに薄くする ([DIM_ALPHA]、1.0.113): 消すと進み具合が読めなくなるため。
+ * 窓の変更が入力に反映されるまで [SETTLE_MS] 待つ。送り終えたら [RESTORE_MS] 後に戻す (続けて同じ場所を
+ * 押すときに毎回待たせないため)。重ならない操作は待たせない。
  */
 @SuppressLint("StaticFieldLeak") // Holds the accessibility service only while its window is shown.
 internal object ActionRunOverlay {
@@ -62,6 +64,8 @@ internal object ActionRunOverlay {
     const val SETTLE_MS = 100L
     /** 帯を隠した操作が終わってから戻すまで。 */
     private const val RESTORE_MS = 700L
+    /** 指が下を通る間の帯の濃さ。読めるが、押せないと分かる薄さ。 */
+    private const val DIM_ALPHA = 0.35f
 
     private val main = Handler(Looper.getMainLooper())
     private fun post(ms: Long, block: () -> Unit): () -> Unit {
@@ -105,7 +109,7 @@ internal object ActionRunOverlay {
         val progressView = ActionUi.label(host, "", 13f, ActionUi.textColor, ActionUi.medium).apply {
             // ⚠ 進み具合は削らない (1.0.112)。160dp で切ると「1/6回目 · 手順 2/4」でも … になって回数が読めなかった。
             // 帯が伸びても画面からはみ出さないよう、大きさが変わるたびに [attach] が画面の中へ収め直す。
-            // 上限は画面の幅からボタンと余白を引いた分だけ (それより長い文字は無い)。
+            // 上限は画面の幅からボタンと余白を引いた分だけ。
             // 最小の幅は、手順ごとに帯の幅が変わってちらつかないため。
             maxLines = 1; ellipsize = TextUtils.TruncateAt.END; minWidth = dp(120)
             maxWidth = ActionRuntime.screen(host).width - dp(12 + 4 + 48 + 48 + 4 + 16)
@@ -121,7 +125,7 @@ internal object ActionRunOverlay {
             addView(toggleText, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(4) })
             addView(stopText, LinearLayout.LayoutParams(-2, -2))
         }
-        val shown = attach(host, bar, bar, owner) { x ->
+        val shown = attach(host, bar, bar, owner, nameView, progressView) { x ->
             if (x >= stopText.left) stopText.performClick()
             else if (x >= toggleText.left - dp(4)) toggleText.performClick()
         }
@@ -178,13 +182,7 @@ internal object ActionRunOverlay {
             addView(header, LinearLayout.LayoutParams(-2, -2))
             addView(scroll, LinearLayout.LayoutParams(-1, minOf(names.size * dp(44), dp(264))))
         }
-        // 一覧の開け閉めで窓の大きさが変わる。画面の下からはみ出さないよう、大きさが決まってから収め直す。
-        fun refit() = window.post {
-            val lp = params ?: return@post
-            if (root !== window) return@post
-            clamp(host, window, lp)
-            runCatching { host.getSystemService(WindowManager::class.java).updateViewLayout(window, lp) }
-        }
+        // 一覧の開け閉めで窓の大きさが変わる。画面の下からはみ出さないよう収め直す。
         fun toggleList() {
             scroll.visibility = if (scroll.visibility == View.VISIBLE) View.GONE else View.VISIBLE
             refit()
@@ -208,7 +206,7 @@ internal object ActionRunOverlay {
             }, LinearLayout.LayoutParams(-1, -2))
         }
         render()
-        attach(host, window, header, Owner.PICKER) { x ->
+        attach(host, window, header, Owner.PICKER, choice) { x ->
             if (x >= closeText.left) closeText.performClick()
             else if (x >= runText.left - dp(4)) runText.performClick()
             else choice.performClick()
@@ -257,10 +255,11 @@ internal object ActionRunOverlay {
 
     /**
      * [window] を重ね窓として出し、[handle] を指で動かせるようにする。動かさずに離したら [tap] に
-     * 取っ手の中の x を渡す。置いた場所は覚えておく。
+     * 取っ手の中の x を渡す。置いた場所は覚えておく。[texts] の文字が変わったら置き直す ([refit])。
      */
     @SuppressLint("ClickableViewAccessibility")
-    private fun attach(host: AccessibilityService, window: View, handle: View, owner: Owner, tap: (Float) -> Unit): Boolean {
+    private fun attach(host: AccessibilityService, window: View, handle: View, owner: Owner,
+        vararg texts: TextView, tap: (Float) -> Unit): Boolean {
         val wm = host.getSystemService(WindowManager::class.java)
         val saved = prefs(host)
         val lp = WindowManager.LayoutParams(
@@ -303,13 +302,8 @@ internal object ActionRunOverlay {
         }
         if (runCatching { wm.addView(window, lp) }.isFailure) return false
         service = host; root = window; params = lp; this.owner = owner
-        // 中身が伸び縮みして大きさが変わったら、画面からはみ出さないよう置き直す (進み具合・一覧の開閉)。
-        window.addOnLayoutChangeListener { view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
-            if (root !== view || (right - left == oldRight - oldLeft && bottom - top == oldBottom - oldTop)) return@addOnLayoutChangeListener
-            val x = lp.x; val y = lp.y
-            clamp(host, view, lp)
-            if (lp.x != x || lp.y != y) runCatching { wm.updateViewLayout(view, lp) }
-        }
+        // 文字が変わったら (進み具合・一時停止中・選んだ名前)、伸びた後の幅で画面の中へ置き直す。
+        texts.forEach { it.doAfterTextChanged { refit() } }
         // 初回 (まだ動かしていない) は右上。大きさが決まってから置く。前回の位置も画面の中に収める。
         window.post {
             if (root !== window) return@post
@@ -318,6 +312,21 @@ internal object ActionRunOverlay {
             runCatching { wm.updateViewLayout(window, lp) }
         }
         return true
+    }
+
+    /**
+     * 中身の大きさが変わったとき、画面からはみ出さない位置へ先に動かす。
+     * ⚠ 窓が伸びてから収め直すのでは間に合わない (1.0.113)。この窓は画面の端で切られるので、右端に置いた帯は
+     * 右へ伸びられず、切られた幅のまま文字が「…」になる (幅が変わらないので、伸びたことにも気付けない)。
+     * そこで伸びた後の幅をここで測り、その幅が収まる位置へ動かしてから描かせる。
+     */
+    private fun refit() {
+        val view = root ?: return
+        val lp = params ?: return
+        val host = service ?: return
+        val x = lp.x; val y = lp.y
+        clamp(host, view, lp)
+        if (lp.x != x || lp.y != y) runCatching { host.getSystemService(WindowManager::class.java).updateViewLayout(view, lp) }
     }
 
     /** 進み具合を書き換える。[loops] は外側から順に (何回目, 回数 または 無限なら null)。 */
@@ -429,11 +438,12 @@ internal object ActionRunOverlay {
         return true
     }
 
+    /** 指を素通りさせる。帯は薄くして見せたままにする (進み具合を読めるように)。 */
     private fun hide() {
         val view = root ?: return
         val lp = params ?: return
         hidden = true
-        view.visibility = View.INVISIBLE
+        view.alpha = DIM_ALPHA
         lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         runCatching { service?.getSystemService(WindowManager::class.java)?.updateViewLayout(view, lp) }
     }
@@ -442,7 +452,7 @@ internal object ActionRunOverlay {
         val view = root ?: return
         val lp = params ?: return
         hidden = false
-        view.visibility = View.VISIBLE
+        view.alpha = 1f
         lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
         runCatching { service?.getSystemService(WindowManager::class.java)?.updateViewLayout(view, lp) }
     }
@@ -455,11 +465,16 @@ internal object ActionRunOverlay {
         }
     }
 
-    /** 帯がはみ出さないよう画面の中へ収める。 */
+    /**
+     * 帯がはみ出さないよう画面の中へ収める。⚠ 大きさは view.width ではなく測り直した値を使う。
+     * 画面の端で切られた窓の幅は、中身が求める幅より狭いことがある ([refit])。
+     */
     private fun clamp(context: Context, view: View, lp: WindowManager.LayoutParams) {
         val screen = ActionRuntime.screen(context)
-        lp.x = lp.x.coerceIn(0, maxOf(0, screen.width - view.width))
-        lp.y = lp.y.coerceIn(0, maxOf(0, screen.height - view.height))
+        view.measure(View.MeasureSpec.makeMeasureSpec(screen.width, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(screen.height, View.MeasureSpec.AT_MOST))
+        lp.x = lp.x.coerceIn(0, maxOf(0, screen.width - view.measuredWidth))
+        lp.y = lp.y.coerceIn(0, maxOf(0, screen.height - view.measuredHeight))
     }
 
     private fun synthetic(event: MotionEvent) = event.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD &&
