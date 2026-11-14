@@ -704,7 +704,9 @@
     <string name="snippet_sample_apk_update_label">apk: aktualisieren (Index holen)</string>
     <string name="snippet_sample_update_label">z2term aktualisieren</string>
     <string name="snippet_sample_apk_add_label">apk: hinzufügen (Paketname anhängen)</string>
-    <string name="settings_section_ime_history">Lernverlauf der japanischen Eingabe</string>
+    <string name="settings_section_ime_history">Lernverlauf</string>
+    <string name="settings_section_japanese_input">Japanische Eingabe</string>
+    <string name="settings_japanese_input_folded">Eingeklappt, weil die japanischen Flächen (Kana, Romaji) aus sind. Zum Öffnen tippen.</string>
     <plurals name="settings_ime_history_count">
         <item quantity="one">%1$d gelernter Eintrag</item>
         <item quantity="other">%1$d gelernte Einträge</item>

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.117 (versionCode 815)**: Learning history and User dictionary in the settings now sit together in a “Japanese input” group, since both are used only for Japanese input. Tap the heading to open or fold it. When Japanese input is not available (the app language is not Japanese and the Japanese faces, kana and romaji, are off), the group starts folded. The app language alone never hides it: with any display language you can turn on a Japanese face and type Japanese. With the faces off, opening the group still lets you review and delete registered dictionaries and learned words. Inside the group, “Japanese IME learning history” is shortened to “Learning history”.
+
 **1.0.116 (versionCode 814)**: The stop bar and the macro chooser bar now return to their place after being shifted to stay on screen. A bar that moved up when its list opened, or left for long text, used to stay there after the list closed or the text got shorter. The shift is now worked out each time from where you placed the bar (top right if you have not moved it).
 
 **1.0.115 (versionCode 813)**: Progress on the stop bar that does not fit even at full screen width (for example several nested repeats) now scrolls instead of being cut with "…". It rests at the start for 1.2 seconds, scrolls left, rests at the end for 1.2 seconds and returns to the start, repeatedly. Text updates as steps advance do not restart the scroll. Progress that fits does not move.

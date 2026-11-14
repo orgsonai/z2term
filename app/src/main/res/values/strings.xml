@@ -763,7 +763,9 @@
     <string name="snippet_sample_apk_add_label">apk: add (append package name)</string>
 
     <!-- IME learning history management (keyboard patch) -->
-    <string name="settings_section_ime_history">Japanese IME learning history</string>
+    <string name="settings_section_ime_history">Learning history</string>
+    <string name="settings_section_japanese_input">Japanese input</string>
+    <string name="settings_japanese_input_folded">Folded because the Japanese faces (kana, romaji) are off. Tap to open.</string>
     <plurals name="settings_ime_history_count">
         <item quantity="one">%1$d learned entry</item>
         <item quantity="other">%1$d learned entries</item>

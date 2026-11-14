@@ -710,7 +710,9 @@
     <string name="snippet_sample_apk_update_label">apk: atualizar (buscar o índice)</string>
     <string name="snippet_sample_update_label">atualizar o z2term</string>
     <string name="snippet_sample_apk_add_label">apk: adicionar (acrescente o nome do pacote)</string>
-    <string name="settings_section_ime_history">Histórico de aprendizado do IME japonês</string>
+    <string name="settings_section_ime_history">Histórico de aprendizado</string>
+    <string name="settings_section_japanese_input">Entrada em japonês</string>
+    <string name="settings_japanese_input_folded">Recolhido porque as faces japonesas (kana, romaji) estão desativadas. Toque para abrir.</string>
     <plurals name="settings_ime_history_count">
         <item quantity="one">%1$d entrada aprendida</item>
         <item quantity="other">%1$d entradas aprendidas</item>

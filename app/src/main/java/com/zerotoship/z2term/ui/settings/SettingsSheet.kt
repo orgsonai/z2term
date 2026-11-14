@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -652,175 +654,202 @@ fun SettingsSheet(
                     onEditLayout = { keyLayoutEditingId = it },
                 )
 
-                // IME 学習履歴 (キーボードパッチ): 件数表示 + 管理ボタン (シートを開く)
-                Section(title = stringResource(R.string.settings_section_ime_history)) {
-                    val historyVersion by com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.versionFlow.collectAsState()
-                    // approximateCount は version 変化のたびに再評価される (collectAsState 経由)
-                    val count = remember(historyVersion) {
-                        com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.approximateCount()
-                    }
-                    Text(
-                        text = pluralStringResource(R.plurals.settings_ime_history_count, count, count),
-                        color = ZtsTextSecondary,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    ActionButton(
-                        label = stringResource(R.string.settings_ime_history_open),
-                        onClick = { imeHistoryOpen = true }
+                // 日本語入力の枠 (1.0.117): 学習履歴とユーザー辞書は日本語の入力でしか使わないのでまとめる。
+                // ⚠ アプリの表示言語では隠さない。表示が英語でも日本語の面を ON にして日本語を打つ人がいる。
+                // 日本語の入力が使えない間 (Z2ImeService と同じ [KeyboardFaceConfig.kanaInputAvailable]) は
+                // たたんで出す。隠さないのは、面を OFF にしても登録済みの辞書や学習を見て消せるように。
+                val kanaInputAvailable = remember(
+                    settings.keyboardFaceOrder, settings.keyboardFaceEnabledIds, settings.keyboardLayoutsJson,
+                    settings.keyboardNumberFace, settings.keyboardLayoutActiveId,
+                ) {
+                    val japanese = LocaleHelper.language(context) == LocaleHelper.LANG_JA
+                    KeyboardFaceConfig.kanaInputAvailable(
+                        enabledEntries = KeyboardFaceConfig.enabledEntriesFromJson(
+                            orderValue = settings.keyboardFaceOrder,
+                            enabledValue = settings.keyboardFaceEnabledIds,
+                            layoutsJson = settings.keyboardLayoutsJson,
+                            legacyNumberEnabled = settings.keyboardNumberFace,
+                            legacyActiveLayoutId = settings.keyboardLayoutActiveId,
+                            legacyKanaAvailable = japanese,
+                        ),
+                        appLanguageJapanese = japanese,
                     )
                 }
-
-                // ユーザー辞書 (SKK 形式のテキストを取り込んで変換候補に混ぜる)。
-                // 学習履歴の隣に置く — どちらも「自分の語を IME に覚えさせる」設定なので。
-                Section(title = stringResource(R.string.settings_section_user_dict)) {
-                    val dictFiles by UserDictStore.files.collectAsState()
-                    val dictWords by UserDictStore.wordCount.collectAsState()
-                    val newDictionaryTarget = "__new_dictionary__"
-                    val newDictionaryLabel = stringResource(R.string.settings_user_dict_new_dictionary)
-                    var dictionaryTarget by remember { mutableStateOf(newDictionaryTarget) }
-                    var newDictionaryName by remember { mutableStateOf("") }
-                    var registrationReading by remember { mutableStateOf("") }
-                    var registrationWord by remember { mutableStateOf("") }
-                    LaunchedEffect(dictFiles) {
-                        if (dictionaryTarget != newDictionaryTarget && dictFiles.none { it.name == dictionaryTarget }) {
-                            dictionaryTarget = newDictionaryTarget
+                FoldableGroup(
+                    title = stringResource(R.string.settings_section_japanese_input),
+                    foldedNote = stringResource(R.string.settings_japanese_input_folded),
+                    initiallyOpen = kanaInputAvailable,
+                ) {
+                    // IME 学習履歴 (キーボードパッチ): 件数表示 + 管理ボタン (シートを開く)
+                    Section(title = stringResource(R.string.settings_section_ime_history)) {
+                        val historyVersion by com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.versionFlow.collectAsState()
+                        // approximateCount は version 変化のたびに再評価される (collectAsState 経由)
+                        val count = remember(historyVersion) {
+                            com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.approximateCount()
                         }
+                        Text(
+                            text = pluralStringResource(R.plurals.settings_ime_history_count, count, count),
+                            color = ZtsTextSecondary,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        ActionButton(
+                            label = stringResource(R.string.settings_ime_history_open),
+                            onClick = { imeHistoryOpen = true }
+                        )
                     }
-                    Text(
-                        text = stringResource(R.string.settings_user_dict_desc),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.settings_user_dict_count, dictWords, dictFiles.size
-                        ),
-                        color = ZtsTextSecondary,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_user_dict_register_title),
-                        color = ZtsTextPrimary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = FontFamily.Monospace,
-                    )
-                    ChipRow(
-                        options = listOf(newDictionaryTarget) + dictFiles.map { it.name },
-                        labels = buildMap {
-                            put(newDictionaryTarget, newDictionaryLabel)
-                            dictFiles.forEach { put(it.name, it.name) }
-                        },
-                        selected = dictionaryTarget,
-                        onSelect = { dictionaryTarget = it },
-                    )
-                    if (dictionaryTarget == newDictionaryTarget) {
-                        key("user-dict-new-name") {
+
+                    // ユーザー辞書 (SKK 形式のテキストを取り込んで変換候補に混ぜる)。
+                    // 学習履歴の隣に置く — どちらも「自分の語を IME に覚えさせる」設定なので。
+                    Section(title = stringResource(R.string.settings_section_user_dict)) {
+                        val dictFiles by UserDictStore.files.collectAsState()
+                        val dictWords by UserDictStore.wordCount.collectAsState()
+                        val newDictionaryTarget = "__new_dictionary__"
+                        val newDictionaryLabel = stringResource(R.string.settings_user_dict_new_dictionary)
+                        var dictionaryTarget by remember { mutableStateOf(newDictionaryTarget) }
+                        var newDictionaryName by remember { mutableStateOf("") }
+                        var registrationReading by remember { mutableStateOf("") }
+                        var registrationWord by remember { mutableStateOf("") }
+                        LaunchedEffect(dictFiles) {
+                            if (dictionaryTarget != newDictionaryTarget && dictFiles.none { it.name == dictionaryTarget }) {
+                                dictionaryTarget = newDictionaryTarget
+                            }
+                        }
+                        Text(
+                            text = stringResource(R.string.settings_user_dict_desc),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.settings_user_dict_count, dictWords, dictFiles.size
+                            ),
+                            color = ZtsTextSecondary,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_user_dict_register_title),
+                            color = ZtsTextPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                        ChipRow(
+                            options = listOf(newDictionaryTarget) + dictFiles.map { it.name },
+                            labels = buildMap {
+                                put(newDictionaryTarget, newDictionaryLabel)
+                                dictFiles.forEach { put(it.name, it.name) }
+                            },
+                            selected = dictionaryTarget,
+                            onSelect = { dictionaryTarget = it },
+                        )
+                        if (dictionaryTarget == newDictionaryTarget) {
+                            key("user-dict-new-name") {
+                                TextField(
+                                    title = stringResource(R.string.settings_user_dict_new_name),
+                                    placeholder = stringResource(R.string.settings_user_dict_new_name_placeholder),
+                                    value = newDictionaryName,
+                                    onChange = { newDictionaryName = it },
+                                )
+                            }
+                        }
+                        key("user-dict-reading") {
                             TextField(
-                                title = stringResource(R.string.settings_user_dict_new_name),
-                                placeholder = stringResource(R.string.settings_user_dict_new_name_placeholder),
-                                value = newDictionaryName,
-                                onChange = { newDictionaryName = it },
+                                title = stringResource(R.string.settings_user_dict_reading),
+                                placeholder = stringResource(R.string.settings_user_dict_reading_placeholder),
+                                value = registrationReading,
+                                onChange = { registrationReading = it },
                             )
                         }
-                    }
-                    key("user-dict-reading") {
-                        TextField(
-                            title = stringResource(R.string.settings_user_dict_reading),
-                            placeholder = stringResource(R.string.settings_user_dict_reading_placeholder),
-                            value = registrationReading,
-                            onChange = { registrationReading = it },
-                        )
-                    }
-                    key("user-dict-word") {
-                        TextField(
-                            title = stringResource(R.string.settings_user_dict_word),
-                            placeholder = stringResource(R.string.settings_user_dict_word_placeholder),
-                            value = registrationWord,
-                            onChange = { registrationWord = it },
-                        )
-                    }
-                    ActionButton(
-                        label = stringResource(R.string.settings_user_dict_register),
-                        onClick = {
-                            scope.launch {
-                                val creating = dictionaryTarget == newDictionaryTarget
-                                val result = UserDictStore.registerWord(
-                                    context = context,
-                                    dictionaryName = if (creating) newDictionaryName else dictionaryTarget,
-                                    createNew = creating,
-                                    reading = registrationReading,
-                                    word = registrationWord,
-                                )
-                                val msg = when (result) {
-                                    is UserDictStore.RegisterResult.Success -> {
-                                        dictionaryTarget = result.name
-                                        newDictionaryName = ""
-                                        registrationReading = ""
-                                        registrationWord = ""
-                                        context.getString(R.string.settings_user_dict_registered, result.name)
+                        key("user-dict-word") {
+                            TextField(
+                                title = stringResource(R.string.settings_user_dict_word),
+                                placeholder = stringResource(R.string.settings_user_dict_word_placeholder),
+                                value = registrationWord,
+                                onChange = { registrationWord = it },
+                            )
+                        }
+                        ActionButton(
+                            label = stringResource(R.string.settings_user_dict_register),
+                            onClick = {
+                                scope.launch {
+                                    val creating = dictionaryTarget == newDictionaryTarget
+                                    val result = UserDictStore.registerWord(
+                                        context = context,
+                                        dictionaryName = if (creating) newDictionaryName else dictionaryTarget,
+                                        createNew = creating,
+                                        reading = registrationReading,
+                                        word = registrationWord,
+                                    )
+                                    val msg = when (result) {
+                                        is UserDictStore.RegisterResult.Success -> {
+                                            dictionaryTarget = result.name
+                                            newDictionaryName = ""
+                                            registrationReading = ""
+                                            registrationWord = ""
+                                            context.getString(R.string.settings_user_dict_registered, result.name)
+                                        }
+                                        UserDictStore.RegisterResult.InvalidReading ->
+                                            context.getString(R.string.settings_user_dict_invalid_reading)
+                                        UserDictStore.RegisterResult.InvalidWord ->
+                                            context.getString(R.string.settings_user_dict_invalid_word)
+                                        UserDictStore.RegisterResult.DictionaryMissing ->
+                                            context.getString(R.string.settings_user_dict_dictionary_missing)
+                                        UserDictStore.RegisterResult.TooLarge ->
+                                            context.getString(R.string.settings_user_dict_too_large)
+                                        is UserDictStore.RegisterResult.Failed ->
+                                            context.getString(R.string.settings_user_dict_failed, result.message)
                                     }
-                                    UserDictStore.RegisterResult.InvalidReading ->
-                                        context.getString(R.string.settings_user_dict_invalid_reading)
-                                    UserDictStore.RegisterResult.InvalidWord ->
-                                        context.getString(R.string.settings_user_dict_invalid_word)
-                                    UserDictStore.RegisterResult.DictionaryMissing ->
-                                        context.getString(R.string.settings_user_dict_dictionary_missing)
-                                    UserDictStore.RegisterResult.TooLarge ->
+                                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                }
+                            },
+                        )
+                        val dictPicker = rememberLauncherForActivityResult(
+                            ActivityResultContracts.OpenDocument()
+                        ) { uri ->
+                            if (uri != null) scope.launch {
+                                // 取り込みの結果は Toast で返す。⚠ 形式違い/大きすぎは黙って
+                                // 無視せず必ず伝える (入ったつもりで変換が変わらないと原因を追えない)。
+                                val msg = when (val r = UserDictStore.import(context, uri)) {
+                                    is UserDictStore.ImportResult.Success ->
+                                        context.getString(R.string.settings_user_dict_added, r.name, r.words)
+                                    UserDictStore.ImportResult.TooLarge ->
                                         context.getString(R.string.settings_user_dict_too_large)
-                                    is UserDictStore.RegisterResult.Failed ->
-                                        context.getString(R.string.settings_user_dict_failed, result.message)
+                                    UserDictStore.ImportResult.NoEntries ->
+                                        context.getString(R.string.settings_user_dict_no_entries)
+                                    is UserDictStore.ImportResult.Failed ->
+                                        context.getString(R.string.settings_user_dict_failed, r.message)
                                 }
                                 Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                             }
-                        },
-                    )
-                    val dictPicker = rememberLauncherForActivityResult(
-                        ActivityResultContracts.OpenDocument()
-                    ) { uri ->
-                        if (uri != null) scope.launch {
-                            // 取り込みの結果は Toast で返す。⚠ 形式違い/大きすぎは黙って
-                            // 無視せず必ず伝える (入ったつもりで変換が変わらないと原因を追えない)。
-                            val msg = when (val r = UserDictStore.import(context, uri)) {
-                                is UserDictStore.ImportResult.Success ->
-                                    context.getString(R.string.settings_user_dict_added, r.name, r.words)
-                                UserDictStore.ImportResult.TooLarge ->
-                                    context.getString(R.string.settings_user_dict_too_large)
-                                UserDictStore.ImportResult.NoEntries ->
-                                    context.getString(R.string.settings_user_dict_no_entries)
-                                is UserDictStore.ImportResult.Failed ->
-                                    context.getString(R.string.settings_user_dict_failed, r.message)
-                            }
-                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                         }
-                    }
-                    ActionButton(
-                        label = stringResource(R.string.settings_user_dict_add),
-                        // ⚠ MIME は絞らない。テキストなのに provider が octet-stream を返すことが
-                        // あり、text/* だけだと選べないファイルが出る。
-                        onClick = { runCatching { dictPicker.launch(arrayOf("*/*")) } }
-                    )
-                    dictFiles.forEach { f ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = stringResource(R.string.settings_user_dict_file, f.name, f.words),
-                                color = ZtsTextPrimary,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.weight(1f)
-                            )
-                            ActionButton(
-                                label = stringResource(R.string.settings_user_dict_remove),
-                                danger = true,
-                                onClick = { scope.launch { UserDictStore.remove(context, f.name) } }
-                            )
+                        ActionButton(
+                            label = stringResource(R.string.settings_user_dict_add),
+                            // ⚠ MIME は絞らない。テキストなのに provider が octet-stream を返すことが
+                            // あり、text/* だけだと選べないファイルが出る。
+                            onClick = { runCatching { dictPicker.launch(arrayOf("*/*")) } }
+                        )
+                        dictFiles.forEach { f ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_user_dict_file, f.name, f.words),
+                                    color = ZtsTextPrimary,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                ActionButton(
+                                    label = stringResource(R.string.settings_user_dict_remove),
+                                    danger = true,
+                                    onClick = { scope.launch { UserDictStore.remove(context, f.name) } }
+                                )
+                            }
                         }
                     }
                 }
@@ -3225,6 +3254,58 @@ private fun TipItem(@StringRes titleRes: Int, @StringRes bodyRes: Int) {
             lineHeight = 18.sp,
             fontFamily = FontFamily.Monospace
         )
+    }
+}
+
+/**
+ * 見出しを押して開け閉めできる枠 (1.0.117、日本語入力)。中の [Section] は左の線で枠の中と分かるようにする。
+ * [initiallyOpen] が変わったら (面の ON/OFF)、開け閉めもそれに合わせ直す。閉じている間は [foldedNote] を出す。
+ */
+@Composable
+internal fun FoldableGroup(title: String, foldedNote: String, initiallyOpen: Boolean, content: @Composable () -> Unit) {
+    var open by remember(initiallyOpen) { mutableStateOf(initiallyOpen) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Text(
+                text = if (open) "▾" else "▸",
+                color = ZtsGreen,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = title,
+                color = ZtsTextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        if (open) {
+            Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .fillMaxHeight()
+                        .background(ZtsBorder)
+                )
+                Column(
+                    modifier = Modifier.padding(start = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
+                ) { content() }
+            }
+        } else {
+            Text(
+                text = foldedNote,
+                color = ZtsTextSecondary,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
     }
 }
 

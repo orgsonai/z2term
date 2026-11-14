@@ -699,7 +699,9 @@
     <string name="snippet_sample_apk_update_label">apk: update (색인 받기)</string>
     <string name="snippet_sample_update_label">z2term 업데이트</string>
     <string name="snippet_sample_apk_add_label">apk: add (패키지 이름을 이어서)</string>
-    <string name="settings_section_ime_history">일본어 IME 학습 기록</string>
+    <string name="settings_section_ime_history">학습 기록</string>
+    <string name="settings_section_japanese_input">일본어 입력</string>
+    <string name="settings_japanese_input_folded">일본어 면(가나·로마자)이 꺼져 있어 접어 두었습니다. 누르면 열립니다.</string>
     <plurals name="settings_ime_history_count">
         <item quantity="other">학습한 항목 %1$d개</item>
     </plurals>

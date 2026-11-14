@@ -711,7 +711,9 @@
     <string name="snippet_sample_apk_update_label">apk: update (descargar el índice)</string>
     <string name="snippet_sample_update_label">actualizar z2term</string>
     <string name="snippet_sample_apk_add_label">apk: add (añade el nombre del paquete)</string>
-    <string name="settings_section_ime_history">Historial de aprendizaje del IME japonés</string>
+    <string name="settings_section_ime_history">Historial de aprendizaje</string>
+    <string name="settings_section_japanese_input">Entrada japonesa</string>
+    <string name="settings_japanese_input_folded">Plegado porque los planos japoneses (kana, romaji) están desactivados. Toca para abrir.</string>
     <plurals name="settings_ime_history_count">
         <item quantity="one">%1$d entrada aprendida</item>
         <item quantity="other">%1$d entradas aprendidas</item>

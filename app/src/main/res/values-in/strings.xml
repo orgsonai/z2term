@@ -698,7 +698,9 @@
     <string name="snippet_sample_apk_update_label">apk: update (ambil indeks)</string>
     <string name="snippet_sample_update_label">perbarui z2term</string>
     <string name="snippet_sample_apk_add_label">apk: add (tambahkan nama paket)</string>
-    <string name="settings_section_ime_history">Riwayat belajar IME Jepang</string>
+    <string name="settings_section_ime_history">Riwayat belajar</string>
+    <string name="settings_section_japanese_input">Input Jepang</string>
+    <string name="settings_japanese_input_folded">Diciutkan karena tampilan Jepang (kana, romaji) nonaktif. Ketuk untuk membuka.</string>
     <plurals name="settings_ime_history_count">
         <item quantity="other">%1$d entri dipelajari</item>
     </plurals>

@@ -700,7 +700,9 @@
     <string name="snippet_sample_apk_update_label">apk: 更新 (取得索引)</string>
     <string name="snippet_sample_update_label">更新 z2term</string>
     <string name="snippet_sample_apk_add_label">apk: 新增 (在後面補上套件名稱)</string>
-    <string name="settings_section_ime_history">日文輸入法學習記錄</string>
+    <string name="settings_section_ime_history">學習記錄</string>
+    <string name="settings_section_japanese_input">日文輸入</string>
+    <string name="settings_japanese_input_folded">日文的面（假名、羅馬字）已關閉，因此已收合。點一下即可展開。</string>
     <plurals name="settings_ime_history_count">
         <item quantity="other">已學習 %1$d 個詞</item>
     </plurals>

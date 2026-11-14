@@ -1,0 +1,3 @@
+1.0.117
+
+- Learning history and User dictionary are grouped under “Japanese input” in the settings, folded when Japanese input is not in use.

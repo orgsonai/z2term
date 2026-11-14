@@ -751,7 +751,9 @@
     <string name="snippet_sample_apk_add_label">apk: 追加 (パッケージ名を追記)</string>
 
     <!-- IME 学習履歴管理 (キーボードパッチ) -->
-    <string name="settings_section_ime_history">日本語 IME 学習履歴</string>
+    <string name="settings_section_ime_history">学習履歴</string>
+    <string name="settings_section_japanese_input">日本語入力</string>
+    <string name="settings_japanese_input_folded">日本語の面（かな・ローマ字）が OFF なので、たたんでいます。押すと開きます。</string>
     <plurals name="settings_ime_history_count">
         <item quantity="other">%1$d 件の単語を学習済み</item>
     </plurals>
