@@ -89,6 +89,12 @@ internal object ActionRunOverlay {
     /** z2-ui の指が帯の下を通っている数。0 になるまで戻さない。 */
     private var held = 0
     private var cancelRestore: (() -> Unit)? = null
+    /**
+     * 帯の元の位置 (1.0.116)。指で置いた場所 (まだ置いていなければ右上)。画面に収めるためにずらすときは
+     * いまの位置ではなく毎回ここから計算するので、一覧を閉じたり文字が短くなったりすれば元の位置へ戻る。
+     */
+    private var homeX = 0
+    private var homeY = 0
     /** いま出している帯の使い方。出していなければ null。メインスレッドから読む。 */
     var owner: Owner? = null
         private set
@@ -286,14 +292,18 @@ internal object ActionRunOverlay {
                     val dx = event.rawX - downX; val dy = event.rawY - downY
                     if (!dragging && (abs(dx) > slop || abs(dy) > slop)) dragging = true
                     if (dragging) {
-                        lp.x = startX + dx.toInt(); lp.y = startY + dy.toInt()
+                        homeX = startX + dx.toInt(); homeY = startY + dy.toInt()
                         clamp(host, window, lp)
                         runCatching { wm.updateViewLayout(window, lp) }
                     }
                 }
                 MotionEvent.ACTION_UP -> if (tracking) {
                     tracking = false
-                    if (dragging) prefs(host).edit().putInt(KEY_X, lp.x).putInt(KEY_Y, lp.y).apply()
+                    if (dragging) {
+                        // 画面に収めた位置を新しい元の位置にする。
+                        homeX = lp.x; homeY = lp.y
+                        prefs(host).edit().putInt(KEY_X, lp.x).putInt(KEY_Y, lp.y).apply()
+                    }
                     else tap(event.x)
                 }
                 MotionEvent.ACTION_CANCEL -> tracking = false
@@ -302,6 +312,7 @@ internal object ActionRunOverlay {
         }
         // 初回 (まだ動かしていない) は右上。前回の位置も画面の中に収める。大きさも出す前に決める ([clamp])。
         if (lp.x < 0 || lp.y < 0) { lp.x = Int.MAX_VALUE; lp.y = ActionUi.dp(host, 96) }
+        homeX = lp.x; homeY = lp.y
         clamp(host, window, lp)
         if (runCatching { wm.addView(window, lp) }.isFailure) return false
         service = host; root = window; params = lp; this.owner = owner
@@ -462,7 +473,7 @@ internal object ActionRunOverlay {
     }
 
     /**
-     * 帯の大きさを測って窓の大きさに決め、はみ出さないよう画面の中へ収める。
+     * 帯の大きさを測って窓の大きさに決め、元の位置 ([homeX], [homeY]) からはみ出さない分だけずらして画面の中へ収める。
      * ⚠ 大きさは view.width ではなく測り直した値を使う。画面の端で切られた窓の幅は、中身が求める幅より
      * 狭いことがある ([refit])。
      * ⚠ 窓の大きさを「中身に合わせる (WRAP_CONTENT)」のままにしない (1.0.114)。Android はそういう窓を
@@ -475,8 +486,8 @@ internal object ActionRunOverlay {
         view.measure(View.MeasureSpec.makeMeasureSpec(screen.width, View.MeasureSpec.AT_MOST),
             View.MeasureSpec.makeMeasureSpec(screen.height, View.MeasureSpec.AT_MOST))
         lp.width = view.measuredWidth; lp.height = view.measuredHeight
-        lp.x = lp.x.coerceIn(0, maxOf(0, screen.width - view.measuredWidth))
-        lp.y = lp.y.coerceIn(0, maxOf(0, screen.height - view.measuredHeight))
+        lp.x = homeX.coerceIn(0, maxOf(0, screen.width - view.measuredWidth))
+        lp.y = homeY.coerceIn(0, maxOf(0, screen.height - view.measuredHeight))
     }
 
     private fun synthetic(event: MotionEvent) = event.deviceId == KeyCharacterMap.VIRTUAL_KEYBOARD &&

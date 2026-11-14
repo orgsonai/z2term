@@ -1,0 +1,3 @@
+1.0.116
+
+- The stop bar and the macro chooser bar return to their place after shifting to stay on screen.
