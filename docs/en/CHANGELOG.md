@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.123 (versionCode 821)**: z2term's screen is no longer rebuilt when a foldable is folded or unfolded, when it goes into split screen or when its window is resized. Until now the screen flickered and open sheets, half-typed text and the scroll position were reset (running shells were not lost).
+
 **1.0.122 (versionCode 820)**: Copied **images and files** now show up in the built-in keyboard's paste pad (📋) and in the clipboard history. Until now they appeared only as a `content://…` string, and pasting one gave neither an image nor a file. Images are shown as a small picture, everything else by name and size. What picking one does depends on where it goes.
 - In the **terminal**, it is placed in `~/z2term-inbox/` in your home and its path is typed in. This is the same folder that files shared to z2term land in. The 📋 button in the toolbar now does the same.
 - In **another app's input field** (with z2term chosen as the input method), the image or file itself is handed over. If the field cannot take it, nothing is inserted and a short message says so.
