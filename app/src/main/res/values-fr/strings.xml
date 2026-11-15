@@ -734,6 +734,7 @@
     <string name="api_channel_desc">Notifications publiées par z2-notify depuis le terminal.</string>
     <string name="speech_notif_title">Lecture en cours</string>
     <string name="speech_notif_stop">Arrêter</string>
+    <string name="speech_notif_done_title">Dernière lecture</string>
     <string name="api_channel_high_name">API du terminal (bannière)</string>
     <string name="api_channel_high_desc">Notifications prioritaires de z2-notify -h (apparaissent en haut de l’écran).</string>
     <string name="search_hint">Rechercher dans la sortie</string>

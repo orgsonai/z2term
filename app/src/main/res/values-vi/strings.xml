@@ -717,6 +717,7 @@
     <string name="api_channel_desc">Thông báo do z2-notify gửi từ terminal.</string>
     <string name="speech_notif_title">Đang đọc</string>
     <string name="speech_notif_stop">Dừng</string>
+    <string name="speech_notif_done_title">Vừa đọc</string>
     <string name="api_channel_high_name">API terminal (biểu ngữ)</string>
     <string name="api_channel_high_desc">Thông báo nổi từ z2-notify -h (hiện ở đầu màn hình).</string>
     <string name="search_hint">Tìm trong kết quả</string>

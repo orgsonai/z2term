@@ -40,6 +40,9 @@ internal object ViewerStore {
         catch (e: Exception) { atomic.failWrite(stream); throw e }
     }
 
+    /** 画面を開かずにページだけ置く (読み上げの全文など、後で通知から開くもの)。 */
+    @Synchronized fun put(context: Context, key: String, page: ViewerPage) = save(context, key, page)
+
     @Synchronized fun attach(key: String, receive: (ViewerPage) -> Unit): String = UUID.randomUUID().toString().also {
         sessions[it] = Session(key, receive)
     }

@@ -726,6 +726,7 @@
     <string name="api_channel_desc">Benachrichtigungen von z2-notify aus dem Terminal.</string>
     <string name="speech_notif_title">Spricht</string>
     <string name="speech_notif_stop">Stopp</string>
+    <string name="speech_notif_done_title">Zuletzt vorgelesen</string>
     <string name="api_channel_high_name">Terminal-API (Banner)</string>
     <string name="api_channel_high_desc">Heads-up-Benachrichtigungen von z2-notify -h (erscheinen oben auf dem Bildschirm).</string>
     <string name="search_hint">Ausgabe durchsuchen</string>

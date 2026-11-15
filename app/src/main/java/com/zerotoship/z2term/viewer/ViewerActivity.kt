@@ -109,10 +109,15 @@ class ViewerActivity : ComponentActivity() {
         /** textZoom 0 = the remembered size. */
         internal fun open(context: Context, key: String, pagePinch: Boolean = false, textZoom: Int = 0,
                           showRefresh: Boolean = true, showFind: Boolean = true) {
-            context.startActivity(Intent(context, ViewerActivity::class.java).putExtra("page", key)
+            context.startActivity(intent(context, key, pagePinch, textZoom, showRefresh, showFind))
+        }
+
+        /** [open] と同じ開き方の Intent (通知から開くときは PendingIntent に包む)。 */
+        internal fun intent(context: Context, key: String, pagePinch: Boolean = false, textZoom: Int = 0,
+                            showRefresh: Boolean = true, showFind: Boolean = true): Intent =
+            Intent(context, ViewerActivity::class.java).putExtra("page", key)
                 .putExtra(EXTRA_PAGE_PINCH, pagePinch).putExtra(EXTRA_TEXT_ZOOM, textZoom)
                 .putExtra(EXTRA_SHOW_REFRESH, showRefresh).putExtra(EXTRA_SHOW_FIND, showFind)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP))
-        }
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     }
 }

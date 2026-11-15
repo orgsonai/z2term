@@ -718,6 +718,7 @@
     <string name="api_channel_desc">Notifikasi yang dikirim z2-notify dari terminal.</string>
     <string name="speech_notif_title">Sedang berbicara</string>
     <string name="speech_notif_stop">Hentikan</string>
+    <string name="speech_notif_done_title">Terakhir diucapkan</string>
     <string name="api_channel_high_name">API terminal (banner)</string>
     <string name="api_channel_high_desc">Notifikasi pop-up dari z2-notify -h (muncul di bagian atas layar).</string>
     <string name="search_hint">Cari keluaran</string>
