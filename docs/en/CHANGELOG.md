@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.127 (versionCode 825)**: With the "Z2 Mono" font, pictures drawn from block characters (such as the logo a command shows at startup) were distorted; this is fixed. Z2 Mono now has the block characters itself (▀ █ ▛ and so on, 32 in all), and each one exactly fills a character cell. They used to come from the system font, whose size did not match the cell, leaving gaps and steps between blocks. Letters, digits and symbols are unchanged.
+
 **1.0.126 (versionCode 824)**: Tapping the "Last spoken" notification now opens **the list of earlier replies**: newest first, with date and time, up to the latest 50. Earlier replies can be read again after talking to it several times. "Clear history" in the title bar deletes the list. It stays inside the app and goes neither to shared folders nor into backups.
 
 **1.0.125 (versionCode 823)**: Spoken replies (voice commands and anything else read out by `z2-say`) can now be read with the volume down. The notification used to appear only while speaking and vanish when it finished, so without sound you could not tell what had been said. When speech finishes, what was said now stays in a "Last spoken" notification. Tap it to open the full text in the viewer, so even a reply too long for a notification (an AI answer, say) can be read to the end. Only the latest one stays, and you can swipe it away. Nothing stays when you used "Stop".

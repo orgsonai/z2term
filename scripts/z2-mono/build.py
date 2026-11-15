@@ -2,6 +2,7 @@
 """Z2 Mono — 英字・数字・記号を線の定義から自動で描いて TTF にする。
 
 字の形は「線の通り道」(折れ線と円弧) だけで定義し、同じ太さ・同じ丸みで肉付けする。
+ブロック要素 (▀ █ ▛ など) だけは線ではなく、マス目を分割した四角で描く。
 既存フォントの輪郭は一切使っていない。
 
 使い方:  build.py <出力.ttf> [太さ]
@@ -11,7 +12,7 @@ import sys
 
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
-from shapely.geometry import LineString, Point
+from shapely.geometry import LineString, Point, box as rect
 from shapely.geometry.polygon import orient
 from shapely.ops import unary_union
 
@@ -191,6 +192,51 @@ g('}', mirror([BRACE]))
 g('~', [[(x, 300 + 68 * math.sin(2 * math.pi * (x - 120) / 360)) for x in range(120, 481, 12)]])
 
 
+# ---- ブロック要素 (U+2580〜U+259F) ----
+# 線ではなく、マス目 (横 0〜ADV、縦 DESCENT〜ASCENT) を分割した四角で描く。
+# 隣のマスの四角とすき間なくつながるよう、マスの端に接する辺は BLEED だけ外へ出す。
+BLEED = 10
+CELL_H = ASCENT - DESCENT
+BLOCKS = {}
+
+
+def cell(x0, y0, x1, y1):
+    """マス目の中の四角。座標は 0〜1 の割合 (左下が 0,0)。"""
+    def edge(v, lo, size):
+        return lo - BLEED if v <= 0 else lo + size + BLEED if v >= 1 else lo + size * v
+    return rect(edge(x0, 0, ADV), edge(y0, DESCENT, CELL_H), edge(x1, 0, ADV), edge(y1, DESCENT, CELL_H))
+
+
+def shade(keep, cols=12, rows=20):
+    """濃淡。マス目を cols x rows の小さな四角に分け、keep(列, 行) が真のものだけ塗る。"""
+    w, h = ADV / cols, CELL_H / rows
+    return [rect(c * w, DESCENT + r * h, (c + 1) * w, DESCENT + (r + 1) * h)
+            for c in range(cols) for r in range(rows) if keep(c, r)]
+
+
+BLOCKS[0x2580] = [cell(0, 1 / 2, 1, 1)]                       # 上半分
+for i in range(1, 9):                                          # 下 1/8 〜 全面
+    BLOCKS[0x2580 + i] = [cell(0, 0, 1, i / 8)]
+for i in range(1, 8):                                          # 左 7/8 〜 左 1/8
+    BLOCKS[0x2588 + i] = [cell(0, 0, 1 - i / 8, 1)]
+BLOCKS[0x2590] = [cell(1 / 2, 0, 1, 1)]                       # 右半分
+BLOCKS[0x2591] = shade(lambda c, r: c % 2 == 0 and r % 2 == 0)        # 薄い
+BLOCKS[0x2592] = shade(lambda c, r: (c + r) % 2 == 0)                 # 中間
+BLOCKS[0x2593] = shade(lambda c, r: not (c % 2 == 1 and r % 2 == 1))  # 濃い
+BLOCKS[0x2594] = [cell(0, 7 / 8, 1, 1)]                       # 上 1/8
+BLOCKS[0x2595] = [cell(7 / 8, 0, 1, 1)]                       # 右 1/8
+UL, UR = cell(0, 1 / 2, 1 / 2, 1), cell(1 / 2, 1 / 2, 1, 1)   # 4 分割: 左上・右上
+LL, LR = cell(0, 0, 1 / 2, 1 / 2), cell(1 / 2, 0, 1, 1 / 2)   #          左下・右下
+for i, quads in enumerate([[LL], [LR], [UL], [UL, LL, LR], [UL, LR], [UL, UR, LL],
+                           [UL, UR, LR], [UR], [UR, LL], [UR, LL, LR]]):
+    BLOCKS[0x2596 + i] = quads
+
+
+def block_outline(shapes):
+    merged = unary_union(shapes)
+    return list(merged.geoms) if merged.geom_type == 'MultiPolygon' else [merged]
+
+
 def outline(paths, dots, scale):
     half = H * scale
     shapes = [LineString(p).buffer(half, quad_segs=6, cap_style='round', join_style='round')
@@ -231,10 +277,16 @@ def main(out):
     glyphs = {'.notdef': notdef()}
     for ch, (paths, dots, scale) in G.items():
         glyphs[names[ch]] = draw(outline(paths, dots, scale))
+    cmap = {ord(ch): names[ch] for ch in G}
+    for cp, shapes in BLOCKS.items():
+        name = 'uni%04X' % cp
+        order.append(name)
+        cmap[cp] = name
+        glyphs[name] = draw(block_outline(shapes))
 
     fb = FontBuilder(UPM, isTTF=True)
     fb.setupGlyphOrder(order)
-    fb.setupCharacterMap({ord(ch): names[ch] for ch in G})
+    fb.setupCharacterMap(cmap)
     fb.setupGlyf(glyphs)
     glyf = fb.font['glyf']
     fb.setupHorizontalMetrics({n: (ADV, glyf[n].xMin if glyf[n].numberOfContours else 0) for n in order})
