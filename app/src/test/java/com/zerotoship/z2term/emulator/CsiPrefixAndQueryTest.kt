@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * CSI の **プレフィックス (`?` / `>` / `<`) 別の振り分け** と **問い合わせへの応答** の回帰テスト。
+ * CSI の **プレフィックス (`?` / `>` / `<` / `=`) 別の振り分け** と **問い合わせへの応答** の回帰テスト。
  *
  * 元バグ 2 件:
  *  - `CSI c` (DA1 = 「そちらは何者か」) に応答していなかった。TUI の土台になっている
@@ -142,6 +142,19 @@ class CsiPrefixAndQueryTest {
         feed(e, "$ESC[<u")                 // TUI 終了時の pop。こちらも SCORC になっていた
         assertEquals(2, e.cursorRow)
         assertEquals(5, e.cursorCol)
+    }
+
+    @Test
+    fun kittyKeyboardSet_printsNothingAndKeepsCursor() {
+        val out = StringBuilder()
+        val e = emu(out)
+        feed(e, "$ESC[3;6H")
+        // `=` をプレフィックスとして読まず CSI を打ち切っていた頃は、`5;1u` が画面に出ていた。
+        feed(e, "$ESC[=5;1u")
+        assertEquals("kitty set で文字が出てはいけない", ' ', e.buffer.getScreenRow(2).getCell(5).char)
+        assertEquals(2, e.cursorRow)
+        assertEquals(5, e.cursorCol)
+        assertEquals("kitty set には答えない", "", out.toString())
     }
 
     // --- 既存の応答が壊れていないこと ------------------------------------------

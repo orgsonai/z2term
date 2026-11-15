@@ -757,7 +757,7 @@ class TerminalEmulator(
                 csiCurrentParam = -1
                 csiPendingSub = true
             }
-            c == '?' || c == '>' || c == '!' || c == '<' -> {
+            c == '?' || c == '>' || c == '!' || c == '<' || c == '=' -> {
                 csiPrefix = c
             }
             c in '\u0020'..'\u002F' -> {
@@ -834,13 +834,13 @@ class TerminalEmulator(
     private fun dispatchCsi(finalChar: Char) {
         when (csiPrefix) {
             '?' -> dispatchCsiQuestion(finalChar)
-            '>', '<' -> dispatchCsiSecondary(finalChar)
+            '>', '<', '=' -> dispatchCsiSecondary(finalChar)
             else -> dispatchCsiStandard(finalChar)
         }
     }
 
     /**
-     * `CSI > ...` / `CSI < ...` — プレフィックス付きの「端末機能の指定」系。
+     * `CSI > ...` / `CSI < ...` / `CSI = ...` — プレフィックス付きの「端末機能の指定」系。
      *
      * ⚠ **[dispatchCsiStandard] へ流してはいけない**。プレフィックスを見ずに終端文字だけで
      * 振り分けると、TUI が起動時と終了時に送る次の 3 つが**別の意味で実行されてしまう**:
@@ -850,13 +850,17 @@ class TerminalEmulator(
      * | `CSI > 4 ; N m` | XTMODKEYS (修飾キー報告の指定) | SGR として適用 → 下線が点く |
      * | `CSI > N u` | kitty keyboard protocol の push | SCORC → カーソルが飛ぶ |
      * | `CSI < u` | 同 pop (TUI 終了時) | SCORC → カーソルが飛ぶ |
+     * | `CSI = N ; M u` | 同 set (フラグの指定) | — |
+     *
+     * ⚠ **`=` もプレフィックスとして読む (1.0.132)**。読まずにいた頃は `=` を「想定外の文字」として
+     * CSI を打ち切っていたので、続く `5;1u` が**通常の文字として画面に出て**いた。
      *
      * z2term はこれらの機能を持たないので、**受けて捨てるのが正しい**。
      */
     private fun dispatchCsiSecondary(finalChar: Char) {
         when (finalChar) {
             'm' -> { /* XTMODKEYS: 修飾キー報告の指定 (未対応・無視) */ }
-            'u' -> { /* kitty keyboard protocol の push / pop (未対応・無視) */ }
+            'u' -> { /* kitty keyboard protocol の push / pop / set (未対応・無視) */ }
             'c' -> {
                 // DA2 (Secondary Device Attributes): 「型と版は何か」の問い合わせ。
                 // `CSI > 1 ; <versionCode> ; 0 c` = VT220 (1) / ファームウェア版 = versionCode /
