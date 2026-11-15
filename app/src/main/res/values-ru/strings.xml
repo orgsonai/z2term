@@ -742,6 +742,9 @@
     <string name="speech_notif_title">Озвучивание</string>
     <string name="speech_notif_stop">Стоп</string>
     <string name="speech_notif_done_title">Последнее озвученное</string>
+    <string name="speech_history_title">Озвученные ответы</string>
+    <string name="speech_history_clear">Очистить историю</string>
+    <string name="speech_history_clear_confirm">Удалить все озвученные ответы?</string>
     <string name="api_channel_high_name">API терминала (баннер)</string>
     <string name="api_channel_high_desc">Всплывающие уведомления от z2-notify -h (появляются вверху экрана).</string>
     <string name="search_hint">Поиск по выводу</string>

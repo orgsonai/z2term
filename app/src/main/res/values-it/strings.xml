@@ -735,6 +735,9 @@
     <string name="speech_notif_title">Lettura in corso</string>
     <string name="speech_notif_stop">Ferma</string>
     <string name="speech_notif_done_title">Ultima lettura</string>
+    <string name="speech_history_title">Risposte lette</string>
+    <string name="speech_history_clear">Cancella cronologia</string>
+    <string name="speech_history_clear_confirm">Cancellare tutte le risposte lette?</string>
     <string name="api_channel_high_name">API del terminale (banner)</string>
     <string name="api_channel_high_desc">Notifiche in evidenza da z2-notify -h (compaiono in cima allo schermo).</string>
     <string name="search_hint">Cerca nell’output</string>

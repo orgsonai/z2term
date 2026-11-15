@@ -62,6 +62,23 @@ class ViewerActivity : ComponentActivity() {
                 typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, 600, false)
                 setPadding(pad / 2, pad / 2, pad, pad / 2)
             }, LinearLayout.LayoutParams(0, -2, 1f))
+            // 読み上げの履歴を開いたときだけ、右端に「履歴を消す」(1.0.126)。押すと確かめてから消して閉じる。
+            if (intent.getBooleanExtra(EXTRA_CLEAR_SPEECH, false)) addView(TextView(this@ViewerActivity).apply {
+                text = getString(R.string.speech_history_clear); textSize = 13f; maxLines = 1; setTextColor(accent)
+                typeface = android.graphics.Typeface.MONOSPACE
+                setPadding(pad, pad / 2, pad, pad / 2)
+                setOnClickListener {
+                    android.app.AlertDialog.Builder(this@ViewerActivity)
+                        .setMessage(R.string.speech_history_clear_confirm)
+                        .setPositiveButton(R.string.speech_history_clear) { _, _ ->
+                            com.zerotoship.z2term.service.SpeechHistory.clear(applicationContext)
+                            androidx.core.app.NotificationManagerCompat.from(applicationContext)
+                                .cancel(com.zerotoship.z2term.service.Z2ApiBridge.SPEECH_NOTIF_ID)
+                            finish()
+                        }
+                        .setNegativeButton(android.R.string.cancel, null).show()
+                }
+            }, LinearLayout.LayoutParams(-2, -2))
         }, LinearLayout.LayoutParams(-1, -2))
         // A full screen for reading: Refresh and Find are offered unless `z2-view --no-refresh / --no-find`; panels keep Find opt-in.
         // Pages opened from a terminal are new each time, so this screen keeps one text size for all of them.
@@ -106,6 +123,8 @@ class ViewerActivity : ComponentActivity() {
         private const val EXTRA_TEXT_ZOOM = "text-size"
         private const val EXTRA_SHOW_REFRESH = "show-refresh"
         private const val EXTRA_SHOW_FIND = "show-find"
+        /** 見出しに「履歴を消す」を出す (読み上げの履歴のページ専用)。 */
+        internal const val EXTRA_CLEAR_SPEECH = "clear-speech"
         /** textZoom 0 = the remembered size. */
         internal fun open(context: Context, key: String, pagePinch: Boolean = false, textZoom: Int = 0,
                           showRefresh: Boolean = true, showFind: Boolean = true) {

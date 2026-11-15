@@ -788,6 +788,9 @@
     <string name="speech_notif_title">Speaking</string>
     <string name="speech_notif_stop">Stop</string>
     <string name="speech_notif_done_title">Last spoken</string>
+    <string name="speech_history_title">Spoken replies</string>
+    <string name="speech_history_clear">Clear history</string>
+    <string name="speech_history_clear_confirm">Delete all spoken replies?</string>
     <string name="api_channel_high_name">Terminal API (banner)</string>
     <string name="api_channel_high_desc">Heads-up notifications from z2-notify -h (pops up at the top of the screen).</string>
 

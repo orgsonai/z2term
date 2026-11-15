@@ -720,6 +720,9 @@
     <string name="speech_notif_title">소리 내어 읽는 중</string>
     <string name="speech_notif_stop">멈추기</string>
     <string name="speech_notif_done_title">최근 읽어 준 내용</string>
+    <string name="speech_history_title">읽어 준 답변 기록</string>
+    <string name="speech_history_clear">기록 지우기</string>
+    <string name="speech_history_clear_confirm">읽어 준 답변 기록을 모두 지웁니다.</string>
     <string name="api_channel_high_name">터미널 API (배너)</string>
     <string name="api_channel_high_desc">z2-notify -h로 띄우는 헤드업 알림입니다(화면 위쪽에 떠오릅니다).</string>
     <string name="search_hint">출력 찾기</string>

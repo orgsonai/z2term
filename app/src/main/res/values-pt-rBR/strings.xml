@@ -735,6 +735,9 @@
     <string name="speech_notif_title">Falando</string>
     <string name="speech_notif_stop">Parar</string>
     <string name="speech_notif_done_title">Última leitura</string>
+    <string name="speech_history_title">Respostas lidas</string>
+    <string name="speech_history_clear">Limpar histórico</string>
+    <string name="speech_history_clear_confirm">Apagar todas as respostas lidas?</string>
     <string name="api_channel_high_name">API do terminal (banner)</string>
     <string name="api_channel_high_desc">Notificações em destaque do z2-notify -h (aparecem no topo da tela).</string>
     <string name="search_hint">Buscar na saída</string>

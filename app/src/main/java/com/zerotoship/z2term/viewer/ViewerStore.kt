@@ -43,6 +43,9 @@ internal object ViewerStore {
     /** 画面を開かずにページだけ置く (読み上げの全文など、後で通知から開くもの)。 */
     @Synchronized fun put(context: Context, key: String, page: ViewerPage) = save(context, key, page)
 
+    /** ページを消す (中身ごと消したいもの — 読み上げの履歴を消したときなど)。 */
+    @Synchronized fun remove(context: Context, key: String) { AtomicFile(file(context, key)).delete() }
+
     @Synchronized fun attach(key: String, receive: (ViewerPage) -> Unit): String = UUID.randomUUID().toString().also {
         sessions[it] = Session(key, receive)
     }

@@ -726,6 +726,9 @@
     <string name="speech_notif_title">Konuşuyor</string>
     <string name="speech_notif_stop">Durdur</string>
     <string name="speech_notif_done_title">Son okunan</string>
+    <string name="speech_history_title">Okunan yanıtlar</string>
+    <string name="speech_history_clear">Geçmişi temizle</string>
+    <string name="speech_history_clear_confirm">Okunan tüm yanıtlar silinsin mi?</string>
     <string name="api_channel_high_name">Terminal API’si (afiş)</string>
     <string name="api_channel_high_desc">z2-notify -h’den gelen açılır bildirimler (ekranın üstünde belirir).</string>
     <string name="search_hint">Çıktıda ara</string>
