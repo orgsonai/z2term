@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.124 (versionCode 822)**: The F-Droid build no longer crashes when you tap "Download and install" after "Check for updates" in Settings. The F-Droid build lacks the permission in-app updates need, so wherever it was installed from, the update section now only says to update it from where it came from, and never compares it with the GitHub release (F-Droid catches up a little later, so the comparison announced a "new version" that could not be installed from there). `z2-update` refuses in the same way. Also, the "You can use the Android system shell" notice shown above the terminal while no OS is installed can now be closed with ✕, and it stays closed. To install an OS later, use the notice at the top of Settings (it stays until an OS is installed) or Settings › Linux environment.
+
 **1.0.123 (versionCode 821)**: z2term's screen is no longer rebuilt when a foldable is folded or unfolded, when it goes into split screen or when its window is resized. Until now the screen flickered and open sheets, half-typed text and the scroll position were reset (running shells were not lost).
 
 **1.0.122 (versionCode 820)**: Copied **images and files** now show up in the built-in keyboard's paste pad (📋) and in the clipboard history. Until now they appeared only as a `content://…` string, and pasting one gave neither an image nor a file. Images are shown as a small picture, everything else by name and size. What picking one does depends on where it goes.

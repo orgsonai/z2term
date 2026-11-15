@@ -348,8 +348,8 @@ fdroid build -v -l com.zerotoship.z2term            # 本番と同じビルド
 | 論点 | 事実 |
 |---|---|
 | 実行時に rootfs を落として実行する | 初回起動で利用者が配布元を選んで同意したうえで、公式 CDN から取得し SHA-256 で検証する。取得物は自由ソフトウェア。同じ作りの端末アプリが先例として F-Droid にある (AntiFeature も付いていない) |
-| アプリ内更新 (`z2-update`) | インストール元が `org.fdroid*` のときは**断って F-Droid 側へ誘導する** (`app/src/main/java/com/zerotoship/z2term/update/UpdateInstaller.kt` の `isManagedByStore`) |
-| `REQUEST_INSTALL_PACKAGES` | 上のアプリ内更新のための宣言で、F-Droid から入れた版では使わない。**2026-10-15 から、レシピの prebuild 3 行目で F-Droid 版のマニフェストから外している** (審査で Reports タブの警告を「直すか説明する」よう求められたため。マージされた形もこれ)。GitHub 版には残る。F-Droid の APK を手で入れた場合は、アプリ内更新が「許可が要る」で止まるだけ |
+| アプリ内更新 (`z2-update`) | マニフェストに `REQUEST_INSTALL_PACKAGES` が無い版 (= F-Droid 版) と、インストール元が `org.fdroid*` 等の版では**断って配布元へ誘導する** (`app/src/main/java/com/zerotoship/z2term/update/UpdateInstaller.kt` の `isManagedByStore`。1.0.124 から権限の有無も見る) |
+| `REQUEST_INSTALL_PACKAGES` | 上のアプリ内更新のための宣言で、F-Droid から入れた版では使わない。**2026-10-15 から、レシピの prebuild 3 行目で F-Droid 版のマニフェストから外している** (審査で Reports タブの警告を「直すか説明する」よう求められたため。マージされた形もこれ)。GitHub 版には残る。1.0.123 までは、F-Droid の APK を手で入れると「ダウンロードしてインストール」で `SecurityException` により落ちていた。1.0.124 からは権限の有無で判定するので、どこから入れても更新欄に案内だけが出る |
 | 同梱バイナリ | 無し。実行エンジン z2root / z2accept / z2attach は毎ビルド、ソースから生成する |
 | 依存ライブラリ | AndroidX / Compose / DataStore / Kotlin 標準ライブラリ・Coroutines / JSch (mwiede fork) / BouncyCastle / XZ for Java / OkHttp・Okio / SMBJ (+ asn-one・MBassador・SLF4J API) / ZXing Core・ZXing Android Embedded / Guava ListenableFuture / JetBrains Annotations。取得元は `google()` と `mavenCentral()` だけ。すべて FOSS で、Google Play Services や Firebase は入っていない (一覧と版は `legal/OssComponents.kt`、実際に入るものは `./gradlew :app:dependencies --configuration releaseRuntimeClasspath` で確かめられる) |
 | フォント | IBM Plex Mono / JetBrains Mono / Fira Code の 3 つ (いずれも SIL Open Font License 1.1・改変なし) と、1.0.5 から自作の Z2 Mono (OFL-1.1。生成スクリプトは `scripts/z2-mono/build.py` で、TTF はそこから作ったもの)。**1.0.4 から git に入っており、F-Droid ビルドにも入る。** アプリ内のライセンス一覧にすべて載せ、OFL-1.1 の本文も同梱している。1.0.3 までの版では git に無く、F-Droid ビルドには入らない (端末の monospace へ自動フォールバック) |

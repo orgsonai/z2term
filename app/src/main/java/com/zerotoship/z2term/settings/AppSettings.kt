@@ -361,6 +361,11 @@ class AppSettings(private val context: Context) {
          */
         val introDone: Boolean = false,
         /**
+         * 端末の上の「OS 未導入」の案内を ✕ で閉じたか (1.0.124)。OS を入れずに使う人には毎回邪魔になる。
+         * ⚠ 閉じるのは端末の上だけ。⚙設定 の上部の案内は OS が入るまで残すので、入口は無くならない。
+         */
+        val noOsNoticeDismissed: Boolean = false,
+        /**
          * つまずきの言い換え (端末に既知のエラーが出たら 1 行だけ次の一手を出す)。
          * 既定 ON。うっとうしいと感じたらすぐ切れるよう、設定に出しておく。
          */
@@ -646,6 +651,7 @@ class AppSettings(private val context: Context) {
             notificationLogKeepDays = (p[KEY_NOTIFICATION_LOG_KEEP_DAYS] ?: DEFAULT_LOG_KEEP_DAYS).coerceAtLeast(0),
             systemEventCaptureEnabled = p[KEY_SYSTEM_EVENT_CAPTURE] ?: DEFAULT_SYSTEM_EVENT_CAPTURE,
             introDone = p[KEY_INTRO_DONE] ?: false,
+            noOsNoticeDismissed = p[KEY_NO_OS_NOTICE_DISMISSED] ?: false,
             terminalHintsEnabled = p[KEY_TERMINAL_HINTS] ?: true,
             attentionSignal = p[KEY_ATTENTION_SIGNAL] ?: true,
             attentionSilence = p[KEY_ATTENTION_SILENCE] ?: false,
@@ -798,6 +804,11 @@ class AppSettings(private val context: Context) {
     /** 初回ガイドを出し終えた (または「もう出さない」を選んだ) ことを覚える。 */
     suspend fun setIntroDone(done: Boolean) {
         context.dataStore.edit { it[KEY_INTRO_DONE] = done }
+    }
+
+    /** 端末の上の「OS 未導入」の案内を閉じたことを覚える。 */
+    suspend fun setNoOsNoticeDismissed(dismissed: Boolean) {
+        context.dataStore.edit { it[KEY_NO_OS_NOTICE_DISMISSED] = dismissed }
     }
 
     suspend fun setTerminalHintsEnabled(enabled: Boolean) {
@@ -1232,6 +1243,7 @@ class AppSettings(private val context: Context) {
         private val KEY_NOTIFICATION_LOG_FORMAT = stringPreferencesKey("notification_log_format")
         private val KEY_SYSTEM_EVENT_CAPTURE = booleanPreferencesKey("system_event_capture_enabled")
         private val KEY_INTRO_DONE = booleanPreferencesKey("intro_done")
+        private val KEY_NO_OS_NOTICE_DISMISSED = booleanPreferencesKey("no_os_notice_dismissed")
         private val KEY_TERMINAL_HINTS = booleanPreferencesKey("terminal_hints")
         private val KEY_ATTENTION_SIGNAL = booleanPreferencesKey("attention_signal")
         private val KEY_ATTENTION_SILENCE = booleanPreferencesKey("attention_silence")

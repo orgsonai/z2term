@@ -728,8 +728,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         // OS が 1 つも無いときの案内 (0.8.314)。ダウンロードの催促ダイアログの代わりで、
         // 画面を塞がない 1 枚。⚙設定 → Linux環境 で入れれば自然に出なくなる。
         // Androidシェルで使える機能と、Linuxを追加する入口を案内する。
-        if (!split && noOsNotice) {
-            NoOsNoticeCard(onOpenSettings = { settingsOpen = true })
+        if (!split && noOsNotice && !settings.noOsNoticeDismissed) {
+            NoOsNoticeCard(
+                onOpenSettings = { settingsOpen = true },
+                onClose = { active.setNoOsNoticeDismissed(true) }
+            )
         }
 
         // 手順の案内 (0.8.314)。⚙設定 → メンテナンス → 案内を表示 から開く。

@@ -517,6 +517,7 @@ class TerminalSession(
     fun setKeepAliveService(enabled: Boolean) { scope.launch { settings.setKeepAliveService(enabled) } }
     /** 初回ガイド (最初の 3 枚) を出し終えたことを覚える。 */
     fun setIntroDone(done: Boolean) { scope.launch { settings.setIntroDone(done) } }
+    fun setNoOsNoticeDismissed(dismissed: Boolean) { scope.launch { settings.setNoOsNoticeDismissed(dismissed) } }
     fun setTerminalHintsEnabled(enabled: Boolean) { scope.launch { settings.setTerminalHintsEnabled(enabled) } }
     fun setAttentionSignal(enabled: Boolean) { scope.launch { settings.setAttentionSignal(enabled) } }
     fun setAttentionSilence(enabled: Boolean) { scope.launch { settings.setAttentionSilence(enabled) } }

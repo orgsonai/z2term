@@ -61,7 +61,7 @@ Example questions:
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
-**Linux is optional (0.8.594).** The first launch opens the Android system shell. Run `z2help` to see available commands. Notifications, torch, automation and edge panels work without installing Linux. When you need Linux tools, use the notice to open Settings › Linux environment and choose an OS to download. Tapping the pinned Settings notice scrolls to that section.
+**Linux is optional (0.8.594).** The first launch opens the Android system shell. Run `z2help` to see available commands. Notifications, torch, automation and edge panels work without installing Linux. When you need Linux tools, use the notice to open Settings › Linux environment and choose an OS to download. Tapping the pinned Settings notice scrolls to that section. The notice above the terminal can be closed with ✕ and stays closed (1.0.124); the one at the top of Settings stays until an OS is installed.
 
 > ⭐ **Alpine opening neither a terminal nor a screen is fixed in 0.8.508** (it had been there since 0.8.425). The piece that bridges USB devices called into something Alpine's foundation (musl) does not provide, so **everything you ran inside Alpine stopped before it started**. Ubuntu / Arch / Kali were never affected.
 **Once one Linux OS is installed**, **three small cards** appear above the terminal (post a notification / turn on the flashlight / open the reminder guide) — the first time only. (Before 0.8.339 they also appeared before an OS was installed, where tapping them did nothing, so they now wait until the install is done.) **Tapping one runs that line as it stands** — anything half-typed is thrown away with `Ctrl-C` first, so nothing mixes in. The ✕ on the right drops a card you do not want. Once all three are gone they never come back. To see them again: Settings > Maintenance > "Show the intro again".
@@ -79,7 +79,7 @@ The terminal has the same thing: **`z2-update`** (`--check` to only look, `--kee
 
 The downloaded APK is **deleted once the update goes through** (and on the next start, if the app was killed mid-install). Keep it with "Keep the .apk after updating" in Settings, or `--keep`; the download folder is next to it.
 
-⚠ **Installed from F-Droid or another store? Then it refuses** — that copy is theirs to replace, so update it there. **"Open the release page"** still works as before.
+⚠ **Installed from F-Droid or another store? Then it refuses** — that copy is theirs to replace, so update it there. **The F-Droid build, however it was installed** (the F-Droid app, a browser, another F-Droid-compatible store), only shows that note in the update section and is never compared with the GitHub release (1.0.124).
 
 ---
 

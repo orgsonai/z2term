@@ -529,7 +529,7 @@ internal fun GuideCardColumn(
     hint: String,
     /**
      * ✕ を押したときの動作。**null なら ✕ を描かない** = 消せないカード (0.8.342)。
-     * 消せなくしてよいのは「消すと詰む」ものだけ (OS 未導入の案内 = [NoOsNoticeCard])。
+     * 消せなくしてよいのは「消すと詰む」ものだけ (⚙設定 の上部の OS 未導入の案内 = [NoOsSettingsNotice])。
      * 手順の案内 ([GuideCards]) と はじめの案内 ([IntroCards]) には必ず逃げ道を残すこと。
      */
     onClose: (() -> Unit)?,

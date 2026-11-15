@@ -3,6 +3,7 @@ package com.zerotoship.z2term.update
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
@@ -71,13 +72,32 @@ object UpdateInstaller {
     }.getOrNull()
 
     /**
-     * 更新を配る側から入った版か (F-Droid / Play)。
+     * この版が自分を入れ替える権限 (`REQUEST_INSTALL_PACKAGES`) をマニフェストに持っているか。
+     *
+     * ⚠ **F-Droid 版はこの権限を外して作られる** (レシピの prebuild がマニフェストから消す)。
+     * 持たない版で [canInstall] を呼ぶと、許可の有無を答える代わりに `SecurityException` で落ちる。
+     * しかも F-Droid 版は F-Droid の鍵で署名されているので、GitHub の APK とは入れ替えられない。
+     * ⇒ 「誰が入れたか」ではなく**この版そのもの**で決める。F-Droid の APK をブラウザや adb、
+     * F-Droid 互換の別のストアから入れても、インストーラの名前はあてにならない。
+     */
+    private fun declaresInstallPermission(context: Context): Boolean = runCatching {
+        context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
+            .requestedPermissions.orEmpty()
+            .contains(android.Manifest.permission.REQUEST_INSTALL_PACKAGES)
+    }.getOrDefault(false)
+
+    /**
+     * 更新を配る側に任せる版か (F-Droid / Play)。true なら GitHub と比べず、入れ替えもしない。
+     *
+     * 1. 入れ替えの権限を持たない版 ([declaresInstallPermission]) は、どこから入れても配布元任せ。
+     * 2. 権限を持つ版でも、ストアから入れたものはそちらに任せる。
      *
      * ⚠ **GitHub の APK を直に入れた版では null か "com.android.packageinstaller" 等**になり、
      * そのときだけ入れ替えを引き受ける。「どこから入ったか分からない」を**引き受ける側に倒す**のは、
      * この機能の入口が GitHub Releases 決め打ちだから (配布元が違えば版の比較自体が噛み合わない)。
      */
     fun isManagedByStore(context: Context): Boolean {
+        if (!declaresInstallPermission(context)) return true
         val installer = installerPackage(context) ?: return false
         return installer.startsWith("org.fdroid") ||
             installer == "com.android.vending" ||

@@ -12,16 +12,22 @@ import com.zerotoship.z2term.R
 object NoOsNotice
 
 /**
- * 端末の上に出す案内カード。押すと ⚙設定 (→ Linux環境) を開く。**消せない** (0.8.342)。
+ * 端末の上に出す案内カード。押すと ⚙設定 (→ Linux環境) を開く。
+ *
+ * ✕ で閉じられる (1.0.124)。0.8.342 では消せなくしていたが、OS を入れずに z2-* や自動化だけを
+ * 使うのは普通の使い方で、その人には毎回邪魔になる。閉じたら二度と出さない
+ * ([com.zerotoship.z2term.settings.AppSettings.noOsNoticeDismissed])。
+ * ⚠ 入口は [NoOsSettingsNotice] に残す — あとで OS が欲しくなった人が最初に探すのは ⚙設定。
  */
 @Composable
 fun NoOsNoticeCard(
     onOpenSettings: () -> Unit,
+    onClose: () -> Unit,
 ) {
     GuideCardColumn(
         title = stringResource(R.string.no_os_title),
         hint = stringResource(R.string.no_os_hint),
-        onClose = null
+        onClose = onClose
     ) {
         GuideCardRow(
             label = stringResource(R.string.no_os_action),

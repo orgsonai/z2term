@@ -2145,6 +2145,9 @@ private fun AppInfoSection(
     var updateWorking by remember { mutableStateOf(false) }
     var updateNote by remember { mutableStateOf<String?>(null) }
     var updateNeedsPermission by remember { mutableStateOf(false) }
+    // F-Droid などの配布元に更新を任せる版 (1.0.124)。⚠ GitHub の版と比べない — F-Droid は数日〜
+    // 数週間遅れて追いつくので、「新しい版があります」と出しても、ここからは入れられない版になる。
+    val updateByStore = remember { com.zerotoship.z2term.update.UpdateInstaller.isManagedByStore(context) }
     Section(title = stringResource(R.string.settings_section_app_info)) {
         InfoRow(
             stringResource(R.string.appinfo_version),
@@ -2160,6 +2163,15 @@ private fun AppInfoSection(
         // 自動チェックはしない (押すまで通信しない)。DL/インストールもしない —
         // 新版があればリリースページを開くところまで。
         Spacer(Modifier.height(4.dp))
+        if (updateByStore) {
+            Text(
+                text = stringResource(R.string.settings_update_store),
+                color = ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            return@Section
+        }
         ActionButton(
             label = if (updateChecking) stringResource(R.string.settings_check_update_checking)
             else stringResource(R.string.settings_check_update),
