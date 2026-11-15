@@ -285,11 +285,20 @@ def cell(x0, y0, x1, y1):
     return rect(edge(x0, 0, ADV), edge(y0, DESCENT, CELL_H), edge(x1, 0, ADV), edge(y1, DESCENT, CELL_H))
 
 
-def shade(keep, cols=12, rows=20):
-    """濃淡。マス目を cols x rows の小さな四角に分け、keep(列, 行) が真のものだけ塗る。"""
-    w, h = ADV / cols, CELL_H / rows
-    return [rect(c * w, DESCENT + r * h, (c + 1) * w, DESCENT + (r + 1) * h)
-            for c in range(cols) for r in range(rows) if keep(c, r)]
+def shade(cover, across=3, down=5):
+    """濃淡。右下がりの斜線で塗る。cover は塗る割合 (0〜1)。
+
+    斜線はマスの横を across 本、縦を down 本でちょうど割り切る間隔にするので、
+    隣のマスの斜線と途切れずにつながる。マスの外へは出さない。
+    """
+    px, py = ADV / across, CELL_H / down
+    far = 4 * ADV
+
+    def edge(v):          # x / px + (y - DESCENT) / py = v の線上の 2 点
+        return [(x, DESCENT + (v - x / px) * py) for x in (-far, far)]
+
+    bands = [Polygon(edge(k - cover / 2) + edge(k + cover / 2)[::-1]) for k in range(-1, across + down + 2)]
+    return [unary_union(bands).intersection(rect(0, DESCENT, ADV, ASCENT))]
 
 
 BLOCKS[0x2580] = [cell(0, 1 / 2, 1, 1)]                       # 上半分
@@ -298,9 +307,9 @@ for i in range(1, 9):                                          # 下 1/8 〜 全
 for i in range(1, 8):                                          # 左 7/8 〜 左 1/8
     BLOCKS[0x2588 + i] = [cell(0, 0, 1 - i / 8, 1)]
 BLOCKS[0x2590] = [cell(1 / 2, 0, 1, 1)]                       # 右半分
-BLOCKS[0x2591] = shade(lambda c, r: c % 2 == 0 and r % 2 == 0)        # 薄い
-BLOCKS[0x2592] = shade(lambda c, r: (c + r) % 2 == 0)                 # 中間
-BLOCKS[0x2593] = shade(lambda c, r: not (c % 2 == 1 and r % 2 == 1))  # 濃い
+BLOCKS[0x2591] = shade(0.25)                                 # 薄い
+BLOCKS[0x2592] = shade(0.5)                                  # 中間
+BLOCKS[0x2593] = shade(0.75)                                 # 濃い
 BLOCKS[0x2594] = [cell(0, 7 / 8, 1, 1)]                       # 上 1/8
 BLOCKS[0x2595] = [cell(7 / 8, 0, 1, 1)]                       # 右 1/8
 UL, UR = cell(0, 1 / 2, 1 / 2, 1), cell(1 / 2, 1 / 2, 1, 1)   # 4 分割: 左上・右上

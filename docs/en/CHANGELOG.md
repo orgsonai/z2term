@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.133 (versionCode 831)**: The shade characters in the "Z2 Mono" font (░ ▒ ▓, used for the empty part of gauges and the like) are now drawn as diagonal lines instead of fine dots. The pattern stays visible at small sizes, and the lines continue unbroken when the characters are placed side by side.
+
 **1.0.132 (versionCode 830)**: Some full-screen commands left stray text such as "5;1u" on screen at startup; this is fixed. The terminal read only part of a keyboard-setup sequence the command sends and printed the rest as text.
 
 **1.0.131 (versionCode 829)**: When VNC is added to a host, the initial port and the hint in the port field are now **5900**, the VNC standard, instead of 5901. Ports of saved hosts are not changed.
