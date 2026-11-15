@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.130 (versionCode 828)**: The "Z2 Mono" font gains symbols that often appear in terminals: arrows (← → ↑ ↓ ↻ and so on), check marks and crosses (✓ ✗ and so on), dots, dashes and quotation marks (· • … — “ ” and so on), the marks that lead a prompt or a reply (❯ ⏺ ⎿), the marks that alternate while waiting (✳ ✻ and so on), checkboxes and the warning sign (☐ ☑ ☒ ⚠), and the 256 Braille patterns (used by dot spinners and dot-drawn graphs). These used to come from the system font, so their weight and size did not match the letters. Also, `|` `[` `]` `{` `}` no longer stick out slightly beyond the row.
+
 **1.0.129 (versionCode 827)**: The geometric shapes in the "Z2 Mono" font (● ○ ■ □ ▲ ▶ ◆ and so on) are larger. The ones added in 1.0.128 looked small next to letters, so they now use the full width of one character. ◯ is a size larger still.
 
 **1.0.128 (versionCode 826)**: The "Z2 Mono" font gains box-drawing characters (─ │ ┌ ╔ ╭ and so on, 128 in all), geometric shapes (● ○ ◯ ■ □ ▲ ▶ ◆ and so on, 53 in all) and the play / pause marks (⏵ ⏸). Box lines now join the lines in the neighbouring cells with no gap, so frames and tables close cleanly. Circles and squares fit the width of one character and no longer overlap the next one. All of these used to come from the system font, so lines broke, sizes did not match, or a missing character showed as "□".

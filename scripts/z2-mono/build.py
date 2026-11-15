@@ -177,19 +177,96 @@ g('>', mirror([[(465, 530), (135, 300), (465, 70)]]))
 g('?', [arc(300, 500, 165, CAP + OV - 500, 165, -55) + [(300, 300), (300, 225)]], dots=[(300, 58)])
 g('@', [[(425, 430), (425, 185)] + arc(466, 185, 41, 45, 180, 360) + arc(300, 280, 207, 392, 0, 312),
         ell(328, 300, 97, 135)], scale=0.8)
-g('[', [[(410, 730), (245, 730), (245, -180), (410, -180)]])
+g('[', [[(410, 730), (245, 730), (245, DESCENT + H), (410, DESCENT + H)]])
 g('\\', mirror([[(472, 740), (128, -140)]]))
-g(']', mirror([[(410, 730), (245, 730), (245, -180), (410, -180)]]))
+g(']', mirror([[(410, 730), (245, 730), (245, DESCENT + H), (410, DESCENT + H)]]))
 g('^', [[(150, 400), (300, 690), (450, 400)]])
 g('_', [[(40, -140), (560, -140)]])
 g('`', [[(225, 745), (345, 615)]])
 BRACE = ([(425, 730), (360, 725)] + arc(365, 660, 60, 65, 100, 180) + [(305, 360)]
          + arc(245, 345, 60, 70, 0, -80) + [(200, 275)] + arc(245, 205, 60, 70, 80, 0)
-         + [(305, -110)] + arc(365, -110, 60, 65, 180, 260) + [(425, -180)])
+         + [(305, -108)] + arc(365, -108, 60, 65, 180, 260) + [(425, DESCENT + H)])
 g('{', [BRACE])
-g('|', [[(300, 760), (300, -200)]])
+g('|', [[(300, ASCENT - H), (300, DESCENT + H)]])
 g('}', mirror([BRACE]))
 g('~', [[(x, 300 + 68 * math.sin(2 * math.pi * (x - 120) / 360)) for x in range(120, 481, 12)]])
+
+
+# ---- 端末でよく使う記号 (ASCII の外) ----
+MIDY = 300           # - + = と同じ高さ
+g('·', [], dots=[(CX, MIDY)])                                  # · 区切りの点
+g('∙', [], dots=[(CX, MIDY)])                                  # ∙
+g('×', [[(170, 430), (430, 170)], [(430, 430), (170, 170)]])   # ×
+g('‐', [[(140, MIDY), (460, MIDY)]])                           # ‐ ハイフン
+g('−', [[(120, MIDY), (480, MIDY)]])                           # − マイナス
+g('–', [[(90, MIDY), (510, MIDY)]])                            # – 短いダッシュ
+g('—', [[(H, MIDY), (ADV - H, MIDY)]])                         # — 長いダッシュ (並べるとつながる)
+g('―', [[(H, MIDY), (ADV - H, MIDY)]])                         # ―
+g('…', [], dots=[(100, 58), (300, 58), (500, 58)], scale=0.85)  # … 省略
+QUOTE9 = ([(322, 622), (255, 464)], (300, 640))                     # ’ は , を上へ上げた形
+QUOTE6 = ([(278, 528), (345, 686)], (300, 510))                     # ‘ はそれを逆さにした形
+
+
+def quotes(ch, mark, shifts):
+    path, dot = mark
+    g(ch, [[(x + s, y) for x, y in path] for s in shifts], dots=[(dot[0] + s, dot[1]) for s in shifts], scale=0.85)
+
+
+quotes('‘', QUOTE6, [0])
+quotes('’', QUOTE9, [0])
+quotes('“', QUOTE6, [-110, 110])
+quotes('”', QUOTE9, [-110, 110])
+ANGLE = [(230, 470), (380, 290), (230, 110)]
+g('›', [ANGLE])                                                # ›
+g('‹', mirror([ANGLE]))                                        # ‹
+GUILL = [[(150, 470), (290, 290), (150, 110)], [(320, 470), (460, 290), (320, 110)]]
+g('»', GUILL)                                                  # »
+g('«', mirror(GUILL))                                          # «
+PROMPT = [(190, 560), (430, 300), (190, 40)]
+g('❯', [PROMPT], scale=1.3)                                    # ❯ 入力の印
+g('❮', mirror([PROMPT]), scale=1.3)                            # ❮
+g('※', [[(130, 540), (470, 100)], [(470, 540), (130, 100)]],
+  dots=[(300, 545), (300, 95), (95, 320), (505, 320)], scale=0.8)   # ※
+# 矢印
+g('→', [[(90, MIDY), (510, MIDY)], [(360, 450), (510, MIDY), (360, 150)]])   # →
+g('←', mirror([[(90, MIDY), (510, MIDY)], [(360, 450), (510, MIDY), (360, 150)]]))   # ←
+g('↑', [[(CX, 50), (CX, 570)], [(140, 410), (CX, 570), (460, 410)]])         # ↑
+g('↓', [[(CX, 570), (CX, 50)], [(140, 210), (CX, 50), (460, 210)]])          # ↓
+g('↔', [[(70, MIDY), (530, MIDY)], [(190, 420), (70, MIDY), (190, 180)],
+             [(410, 420), (530, MIDY), (410, 180)]], scale=0.9)                   # ↔
+g('↕', [[(CX, 20), (CX, 600)], [(180, 480), (CX, 600), (420, 480)],
+             [(180, 140), (CX, 20), (420, 140)]], scale=0.9)                      # ↕
+ENTER = [[(480, 540), (480, 250), (120, 250)], [(250, 380), (120, 250), (250, 120)]]
+g('↵', ENTER)                                                  # ↵
+g('⏎', ENTER)                                                  # ⏎
+TURN = [arc(CX, 300, 190, 190, 20, -290), [(300, 591), (365, 478), (243, 434)]]   # 時計回りにひと回りして矢じり
+g('↻', TURN, scale=0.85)                                       # ↻
+g('↺', mirror(TURN), scale=0.85)                               # ↺
+g('∞', [[(CX + 250 * math.cos(math.radians(t)) / (1 + math.sin(math.radians(t)) ** 2),
+               MIDY + 400 * math.sin(math.radians(t)) * math.cos(math.radians(t)) / (1 + math.sin(math.radians(t)) ** 2))
+              for t in range(0, 361, 6)]], scale=0.85)              # ∞
+# チェックと ×
+CHECK = [(105, 300), (245, 130), (500, 560)]
+CROSS = [[(125, 540), (475, 80)], [(475, 540), (125, 80)]]
+g('✓', [CHECK])                                                # ✓
+g('✔', [CHECK], scale=1.4)                                     # ✔
+g('✗', CROSS)                                                  # ✗
+g('✘', CROSS, scale=1.4)                                       # ✘
+g('✕', [[(140, 480), (460, 140)], [(460, 480), (140, 140)]])   # ✕
+# 返事の頭に付く印・星形 (待ち時間に形が入れ替わる印)
+g('⎿', [[(210, 700), (210, BASE), (540, BASE)]], scale=0.8)    # ⎿ 結果の頭に付く角
+
+
+def spokes(n, r, cy=310):
+    """中心を通る n 本の線 (先は 2n 本)。1 本目は縦。"""
+    return [[(CX - r * math.cos(a), cy - r * math.sin(a)), (CX + r * math.cos(a), cy + r * math.sin(a))]
+            for a in (math.pi / 2 + math.pi * i / n for i in range(n))]
+
+
+g('✳', spokes(4, 235), scale=0.75)                             # ✳
+g('✻', spokes(3, 240), scale=0.95)                             # ✻
+g('✽', spokes(3, 240), scale=1.3)                              # ✽
+g('✢', spokes(2, 190), dots=[(CX, 520), (CX, 100), (90, 310), (510, 310)], scale=0.9)   # ✢
 
 
 # ---- ブロック要素 (U+2580〜U+259F) ----
@@ -441,8 +518,35 @@ for i, d in enumerate('urdl'):                   # 三角: 上・右・下・左
     SHAPES[base + 2], SHAPES[base + 3] = tri(d, *SMALL), white(tri(d, *SMALL), THIN)
     if d in 'rl':
         SHAPES[base + 4], SHAPES[base + 5] = tri(d, *POINTER), white(tri(d, *POINTER), THIN)
+# 丸・星・チェック欄・注意の印
+SHAPES[0x2022] = Point(BCX, MIDY).buffer(105, quad_segs=10)                      # • 箇条書きの点
+SHAPES[0x23FA] = disc(250)                                                       # ⏺ 返事の頭に付く丸
+SHAPES[0x2736] = poly([((270 if i % 2 == 0 else 135) * math.sin(math.radians(30 * i)),
+                        (270 if i % 2 == 0 else 135) * math.cos(math.radians(30 * i))) for i in range(12)])   # ✶
+
+
+def pen(points, half=H * 0.8):
+    return LineString([(BCX + x, GCY + y) for x, y in points]).buffer(half, quad_segs=6)
+
+
+CHECKBOX = white(square(520), THIN)
+SHAPES[0x2610] = CHECKBOX                                                        # ☐
+SHAPES[0x2611] = unary_union([CHECKBOX, pen([(-140, 0), (-40, -120), (150, 150)])])   # ☑
+SHAPES[0x2612] = unary_union([CHECKBOX, pen([(-140, 140), (140, -140)]), pen([(140, 140), (-140, -140)])])   # ☒
+SHAPES[0x26A0] = unary_union([white(tri('u', 290, 270), THIN), pen([(0, 70), (0, -70)], 30),
+                              Point(BCX, GCY - 165).buffer(38, quad_segs=6)])    # ⚠
 for cp, shape in SHAPES.items():
     BLOCKS[cp] = [shape]
+
+
+# ---- 点字 (U+2800〜U+28FF) ----
+# 待ち時間に回る点々や、点で描くグラフに使う。横 2 x 縦 4 の点を、隣のマスとも同じ間隔で並べる。
+BRAILLE_X = (ADV / 4, ADV * 3 / 4)
+BRAILLE_Y = [ASCENT - CELL_H * (2 * r + 1) / 8 for r in range(4)]
+BRAILLE_BITS = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (0, 3), (1, 3)]   # ビット -> (列, 行)
+for bits in range(256):
+    BLOCKS[0x2800 + bits] = [Point(BRAILLE_X[c], BRAILLE_Y[r]).buffer(60, quad_segs=5)
+                             for i, (c, r) in enumerate(BRAILLE_BITS) if bits >> i & 1]
 
 
 def block_outline(shapes):
