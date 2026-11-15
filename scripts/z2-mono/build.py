@@ -370,7 +370,7 @@ BLOCKS[0x2572] = [diagonal(False)]
 BLOCKS[0x2573] = [diagonal(True), diagonal(False)]
 
 # ---- 図形 (U+25A0〜U+25FF の主なもの) ----
-# 1 マスの幅に収まる大きさで、英字の中ほどの高さ (GCY) を中心に置く。白抜きは黒い形の内側をくり抜く。
+# 1 マスの幅をほぼいっぱいに使う大きさで、英字の中ほどの高さ (GCY) を中心に置く。◯ だけは少しはみ出す。白抜きは黒い形の内側をくり抜く。
 GCY = 330
 EDGE = STROKE * 0.85        # 白抜きの線の太さ
 THIN = 56                   # 小さい図形の白抜きの線の太さ
@@ -406,35 +406,35 @@ def half_plane(side):
             'd': rect(-far, -far, far, GCY), 'u': rect(-far, GCY, far, far)}[side]
 
 
-BIG, SMALL, POINTER = (240, 235), (150, 145), (160, 240)
-DIAMOND = [(0, 260), (250, 0), (0, -260), (-250, 0)]
+BIG, SMALL, POINTER = (290, 285), (185, 180), (195, 290)
+DIAMOND = [(0, 310), (290, 0), (0, -310), (-290, 0)]
 SHAPES = {
-    0x25A0: square(460), 0x25A1: white(square(460)),
-    0x25AA: square(240), 0x25AB: white(square(240), THIN),
-    0x25AC: square(480, 220), 0x25AD: white(square(480, 220), THIN),
-    0x25AE: square(260, 560), 0x25AF: white(square(260, 560), THIN),
+    0x25A0: square(560), 0x25A1: white(square(560)),
+    0x25AA: square(300), 0x25AB: white(square(300), THIN),
+    0x25AC: square(580, 260), 0x25AD: white(square(580, 260), THIN),
+    0x25AE: square(300, 680), 0x25AF: white(square(300, 680), THIN),
     0x25C6: poly(DIAMOND), 0x25C7: white(poly(DIAMOND)),
     0x25C8: unary_union([white(poly(DIAMOND), THIN), poly([(x * 0.42, y * 0.42) for x, y in DIAMOND])]),
-    0x25C9: unary_union([white(disc(230), THIN), disc(105)]),
-    0x25CA: white(poly([(0, 290), (180, 0), (0, -290), (-180, 0)]), THIN),
-    0x25CB: white(disc(230)),
-    0x25CC: unary_union([Point(BCX + 205 * math.cos(math.radians(a)), GCY + 205 * math.sin(math.radians(a))).buffer(34, quad_segs=6)
+    0x25C9: unary_union([white(disc(280), THIN), disc(130)]),
+    0x25CA: white(poly([(0, 340), (210, 0), (0, -340), (-210, 0)]), THIN),
+    0x25CB: white(disc(280)),
+    0x25CC: unary_union([Point(BCX + 250 * math.cos(math.radians(a)), GCY + 250 * math.sin(math.radians(a))).buffer(40, quad_segs=6)
                          for a in range(0, 360, 45)]),
-    0x25CE: unary_union([white(disc(230), THIN), white(disc(120), THIN)]),
-    0x25CF: disc(230),
-    0x25D6: disc(230).intersection(half_plane('l')), 0x25D7: disc(230).intersection(half_plane('r')),
-    0x25E2: poly([(-230, -230), (230, -230), (230, 230)]), 0x25E3: poly([(-230, -230), (230, -230), (-230, 230)]),
-    0x25E4: poly([(-230, 230), (230, 230), (-230, -230)]), 0x25E5: poly([(-230, 230), (230, 230), (230, -230)]),
-    0x25E6: white(disc(115), THIN),
-    0x25EF: white(disc(285)),
-    0x25FB: white(square(380), THIN), 0x25FC: square(380),
-    0x25FD: white(square(300), THIN), 0x25FE: square(300),
+    0x25CE: unary_union([white(disc(280), THIN), white(disc(150), THIN)]),
+    0x25CF: disc(280),
+    0x25D6: disc(280).intersection(half_plane('l')), 0x25D7: disc(280).intersection(half_plane('r')),
+    0x25E2: poly([(-280, -280), (280, -280), (280, 280)]), 0x25E3: poly([(-280, -280), (280, -280), (-280, 280)]),
+    0x25E4: poly([(-280, 280), (280, 280), (-280, -280)]), 0x25E5: poly([(-280, 280), (280, 280), (280, -280)]),
+    0x25E6: white(disc(140), THIN),
+    0x25EF: white(disc(330)),
+    0x25FB: white(square(460), THIN), 0x25FC: square(460),
+    0x25FD: white(square(370), THIN), 0x25FE: square(370),
     # 再生・一時停止の印 (端末のアプリが状態の表示に使う)
-    0x23F5: tri('r', 190, 185),
-    0x23F8: unary_union([rect(BCX - 170, GCY - 200, BCX - 50, GCY + 200), rect(BCX + 50, GCY - 200, BCX + 170, GCY + 200)]),
+    0x23F5: tri('r', 230, 225),
+    0x23F8: unary_union([rect(BCX - 200, GCY - 240, BCX - 60, GCY + 240), rect(BCX + 60, GCY - 240, BCX + 200, GCY + 240)]),
 }
 for i, side in enumerate('lrdu'):               # 半分だけ塗った丸
-    SHAPES[0x25D0 + i] = unary_union([white(disc(230), THIN), disc(230).intersection(half_plane(side))])
+    SHAPES[0x25D0 + i] = unary_union([white(disc(280), THIN), disc(280).intersection(half_plane(side))])
 for i, d in enumerate('urdl'):                   # 三角: 上・右・下・左の順に、黒/白・小さい黒/白・(横向きは) 細長い黒/白
     base = (0x25B2, 0x25B6, 0x25BC, 0x25C0)[i]
     SHAPES[base], SHAPES[base + 1] = tri(d, *BIG), white(tri(d, *BIG))

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.129 (versionCode 827)**: The geometric shapes in the "Z2 Mono" font (● ○ ■ □ ▲ ▶ ◆ and so on) are larger. The ones added in 1.0.128 looked small next to letters, so they now use the full width of one character. ◯ is a size larger still.
+
 **1.0.128 (versionCode 826)**: The "Z2 Mono" font gains box-drawing characters (─ │ ┌ ╔ ╭ and so on, 128 in all), geometric shapes (● ○ ◯ ■ □ ▲ ▶ ◆ and so on, 53 in all) and the play / pause marks (⏵ ⏸). Box lines now join the lines in the neighbouring cells with no gap, so frames and tables close cleanly. Circles and squares fit the width of one character and no longer overlap the next one. All of these used to come from the system font, so lines broke, sizes did not match, or a missing character showed as "□".
 
 **1.0.127 (versionCode 825)**: With the "Z2 Mono" font, pictures drawn from block characters (such as the logo a command shows at startup) were distorted; this is fixed. Z2 Mono now has the block characters itself (▀ █ ▛ and so on, 32 in all), and each one exactly fills a character cell. They used to come from the system font, whose size did not match the cell, leaving gaps and steps between blocks. Letters, digits and symbols are unchanged.
