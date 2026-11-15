@@ -1,0 +1,8 @@
+1.0.126
+
+- Spoken replies stay in a notification; tap it for a dated history of the last 50. Readable with the volume down.
+- Copied images and files can be pasted from the paste pad and history; rows can be pinned.
+- Russian, Turkish and Vietnamese are added.
+- Folding, unfolding and split screen no longer rebuild the screen.
+- The no-OS notice above the terminal can be closed.
+- The F-Droid build no longer crashes when updating.
