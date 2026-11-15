@@ -2,7 +2,7 @@
 """Z2 Mono — 英字・数字・記号を線の定義から自動で描いて TTF にする。
 
 字の形は「線の通り道」(折れ線と円弧) だけで定義し、同じ太さ・同じ丸みで肉付けする。
-ブロック要素 (▀ █ ▛ など) だけは線ではなく、マス目を分割した四角で描く。
+ブロック要素 (▀ █ ▛ など)・罫線 (─ │ ┌ など)・図形 (● ○ ■ ▶ など) は、1 文字のマス目を基準に描く。
 既存フォントの輪郭は一切使っていない。
 
 使い方:  build.py <出力.ttf> [太さ]
@@ -12,7 +12,7 @@ import sys
 
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
-from shapely.geometry import LineString, Point, box as rect
+from shapely.geometry import LineString, Point, Polygon, box as rect
 from shapely.geometry.polygon import orient
 from shapely.ops import unary_union
 
@@ -193,7 +193,8 @@ g('~', [[(x, 300 + 68 * math.sin(2 * math.pi * (x - 120) / 360)) for x in range(
 
 
 # ---- ブロック要素 (U+2580〜U+259F) ----
-# 線ではなく、マス目 (横 0〜ADV、縦 DESCENT〜ASCENT) を分割した四角で描く。
+# ここから下 (ブロック要素・罫線・図形) は BLOCKS に「符号位置 -> 形のリスト」で入れる。
+# ブロック要素は線ではなく、マス目 (横 0〜ADV、縦 DESCENT〜ASCENT) を分割した四角で描く。
 # 隣のマスの四角とすき間なくつながるよう、マスの端に接する辺は BLEED だけ外へ出す。
 BLEED = 10
 CELL_H = ASCENT - DESCENT
@@ -232,9 +233,221 @@ for i, quads in enumerate([[LL], [LR], [UL], [UL, LL, LR], [UL, LR], [UL, UR, LL
     BLOCKS[0x2596 + i] = quads
 
 
+# ---- 罫線 (U+2500〜U+257F) ----
+# マス目の中心から上下左右へ伸びる「腕」の組み合わせで描く。腕はマスの端まで届き、隣のマスの線とつながる。
+BCX, BCY = ADV / 2, (ASCENT + DESCENT) / 2    # マス目の中心
+LIGHT = STROKE * 0.8 / 2    # 細い線の太さの半分
+HEAVY = LIGHT * 2           # 太い線の太さの半分
+GAP = 80                    # 二重線: マスの中心から、それぞれの線の中心まで
+DIRS = {'u': (0, 1), 'd': (0, -1), 'l': (-1, 0), 'r': (1, 0)}
+REACH = {'u': ASCENT - BCY, 'd': BCY - DESCENT, 'l': BCX, 'r': ADV - BCX}
+SIDES = {'u': ('l', 'r', 'd'), 'd': ('l', 'r', 'u'), 'l': ('u', 'd', 'r'), 'r': ('u', 'd', 'l')}  # 両脇と反対側
+HALF = {0: 0, 1: LIGHT, 2: HEAVY, 3: LIGHT}
+
+
+def arm_rect(a, start, side, off, half):
+    """腕 1 本ぶんの四角。向き a へ start から端まで。side の側へ off だけずらす (二重線用)。"""
+    ax, ay = DIRS[a]
+    ox, oy = DIRS[side]
+    end = REACH[a] + BLEED
+    x0, y0 = BCX + ax * start + ox * off, BCY + ay * start + oy * off
+    x1, y1 = BCX + ax * end + ox * off, BCY + ay * end + oy * off
+    if ax:
+        return rect(min(x0, x1), y0 - half, max(x0, x1), y0 + half)
+    return rect(x0 - half, min(y0, y1), x0 + half, max(y0, y1))
+
+
+def box_lines(code):
+    """code は上・下・左・右の腕の種類 (0 なし / 1 細い / 2 太い / 3 二重)。"""
+    w = dict(zip('udlr', map(int, code)))
+    shapes = []
+    for a, kind in w.items():
+        if not kind:
+            continue
+        p, q, o = SIDES[a]
+        plain = -max(HALF[w[p]], HALF[w[q]])     # 脇の線の太さぶんだけ中心を越えて、角を埋める
+        if kind == 3:
+            for near, far in ((p, q), (q, p)):
+                if w[near] == 3:                 # 内側の角
+                    start = GAP - LIGHT
+                elif w[far] == 3:                # 外側の角
+                    start = -GAP - LIGHT
+                else:
+                    start = 0 if w[o] else plain
+                shapes.append(arm_rect(a, start, near, GAP, LIGHT))
+        else:
+            doubles = (w[p] == 3) + (w[q] == 3)
+            if doubles and w[o]:                 # 二重線を貫く
+                start = 0
+            elif doubles == 2:                   # 二重線の手前の線で止まる
+                start = GAP - LIGHT
+            elif doubles == 1:                   # 二重線の角: 奥の線まで届く
+                start = -GAP - LIGHT
+            else:
+                start = plain
+            shapes.append(arm_rect(a, start, a, 0, HALF[kind]))
+    return shapes
+
+
+def dashes(n, vertical, half):
+    """破線。マスを n 等分し、それぞれの中央に線を置く (隣のマスとも同じ間隔で続く)。"""
+    seg = (CELL_H if vertical else ADV) / n
+    gap = seg * 0.3
+    out = []
+    for i in range(n):
+        a, b = i * seg + gap / 2, (i + 1) * seg - gap / 2
+        out.append(rect(BCX - half, DESCENT + a, BCX + half, DESCENT + b) if vertical
+                   else rect(a, BCY - half, b, BCY + half))
+    return out
+
+
+BOX = {
+    0x2500: '0011', 0x2501: '0022', 0x2502: '1100', 0x2503: '2200',
+    0x250C: '0101', 0x250D: '0102', 0x250E: '0201', 0x250F: '0202',
+    0x2510: '0110', 0x2511: '0120', 0x2512: '0210', 0x2513: '0220',
+    0x2514: '1001', 0x2515: '1002', 0x2516: '2001', 0x2517: '2002',
+    0x2518: '1010', 0x2519: '1020', 0x251A: '2010', 0x251B: '2020',
+    0x251C: '1101', 0x251D: '1102', 0x251E: '2101', 0x251F: '1201',
+    0x2520: '2201', 0x2521: '2102', 0x2522: '1202', 0x2523: '2202',
+    0x2524: '1110', 0x2525: '1120', 0x2526: '2110', 0x2527: '1210',
+    0x2528: '2210', 0x2529: '2120', 0x252A: '1220', 0x252B: '2220',
+    0x252C: '0111', 0x252D: '0121', 0x252E: '0112', 0x252F: '0122',
+    0x2530: '0211', 0x2531: '0221', 0x2532: '0212', 0x2533: '0222',
+    0x2534: '1011', 0x2535: '1021', 0x2536: '1012', 0x2537: '1022',
+    0x2538: '2011', 0x2539: '2021', 0x253A: '2012', 0x253B: '2022',
+    0x253C: '1111', 0x253D: '1121', 0x253E: '1112', 0x253F: '1122',
+    0x2540: '2111', 0x2541: '1211', 0x2542: '2211', 0x2543: '2121',
+    0x2544: '2112', 0x2545: '1221', 0x2546: '1212', 0x2547: '2122',
+    0x2548: '1222', 0x2549: '2221', 0x254A: '2212', 0x254B: '2222',
+    0x2550: '0033', 0x2551: '3300',
+    0x2552: '0103', 0x2553: '0301', 0x2554: '0303',
+    0x2555: '0130', 0x2556: '0310', 0x2557: '0330',
+    0x2558: '1003', 0x2559: '3001', 0x255A: '3003',
+    0x255B: '1030', 0x255C: '3010', 0x255D: '3030',
+    0x255E: '1103', 0x255F: '3301', 0x2560: '3303',
+    0x2561: '1130', 0x2562: '3310', 0x2563: '3330',
+    0x2564: '0133', 0x2565: '0311', 0x2566: '0333',
+    0x2567: '1033', 0x2568: '3011', 0x2569: '3033',
+    0x256A: '1133', 0x256B: '3311', 0x256C: '3333',
+    0x2574: '0010', 0x2575: '1000', 0x2576: '0001', 0x2577: '0100',
+    0x2578: '0020', 0x2579: '2000', 0x257A: '0002', 0x257B: '0200',
+    0x257C: '0012', 0x257D: '1200', 0x257E: '0021', 0x257F: '2100',
+}
+for cp, code in BOX.items():
+    BLOCKS[cp] = box_lines(code)
+for cp, (n, vertical, half) in {
+        0x2504: (3, False, LIGHT), 0x2505: (3, False, HEAVY), 0x2506: (3, True, LIGHT), 0x2507: (3, True, HEAVY),
+        0x2508: (4, False, LIGHT), 0x2509: (4, False, HEAVY), 0x250A: (4, True, LIGHT), 0x250B: (4, True, HEAVY),
+        0x254C: (2, False, LIGHT), 0x254D: (2, False, HEAVY), 0x254E: (2, True, LIGHT), 0x254F: (2, True, HEAVY)}.items():
+    BLOCKS[cp] = dashes(n, vertical, half)
+
+# 丸い角。下から来て右へ曲がる形を 1 つ書き、左右・上下に返して 4 つにする。
+ROUND = 170
+CORNER = ([(BCX, DESCENT - BLEED), (BCX, BCY - ROUND)] + arc(BCX + ROUND, BCY - ROUND, ROUND, ROUND, 180, 90)
+          + [(ADV + BLEED, BCY)])
+
+
+def flip(path, x=False, y=False):
+    return [((2 * BCX - px) if x else px, (2 * BCY - py) if y else py) for px, py in path]
+
+
+for cp, path in {0x256D: CORNER, 0x256E: flip(CORNER, x=True),
+                 0x256F: flip(CORNER, x=True, y=True), 0x2570: flip(CORNER, y=True)}.items():
+    BLOCKS[cp] = [LineString(path).buffer(LIGHT, quad_segs=6, cap_style='flat', join_style='round')]
+
+# 斜めの線。マスの角から角へ引き、はみ出たぶんはマスの形で切り落とす (斜め隣のマスとつながる)。
+CELL_BOX = rect(-BLEED, DESCENT - BLEED, ADV + BLEED, ASCENT + BLEED)
+
+
+def diagonal(rising):
+    dx, dy = ADV, CELL_H if rising else -CELL_H
+    line = LineString([(BCX - dx, BCY - dy), (BCX + dx, BCY + dy)])
+    return line.buffer(LIGHT, cap_style='flat').intersection(CELL_BOX)
+
+
+BLOCKS[0x2571] = [diagonal(True)]
+BLOCKS[0x2572] = [diagonal(False)]
+BLOCKS[0x2573] = [diagonal(True), diagonal(False)]
+
+# ---- 図形 (U+25A0〜U+25FF の主なもの) ----
+# 1 マスの幅に収まる大きさで、英字の中ほどの高さ (GCY) を中心に置く。白抜きは黒い形の内側をくり抜く。
+GCY = 330
+EDGE = STROKE * 0.85        # 白抜きの線の太さ
+THIN = 56                   # 小さい図形の白抜きの線の太さ
+
+
+def white(shape, width=EDGE):
+    return shape.difference(shape.buffer(-width, join_style='mitre'))
+
+
+def square(w, h=None):
+    h = h or w
+    return rect(BCX - w / 2, GCY - h / 2, BCX + w / 2, GCY + h / 2)
+
+
+def disc(r):
+    return Point(BCX, GCY).buffer(r, quad_segs=16)
+
+
+def poly(points):
+    return Polygon([(BCX + x, GCY + y) for x, y in points])
+
+
+def tri(d, a, b):
+    """三角。d は尖る向き、a は底辺の半分、b は高さの半分。"""
+    pts = [(-a, -b), (a, -b), (0, b)]
+    turn = {'u': lambda x, y: (x, y), 'd': lambda x, y: (x, -y), 'r': lambda x, y: (y, x), 'l': lambda x, y: (-y, x)}[d]
+    return poly([turn(x, y) for x, y in pts])
+
+
+def half_plane(side):
+    far = 3000
+    return {'l': rect(-far, -far, BCX, far), 'r': rect(BCX, -far, far, far),
+            'd': rect(-far, -far, far, GCY), 'u': rect(-far, GCY, far, far)}[side]
+
+
+BIG, SMALL, POINTER = (240, 235), (150, 145), (160, 240)
+DIAMOND = [(0, 260), (250, 0), (0, -260), (-250, 0)]
+SHAPES = {
+    0x25A0: square(460), 0x25A1: white(square(460)),
+    0x25AA: square(240), 0x25AB: white(square(240), THIN),
+    0x25AC: square(480, 220), 0x25AD: white(square(480, 220), THIN),
+    0x25AE: square(260, 560), 0x25AF: white(square(260, 560), THIN),
+    0x25C6: poly(DIAMOND), 0x25C7: white(poly(DIAMOND)),
+    0x25C8: unary_union([white(poly(DIAMOND), THIN), poly([(x * 0.42, y * 0.42) for x, y in DIAMOND])]),
+    0x25C9: unary_union([white(disc(230), THIN), disc(105)]),
+    0x25CA: white(poly([(0, 290), (180, 0), (0, -290), (-180, 0)]), THIN),
+    0x25CB: white(disc(230)),
+    0x25CC: unary_union([Point(BCX + 205 * math.cos(math.radians(a)), GCY + 205 * math.sin(math.radians(a))).buffer(34, quad_segs=6)
+                         for a in range(0, 360, 45)]),
+    0x25CE: unary_union([white(disc(230), THIN), white(disc(120), THIN)]),
+    0x25CF: disc(230),
+    0x25D6: disc(230).intersection(half_plane('l')), 0x25D7: disc(230).intersection(half_plane('r')),
+    0x25E2: poly([(-230, -230), (230, -230), (230, 230)]), 0x25E3: poly([(-230, -230), (230, -230), (-230, 230)]),
+    0x25E4: poly([(-230, 230), (230, 230), (-230, -230)]), 0x25E5: poly([(-230, 230), (230, 230), (230, -230)]),
+    0x25E6: white(disc(115), THIN),
+    0x25EF: white(disc(285)),
+    0x25FB: white(square(380), THIN), 0x25FC: square(380),
+    0x25FD: white(square(300), THIN), 0x25FE: square(300),
+    # 再生・一時停止の印 (端末のアプリが状態の表示に使う)
+    0x23F5: tri('r', 190, 185),
+    0x23F8: unary_union([rect(BCX - 170, GCY - 200, BCX - 50, GCY + 200), rect(BCX + 50, GCY - 200, BCX + 170, GCY + 200)]),
+}
+for i, side in enumerate('lrdu'):               # 半分だけ塗った丸
+    SHAPES[0x25D0 + i] = unary_union([white(disc(230), THIN), disc(230).intersection(half_plane(side))])
+for i, d in enumerate('urdl'):                   # 三角: 上・右・下・左の順に、黒/白・小さい黒/白・(横向きは) 細長い黒/白
+    base = (0x25B2, 0x25B6, 0x25BC, 0x25C0)[i]
+    SHAPES[base], SHAPES[base + 1] = tri(d, *BIG), white(tri(d, *BIG))
+    SHAPES[base + 2], SHAPES[base + 3] = tri(d, *SMALL), white(tri(d, *SMALL), THIN)
+    if d in 'rl':
+        SHAPES[base + 4], SHAPES[base + 5] = tri(d, *POINTER), white(tri(d, *POINTER), THIN)
+for cp, shape in SHAPES.items():
+    BLOCKS[cp] = [shape]
+
+
 def block_outline(shapes):
     merged = unary_union(shapes)
-    return list(merged.geoms) if merged.geom_type == 'MultiPolygon' else [merged]
+    return [g for g in getattr(merged, 'geoms', [merged]) if g.geom_type == 'Polygon' and not g.is_empty]
 
 
 def outline(paths, dots, scale):
