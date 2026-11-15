@@ -361,7 +361,7 @@
     <string name="clip_copied">Đã sao chép</string>
     <string name="clip_copy_failed">Không sao chép được</string>
     <string name="clip_history_empty">Chưa có lịch sử. Nội dung sao chép được ghi lại tự động.</string>
-    <string name="clip_history_hint">▸ Chạm một dòng → dán vào terminal\n▸ Đồng bộ với khay nhớ tạm của hệ thống (ghi khi sao chép / khi ứng dụng ra phía trước)\n▸ Dòng có 🔒 biến mất sau 30 giây (mật khẩu và tương tự)\n▸ ✕ xóa</string>
+    <string name="clip_history_hint">▸ Chạm một dòng → dán vào terminal\n▸ Hình ảnh và tệp được lưu vào ~/z2term-inbox, rồi dán đường dẫn của chúng\n▸ Đồng bộ với khay nhớ tạm của hệ thống (ghi khi sao chép / khi ứng dụng ra phía trước)\n▸ Dòng có 🔒 biến mất sau 30 giây (mật khẩu và tương tự)\n▸ Nhấn giữ để ghim (nằm trên cùng, xóa hết vẫn còn; chạm 📌 để bỏ ghim)\n▸ ✕ xóa</string>
     <string name="clip_history_sensitive">🔒 Nội dung nhạy cảm — tự xóa sau 30 giây</string>
     <string name="snippets_title">Đoạn lệnh</string>
     <string name="snippets_new">+ Mới</string>
@@ -991,7 +991,8 @@
     <string name="ime_subtype_ja">z2term (tiếng Nhật)</string>
     <string name="ime_subtype_en">z2term (tiếng Anh)</string>
     <string name="settings_ime_pick">Chuyển bàn phím</string>
-    <string name="pad_clip_empty">Văn bản đã sao chép hiện ở đây.\nHãy sao chép trước, rồi mở bàn phím.</string>
+    <string name="pad_clip_empty">Văn bản, hình ảnh và tệp đã sao chép hiện ở đây.\nHãy sao chép trước, rồi mở bàn phím.</string>
+    <string name="clip_file_not_accepted">Ô nhập này không nhận hình ảnh hoặc tệp</string>
     <string name="pad_emoji_empty">Emoji bạn dùng hiện ở đây.\nChọn một cái từ các thẻ bên phải.</string>
     <string name="pad_kaomoji_empty">Biểu tượng cảm xúc và tranh ASCII bạn dùng hiện ở đây.
 Chọn một cái từ các thẻ bên phải.</string>

@@ -362,7 +362,7 @@
     <string name="clip_copied">Kopyalandı</string>
     <string name="clip_copy_failed">Kopyalanamadı</string>
     <string name="clip_history_empty">Henüz geçmiş yok. Kopyalamalar otomatik yakalanır.</string>
-    <string name="clip_history_hint">▸ Bir satıra dokunun → terminale yapıştırılır\n▸ Sistem panosuyla eşitlenir (kopyalamada / uygulama öne geldiğinde yakalanır)\n▸ 🔒 işaretli satırlar 30 saniye sonra kaybolur (şifreler vb.)\n▸ ✕ sil</string>
+    <string name="clip_history_hint">▸ Bir satıra dokunun → terminale yapıştırılır\n▸ Resimler ve dosyalar ~/z2term-inbox içine kaydedilir, yolları yapıştırılır\n▸ Sistem panosuyla eşitlenir (kopyalamada / uygulama öne geldiğinde yakalanır)\n▸ 🔒 işaretli satırlar 30 saniye sonra kaybolur (şifreler vb.)\n▸ Sabitlemek için uzun basın (temizleseniz de üstte kalır; kaldırmak için 📌 simgesine dokunun)\n▸ ✕ sil</string>
     <string name="clip_history_sensitive">🔒 Hassas kopya — 30 saniye sonra kendiliğinden temizlenir</string>
     <string name="snippets_title">Parçacıklar</string>
     <string name="snippets_new">+ Yeni</string>
@@ -999,7 +999,8 @@
     <string name="ime_subtype_ja">z2term (Japonca)</string>
     <string name="ime_subtype_en">z2term (İngilizce)</string>
     <string name="settings_ime_pick">Klavyeyi değiştir</string>
-    <string name="pad_clip_empty">Kopyalanan metin burada görünür.\nÖnce kopyalayın, sonra klavyeyi açın.</string>
+    <string name="pad_clip_empty">Kopyalanan metin, resim ve dosyalar burada görünür.\nÖnce kopyalayın, sonra klavyeyi açın.</string>
+    <string name="clip_file_not_accepted">Bu alan resim veya dosya kabul etmiyor</string>
     <string name="pad_emoji_empty">Kullandığınız emojiler burada görünür.\nSağdaki sekmelerden birini seçin.</string>
     <string name="pad_kaomoji_empty">Kullandığınız ifadeler ve ASCII sanatı burada görünür.
 Sağdaki sekmelerden birini seçin.</string>

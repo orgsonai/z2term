@@ -363,7 +363,7 @@
     <string name="clip_copied">已复制</string>
     <string name="clip_copy_failed">复制失败</string>
     <string name="clip_history_empty">还没有历史。复制时会自动记录。</string>
-    <string name="clip_history_hint">▸ 点击某一行 → 粘贴到终端\n▸ 与系统剪贴板同步 (复制时 / 应用回到前台时记录)\n▸ 标有 🔒 的行会在 30 秒后消失 (密码之类)\n▸ ✕ 删除</string>
+    <string name="clip_history_hint">▸ 点击某一行 → 粘贴到终端\n▸ 图片和文件会保存到 ~/z2term-inbox，粘贴的是它们的路径\n▸ 与系统剪贴板同步 (复制时 / 应用回到前台时记录)\n▸ 标有 🔒 的行会在 30 秒后消失 (密码之类)\n▸ 长按可固定 (排在最上面，清空后仍保留；点 📌 取消固定)\n▸ ✕ 删除</string>
     <string name="clip_history_sensitive">🔒 敏感内容 — 30 秒后自动消失</string>
     <string name="snippets_title">代码片段</string>
     <string name="snippets_new">+ 新建</string>
@@ -995,7 +995,8 @@
     <string name="ime_subtype_ja">z2term（日文）</string>
     <string name="ime_subtype_en">z2term（英文）</string>
     <string name="settings_ime_pick">切换键盘</string>
-    <string name="pad_clip_empty">复制过的文本会排列在这里。\n先复制，再打开键盘就能看到。</string>
+    <string name="pad_clip_empty">复制过的文本、图片和文件会排列在这里。\n先复制，再打开键盘就能看到。</string>
+    <string name="clip_file_not_accepted">这个输入框不能粘贴图片或文件</string>
     <string name="pad_emoji_empty">用过的表情符号会排列在这里。\n请从右边的标签里挑选。</string>
     <string name="pad_kaomoji_empty">用过的颜文字和字符画会排列在这里。
 请从右边的标签里挑选。</string>

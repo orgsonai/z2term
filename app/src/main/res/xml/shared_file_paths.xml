@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <cache-path name="shared" path="shared-files/" />
+    <!-- クリップボード履歴の画像・ファイルの写し。内蔵キーボードが入力欄へ渡すときに使う。 -->
+    <files-path name="clip" path="clipboard-files/" />
 </paths>

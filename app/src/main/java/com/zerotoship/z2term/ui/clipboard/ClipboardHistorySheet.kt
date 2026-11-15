@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -39,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.clipboard.ClipboardFilePaste
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
@@ -56,7 +60,9 @@ import kotlinx.coroutines.launch
  *
  * システムクリップボードと同期した履歴 ([ClipboardHistoryStore]) を新しい順に並べる。
  * 行タップで [onSelect] にその本文を渡し、ターミナル / GUI へ貼り付ける (呼び出し側がクリップボードへも反映)。
+ * 画像・ファイルの行は、ホームに置いたうえで**そのパス**を [onSelect] に渡す ([ClipboardFilePaste])。
  * ✕ で 1 件削除、ヘッダの「クリア」で全削除。
+ * 行の長押しでピン留め (上に固定。「クリア」でも残る)。留めた行は右端が 📌 になり、押すと外れる。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +84,7 @@ fun ClipboardHistorySheet(
         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
     }
     val history by ClipboardHistoryStore.history.collectAsState()
+    val context = LocalContext.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -107,9 +114,17 @@ fun ClipboardHistorySheet(
                 history.forEach { entry ->
                     key(entry.copiedAt, entry.text) {
                         ClipRow(
-                            text = entry.text,
-                            sensitive = entry.sensitive,
-                            onSelect = { onSelect(entry.text); closeSheet() },
+                            entry = entry,
+                            onSelect = {
+                                if (entry.files.isEmpty()) {
+                                    onSelect(entry.text)
+                                    closeSheet()
+                                } else scope.launch {
+                                    ClipboardFilePaste.terminalText(context, entry)?.let(onSelect)
+                                    closeSheet()
+                                }
+                            },
+                            onPin = { ClipboardHistoryStore.togglePin(entry) },
                             onDelete = { ClipboardHistoryStore.delete(entry) }
                         )
                     }
@@ -157,11 +172,12 @@ private fun Header(count: Int, onClear: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ClipRow(
-    text: String,
-    sensitive: Boolean,
+    entry: ClipboardHistoryStore.ClipEntry,
     onSelect: () -> Unit,
+    onPin: () -> Unit,
     onDelete: () -> Unit
 ) {
     Row(
@@ -175,11 +191,12 @@ private fun ClipRow(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .clickable(onClick = onSelect)
+                .combinedClickable(onLongClick = onPin, onClick = onSelect)
                 .padding(horizontal = 12.dp, vertical = 12.dp)
         ) {
-            Text(
-                text = text.trim(),
+            if (entry.files.isNotEmpty()) ClipFilesLabel(entry = entry, fontSize = 13.sp, thumb = 44.dp)
+            else Text(
+                text = entry.text.trim(),
                 color = ZtsTextPrimary,
                 fontSize = 13.sp,
                 fontFamily = FontFamily.Monospace,
@@ -187,7 +204,7 @@ private fun ClipRow(
                 overflow = TextOverflow.Ellipsis
             )
             // 機微な行は「消える行」だと分かるようにする (黙って消えると壊れて見えるため)。
-            if (sensitive) {
+            if (entry.sensitive) {
                 Text(
                     text = stringResource(R.string.clip_history_sensitive),
                     color = ZtsTextSecondary,
@@ -198,12 +215,13 @@ private fun ClipRow(
         }
         Box(
             modifier = Modifier
-                .clickable(onClick = onDelete)
+                // ⚠ 留めた行に ✕ を出さない (残したくて留めたものを 1 回の押し間違いで消さない)。
+                .clickable(onClick = if (entry.pinned) onPin else onDelete)
                 .padding(horizontal = 10.dp, vertical = 12.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "✕",
+                text = if (entry.pinned) "📌" else "✕",
                 color = ZtsTextSecondary,
                 fontSize = 15.sp,
                 fontFamily = FontFamily.Monospace

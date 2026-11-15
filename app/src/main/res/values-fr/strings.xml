@@ -364,7 +364,7 @@
     <string name="clip_copied">Copié</string>
     <string name="clip_copy_failed">Copie impossible</string>
     <string name="clip_history_empty">Pas encore d’historique. Les copies sont capturées automatiquement.</string>
-    <string name="clip_history_hint">▸ Appuyez sur une ligne → collée dans le terminal\n▸ Synchronisé avec le presse-papiers du système (capturé à la copie / quand l’appli passe au premier plan)\n▸ Les lignes marquées 🔒 disparaissent après 30 secondes (mots de passe et autres)\n▸ ✕ supprimer</string>
+    <string name="clip_history_hint">▸ Appuyez sur une ligne → collée dans le terminal\n▸ Les images et les fichiers sont enregistrés dans ~/z2term-inbox et leur chemin est collé\n▸ Synchronisé avec le presse-papiers du système (capturé à la copie / quand l’appli passe au premier plan)\n▸ Les lignes marquées 🔒 disparaissent après 30 secondes (mots de passe et autres)\n▸ Appui long pour épingler (reste en haut, même après avoir tout effacé ; touchez 📌 pour détacher)\n▸ ✕ supprimer</string>
     <string name="clip_history_sensitive">🔒 Copie sensible — s’efface d’elle-même après 30 secondes</string>
     <string name="snippets_title">Extraits</string>
     <string name="snippets_new">+ Nouveau</string>
@@ -1008,7 +1008,8 @@
     <string name="ime_subtype_ja">z2term (japonais)</string>
     <string name="ime_subtype_en">z2term (anglais)</string>
     <string name="settings_ime_pick">Changer de clavier</string>
-    <string name="pad_clip_empty">Le texte copié apparaît ici.\nCopiez d’abord, puis ouvrez le clavier.</string>
+    <string name="pad_clip_empty">Le texte, les images et les fichiers copiés apparaissent ici.\nCopiez d’abord, puis ouvrez le clavier.</string>
+    <string name="clip_file_not_accepted">Ce champ n’accepte ni images ni fichiers</string>
     <string name="pad_emoji_empty">Les emoji que vous utilisez apparaissent ici.\nChoisissez-en un dans les onglets à droite.</string>
     <string name="pad_kaomoji_empty">Les émoticônes et l’art ASCII que vous utilisez apparaissent ici.
 Choisissez-en un dans les onglets à droite.</string>

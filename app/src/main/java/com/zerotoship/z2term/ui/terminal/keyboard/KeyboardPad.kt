@@ -9,6 +9,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +34,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,13 +49,27 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.clipboard.ClipboardFilePaste
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
+import com.zerotoship.z2term.ui.clipboard.ClipFilesLabel
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
+import kotlinx.coroutines.launch
+
+/**
+ * 📋 パッドで**画像・ファイルの行**を選んだときの出口。
+ *
+ * 既定 (null) は端末向け: ホームに置いてパスを文字として入れる ([ClipboardFilePaste])。
+ * OS の入力メソッド ([com.zerotoship.z2term.ime.Z2ImeService]) だけが差し替えて、相手の
+ * 入力欄へ画像そのものを渡す。⚠ 文字の出口 (`onInsert`) とは別に持つ — キーボードは
+ * 「文字を送る部品」として 3 つの面に配ってあり、文字でないものをその口に通せない。
+ */
+internal val LocalClipFilePaste =
+    staticCompositionLocalOf<((ClipboardHistoryStore.ClipEntry) -> Unit)?> { null }
 
 /** キーボード中央に出すパッドの種類。[NONE] = かなキーがそのまま出ている通常状態。 */
 internal enum class PadMode { NONE, EMOJI, CLIPBOARD, KAOMOJI }
@@ -270,10 +288,15 @@ private fun ColumnScope.KaomojiPane(style: KeyboardStyle, onInsert: (String) -> 
 /**
  * 貼り付けパッド: 新しい順のリスト。タップで貼り付け、✕ で 1 件削除。
  *
+ * **長押しでピン留め** (1.0.122)。留めた行は上に並び、右端が ✕ ではなく 📌 になる。
+ * 📌 を押すと外れる。⚠ 留めた行に ✕ を出さない — 残したくて留めたものを、貼るつもりの
+ * 指が 1 回ずれただけで消してしまう。消すときは外してから。
+ *
  * ⚠ **貼ったらパッドを閉じてキーへ戻る** ([onClose])。貼り付けは 1 回で終わる操作なので、
  * 開いたままだと毎回 × を押させることになる (利用者の指摘)。絵文字パッドは続けて打つ
  * ことがあるので閉じない — **閉じる / 閉じないの違いは「続けて打つか」で決めている**。
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ColumnScope.ClipboardPane(
     style: KeyboardStyle,
@@ -281,6 +304,9 @@ private fun ColumnScope.ClipboardPane(
     onClose: () -> Unit
 ) {
     val items by ClipboardHistoryStore.history.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val filePaste = LocalClipFilePaste.current
     if (items.isEmpty()) {
         PadEmptyText(stringResource(R.string.pad_clip_empty), style, Modifier.weight(1f))
         return
@@ -299,7 +325,28 @@ private fun ColumnScope.ClipboardPane(
                     .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
+                if (item.files.isNotEmpty()) ClipFilesLabel(
+                    entry = item,
+                    fontSize = (style.keyFontSp * 0.8f).sp,
+                    thumb = 32.dp,
+                    modifier = Modifier
+                        .weight(1f)
+                        .combinedClickable(
+                            onLongClick = { ClipboardHistoryStore.togglePin(item) },
+                            onClick = {
+                                if (filePaste != null) {
+                                    filePaste(item)
+                                    onClose()
+                                } else scope.launch {
+                                    // 置き場へ出すのは裏で行う。閉じるのは入れた後 (閉じるとこの
+                                    // scope ごと止まるため、順番を逆にすると何も入らない)。
+                                    ClipboardFilePaste.terminalText(context, item)?.let(onInsert)
+                                    onClose()
+                                }
+                            }
+                        )
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                ) else Text(
                     // 機微な行 (30 秒で消える) は 🔒 を付けて、消えるものだと分かるようにする。
                     text = if (item.sensitive) "🔒 ${item.text}" else item.text,
                     color = ZtsTextPrimary,
@@ -309,17 +356,23 @@ private fun ColumnScope.ClipboardPane(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { onInsert(item.text); onClose() }
+                        .combinedClickable(
+                            onLongClick = { ClipboardHistoryStore.togglePin(item) },
+                            onClick = { onInsert(item.text); onClose() }
+                        )
                         .padding(horizontal = 6.dp, vertical = 6.dp)
                 )
                 Box(
                     modifier = Modifier
                         .size(32.dp)
-                        .clickable { ClipboardHistoryStore.delete(item) },
+                        .clickable {
+                            if (item.pinned) ClipboardHistoryStore.togglePin(item)
+                            else ClipboardHistoryStore.delete(item)
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "✕",
+                        text = if (item.pinned) "📌" else "✕",
                         color = ZtsTextSecondary,
                         fontSize = (style.keyFontSp * 0.8f).sp,
                         fontWeight = FontWeight.Medium

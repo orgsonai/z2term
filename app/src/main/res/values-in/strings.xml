@@ -362,7 +362,7 @@
     <string name="clip_copied">Disalin</string>
     <string name="clip_copy_failed">Tidak bisa menyalin</string>
     <string name="clip_history_empty">Belum ada riwayat. Salinan direkam otomatis.</string>
-    <string name="clip_history_hint">▸ Ketuk baris → ditempel ke terminal\n▸ Disinkronkan dengan papan klip sistem (direkam saat menyalin / saat aplikasi ke depan)\n▸ Baris bertanda 🔒 hilang setelah 30 detik (sandi dan sejenisnya)\n▸ ✕ hapus</string>
+    <string name="clip_history_hint">▸ Ketuk baris → ditempel ke terminal\n▸ Gambar dan file disimpan ke ~/z2term-inbox, lalu jalurnya yang ditempel\n▸ Disinkronkan dengan papan klip sistem (direkam saat menyalin / saat aplikasi ke depan)\n▸ Baris bertanda 🔒 hilang setelah 30 detik (sandi dan sejenisnya)\n▸ Tekan lama untuk menyematkan (tetap di atas walau riwayat dihapus; ketuk 📌 untuk melepas)\n▸ ✕ hapus</string>
     <string name="clip_history_sensitive">🔒 Salinan sensitif — terhapus sendiri setelah 30 detik</string>
     <string name="snippets_title">Cuplikan</string>
     <string name="snippets_new">+ Baru</string>
@@ -992,7 +992,8 @@
     <string name="ime_subtype_ja">z2term (Jepang)</string>
     <string name="ime_subtype_en">z2term (Inggris)</string>
     <string name="settings_ime_pick">Ganti keyboard</string>
-    <string name="pad_clip_empty">Teks yang disalin muncul di sini.\nSalin dulu, lalu buka keyboard.</string>
+    <string name="pad_clip_empty">Teks, gambar, dan file yang disalin muncul di sini.\nSalin dulu, lalu buka keyboard.</string>
+    <string name="clip_file_not_accepted">Kolom ini tidak menerima gambar atau file</string>
     <string name="pad_emoji_empty">Emoji yang Anda pakai muncul di sini.\nPilih dari tab di kanan.</string>
     <string name="pad_kaomoji_empty">Emotikon dan seni ASCII yang Anda pakai muncul di sini.
 Pilih dari tab di kanan.</string>

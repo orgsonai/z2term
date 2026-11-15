@@ -364,7 +364,7 @@
     <string name="clip_copied">Copiado</string>
     <string name="clip_copy_failed">No se pudo copiar</string>
     <string name="clip_history_empty">Todavía no hay historial. Las copias se capturan solas.</string>
-    <string name="clip_history_hint">▸ Toca una fila → se pega en la terminal\n▸ Sincronizado con el portapapeles del sistema (se captura al copiar y al volver la aplicación al primer plano)\n▸ Las filas marcadas con 🔒 desaparecen a los 30 segundos (contraseñas y similares)\n▸ ✕ eliminar</string>
+    <string name="clip_history_hint">▸ Toca una fila → se pega en la terminal\n▸ Las imágenes y los archivos se guardan en ~/z2term-inbox y se pega su ruta\n▸ Sincronizado con el portapapeles del sistema (se captura al copiar y al volver la aplicación al primer plano)\n▸ Las filas marcadas con 🔒 desaparecen a los 30 segundos (contraseñas y similares)\n▸ Mantén pulsado para fijar (queda arriba aunque borres el historial; toca 📌 para soltarlo)\n▸ ✕ eliminar</string>
     <string name="clip_history_sensitive">🔒 Copia sensible: se borra sola a los 30 segundos</string>
     <string name="snippets_title">Fragmentos</string>
     <string name="snippets_new">+ Nuevo</string>
@@ -1010,7 +1010,8 @@
     <string name="ime_subtype_ja">z2term (japonés)</string>
     <string name="ime_subtype_en">z2term (inglés)</string>
     <string name="settings_ime_pick">Cambiar de teclado</string>
-    <string name="pad_clip_empty">Aquí aparece el texto que copias.\nCopia algo primero y luego abre el teclado.</string>
+    <string name="pad_clip_empty">Aquí aparecen el texto, las imágenes y los archivos que copias.\nCopia algo primero y luego abre el teclado.</string>
+    <string name="clip_file_not_accepted">Este campo no admite imágenes ni archivos</string>
     <string name="pad_emoji_empty">Aquí aparecen los emojis que usas.\nElige uno en las pestañas de la derecha.</string>
     <string name="pad_kaomoji_empty">Aquí aparecen los emoticonos y el arte ASCII que usas.
 Elige uno en las pestañas de la derecha.</string>

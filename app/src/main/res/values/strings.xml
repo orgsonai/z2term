@@ -386,7 +386,7 @@
     <string name="clip_copied">Copied</string>
     <string name="clip_copy_failed">Could not copy</string>
     <string name="clip_history_empty">No history yet. Copies are captured automatically.</string>
-    <string name="clip_history_hint">▸ Tap a row → pasted into the terminal\n▸ Synced with the system clipboard (captured on copy / when the app comes to the foreground)\n▸ Rows marked 🔒 disappear after 30 seconds (passwords and the like)\n▸ ✕ delete</string>
+    <string name="clip_history_hint">▸ Tap a row → pasted into the terminal\n▸ Images and files are saved to ~/z2term-inbox and their path is pasted\n▸ Synced with the system clipboard (captured on copy / when the app comes to the foreground)\n▸ Rows marked 🔒 disappear after 30 seconds (passwords and the like)\n▸ Long-press to pin (stays on top and survives Clear; tap 📌 to unpin)\n▸ ✕ delete</string>
     <string name="clip_history_sensitive">🔒 Sensitive copy — clears itself after 30 seconds</string>
 
     <!-- Snippets sheet (D3 batch 2) -->
@@ -1078,7 +1078,8 @@
     <string name="ime_subtype_ja">z2term (Japanese)</string>
     <string name="ime_subtype_en">z2term (English)</string>
     <string name="settings_ime_pick">Switch keyboard</string>
-    <string name="pad_clip_empty">Copied text shows up here.\nCopy first, then open the keyboard.</string>
+    <string name="pad_clip_empty">Copied text, images and files show up here.\nCopy first, then open the keyboard.</string>
+    <string name="clip_file_not_accepted">This field does not accept images or files</string>
     <string name="pad_emoji_empty">Emoji you use show up here.\nPick one from the tabs on the right.</string>
     <string name="pad_kaomoji_empty">Emoticons and ASCII art you use show up here.
 Pick one from the tabs on the right.</string>

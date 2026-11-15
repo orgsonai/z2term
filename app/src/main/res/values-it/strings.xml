@@ -364,7 +364,7 @@
     <string name="clip_copied">Copiato</string>
     <string name="clip_copy_failed">Impossibile copiare</string>
     <string name="clip_history_empty">Ancora nessuna cronologia. Le copie vengono catturate automaticamente.</string>
-    <string name="clip_history_hint">▸ Tocca una riga → incollata nel terminale\n▸ Sincronizzata con gli appunti di sistema (catturata alla copia / quando l’app torna in primo piano)\n▸ Le righe segnate 🔒 spariscono dopo 30 secondi (password e simili)\n▸ ✕ elimina</string>
+    <string name="clip_history_hint">▸ Tocca una riga → incollata nel terminale\n▸ Immagini e file vengono salvati in ~/z2term-inbox e ne viene incollato il percorso\n▸ Sincronizzata con gli appunti di sistema (catturata alla copia / quando l’app torna in primo piano)\n▸ Le righe segnate 🔒 spariscono dopo 30 secondi (password e simili)\n▸ Tieni premuto per fissare (resta in alto anche dopo aver cancellato tutto; tocca 📌 per staccare)\n▸ ✕ elimina</string>
     <string name="clip_history_sensitive">🔒 Copia sensibile: si cancella da sola dopo 30 secondi</string>
     <string name="snippets_title">Frammenti</string>
     <string name="snippets_new">+ Nuovo</string>
@@ -1008,7 +1008,8 @@
     <string name="ime_subtype_ja">z2term (giapponese)</string>
     <string name="ime_subtype_en">z2term (inglese)</string>
     <string name="settings_ime_pick">Cambia tastiera</string>
-    <string name="pad_clip_empty">Il testo copiato compare qui.\nCopia prima, poi apri la tastiera.</string>
+    <string name="pad_clip_empty">Testo, immagini e file copiati compaiono qui.\nCopia prima, poi apri la tastiera.</string>
+    <string name="clip_file_not_accepted">Questo campo non accetta immagini o file</string>
     <string name="pad_emoji_empty">Gli emoji che usi compaiono qui.\nScegline uno dalle schede a destra.</string>
     <string name="pad_kaomoji_empty">Le emoticon e le ASCII art che usi compaiono qui.
 Scegline una dalle schede a destra.</string>

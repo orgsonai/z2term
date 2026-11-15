@@ -362,7 +362,7 @@
     <string name="clip_copied">복사했습니다</string>
     <string name="clip_copy_failed">복사하지 못했습니다</string>
     <string name="clip_history_empty">아직 기록이 없습니다. 복사하면 저절로 모입니다.</string>
-    <string name="clip_history_hint">▸ 줄을 누르면 → 터미널에 붙여넣습니다\n▸ 시스템 클립보드와 이어져 있습니다(복사할 때 / 앱이 앞으로 나올 때 모읍니다)\n▸ 🔒 표시가 붙은 줄은 30초 뒤에 사라집니다(비밀번호 같은 것)\n▸ ✕ 삭제</string>
+    <string name="clip_history_hint">▸ 줄을 누르면 → 터미널에 붙여넣습니다\n▸ 이미지와 파일은 ~/z2term-inbox 에 두고 그 경로를 붙여넣습니다\n▸ 시스템 클립보드와 이어져 있습니다(복사할 때 / 앱이 앞으로 나올 때 모읍니다)\n▸ 🔒 표시가 붙은 줄은 30초 뒤에 사라집니다(비밀번호 같은 것)\n▸ 길게 누르면 고정됩니다(맨 위에 남고, 모두 지워도 남습니다. 📌 를 누르면 풀립니다)\n▸ ✕ 삭제</string>
     <string name="clip_history_sensitive">🔒 민감한 복사 — 30초 뒤에 스스로 지워집니다</string>
     <string name="snippets_title">스니펫</string>
     <string name="snippets_new">+ 새로 만들기</string>
@@ -994,7 +994,8 @@
     <string name="ime_subtype_ja">z2term (일본어)</string>
     <string name="ime_subtype_en">z2term (영어)</string>
     <string name="settings_ime_pick">키보드 전환</string>
-    <string name="pad_clip_empty">복사한 글이 여기에 나옵니다.\n먼저 복사한 다음 키보드를 여세요.</string>
+    <string name="pad_clip_empty">복사한 글·이미지·파일이 여기에 나옵니다.\n먼저 복사한 다음 키보드를 여세요.</string>
+    <string name="clip_file_not_accepted">이 입력란에는 이미지나 파일을 붙여넣을 수 없습니다</string>
     <string name="pad_emoji_empty">자주 쓰는 이모지가 여기에 나옵니다.\n오른쪽 탭에서 골라 보세요.</string>
     <string name="pad_kaomoji_empty">사용한 이모티콘과 AA가 여기에 나옵니다.
 오른쪽 탭에서 골라 보세요.</string>

@@ -118,6 +118,8 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.zIndex
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.clipboard.ClipboardFilePaste
+import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.core.AppSession
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalHints
@@ -562,7 +564,19 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onPaste = {
                 // 1 行なら今までどおり即挿入。**改行を含むときだけ**貼る前に見せる (0.8.232)。
                 // ここを 1 行にも広げると、一番よく押すボタンが 2 タップになって台無しになる。
-                val text = active.clipboardText()
+                // ⚠ 画像・ファイルのコピーは文字として読まない (`content://…` が入るだけになる)。
+                // 履歴に写し取ってある行を、ホームに置いてパスで貼る。写し終わる前や、
+                // 大きすぎて入らなかったものは何もしない。
+                val text = if (ClipboardHistoryStore.clipboardHoldsFiles(context)) {
+                    val target = active
+                    ClipboardHistoryStore.currentFileEntry(context)?.let { entry ->
+                        scope.launch {
+                            ClipboardFilePaste.terminalText(context, entry)
+                                ?.let { target.pasteText(it, syncClipboard = false) }
+                        }
+                    }
+                    null
+                } else active.clipboardText()
                 when {
                     text.isNullOrEmpty() -> Unit
                     text.contains('\n') -> pastePreview = text

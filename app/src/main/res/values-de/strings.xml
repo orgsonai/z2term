@@ -363,7 +363,7 @@
     <string name="clip_copied">Kopiert</string>
     <string name="clip_copy_failed">Kopieren nicht möglich</string>
     <string name="clip_history_empty">Noch kein Verlauf. Kopien werden automatisch erfasst.</string>
-    <string name="clip_history_hint">▸ Tippe auf eine Zeile → ins Terminal eingefügt\n▸ Mit der Zwischenablage des Systems abgeglichen (erfasst beim Kopieren / wenn die App nach vorne kommt)\n▸ Mit 🔒 markierte Zeilen verschwinden nach 30 Sekunden (Passwörter u. ä.)\n▸ ✕ löschen</string>
+    <string name="clip_history_hint">▸ Tippe auf eine Zeile → ins Terminal eingefügt\n▸ Bilder und Dateien werden in ~/z2term-inbox abgelegt, eingefügt wird ihr Pfad\n▸ Mit der Zwischenablage des Systems abgeglichen (erfasst beim Kopieren / wenn die App nach vorne kommt)\n▸ Mit 🔒 markierte Zeilen verschwinden nach 30 Sekunden (Passwörter u. ä.)\n▸ Lange drücken zum Anheften (bleibt oben, auch nach dem Leeren; 📌 antippen löst es wieder)\n▸ ✕ löschen</string>
     <string name="clip_history_sensitive">🔒 Sensible Kopie — löscht sich nach 30 Sekunden selbst</string>
     <string name="snippets_title">Snippets</string>
     <string name="snippets_new">+ Neu</string>
@@ -1000,7 +1000,8 @@
     <string name="ime_subtype_ja">z2term (Japanisch)</string>
     <string name="ime_subtype_en">z2term (Englisch)</string>
     <string name="settings_ime_pick">Tastatur wechseln</string>
-    <string name="pad_clip_empty">Kopierter Text erscheint hier.\nZuerst kopieren, dann die Tastatur öffnen.</string>
+    <string name="pad_clip_empty">Kopierte Texte, Bilder und Dateien erscheinen hier.\nZuerst kopieren, dann die Tastatur öffnen.</string>
+    <string name="clip_file_not_accepted">Dieses Feld nimmt keine Bilder oder Dateien an</string>
     <string name="pad_emoji_empty">Emoji, die du nutzt, erscheinen hier.\nWähle eines aus den Reitern rechts.</string>
     <string name="pad_kaomoji_empty">Emoticons und ASCII-Art, die du nutzt, erscheinen hier.
 Wähle eines aus den Reitern rechts.</string>

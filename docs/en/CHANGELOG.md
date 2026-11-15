@@ -2,6 +2,12 @@
 
 Changes in each version, newest first.
 
+**1.0.122 (versionCode 820)**: Copied **images and files** now show up in the built-in keyboard's paste pad (📋) and in the clipboard history. Until now they appeared only as a `content://…` string, and pasting one gave neither an image nor a file. Images are shown as a small picture, everything else by name and size. What picking one does depends on where it goes.
+- In the **terminal**, it is placed in `~/z2term-inbox/` in your home and its path is typed in. This is the same folder that files shared to z2term land in. The 📋 button in the toolbar now does the same.
+- In **another app's input field** (with z2term chosen as the input method), the image or file itself is handed over. If the field cannot take it, nothing is inserted and a short message says so.
+- One copy can hold up to 64 MB and 16 items, and the whole history up to 256 MB. Beyond that the oldest ones go. Deleting a row also deletes the image or file captured for it (what was placed in `~/z2term-inbox/` stays).
+- **Pinning** is added. **Long-press** a row in the paste pad or the clipboard history and it stays at the top. Use it for things you paste again and again, such as an address or an email address. A pinned row is not removed by the 50-entry limit or by Clear (🗑 in the pad). Its right edge shows 📌 instead of ✕; tap 📌 to unpin (to delete it, unpin first, then ✕). The 🔒 rows that clear themselves after 30 seconds cannot be pinned.
+
 **1.0.121 (versionCode 819)**: **Vietnamese** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language. Voice commands also catch phrases heard with a Vietnamese capital (Đ or a toned vowel) at the start. The reminder macro no longer uses its notification button names unquoted (in a language whose names contain a space, the whole macro would have stopped working).
 
 **1.0.120 (versionCode 818)**: **Turkish** is added: the app screens, the help and messages of the `z2-*` commands, the notes in the sample macros and the voice-command word table. Pick it under Settings › Language; phones set to Turkish from Cyprus get it too. Two voice-command fixes come with it: a Turkish phrase heard with a capital I at the start no longer misses the word table, and a weekday whose name contains another one (Turkish cumartesi, Saturday, contains cuma, Friday) is no longer mistaken for it.

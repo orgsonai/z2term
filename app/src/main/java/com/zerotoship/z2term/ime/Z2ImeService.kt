@@ -3,6 +3,7 @@ package com.zerotoship.z2term.ime
 import com.zerotoship.z2term.ui.terminal.input.AndroidKeyMapper
 import com.zerotoship.z2term.ui.terminal.input.KeyModifiers
 import com.zerotoship.z2term.ui.terminal.keyboard.NamedKey
+import android.content.ClipDescription
 import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
 import android.inputmethodservice.InputMethodService.Insets
@@ -13,6 +14,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,6 +36,9 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.core.view.ViewCompat
+import androidx.core.view.inputmethod.EditorInfoCompat
+import androidx.core.view.inputmethod.InputConnectionCompat
+import androidx.core.view.inputmethod.InputContentInfoCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -46,6 +52,9 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.zerotoship.z2term.R
+import com.zerotoship.z2term.clipboard.ClipboardFilePaste
+import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.emulator.resolveTheme
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -61,6 +70,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceConfig
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceEntry
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
+import com.zerotoship.z2term.ui.terminal.keyboard.LocalClipFilePaste
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
 import com.zerotoship.z2term.ui.terminal.input.isPhysicalKeyboard
@@ -356,15 +366,18 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                                     legacyKanaAvailable = isJa,
                                 )
                             }
-                            TerminalKeyboard(
-                                onBytes = ::sendBytes,
-                                onKey = ::sendNamedKey,
-                                composing = composing,
-                                style = style,
-                                faceEntries = faceEntries,
-                                initialFaceId = settings.imeFace,
-                                onFaceChange = ::rememberFace,
-                            )
+                            // 📋 パッドの画像・ファイルは、文字としてではなく**そのもの**を渡す。
+                            CompositionLocalProvider(LocalClipFilePaste provides ::pasteClipFiles) {
+                                TerminalKeyboard(
+                                    onBytes = ::sendBytes,
+                                    onKey = ::sendNamedKey,
+                                    composing = composing,
+                                    style = style,
+                                    faceEntries = faceEntries,
+                                    initialFaceId = settings.imeFace,
+                                    onFaceChange = ::rememberFace,
+                                )
+                            }
                         }
                     }
                 }
@@ -591,6 +604,48 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
      */
     override fun onEvaluateInputViewShown(): Boolean =
         composing.isActive || (hardwareKeyboard.value && kanaMode) || super.onEvaluateInputViewShown()
+
+    /**
+     * 📋 パッドで選んだ画像・ファイルを、いまの入力欄へ渡す。
+     *
+     * 相手が受け取れる種類を名乗っていれば (`contentMimeTypes`)、**画像・ファイルそのもの**を
+     * 渡す (`commitContent`)。読む許可はその 1 回ぶんだけ相手に付く。
+     *
+     * ⚠ **名乗っていない入力欄には何も入れない。** クリップボードへ載せ直して「貼り付け」を
+     * 押させる手もあるが、受け取れない入力欄はそれを `content://…` という文字にして入れる。
+     * 入らなかったことを一言伝えるほうがましである。
+     *
+     * 相手が自分の端末のときだけは別で、端末に画像は入らないので、ホームに置いて
+     * **パス**を入れる (アプリ内のキーボードで貼ったときと同じ結果にする)。
+     */
+    private fun pasteClipFiles(entry: ClipboardHistoryStore.ClipEntry) {
+        val ic = currentInputConnection ?: return
+        val info = currentInputEditorInfo ?: return
+        if (info.privateImeOptions == TerminalInputView.TERMINAL_IME_OPTION) {
+            lifecycleScope.launch {
+                val text = ClipboardFilePaste.terminalText(this@Z2ImeService, entry) ?: return@launch
+                currentInputConnection?.commitText(text, 1)
+            }
+            return
+        }
+        val accepted = EditorInfoCompat.getContentMimeTypes(info)
+        var sent = 0
+        for (file in entry.files) {
+            if (accepted.none { ClipDescription.compareMimeTypes(file.mime, it) }) continue
+            val content = InputContentInfoCompat(
+                ClipboardHistoryStore.uriOf(this, file),
+                ClipDescription(file.name, arrayOf(file.mime)),
+                null
+            )
+            val ok = runCatching {
+                InputConnectionCompat.commitContent(
+                    ic, info, content, InputConnectionCompat.INPUT_CONTENT_GRANT_READ_URI_PERMISSION, null
+                )
+            }.getOrDefault(false)
+            if (ok) sent++
+        }
+        if (sent == 0) Toast.makeText(this, R.string.clip_file_not_accepted, Toast.LENGTH_SHORT).show()
+    }
 
     /** 内蔵キーボードのバイト列を入力欄の操作へ読み替えて流す。 */
     private fun sendBytes(bytes: ByteArray) {

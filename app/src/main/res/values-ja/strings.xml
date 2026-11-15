@@ -379,7 +379,7 @@
     <string name="clip_copied">コピーしました</string>
     <string name="clip_copy_failed">コピーできませんでした</string>
     <string name="clip_history_empty">履歴はまだありません。コピーすると自動で取り込みます。</string>
-    <string name="clip_history_hint">▸ 行をタップ → ターミナルに貼り付け\n▸ システムクリップボードと同期 (コピー時 / アプリ前面復帰時に取り込み)\n▸ 🔒 が付いた行は 30 秒で消えます (パスワード等)\n▸ ✕ 削除</string>
+    <string name="clip_history_hint">▸ 行をタップ → ターミナルに貼り付け\n▸ 画像・ファイルは ~/z2term-inbox に置き、そのパスを貼り付け\n▸ システムクリップボードと同期 (コピー時 / アプリ前面復帰時に取り込み)\n▸ 🔒 が付いた行は 30 秒で消えます (パスワード等)\n▸ 長押しでピン留め (上に固定。クリアしても残ります。📌 を押すと外れます)\n▸ ✕ 削除</string>
     <string name="clip_history_sensitive">🔒 機微なコピー — 30 秒で自動的に消えます</string>
 
     <!-- スニペットシート (D3 バッチ 2) -->
@@ -1060,7 +1060,8 @@
     <string name="ime_subtype_ja">z2term（日本語）</string>
     <string name="ime_subtype_en">z2term（英語）</string>
     <string name="settings_ime_pick">キーボードを切り替える</string>
-    <string name="pad_clip_empty">コピーしたテキストがここに並びます。\nコピーしてからキーボードを開くと入ります。</string>
+    <string name="pad_clip_empty">コピーしたテキスト・画像・ファイルがここに並びます。\nコピーしてからキーボードを開くと入ります。</string>
+    <string name="clip_file_not_accepted">この入力欄には画像やファイルを貼り付けられません</string>
     <string name="pad_emoji_empty">使った絵文字がここに並びます。\n右のタブから選んでください。</string>
     <string name="pad_kaomoji_empty">使った顔文字・AA がここに並びます。
 右のタブから選んでください。</string>
