@@ -279,7 +279,7 @@ data class SshProfile(
      * SSH で入るのと同じサーバのデスクトップを、同じ登録から開けるようにするためのもの。
      * ⚠ SSH の [port] とは無関係 (VNC は SSH を経由しない別の接続)。
      */
-    val vncPort: Int = VncTarget.DEFAULT_PORT,
+    val vncPort: Int = VncTarget.LEGACY_DEFAULT_PORT,
     /**
      * VNC 認証のパスワード (平文。永続化時に暗号化)。
      * ⚠ **SSH の [password] とは別物**。VNC 側は 8 文字までしか効かない (RFB の仕様)。
@@ -412,7 +412,7 @@ data class SshProfile(
             authType = runCatching {
                 AuthType.valueOf(o.optString("authType", AuthType.PASSWORD.name))
             }.getOrDefault(AuthType.PASSWORD),
-            vncPort = o.optInt("vncPort", VncTarget.DEFAULT_PORT),
+            vncPort = o.optInt("vncPort", VncTarget.LEGACY_DEFAULT_PORT),
             vncPassword = o.optString("vncPassword"),
             password = o.optString("password"),
             privateKey = o.optString("privateKey"),
@@ -443,7 +443,7 @@ data class SshProfile(
             authType = runCatching {
                 AuthType.valueOf(o.optString("authType", AuthType.PASSWORD.name))
             }.getOrDefault(AuthType.PASSWORD),
-            vncPort = o.optInt("vncPort", VncTarget.DEFAULT_PORT),
+            vncPort = o.optInt("vncPort", VncTarget.LEGACY_DEFAULT_PORT),
             vncPassword = runCatching { KeystoreCrypt.decrypt(o.optString("vncPassword")) }.getOrDefault(""),
             password = runCatching { KeystoreCrypt.decrypt(o.optString("password")) }.getOrDefault(""),
             privateKey = runCatching { KeystoreCrypt.decrypt(o.optString("privateKey")) }.getOrDefault(""),
@@ -491,7 +491,7 @@ data class SshProfile(
                     protocol = RemoteServiceProtocol.VNC,
                     name = "VNC",
                     host = "localhost",
-                    remotePort = o.optInt("vncPort", VncTarget.DEFAULT_PORT),
+                    remotePort = o.optInt("vncPort", VncTarget.LEGACY_DEFAULT_PORT),
                     password = password,
                 )
             )

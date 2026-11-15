@@ -23,7 +23,7 @@ class RemoteServiceProfileTest {
         assertEquals(21, RemoteServiceProtocol.FTP.defaultPort)
         assertEquals(445, RemoteServiceProtocol.SMB.defaultPort)
         assertEquals(443, RemoteServiceProtocol.WEBDAV.defaultPort)
-        assertEquals(5901, RemoteServiceProtocol.VNC.defaultPort)
+        assertEquals(5900, RemoteServiceProtocol.VNC.defaultPort)
         assertEquals(3389, RemoteServiceProtocol.RDP.defaultPort)
     }
 

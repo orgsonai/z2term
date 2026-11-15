@@ -39,7 +39,16 @@ data class VncTarget(
     }
 
     companion object {
-        /** 既定ポート。TigerVNC の `vncserver` が最初に使う `:1` に合わせてある。 */
-        const val DEFAULT_PORT = 5901
+        /**
+         * 既定ポート。VNC の標準 (画面 `:0`) で、Windows / macOS / x11vnc のデスクトップ共有が使う。
+         * 接続先の編集画面では、ポート欄の入力例と、VNC を足したときの初期値になる。
+         */
+        const val DEFAULT_PORT = 5900
+
+        /**
+         * 1.0.130 までの既定 (TigerVNC の `vncserver` が最初に使う `:1`)。
+         * ポートを保存していない古い登録を読むときだけ使う (読むたびに接続先が変わらないように)。
+         */
+        const val LEGACY_DEFAULT_PORT = 5901
     }
 }

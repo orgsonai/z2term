@@ -428,7 +428,7 @@ tab** — the machine over there, not the Linux inside the app.
 Before using it, fill in two fields under **✎ (Edit)** for the host:
 
 - **VNC port** — display `:1` is **5901**, `:2` is 5902 (`5900 + number`). "Screen sharing" on
-  Windows and macOS is usually **5900**.
+  Windows and macOS is usually **5900**. A newly added VNC entry starts at 5900.
 - **VNC password** — **not the SSH password**; it is the one set on the VNC side.
   ⚠ **Only the first 8 characters count** (that is how VNC works). Leave it empty for a server that
   asks for no password.

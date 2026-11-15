@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-16 / Target version: 1.0.130 (versionCode 828)
+Last updated: 2026-11-16 / Target version: 1.0.131 (versionCode 829)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3522,7 +3522,7 @@ into "close" — you would not be able to delete while the pad is open.
 
 - **One host, one entry.** A single `SshProfile` row offers shell (Connect), files (SFTP) and **the screen (VNC, RDP)**. **No new tab and no new button** — the row's actions were split over two lines. Screen services ride on the same `RemoteService` as FTP / SMB / WebDAV, and the single `RemoteServiceProtocol.opensDesktopTab` flag decides "GUI tab or file browser" so callers never enumerate protocol names.
 - **[VNC] and [RDP] call `RemoteServiceConnector.desktopTarget()` → `SessionManager.openRemoteDesktop()`** → a `GuiSession` in remote mode (see 4.12). By default the connection rides a **temporary local forward over the same SSH host** (`ServiceRoute`), and closing the tab removes the forward. Turning off "SSH port forwarding" connects straight to the SSH destination host instead, after a warning that encryption is lost.
-- **The default port is 5901** (`VncTarget.DEFAULT_PORT`); display `:N` is `5900+N`. Desktop sharing on Windows and macOS is usually `:0` = 5900.
+- **The default port is 5900** (`VncTarget.DEFAULT_PORT`; changed from 5901 in 1.0.131). It is the VNC standard and what desktop sharing on Windows and macOS uses. It is the hint in the port field and the initial value when a VNC service is added. Display `:N` is `5900+N`, so `:1`, the first display of TigerVNC's `vncserver`, is 5901. ⚠ Old entries saved without a port are still read as 5901 (`LEGACY_DEFAULT_PORT`). Saved ports are not changed.
 - ⭐ **If the server only listens on `127.0.0.1`, nothing has to be added to the app** — forward it from a terminal tab with `ssh -L 5901:localhost:5901 <host>` and point the entry at `127.0.0.1` (the "if a Linux package covers it, it does not go in the app" rule).
 - **Failures are matched by type and translated into advice** (`GuiSession.remoteFailureMessage`): no password set, wrong password, unsupported method, nothing listening, no answer. ⚠ The exception's own message is never shown as-is — this is the **only** explanation on screen, and `java.net.ConnectException: …` does not tell anyone what to fix.
 - ⚠ **A VNC password is 8 characters at most** (RFB drops the rest). It is encrypted with the Keystore like the other secrets, and is left out of an export that excludes secrets.
