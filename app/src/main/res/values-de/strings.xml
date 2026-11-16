@@ -105,6 +105,8 @@
     <string name="settings_key_layout_delete_confirm_title">Diese Tastaturfläche löschen?</string>
     <string name="settings_key_layout_delete_confirm_msg">„%1$s“ wird gelöscht und kann nicht wiederhergestellt werden.</string>
     <string name="settings_key_layout_multi_select">Mehrfachauswahl</string>
+    <string name="settings_key_layout_undo">Rückgängig</string>
+    <string name="settings_key_layout_redo">Wiederholen</string>
     <string name="settings_key_layout_selected">Zeile %1$d / Rahmen %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">Ausgewählte Tasten: %1$d</string>
     <string name="settings_key_layout_label">Tastenbeschriftung</string>

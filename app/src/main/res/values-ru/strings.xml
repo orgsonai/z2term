@@ -104,6 +104,8 @@
     <string name="settings_key_layout_delete_confirm_title">Удалить эту раскладку клавиатуры?</string>
     <string name="settings_key_layout_delete_confirm_msg">«%1$s» будет удалена без возможности восстановления.</string>
     <string name="settings_key_layout_multi_select">Несколько клавиш</string>
+    <string name="settings_key_layout_undo">Отменить</string>
+    <string name="settings_key_layout_redo">Повторить</string>
     <string name="settings_key_layout_selected">Ряд %1$d / ячейка %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">Выбрано клавиш: %1$d</string>
     <string name="settings_key_layout_label">Подпись клавиши</string>

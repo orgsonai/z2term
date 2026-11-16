@@ -104,6 +104,8 @@
     <string name="settings_key_layout_delete_confirm_title">Bu klavye yüzü silinsin mi?</string>
     <string name="settings_key_layout_delete_confirm_msg">“%1$s” silinecek ve geri getirilemeyecek.</string>
     <string name="settings_key_layout_multi_select">Çoklu seçim</string>
+    <string name="settings_key_layout_undo">Geri al</string>
+    <string name="settings_key_layout_redo">Yinele</string>
     <string name="settings_key_layout_selected">Satır %1$d / çerçeve %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">Seçilen tuş: %1$d</string>
     <string name="settings_key_layout_label">Tuş etiketi</string>

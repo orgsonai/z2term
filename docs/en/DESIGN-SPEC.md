@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-16 / Target version: 1.0.140 (versionCode 838)
+Last updated: 2026-11-16 / Target version: 1.0.141 (versionCode 839)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3345,7 +3345,7 @@ and Cancel remain below the preview. The preview is limited to 45% of the availa
 (`ascii` when omitted), so the built-in Latin, Japanese and number presets and another custom layout
 can all be duplicated and edited. Built-ins and every custom layout are independent face entries;
 each can be enabled and freely reordered for `next_face`. Selection starts in single-key mode and only
-accumulates after the explicit multi-select toggle is enabled. The 0.2–5.0 width slider reuses Settings
+accumulates after the explicit multi-select toggle is enabled. **Undo / redo (1.0.141)**: ↶ / ↷ sit left of the multi-select toggle (`KeyLayoutEditHistory`). Every edit (GUI, JSON, reset) rewrites the canonical JSON string (`source`), so the JSON before each change is stacked whole (up to 100 steps). Selection is not part of the history; keys missing after an undo are repaired by the existing selection fix-up. ⚠ Changes within 700 ms of each other merge into one step, so a burst of typing or one slider drag is undone with one tap; the first change after an undo or redo never merges. The history lives only while the page is open and is not saved. The 0.2–5.0 width slider reuses Settings
 styling and has 0.1 ticks; the text draft remains keyed by selection so transient input such as `1.` is
 not normalized away. Flick commit helpers draw outside the key in the same Compose tree, not a Popup
 window, so their visible overlay does not prevent surrounding keys from receiving touches.

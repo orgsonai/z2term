@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.res.stringResource
@@ -246,6 +247,10 @@ internal fun KeyLayoutEditorPreview(
     layout: KeyLayout,
     state: KeyLayoutEditorSelection,
     modifier: Modifier = Modifier,
+    canUndo: Boolean = false,
+    canRedo: Boolean = false,
+    onUndo: () -> Unit = {},
+    onRedo: () -> Unit = {},
     onSelect: () -> Unit,
 ) {
     Column(
@@ -267,9 +272,14 @@ internal fun KeyLayoutEditorPreview(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            ChoiceChip(stringResource(R.string.settings_key_layout_multi_select), state.multiSelect) {
-                state.multiSelect = !state.multiSelect
-                if (!state.multiSelect) state.selected = state.selected.firstOrNull()?.let(::setOf).orEmpty()
+            // 戻る・進む (1.0.141)。複数選択の横 = 選んで直す手元に置く。
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                HistoryButton("↶", stringResource(R.string.settings_key_layout_undo), canUndo, onUndo)
+                HistoryButton("↷", stringResource(R.string.settings_key_layout_redo), canRedo, onRedo)
+                ChoiceChip(stringResource(R.string.settings_key_layout_multi_select), state.multiSelect) {
+                    state.multiSelect = !state.multiSelect
+                    if (!state.multiSelect) state.selected = state.selected.firstOrNull()?.let(::setOf).orEmpty()
+                }
             }
         }
         BoxWithConstraints(Modifier.fillMaxWidth().weight(1f, fill = false)) {
@@ -920,6 +930,27 @@ private fun ChoiceRow(content: @Composable FlowRowScope.() -> Unit) {
         verticalArrangement = Arrangement.spacedBy(6.dp),
         content = content,
     )
+}
+
+@Composable
+private fun HistoryButton(symbol: String, description: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .semantics { contentDescription = description }
+            .background(ZtsBgCard, RoundedCornerShape(4.dp))
+            .border(1.dp, ZtsBorder, RoundedCornerShape(4.dp))
+            .then(if (enabled) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = symbol,
+            color = if (enabled) ZtsTextPrimary else ZtsTextSecondary.copy(alpha = 0.4f),
+            fontSize = 18.sp,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+        )
+    }
 }
 
 @Composable

@@ -105,6 +105,8 @@
     <string name="settings_key_layout_delete_confirm_title">¿Eliminar este plano de teclado?</string>
     <string name="settings_key_layout_delete_confirm_msg">“%1$s” se eliminará y no se podrá restaurar.</string>
     <string name="settings_key_layout_multi_select">Selección múltiple</string>
+    <string name="settings_key_layout_undo">Deshacer</string>
+    <string name="settings_key_layout_redo">Rehacer</string>
     <string name="settings_key_layout_selected">Fila %1$d / marco %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">%1$d tecla(s) seleccionada(s)</string>
     <string name="settings_key_layout_label">Etiqueta de la tecla</string>

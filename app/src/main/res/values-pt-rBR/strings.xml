@@ -105,6 +105,8 @@
     <string name="settings_key_layout_delete_confirm_title">Excluir esta face do teclado?</string>
     <string name="settings_key_layout_delete_confirm_msg">“%1$s” será excluída e não poderá ser restaurada.</string>
     <string name="settings_key_layout_multi_select">Seleção múltipla</string>
+    <string name="settings_key_layout_undo">Desfazer</string>
+    <string name="settings_key_layout_redo">Refazer</string>
     <string name="settings_key_layout_selected">Linha %1$d / quadro %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">Teclas selecionadas: %1$d</string>
     <string name="settings_key_layout_label">Rótulo da tecla</string>

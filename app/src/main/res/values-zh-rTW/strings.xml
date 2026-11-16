@@ -105,6 +105,8 @@
     <string name="settings_key_layout_delete_confirm_title">要刪除這個鍵盤面嗎？</string>
     <string name="settings_key_layout_delete_confirm_msg">“%1$s”將被刪除，且無法還原。</string>
     <string name="settings_key_layout_multi_select">多選</string>
+    <string name="settings_key_layout_undo">復原</string>
+    <string name="settings_key_layout_redo">重做</string>
     <string name="settings_key_layout_selected">第 %1$d 行 / 第 %2$d 格%3$s</string>
     <string name="settings_key_layout_selected_count">已選中 %1$d 個鍵</string>
     <string name="settings_key_layout_label">鍵上顯示的文字</string>

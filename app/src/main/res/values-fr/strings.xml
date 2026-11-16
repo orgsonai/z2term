@@ -105,6 +105,8 @@
     <string name="settings_key_layout_delete_confirm_title">Supprimer cette face du clavier ?</string>
     <string name="settings_key_layout_delete_confirm_msg">« %1$s » sera supprimée et ne pourra pas être restaurée.</string>
     <string name="settings_key_layout_multi_select">Sélection multiple</string>
+    <string name="settings_key_layout_undo">Annuler</string>
+    <string name="settings_key_layout_redo">Rétablir</string>
     <string name="settings_key_layout_selected">Rangée %1$d / cadre %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">Touches sélectionnées : %1$d</string>
     <string name="settings_key_layout_label">Libellé de la touche</string>

@@ -105,6 +105,8 @@
     <string name="settings_key_layout_delete_confirm_title">Hapus tampilan keyboard ini?</string>
     <string name="settings_key_layout_delete_confirm_msg">“%1$s” akan dihapus dan tidak bisa dipulihkan.</string>
     <string name="settings_key_layout_multi_select">Pilihan ganda</string>
+    <string name="settings_key_layout_undo">Urungkan</string>
+    <string name="settings_key_layout_redo">Ulangi</string>
     <string name="settings_key_layout_selected">Baris %1$d / bingkai %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">Tombol dipilih: %1$d</string>
     <string name="settings_key_layout_label">Label tombol</string>

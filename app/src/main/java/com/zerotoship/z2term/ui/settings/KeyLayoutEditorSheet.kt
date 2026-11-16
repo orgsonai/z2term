@@ -83,6 +83,15 @@ fun KeyLayoutEditorSheet(
     val editorInitial = remember(initial) { initial.withEditorDefaults() }
     val initialJson = remember(editorInitial) { KeyLayoutJson.toPrettyJsonString(editorInitial) }
     var source by remember(editorInitial.id) { mutableStateOf(initialJson) }
+    val history = remember(editorInitial.id) { KeyLayoutEditHistory() }
+    // 編集は必ずここを通す (1.0.141)。戻る・進むは JSON の正本 [source] をそのまま巻き戻す。
+    fun edit(next: String) {
+        if (next == source) return
+        history.record(source)
+        source = next
+    }
+    fun undo() { focus.clearFocus(); history.undo(source)?.let { source = it } }
+    fun redo() { focus.clearFocus(); history.redo(source)?.let { source = it } }
     var discardPending by remember { mutableStateOf(false) }
     var deletePending by remember { mutableStateOf(false) }
     var resetPending by remember { mutableStateOf(false) }
@@ -214,7 +223,7 @@ fun KeyLayoutEditorSheet(
                         ) {
                             BasicTextField(
                                 value = source,
-                                onValueChange = { source = it },
+                                onValueChange = { edit(it) },
                                 textStyle = TextStyle(
                                     color = ZtsTextPrimary,
                                     fontSize = 11.sp,
@@ -248,13 +257,13 @@ fun KeyLayoutEditorSheet(
                             onChange = { changed ->
                                 // GUI と JSON は別の正本を持たない。GUI の 1 操作ごとに同じ JSON へ戻し、
                                 // JSON タブへ切り替えればそのまま続きを編集できる。
-                                source = KeyLayoutJson.toPrettyJsonString(
+                                edit(KeyLayoutJson.toPrettyJsonString(
                                     changed.copy(
                                         id = editorInitial.id,
                                         faceId = editorInitial.faceId,
                                         styleId = editorInitial.styleId,
                                     ),
-                                )
+                                ))
                             },
                         )
                     }
@@ -281,6 +290,10 @@ fun KeyLayoutEditorSheet(
                         layout = candidate,
                         state = selection,
                         modifier = Modifier.heightIn(max = previewMaxHeight),
+                        canUndo = history.canUndo,
+                        canRedo = history.canRedo,
+                        onUndo = ::undo,
+                        onRedo = ::redo,
                         onSelect = {
                             focus.clearFocus()
                             val target = (scroll.value + selection.detailsY - viewportTop).roundToInt()
@@ -368,10 +381,64 @@ fun KeyLayoutEditorSheet(
                     faceId = editorInitial.faceId,
                     styleId = editorInitial.styleId,
                 )
-                source = KeyLayoutJson.toPrettyJsonString(restored)
+                edit(KeyLayoutJson.toPrettyJsonString(restored))
             },
             onCancel = { resetPending = false },
         )
+    }
+}
+
+/**
+ * キー配列の編集の戻る・進む (1.0.141)。JSON の文字列を丸ごと積む (1 枚数 KB・最大 [LIMIT] 段)。
+ *
+ * 続けざまの変更 ([MERGE_MS] 以内) は 1 段にまとめる。文字を打つ・スライダーを動かすたびに
+ * 1 段ずつ増えると、1 回の操作を戻すのに何度も押すことになるため。
+ */
+internal class KeyLayoutEditHistory {
+    private val undoStack = ArrayDeque<String>()
+    private val redoStack = ArrayDeque<String>()
+    private var lastAt = 0L
+    var canUndo by mutableStateOf(false)
+        private set
+    var canRedo by mutableStateOf(false)
+        private set
+
+    /** [before] = 変更する前の JSON。 */
+    fun record(before: String, now: Long = System.currentTimeMillis()) {
+        val merge = undoStack.isNotEmpty() && redoStack.isEmpty() && now - lastAt in 0 until MERGE_MS
+        if (!merge) {
+            undoStack.addLast(before)
+            if (undoStack.size > LIMIT) undoStack.removeFirst()
+        }
+        redoStack.clear()
+        lastAt = now
+        sync()
+    }
+
+    fun undo(current: String): String? {
+        val prev = undoStack.removeLastOrNull() ?: return null
+        redoStack.addLast(current)
+        lastAt = 0L
+        sync()
+        return prev
+    }
+
+    fun redo(current: String): String? {
+        val next = redoStack.removeLastOrNull() ?: return null
+        undoStack.addLast(current)
+        lastAt = 0L
+        sync()
+        return next
+    }
+
+    private fun sync() {
+        canUndo = undoStack.isNotEmpty()
+        canRedo = redoStack.isNotEmpty()
+    }
+
+    companion object {
+        const val MERGE_MS = 700L
+        const val LIMIT = 100
     }
 }
 

@@ -110,6 +110,8 @@
     <string name="settings_key_layout_delete_confirm_title">Delete this keyboard face?</string>
     <string name="settings_key_layout_delete_confirm_msg">“%1$s” will be deleted and cannot be restored.</string>
     <string name="settings_key_layout_multi_select">Multiple selection</string>
+    <string name="settings_key_layout_undo">Undo</string>
+    <string name="settings_key_layout_redo">Redo</string>
     <string name="settings_key_layout_selected">Row %1$d / frame %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">Selected keys: %1$d</string>
     <string name="settings_key_layout_label">Key label</string>
