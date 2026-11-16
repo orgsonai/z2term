@@ -80,10 +80,10 @@ class PredictionDictTest {
 
     @Test
     fun conversionComesFirstThenCompletions() {
-        // 1 番目は打った読みの変換、補完はその後ろの 3 件まで (読み 2 文字)。
+        // 1 番目は打った読みの変換、補完はその後ろの 4 件まで (読み 2 文字)。
         val c = KanaKanjiConverter.convertFlexible("しご")
         val at = c.indexOf("仕事")
-        assertTrue("仕事 が 2〜4 番目に無い (位置 $at): ${c.take(6)}", at in 1..3)
+        assertTrue("仕事 が 2〜5 番目に無い (位置 $at): ${c.take(6)}", at in 1..4)
     }
 
     @Test
@@ -105,7 +105,7 @@ class PredictionDictTest {
             )
         ) {
             val c = KanaKanjiConverter.convertFlexible("かい")
-            val head = c.take(4) // 1 番目の変換 + 補完 3 件 (読み 2 文字)
+            val head = c.take(5) // 1 番目の変換 + 補完 4 件 (読み 2 文字)
             assertTrue("かい の補完に 開発 が無い: ${c.take(8)}", "開発" in head)
             val learned = head.count { it in setOf("回線", "改善", "解決") }
             assertEquals("学習した語が補完の枠を 1 件より多く取った: ${c.take(8)}", 1, learned)
@@ -119,6 +119,34 @@ class PredictionDictTest {
         withHistory(listOf("かいぜんできないでしょうか？" to "改善出来ないでしょうか？")) {
             val c = KanaKanjiConverter.convertFlexible("かい")
             assertTrue("文まるごとが補完に出た: $c", "改善出来ないでしょうか？" !in c)
+        }
+    }
+
+    /** 変換キーを押した後 (allowPrediction=false) は、読みにぴったり合う語だけになる (1.0.139)。 */
+    @Test
+    fun conversionModeShowsOnlyExactWords() {
+        val predicting = KanaKanjiConverter.convertFlexible("かい")
+        assertTrue("予測で 開発 が出ていない: ${predicting.take(8)}", "開発" in predicting)
+        val converting = KanaKanjiConverter.convertFlexible("かい", allowPrediction = false)
+        assertTrue("変換で 開発 (続きの長い語) が出た: $converting", "開発" !in converting)
+        assertTrue("変換で 会 が無い: $converting", "会" in converting)
+    }
+
+    /** 次の言葉の予測は、直前の語の後に続けて確定した語を、よく続けた順に返す (1.0.139)。 */
+    @Test
+    fun nextWordsFollowWhatWasTypedAfter() {
+        withHistory(emptyList()) {
+            ImeHistoryStore.recordBigram("よろしく", "お願いします")
+            ImeHistoryStore.recordBigram("よろしく", "ね")
+            ImeHistoryStore.recordBigram("よろしく", "お願いします")
+            // recordBigram は IO コルーチンなので反映を待つ。
+            val deadline = System.currentTimeMillis() + 5_000
+            while (ImeHistoryStore.nextWords("よろしく").size < 2 && System.currentTimeMillis() < deadline) {
+                Thread.sleep(20)
+            }
+            Thread.sleep(100) // 3 件目 (お願いします の 2 回目) の反映
+            assertEquals(listOf("お願いします", "ね"), ImeHistoryStore.nextWords("よろしく"))
+            assertTrue(ImeHistoryStore.nextWords("ありがとう").isEmpty())
         }
     }
 
@@ -158,8 +186,8 @@ class PredictionDictTest {
     @Test
     fun slotsGrowWithTypedLength() {
         assertEquals(2, KanaKanjiConverter.completionSlots(1))
-        assertEquals(3, KanaKanjiConverter.completionSlots(2))
-        assertEquals(4, KanaKanjiConverter.completionSlots(3))
-        assertEquals(4, KanaKanjiConverter.completionSlots(9))
+        assertEquals(4, KanaKanjiConverter.completionSlots(2))
+        assertEquals(5, KanaKanjiConverter.completionSlots(3))
+        assertEquals(5, KanaKanjiConverter.completionSlots(9))
     }
 }

@@ -258,6 +258,22 @@ object ImeHistoryStore {
     }
 
     /**
+     * 次の言葉の予測 (1.0.139): [prev] の直後に確定したことのある語を、よく続けた順 (回数 + 直近性) に
+     * 最大 [limit] 件返す。確定した直後、何も打たなくても候補バーに出す ([ComposingState.nextWords])。
+     */
+    fun nextWords(prev: String, limit: Int = 8): List<String> {
+        if (!loaded || prev.isEmpty() || limit <= 0) return emptyList()
+        val list = bigram[prev] ?: return emptyList()
+        val now = System.currentTimeMillis()
+        return list.sortedByDescending { e ->
+            val ageMs = (now - e.lastUsedAt).coerceAtLeast(0)
+            val recency = if (ageMs >= RECENT_WINDOW_MS) 0.0
+                          else MAX_RECENCY_BOOST * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)
+            e.count + recency
+        }.take(limit).map { it.next }
+    }
+
+    /**
      * 「[prev] → [next]」が学習済みなら正のコストボーナスを返す (大きいほど強く昇格)。
      * 未学習なら 0。頻度 (count) と直近性 (recency) でスケールする。リランカーから参照。
      */

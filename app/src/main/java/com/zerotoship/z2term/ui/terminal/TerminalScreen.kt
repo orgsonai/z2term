@@ -460,6 +460,10 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(keyboardMode, keyboardCollapsed, searchOpen, physicalKeyboard) {
         composing.reset(); systemComposing = ""
     }
+    // 次の言葉の予測 (1.0.139) の入り切り。タブを切り替えると composing が作り直されるので、それにも追従する。
+    LaunchedEffect(composing, settings.imeNextWordPrediction) {
+        composing.nextWordPrediction = settings.imeNextWordPrediction
+    }
 
     // 保存されたキーボードモードに常に追従する。keyboardMode を変えるのはトグル
     // (= setKeyboardMode で settings に永続化) だけなので、settings に追従しても競合しない。
@@ -3900,7 +3904,12 @@ internal fun CandidateBar(
     composing: ComposingState,
     modifier: Modifier = Modifier
 ) {
-    if (!composing.isActive) return
+    if (!composing.isActive) {
+        // 確定した直後: 次の言葉の予測 (1.0.139)。何も打たなくても、直前の語に続く語を出す。
+        val next = composing.nextWords
+        if (next.isNotEmpty()) NextWordBar(words = next, onPick = composing::commitNextWord, modifier = modifier)
+        return
+    }
     val candidates = composing.candidates
     val isSplit = composing.isSplitMode
     // 候補サイクル選択 index: -1 なら「生かな (head)」が選択中、0+ なら候補配列の index。
@@ -4043,6 +4052,60 @@ internal fun CandidateBar(
                 pills.forEach { (i, content) -> if (i % 2 == 1) content() }
             }
         }
+    }
+}
+
+/**
+ * 次の言葉の予測の候補バー (1.0.139)。[CandidateBar] と同じ大きさ・同じ 2 段の並び
+ * (1 番目が上段の先頭、そこから上下を交互) で、押すとその語をそのまま確定する。
+ * 打ちかけのかなが無いので、先頭の「生かな」ピルは無い。
+ */
+@Composable
+private fun NextWordBar(
+    words: List<String>,
+    onPick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scrollState = rememberScrollState()
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(CandidateBarHeight)
+            .background(ZtsBgSecondary)
+            .border(width = 1.dp, color = ZtsBorder)
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .horizontalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            for (row in 0..1) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    words.forEachIndexed { i, w -> if (i % 2 == row) NextWordPill(word = w, onPick = onPick) }
+                }
+            }
+        }
+    }
+}
+
+/** [NextWordBar] の 1 語。見た目は [CandidateBar] の候補と同じ。 */
+@Composable
+private fun NextWordPill(word: String, onPick: (String) -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(ZtsBgCard)
+            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+            .clickable { onPick(word) }
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    ) {
+        Text(text = word, color = ZtsTextPrimary, fontSize = 15.sp, fontFamily = FontFamily.Monospace)
     }
 }
 

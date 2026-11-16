@@ -118,6 +118,10 @@ fun TerminalKeyboard(
     modifier: Modifier = Modifier
 ) {
     var shift by remember { mutableStateOf(ShiftState.OFF) }
+    // 次の言葉の予測 (1.0.139) は、端末へキーを送ったら閉じる (Enter・⌫・空白・矢印・英字 …)。
+    // ⚠ キーの出口はここ 2 つにまとめる。直に onBytes / onKey を呼ぶと候補が残り続ける。
+    val sendBytes: (ByteArray) -> Unit = { composing.dismissNextWords(); onBytes(it) }
+    val sendKey: (NamedKey, KeyModifiers) -> Unit = { k, m -> composing.dismissNextWords(); onKey(k, m) }
     val localCtrl = remember { mutableStateOf(false) }
     var ctrl by (ctrlState ?: localCtrl)
     var alt by remember { mutableStateOf(false) }
@@ -161,8 +165,8 @@ fun TerminalKeyboard(
 
     if (face == KeyboardFace.KANA && customForFace == null) {
         JapaneseFlickKeyboard(
-            onBytes = onBytes,
-            onCursorKey = { onKey(AndroidKeyMapper.namedKeyForCursor(it), KeyModifiers()) },
+            onBytes = sendBytes,
+            onCursorKey = { sendKey(AndroidKeyMapper.namedKeyForCursor(it), KeyModifiers()) },
             onSwitchFace = { switchFace(nextFace) },
             switchLabel = nextFace.switchLabel,
             composing = composing,
@@ -175,8 +179,8 @@ fun TerminalKeyboard(
 
     if (face == KeyboardFace.NUMBER && customForFace == null) {
         NumberKeyboard(
-            onBytes = onBytes,
-            onCursorKey = { onKey(AndroidKeyMapper.namedKeyForCursor(it), KeyModifiers()) },
+            onBytes = sendBytes,
+            onCursorKey = { sendKey(AndroidKeyMapper.namedKeyForCursor(it), KeyModifiers()) },
             onSwitchFace = { switchFace(nextFace) },
             switchLabel = nextFace.switchLabel,
             composing = composing,
@@ -219,7 +223,7 @@ fun TerminalKeyboard(
             if (control != null) out.append(control.toInt().toChar()) else out.appendCodePoint(effective)
             offset += Character.charCount(cp)
         }
-        if (out.isNotEmpty()) onBytes(out.toString().toByteArray(Charsets.UTF_8))
+        if (out.isNotEmpty()) sendBytes(out.toString().toByteArray(Charsets.UTF_8))
         resetOneShotMods()
     }
 
@@ -228,7 +232,7 @@ fun TerminalKeyboard(
     fun emitFlick(raw: Char) = emitText(raw.toString(), currentMods(), applyShift = false)
 
     fun emitSpecial(bytes: ByteArray) {
-        onBytes(if (alt) byteArrayOf(0x1B) + bytes else bytes)
+        sendBytes(if (alt) byteArrayOf(0x1B) + bytes else bytes)
         resetOneShotMods()
     }
 
@@ -250,7 +254,7 @@ fun TerminalKeyboard(
         if (!consumed) {
             flushRomaji()
             composing.commitRaw()
-            onKey(key, mods)
+            sendKey(key, mods)
         }
         resetOneShotMods()
     }
@@ -268,7 +272,7 @@ fun TerminalKeyboard(
             composing.convert()
         } else if (composing.canReconvert) {
             val toErase = composing.restoreLastCommit()
-            if (toErase > 0) onBytes(ByteArray(toErase) { 0x7F.toByte() })
+            if (toErase > 0) sendBytes(ByteArray(toErase) { 0x7F.toByte() })
             composing.convert()
         }
     }
@@ -285,7 +289,7 @@ fun TerminalKeyboard(
         // 空白キーは、打ちかけがあれば変換・無ければ空白 (物理キーボードのかなモードと同じ)。
         if (ch == ' ' && !isFlick) {
             if (composing.isActive) { flushRomaji(); composing.convert() }
-            else onBytes(" ".toByteArray(Charsets.UTF_8))
+            else sendBytes(" ".toByteArray(Charsets.UTF_8))
             return
         }
         // フリック先・記号面・⇧ 中の字は、かなにせず打った字のまま入れる。
@@ -293,14 +297,14 @@ fun TerminalKeyboard(
         if (isFlick || sym || shift != ShiftState.OFF) {
             val literal = if (!isFlick && !sym) ch.uppercaseChar() else ch
             if (composing.isActive) composing.append(literal)
-            else onBytes(literal.toString().toByteArray(Charsets.UTF_8))
+            else sendBytes(literal.toString().toByteArray(Charsets.UTF_8))
             resetOneShotMods()
             return
         }
         val edit = RomajiTyping.type(composing.textBeforeCursor, ch)
         // 数字や記号だけで、打ちかけも無いなら、変換中にせずそのまま送る (`ls 123` を素で打てる)。
         if (!composing.isActive && !edit.hasKana && !edit.hasPending) {
-            onBytes(edit.insert.toByteArray(Charsets.UTF_8))
+            sendBytes(edit.insert.toByteArray(Charsets.UTF_8))
         } else {
             composing.replaceBeforeCursor(edit.delete, edit.insert)
         }
@@ -328,7 +332,7 @@ fun TerminalKeyboard(
                 val ch = text.first()
                 if (ch in '\u3040'..'\u309f' || ch == 'ー') composing.emitKana(ch)
                 else if (composing.isActive) composing.append(ch)
-                else onBytes(ch.toString().toByteArray(Charsets.UTF_8))
+                else sendBytes(ch.toString().toByteArray(Charsets.UTF_8))
             }
             KeyboardFace.NUMBER -> composing.commitExternalText(text)
             KeyboardFace.ROMAJI -> emitRomaji(text.first(), isFlick)

@@ -680,6 +680,13 @@ fun SettingsSheet(
                     foldedNote = stringResource(R.string.settings_japanese_input_folded),
                     initiallyOpen = kanaInputAvailable,
                 ) {
+                    // 次の言葉の予測 (1.0.139)。既定 ON。端末でコマンドを打つときに邪魔なら切れるよう、枠の先頭に置く。
+                    ToggleField(
+                        title = stringResource(R.string.settings_ime_next_word),
+                        description = stringResource(R.string.settings_ime_next_word_desc),
+                        checked = settings.imeNextWordPrediction,
+                        onChange = { session.setImeNextWordPrediction(it) }
+                    )
                     // IME 学習履歴 (キーボードパッチ): 件数表示 + 管理ボタン (シートを開く)
                     Section(title = stringResource(R.string.settings_section_ime_history)) {
                         val historyVersion by com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.versionFlow.collectAsState()

@@ -141,6 +141,7 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         // 入力ビューが 1 度も作られないことがあるので、打鍵を受ける側で設定を追う。
         lifecycleScope.launch {
             appSettings.flow.collect { settings ->
+                composing.nextWordPrediction = settings.imeNextWordPrediction
                 enabledFaces = KeyboardFaceConfig.enabledEntriesFromJson(
                     orderValue = settings.keyboardFaceOrder,
                     enabledValue = settings.keyboardFaceEnabledIds,
@@ -405,7 +406,7 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
     override fun onComputeInsets(outInsets: Insets) {
         super.onComputeInsets(outInsets)
         // 候補バーが出ていれば席は「中身入り」= 入力メソッドの一部。出ていなければ空き地。
-        if (composing.isActive) return
+        if (composing.showsCandidateBar) return
         val reserved = (CandidateBarHeight.value * resources.displayMetrics.density).toInt()
         outInsets.contentTopInsets += reserved
         outInsets.visibleTopInsets += reserved
@@ -530,7 +531,10 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
             return true
         }
         if (!kanaMode) return false
-        if (event.isCtrlPressed || event.isAltPressed || event.isMetaPressed) return false
+        if (event.isCtrlPressed || event.isAltPressed || event.isMetaPressed) {
+            composing.dismissNextWords()
+            return false
+        }
 
         val handled = when (keyCode) {
             // 変換。⚠ 何も打っていないときは素の空白として通す。
@@ -556,6 +560,8 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                 }
             }
         }
+        // 素通しした打鍵 (何も打っていないときの Enter・⌫・空白 など) で、次の言葉の予測を閉じる (1.0.139)。
+        if (!handled) composing.dismissNextWords()
         if (handled) {
             updateInputViewShown()
             // ⚠ 打ちかけがあるのに窓が閉じていると候補を選べない。表示要求は上と同じ理由で

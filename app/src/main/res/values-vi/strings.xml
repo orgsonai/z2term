@@ -1349,4 +1349,6 @@ Bảng cạnh: %12$d, ghi chú: %13$d</string>
     <string name="ui_bridge_show_bar">Hiện nút dừng trên ứng dụng</string>
     <string name="ui_bridge_show_bar_desc">Khi AI thao tác, một thanh nhỏ có ‖ (tạm dừng) và ■ (kết thúc) nằm trên ứng dụng. ■ kết thúc tác vụ hiện tại và giữ thao tác AI bật; Dừng trong thông báo cũng tắt nó. Kéo thanh đến đâu cũng được. Kéo ngăn thông báo xuống cũng tạm dừng. AI không thể nhấn vào thanh.</string>
     <string name="ui_bridge_end">Kết thúc tác vụ của AI</string>
+    <string name="settings_ime_next_word">Dự đoán từ tiếp theo</string>
+    <string name="settings_ime_next_word_desc">Ngay sau khi xác nhận một từ, hiển thị các từ bạn từng gõ tiếp sau từ đó mà không cần gõ gì. Chạm vào một từ để nhập. Gõ hoặc gửi bất kỳ phím nào sẽ đóng chúng.</string>
 </resources>

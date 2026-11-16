@@ -1370,4 +1370,6 @@ Pannelli laterali: %12$d, note: %13$d</string>
     <string name="ui_bridge_show_bar">Mostra un pulsante di arresto sopra l’app</string>
     <string name="ui_bridge_show_bar_desc">Mentre l’IA opera, una piccola barra con ‖ (pausa) e ■ (termina) resta sopra l’app. ■ termina il compito in corso e lascia attivo il controllo dell’IA; Stop nella notifica lo disattiva anche. Si può trascinare. Anche abbassare la tendina delle notifiche mette in pausa. L’IA non può premere la barra.</string>
     <string name="ui_bridge_end">Termina il compito dell’IA</string>
+    <string name="settings_ime_next_word">Previsione della parola successiva</string>
+    <string name="settings_ime_next_word_desc">Subito dopo aver confermato una parola, mostra le parole che hai digitato dopo di essa in passato, senza digitare nulla. Toccane una per inserirla. Digitare o inviare un tasto le chiude.</string>
 </resources>

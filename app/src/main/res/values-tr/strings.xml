@@ -1359,4 +1359,6 @@ Kenar panelleri: %12$d, notlar: %13$d</string>
     <string name="ui_bridge_show_bar">Uygulamanın üzerinde durdurma düğmesi göster</string>
     <string name="ui_bridge_show_bar_desc">YZ çalışırken uygulamanın üzerinde ‖ (duraklat) ve ■ (bitir) bulunan küçük bir çubuk kalır. ■ geçerli görevi bitirir ve YZ işlemini açık tutar; bildirimdeki Durdur onu da kapatır. Çubuğu istediğiniz yere sürükleyin. Bildirim panelini aşağı çekmek de duraklatır. YZ çubuğa basamaz.</string>
     <string name="ui_bridge_end">YZ’nin görevini bitir</string>
+    <string name="settings_ime_next_word">Sonraki kelime tahmini</string>
+    <string name="settings_ime_next_word_desc">Bir kelimeyi onayladıktan hemen sonra, hiçbir şey yazmadan, daha önce ondan sonra yazdığınız kelimeleri gösterir. Eklemek için birine dokunun. Yazmak veya herhangi bir tuş göndermek onları kapatır.</string>
 </resources>

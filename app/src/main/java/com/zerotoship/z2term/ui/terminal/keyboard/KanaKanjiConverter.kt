@@ -242,8 +242,10 @@ object KanaKanjiConverter {
      * 柔軟な変換候補。優先順:
      *  1. 学習履歴: 完全一致 reading の確定済み単語 ([ImeHistoryStore.historyFor]) ← 最上位
      *  2. 文まるごと最尤変換の 1 位 — 打った読みそのものの変換 (1.0.137 で補完より前へ)
-     *  2.5 補完 ([completionsFor]): 学習履歴の前方一致 1 件 → ユーザー辞書 → よく使われる語の表 →
-     *      学習履歴の残り。[completionSlots] 件まで (1.0.138: 学習が枠を全部取らないように)
+     *  2.5 補完 ([completionsFor]): 学習履歴の前方一致 1 件 → よく使われる語の表 → ユーザー辞書 →
+     *      学習履歴の残り。[completionSlots] 件まで (1.0.138: 学習が枠を全部取らないように /
+     *      1.0.139: 取り込んだ辞書が表より前で枠を取らないように)
+     *  ⚠ 変換キーを押した後 ([ComposingState.converting]) は allowPrediction=false で呼ばれ、補完は出ない
      *  3. 文まるごと最尤変換の 2 位以降 ([KkcConverter.nbest])
      *  3.5 読み完全一致の 1 語候補 ([KkcConverter.wordsFor]) — 辞書が持つ同音語。⚠ **[limit] の枠外**
      *  4. 完全一致 ([convert]) / 送り仮名活用 ([okuriForms]) — 単語の別表記候補。
@@ -301,8 +303,8 @@ object KanaKanjiConverter {
             out.add(converted)
             if (out.size >= limit) return assemble()
         }
-        // 2.5 補完 (打った読みで始まる、読みより長い語)。学習履歴 1 件 → ユーザー辞書 →
-        //     よく使われる語の表 ([PredictionDict]) → 学習履歴の残り ([completionsFor])。
+        // 2.5 補完 (打った読みで始まる、読みより長い語)。学習履歴 1 件 → よく使われる語の表
+        //     ([PredictionDict]) → ユーザー辞書 → 学習履歴の残り ([completionsFor])。
         //     ここで出すのは [completionSlots] 件まで。学習の残りは (3.5) の直後、表の残りは (5) へ回す。
         val comp = if (allowPrediction) completionsFor(reading) else Completions.NONE
         val completions = comp.ordered
@@ -356,8 +358,13 @@ object KanaKanjiConverter {
 
     /**
      * 補完の候補 (打った読みで始まる、読みより長い語) を、出す順に並べて返す。
-     * 自分が確定したことのある語 1 件 → 自分で登録した語 → 世の中でよく使われる語 →
-     * 自分が確定したことのある語の残り (1.0.138)。
+     * 自分が確定したことのある語 1 件 → 世の中でよく使われる語 → ユーザー辞書 →
+     * 自分が確定したことのある語の残り (1.0.138・1.0.139)。
+     *
+     * ⚠ ユーザー辞書の前方一致は**表の後ろ**。取り込んだ SKK 辞書は数万〜数十万語あり、前方一致は
+     * 読みの五十音順なので、表より前に置くと辞書の端の語が枠を取る (1.0.138 の実機: かい →
+     * 開覚 / 廻乾就湿 が入り、開発・開始 が出なかった)。読み完全一致 ([UserDictStore.lookup]) は
+     * 今までどおり上の方 (1.5) に出る。
      *
      * ⚠ 学習した語を全部先に並べると、使い込んだ読みでは [completionSlots] の枠が学習だけで
      * 埋まり、よく使われる語が一度も出なくなる (実機の「かい」で 回線 / 改善… / 改善 が枠を
@@ -372,8 +379,8 @@ object KanaKanjiConverter {
             .map { it.second }
         val out = LinkedHashSet<String>()
         out.addAll(own.take(HISTORY_COMPLETION_FIRST))
-        out.addAll(UserDictStore.predict(reading, limit = 6))
         out.addAll(PredictionDict.predict(reading, limit = 8))
+        out.addAll(UserDictStore.predict(reading, limit = 6))
         out.addAll(own.drop(HISTORY_COMPLETION_FIRST))
         return Completions(out.toList(), own.drop(HISTORY_COMPLETION_FIRST))
     }
@@ -402,12 +409,13 @@ object KanaKanjiConverter {
 
     /**
      * 変換のすぐ後ろ (候補の 2 番目から) に並べる補完の数。打った読みが短いほど当たりにくいので絞る。
-     * 1 文字 → 2 件 (学習とユーザー辞書からだけ出る)、2 文字 → 3 件、3 文字以上 → 4 件。
+     * 1 文字 → 2 件 (学習とユーザー辞書からだけ出る)、2 文字 → 4 件、3 文字以上 → 5 件
+     * (1.0.139 で 3 / 4 から増やした。打っている途中は予測が主役なので、続きの語を多めに見せる)。
      */
     internal fun completionSlots(readingLength: Int): Int = when {
         readingLength <= 1 -> 2
-        readingLength == 2 -> 3
-        else -> 4
+        readingLength == 2 -> 4
+        else -> 5
     }
 
     /**
@@ -1357,6 +1365,28 @@ class ComposingState(
     var selectedCandidateIndex by mutableStateOf(-1)
         private set
 
+    /**
+     * 変換キーを押した後か (1.0.139)。打っている途中は**予測** (打った読みの変換 + 続きの長い語)、
+     * 変換キーを押したら**変換** (打った読みにぴったり合う語だけ) に候補を切り替える。
+     * 一般的なスマホのキーボードと同じ動き。かなを打つ・消すと予測に戻る。
+     */
+    var converting by mutableStateOf(false)
+        private set
+
+    /**
+     * 次の言葉の予測 (1.0.139)。確定した直後、何も打たなくても出す「直前の語に続けて確定したことの
+     * ある語」([ImeHistoryStore.nextWords])。かなを打つ・端末へキーを送る ([dismissNextWords]) と消える。
+     */
+    var nextWords by mutableStateOf<List<String>>(emptyList())
+        private set
+
+    /** 次の言葉の予測を出すか (設定「次の言葉の予測」。既定 ON)。呼び出し側が設定から入れる。 */
+    var nextWordPrediction: Boolean = true
+        set(value) {
+            field = value
+            if (!value) nextWords = emptyList()
+        }
+
     /** 直前 commit の読み (再変換用)。次の commit や restore で更新/クリア。 */
     var lastCommittedReading by mutableStateOf<String?>(null)
         private set
@@ -1392,6 +1422,8 @@ class ComposingState(
     private var predictionReadings: Map<String, String> = emptyMap()
 
     val isActive: Boolean get() = text.isNotEmpty()
+    /** 候補バーに何か出ているか (打ちかけ、または次の言葉の予測)。 */
+    val showsCandidateBar: Boolean get() = isActive || nextWords.isNotEmpty()
     /** 先頭ブロック = カーソルより前 (= 変換対象)。カーソル 0 では空。 */
     val splitHead: String
         get() = text.substring(0, cursor.coerceIn(0, text.length))
@@ -1436,6 +1468,8 @@ class ComposingState(
         text = text.substring(0, at) + ch + text.substring(at)
         cursor = at + 1
         selectedCandidateIndex = -1
+        converting = false
+        nextWords = emptyList()
         refreshPredict()
     }
 
@@ -1451,6 +1485,8 @@ class ComposingState(
         lastEmitChar = null
         lastEmitTimeMs = 0
         selectedCandidateIndex = -1
+        converting = false
+        if (text.isNotEmpty()) nextWords = emptyList()
         if (text.isEmpty()) { candidates = emptyList(); fullPrediction = null } else refreshPredict()
     }
 
@@ -1464,6 +1500,7 @@ class ComposingState(
         lastEmitChar = null
         lastEmitTimeMs = 0
         selectedCandidateIndex = -1
+        converting = false
         refreshPredict()
     }
 
@@ -1478,6 +1515,7 @@ class ComposingState(
         lastEmitChar = null
         lastEmitTimeMs = 0
         selectedCandidateIndex = -1
+        converting = false
         if (text.isEmpty()) { candidates = emptyList(); fullPrediction = null } else refreshPredict()
         return true
     }
@@ -1489,6 +1527,12 @@ class ComposingState(
      */
     fun convert() {
         if (text.isEmpty()) return
+        // 最初の 1 回は、候補を「打った読みにぴったり合う語」だけに切り替えてから 1 番目を選ぶ (1.0.139)。
+        if (!converting) {
+            converting = true
+            selectedCandidateIndex = -1
+            refreshPredict()
+        }
         val n = candidates.size
         if (n == 0) {
             selectedCandidateIndex = -1
@@ -1545,6 +1589,7 @@ class ComposingState(
         lastCommittedReading = recordKey
         lastCommittedOutput = candidate
         advanceSegmentOrReset()
+        showNextWords()
     }
 
     /**
@@ -1586,6 +1631,8 @@ class ComposingState(
         selectedCandidateIndex = -1
         lastEmitChar = null
         lastEmitTimeMs = 0
+        converting = false
+        showNextWords()
         return true
     }
 
@@ -1610,6 +1657,7 @@ class ComposingState(
         lastCommittedReading = toCommit
         lastCommittedOutput = toCommit
         advanceSegmentOrReset()
+        showNextWords()
         return true
     }
 
@@ -1634,6 +1682,7 @@ class ComposingState(
         if (paste != null && '\n' in s) paste(s) else onCommit(s)
         lastCommittedReading = null
         lastCommittedOutput = null
+        nextWords = emptyList()
     }
 
     fun reset() {
@@ -1647,6 +1696,8 @@ class ComposingState(
         lastEmitTimeMs = 0
         committedRun.clear()
         predictionReadings = emptyMap()
+        converting = false
+        nextWords = emptyList()
         // composing を明示的に閉じたら bigram の前語コンテキストもクリア (文の流れが切れる)。
         prevCommitSurface = null
         // 注意: lastCommittedReading / lastCommittedOutput は意図的に残す
@@ -1665,6 +1716,8 @@ class ComposingState(
         text = r
         cursor = r.length
         selectedCandidateIndex = -1
+        converting = false
+        nextWords = emptyList()
         lastEmitChar = null
         lastEmitTimeMs = 0
         val cps = o.codePointCount(0, o.length)
@@ -1691,6 +1744,36 @@ class ComposingState(
     }
 
     /**
+     * 次の言葉の予測を選んだ (1.0.139)。そのまま送り出し、「直前の語 → この語」を学習して、
+     * この語に続く語をまた出す (よろしく → お願いします → …)。
+     * ⚠ 読みが無いので、読み → 語の学習と再変換の対象にはしない。
+     */
+    fun commitNextWord(word: String) {
+        if (word.isEmpty() || text.isNotEmpty()) return
+        prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, word) }
+        prevCommitSurface = word
+        onCommit(word)
+        lastCommittedReading = null
+        lastCommittedOutput = null
+        showNextWords()
+    }
+
+    /** 次の言葉の予測を閉じる。端末へキーを送ったとき (Enter・⌫・空白・矢印 …) に呼ぶ。 */
+    fun dismissNextWords() {
+        if (nextWords.isNotEmpty()) nextWords = emptyList()
+    }
+
+    /** 打ちかけが無くなった直後に、直前の語に続く語を出す。設定が OFF・学習が無ければ空。 */
+    private fun showNextWords() {
+        val prev = prevCommitSurface
+        nextWords = if (text.isEmpty() && nextWordPrediction && prev != null) {
+            ImeHistoryStore.nextWords(prev, limit = NEXT_WORD_LIMIT)
+        } else {
+            emptyList()
+        }
+    }
+
+    /**
      * 確定後の処理。カーソルより後ろ (splitTail) が残るなら残りを composing に据えて続行、
      * 無ければ全リセット。残りはカーソルを末尾に置く (次のブロックは ◀ で選ぶ)。
      */
@@ -1700,6 +1783,7 @@ class ComposingState(
             learnMergedRun()
             text = ""
             cursor = 0
+            converting = false
             candidates = emptyList()
             fullPrediction = null
             fullPredictionBlocks = emptyList()
@@ -1728,11 +1812,11 @@ class ComposingState(
         // 抑止する。補完が tail と重なると「して下さい」+「下さい」のような被り長文予測になるため、
         // 各ブロックは自分の読みぴったりの変換だけを出す。行頭/末尾 (block=全体) では予測を許す。
         candidates = buildList(
-            KanaKanjiConverter.convertFlexible(key, prevSurface = prevCommitSurface, allowPrediction = !hasTail),
+            KanaKanjiConverter.convertFlexible(key, prevSurface = prevCommitSurface, allowPrediction = !hasTail && !converting),
             key,
         )
         // 予測候補の実際の読みを控える (確定時に接頭辞でなく読みで学習するため)。予測抑止時は空。
-        predictionReadings = if (hasTail) emptyMap() else KanaKanjiConverter.predictionReadingMap(key)
+        predictionReadings = if (hasTail || converting) emptyMap() else KanaKanjiConverter.predictionReadingMap(key)
         if (selectedCandidateIndex >= candidates.size) selectedCandidateIndex = -1
         // 長文の一括予測: スプリット中で後続 (tail) が残っているとき、
         //   「先頭ブロックの最尤候補 + 残りかなの最尤」を組み合わせた「文まるごと」候補を出す。
@@ -1792,5 +1876,8 @@ class ComposingState(
     private companion object {
         /** 結合ブロック学習で許す結合読みの最大長 (これより長い文は丸ごと 1 ブロック化しない)。 */
         const val MERGE_MAX_READING_LEN = 6
+
+        /** 次の言葉の予測に出す数。 */
+        const val NEXT_WORD_LIMIT = 8
     }
 }
