@@ -112,6 +112,47 @@ object KkcConverter {
      */
     private const val SYMBOL_READING_PENALTY = 10000
 
+    /**
+     * 「ふつうの語があるのに、変わった書き方のほうが安い」IPADIC 由来のエントリに課すペナルティ
+     * (1.0.134)。対象は 2 文字以上の読みで、**同じ読みにふつうの語 (漢字・かな・全部カタカナ) が
+     * 在るときだけ**。
+     *
+     *  - **記号だけの表層**: かける→× (-279)・あんど→＆・あっと→＠・いち→１。記号は負のコストまで
+     *    あるので、0 未満を 0 に切り上げてから [SYMBOL_READING_PENALTY] を足す。
+     *  - **カタカナとひらがなが混ざる表層**: する→スる・あがる→アガる・えらい→エラい・かえっ→カエっ。
+     *    こちらは [MIXED_SCRIPT_PENALTY] を足す。
+     *  - **漢字 + カタカナ 1 字で終わる表層**: かく→斯ク・ほうそ→訪ソ。同じく [MIXED_SCRIPT_PENALTY]。
+     *
+     * ⚠ **ふつうの語が無い読みには手を出さない**。あるふぁ→α・あいでぃー→ＩＤ のように記号が
+     * 唯一の答えの読みや、ださい→ダサい のようにその書き方しか無い語を沈めないため。
+     * ⚠ 読みに長音符「ー」を含むもの (外来語) は混ざりの判定から外す ([KATAKANA_DUP_PENALTY] と同じ)。
+     * 候補一覧には残るので、欲しいときは選べる (選べば学習で上がる)。
+     *
+     * 下げ幅 4000 は実測で決めた値: 評価セットで正解が 3 文増え、壊れた文は 0。6000 にすると
+     * さぼる→サボる が さぼる に負ける。
+     */
+    private const val MIXED_SCRIPT_PENALTY = 4000
+
+    private enum class OddKind { NONE, SYMBOL, MIXED }
+
+    private fun isKata(c: Char): Boolean = c in 'ァ'..'ヶ'
+    private fun isPlainHira(c: Char): Boolean = c in 'ぁ'..'ゖ'
+    private fun isKanji(c: Char): Boolean =
+        c.code in 0x4E00..0x9FFF || c.code in 0x3400..0x4DBF || c == '々'
+
+    /** [MIXED_SCRIPT_PENALTY] の説明にある「変わった書き方」の種類。 */
+    private fun oddKind(reading: String, surface: String): OddKind {
+        if (surface.isEmpty()) return OddKind.NONE
+        if (isSymbolSurface(surface)) return OddKind.SYMBOL
+        if ('ー' in reading) return OddKind.NONE
+        val hasKata = surface.any(::isKata)
+        val hasKanji = surface.any(::isKanji)
+        if (hasKata && !hasKanji && surface.any(::isPlainHira)) return OddKind.MIXED
+        val n = surface.length
+        if (n >= 2 && isKata(surface[n - 1]) && isKanji(surface[n - 2])) return OddKind.MIXED
+        return OddKind.NONE
+    }
+
     /** 表層が「仮名でも漢字でもない」= 記号 (全角英数含む) だけで構成されているか。 */
     private fun isSymbolSurface(surface: String): Boolean =
         surface.isNotEmpty() && surface.none { isHira(it) || isKanjiOrKata(it) }
@@ -216,6 +257,22 @@ object KkcConverter {
                     adjCost += SYMBOL_READING_PENALTY
                 }
                 map.getOrPut(reading) { ArrayList(2) }.add(Entry(surface, lc, rc, adjCost))
+            }
+        }
+        // ふつうの語がある読みでは、記号だけ・カタカナ混ざりの表層を沈める ([MIXED_SCRIPT_PENALTY])。
+        // 「ふつうの語が在るか」は読みの全エントリを見ないと決まらないので、読み終えてから直す。
+        for ((reading, entries) in map) {
+            if (reading.length < 2) continue
+            val kinds = entries.map { oddKind(reading, it.surface) }
+            if (kinds.none { it == OddKind.NONE } || kinds.all { it == OddKind.NONE }) continue
+            for (i in entries.indices) {
+                val e = entries[i]
+                val cost = when (kinds[i]) {
+                    OddKind.SYMBOL -> e.cost.coerceAtLeast(0) + SYMBOL_READING_PENALTY
+                    OddKind.MIXED -> e.cost + MIXED_SCRIPT_PENALTY
+                    OddKind.NONE -> continue
+                }
+                entries[i] = Entry(e.surface, e.lc, e.rc, cost)
             }
         }
         lex = map

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.134 (versionCode 832)**: Japanese conversion no longer ranks odd spellings first inside sentences. でんわをかける became 電話を×, せんたくをする became 選択をスる, かえってきた became カエってきた, あがる became アガる and いちまんえん became １万円. Symbol-only words and words mixing katakana with hiragana now come after the ordinary word when one exists for the same reading. They stay in the candidate list and can still be chosen.
+
 **1.0.133 (versionCode 831)**: The shade characters in the "Z2 Mono" font (░ ▒ ▓, used for the empty part of gauges and the like) are now drawn as diagonal lines instead of fine dots. The pattern stays visible at small sizes, and the lines continue unbroken when the characters are placed side by side.
 
 **1.0.132 (versionCode 830)**: Some full-screen commands left stray text such as "5;1u" on screen at startup; this is fixed. The terminal read only part of a keyboard-setup sequence the command sends and printed the rest as text.
