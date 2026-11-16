@@ -1,0 +1,8 @@
+1.0.142
+
+- Japanese conversion puts common words first and converts place and person names in sentences.
+- Predictive input (completions, next words, set phrases) is a setting, off at first.
+- The key layout editor has Undo and Redo; the face list has Delete.
+- The Z2 Mono font gains box drawing, shapes, arrows, Braille and more.
+- Stray text such as "5;1u" at startup is fixed.
+- The default VNC port is now 5900.
