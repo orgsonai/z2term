@@ -328,7 +328,7 @@ Bundled third-party notices are available from Settings → OSS licenses.
 | Z2 Mono (made for this app; generator in `scripts/z2-mono/`) | OFL-1.1 | this repository |
 | SKK-JISYO.L (source of the bundled dictionary `z2dict.txt`) | GPL-2.0-or-later | [skk-dev/dict](https://github.com/skk-dev/dict) |
 | IPADIC (mecab-ipadic 2.7.0-20070801; source of `kkc_lex.tsv` / `kkc_matrix.bin`) | NAIST license | [taku910/mecab](https://github.com/taku910/mecab) |
-| Japanese Wikipedia (source of the co-occurrence data `kkc_colloc.bloom`) | CC BY-SA 4.0 | [jawiki dumps](https://dumps.wikimedia.org/jawiki/) |
+| Japanese Wikipedia (source of the co-occurrence data `kkc_colloc.bloom` and the frequency correction `kkc_freq.tsv`) | CC BY-SA 4.0 | [jawiki dumps](https://dumps.wikimedia.org/jawiki/) |
 
 From the settings screen → "OSS licenses / corresponding source", you can also browse/show this in-app
 (license full texts are placed in `assets/licenses/`).

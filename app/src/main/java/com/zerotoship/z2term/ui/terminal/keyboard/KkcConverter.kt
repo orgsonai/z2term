@@ -17,6 +17,9 @@ import java.nio.ByteOrder
  * アセット:
  *  - `kkc_lex.tsv`    : `読み(ひらがな)\t表層\t左文脈ID\t右文脈ID\t単語コスト` を読み順ソート。
  *                       IPADIC 2.7.0 由来 (固有名詞/地名/組織は除いて軽量化)。
+ *  - `kkc_freq.tsv`   : 頻度補正。`読み\t表層\t左文脈ID\t足すコスト`。同じ読み・同じ品詞の語のうち、
+ *                       実際の文章で少ないほうを後ろへ回す (1.0.135)。無くても動く。
+ *                       作り方と決め方は `scripts/build-kkc-freq.sh` / `scripts/build_kkc_freq.py`。
  *  - `kkc_matrix.bin` : 接続コスト行列。先頭に uint16 lsize, rsize (LE)、続けて int16 × lsize*rsize。
  *                       接続コスト(左ノードの右ID lr, 右ノードの左ID rl) = matrix[lr + rl*lsize]。
  *
@@ -196,10 +199,16 @@ object KkcConverter {
         if (loaded) return
         withContext(Dispatchers.IO) {
             if (loaded) return@withContext
-            context.assets.open("kkc_matrix.bin").use { ms ->
-                context.assets.open("kkc_lex.tsv").bufferedReader(Charsets.UTF_8).use { lr ->
-                    loadFromStreams(ms, lr)
+            // 頻度補正は無くても動く (古い APK の資産構成や、取り出し損ねでも変換は止めない)。
+            val freq = runCatching { context.assets.open("kkc_freq.tsv").bufferedReader(Charsets.UTF_8) }.getOrNull()
+            try {
+                context.assets.open("kkc_matrix.bin").use { ms ->
+                    context.assets.open("kkc_lex.tsv").bufferedReader(Charsets.UTF_8).use { lr ->
+                        loadFromStreams(ms, lr, freq)
+                    }
                 }
+            } finally {
+                runCatching { freq?.close() }
             }
             runCatching {
                 context.assets.open("kkc_colloc.bloom").use { collocationFilter = ExistenceFilter.load(it) }
@@ -216,8 +225,17 @@ object KkcConverter {
      * Android Context を介さずに直接ロードする (JVM ユニットテスト用)。
      * [matrixStream] = kkc_matrix.bin、[lexReader] = kkc_lex.tsv (UTF-8)。
      * 呼び出し側はストリームの close を行うこと。
+     *
+     * [freqReader] = kkc_freq.tsv (UTF-8)。渡すと頻度補正を足す。渡さなければ IPADIC のコストのまま
+     * (既存のテストは渡さずに読み、辞書だけの順位を固定している)。
+     *
+     * ⭐ **頻度補正 (1.0.135)**: IPADIC の単語コストは文章を単語に区切るためのもので、同じ読みの語を
+     * 選び分けるのには向かない (かみ: 加味 < 髪 < 神 < 紙、ひと: ひと < 人、あう: 遇う < 会う)。
+     * 長文で「ふつう使わない語が先に出る」原因がこれ。補正は**同じ読み・同じ品詞 ID の語どうし**で、
+     * 少ない語を後ろへ回すだけ (足すだけで、引かない)。⚠ 安くする補正は入れない — その読みの
+     * 最安コストが下がると、別の品詞の正しい語に勝ってしまう。
      */
-    fun loadFromStreams(matrixStream: InputStream, lexReader: BufferedReader) {
+    fun loadFromStreams(matrixStream: InputStream, lexReader: BufferedReader, freqReader: BufferedReader? = null) {
         val bytes = matrixStream.readBytes()
         val bb = java.nio.ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
         lsize = bb.short.toInt() and 0xFFFF
@@ -225,6 +243,18 @@ object KkcConverter {
         val arr = ShortArray(lsize * rsize)
         bb.asShortBuffer().get(arr)
         matrix = arr
+
+        // 頻度補正: 「読み\t表層\t左文脈ID」→ 足すコスト。lex の行の先頭 3 列をそのまま鍵にする。
+        val freq = HashMap<String, Int>()
+        freqReader?.useLines { lines ->
+            for (line in lines) {
+                if (line.isEmpty() || line[0] == '#') continue
+                val cut = line.lastIndexOf('\t')
+                if (cut <= 0) continue
+                val add = line.substring(cut + 1).toIntOrNull() ?: continue
+                if (add > 0) freq[line.substring(0, cut)] = add
+            }
+        }
 
         val map = HashMap<String, ArrayList<Entry>>(120_000)
         lexReader.useLines { lines ->
@@ -256,6 +286,7 @@ object KkcConverter {
                 if (reading.length == 1 && isHira(reading[0]) && isSymbolSurface(surface)) {
                     adjCost += SYMBOL_READING_PENALTY
                 }
+                if (freq.isNotEmpty()) adjCost += freq[line.substring(0, t3)] ?: 0
                 map.getOrPut(reading) { ArrayList(2) }.add(Entry(surface, lc, rc, adjCost))
             }
         }

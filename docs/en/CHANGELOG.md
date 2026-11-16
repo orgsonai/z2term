@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.135 (versionCode 833)**: Japanese conversion now puts the commonly used word first among words with the same reading. みずをのむ gave 瑞を飲む, そうじをする gave 相似をする, たかいやま gave 高いヤマ, へやのなか gave 部屋のなか and もじがよめない gave 文字が讀めない; these now give 水, 掃除, 山, 中 and 読めない. Word frequencies were counted in Wikipedia text and rarer words are moved back. Conversions you have taught it still take priority. Homophones of different parts of speech (加味 and 紙 for かみ, for example) and place and personal names inside sentences are not fixed yet.
+
 **1.0.134 (versionCode 832)**: Japanese conversion no longer ranks odd spellings first inside sentences. でんわをかける became 電話を×, せんたくをする became 選択をスる, かえってきた became カエってきた, あがる became アガる and いちまんえん became １万円. Symbol-only words and words mixing katakana with hiragana now come after the ordinary word when one exists for the same reading. They stay in the candidate list and can still be chosen.
 
 **1.0.133 (versionCode 831)**: The shade characters in the "Z2 Mono" font (░ ▒ ▓, used for the empty part of gauges and the like) are now drawn as diagonal lines instead of fine dots. The pattern stays visible at small sizes, and the lines continue unbroken when the characters are placed side by side.
