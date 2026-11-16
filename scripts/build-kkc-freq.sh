@@ -1,5 +1,6 @@
 #!/bin/sh
-# かな漢字変換の頻度補正データ app/src/main/assets/kkc_freq.tsv を作る。
+# かな漢字変換の頻度補正データ app/src/main/assets/kkc_freq.tsv と、
+# 文の中で使う地名・人名 app/src/main/assets/kkc_names.tsv を作る。
 #
 # 日本語版ウィキペディアの文章を先頭から CHAR_LIMIT 文字だけ取り込み、MeCab (IPADIC) で単語に
 # 分けて数え、同じ読み・同じ品詞の語のうち少ないほうを後ろへ回す補正を出す。
@@ -12,7 +13,8 @@
 #   WORK       : 作業用の置き場 (既定 /tmp/z2-kkc-freq。文章と venv を置く。終わったら消してよい)
 #   WORKERS    : 数えるときの並列数 (既定 コア数の半分)
 #   TEXT       : 取り込み済みの文章ファイル。指定するとダウンロードを飛ばす
-#   OUT        : 出力 (既定 app/src/main/assets/kkc_freq.tsv)
+#   OUT        : 頻度補正の出力 (既定 app/src/main/assets/kkc_freq.tsv)
+#   OUT_NAMES  : 地名・人名の出力 (既定 app/src/main/assets/kkc_names.tsv)
 #
 # 道具: python3・curl・bzcat。mecab-python3 と ipadic は WORK の venv へ pip で入れる (アプリには入らない)。
 # ⚠ ダンプは日々変わるので、作り直すと数字は少し変わる。
@@ -24,6 +26,7 @@ WORK="${WORK:-/tmp/z2-kkc-freq}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ASSETS="$SCRIPT_DIR/../app/src/main/assets"
 OUT="${OUT:-$ASSETS/kkc_freq.tsv}"
+OUT_NAMES="${OUT_NAMES:-$ASSETS/kkc_names.tsv}"
 WORKERS="${WORKERS:-$(( $(nproc) / 2 ))}"
 [ "$WORKERS" -ge 1 ] || WORKERS=1
 PY="$SCRIPT_DIR/build_kkc_freq.py"
@@ -43,6 +46,7 @@ if [ ! -x "$WORK/venv/bin/python" ]; then
 fi
 
 echo "[build-kkc-freq] 数えます (並列 $WORKERS)"
-"$WORK/venv/bin/python" "$PY" count "$TEXT" "$WORK/count.tsv" "$WORKERS"
+"$WORK/venv/bin/python" "$PY" count "$TEXT" "$WORK/count.tsv" "$WORKERS" "$WORK/names.tsv"
 python3 "$PY" build "$WORK/count.tsv" "$ASSETS/kkc_lex.tsv" "$OUT"
-echo "[build-kkc-freq] 出力: $OUT"
+python3 "$PY" names "$WORK/names.tsv" "$ASSETS/kkc_lex.tsv" "$OUT_NAMES"
+echo "[build-kkc-freq] 出力: $OUT / $OUT_NAMES"

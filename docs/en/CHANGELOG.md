@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.136 (versionCode 834)**: Japanese conversion now handles place and personal names inside sentences. とうきょうへいきます gave 当供へ行きます, おおさかしゅっしんです gave 多さ化出身です and たなかさんにでんわする gave 他中三二電話する; these now give 東京, 大阪 and 田中さん. The 724 most common names are covered. Words normally written in hiragana are also turned into kanji less often: 待って下さい, 宜しくお願いします, 時間が無いので and 走って行く now come out as 待ってください, よろしくお願いします, 時間がないので and 走っていく.
+
 **1.0.135 (versionCode 833)**: Japanese conversion now puts the commonly used word first among words with the same reading. みずをのむ gave 瑞を飲む, そうじをする gave 相似をする, たかいやま gave 高いヤマ, へやのなか gave 部屋のなか and もじがよめない gave 文字が讀めない; these now give 水, 掃除, 山, 中 and 読めない. Word frequencies were counted in Wikipedia text and rarer words are moved back. Conversions you have taught it still take priority. Homophones of different parts of speech (加味 and 紙 for かみ, for example) and place and personal names inside sentences are not fixed yet.
 
 **1.0.134 (versionCode 832)**: Japanese conversion no longer ranks odd spellings first inside sentences. でんわをかける became 電話を×, せんたくをする became 選択をスる, かえってきた became カエってきた, あがる became アガる and いちまんえん became １万円. Symbol-only words and words mixing katakana with hiragana now come after the ordinary word when one exists for the same reading. They stay in the candidate list and can still be chosen.

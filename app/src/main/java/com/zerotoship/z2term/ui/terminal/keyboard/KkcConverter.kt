@@ -20,6 +20,8 @@ import java.nio.ByteOrder
  *  - `kkc_freq.tsv`   : 頻度補正。`読み\t表層\t左文脈ID\t足すコスト`。同じ読み・同じ品詞の語のうち、
  *                       実際の文章で少ないほうを後ろへ回す (1.0.135)。無くても動く。
  *                       作り方と決め方は `scripts/build-kkc-freq.sh` / `scripts/build_kkc_freq.py`。
+ *  - `kkc_names.tsv`  : 文の中で使う地名・人名。形は `kkc_lex.tsv` と同じ。IPADIC の固有名詞のうち、
+ *                       実際の文章によく出るものだけ (1.0.136)。無くても動く。作り方は同上。
  *  - `kkc_matrix.bin` : 接続コスト行列。先頭に uint16 lsize, rsize (LE)、続けて int16 × lsize*rsize。
  *                       接続コスト(左ノードの右ID lr, 右ノードの左ID rl) = matrix[lr + rl*lsize]。
  *
@@ -201,14 +203,16 @@ object KkcConverter {
             if (loaded) return@withContext
             // 頻度補正は無くても動く (古い APK の資産構成や、取り出し損ねでも変換は止めない)。
             val freq = runCatching { context.assets.open("kkc_freq.tsv").bufferedReader(Charsets.UTF_8) }.getOrNull()
+            val names = runCatching { context.assets.open("kkc_names.tsv").bufferedReader(Charsets.UTF_8) }.getOrNull()
             try {
                 context.assets.open("kkc_matrix.bin").use { ms ->
                     context.assets.open("kkc_lex.tsv").bufferedReader(Charsets.UTF_8).use { lr ->
-                        loadFromStreams(ms, lr, freq)
+                        loadFromStreams(ms, lr, freq, names)
                     }
                 }
             } finally {
                 runCatching { freq?.close() }
+                runCatching { names?.close() }
             }
             runCatching {
                 context.assets.open("kkc_colloc.bloom").use { collocationFilter = ExistenceFilter.load(it) }
@@ -234,8 +238,21 @@ object KkcConverter {
      * 長文で「ふつう使わない語が先に出る」原因がこれ。補正は**同じ読み・同じ品詞 ID の語どうし**で、
      * 少ない語を後ろへ回すだけ (足すだけで、引かない)。⚠ 安くする補正は入れない — その読みの
      * 最安コストが下がると、別の品詞の正しい語に勝ってしまう。
+     *
+     * [namesReader] = kkc_names.tsv (UTF-8)。渡すと地名・人名を足す。
+     *
+     * ⭐ **地名・人名 (1.0.136)**: kkc_lex.tsv は固有名詞を外してあるので、文の中では 東京・大阪・田中 が
+     * 候補に 1 つも出なかった (とうきょうへいきます → 当供へ行きます)。よく出るものだけを戻す。
+     * ⚠ コストは IPADIC の値そのままで、上のペナルティ類は掛けない (アメリカ のように読みを
+     * カタカナにしただけの名前が、カタカナ化の抑止で沈むため)。⚠ ペナルティの判定が終わってから足す
+     * (名前が「ふつうの語」として数えられると、[MIXED_SCRIPT_PENALTY] の掛かり方が変わる)。
      */
-    fun loadFromStreams(matrixStream: InputStream, lexReader: BufferedReader, freqReader: BufferedReader? = null) {
+    fun loadFromStreams(
+        matrixStream: InputStream,
+        lexReader: BufferedReader,
+        freqReader: BufferedReader? = null,
+        namesReader: BufferedReader? = null,
+    ) {
         val bytes = matrixStream.readBytes()
         val bb = java.nio.ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
         lsize = bb.short.toInt() and 0xFFFF
@@ -304,6 +321,19 @@ object KkcConverter {
                     OddKind.NONE -> continue
                 }
                 entries[i] = Entry(e.surface, e.lc, e.rc, cost)
+            }
+        }
+        // 地名・人名。ペナルティの判定が終わってから、IPADIC のコストのまま足す。
+        namesReader?.useLines { lines ->
+            for (line in lines) {
+                if (line.isEmpty() || line[0] == '#') continue
+                val p = line.split('\t')
+                if (p.size < 5) continue
+                val lc = p[2].toIntOrNull() ?: continue
+                val rc = p[3].toIntOrNull() ?: continue
+                val cost = p[4].toIntOrNull() ?: continue
+                val entries = map.getOrPut(p[0]) { ArrayList(2) }
+                if (entries.none { it.surface == p[1] && it.lc == lc }) entries.add(Entry(p[1], lc, rc, cost))
             }
         }
         lex = map

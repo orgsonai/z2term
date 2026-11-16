@@ -59,4 +59,36 @@ class CollocationRerankerTest {
         val out = r.rerank("みずをのむ", input, KkcConverter.KkcContext.EMPTY)
         assertSame(input, out)
     }
+
+    @Test
+    fun kanaPreferredWordGetsNoBonus() {
+        val filter = loadFilter()
+        val r = CollocationReranker({ filter }, bonus = 2500)
+        // (書, 下) は共起集合に在るが、下さい は ひらがなで書くのがふつうの語なので加点しない。
+        val input = listOf(cand("書いてください", 1000), cand("書いて下さい", 1100))
+        val out = r.rerank("かいてください", input, KkcConverter.KkcContext.EMPTY)
+        assertEquals("書いてください", out.first().surface)
+    }
+
+    @Test
+    fun farCandidateThatOnlyAddsKanjiGetsNoBonus() {
+        val filter = loadFilter()
+        val r = CollocationReranker({ filter }, bonus = 2500)
+        // (走, 行) は共起集合に在る。1 位より核が多く、コストも 1000 を超えて高い候補には加点しない
+        // (以前は 2500 の加点で 走って行く が追い越していた)。
+        val input = listOf(cand("走っていく", 4592), cand("走って行く", 5767))
+        val out = r.rerank("はしっていく", input, KkcConverter.KkcContext.EMPTY)
+        assertEquals("走っていく", out.first().surface)
+    }
+
+    @Test
+    fun nearCandidateThatAddsKanjiStillGetsBonus() {
+        val filter = loadFilter()
+        val r = CollocationReranker({ filter }, bonus = 2500)
+        // 僅差 (1000 以内) なら、核が増える候補でも加点する。辞書の 1 位が ひらがなに寄っている
+        // だけの文を、漢字の候補で拾えるようにするため。
+        val input = listOf(cand("走っていく", 4592), cand("走って行く", 5000))
+        val out = r.rerank("はしっていく", input, KkcConverter.KkcContext.EMPTY)
+        assertEquals("走って行く", out.first().surface)
+    }
 }
