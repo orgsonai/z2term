@@ -107,6 +107,7 @@
     <string name="settings_key_layout_multi_select">Selezione multipla</string>
     <string name="settings_key_layout_undo">Annulla</string>
     <string name="settings_key_layout_redo">Ripeti</string>
+    <string name="settings_key_layout_delete_action">Elimina</string>
     <string name="settings_key_layout_selected">Riga %1$d / cornice %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">Tasti selezionati: %1$d</string>
     <string name="settings_key_layout_label">Etichetta del tasto</string>

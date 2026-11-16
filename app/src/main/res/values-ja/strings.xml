@@ -110,6 +110,7 @@
     <string name="settings_key_layout_multi_select">複数選択</string>
     <string name="settings_key_layout_undo">元に戻す</string>
     <string name="settings_key_layout_redo">やり直す</string>
+    <string name="settings_key_layout_delete_action">削除</string>
     <string name="settings_key_layout_selected">段 %1$d / 枠 %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">%1$d キーを選択中</string>
     <string name="settings_key_layout_label">キーに出す文字</string>

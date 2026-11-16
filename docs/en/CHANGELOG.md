@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.142 (versionCode 840)**: Duplicated keyboard faces can now be removed with "Delete" right in the face list in Settings. Before, you had to open the editor and press "Delete this layout" at the bottom. A confirmation appears first. Built-in faces have no Delete button.
+
 **1.0.141 (versionCode 839)**: The key layout editor now has ↶ (Undo) and ↷ (Redo) next to "Multiple selection". A wrong change to a key, or a reset of the whole layout, can be stepped back one action at a time. A burst of typing or one slider drag is undone in a single tap. The history lasts while the editor is open.
 
 **1.0.140 (versionCode 838)**: Japanese predictive input is now a choice in Settings → Japanese input → "Predictive input". **It is off at first**, and while off, candidates appear only while you type, as in 1.0.136. When on, you get the prediction of 1.0.137 to 1.0.139 (completions while typing, the switch on Convert, next words after a commit) plus the following. While a Japanese face (kana or romaji, including duplicated faces) is open, the candidate bar's space stays reserved, so the bar no longer covers the line you are typing and the terminal does not move when it appears or disappears. Set phrases such as ありがとうございます and よろしくお願いします appear as completions. Whenever nothing is typed (right after opening, after Enter, ⌫ and so on), the bar shows punctuation such as 、。？！…, set phrases and words you confirm often. The 1.0.139 "Next-word prediction" setting is folded into "Predictive input".

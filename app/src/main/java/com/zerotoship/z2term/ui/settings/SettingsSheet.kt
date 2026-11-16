@@ -349,25 +349,7 @@ fun SettingsSheet(
                     keyLayoutEditingId = null
                 },
                 onDelete = { deleted ->
-                    val latest = KeyLayoutJson.listFromJsonString(settings.keyboardLayoutsJson)
-                    val remaining = latest.removeLayout(deleted.id)
-                    val entries = KeyboardFaceConfig.allEntries(settings.keyboardFaceOrder, remaining)
-                    val enabled = KeyboardFaceConfig.enabledIds(
-                        enabledValue = settings.keyboardFaceEnabledIds,
-                        entries = entries,
-                        legacyNumberEnabled = settings.keyboardNumberFace,
-                        legacyActiveLayoutId = nextActiveAfterRemove(
-                            settings.keyboardLayoutActiveId,
-                            deleted.id,
-                        ),
-                        legacyKanaAvailable = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
-                    )
-                    session.setKeyboardLayoutActiveId(
-                        nextActiveAfterRemove(settings.keyboardLayoutActiveId, deleted.id)
-                    )
-                    session.setKeyboardLayoutsJson(KeyLayoutJson.toJsonString(remaining))
-                    session.setKeyboardFaceOrder(KeyboardFaceConfig.encodeOrder(entries))
-                    session.setKeyboardFaceEnabledIds(KeyboardFaceConfig.encodeEnabled(entries, enabled))
+                    deleteCustomKeyLayout(settings, session, context, deleted.id)
                     keyLayoutEditingId = null
                 },
                 onDismiss = { keyLayoutEditingId = null },
@@ -2934,6 +2916,8 @@ private fun KeyLayoutSection(
     val builtinNumberLabel = stringResource(R.string.settings_keyboard_face_builtin_number)
     val builtinRomajiLabel = stringResource(R.string.settings_keyboard_face_builtin_romaji)
     var keyboardTestText by remember { mutableStateOf("") }
+    // 一覧の「削除」で確認を待っている自作配列 (1.0.142)。
+    var deletePending by remember { mutableStateOf<KeyLayout?>(null) }
     val legacyKanaAvailable = LocaleHelper.language(context) == LocaleHelper.LANG_JA
     val faceEntries = remember(settings.keyboardFaceOrder, layouts) {
         KeyboardFaceConfig.allEntries(settings.keyboardFaceOrder, layouts)
@@ -3066,6 +3050,24 @@ private fun KeyLayoutSection(
                     }
                 },
                 onEdit = entry.customLayout?.let { layout -> { onEditLayout(layout.id) } },
+                // 複製したもの (自作の面) だけ消せる。内蔵の面には出さない (1.0.142)。
+                onDelete = entry.customLayout?.let { layout -> { deletePending = layout } },
+            )
+        }
+        deletePending?.let { layout ->
+            com.zerotoship.z2term.ui.components.ConfirmDialog(
+                title = stringResource(R.string.settings_key_layout_delete_confirm_title),
+                message = stringResource(
+                    R.string.settings_key_layout_delete_confirm_msg,
+                    layout.name.ifBlank { layout.id },
+                ),
+                confirmLabel = stringResource(R.string.settings_key_layout_delete_action),
+                confirmColor = ZtsError,
+                onConfirm = {
+                    deletePending = null
+                    deleteCustomKeyLayout(settings, session, context, layout.id)
+                },
+                onCancel = { deletePending = null },
             )
         }
         Text(
@@ -3103,6 +3105,32 @@ private fun KeyLayoutSection(
 
 }
 
+/**
+ * 自作のキー配列 (面) を 1 つ消す。編集画面の「この配列を削除」と、設定の面の一覧の「削除」
+ * (1.0.142) が同じ手順を通る。面の並び・ON/OFF・旧来の「使用中の配列」も一緒に直す。
+ */
+private fun deleteCustomKeyLayout(
+    settings: AppSettings.Snapshot,
+    session: TerminalSession,
+    context: android.content.Context,
+    id: String,
+) {
+    val latest = KeyLayoutJson.listFromJsonString(settings.keyboardLayoutsJson)
+    val remaining = latest.removeLayout(id)
+    val entries = KeyboardFaceConfig.allEntries(settings.keyboardFaceOrder, remaining)
+    val enabled = KeyboardFaceConfig.enabledIds(
+        enabledValue = settings.keyboardFaceEnabledIds,
+        entries = entries,
+        legacyNumberEnabled = settings.keyboardNumberFace,
+        legacyActiveLayoutId = nextActiveAfterRemove(settings.keyboardLayoutActiveId, id),
+        legacyKanaAvailable = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+    )
+    session.setKeyboardLayoutActiveId(nextActiveAfterRemove(settings.keyboardLayoutActiveId, id))
+    session.setKeyboardLayoutsJson(KeyLayoutJson.toJsonString(remaining))
+    session.setKeyboardFaceOrder(KeyboardFaceConfig.encodeOrder(entries))
+    session.setKeyboardFaceEnabledIds(KeyboardFaceConfig.encodeEnabled(entries, enabled))
+}
+
 @Composable
 private fun FaceOrderRow(
     label: String,
@@ -3115,6 +3143,7 @@ private fun FaceOrderRow(
     onMove: (Int) -> Unit,
     onDuplicate: () -> Unit,
     onEdit: (() -> Unit)?,
+    onDelete: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -3165,6 +3194,13 @@ private fun FaceOrderRow(
                 enabled = canEdit,
                 onClick = { onEdit?.invoke() },
             )
+            if (onDelete != null) FaceRowAction(
+                label = stringResource(R.string.settings_key_layout_delete_action),
+                modifier = Modifier.weight(1f),
+                enabled = true,
+                danger = true,
+                onClick = onDelete,
+            )
         }
     }
 }
@@ -3174,12 +3210,13 @@ private fun FaceRowAction(
     label: String,
     modifier: Modifier = Modifier,
     enabled: Boolean,
+    danger: Boolean = false,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = modifier
             .background(ZtsBgSecondary, RoundedCornerShape(6.dp))
-            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+            .border(1.dp, if (danger) ZtsError else ZtsBorder, RoundedCornerShape(6.dp))
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .alpha(if (enabled) 1f else 0.35f)
             .padding(horizontal = 8.dp, vertical = 6.dp),
@@ -3187,7 +3224,11 @@ private fun FaceRowAction(
     ) {
         Text(
             text = label,
-            color = if (enabled) ZtsTextPrimary else ZtsTextSecondary,
+            color = when {
+                !enabled -> ZtsTextSecondary
+                danger -> ZtsError
+                else -> ZtsTextPrimary
+            },
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Medium,

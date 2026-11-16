@@ -107,6 +107,7 @@
     <string name="settings_key_layout_multi_select">여러 개 선택</string>
     <string name="settings_key_layout_undo">실행 취소</string>
     <string name="settings_key_layout_redo">다시 실행</string>
+    <string name="settings_key_layout_delete_action">삭제</string>
     <string name="settings_key_layout_selected">%1$d번째 줄 / %2$d번째 칸%3$s</string>
     <string name="settings_key_layout_selected_count">%1$d개 키를 골랐습니다</string>
     <string name="settings_key_layout_label">키 라벨</string>

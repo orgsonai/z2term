@@ -106,6 +106,7 @@
     <string name="settings_key_layout_multi_select">Chọn nhiều</string>
     <string name="settings_key_layout_undo">Hoàn tác</string>
     <string name="settings_key_layout_redo">Làm lại</string>
+    <string name="settings_key_layout_delete_action">Xóa</string>
     <string name="settings_key_layout_selected">Hàng %1$d / khung %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">Phím đã chọn: %1$d</string>
     <string name="settings_key_layout_label">Nhãn phím</string>
