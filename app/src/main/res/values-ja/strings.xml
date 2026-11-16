@@ -1439,6 +1439,6 @@ SSH 接続先 %3$d 件
     <string name="ui_bridge_show_bar">操作先の上に停止ボタンを出す</string>
     <string name="ui_bridge_show_bar_desc">AI の操作中、操作先のアプリの上に ‖ (一時停止) と ■ (終了) の小さな帯を出します。■ は今の作業を終わらせ、許可はそのまま残します (通知の「停止」は許可も OFF にします)。指で好きな場所へ動かせます。通知欄を下ろしても一時停止します。AI は帯を押せません。</string>
     <string name="ui_bridge_end">AI の作業を終える</string>
-    <string name="settings_ime_next_word">次の言葉の予測</string>
-    <string name="settings_ime_next_word_desc">確定した直後、何も打たなくても、前にその語の後に続けて打った語を候補に出します。押すとそのまま入力します。何か打つか、キーを送ると消えます。</string>
+    <string name="settings_ime_next_word">予測変換</string>
+    <string name="settings_ime_next_word_desc">打っている途中に、続きの長い語や定型文を出します。「変換」を押すと、読みにぴったり合う語だけになります。確定した後は、次の言葉や定型文を出します。日本語の面を開いている間は候補バーの場所を空けておくので、端末の表示が上下しません。オフなら、候補は打っている間だけ出ます。</string>
 </resources>

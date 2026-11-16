@@ -168,7 +168,7 @@ object KanaKanjiConverter {
      * 確定時に、打った接頭辞ではなく実際の読みで学習させるために [ComposingState.commit] が参照する。
      * 学習履歴を優先し、辞書見出しで補う。同一表層は最初の読みを採る。
      */
-    fun predictionReadingMap(prefix: String): Map<String, String> {
+    fun predictionReadingMap(prefix: String, predictive: Boolean = true): Map<String, String> {
         if (prefix.isEmpty()) return emptyMap()
         val map = LinkedHashMap<String, String>()
         for ((r, w) in ImeHistoryStore.predictHistoryWithReading(prefix, limit = 8)) {
@@ -178,9 +178,12 @@ object KanaKanjiConverter {
         for ((r, w) in UserDictStore.predictWithReading(prefix, limit = 8)) {
             if (r != prefix) map.putIfAbsent(w, r)
         }
-        // よく使われる語の表の補完も、表にある読みで学習させる。
-        for ((r, w) in PredictionDict.predictWithReading(prefix, limit = 8)) {
-            if (r != prefix) map.putIfAbsent(w, r)
+        // 定型文・よく使われる語の表の補完も、表にある読みで学習させる (予測変換 ON のときだけ出る)。
+        if (predictive) {
+            for ((r, w) in SetPhrases.predictWithReading(prefix)) map.putIfAbsent(w, r)
+            for ((r, w) in PredictionDict.predictWithReading(prefix, limit = 8)) {
+                if (r != prefix) map.putIfAbsent(w, r)
+            }
         }
         for ((r, w) in predictWithReading(prefix)) {
             if (r != prefix) map.putIfAbsent(w, r)
@@ -265,8 +268,11 @@ object KanaKanjiConverter {
         limit: Int = DEFAULT_CANDIDATE_LIMIT,
         prevSurface: String? = null,
         allowPrediction: Boolean = true,
+        predictive: Boolean = true,
     ): List<String> {
         if (reading.isEmpty()) return emptyList()
+        // 設定「予測変換」が OFF (既定・1.0.140) なら 1.0.136 までの並び。
+        if (!predictive) return convertClassic(reading, limit, prevSurface, allowPrediction)
         // 読みに完全一致する 1 語 (辞書が持つ同音語)。⚠ limit の枠外で必ず入れる (上記)。
         // 差し込み位置は「文まるごと変換 (3) の直後」= [spliceAt]。既に上の段へ出ている表層は
         // 合成時に重複が落ちるので、実際に増えるのは「まだ出ていない同音語」だけになる。
@@ -357,6 +363,78 @@ object KanaKanjiConverter {
     }
 
     /**
+     * 設定「予測変換」が OFF のときの並び (1.0.136 までと同じ・1.0.140 で分けた)。
+     * 学習履歴の完全一致 → ユーザー辞書の完全一致 → 学習履歴・ユーザー辞書の前方一致 →
+     * 文まるごと変換の上位 → 同じ読みの 1 語 → 辞書の完全一致・送り仮名 → 辞書の前方一致。
+     * 中身の説明は [convertFlexible] と同じ。
+     */
+    private fun convertClassic(
+        reading: String,
+        limit: Int,
+        prevSurface: String?,
+        allowPrediction: Boolean,
+    ): List<String> {
+        val exactWords = KkcConverter.wordsFor(reading)
+        val dictWords = convert(reading)
+        val out = LinkedHashSet<String>()
+        var spliceAt = -1
+        fun assemble(): List<String> {
+            val ordered = out.toList().take(limit)
+            val at = if (spliceAt in 0..ordered.size) spliceAt else ordered.size
+            return (ordered.take(at) + exactWords + ordered.drop(at) + dictWords).distinct()
+        }
+        for (h in ImeHistoryStore.historyFor(reading, limit = 4)) {
+            out.add(h)
+            if (out.size >= limit) return assemble()
+        }
+        for (w in UserDictStore.lookup(reading)) {
+            out.add(w)
+            if (out.size >= limit) return assemble()
+        }
+        if (allowPrediction) {
+            for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
+                out.add(h)
+                if (out.size >= limit) return assemble()
+            }
+            for (w in UserDictStore.predict(reading, limit = 6)) {
+                out.add(w)
+                if (out.size >= limit) return assemble()
+            }
+        }
+        val ctx = KkcConverter.KkcContext(prevSurface)
+        val nb = KkcConverter.nbest(reading, 8, ctx)
+        if (nb.isNotEmpty()) {
+            for (cand in nb.take(6)) {
+                out.add(cand.surface)
+                if (out.size >= limit) return assemble()
+            }
+        } else {
+            KkcConverter.convert(reading)?.let {
+                out.add(it); if (out.size >= limit) return assemble()
+            }
+        }
+        spliceAt = out.size
+        if (lines.isEmpty()) {
+            if (allowPrediction) {
+                for (h in ImeHistoryStore.predictHistory(reading, limit = limit)) {
+                    out.add(h); if (out.size >= limit) break
+                }
+            }
+            return assemble()
+        }
+        out.addAll(dictWords)
+        out.addAll(okuriForms(reading))
+        if (allowPrediction) {
+            val predictCap = minOf(limit, out.size + PREFIX_PREDICT_LIMIT)
+            for (c in predict(reading, PREFIX_PREDICT_LIMIT)) {
+                out.add(c)
+                if (out.size >= predictCap) break
+            }
+        }
+        return assemble()
+    }
+
+    /**
      * 補完の候補 (打った読みで始まる、読みより長い語) を、出す順に並べて返す。
      * 自分が確定したことのある語 1 件 → 世の中でよく使われる語 → ユーザー辞書 →
      * 自分が確定したことのある語の残り (1.0.138・1.0.139)。
@@ -379,6 +457,8 @@ object KanaKanjiConverter {
             .map { it.second }
         val out = LinkedHashSet<String>()
         out.addAll(own.take(HISTORY_COMPLETION_FIRST))
+        // 定型文 (1.0.140) は表より先。あいさつは文章から集めた表にほぼ入っていない。
+        out.addAll(SetPhrases.predictWithReading(reading).map { it.second })
         out.addAll(PredictionDict.predict(reading, limit = 8))
         out.addAll(UserDictStore.predict(reading, limit = 6))
         out.addAll(own.drop(HISTORY_COMPLETION_FIRST))
@@ -1380,12 +1460,51 @@ class ComposingState(
     var nextWords by mutableStateOf<List<String>>(emptyList())
         private set
 
-    /** 次の言葉の予測を出すか (設定「次の言葉の予測」。既定 ON)。呼び出し側が設定から入れる。 */
-    var nextWordPrediction: Boolean = true
+    /**
+     * 予測変換を使うか (設定「予測変換」。既定 OFF・1.0.140)。呼び出し側が設定から入れる。
+     * OFF なら 1.0.136 までと同じ動き: 打っている間だけ候補を出し、変換キーで候補を切り替えず、
+     * 確定した後は何も出さない。
+     */
+    var prediction by mutableStateOf(false)
+        private set
+
+    fun updatePrediction(enabled: Boolean) {
+        if (prediction == enabled) return
+        prediction = enabled
+        converting = false
+        nextWords = emptyList()
+        showingIdle = false
+        if (text.isNotEmpty()) refreshPredict() else showIdle()
+    }
+
+    /**
+     * 日本語の面 (かな・ローマ字。それを複製した面も) を開いているか (1.0.140)。予測変換が ON なら、
+     * 開いている間は候補バーの場所を端末の下に空けたままにする ([reservesCandidateBar])。
+     * キーボードの面が入れる。英字の面などへ移ったら、何も打っていないときの候補も引っ込める
+     * (場所を空けていない面で端末に重なるため)。
+     */
+    var japaneseFace: Boolean
+        get() = japaneseFaceState
         set(value) {
-            field = value
-            if (!value) nextWords = emptyList()
+            if (japaneseFaceState == value) return
+            japaneseFaceState = value
+            if (!value) {
+                nextWords = emptyList()
+                showingIdle = false
+            } else {
+                showIdle()
+            }
         }
+    private var japaneseFaceState by mutableStateOf(false)
+
+    /**
+     * 候補バーの場所をいつも空けておくか (1.0.140)。予測変換が ON で日本語の面を開いている間。
+     * バーが出たり消えたりしても、端末の表示が上下しない。
+     */
+    val reservesCandidateBar: Boolean get() = prediction && japaneseFace
+
+    /** [nextWords] が「何も打っていないときの候補」(定型文・よく使う語) を出しているか。 */
+    private var showingIdle = false
 
     /** 直前 commit の読み (再変換用)。次の commit や restore で更新/クリア。 */
     var lastCommittedReading by mutableStateOf<String?>(null)
@@ -1470,6 +1589,7 @@ class ComposingState(
         selectedCandidateIndex = -1
         converting = false
         nextWords = emptyList()
+        showingIdle = false
         refreshPredict()
     }
 
@@ -1486,8 +1606,8 @@ class ComposingState(
         lastEmitTimeMs = 0
         selectedCandidateIndex = -1
         converting = false
-        if (text.isNotEmpty()) nextWords = emptyList()
-        if (text.isEmpty()) { candidates = emptyList(); fullPrediction = null } else refreshPredict()
+        if (text.isNotEmpty()) { nextWords = emptyList(); showingIdle = false }
+        if (text.isEmpty()) { candidates = emptyList(); fullPrediction = null; showIdle() } else refreshPredict()
     }
 
     /** カーソルより前の文字列 (ローマ字面が打ちかけを読み直すのに使う)。 */
@@ -1516,7 +1636,8 @@ class ComposingState(
         lastEmitTimeMs = 0
         selectedCandidateIndex = -1
         converting = false
-        if (text.isEmpty()) { candidates = emptyList(); fullPrediction = null } else refreshPredict()
+        // 打ちかけを全部消したら、何も打っていないときの候補に替える (1.0.140)。
+        if (text.isEmpty()) { candidates = emptyList(); fullPrediction = null; showIdle() } else refreshPredict()
         return true
     }
 
@@ -1528,7 +1649,8 @@ class ComposingState(
     fun convert() {
         if (text.isEmpty()) return
         // 最初の 1 回は、候補を「打った読みにぴったり合う語」だけに切り替えてから 1 番目を選ぶ (1.0.139)。
-        if (!converting) {
+        // 予測変換が OFF なら切り替えない (1.0.136 までと同じ)。
+        if (prediction && !converting) {
             converting = true
             selectedCandidateIndex = -1
             refreshPredict()
@@ -1682,7 +1804,8 @@ class ComposingState(
         if (paste != null && '\n' in s) paste(s) else onCommit(s)
         lastCommittedReading = null
         lastCommittedOutput = null
-        nextWords = emptyList()
+        prevCommitSurface = null
+        showIdle()
     }
 
     fun reset() {
@@ -1698,8 +1821,10 @@ class ComposingState(
         predictionReadings = emptyMap()
         converting = false
         nextWords = emptyList()
+        showingIdle = false
         // composing を明示的に閉じたら bigram の前語コンテキストもクリア (文の流れが切れる)。
         prevCommitSurface = null
+        showIdle()
         // 注意: lastCommittedReading / lastCommittedOutput は意図的に残す
         //   (再変換は composing が空でも使える機能)。
     }
@@ -1718,6 +1843,7 @@ class ComposingState(
         selectedCandidateIndex = -1
         converting = false
         nextWords = emptyList()
+        showingIdle = false
         lastEmitChar = null
         lastEmitTimeMs = 0
         val cps = o.codePointCount(0, o.length)
@@ -1758,19 +1884,51 @@ class ComposingState(
         showNextWords()
     }
 
-    /** 次の言葉の予測を閉じる。端末へキーを送ったとき (Enter・⌫・空白・矢印 …) に呼ぶ。 */
+    /**
+     * 端末へキーを送ったとき (Enter・⌫・空白・矢印 …) に呼ぶ。文の流れが切れるので、次の言葉の予測を
+     * 何も打っていないときの候補 ([showIdle]) に替える (1.0.140)。
+     */
     fun dismissNextWords() {
-        if (nextWords.isNotEmpty()) nextWords = emptyList()
+        if (text.isNotEmpty()) return
+        prevCommitSurface = null
+        showIdle()
     }
 
-    /** 打ちかけが無くなった直後に、直前の語に続く語を出す。設定が OFF・学習が無ければ空。 */
+    /**
+     * 打ちかけが無くなった直後に、直前の語に続く語を出す。続く語を学習していなければ、
+     * 何も打っていないときの候補 ([showIdle]) を出す。予測変換が OFF なら何も出さない。
+     */
     private fun showNextWords() {
         val prev = prevCommitSurface
-        nextWords = if (text.isEmpty() && nextWordPrediction && prev != null) {
+        val next = if (text.isEmpty() && prediction && prev != null) {
             ImeHistoryStore.nextWords(prev, limit = NEXT_WORD_LIMIT)
         } else {
             emptyList()
         }
+        if (next.isEmpty()) { showIdle(); return }
+        showingIdle = false
+        nextWords = next
+    }
+
+    /**
+     * 何も打っていないときの候補 (1.0.140): 記号 (、。？！…) → 定型文 ([SetPhrases]) → よく確定している語。
+     * 予測変換が ON で日本語の面を開いている間は、開いた直後も ⌫ の後も、バーを空にしない
+     * (場所は空けてあるので、空だと何も無い帯になる・利用者の決定)。
+     * キーを送るたびに呼ばれるので、出している間は引き直さない。
+     */
+    private fun showIdle() {
+        if (text.isNotEmpty() || !prediction || !japaneseFace) {
+            if (nextWords.isNotEmpty()) nextWords = emptyList()
+            showingIdle = false
+            return
+        }
+        if (showingIdle && nextWords.isNotEmpty()) return
+        val out = LinkedHashSet<String>()
+        out.addAll(SetPhrases.symbols)
+        for ((_, w) in SetPhrases.all) out.add(w)
+        out.addAll(ImeHistoryStore.frequentWords(IDLE_LEARNED_LIMIT))
+        nextWords = out.toList()
+        showingIdle = true
     }
 
     /**
@@ -1812,11 +1970,16 @@ class ComposingState(
         // 抑止する。補完が tail と重なると「して下さい」+「下さい」のような被り長文予測になるため、
         // 各ブロックは自分の読みぴったりの変換だけを出す。行頭/末尾 (block=全体) では予測を許す。
         candidates = buildList(
-            KanaKanjiConverter.convertFlexible(key, prevSurface = prevCommitSurface, allowPrediction = !hasTail && !converting),
+            KanaKanjiConverter.convertFlexible(
+                key,
+                prevSurface = prevCommitSurface,
+                allowPrediction = !hasTail && !converting,
+                predictive = prediction,
+            ),
             key,
         )
         // 予測候補の実際の読みを控える (確定時に接頭辞でなく読みで学習するため)。予測抑止時は空。
-        predictionReadings = if (hasTail || converting) emptyMap() else KanaKanjiConverter.predictionReadingMap(key)
+        predictionReadings = if (hasTail || converting) emptyMap() else KanaKanjiConverter.predictionReadingMap(key, predictive = prediction)
         if (selectedCandidateIndex >= candidates.size) selectedCandidateIndex = -1
         // 長文の一括予測: スプリット中で後続 (tail) が残っているとき、
         //   「先頭ブロックの最尤候補 + 残りかなの最尤」を組み合わせた「文まるごと」候補を出す。
@@ -1879,5 +2042,8 @@ class ComposingState(
 
         /** 次の言葉の予測に出す数。 */
         const val NEXT_WORD_LIMIT = 8
+
+        /** 何も打っていないときの候補で、定型文の後ろに足すよく確定している語の数。 */
+        const val IDLE_LEARNED_LIMIT = 8
     }
 }

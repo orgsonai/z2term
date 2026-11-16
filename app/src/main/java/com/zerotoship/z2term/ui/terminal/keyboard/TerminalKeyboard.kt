@@ -21,7 +21,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -118,7 +120,8 @@ fun TerminalKeyboard(
     modifier: Modifier = Modifier
 ) {
     var shift by remember { mutableStateOf(ShiftState.OFF) }
-    // 次の言葉の予測 (1.0.139) は、端末へキーを送ったら閉じる (Enter・⌫・空白・矢印・英字 …)。
+    // 次の言葉の予測 (1.0.139) は、端末へキーを送ったら何も打っていないときの候補に替える
+    // (Enter・⌫・空白・矢印・英字 … 1.0.140)。
     // ⚠ キーの出口はここ 2 つにまとめる。直に onBytes / onKey を呼ぶと候補が残り続ける。
     val sendBytes: (ByteArray) -> Unit = { composing.dismissNextWords(); onBytes(it) }
     val sendKey: (NamedKey, KeyModifiers) -> Unit = { k, m -> composing.dismissNextWords(); onKey(k, m) }
@@ -132,6 +135,11 @@ fun TerminalKeyboard(
     }
     val currentFace = faces.firstOrNull { it.id == faceEntryId } ?: faces.first()
     val face = currentFace.face
+    // 日本語の面か (1.0.140)。複製した面も元の面の種類を持つので、かな・ローマ字を複製した面も入る。
+    // 予測変換が ON の間、候補バーの場所を空けたままにするのに使う ([ComposingState.reservesCandidateBar])。
+    val japaneseFace = face == KeyboardFace.KANA || face == KeyboardFace.ROMAJI
+    SideEffect { composing.japaneseFace = japaneseFace }
+    DisposableEffect(composing) { onDispose { composing.japaneseFace = false } }
     // 開いているパッド (絵文字 / 貼り付け)。⚠ 入口は**面の切替キーがこの面に無いときだけ**出す。
     // 切替キーがあるときは、その席 (日本語面の「あ」の位置) を切替キーが使うため。
     // 入口はかな面 (ESC の上下フリック) と数字面 (😀 キー) にもある。

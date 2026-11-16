@@ -1350,6 +1350,6 @@ Panel tepi: %12$d, catatan: %13$d</string>
     <string name="ui_bridge_show_bar">Tampilkan tombol berhenti di atas aplikasi</string>
     <string name="ui_bridge_show_bar_desc">Selama AI mengoperasikan, bilah kecil dengan ‖ (jeda) dan ■ (akhiri) tetap di atas aplikasi. ■ mengakhiri tugas saat ini dan membiarkan operasi AI tetap aktif; Berhenti di notifikasi juga mematikannya. Bisa digeser dengan jari. Menarik panel notifikasi juga menjeda. AI tidak bisa menekan bilah ini.</string>
     <string name="ui_bridge_end">Akhiri tugas AI</string>
-    <string name="settings_ime_next_word">Prediksi kata berikutnya</string>
-    <string name="settings_ime_next_word_desc">Tepat setelah Anda mengonfirmasi kata, tampilkan kata yang pernah Anda ketik setelahnya, tanpa mengetik apa pun. Ketuk salah satu untuk memasukkannya. Mengetik atau mengirim tombol apa pun akan menutupnya.</string>
+    <string name="settings_ime_next_word">Teks prediktif</string>
+    <string name="settings_ime_next_word_desc">Menampilkan kata yang lebih panjang dan frasa baku saat mengetik; Konversi lalu hanya menampilkan yang cocok persis. Setelah dikonfirmasi, menampilkan kata berikutnya atau frasa baku. Selama keyboard Jepang terbuka, ruang bilah kandidat tetap disediakan agar terminal tidak bergeser. Mati: kandidat hanya muncul saat mengetik.</string>
 </resources>

@@ -1361,6 +1361,6 @@ SSH 連線目標 %3$d 個
     <string name="ui_bridge_show_bar">在被操作的應用程式上方顯示停止按鈕</string>
     <string name="ui_bridge_show_bar_desc">AI 操作期間，在應用程式上方顯示帶有 ‖（暫停）和 ■（結束）的小條。■ 結束目前的工作，並保留 AI 操作的許可（通知中的停止會同時關閉許可）。可用手指拖到任意位置。下拉通知欄也會暫停。AI 無法按這個小條。</string>
     <string name="ui_bridge_end">結束 AI 的工作</string>
-    <string name="settings_ime_next_word">下一個詞預測</string>
-    <string name="settings_ime_next_word_desc">確定一個詞後，不必輸入，就會顯示你以前在它之後輸入過的詞。點一下即可輸入。輸入任何內容或送出按鍵後會關閉。</string>
+    <string name="settings_ime_next_word">預測輸入</string>
+    <string name="settings_ime_next_word_desc">輸入時顯示更長的詞和常用語；按「轉換」後只顯示與讀音完全相符的詞。確定後顯示下一個詞或常用語。日文鍵盤開啟期間會一直留出候選列的位置，終端畫面不會上下移動。關閉時，候選只在輸入時出現。</string>
 </resources>

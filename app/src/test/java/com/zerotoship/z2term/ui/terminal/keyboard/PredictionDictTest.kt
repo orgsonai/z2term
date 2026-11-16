@@ -183,6 +183,33 @@ class PredictionDictTest {
         }
     }
 
+    /** 定型文は、打ちかけの補完に出る (1.0.140)。文章から集めた表にはあいさつがほぼ無い。 */
+    @Test
+    fun setPhrasesAreOfferedAsCompletions() {
+        val c = KanaKanjiConverter.convertFlexible("よろ")
+        assertTrue("よろ の補完に よろしくお願いします が無い: ${c.take(6)}", "よろしくお願いします" in c.take(5))
+        assertEquals(
+            "よろしくおねがいします",
+            KanaKanjiConverter.predictionReadingMap("よろ")["よろしくお願いします"],
+        )
+        // 1 文字では出さない (補完と同じ)。読みぴったりの語は補完ではない。
+        assertTrue(SetPhrases.predictWithReading("よ").isEmpty())
+        assertTrue(SetPhrases.predictWithReading("こんにちは").isEmpty())
+    }
+
+    /** 設定「予測変換」が OFF (既定) なら、表の補完も定型文も出ない (1.0.140)。 */
+    @Test
+    fun predictionOffShowsNoTableCompletions() {
+        val off = KanaKanjiConverter.convertFlexible("よろ", predictive = false)
+        assertTrue("予測変換 OFF で定型文が出た: $off", "よろしくお願いします" !in off)
+        val offKai = KanaKanjiConverter.convertFlexible("かい", predictive = false)
+        assertTrue("予測変換 OFF で 1 番目が変換になっていない: ${offKai.take(4)}", offKai.isNotEmpty())
+        assertTrue(
+            "予測変換 OFF で表の語の読みを控えた",
+            KanaKanjiConverter.predictionReadingMap("よろ", predictive = false)["よろしくお願いします"] == null,
+        )
+    }
+
     @Test
     fun slotsGrowWithTypedLength() {
         assertEquals(2, KanaKanjiConverter.completionSlots(1))

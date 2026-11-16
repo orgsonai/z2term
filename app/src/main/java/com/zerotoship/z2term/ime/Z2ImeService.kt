@@ -141,7 +141,7 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         // 入力ビューが 1 度も作られないことがあるので、打鍵を受ける側で設定を追う。
         lifecycleScope.launch {
             appSettings.flow.collect { settings ->
-                composing.nextWordPrediction = settings.imeNextWordPrediction
+                composing.updatePrediction(settings.imePrediction)
                 enabledFaces = KeyboardFaceConfig.enabledEntriesFromJson(
                     orderValue = settings.keyboardFaceOrder,
                     enabledValue = settings.keyboardFaceEnabledIds,
@@ -406,7 +406,9 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
     override fun onComputeInsets(outInsets: Insets) {
         super.onComputeInsets(outInsets)
         // 候補バーが出ていれば席は「中身入り」= 入力メソッドの一部。出ていなければ空き地。
-        if (composing.showsCandidateBar) return
+        // 予測変換が ON で日本語の面を開いている間は、空でも席ごと入力メソッドの一部にする (1.0.140)。
+        // バーが出たり消えたりするたびに、相手のアプリの表示が上下しないように。
+        if (composing.showsCandidateBar || composing.reservesCandidateBar) return
         val reserved = (CandidateBarHeight.value * resources.displayMetrics.density).toInt()
         outInsets.contentTopInsets += reserved
         outInsets.visibleTopInsets += reserved
@@ -561,6 +563,7 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
             }
         }
         // 素通しした打鍵 (何も打っていないときの Enter・⌫・空白 など) で、次の言葉の予測を閉じる (1.0.139)。
+        // 予測変換が ON なら、何も打っていないときの候補に替える (1.0.140)。
         if (!handled) composing.dismissNextWords()
         if (handled) {
             updateInputViewShown()

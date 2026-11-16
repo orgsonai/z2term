@@ -274,6 +274,29 @@ object ImeHistoryStore {
     }
 
     /**
+     * よく確定している語 (1.0.140): 2 回以上確定した 2 文字以上の語を、回数 + 直近性の順に
+     * 最大 [limit] 件。何も打っていないときの候補バーに、定型文の後ろへ並べる。
+     * 文まるごと ([KanaKanjiConverter.isSentenceLike]) は出さない。
+     */
+    fun frequentWords(limit: Int = 8): List<String> {
+        if (!loaded || limit <= 0) return emptyList()
+        val now = System.currentTimeMillis()
+        val best = HashMap<String, Double>()
+        for ((r, entries) in byReading) {
+            for (e in entries) {
+                if (e.count < 2 || e.word.length < 2) continue
+                if (KanaKanjiConverter.isSentenceLike(r, e.word)) continue
+                val ageMs = (now - e.lastUsedAt).coerceAtLeast(0)
+                val recency = if (ageMs >= RECENT_WINDOW_MS) 0.0
+                              else MAX_RECENCY_BOOST * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)
+                val score = e.count + recency
+                if (score > (best[e.word] ?: -1.0)) best[e.word] = score
+            }
+        }
+        return best.entries.sortedByDescending { it.value }.take(limit).map { it.key }
+    }
+
+    /**
      * 「[prev] → [next]」が学習済みなら正のコストボーナスを返す (大きいほど強く昇格)。
      * 未学習なら 0。頻度 (count) と直近性 (recency) でスケールする。リランカーから参照。
      */

@@ -1370,6 +1370,6 @@ Panneaux latéraux : %12$d, notes : %13$d</string>
     <string name="ui_bridge_show_bar">Afficher un bouton d’arrêt sur l’app</string>
     <string name="ui_bridge_show_bar_desc">Pendant que l’IA agit, une petite barre avec ‖ (pause) et ■ (terminer) reste au-dessus de l’app. ■ termine la tâche en cours et laisse la commande par l’IA activée ; Arrêter dans la notification la désactive aussi. Déplaçable au doigt. Tirer le volet des notifications met aussi en pause. L’IA ne peut pas appuyer sur la barre.</string>
     <string name="ui_bridge_end">Terminer la tâche de l’IA</string>
-    <string name="settings_ime_next_word">Prédiction du mot suivant</string>
-    <string name="settings_ime_next_word_desc">Juste après la validation d’un mot, affiche les mots que vous avez déjà tapés après lui, sans rien saisir. Touchez-en un pour l’insérer. Toute saisie ou touche envoyée les ferme.</string>
+    <string name="settings_ime_next_word">Saisie prédictive</string>
+    <string name="settings_ime_next_word_desc">Affiche des mots plus longs et des formules toutes faites pendant la saisie ; Convertir n’affiche alors que les correspondances exactes. Après validation, affiche le mot suivant ou des formules. Tant que le clavier japonais est ouvert, la barre de candidats garde sa place pour que le terminal ne bouge pas. Désactivé : candidats uniquement pendant la saisie.</string>
 </resources>

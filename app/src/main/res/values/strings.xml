@@ -1459,6 +1459,6 @@ Edge panels: %12$d, notes: %13$d</string>
     <string name="ui_bridge_show_bar">Show a stop button over the app</string>
     <string name="ui_bridge_show_bar_desc">While the AI operates, a small bar with ‖ (pause) and ■ (end) stays on top of the app. ■ ends the current task and keeps AI operation on; Stop in the notification also turns it off. Drag the bar anywhere. Pulling down the notification shade also pauses. The AI cannot press the bar.</string>
     <string name="ui_bridge_end">End the AI\'s task</string>
-    <string name="settings_ime_next_word">Next-word prediction</string>
-    <string name="settings_ime_next_word_desc">Right after you confirm a word, show the words you have typed after it before, without typing anything. Tap one to enter it. Typing or sending any key closes them.</string>
+    <string name="settings_ime_next_word">Predictive input</string>
+    <string name="settings_ime_next_word_desc">Shows longer words and set phrases while you type; Convert then shows only exact matches. After you confirm, shows the next word or set phrases. While the Japanese keyboard is open, the candidate bar keeps its space so the terminal does not move. Off: candidates appear only while typing.</string>
 </resources>

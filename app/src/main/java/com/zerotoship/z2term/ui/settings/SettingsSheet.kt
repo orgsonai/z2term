@@ -684,8 +684,8 @@ fun SettingsSheet(
                     ToggleField(
                         title = stringResource(R.string.settings_ime_next_word),
                         description = stringResource(R.string.settings_ime_next_word_desc),
-                        checked = settings.imeNextWordPrediction,
-                        onChange = { session.setImeNextWordPrediction(it) }
+                        checked = settings.imePrediction,
+                        onChange = { session.setImePrediction(it) }
                     )
                     // IME 学習履歴 (キーボードパッチ): 件数表示 + 管理ボタン (シートを開く)
                     Section(title = stringResource(R.string.settings_section_ime_history)) {

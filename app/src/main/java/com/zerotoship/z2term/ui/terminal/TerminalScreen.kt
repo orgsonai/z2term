@@ -461,8 +461,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         composing.reset(); systemComposing = ""
     }
     // 次の言葉の予測 (1.0.139) の入り切り。タブを切り替えると composing が作り直されるので、それにも追従する。
-    LaunchedEffect(composing, settings.imeNextWordPrediction) {
-        composing.nextWordPrediction = settings.imeNextWordPrediction
+    LaunchedEffect(composing, settings.imePrediction) {
+        composing.updatePrediction(settings.imePrediction)
     }
 
     // 保存されたキーボードモードに常に追従する。keyboardMode を変えるのはトグル
@@ -787,7 +787,14 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 }
             }
             Box(Modifier.weight(1f).fillMaxHeight()) {
-            com.zerotoship.z2term.workspace.SessionPanes(active, Modifier.fillMaxSize()) {
+            // 予測変換が ON で日本語の面を開いている間は、候補バーの場所を端末の下に空けたままにする
+            // (1.0.140)。バーは下の端に重ねて出すので、空けないと打っている行が隠れる。いつも空けて
+            // おけば、バーが出たり消えたりしても端末の表示は上下しない。
+            val reserveBar = composing.reservesCandidateBar && !floatingKeyboard
+            com.zerotoship.z2term.workspace.SessionPanes(
+                active,
+                Modifier.fillMaxSize().padding(bottom = if (reserveBar) CandidateBarHeight else 0.dp),
+            ) {
             Box(Modifier.fillMaxSize()) {
                 if (!com.zerotoship.z2term.workspace.Workspace.projected(active.id)) TerminalRenderer(
                     session = active,

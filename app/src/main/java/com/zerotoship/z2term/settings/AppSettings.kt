@@ -54,10 +54,11 @@ class AppSettings(private val context: Context) {
          */
         val keyboardNumberFace: Boolean = DEFAULT_KEYBOARD_NUMBER_FACE,
         /**
-         * 次の言葉の予測 (1.0.139)。確定した直後、何も打たなくても直前の語に続く語を候補バーに出す。
-         * 既定 ON (利用者の決定)。端末でコマンドを打つときに邪魔なら切る。
+         * 予測変換 (1.0.140)。ON なら、打っている途中に続きの長い語・定型文を出し、変換キーで
+         * 読みにぴったり合う語へ切り替え、確定した後も次の言葉・定型文を出す。日本語の面の間は
+         * 候補バーの場所を空けたままにする。既定 OFF (利用者の決定) = 1.0.136 までの動き。
          */
-        val imeNextWordPrediction: Boolean = DEFAULT_IME_NEXT_WORD,
+        val imePrediction: Boolean = DEFAULT_IME_PREDICTION,
         /**
          * 面の巡回順のプリセット (`KeyboardFace.ORDER_*_ID`)。
          *
@@ -598,7 +599,7 @@ class AppSettings(private val context: Context) {
             imeFace = p[KEY_IME_FACE]
                 ?: if (p[KEY_IME_JAPANESE_MODE] == true) FACE_ID_KANA else DEFAULT_IME_FACE,
             keyboardNumberFace = p[KEY_KEYBOARD_NUMBER_FACE] ?: DEFAULT_KEYBOARD_NUMBER_FACE,
-            imeNextWordPrediction = p[KEY_IME_NEXT_WORD] ?: DEFAULT_IME_NEXT_WORD,
+            imePrediction = p[KEY_IME_PREDICTION] ?: DEFAULT_IME_PREDICTION,
             keyboardFaceOrder = p[KEY_KEYBOARD_FACE_ORDER] ?: DEFAULT_KEYBOARD_FACE_ORDER,
             keyboardFaceEnabledIds = p[KEY_KEYBOARD_FACE_ENABLED] ?: "",
             keyboardLayoutsJson = p[KEY_KEYBOARD_LAYOUTS] ?: "",
@@ -1002,8 +1003,8 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_KEYBOARD_NUMBER_FACE] = enabled }
     }
 
-    suspend fun setImeNextWordPrediction(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_IME_NEXT_WORD] = enabled }
+    suspend fun setImePrediction(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_IME_PREDICTION] = enabled }
     }
 
     suspend fun setKeyboardFaceOrder(orderId: String) {
@@ -1132,8 +1133,8 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_IME_FACE = FACE_ID_ASCII
         /** 数字面は既定 ON (この面を足すこと自体が 0.8.305 の要望)。 */
         const val DEFAULT_KEYBOARD_NUMBER_FACE = false
-        /** 次の言葉の予測は既定 ON (1.0.139)。 */
-        const val DEFAULT_IME_NEXT_WORD = true
+        /** 予測変換は既定 OFF (1.0.140・利用者の決定)。 */
+        const val DEFAULT_IME_PREDICTION = false
         /** 巡回順の既定は「あ → A → 12」(`KeyboardFace.ORDER_ASCII_FIRST_ID`)。 */
         const val DEFAULT_KEYBOARD_FACE_ORDER = "kana_ascii_number"
         const val DEFAULT_KEEP_ALIVE = true
@@ -1176,7 +1177,9 @@ class AppSettings(private val context: Context) {
         private val KEY_IME_JAPANESE_MODE = booleanPreferencesKey("ime_japanese_mode")
         private val KEY_IME_FACE = stringPreferencesKey("ime_face")
         private val KEY_KEYBOARD_NUMBER_FACE = booleanPreferencesKey("keyboard_number_face")
-        private val KEY_IME_NEXT_WORD = booleanPreferencesKey("ime_next_word_prediction")
+        // ⚠ 1.0.139 の「次の言葉の予測」(ime_next_word_prediction・既定 ON) とは別の鍵。既定を OFF に
+        //   変えたので、古い鍵の値を引き継がない。
+        private val KEY_IME_PREDICTION = booleanPreferencesKey("ime_prediction")
         private val KEY_KEYBOARD_FACE_ORDER = stringPreferencesKey("keyboard_face_order")
         private val KEY_KEYBOARD_FACE_ENABLED = stringPreferencesKey("keyboard_face_enabled_ids")
         private val KEY_KEYBOARD_LAYOUTS = stringPreferencesKey("keyboard_layouts")

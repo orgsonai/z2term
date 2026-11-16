@@ -507,7 +507,7 @@ class TerminalSession(
     fun setInitCommand(value: String) { scope.launch { settings.setInitCommand(value) } }
     fun setKeyboardStyleId(id: String) { scope.launch { settings.setKeyboardStyleId(id) } }
     fun setKeyboardNumberFace(enabled: Boolean) { scope.launch { settings.setKeyboardNumberFace(enabled) } }
-    fun setImeNextWordPrediction(enabled: Boolean) { scope.launch { settings.setImeNextWordPrediction(enabled) } }
+    fun setImePrediction(enabled: Boolean) { scope.launch { settings.setImePrediction(enabled) } }
     fun setKeyboardFaceOrder(orderId: String) { scope.launch { settings.setKeyboardFaceOrder(orderId) } }
     fun setKeyboardFaceEnabledIds(ids: String) { scope.launch { settings.setKeyboardFaceEnabledIds(ids) } }
     /** 自分で作ったキー配列の束を丸ごと保存する (0.8.408)。⚠ 束は常に全体を渡す。 */

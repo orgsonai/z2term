@@ -1370,6 +1370,6 @@ Painéis laterais: %12$d, notas: %13$d</string>
     <string name="ui_bridge_show_bar">Mostrar um botão de parada sobre o app</string>
     <string name="ui_bridge_show_bar_desc">Enquanto a IA opera, uma pequena barra com ‖ (pausar) e ■ (encerrar) fica sobre o app. ■ encerra a tarefa atual e mantém o controle pela IA ativado; Parar na notificação também o desativa. Dá para arrastar. Puxar a aba de notificações também pausa. A IA não consegue tocar na barra.</string>
     <string name="ui_bridge_end">Encerrar a tarefa da IA</string>
-    <string name="settings_ime_next_word">Previsão da próxima palavra</string>
-    <string name="settings_ime_next_word_desc">Logo depois de confirmar uma palavra, mostra as palavras que você já digitou depois dela, sem digitar nada. Toque em uma para inseri-la. Digitar ou enviar qualquer tecla as fecha.</string>
+    <string name="settings_ime_next_word">Texto preditivo</string>
+    <string name="settings_ime_next_word_desc">Mostra palavras mais longas e frases prontas enquanto você digita; Converter mostra só correspondências exatas. Depois de confirmar, mostra a próxima palavra ou frases prontas. Com o teclado japonês aberto, a barra de candidatos mantém seu espaço para o terminal não se mover. Desligado: candidatos só aparecem ao digitar.</string>
 </resources>
