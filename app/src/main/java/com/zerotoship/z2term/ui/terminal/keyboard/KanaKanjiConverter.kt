@@ -242,8 +242,8 @@ object KanaKanjiConverter {
      * 柔軟な変換候補。優先順:
      *  1. 学習履歴: 完全一致 reading の確定済み単語 ([ImeHistoryStore.historyFor]) ← 最上位
      *  2. 文まるごと最尤変換の 1 位 — 打った読みそのものの変換 (1.0.137 で補完より前へ)
-     *  2.5 補完 ([completionsFor]): 学習履歴の前方一致 → ユーザー辞書 → よく使われる語の表。
-     *      [completionSlots] 件まで
+     *  2.5 補完 ([completionsFor]): 学習履歴の前方一致 1 件 → ユーザー辞書 → よく使われる語の表 →
+     *      学習履歴の残り。[completionSlots] 件まで (1.0.138: 学習が枠を全部取らないように)
      *  3. 文まるごと最尤変換の 2 位以降 ([KkcConverter.nbest])
      *  3.5 読み完全一致の 1 語候補 ([KkcConverter.wordsFor]) — 辞書が持つ同音語。⚠ **[limit] の枠外**
      *  4. 完全一致 ([convert]) / 送り仮名活用 ([okuriForms]) — 単語の別表記候補。
@@ -301,10 +301,11 @@ object KanaKanjiConverter {
             out.add(converted)
             if (out.size >= limit) return assemble()
         }
-        // 2.5 補完 (打った読みで始まる、読みより長い語)。自分の言葉を先に、世の中の言葉を後に:
-        //     学習履歴 → ユーザー辞書 → よく使われる語の表 ([PredictionDict])。
-        //     ここで出すのは [completionSlots] 件まで。残りは (5) で列の後ろへ回す。
-        val completions: List<String> = if (allowPrediction) completionsFor(reading) else emptyList()
+        // 2.5 補完 (打った読みで始まる、読みより長い語)。学習履歴 1 件 → ユーザー辞書 →
+        //     よく使われる語の表 ([PredictionDict]) → 学習履歴の残り ([completionsFor])。
+        //     ここで出すのは [completionSlots] 件まで。学習の残りは (3.5) の直後、表の残りは (5) へ回す。
+        val comp = if (allowPrediction) completionsFor(reading) else Completions.NONE
+        val completions = comp.ordered
         var slots = completionSlots(reading.length)
         for (w in completions) {
             if (slots <= 0) break
@@ -332,6 +333,9 @@ object KanaKanjiConverter {
             }
             return assemble()
         }
+        // 補完の枠に入らなかった学習の語は、同じ読みの 1 語 (3.5) の直後へ置く。辞書の語が多い読み
+        // (かい は 80 語以上) では (5) まで届かず候補から消えてしまうため、ここで先に入れる。
+        out.addAll(comp.ownRest)
         out.addAll(dictWords)
         out.addAll(okuriForms(reading))
         // 5. 辞書の前方一致予測 (読みより長い補完) で補う。後続ブロックがある分割の先頭ブロックでは
@@ -352,15 +356,49 @@ object KanaKanjiConverter {
 
     /**
      * 補完の候補 (打った読みで始まる、読みより長い語) を、出す順に並べて返す。
-     * 自分が確定したことのある語 → 自分で登録した語 → 世の中でよく使われる語。
+     * 自分が確定したことのある語 1 件 → 自分で登録した語 → 世の中でよく使われる語 →
+     * 自分が確定したことのある語の残り (1.0.138)。
+     *
+     * ⚠ 学習した語を全部先に並べると、使い込んだ読みでは [completionSlots] の枠が学習だけで
+     * 埋まり、よく使われる語が一度も出なくなる (実機の「かい」で 回線 / 改善… / 改善 が枠を
+     * 取り、開発・開始 が出なかった)。学習からは 1 件だけ先に出し、残りは表の後ろへ回す。
+     * 表が答えない読み (1 文字・表の未読込) では、残りの学習がそのまま枠に入る。
+     *
+     * 文まるごと ([isSentenceLike]) は補完に出さない。読みを全部打ったときの変換には今までどおり効く。
      */
-    private fun completionsFor(reading: String): List<String> {
+    private fun completionsFor(reading: String): Completions {
+        val own = ImeHistoryStore.predictHistoryWithReading(reading, limit = 6)
+            .filterNot { (r, w) -> isSentenceLike(r, w) }
+            .map { it.second }
         val out = LinkedHashSet<String>()
-        out.addAll(ImeHistoryStore.predictHistory(reading, limit = 6))
+        out.addAll(own.take(HISTORY_COMPLETION_FIRST))
         out.addAll(UserDictStore.predict(reading, limit = 6))
         out.addAll(PredictionDict.predict(reading, limit = 8))
-        return out.toList()
+        out.addAll(own.drop(HISTORY_COMPLETION_FIRST))
+        return Completions(out.toList(), own.drop(HISTORY_COMPLETION_FIRST))
     }
+
+    /** [ordered] = 補完を出す順。[ownRest] = 表より後ろへ回した学習の語 (枠に入らなければ 3.5 の直後へ置く)。 */
+    private class Completions(val ordered: List<String>, val ownRest: List<String>) {
+        companion object {
+            val NONE = Completions(emptyList(), emptyList())
+        }
+    }
+
+    /** 補完の枠で、表より先に出す学習した語の数。 */
+    private const val HISTORY_COMPLETION_FIRST = 1
+
+    /** これより長い読みの学習は「文まるごと」とみなし、補完に出さない。 */
+    private const val SENTENCE_READING_LEN = 10
+
+    /**
+     * 学習した語が「文まるごと」か。句読点・？・！を含むか、読みが [SENTENCE_READING_LEN] 字より長いもの
+     * (例: 改善出来ないでしょうか？)。一度打っただけの文が、打ちかけの補完に出続けないようにする。
+     */
+    internal fun isSentenceLike(reading: String, word: String): Boolean =
+        reading.length > SENTENCE_READING_LEN || word.any { it in SENTENCE_MARKS }
+
+    private const val SENTENCE_MARKS = "。、．，！？!?"
 
     /**
      * 変換のすぐ後ろ (候補の 2 番目から) に並べる補完の数。打った読みが短いほど当たりにくいので絞る。
