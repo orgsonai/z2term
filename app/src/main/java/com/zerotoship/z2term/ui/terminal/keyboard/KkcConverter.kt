@@ -217,6 +217,10 @@ object KkcConverter {
             runCatching {
                 context.assets.open("kkc_colloc.bloom").use { collocationFilter = ExistenceFilter.load(it) }
             }
+            // 補完用の「よく使われる語」の表。変換の辞書と一緒に読む (読み込む場所を増やさない)。
+            runCatching {
+                context.assets.open("kkc_predict.tsv").bufferedReader(Charsets.UTF_8).use { PredictionDict.loadFrom(it) }
+            }
             // 学習リランカー (HistoryReranker) がまだ載っていなければ共起リランカーを既定で入れる。
             // ImeHistoryStore.ensureLoaded は CompositeReranker で上書きするので順序非依存。
             if (reranker === IdentityReranker && collocationFilter != null) {

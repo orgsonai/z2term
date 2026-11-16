@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.137 (versionCode 835)**: Japanese input now offers completions for a partly typed reading. Once two or more characters are typed, words starting with that reading appear from the second candidate: 仕事 for しご, 新しい for あた, 開発, 開始 and 会社 for かい, with common words first. Phrases you have used before come ahead of those. The first candidate is now the conversion of the reading as typed (previously, phrases you had used were listed before it). The word order comes from written text, so greetings and other set phrases are still weak.
+
 **1.0.136 (versionCode 834)**: Japanese conversion now handles place and personal names inside sentences. とうきょうへいきます gave 当供へ行きます, おおさかしゅっしんです gave 多さ化出身です and たなかさんにでんわする gave 他中三二電話する; these now give 東京, 大阪 and 田中さん. The 724 most common names are covered. Words normally written in hiragana are also turned into kanji less often: 待って下さい, 宜しくお願いします, 時間が無いので and 走って行く now come out as 待ってください, よろしくお願いします, 時間がないので and 走っていく.
 
 **1.0.135 (versionCode 833)**: Japanese conversion now puts the commonly used word first among words with the same reading. みずをのむ gave 瑞を飲む, そうじをする gave 相似をする, たかいやま gave 高いヤマ, へやのなか gave 部屋のなか and もじがよめない gave 文字が讀めない; these now give 水, 掃除, 山, 中 and 読めない. Word frequencies were counted in Wikipedia text and rarer words are moved back. Conversions you have taught it still take priority. Homophones of different parts of speech (加味 and 紙 for かみ, for example) and place and personal names inside sentences are not fixed yet.

@@ -178,6 +178,10 @@ object KanaKanjiConverter {
         for ((r, w) in UserDictStore.predictWithReading(prefix, limit = 8)) {
             if (r != prefix) map.putIfAbsent(w, r)
         }
+        // よく使われる語の表の補完も、表にある読みで学習させる。
+        for ((r, w) in PredictionDict.predictWithReading(prefix, limit = 8)) {
+            if (r != prefix) map.putIfAbsent(w, r)
+        }
         for ((r, w) in predictWithReading(prefix)) {
             if (r != prefix) map.putIfAbsent(w, r)
         }
@@ -237,13 +241,15 @@ object KanaKanjiConverter {
     /**
      * 柔軟な変換候補。優先順:
      *  1. 学習履歴: 完全一致 reading の確定済み単語 ([ImeHistoryStore.historyFor]) ← 最上位
-     *  2. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 打った読みで始まる学習済み語句の予測変換
-     *  3. 文まるごと最尤変換 ([KkcConverter.convert]) — 読み全体を Viterbi で一発変換
+     *  2. 文まるごと最尤変換の 1 位 — 打った読みそのものの変換 (1.0.137 で補完より前へ)
+     *  2.5 補完 ([completionsFor]): 学習履歴の前方一致 → ユーザー辞書 → よく使われる語の表。
+     *      [completionSlots] 件まで
+     *  3. 文まるごと最尤変換の 2 位以降 ([KkcConverter.nbest])
      *  3.5 読み完全一致の 1 語候補 ([KkcConverter.wordsFor]) — 辞書が持つ同音語。⚠ **[limit] の枠外**
      *  4. 完全一致 ([convert]) / 送り仮名活用 ([okuriForms]) — 単語の別表記候補。
      *     ⚠ 完全一致のうち [limit] に入りきらなかった分は**末尾へ全部足す**
      *     (きごう は 130 以上の記号を持ち、48 枠では後ろの大半が出なかった)。
-     *  5. 前方一致の予測 ([predict]) で補完
+     *  5. 残りの補完と、同梱辞書の前方一致 ([predict])
      *
      * ⚠ **3.5 だけは [limit] を取り合わせない。** 1〜5 が同じ枠を先着で食い合う作りだと、
      * 学習が育つほど上の段 (履歴 4 + 予測 6 + N-best 6 = 16) で枠が尽き、**辞書が持っている
@@ -283,34 +289,35 @@ object KanaKanjiConverter {
             out.add(w)
             if (out.size >= limit) return assemble()
         }
-        // 2. 学習履歴 (前方一致) = 本来の予測変換。打った読みで始まる学習済みの語句を変換より先に出す。
-        if (allowPrediction) {
-            for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
-                out.add(h)
-                if (out.size >= limit) return assemble()
-            }
-            // 2.5 ユーザー辞書 (前方一致)。登録語も打ちかけで補完できるようにする。
-            for (w in UserDictStore.predict(reading, limit = 6)) {
-                out.add(w)
+        // 2. 打った読みそのものの変換 (文まるごとの最尤変換の 1 位) を、補完より先に出す (1.0.137)。
+        //    N-best を取り、直前確定語 [prevSurface] による履歴 bigram リランク (Phase 2) を
+        //    通した 1 位を使う (学習が無ければ Viterbi 1-best と一致)。
+        //    ⚠ 以前は学習履歴の前方一致 (最大 6 件) を変換より先に並べていたので、「かい」と打つと
+        //    会議・解決・開発… が先に出て、会・回・買い がその後ろへ回っていた。
+        val ctx = KkcConverter.KkcContext(prevSurface)
+        val nb = KkcConverter.nbest(reading, 8, ctx)
+        val converted = nb.firstOrNull()?.surface ?: KkcConverter.convert(reading)
+        if (converted != null) {
+            out.add(converted)
+            if (out.size >= limit) return assemble()
+        }
+        // 2.5 補完 (打った読みで始まる、読みより長い語)。自分の言葉を先に、世の中の言葉を後に:
+        //     学習履歴 → ユーザー辞書 → よく使われる語の表 ([PredictionDict])。
+        //     ここで出すのは [completionSlots] 件まで。残りは (5) で列の後ろへ回す。
+        val completions: List<String> = if (allowPrediction) completionsFor(reading) else emptyList()
+        var slots = completionSlots(reading.length)
+        for (w in completions) {
+            if (slots <= 0) break
+            if (out.add(w)) {
+                slots--
                 if (out.size >= limit) return assemble()
             }
         }
-        // 3. 文まるごとの最尤変換 (Viterbi/IPADIC)。読み全体を最尤の単語列へ一発変換する。
-        //    N-best を取り、直前確定語 [prevSurface] による履歴 bigram リランク (Phase 2) を
-        //    通した 1 位を使う (学習が無ければ Viterbi 1-best と一致)。
-        val ctx = KkcConverter.KkcContext(prevSurface)
-        // Viterbi/N-best の上位を複数候補に出す。1 位が稀語 (例 うって→討手) でも、正解
-        // (打って 等) が 2 位以降に必ず候補へ並ぶようにする。一度選べば学習で次回 1 位に上がる。
-        val nb = KkcConverter.nbest(reading, 8, ctx)
-        if (nb.isNotEmpty()) {
-            for (cand in nb.take(6)) {
-                out.add(cand.surface)
-                if (out.size >= limit) return assemble()
-            }
-        } else {
-            KkcConverter.convert(reading)?.let {
-                out.add(it); if (out.size >= limit) return assemble()
-            }
+        // 3. 文まるごと変換の 2 位以降。1 位が稀語 (例 うって→討手) でも、正解 (打って 等) が
+        //    候補へ並ぶようにする。一度選べば学習で次回 1 位に上がる。
+        for (cand in nb.drop(1).take(5)) {
+            out.add(cand.surface)
+            if (out.size >= limit) return assemble()
         }
         // 3.5 読みに完全一致する 1 語候補 ([exactWords]) の差し込み位置。
         //   N-best は「文としての経路」の上位 6 本しか出さないため、同じ読みの 1 語候補が順位
@@ -320,10 +327,8 @@ object KanaKanjiConverter {
         spliceAt = out.size
         if (lines.isEmpty()) {
             // z2dict 未ロード時は前方一致履歴を上限まで埋める (ステップ2は6件まで)。
-            if (allowPrediction) {
-                for (h in ImeHistoryStore.predictHistory(reading, limit = limit)) {
-                    out.add(h); if (out.size >= limit) break
-                }
+            for (h in completions) {
+                out.add(h); if (out.size >= limit) break
             }
             return assemble()
         }
@@ -335,13 +340,36 @@ object KanaKanjiConverter {
             // ⚠ 前方一致の補完 (読みより長い語) は**上限を別に持つ**。枠が大きいと「仕事」で
             //   仕事相手/仕事唄/仕事運… が延々と並び、同音語 (変換したい語) より目立ってしまう。
             //   打った読みそのものの変換を先に出し切ってから、余った枠だけ補完に使う。
+            //   先に (2.5) で出し切れなかった補完 (自分の言葉・よく使われる語)、次に同梱辞書の並び順。
             val predictCap = minOf(limit, out.size + PREFIX_PREDICT_LIMIT)
-            for (c in predict(reading, PREFIX_PREDICT_LIMIT)) {
+            for (c in completions + predict(reading, PREFIX_PREDICT_LIMIT)) {
                 out.add(c)
                 if (out.size >= predictCap) break
             }
         }
         return assemble()
+    }
+
+    /**
+     * 補完の候補 (打った読みで始まる、読みより長い語) を、出す順に並べて返す。
+     * 自分が確定したことのある語 → 自分で登録した語 → 世の中でよく使われる語。
+     */
+    private fun completionsFor(reading: String): List<String> {
+        val out = LinkedHashSet<String>()
+        out.addAll(ImeHistoryStore.predictHistory(reading, limit = 6))
+        out.addAll(UserDictStore.predict(reading, limit = 6))
+        out.addAll(PredictionDict.predict(reading, limit = 8))
+        return out.toList()
+    }
+
+    /**
+     * 変換のすぐ後ろ (候補の 2 番目から) に並べる補完の数。打った読みが短いほど当たりにくいので絞る。
+     * 1 文字 → 2 件 (学習とユーザー辞書からだけ出る)、2 文字 → 3 件、3 文字以上 → 4 件。
+     */
+    internal fun completionSlots(readingLength: Int): Int = when {
+        readingLength <= 1 -> 2
+        readingLength == 2 -> 3
+        else -> 4
     }
 
     /**

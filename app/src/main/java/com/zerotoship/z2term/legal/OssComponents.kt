@@ -246,7 +246,8 @@ object OssComponents {
             // 共起 2-gram を頻度で足切りして Bloom フィルタ化したもの (原文は保持しない)。
             // 生成手順は scripts/build-collocation.sh。
             // 頻度補正 kkc_freq.tsv も同じ記事から語を数えて作った (scripts/build-kkc-freq.sh)。
-            name = "日本語版ウィキペディア（共起データ kkc_colloc.bloom・頻度補正 kkc_freq.tsv の元）",
+            // 補完用の語の表 kkc_predict.tsv も同じ (語と回数だけ)。
+            name = "日本語版ウィキペディア（共起データ kkc_colloc.bloom・頻度補正 kkc_freq.tsv・補完用の語 kkc_predict.tsv の元）",
             licenseId = "CC-BY-SA-4.0",
             copyright = "Copyright (c) Wikipedia contributors",
             sourceUrl = "https://dumps.wikimedia.org/jawiki/",

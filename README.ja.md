@@ -320,7 +320,7 @@ Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://gith
 | Z2 Mono（このアプリのために作ったフォント。生成スクリプトは `scripts/z2-mono/`） | OFL-1.1 | このリポジトリ |
 | SKK-JISYO.L（同梱辞書 `z2dict.txt` の原本） | GPL-2.0-or-later | [skk-dev/dict](https://github.com/skk-dev/dict) |
 | IPADIC（mecab-ipadic 2.7.0-20070801。`kkc_lex.tsv` / `kkc_matrix.bin` / `kkc_names.tsv` の元） | NAIST ライセンス | [taku910/mecab](https://github.com/taku910/mecab) |
-| 日本語版ウィキペディア（共起データ `kkc_colloc.bloom`・頻度補正 `kkc_freq.tsv` の元） | CC BY-SA 4.0 | [jawiki ダンプ](https://dumps.wikimedia.org/jawiki/) |
+| 日本語版ウィキペディア（共起データ `kkc_colloc.bloom`・頻度補正 `kkc_freq.tsv`・補完用の語 `kkc_predict.tsv` の元） | CC BY-SA 4.0 | [jawiki ダンプ](https://dumps.wikimedia.org/jawiki/) |
 
 設定画面 →「OSS ライセンス / 対応ソース」から、上記情報をアプリ内でも一覧/全文表示できます
 （`assets/licenses/` にライセンス全文を配置）。

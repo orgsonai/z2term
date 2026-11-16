@@ -2,10 +2,11 @@
 """かな漢字変換の頻度補正データ (kkc_freq.tsv) と、文の中で使う地名・人名 (kkc_names.tsv) を作る。
 
     build_kkc_freq.py extract <文字数の上限> <出力.txt>      標準入力のウィキペディア XML から文を取り出す
-    build_kkc_freq.py count   <文.txt> <出力.tsv> [並列数] [固有名詞の出力.tsv]
+    build_kkc_freq.py count   <文.txt> <出力.tsv> [並列数] [固有名詞の出力.tsv] [補完用の語の出力.tsv]
                                                              文を単語に分けて (読み, 表層, 品詞 ID) ごとに数える
     build_kkc_freq.py build   <数.tsv> <kkc_lex.tsv> <出力>  数から補正データを作る
     build_kkc_freq.py names   <固有名詞.tsv> <kkc_lex.tsv> <出力>  よく出る地名・人名を選ぶ
+    build_kkc_freq.py predict <補完用の語.tsv> <固有名詞.tsv> <出力>  打ちかけの補完に使う、よく使われる語の表を作る
 
 なぜ要るか: kkc_lex.tsv (IPADIC) の単語コストは「文章を単語に区切る」ためのもので、同じ読みの
 語を選び分けるのには向かない (かみ: 加味 < 髪 < 神 < 紙、ひと: ひと < 人)。実際の文章で
@@ -38,6 +39,10 @@ SMOOTH = 0.5     # 0 回の語を扱うために数へ足す値
 CAP = 4000       # 引き上げ幅の上限
 MIN_TOP = 5      # 基準の語がこれ未満なら、その読み・品詞は触らない
 NAME_MIN = 300   # 地名・人名はこの回数以上出るものだけ採る (6000 万字あたり)
+PREDICT_MIN = 40     # 補完に出す語はこの回数以上
+PREDICT_MAX = 40000  # 補完の表の行数の上限 (多い順に採る)
+PREDICT_MIN_LEN = 3  # 補完は読み 2 文字から出すので、表に要るのは読み 3 文字以上の語
+PREDICT_NAME_WEIGHT = 0.1   # 地名・人名は回数をこの割合に減らして並べる (百科事典では多すぎるため)
 
 
 def extract(limit, out_path):
@@ -76,6 +81,7 @@ def count_part(args):
     tagger.parse('')
     cnt = collections.Counter()
     names = collections.Counter()
+    words = collections.Counter()
     with open(path, encoding='utf-8') as f:
         for i, line in enumerate(f):
             if i % step != start:
@@ -89,19 +95,42 @@ def count_part(args):
                         cnt[(reading, node.surface, node.lcAttr)] += 1
                         if feat[0] == '名詞' and feat[1] == '固有名詞':
                             names[(reading, node.surface, node.lcAttr, node.rcAttr, node.wcost)] += 1
+                        if completes(feat, node.surface):
+                            words[(reading, node.surface)] += 1
                 node = node.next
-    return cnt, names
+    return cnt, names, words
 
 
-def count(text_path, out_path, workers, names_path=None):
+COMPLETE_NOUNS = {'一般', 'サ変接続', '形容動詞語幹', '副詞可能', '固有名詞', 'ナイ形容詞語幹'}   # 問題・申し訳 は最後のもの
+
+
+def completes(feat, surface):
+    """打ちかけの補完に出してよい語か。単独で 1 語として確定できるものだけ。"""
+    if feat[0] == '名詞':
+        return feat[1] in COMPLETE_NOUNS
+    if feat[0] in ('副詞', '感動詞', '接続詞', '連体詞'):
+        return True
+    if feat[0] in ('動詞', '形容詞'):      # 活用語は言い切りの形だけ (行き・行っ は補完にしない)
+        return feat[1] == '自立' and len(feat) > 6 and feat[6] == surface
+    return False
+
+
+def count(text_path, out_path, workers, names_path=None, words_path=None):
     import multiprocessing
     with multiprocessing.Pool(workers) as pool:
         parts = pool.map(count_part, [(text_path, i, workers) for i in range(workers)])
     total = collections.Counter()
     names = collections.Counter()
-    for p, n in parts:
+    words = collections.Counter()
+    for p, n, w in parts:
         total.update(p)
         names.update(n)
+        words.update(w)
+    if words_path:
+        with open(words_path, 'w', encoding='utf-8') as out:
+            for (r, s), n in sorted(words.items()):
+                if '\t' not in r and '\t' not in s:
+                    out.write(f'{r}\t{s}\t{n}\n')
     if names_path:
         with open(names_path, 'w', encoding='utf-8') as out:
             for (r, s, lc, rc, cost), n in sorted(names.items()):
@@ -184,16 +213,60 @@ def build_names(names_path, lex_path, out_path):
     sys.stderr.write(f'[names] rows={len(rows)}\n')
 
 
+def is_word_char(c):
+    o = ord(c)
+    return (0x3041 <= o <= 0x3096 or 0x30A1 <= o <= 0x30FA or o in (0x30FC, 0x3005)
+            or 0x4E00 <= o <= 0x9FFF or 0x3400 <= o <= 0x4DBF)
+
+
+def build_predict(words_path, names_path, out_path):
+    """補完用の表 (kkc_predict.tsv)。読み・表層・回数を読み順に並べる。
+
+    打った読みで始まる語を多い順に出すためのもの。単独で 1 語として確定できる語
+    (名詞・副詞・感動詞・接続詞・連体詞と、動詞・形容詞の言い切りの形) だけを数えてある。
+    記号・英数字を含む表層と、読みが 3 文字未満の語は採らない。
+    地名・人名は回数を PREDICT_NAME_WEIGHT 倍にして並べる。そのままだと あり → 有馬、
+    いそ → 磯部、すこ → スコットランド が、ふだんの語より上に来る。
+    """
+    proper = collections.Counter()               # (読み, 表層) -> 固有名詞として出た回数
+    with open(names_path, encoding='utf-8') as f:
+        for line in f:
+            p = line.rstrip('\n').split('\t')
+            proper[(p[0], p[1])] += int(p[5])
+    rows = []
+    with open(words_path, encoding='utf-8') as f:
+        for line in f:
+            r, s, n = line.rstrip('\n').split('\t')
+            n = int(n)
+            name_n = min(n, proper.get((r, s), 0))
+            n = int((n - name_n) + name_n * PREDICT_NAME_WEIGHT)
+            if n < PREDICT_MIN or len(r) < PREDICT_MIN_LEN:
+                continue
+            if not all('ぁ' <= c <= 'ゖ' or c == 'ー' for c in r) or not all(is_word_char(c) for c in s):
+                continue
+            rows.append((n, r, s))
+    rows.sort(key=lambda x: (-x[0], x[1], x[2]))
+    rows = rows[:PREDICT_MAX]
+    with open(out_path, 'w', encoding='utf-8') as out:
+        out.write('# 打ちかけの補完に使う、よく使われる語 (読み, 表層, 回数)。scripts/build-kkc-freq.sh が作る。\n')
+        out.write('# 日本語版ウィキペディア (CC BY-SA 4.0) の文章で語を数えた結果から作った。原文は含まない。\n')
+        for n, r, s in sorted(rows, key=lambda x: (x[1], -x[0], x[2])):
+            out.write(f'{r}\t{s}\t{n}\n')
+    sys.stderr.write(f'[predict] rows={len(rows)}\n')
+
+
 if __name__ == '__main__':
     cmd = sys.argv[1]
     if cmd == 'extract':
         extract(int(sys.argv[2]), sys.argv[3])
     elif cmd == 'count':
         count(sys.argv[2], sys.argv[3], int(sys.argv[4]) if len(sys.argv) > 4 else 2,
-              sys.argv[5] if len(sys.argv) > 5 else None)
+              sys.argv[5] if len(sys.argv) > 5 else None, sys.argv[6] if len(sys.argv) > 6 else None)
     elif cmd == 'build':
         build(sys.argv[2], sys.argv[3], sys.argv[4])
     elif cmd == 'names':
         build_names(sys.argv[2], sys.argv[3], sys.argv[4])
+    elif cmd == 'predict':
+        build_predict(sys.argv[2], sys.argv[3], sys.argv[4])
     else:
         sys.exit(__doc__)

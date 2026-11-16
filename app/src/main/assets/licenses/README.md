@@ -21,7 +21,7 @@
 | `BSD-3-Clause.txt` | https://spdx.org/licenses/BSD-3-Clause.txt |
 | `OFL-1.1.txt` | https://openfontlicense.org/documents/OFL.txt |
 | `0BSD.txt` | https://spdx.org/licenses/0BSD.txt |
-| `CC-BY-SA-4.0.txt` | https://creativecommons.org/licenses/by-sa/4.0/legalcode.txt （共起データ `kkc_colloc.bloom`・頻度補正 `kkc_freq.tsv` の元 = 日本語版ウィキペディア用） |
+| `CC-BY-SA-4.0.txt` | https://creativecommons.org/licenses/by-sa/4.0/legalcode.txt （共起データ `kkc_colloc.bloom`・頻度補正 `kkc_freq.tsv`・補完用の語 `kkc_predict.tsv` の元 = 日本語版ウィキペディア用） |
 | `IPADIC-NAIST.txt` | https://raw.githubusercontent.com/taku910/mecab/master/mecab-ipadic/COPYING （SPDX に ID が無いため原文をそのまま。ICOT Free Software の条件も含む） |
 | `Bouncy-Castle-MIT.txt` | Bouncy Castle 1.85.2 同梱原文 |
 | `MBassador-MIT.txt` | MBassador 1.3.2 公式 LICENSE |
