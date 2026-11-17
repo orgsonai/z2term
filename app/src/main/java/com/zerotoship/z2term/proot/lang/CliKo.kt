@@ -1347,6 +1347,14 @@ private class ApiMsgKo(d: String) : Z2ApiMsg("ko", d) {
         |#   줄 첫머리의 ~를 그대로 넣으려면 ~~, Ctrl+]을 그대로 보내려면 ~에 이어 Ctrl+]
         |#   붙어 있는 동안 탭은 내 창 크기를 따르고, 나오면 원래 크기로 돌아갑니다
         |# z2-session close <탭>              … 그 탭을 닫습니다 (마지막 하나는 닫지 않습니다)
+        |# z2-session group [list]             … 그룹 목록 (번호 / id / 이름 / 탭 번호, TSV)
+        |# z2-session group new <이름> [<탭>]...  … 그 탭들로 그룹을 만든다 (번호와 id를 돌려준다)
+        |# z2-session group add <그룹> <탭>...    … 그 그룹에 탭을 넣는다
+        |# z2-session group remove <탭>...      … 탭을 그룹에서 뺀다
+        |# z2-session group delete <그룹>        … 그룹을 해제한다 (탭은 닫지 않는다)
+        |# z2-session group show <그룹>          … 그 그룹을 화면에 띄운다
+        |# z2-session group send <그룹> <텍스트>... [--enter] … 그 그룹의 터미널 탭 모두에 글자를 넣는다 (실행하지 않는다)
+        |#   <그룹>은 group list의 번호 / id / 그룹 이름 중 무엇이든 된다. list의 6번째 열은 각 탭의 그룹
         |#
         |# <탭>은 list의 색인, id, 탭 이름 중 아무거나 됩니다. '.'이나 생략은 화면에 있는 탭입니다.
         |# 예: n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1354,7 +1362,7 @@ private class ApiMsgKo(d: String) : Z2ApiMsg("ko", d) {
 
     override val sessionUsage: String get() = "사용법: z2-session list | new [이름] | send <탭> <텍스트>... [--enter] | " +
                 "key <pest> <tecla>... | key <pest> --raw <bytes> | capture [pest] [--all] | " +
-                "attach <pest> | close <pest>"
+                "attach <pest> | close <pest> | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key: 키를 지정하지 않았습니다"
 

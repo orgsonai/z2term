@@ -1321,6 +1321,14 @@ private class ApiMsgTr(d: String) : Z2ApiMsg("tr", d) {
         |#   satır başında düz ~ için ~~, düz Ctrl+] için ~ sonra Ctrl+] yazın
         |#   bağlıyken sekme SİZİN pencerenizin boyutunu izler; çıkınca eski hâline döner
         |# z2-session close <sekme>            … o sekmeyi kapatır (asla sonuncusunu değil)
+        |# z2-session group [list]             … grupları listeler (numara / id / ad / sekme numaraları, TSV)
+        |# z2-session group new <ad> [<sekme>]... … bu sekmelerden bir grup oluşturur (numarasını ve id'sini verir)
+        |# z2-session group add <grup> <sekme>... … sekmeleri o gruba koyar
+        |# z2-session group remove <sekme>...  … sekmeleri gruplarından çıkarır
+        |# z2-session group delete <grup>      … grubu dağıtır (sekmeler açık kalır)
+        |# z2-session group show <grup>        … o grubu ekranda gösterir
+        |# z2-session group send <grup> <metin>... [--enter] … o grubun tüm terminal sekmelerine yazar (çalıştırmaz)
+        |#   <grup>, group list numarası, bir id veya grup adı olabilir. list her sekmenin grubunu 6. sütunda gösterir
         |#
         |# <sekme> list’teki dizin, bir id veya sekme adı olabilir. "." veya verilmezse = ekrandaki sekme.
         |# örn. n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1328,7 +1336,7 @@ private class ApiMsgTr(d: String) : Z2ApiMsg("tr", d) {
 
     override val sessionUsage: String get() = "kullanım: z2-session list | new [ad] | send <sekme> <metin>... [--enter] | " +
                 "key <sekme> <tuş>... | key <sekme> --raw <baytlar> | capture [sekme] [--all] | " +
-                "attach <sekme> | close <sekme>"
+                "attach <sekme> | close <sekme> | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key: tuş verilmedi"
 

@@ -1321,6 +1321,14 @@ private class ApiMsgIt(d: String) : Z2ApiMsg("it", d) {
         |#   scrivi ~~ per un ~ letterale a inizio riga, ~ poi Ctrl+] per un Ctrl+] letterale
         |#   durante il collegamento la scheda segue la dimensione della TUA finestra; torna com’era quando esci
         |# z2-session close <scheda>           … chiude quella scheda (mai l’ultima)
+        |# z2-session group [list]             … elenca i gruppi (numero / id / nome / numeri delle schede, TSV)
+        |# z2-session group new <nome> [<scheda>]... … crea un gruppo con quelle schede (restituisce numero e id)
+        |# z2-session group add <gruppo> <scheda>... … mette schede in quel gruppo
+        |# z2-session group remove <scheda>... … toglie schede dal loro gruppo
+        |# z2-session group delete <gruppo>    … separa il gruppo (le schede restano aperte)
+        |# z2-session group show <gruppo>      … mostra quel gruppo sullo schermo
+        |# z2-session group send <gruppo> <testo>... [--enter] … scrive in tutte le schede terminale di quel gruppo (senza eseguire)
+        |#   <gruppo> può essere il numero di group list, un id o un nome di gruppo. list mostra il gruppo di ogni scheda nella 6ª colonna
         |#
         |# <scheda> può essere l’indice di list, un id o il nome di una scheda. "." o omesso = la scheda sullo schermo.
         |# es. n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1328,7 +1336,7 @@ private class ApiMsgIt(d: String) : Z2ApiMsg("it", d) {
 
     override val sessionUsage: String get() = "uso: z2-session list | new [nome] | send <scheda> <testo>... [--enter] | " +
                 "key <scheda> <tasto>... | key <scheda> --raw <byte> | capture [scheda] [--all] | " +
-                "attach <scheda> | close <scheda>"
+                "attach <scheda> | close <scheda> | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key: nessun tasto indicato"
 

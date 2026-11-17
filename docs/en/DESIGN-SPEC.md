@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-17 / Target version: 1.0.148 (versionCode 846)
+Last updated: 2026-11-17 / Target version: 1.0.149 (versionCode 847)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -722,6 +722,13 @@ open another working tab, place a command into a different tab, or grab what is 
 | `capture [target] [--all]` | returns that tab's on-screen text (`--all` includes the scrollback) |
 | `attach <target>` | **stay connected** to that tab and just type in it (0.8.366); leave with `Ctrl+]`, or with `~.` at the start of a line |
 | `close <target>` | closes that tab (never the last one — the same promise as double-tap-to-close in the UI) |
+| `group [list]` | groups as TSV (`number / id / name / comma-separated tab numbers`) (1.0.149) |
+| `group new <name> [<target>]...` | makes a group of those tabs and returns `number\tid`. Beyond the limit (the smaller of the setting and what fits on screen) it creates nothing and refuses |
+| `group add <group> <target>...` / `group remove <target>...` | puts tabs into a group / takes them out (tabs stay open) |
+| `group delete <group>` / `group show <group>` | ungroups / shows that group on screen |
+| `group send <group> <text>... [--enter]` | types into **every terminal tab** of the group, regardless of the on-screen broadcast ON/OFF and ticks (the group is named explicitly from outside). Like `send`, it only types unless `--enter` is given, and does not change the tab on screen |
+
+`list` adds a 6th column with the tab's group name (`-` if none) (1.0.149). ⚠ The column is **appended** — moving existing columns would break scripts that pick the tab name with `cut -f5`. A group is resolved **by number (column 1 of `group list`) → id → name (exact, then a prefix matching only one)**. Groups are Compose state, so reads and writes go through `runOnMainSync`, and the setting (the limit) is read beforehand, off the main thread.
 
 **Safe by default**: `send` **inserts without executing** (no newline appended) — the same promise as
 receiving a share (B1, [§5.1.2](#512-receiving-shares-b1-08197)), so no tab ever starts running on its

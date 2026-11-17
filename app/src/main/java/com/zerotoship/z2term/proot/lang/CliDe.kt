@@ -1320,6 +1320,14 @@ private class ApiMsgDe(d: String) : Z2ApiMsg("de", d) {
         |#   schreibe ~~ für ein wörtliches ~ am Zeilenanfang, ~ und dann Strg+] für ein wörtliches Strg+]
         |#   solange verbunden folgt der Tab DEINER Fenstergröße; beim Verlassen geht er zurück
         |# z2-session close <Tab>              … diesen Tab schließen (nie den letzten)
+        |# z2-session group [list]             … Gruppen auflisten (Nummer / id / Name / Tabnummern, TSV)
+        |# z2-session group new <Name> [<Tab>]... … aus diesen Tabs eine Gruppe bilden (gibt Nummer und id zurück)
+        |# z2-session group add <Gruppe> <Tab>... … Tabs in diese Gruppe legen
+        |# z2-session group remove <Tab>...    … Tabs aus ihrer Gruppe nehmen
+        |# z2-session group delete <Gruppe>    … Gruppe auflösen (die Tabs bleiben offen)
+        |# z2-session group show <Gruppe>      … diese Gruppe auf dem Bildschirm zeigen
+        |# z2-session group send <Gruppe> <Text>... [--enter] … in alle Terminal-Tabs dieser Gruppe tippen (führt nicht aus)
+        |#   <Gruppe> kann die Nummer aus group list, eine id oder ein Gruppenname sein. list zeigt die Gruppe jedes Tabs in Spalte 6
         |#
         |# <Tab> kann der Index aus list, eine id oder ein Tabname sein. '.' oder weggelassen = der Tab auf dem Bildschirm.
         |# z. B. n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1327,7 +1335,7 @@ private class ApiMsgDe(d: String) : Z2ApiMsg("de", d) {
 
     override val sessionUsage: String get() = "Verwendung: z2-session list | new [Name] | send <Tab> <Text>... [--enter] | " +
                 "key <Tab> <Taste>... | key <Tab> --raw <Bytes> | capture [Tab] [--all] | " +
-                "attach <Tab> | close <Tab>"
+                "attach <Tab> | close <Tab> | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key: keine Taste angegeben"
 

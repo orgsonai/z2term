@@ -1321,6 +1321,14 @@ private class ApiMsgPtBr(d: String) : Z2ApiMsg("pt-BR", d) {
         |#   escreva ~~ para um ~ literal no começo de uma linha, ~ e depois Ctrl+] para um Ctrl+] literal
         |#   enquanto conectada, a aba segue o tamanho da SUA janela; volta quando você sai
         |# z2-session close <aba>              … fecha essa aba (nunca a última)
+        |# z2-session group [list]             … lista os grupos (número / id / nome / números das abas, TSV)
+        |# z2-session group new <nome> [<aba>]... … cria um grupo com essas abas (devolve número e id)
+        |# z2-session group add <grupo> <aba>... … coloca abas nesse grupo
+        |# z2-session group remove <aba>...    … tira abas do seu grupo
+        |# z2-session group delete <grupo>     … desfaz o grupo (as abas continuam abertas)
+        |# z2-session group show <grupo>       … mostra esse grupo na tela
+        |# z2-session group send <grupo> <texto>... [--enter] … digita em todas as abas de terminal desse grupo (não executa)
+        |#   <grupo> pode ser o número de group list, um id ou um nome de grupo. list mostra o grupo de cada aba na 6ª coluna
         |#
         |# <aba> pode ser o índice do list, um id ou o nome de uma aba. '.' ou omitido = a aba na tela.
         |# ex.: n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1328,7 +1336,7 @@ private class ApiMsgPtBr(d: String) : Z2ApiMsg("pt-BR", d) {
 
     override val sessionUsage: String get() = "uso: z2-session list | new [nome] | send <aba> <texto>... [--enter] | " +
                 "key <aba> <tecla>... | key <aba> --raw <bytes> | capture [aba] [--all] | " +
-                "attach <aba> | close <aba>"
+                "attach <aba> | close <aba> | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key: nenhuma tecla indicada"
 

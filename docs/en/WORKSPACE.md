@@ -55,6 +55,8 @@ When more than one tab receives, the receiving panes are framed in the warning c
 
 To stop, slide left on + / 🖥 again and press **📡 Stop**.
 
+**From a command** (1.0.149): `z2-session group new work 1 2 3` makes a group and `z2-session group send work 'uptime' --enter` types the same command into every terminal tab of it and runs it. This goes to the named group regardless of the on-screen ON/OFF and ticks. See `z2-session --help`.
+
 ## External display
 
 Connect a screen that Android exposes as an independent presentation display. Select its name under **Long-press GUI** for the tab you want to move. Devices offering mirroring alone cannot provide this feature.

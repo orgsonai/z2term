@@ -1321,6 +1321,14 @@ private class ApiMsgVi(d: String) : Z2ApiMsg("vi", d) {
         |#   gõ ~~ cho ký tự ~ ở đầu dòng, ~ rồi Ctrl+] cho Ctrl+] thật
         |#   khi đang nối, thẻ theo kích thước cửa sổ CỦA BẠN; khi thoát sẽ trở lại như cũ
         |# z2-session close <thẻ>              … đóng thẻ đó (không bao giờ đóng thẻ cuối)
+        |# z2-session group [list]             … liệt kê nhóm (số / id / tên / số thẻ, TSV)
+        |# z2-session group new <tên> [<thẻ>]... … tạo nhóm từ các thẻ đó (trả về số và id)
+        |# z2-session group add <nhóm> <thẻ>... … đưa thẻ vào nhóm đó
+        |# z2-session group remove <thẻ>...    … đưa thẻ ra khỏi nhóm của nó
+        |# z2-session group delete <nhóm>      … bỏ nhóm (các thẻ vẫn mở)
+        |# z2-session group show <nhóm>        … hiển thị nhóm đó trên màn hình
+        |# z2-session group send <nhóm> None... [--enter] … gõ vào mọi thẻ terminal của nhóm đó (không chạy)
+        |#   <nhóm> có thể là số từ group list, id hoặc tên nhóm. list hiện nhóm của mỗi thẻ ở cột thứ 6
         |#
         |# <thẻ> có thể là chỉ số trong list, id hoặc tên thẻ. "." hoặc bỏ trống = thẻ trên màn hình.
         |# ví dụ n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1328,7 +1336,7 @@ private class ApiMsgVi(d: String) : Z2ApiMsg("vi", d) {
 
     override val sessionUsage: String get() = "cách dùng: z2-session list | new [tên] | send <thẻ> <văn bản>... [--enter] | " +
                 "key <thẻ> <phím>... | key <thẻ> --raw <byte> | capture [thẻ] [--all] | " +
-                "attach <thẻ> | close <thẻ>"
+                "attach <thẻ> | close <thẻ> | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key: chưa cho phím nào"
 

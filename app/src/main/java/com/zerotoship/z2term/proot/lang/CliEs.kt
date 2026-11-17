@@ -1314,12 +1314,20 @@ private class ApiMsgEs(d: String) : Z2ApiMsg("es", d) {
         |#   escribe ~~ para un ~ literal al principio de línea, y ~ seguido de Ctrl+] para un Ctrl+] literal
         |#   mientras estás conectado, la pestaña sigue el tamaño de TU ventana; vuelve al suyo al salir
         |# z2-session close <pest>             … cierra esa pestaña (nunca la última)
+        |# z2-session group [list]             … lista los grupos (número / id / nombre / números de pestaña, TSV)
+        |# z2-session group new <nombre> [<pest>]... … crea un grupo con esas pestañas (devuelve su número e id)
+        |# z2-session group add <grupo> <pest>... … pone pestañas en ese grupo
+        |# z2-session group remove <pest>...   … saca pestañas de su grupo
+        |# z2-session group delete <grupo>     … desagrupa (las pestañas siguen abiertas)
+        |# z2-session group show <grupo>       … muestra ese grupo en pantalla
+        |# z2-session group send <grupo> <texto>... [--enter] … escribe en todas las pestañas de terminal de ese grupo (no lo ejecuta)
+        |#   <grupo> puede ser el número de group list, un id o un nombre de grupo. list muestra el grupo de cada pestaña en la 6.ª columna
         |#
         |# <pest> puede ser el índice de list, un id o el nombre de una pestaña. '.' u omitido = la que está en pantalla.
         |# p. ej. n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
     """.trimMargin()
 
-    override val sessionUsage: String get() = "uso: z2-session list | new [nombre] | send <pest> <texto>... [--enter] | "
+    override val sessionUsage: String get() = "uso: z2-session list | new [nombre] | send <pest> <texto>... [--enter] |  | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key: no se indicó ninguna tecla"
 

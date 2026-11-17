@@ -1321,6 +1321,14 @@ private class ApiMsgFr(d: String) : Z2ApiMsg("fr", d) {
         |#   écrivez ~~ pour un ~ littéral en début de ligne, ~ puis Ctrl+] pour un Ctrl+] littéral
         |#   pendant la connexion l’onglet suit la taille de VOTRE fenêtre ; il revient quand vous partez
         |# z2-session close <onglet>           … ferme cet onglet (jamais le dernier)
+        |# z2-session group [list]             … liste les groupes (numéro / id / nom / numéros d'onglets, TSV)
+        |# z2-session group new <nom> [<onglet>]... … crée un groupe avec ces onglets (renvoie son numéro et son id)
+        |# z2-session group add <groupe> <onglet>... … met des onglets dans ce groupe
+        |# z2-session group remove <onglet>... … retire des onglets de leur groupe
+        |# z2-session group delete <groupe>    … dissout le groupe (les onglets restent ouverts)
+        |# z2-session group show <groupe>      … affiche ce groupe à l'écran
+        |# z2-session group send <groupe> <texte>... [--enter] … tape dans tous les onglets de terminal de ce groupe (sans exécuter)
+        |#   <groupe> peut être le numéro de group list, un id ou un nom de groupe. list indique le groupe de chaque onglet en 6e colonne
         |#
         |# <onglet> peut être l’index de list, un id ou un nom d’onglet. « . » ou omis = l’onglet à l’écran.
         |# ex. n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1328,7 +1336,7 @@ private class ApiMsgFr(d: String) : Z2ApiMsg("fr", d) {
 
     override val sessionUsage: String get() = "utilisation : z2-session list | new [nom] | send <onglet> <texte>... [--enter] | " +
                 "key <onglet> <touche>... | key <onglet> --raw <octets> | capture [onglet] [--all] | " +
-                "attach <onglet> | close <onglet>"
+                "attach <onglet> | close <onglet> | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key : aucune touche indiquée"
 

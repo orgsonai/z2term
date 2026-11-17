@@ -1293,6 +1293,14 @@ private class ApiMsgZhCn(d: String) : Z2ApiMsg("zh-CN", d) {
         |#   行首想打出 ~ 本身就写 ~~，想送出 Ctrl+] 本身就在行首的 ~ 之后按 Ctrl+]
         |#   连着的期间，标签页的宽高跟随**连过去的这一侧**。退出后恢复原样
         |# z2-session close <目标>             … 关掉那个标签页 (最后一个不会关)
+        |# z2-session group [list]             … 列出分组（编号 / id / 名称 / 标签页编号，TSV）
+        |# z2-session group new <名称> [<目标>]... … 用这些标签页建立分组（返回编号和 id）
+        |# z2-session group add <分组> <目标>...   … 把标签页放进该分组
+        |# z2-session group remove <目标>...     … 把标签页移出所在分组
+        |# z2-session group delete <分组>        … 解散分组（标签页不关闭）
+        |# z2-session group show <分组>          … 在屏幕上显示该分组
+        |# z2-session group send <分组> <文本>... [--enter] … 向该分组的所有终端标签页输入文字（不执行）
+        |#   <分组> 可以是 group list 的编号、id 或分组名称。list 的第 6 列是各标签页所在的分组
         |#
         |# <目标> 可以是 list 的编号 / id / 标签页名称。写 '.' 或者省略表示当前显示的标签页。
         |# 例: n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1300,7 +1308,7 @@ private class ApiMsgZhCn(d: String) : Z2ApiMsg("zh-CN", d) {
 
     override val sessionUsage: String get() = "usage: z2-session list | new [名称] | send <目标> <文本>... [--enter] | " +
                 "key <目标> <键>... | key <目标> --raw <字节序列> | capture [目标] [--all] | " +
-                "attach <目标> | close <目标>"
+                "attach <目标> | close <目标> | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key: 没有给出要送的键"
 

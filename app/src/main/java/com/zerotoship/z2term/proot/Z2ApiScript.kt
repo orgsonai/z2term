@@ -780,6 +780,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |  close)
         |    [ ${d}# -ge 1 ] || usage
         |    exec /usr/local/bin/z2api 1 session close "${d}1" ;;
+        |  group)   exec /usr/local/bin/z2api 1 session group "${d}@" ;;
         |  *) usage ;;
         |esac
     """.trimMargin() + "\n"

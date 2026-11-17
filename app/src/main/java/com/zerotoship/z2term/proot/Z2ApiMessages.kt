@@ -1039,6 +1039,14 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
         |#   write ~~ for a literal ~ at the start of a line, ~ then Ctrl+] for a literal Ctrl+]
         |#   while attached the tab follows YOUR window size; it goes back when you leave
         |# z2-session close <tab>              … close that tab (never the last one)
+        |# z2-session group [list]             … list groups (number / id / name / tab numbers, TSV)
+        |# z2-session group new <name> [<tab>]... … make a group of those tabs (returns its number and id)
+        |# z2-session group add <group> <tab>... … put tabs into that group
+        |# z2-session group remove <tab>...    … take tabs out of their group
+        |# z2-session group delete <group>     … ungroup (the tabs stay open)
+        |# z2-session group show <group>       … show that group on screen
+        |# z2-session group send <group> <text>... [--enter] … type into every terminal tab of that group (does not run it)
+        |#   <group> can be the number from group list, an id, or a group name. list shows each tab's group in a 6th column
         |#
         |# <tab> can be the index from list, an id, or a tab name. '.' or omitted = the tab on screen.
         |# e.g. n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1061,6 +1069,14 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
         |#   行頭の ~ そのものは ~~、Ctrl+] そのものは 行頭の ~ に続けて Ctrl+]
         |#   繋いでいる間、タブの広さは**繋いだ側**に合わせる。抜ければ元に戻る
         |# z2-session close <先>               … そのタブを閉じる (最後の 1 枚は閉じない)
+        |# z2-session group [list]             … グループ一覧 (番号 / id / 名前 / タブの番号 の TSV)
+        |# z2-session group new <名前> [<先>]...  … そのタブでグループを作る (番号と id を返す)
+        |# z2-session group add <グループ> <先>...  … そのグループにタブを入れる
+        |# z2-session group remove <先>...      … タブをグループから出す
+        |# z2-session group delete <グループ>      … グループを解除する (タブは閉じない)
+        |# z2-session group show <グループ>        … そのグループを画面に出す
+        |# z2-session group send <グループ> <文字列>... [--enter] … そのグループの端末タブすべてに文字を入れる (実行はしない)
+        |#   <グループ> は group list の番号 / id / 名前 のどれでもよい。list の 6 列目は各タブのグループ
         |#
         |# <先> は list の番号 / id / タブ名 のどれでもよい。'.' か省略で今表示しているタブ。
         |# 例: n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1070,10 +1086,10 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
     open val sessionUsage: String get() = t(
             en = "usage: z2-session list | new [name] | send <tab> <text>... [--enter] | " +
                 "key <tab> <key>... | key <tab> --raw <bytes> | capture [tab] [--all] | " +
-                "attach <tab> | close <tab>",
+                "attach <tab> | close <tab> | group list|new|add|remove|delete|show|send",
             ja = "usage: z2-session list | new [名前] | send <先> <文字列>... [--enter] | " +
                 "key <先> <キー>... | key <先> --raw <バイト列> | capture [先] [--all] | " +
-                "attach <先> | close <先>"
+                "attach <先> | close <先> | group list|new|add|remove|delete|show|send"
         )
 
     // --- z2-session key (別のタブへキーを送る) ---

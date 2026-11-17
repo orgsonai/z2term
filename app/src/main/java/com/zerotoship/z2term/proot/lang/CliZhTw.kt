@@ -1293,6 +1293,14 @@ private class ApiMsgZhTw(d: String) : Z2ApiMsg("zh-TW", d) {
         |#   行首想打出 ~ 本身就寫 ~~，想送出 Ctrl+] 本身就在行首的 ~ 之後按 Ctrl+]
         |#   連著的期間，分頁的寬高跟隨**連過去的這一側**。退出後還原原樣
         |# z2-session close <目標>             … 關掉那個分頁 (最後一個不會關)
+        |# z2-session group [list]             … 列出群組（編號 / id / 名稱 / 分頁編號，TSV）
+        |# z2-session group new <名稱> [<目標>]... … 用這些分頁建立群組（傳回編號與 id）
+        |# z2-session group add <群組> <目標>...   … 把分頁放進該群組
+        |# z2-session group remove <目標>...     … 把分頁移出所在群組
+        |# z2-session group delete <群組>        … 解散群組（分頁不關閉）
+        |# z2-session group show <群組>          … 在螢幕上顯示該群組
+        |# z2-session group send <群組> <文字>... [--enter] … 在該群組的所有終端分頁輸入文字（不執行）
+        |#   <群組> 可以是 group list 的編號、id 或群組名稱。list 的第 6 欄是各分頁所在的群組
         |#
         |# <目標> 可以是 list 的編號 / id / 分頁名稱。寫 '.' 或者省略表示當前顯示的分頁。
         |# 例: n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1300,7 +1308,7 @@ private class ApiMsgZhTw(d: String) : Z2ApiMsg("zh-TW", d) {
 
     override val sessionUsage: String get() = "usage: z2-session list | new [名稱] | send <目標> <文字>... [--enter] | " +
                 "key <目標> <鍵>... | key <目標> --raw <位元組序列> | capture [目標] [--all] | " +
-                "attach <目標> | close <目標>"
+                "attach <目標> | close <目標> | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key: 沒有給出要送的鍵"
 

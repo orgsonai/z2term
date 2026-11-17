@@ -1321,6 +1321,14 @@ private class ApiMsgId(d: String) : Z2ApiMsg("id", d) {
         |#   tulis ~~ untuk ~ harfiah di awal baris, ~ lalu Ctrl+] untuk Ctrl+] harfiah
         |#   selama terhubung, tab mengikuti ukuran jendela ANDA; kembali saat Anda keluar
         |# z2-session close <tab>              … menutup tab itu (tidak pernah yang terakhir)
+        |# z2-session group [list]             … daftar grup (nomor / id / nama / nomor tab, TSV)
+        |# z2-session group new <nama> [<tab>]... … buat grup dari tab-tab itu (mengembalikan nomor dan id)
+        |# z2-session group add <grup> <tab>... … masukkan tab ke grup itu
+        |# z2-session group remove <tab>...    … keluarkan tab dari grupnya
+        |# z2-session group delete <grup>      … bubarkan grup (tab tetap terbuka)
+        |# z2-session group show <grup>        … tampilkan grup itu di layar
+        |# z2-session group send <grup> <teks>... [--enter] … ketik ke semua tab terminal grup itu (tidak menjalankan)
+        |#   <grup> boleh nomor dari group list, id, atau nama grup. list menampilkan grup tiap tab di kolom ke-6
         |#
         |# <tab> bisa indeks dari list, id, atau nama tab. "." atau dihilangkan = tab di layar.
         |# mis. n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1328,7 +1336,7 @@ private class ApiMsgId(d: String) : Z2ApiMsg("id", d) {
 
     override val sessionUsage: String get() = "penggunaan: z2-session list | new [nama] | send <tab> <teks>... [--enter] | " +
                 "key <tab> <tombol>... | key <tab> --raw <byte> | capture [tab] [--all] | " +
-                "attach <tab> | close <tab>"
+                "attach <tab> | close <tab> | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key: tidak ada tombol yang diberikan"
 

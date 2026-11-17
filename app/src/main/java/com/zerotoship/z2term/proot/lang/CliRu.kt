@@ -1321,6 +1321,14 @@ private class ApiMsgRu(d: String) : Z2ApiMsg("ru", d) {
         |#   пишите ~~ для буквального ~ в начале строки, ~ затем Ctrl+] для буквального Ctrl+]
         |#   во время подключения вкладка следует размеру ВАШЕГО окна; при выходе возвращается как было
         |# z2-session close <вкладка>           … закрывает эту вкладку (никогда последнюю)
+        |# z2-session group [list]             … список групп (номер / id / имя / номера вкладок, TSV)
+        |# z2-session group new <имя> [<вкладка>]... … создаёт группу из этих вкладок (печатает номер и id)
+        |# z2-session group add <группа> <вкладка>... … добавляет вкладки в эту группу
+        |# z2-session group remove <вкладка>... … убирает вкладки из их группы
+        |# z2-session group delete <группа>    … распускает группу (вкладки остаются открытыми)
+        |# z2-session group show <группа>      … показывает эту группу на экране
+        |# z2-session group send <группа> <текст>... [--enter] … пишет текст во все вкладки терминала этой группы (не выполняя)
+        |#   <группа> — номер из group list, id или имя группы. list показывает группу каждой вкладки в 6-м столбце
         |#
         |# <вкладка> - индекс из list, id или имя вкладки. "." или не указано = вкладка на экране.
         |# например, n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
@@ -1328,7 +1336,7 @@ private class ApiMsgRu(d: String) : Z2ApiMsg("ru", d) {
 
     override val sessionUsage: String get() = "использование: z2-session list | new [имя] | send <вкладка> <текст>... [--enter] | " +
                 "key <вкладка> <клавиша>... | key <вкладка> --raw <байты> | capture [вкладка] [--all] | " +
-                "attach <вкладка> | close <вкладка>"
+                "attach <вкладка> | close <вкладка> | group list|new|add|remove|delete|show|send"
 
     override val keyNothing: String get() = "z2-session key: клавиши не указаны"
 
