@@ -31,8 +31,11 @@ class AppSettings(private val context: Context) {
         val scrollbackLines: Int = DEFAULT_SCROLLBACK_LINES,
         /** 1 つのグループに入れられるタブの数 (タブのグループ)。 */
         val groupMaxTabs: Int = DEFAULT_GROUP_MAX_TABS,
-        /** タブ欄の 1 項目の幅の上限 (dp)。タブ欄のピンチで変える (1.0.148)。 */
-        val tabWidthDp: Float = DEFAULT_TAB_WIDTH_DP,
+        /**
+         * タブ欄の 1 項目の幅 (dp)。タブ欄のピンチで変える (1.0.148)。[TAB_WIDTH_AUTO] (= 0) は
+         * 一度もピンチしていない状態で、名前の長さに合わせる (1.0.147 までの見た目)。
+         */
+        val tabWidthDp: Float = TAB_WIDTH_AUTO,
         /** ブロードキャストを始めたとき、送る (ON) 状態で始めるか。既定は OFF。 */
         val broadcastStartOn: Boolean = false,
         val distroId: String = DEFAULT_DISTRO,
@@ -595,7 +598,7 @@ class AppSettings(private val context: Context) {
             fontSizeSp = p[KEY_FONT_SIZE] ?: DEFAULT_FONT_SIZE_SP,
             scrollbackLines = p[KEY_SCROLLBACK] ?: DEFAULT_SCROLLBACK_LINES,
             broadcastStartOn = p[KEY_BROADCAST_START_ON] ?: false,
-            tabWidthDp = (p[KEY_TAB_WIDTH_DP] ?: DEFAULT_TAB_WIDTH_DP).coerceIn(MIN_TAB_WIDTH_DP, MAX_TAB_WIDTH_DP),
+            tabWidthDp = p[KEY_TAB_WIDTH_DP]?.coerceIn(MIN_TAB_WIDTH_DP, MAX_TAB_WIDTH_DP) ?: TAB_WIDTH_AUTO,
             groupMaxTabs = (p[KEY_GROUP_MAX_TABS] ?: DEFAULT_GROUP_MAX_TABS).coerceIn(MIN_GROUP_MAX_TABS, MAX_GROUP_MAX_TABS),
             distroId = p[KEY_DISTRO_ID] ?: DEFAULT_DISTRO,
             fontId = p[KEY_FONT_ID] ?: DEFAULT_FONT,
@@ -1147,8 +1150,10 @@ class AppSettings(private val context: Context) {
         const val MIN_GROUP_MAX_TABS = 2
         /** 選べる上限。実際の上限は画面の大きさから [groupMaxTabsFor] で決める。 */
         const val MAX_GROUP_MAX_TABS = 8
-        /** タブ欄の 1 項目の幅の上限。既定の 84dp は 1.0.147 までの固定値 (12 字ぶん)。 */
-        const val DEFAULT_TAB_WIDTH_DP = 84f
+        /** タブ欄の幅をまだピンチしていない (名前の長さに合わせ、上限は [AUTO_TAB_MAX_WIDTH_DP])。 */
+        const val TAB_WIDTH_AUTO = 0f
+        /** 名前に合わせるときの幅の上限 = 1.0.147 までの固定値 (12 字ぶん)。最初のピンチはここから始める。 */
+        const val AUTO_TAB_MAX_WIDTH_DP = 84f
         const val MIN_TAB_WIDTH_DP = 48f
         const val MAX_TAB_WIDTH_DP = 200f
         const val DEFAULT_DISTRO = "alpine"

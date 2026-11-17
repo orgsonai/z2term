@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.153 (versionCode 851)**: Pinching the tab bar now actually changes the width of tabs and groups. It used to change only the width limit, so short names (such as "Group 1") did not change. After a pinch every tab and group has the same width (a group's count, `·4`, stays outside it). Until you pinch, widths follow the names as before.
+
 **1.0.152 (versionCode 850)**: Fixed the zoom hint at the bottom of the full-screen SFTP image preview falling off the screen (the same cause as the group editor in 1.0.150).
 
 **1.0.151 (versionCode 849)**: Changed how the broadcast 📡 appears. It is hidden to the right of + / 🖥; sliding left on + / 🖥 pulls it in from the right edge with your finger (+ / 🖥 move left by the same amount). Let go with more than half of it out and it opens fully, otherwise it slides back. Once open it hides when pressed or after 4 seconds; sliding right closes it too.

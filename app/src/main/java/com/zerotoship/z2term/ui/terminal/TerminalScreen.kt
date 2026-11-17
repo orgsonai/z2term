@@ -3216,7 +3216,7 @@ private fun TabBar(
             onDrag = { d -> dragOffset.value += d; trySwap() },
             onDragEnd = { draggingId.value = null; dragOffset.value = 0f },
             menu = { done -> com.zerotoship.z2term.workspace.TabMenu(sess, done) },
-            maxWidthDp = tabWidthDp
+            widthDp = tabWidthDp
         )
     }
     // 2 枚以上のグループ 1 つぶん。押すとグループの枠の並びを出す。
@@ -3241,7 +3241,7 @@ private fun TabBar(
             onDragStart = { draggingId.value = key; dragOffset.value = 0f },
             onDrag = { d -> dragOffset.value += d; trySwap() },
             onDragEnd = { draggingId.value = null; dragOffset.value = 0f },
-            maxWidthDp = tabWidthDp,
+            widthDp = tabWidthDp,
         )
     }
     val entries: @Composable () -> Unit = {
@@ -3313,7 +3313,9 @@ private fun TabBar(
                             if (event.changes.count { it.pressed } >= 2) {
                                 val zoom = event.calculateZoom()
                                 if (zoom.isFinite() && zoom != 1f) {
-                                    tabWidthDp = (tabWidthDp * zoom)
+                                    // まだ一度もピンチしていない (名前に合わせる) ときは、これまでの上限の幅から始める。
+                                    val base = if (tabWidthDp <= 0f) AppSettings.AUTO_TAB_MAX_WIDTH_DP else tabWidthDp
+                                    tabWidthDp = (base * zoom)
                                         .coerceIn(AppSettings.MIN_TAB_WIDTH_DP, AppSettings.MAX_TAB_WIDTH_DP)
                                     pinched = true
                                 }
@@ -3514,8 +3516,11 @@ private fun TabChip(
     onDragEnd: () -> Unit,
     /** 長押しして動かさずに離したときのメニュー (名前の変更・グループ、1.0.146)。引数はメニューを閉じる関数。 */
     menu: @Composable (() -> Unit) -> Unit = {},
-    /** 幅の上限 (dp)。タブ欄のピンチで変わる (1.0.148)。字数もここから決める。 */
-    maxWidthDp: Float = AppSettings.DEFAULT_TAB_WIDTH_DP
+    /**
+     * 名前の欄の幅 (dp)。タブ欄のピンチで変わり、全項目が同じ幅になる (1.0.153)。
+     * [AppSettings.TAB_WIDTH_AUTO] のときは名前の長さに合わせる (1.0.147 までと同じ)。
+     */
+    widthDp: Float = AppSettings.TAB_WIDTH_AUTO
 ) {
     val label by session.label.collectAsState()
     var menuOpen by remember { mutableStateOf(false) }
@@ -3648,13 +3653,16 @@ private fun TabChip(
                 Text(
                     // タブ名は最大固定字数で切り詰める (要望)。チップが伸びて新規タブボタンを
                     // 押し出さないよう、字数制限 + 上限幅 + 省略を併用する。
-                    text = label.take(com.zerotoship.z2term.workspace.tabNameChars(maxWidthDp)),
+                    // ⚠ 1.0.148〜1.0.152 は幅の「上限」だけを変えていたので、短い名前はピンチしても
+                    // 何も変わらなかった。ピンチ後は幅そのものを決める (短い名前は余白が付く)。
+                    text = if (widthDp > 0f) label else label.take(12),
                     color = fg,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = maxWidthDp.dp)
+                    modifier = if (widthDp > 0f) Modifier.width(widthDp.dp)
+                        else Modifier.widthIn(max = AppSettings.AUTO_TAB_MAX_WIDTH_DP.dp)
                 )
                 Box(modifier = Modifier.padding(start = 5.dp)) { mark() }
             }
@@ -3697,7 +3705,8 @@ private fun GroupChip(
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
-    maxWidthDp: Float = AppSettings.DEFAULT_TAB_WIDTH_DP,
+    /** 名前の欄の幅 (dp)。[TabChip] と同じ約束 (AUTO は名前の長さに合わせる)。 */
+    widthDp: Float = AppSettings.TAB_WIDTH_AUTO,
 ) {
     val bg = if (dragging) ZtsBgSecondary else if (active) ZtsBgCard else ZtsBgPrimary
     val border = if (dragging || active) ZtsGreen else ZtsBorder
@@ -3753,14 +3762,20 @@ private fun GroupChip(
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // 長い名前は途中を「…」で省く (頭と末尾の両方が読める)。全体は長押しで出る。
+                // ⚠ 1.0.148〜1.0.152 はここに幅の指定が無く、ピンチしても変わらなかった。
+                // 名前の欄だけを決まった幅にし、枚数 (·4) は欄の外に出して常に見せる。
+                val fixed = widthDp > 0f
                 Text(
                     text = com.zerotoship.z2term.workspace.middleEllipsis(group.name,
-                        com.zerotoship.z2term.workspace.tabNameChars(maxWidthDp)) + " ·$count",
+                        if (fixed) com.zerotoship.z2term.workspace.tabNameChars(widthDp) else 12),
                     color = fg,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (fixed) Modifier.width(widthDp.dp) else Modifier,
                 )
+                Text(text = " ·$count", color = fg, fontSize = 11.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
                 Box(modifier = Modifier.padding(start = 5.dp)) { markView() }
             }
         }
