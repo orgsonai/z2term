@@ -160,4 +160,13 @@ class TabGroupsTest {
         assertEquals(3, tabNameChars(1f))
         assertEquals(3, tabNameChars(Float.NaN))
     }
+
+    // 1.0.157: every pane on screen counts as looked at (no "waiting for input" for a pane in view).
+    @Test fun onScreenListsEveryShownPane() {
+        val (st, id) = groupOf("a", "b", "c")
+        assertEquals(listOf("a", "b", "c"), st.onScreen("b"))
+        assertEquals(listOf("b"), st.maximize(id, "b").onScreen("b"))
+        assertEquals(listOf("z"), st.onScreen("z"))
+        assertTrue(st.onScreen(null).isEmpty())
+    }
 }

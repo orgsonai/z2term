@@ -57,6 +57,13 @@ internal data class TabGroups(val groups: List<TabGroup> = emptyList(), val next
     /** The group whose panes are shown while [active] is focused, or null for a single pane. */
     fun stackedFor(active: String?): TabGroup? = groupOf(active)?.takeIf { it.stacked }
 
+    /**
+     * Tabs on screen while [active] is focused: its group's panes (only the maximized one when
+     * maximized), or [active] alone. A tab on screen is "being looked at" even when not focused.
+     */
+    fun onScreen(active: String?): List<String> =
+        active?.let { a -> stackedFor(a)?.panes(a) ?: listOf(a) }.orEmpty()
+
     /** A new empty group named by [nameFor] (called with the group's number); returns the new id. */
     fun create(nameFor: (Int) -> String): Pair<TabGroups, String> {
         val id = "g$nextNumber"

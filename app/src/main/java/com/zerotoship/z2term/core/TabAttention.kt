@@ -88,8 +88,14 @@ internal object TabAttention {
     /** MainActivity の onStart / onStop から。画面回転での作り直しは呼ばない。 */
     fun setAppVisible(visible: Boolean) { appVisible.value = visible }
 
-    /** [id] のタブを人が見ているか。 */
-    fun visible(id: String) = appVisible.value && SessionManager.activeId.value == id
+    /**
+     * [id] のタブを人が見ているか。⭐ **画面に出ている枠はどれも見ている** (1.0.157)。
+     * 以前は選んでいる 1 枚だけを見ていると数えていたので、グループで並べて画面に出ている
+     * 他の枠がベルを鳴らすと (ブロードキャストで消しすぎた等)、目の前の枠なのに
+     * 「入力を待っています」が出ていた。
+     */
+    fun visible(id: String) = appVisible.value &&
+        id in com.zerotoship.z2term.workspace.Workspace.groups.onScreen(SessionManager.activeId.value)
 
     /** 見たタブの通知を消す。最初の端末タブができたときに 1 度だけ見張りを始める。 */
     fun start(context: Context) {
@@ -98,7 +104,8 @@ internal object TabAttention {
         val app = context.applicationContext
         scope.launch {
             combine(appVisible, SessionManager.activeId) { shown, id -> id.takeIf { shown } }.collect { id ->
-                id?.let { cancel(app, it) }
+                // 画面に出た枠の通知はまとめて消す (選んだ 1 枚だけでなく)。
+                com.zerotoship.z2term.workspace.Workspace.groups.onScreen(id).forEach { cancel(app, it) }
             }
         }
     }

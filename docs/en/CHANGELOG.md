@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.157 (versionCode 855)**: Fixed "… is waiting for input" notifications for panes that are on screen in a group. Only the focused tab counted as looked at, so another pane beside it ringing the bell (for example after a broadcast deleted too far) raised a notification. Every pane on screen now counts as looked at, and its notification is cleared.
+
 **1.0.156 (versionCode 854)**: Broadcast now reaches across groups. Typing in a ticked tab sends to every ticked tab **in any group** (before, only within the group of the tab you typed in). Groups are there to split tabs that do not fit on one screen. Starting ticks the terminal tabs of every group. Tabs in no group do not receive.
 
 **1.0.155 (versionCode 853)**: While a group is shown, the toolbar ⚪ now turns the log on or off for the whole group. On starts recording every terminal tab of the group and shows 🔴 on each pane title (press it to pause ⚪ / resume 🔴 that pane alone). Off ends every recording and the pane buttons disappear. Pane buttons appear only while the log is on.
