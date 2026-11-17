@@ -50,6 +50,11 @@
     <string name="settings_group_about_desc">Version, mises à jour, infos sur l’appli et licences</string>
     <string name="settings_section_theme">Thème</string>
     <string name="settings_section_font_family">Police</string>
+    <string name="settings_font_import">Importer un fichier de police</string>
+    <string name="settings_font_import_desc">Vous pouvez ajouter une police TrueType / OpenType (.ttf / .otf / .ttc) depuis l’appareil. Le terminal donne à chaque caractère la largeur du « M » : choisissez une police à chasse fixe. Les polices importées ne sont pas incluses dans les sauvegardes.</string>
+    <string name="settings_font_imported">« %1$s » importée et sélectionnée.</string>
+    <string name="settings_font_too_large">Le fichier est trop volumineux (64 Mo maximum).</string>
+    <string name="settings_font_not_a_font">Ce fichier n’a pas pu être lu comme une police.</string>
     <string name="settings_section_font_size">Taille de police</string>
     <string name="settings_section_scrollback">Lignes d’historique</string>
     <string name="settings_section_distro">Distribution (s’ouvre dans un nouvel onglet)</string>

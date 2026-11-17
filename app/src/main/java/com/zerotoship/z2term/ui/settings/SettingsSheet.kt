@@ -150,6 +150,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.upsertLayout
 import com.zerotoship.z2term.ui.terminal.stopEverythingAndQuit
 import com.zerotoship.z2term.ui.theme.TerminalFontOption
 import com.zerotoship.z2term.ui.theme.TerminalFontOptions
+import com.zerotoship.z2term.ui.theme.UserFonts
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -412,12 +413,77 @@ fun SettingsSheet(
                 }
 
                 Section(title = stringResource(R.string.settings_section_font_family)) {
+                    // 取り込んだフォントは同梱の後ろに並ぶ (filesDir/fonts。UserFonts)。
+                    val userFonts by UserFonts.options.collectAsState()
+                    LaunchedEffect(Unit) { UserFonts.reload(context) }
                     FontChipRow(
-                        options = TerminalFontOptions.ALL,
+                        options = TerminalFontOptions.ALL + userFonts,
                         selectedId = settings.fontId,
                         isAvailable = { TerminalFontOptions.isAvailable(context, it) },
                         onSelect = { session.setFontId(it) }
                     )
+                    val fontPicker = rememberLauncherForActivityResult(
+                        ActivityResultContracts.OpenDocument()
+                    ) { uri ->
+                        if (uri != null) scope.launch {
+                            // ⚠ 読めなかったときも黙らずに伝える (入ったつもりで表示が変わらないと
+                            // 原因を追えない)。取り込めたらそのまま選ぶ。
+                            val msg = when (val r = UserFonts.import(context, uri)) {
+                                is UserFonts.ImportResult.Success -> {
+                                    session.setFontId(r.option.id)
+                                    context.getString(R.string.settings_font_imported, r.option.displayName)
+                                }
+                                UserFonts.ImportResult.TooLarge ->
+                                    context.getString(R.string.settings_font_too_large)
+                                UserFonts.ImportResult.NotAFont ->
+                                    context.getString(R.string.settings_font_not_a_font)
+                                is UserFonts.ImportResult.Failed ->
+                                    context.getString(R.string.settings_user_dict_failed, r.message)
+                            }
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    ActionButton(
+                        label = stringResource(R.string.settings_font_import),
+                        // ⚠ MIME は絞らない。フォントに決まった MIME を返さない provider が多く、
+                        // font/* だけだと選べないファイルが出る。中身は取り込み時に確かめる。
+                        onClick = { runCatching { fontPicker.launch(arrayOf("*/*")) } }
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_font_import_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    userFonts.forEach { f ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = f.userFile ?: f.displayName,
+                                color = ZtsTextPrimary,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.weight(1f)
+                            )
+                            ActionButton(
+                                label = stringResource(R.string.settings_user_dict_remove),
+                                danger = true,
+                                onClick = {
+                                    scope.launch {
+                                        // 使っているフォントを消したら、端末を標準へ戻す
+                                        // (消えた書体を覚えたままにしない)。
+                                        if (settings.fontId == f.id) {
+                                            session.setFontId(TerminalFontOptions.MONOSPACE.id)
+                                        }
+                                        UserFonts.remove(context, f)
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
 
                 SliderField(

@@ -50,6 +50,11 @@
     <string name="settings_group_about_desc">Versi, pembaruan, informasi aplikasi, dan lisensi</string>
     <string name="settings_section_theme">Tema</string>
     <string name="settings_section_font_family">Jenis font</string>
+    <string name="settings_font_import">Impor file font</string>
+    <string name="settings_font_import_desc">Anda dapat menambahkan font TrueType / OpenType (.ttf / .otf / .ttc) dari perangkat. Terminal membuat setiap karakter selebar \"M\", jadi pilih font monospace. Font yang diimpor tidak disertakan dalam cadangan.</string>
+    <string name="settings_font_imported">\"%1$s\" diimpor dan sekarang digunakan.</string>
+    <string name="settings_font_too_large">File terlalu besar (maksimal 64 MB).</string>
+    <string name="settings_font_not_a_font">File ini tidak dapat dibaca sebagai font.</string>
     <string name="settings_section_font_size">Ukuran font</string>
     <string name="settings_section_scrollback">Baris riwayat gulir</string>
     <string name="settings_section_distro">Distro (terbuka di tab baru)</string>

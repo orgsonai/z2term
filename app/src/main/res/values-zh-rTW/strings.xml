@@ -50,6 +50,11 @@
     <string name="settings_group_about_desc">版本、更新、應用程式訊息與授權條款</string>
     <string name="settings_section_theme">主題</string>
     <string name="settings_section_font_family">字型</string>
+    <string name="settings_font_import">匯入字型檔</string>
+    <string name="settings_font_import_desc">可以加入裝置中的 TrueType / OpenType 字型（.ttf / .otf / .ttc）。終端機會讓每個字元與「M」同寬，請選擇等寬字型。匯入的字型不會包含在備份中。</string>
+    <string name="settings_font_imported">已匯入「%1$s」並切換為此字型。</string>
+    <string name="settings_font_too_large">檔案太大（最多 64 MB）。</string>
+    <string name="settings_font_not_a_font">無法將此檔案讀取為字型。</string>
     <string name="settings_section_font_size">字級</string>
     <string name="settings_section_scrollback">回捲行數</string>
     <string name="settings_section_distro">發行版 (選擇後在新分頁中開啟)</string>

@@ -92,16 +92,8 @@ fun TerminalRenderer(
 
     val fontOption = remember(settings.fontId) { TerminalFontOptions.byId(settings.fontId) }
     val typeface = remember(fontOption.id) {
-        val asset = fontOption.assetFile
-        if (asset != null) {
-            try {
-                Typeface.createFromAsset(context.assets, "fonts/$asset")
-            } catch (_: Exception) {
-                Typeface.MONOSPACE
-            }
-        } else {
-            Typeface.MONOSPACE
-        }
+        // 同梱 (assets) と取り込んだフォント (filesDir/fonts) のどちらも。読めなければ monospace。
+        TerminalFontOptions.loadTypeface(context, fontOption) ?: Typeface.MONOSPACE
     }
 
     val fontSizePx = with(density) { settings.fontSizeSp.sp.toPx() }

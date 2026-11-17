@@ -50,6 +50,11 @@
     <string name="settings_group_about_desc">版本、更新、应用信息与许可证</string>
     <string name="settings_section_theme">主题</string>
     <string name="settings_section_font_family">字体</string>
+    <string name="settings_font_import">导入字体文件</string>
+    <string name="settings_font_import_desc">可以添加设备中的 TrueType / OpenType 字体（.ttf / .otf / .ttc）。终端会让每个字符与“M”同宽，请选择等宽字体。导入的字体不会包含在备份中。</string>
+    <string name="settings_font_imported">已导入“%1$s”并切换到该字体。</string>
+    <string name="settings_font_too_large">文件太大（最多 64 MB）。</string>
+    <string name="settings_font_not_a_font">无法将此文件读取为字体。</string>
     <string name="settings_section_font_size">字号</string>
     <string name="settings_section_scrollback">回滚行数</string>
     <string name="settings_section_distro">发行版 (选择后在新标签页中打开)</string>

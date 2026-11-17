@@ -93,6 +93,33 @@ class RemoteServiceProfileTest {
     }
 
     @Test
+    fun tunneledSmbNeverConnectsToLocalhost() {
+        // SMB は localhost で繋がらない。空・localhost・ループバックは SSH ホストへ置き換える。
+        val profile = SshProfile(
+            id = "ssh-1",
+            name = "server",
+            host = "192.168.10.12",
+            user = "user",
+        )
+        listOf("", "localhost", "LOCALHOST", "127.0.0.1", "::1", "[::1]").forEach { h ->
+            val service = RemoteService(id = "smb", protocol = RemoteServiceProtocol.SMB, host = h)
+            assertEquals(h, "192.168.10.12", service.connectionHost(profile))
+        }
+        // ほかのサービスの localhost はそのまま (SSH サーバー自身の上のサービス)。
+        val vnc = RemoteService(id = "vnc", protocol = RemoteServiceProtocol.VNC, host = "localhost")
+        assertEquals("localhost", vnc.connectionHost(profile))
+    }
+
+    @Test
+    fun unusableSmbHostsAreOnlyBlankAndLoopback() {
+        // 保存済みの SMB のホストは、これに当たると空として読み直す ([RemoteService.fromJson])。
+        listOf("", " ", "localhost", "127.0.0.1", "127.1.2.3", "::1", "[::1]", "a.localhost")
+            .forEach { assertTrue(it, RemoteService.isUnusableSmbHost(it)) }
+        listOf("192.168.10.12", "nas.internal", "fd00::20", "localhostname")
+            .forEach { assertFalse(it, RemoteService.isUnusableSmbHost(it)) }
+    }
+
+    @Test
     fun ipv6EndpointsAreBracketedAndBracketedInputIsNormalized() {
         val profile = SshProfile(
             id = "ssh-v6",

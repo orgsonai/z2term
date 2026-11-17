@@ -717,8 +717,10 @@ private fun RemoteServicesSection(
                                     id = UUID.randomUUID().toString(),
                                     protocol = protocol,
                                     name = protocol.name,
+                                    // SMB は localhost で繋がらないので既定に入れない。SSH ホストが
+                                    // 未入力なら空のまま (接続時は SSH ホストを使う)。
                                     host = if (protocol == RemoteServiceProtocol.SMB) {
-                                        sshHost.ifBlank { "localhost" }
+                                        sshHost.trim()
                                     } else {
                                         "localhost"
                                     },

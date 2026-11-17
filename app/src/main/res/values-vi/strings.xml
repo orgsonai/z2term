@@ -49,6 +49,11 @@
     <string name="settings_group_about_desc">Phiên bản, cập nhật, thông tin ứng dụng và giấy phép</string>
     <string name="settings_section_theme">Chủ đề</string>
     <string name="settings_section_font_family">Họ phông chữ</string>
+    <string name="settings_font_import">Nhập tệp phông chữ</string>
+    <string name="settings_font_import_desc">Bạn có thể thêm phông TrueType / OpenType (.ttf / .otf / .ttc) từ thiết bị. Terminal cho mỗi ký tự rộng bằng chữ \"M\", nên hãy chọn phông đơn cách. Phông đã nhập không có trong bản sao lưu.</string>
+    <string name="settings_font_imported">Đã nhập \"%1$s\" và chuyển sang phông này.</string>
+    <string name="settings_font_too_large">Tệp quá lớn (tối đa 64 MB).</string>
+    <string name="settings_font_not_a_font">Không đọc được tệp này dưới dạng phông chữ.</string>
     <string name="settings_section_font_size">Cỡ chữ</string>
     <string name="settings_section_scrollback">Số dòng lưu cuộn</string>
     <string name="settings_section_distro">Bản phân phối (mở trong thẻ mới)</string>

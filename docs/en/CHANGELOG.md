@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.143 (versionCode 841)**: You can now add your own font files for the terminal. In Settings → "Font family", tap "Import a font file" and pick a TrueType / OpenType font (.ttf / .otf / .ttc); it appears after the bundled fonts and is switched to. Remove it with "Remove" in the same place. The terminal makes every character as wide as "M", so pick a monospaced font. Imported fonts are not included in backups. Also fixed: adding SMB to an SSH destination filled the SMB host with localhost when the SSH host was still empty. SMB cannot connect through localhost, so the host is now left empty and the SSH host is used when connecting. Saved SMB services whose host is localhost behave the same way.
+
 **1.0.142 (versionCode 840)**: Duplicated keyboard faces can now be removed with "Delete" right in the face list in Settings. Before, you had to open the editor and press "Delete this layout" at the bottom. A confirmation appears first. Built-in faces have no Delete button.
 
 **1.0.141 (versionCode 839)**: The key layout editor now has ↶ (Undo) and ↷ (Redo) next to "Multiple selection". A wrong change to a key, or a reset of the whole layout, can be stepped back one action at a time. A burst of typing or one slider drag is undone in a single tap. The history lasts while the editor is open.

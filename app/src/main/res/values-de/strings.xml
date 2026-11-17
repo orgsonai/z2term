@@ -50,6 +50,11 @@
     <string name="settings_group_about_desc">Version, Updates, App-Info und Lizenzen</string>
     <string name="settings_section_theme">Theme</string>
     <string name="settings_section_font_family">Schriftart</string>
+    <string name="settings_font_import">Schriftdatei importieren</string>
+    <string name="settings_font_import_desc">Du kannst eine TrueType-/OpenType-Schrift (.ttf / .otf / .ttc) vom Gerät hinzufügen. Das Terminal macht jedes Zeichen so breit wie „M“, wähle also eine Festbreitenschrift. Importierte Schriften sind nicht in Sicherungen enthalten.</string>
+    <string name="settings_font_imported">„%1$s“ importiert und aktiviert.</string>
+    <string name="settings_font_too_large">Die Datei ist zu groß (bis 64 MB).</string>
+    <string name="settings_font_not_a_font">Diese Datei konnte nicht als Schrift gelesen werden.</string>
     <string name="settings_section_font_size">Schriftgröße</string>
     <string name="settings_section_scrollback">Zeilen im Verlauf</string>
     <string name="settings_section_distro">Distribution (öffnet in neuem Tab)</string>

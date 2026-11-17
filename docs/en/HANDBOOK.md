@@ -413,7 +413,7 @@ screen names the machine the key belongs to.
 tunnel cannot show the confirmation screen, so a single unapproved hop stops it from starting
 (the reason appears in the list).
 
-In an SSH destination’s editor you can add **FTP, SMB, WebDAV, VNC and RDP** services. After saving, each gets its own button outside SSH/SFTP and opens either the shared file browser or a screen tab (VNC / RDP). The default is a local port forward through that SSH destination. Set the service port and, optionally, a local port; leaving the local side blank chooses a free port automatically. FTP passive data ports are forwarded automatically for each transfer. Clearing “SSH port forwarding” connects directly to the SSH destination’s host, not the service-specific host, and first warns that SSH encryption will be lost. WebDAV supports HTTP/HTTPS; SMB supports SMB2/3 with SMB1 disabled. Plain `http://` WebDAV works too (0.8.452; before that the app blocked every cleartext HTTP request, so choosing HTTP always ended in “failed to list”).
+In an SSH destination’s editor you can add **FTP, SMB, WebDAV, VNC and RDP** services. After saving, each gets its own button outside SSH/SFTP and opens either the shared file browser or a screen tab (VNC / RDP). The default is a local port forward through that SSH destination. Set the service port and, optionally, a local port; leaving the local side blank chooses a free port automatically. FTP passive data ports are forwarded automatically for each transfer. Clearing “SSH port forwarding” connects directly to the SSH destination’s host, not the service-specific host, and first warns that SSH encryption will be lost. WebDAV supports HTTP/HTTPS; SMB supports SMB2/3 with SMB1 disabled. SMB cannot connect through localhost, so enter the SMB address as seen from the SSH server (IP address or host name). If it is left empty (or localhost), the SSH host is used (1.0.143). Plain `http://` WebDAV works too (0.8.452; before that the app blocked every cleartext HTTP request, so choosing HTTP always ended in “failed to list”).
 
 **Connection QR button**: removed in 1.0.29. A connection's action row now shows only connection types: SSH, SFTP and any added services.
 
@@ -784,7 +784,7 @@ Notification, SMS, event and unlock-failure detection and log formats remain in 
 | Setting | Description |
 |---|---|
 | Theme | Color scheme (9 options) |
-| Font | Display typeface (4 options, with preview) |
+| Font | Display typeface (the 5 bundled fonts plus any you import, with preview). "Import a font file" adds your own .ttf / .otf / .ttc (1.0.143; pick a monospaced one; not included in backups) |
 | Font size | 4–32 (also changeable by pinching) |
 | Scrollback lines | How many lines you can scroll back through |
 | Toolbar | **Choose which buttons appear above the terminal.** The real buttons are laid out; tap to remove or bring one back. A removed button's position is remembered. ⚙ is always rightmost and cannot be removed. If you remove 🔅 screen-on lock or 🔒 keep-alive, a switch for it appears in this section |

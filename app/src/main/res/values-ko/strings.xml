@@ -50,6 +50,11 @@
     <string name="settings_group_about_desc">버전, 업데이트, 앱 정보, 라이선스</string>
     <string name="settings_section_theme">테마</string>
     <string name="settings_section_font_family">글꼴</string>
+    <string name="settings_font_import">글꼴 파일 가져오기</string>
+    <string name="settings_font_import_desc">기기에 있는 TrueType / OpenType 글꼴(.ttf / .otf / .ttc)을 추가할 수 있습니다. 터미널은 모든 글자의 폭을 \"M\"에 맞추므로 고정폭 글꼴을 고르세요. 가져온 글꼴은 백업에 포함되지 않습니다.</string>
+    <string name="settings_font_imported">\"%1$s\"을(를) 가져와 이 글꼴로 바꿨습니다.</string>
+    <string name="settings_font_too_large">파일이 너무 큽니다(최대 64MB).</string>
+    <string name="settings_font_not_a_font">이 파일을 글꼴로 읽을 수 없습니다.</string>
     <string name="settings_section_font_size">글자 크기</string>
     <string name="settings_section_scrollback">스크롤백 줄 수</string>
     <string name="settings_section_distro">배포판 (고르면 새 탭에서 열립니다)</string>

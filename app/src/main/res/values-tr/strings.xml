@@ -49,6 +49,11 @@
     <string name="settings_group_about_desc">Sürüm, güncellemeler, uygulama bilgileri ve lisanslar</string>
     <string name="settings_section_theme">Tema</string>
     <string name="settings_section_font_family">Yazı tipi ailesi</string>
+    <string name="settings_font_import">Yazı tipi dosyası içe aktar</string>
+    <string name="settings_font_import_desc">Cihazdan TrueType / OpenType yazı tipi (.ttf / .otf / .ttc) ekleyebilirsiniz. Terminal her karakteri \"M\" genişliğinde gösterir, bu yüzden eş aralıklı bir yazı tipi seçin. İçe aktarılan yazı tipleri yedeklere dahil edilmez.</string>
+    <string name="settings_font_imported">\"%1$s\" içe aktarıldı ve kullanılıyor.</string>
+    <string name="settings_font_too_large">Dosya çok büyük (en fazla 64 MB).</string>
+    <string name="settings_font_not_a_font">Bu dosya yazı tipi olarak okunamadı.</string>
     <string name="settings_section_font_size">Yazı tipi boyutu</string>
     <string name="settings_section_scrollback">Geri kaydırma satırları</string>
     <string name="settings_section_distro">Dağıtım (yeni sekmede açılır)</string>

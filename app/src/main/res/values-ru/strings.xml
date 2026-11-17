@@ -49,6 +49,11 @@
     <string name="settings_group_about_desc">Версия, обновления, сведения о приложении и лицензии</string>
     <string name="settings_section_theme">Тема</string>
     <string name="settings_section_font_family">Шрифт</string>
+    <string name="settings_font_import">Импортировать файл шрифта</string>
+    <string name="settings_font_import_desc">Можно добавить шрифт TrueType / OpenType (.ttf / .otf / .ttc) с устройства. Терминал делает каждый символ шириной с «M», поэтому выбирайте моноширинный шрифт. Импортированные шрифты не входят в резервные копии.</string>
+    <string name="settings_font_imported">Шрифт «%1$s» импортирован и выбран.</string>
+    <string name="settings_font_too_large">Файл слишком большой (до 64 МБ).</string>
+    <string name="settings_font_not_a_font">Не удалось прочитать этот файл как шрифт.</string>
     <string name="settings_section_font_size">Размер шрифта</string>
     <string name="settings_section_scrollback">Строк прокрутки</string>
     <string name="settings_section_distro">Дистрибутив (открывается в новой вкладке)</string>

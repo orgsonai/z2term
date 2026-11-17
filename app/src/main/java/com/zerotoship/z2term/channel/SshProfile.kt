@@ -165,9 +165,19 @@ data class RemoteService(
 ) {
     val label: String get() = name.ifBlank { protocol.name }
 
-    /** 転送時はサービスホスト、直通時はこのサービスを登録した SSH ホストを使う。 */
+    /**
+     * 転送時はサービスホスト、直通時はこのサービスを登録した SSH ホストを使う。
+     *
+     * ⚠ **SMB は localhost では繋がらない**（画面の注意書きどおり）。SMB のホストが空、または
+     * localhost / 127.x / ::1 のときは、SSH サーバーから見た自分の宛先として SSH ホストを使う
+     * （1.0.140 までは追加時の既定が localhost で、注意書きと既定値が食い違っていた）。
+     */
     fun connectionHost(sshProfile: SshProfile): String = HostAddress.normalize(
-        if (useSshTunnel) host else sshProfile.host
+        when {
+            !useSshTunnel -> sshProfile.host
+            protocol == RemoteServiceProtocol.SMB && isUnusableSmbHost(host) -> sshProfile.host
+            else -> host
+        }
     )
 
     fun endpointDescription(sshProfile: SshProfile? = null): String = buildString {
@@ -197,6 +207,14 @@ data class RemoteService(
     }
 
     companion object {
+        /** SMB のホストとして使えない値 (空・localhost・ループバック)。 */
+        fun isUnusableSmbHost(value: String): Boolean {
+            val h = HostAddress.normalize(value).lowercase()
+            return h.isEmpty() || h == "localhost" || h.endsWith(".localhost") ||
+                h == "localhost.localdomain" || h.startsWith("127.") ||
+                h == "::1" || h == "0:0:0:0:0:0:0:1"
+        }
+
         fun fromJson(o: JSONObject, encryptedSecrets: Boolean): RemoteService {
             val protocol = runCatching {
                 RemoteServiceProtocol.valueOf(o.optString("protocol"))
@@ -207,7 +225,11 @@ data class RemoteService(
                 protocol = protocol,
                 name = o.optString("name"),
                 useSshTunnel = o.optBoolean("useSshTunnel", true),
-                host = o.optString("host", "localhost"),
+                // SMB は localhost を使えないので、保存済みの localhost は空として読む
+                // (画面では例が出て、接続は SSH ホストへ — [connectionHost])。
+                host = o.optString("host", "localhost").let {
+                    if (protocol == RemoteServiceProtocol.SMB && isUnusableSmbHost(it)) "" else it
+                },
                 remotePort = o.optInt("remotePort", protocol.defaultPort),
                 localPort = o.optInt("localPort", 0),
                 user = o.optString("user"),

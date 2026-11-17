@@ -50,6 +50,11 @@
     <string name="settings_group_about_desc">Versão, atualizações, informações do app e licenças</string>
     <string name="settings_section_theme">Tema</string>
     <string name="settings_section_font_family">Fonte</string>
+    <string name="settings_font_import">Importar arquivo de fonte</string>
+    <string name="settings_font_import_desc">Você pode adicionar uma fonte TrueType / OpenType (.ttf / .otf / .ttc) do aparelho. O terminal deixa cada caractere com a largura do \"M\", então escolha uma fonte monoespaçada. Fontes importadas não entram nos backups.</string>
+    <string name="settings_font_imported">\"%1$s\" importada e em uso.</string>
+    <string name="settings_font_too_large">O arquivo é grande demais (até 64 MB).</string>
+    <string name="settings_font_not_a_font">Não foi possível ler este arquivo como fonte.</string>
     <string name="settings_section_font_size">Tamanho da fonte</string>
     <string name="settings_section_scrollback">Linhas de rolagem</string>
     <string name="settings_section_distro">Distribuição (abre numa nova aba)</string>
