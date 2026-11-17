@@ -6,6 +6,8 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -94,6 +96,17 @@ object UserFonts {
     /** 取り込み済みフォントの選択肢 (設定画面が購読する)。 */
     val options: StateFlow<List<TerminalFontOption>> = _options.asStateFlow()
 
+    private val _revision = MutableStateFlow(0)
+    /**
+     * フォントのファイルが変わるたびに増える番号。書体を覚えておく側 (端末の描画・設定の見本) は
+     * fontId と**この番号の組**で覚え直す。⚠ fontId はファイル名なので、バックアップから同じ名前の
+     * フォントを戻すと fontId は変わらず、番号が無いと古い書体のまま描き続ける。
+     */
+    val revision: StateFlow<Int> = _revision.asStateFlow()
+
+    /** 前回読んだときのファイルの顔ぶれ (名前・大きさ・更新日時)。変わったときだけ [revision] を進める。 */
+    @Volatile private var lastSignature: List<Triple<String, Long, Long>>? = null
+
     sealed interface ImportResult {
         data class Success(val option: TerminalFontOption) : ImportResult
         data object TooLarge : ImportResult
@@ -128,12 +141,38 @@ object UserFonts {
     /** 一覧を読み直す (設定画面を開いたとき・足した/消した後)。 */
     suspend fun reload(context: Context) {
         val app = context.applicationContext
-        _options.value = withContext(Dispatchers.IO) {
+        val files = withContext(Dispatchers.IO) {
             dir(app).listFiles()
                 ?.filter { it.isFile && !it.name.startsWith(".") }
                 ?.sortedBy { it.name.lowercase() }
-                ?.map { option(it.name) }
                 ?: emptyList()
+        }
+        val signature = files.map { Triple(it.name, it.length(), it.lastModified()) }
+        // 設定画面を開くたびの読み直しでは書体を作り直さない (中身が同じなら番号を据え置く)。
+        // ⚠ 初回 (lastSignature が null) も進める — その起動で最初の読み込みがバックアップからの
+        // 復元だったとき、据え置くと古い書体のまま残る (作り直しは 1 度だけで軽い)。
+        if (signature != lastSignature) _revision.value++
+        lastSignature = signature
+        _options.value = files.map { option(it.name) }
+    }
+
+    /**
+     * [target] を [data] で置き換える (バックアップから戻すとき)。
+     *
+     * ⚠ **上書きせず、別ファイルに書いてから名前を付け替える**。読み込んだ書体はファイルを
+     * メモリに対応付けて (mmap) 使っているので、使用中のファイルをその場で切り詰めて書き直すと、
+     * 描画中に読みに行った瞬間にアプリごと落ちうる。付け替えなら古い中身は書体を手放すまで残る。
+     */
+    fun replaceAtomically(target: File, data: ByteArray) {
+        val temp = File(target.parentFile, ".restore-${System.nanoTime()}")
+        try {
+            temp.writeBytes(data)
+            if (!temp.renameTo(target)) {
+                target.delete()
+                if (!temp.renameTo(target)) throw java.io.IOException("cannot replace ${target.name}")
+            }
+        } finally {
+            temp.delete()
         }
     }
 
@@ -227,7 +266,8 @@ object UserFonts {
 @Composable
 fun rememberTerminalFontFamily(option: TerminalFontOption): FontFamily {
     val context = LocalContext.current
-    return remember(option.id) {
+    val revision by UserFonts.revision.collectAsState()
+    return remember(option.id, revision) {
         TerminalFontOptions.loadTypeface(context, option)?.let { FontFamily(it) }
             ?: FontFamily.Monospace
     }

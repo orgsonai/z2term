@@ -384,7 +384,8 @@ object BackupManager {
                     safeChild(fontDir.apply { mkdirs() }, name.removePrefix(FONT_DIR))
                         ?.takeIf { !it.name.startsWith(".") }
                         ?.let {
-                            it.writeBytes(data)
+                            // 使用中の書体が読んでいるファイルを書き換えないよう、付け替えで置く。
+                            UserFonts.replaceAtomically(it, data)
                             fontRestored = true
                         }
             }

@@ -33,6 +33,7 @@ import com.zerotoship.z2term.emulator.TerminalColors
 import com.zerotoship.z2term.emulator.TerminalRow
 import com.zerotoship.z2term.ui.terminal.input.UrlFinder
 import com.zerotoship.z2term.ui.theme.TerminalFontOptions
+import com.zerotoship.z2term.ui.theme.UserFonts
 
 /**
  * エミュレータバッファをネイティブ Canvas に描く。
@@ -91,7 +92,10 @@ fun TerminalRenderer(
     val context = LocalContext.current
 
     val fontOption = remember(settings.fontId) { TerminalFontOptions.byId(settings.fontId) }
-    val typeface = remember(fontOption.id) {
+    // 取り込んだフォントのファイルが入れ替わったら (バックアップから同じ名前のものを戻したなど)、
+    // fontId が同じでも書体を作り直す。
+    val userFontRevision by UserFonts.revision.collectAsState()
+    val typeface = remember(fontOption.id, userFontRevision) {
         // 同梱 (assets) と取り込んだフォント (filesDir/fonts) のどちらも。読めなければ monospace。
         TerminalFontOptions.loadTypeface(context, fontOption) ?: Typeface.MONOSPACE
     }

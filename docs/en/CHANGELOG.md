@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.145 (versionCode 843)**: Restoring a font from a backup with the same name as the font in use now shows the restored font right away. Before, the previous font stayed until the app was reopened.
+
 **1.0.144 (versionCode 842)**: Imported fonts are now included in backups. After restoring, your imported fonts are usable as before. A font with the same name is replaced by the one in the backup. The confirmation shown before restoring also lists the number of fonts.
 
 **1.0.143 (versionCode 841)**: You can now add your own font files for the terminal. In Settings → "Font family", tap "Import a font file" and pick a TrueType / OpenType font (.ttf / .otf / .ttc); it appears after the bundled fonts and is switched to. Remove it with "Remove" in the same place. The terminal makes every character as wide as "M", so pick a monospaced font. Imported fonts are not included in backups. Also fixed: adding SMB to an SSH destination filled the SMB host with localhost when the SSH host was still empty. SMB cannot connect through localhost, so the host is now left empty and the SSH host is used when connecting. Saved SMB services whose host is localhost behave the same way.
