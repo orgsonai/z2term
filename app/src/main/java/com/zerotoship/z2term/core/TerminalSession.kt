@@ -263,7 +263,8 @@ class TerminalSession(
         titleSetter = { title -> if (title.isNotBlank() && !labelPinned) _label.value = title.take(20) },
         cwdSetter = { path -> _cwd.value = path },
         // 入力待ちになった CLI の合図 (BEL / OSC 9 / OSC 777)。見ていないタブなら通知する。
-        bellHandler = { signal(null, null) },
+        // 入力を送った直後のベルは、その入力への返事なので知らせない (1.0.159・[bellAnswersInput])。
+        bellHandler = { if (!bellAnswersInput(SystemClock.elapsedRealtime(), lastInputAt)) signal(null, null) },
         notifyHandler = { title, body -> signal(title, body) },
         // DA2 / XTVERSION で名乗る版数。エミュレータ側は Android に依存しないので here で渡す。
         versionName = BuildConfig.VERSION_NAME,
@@ -1083,7 +1084,11 @@ class TerminalSession(
         }
     }
 
+    /** 最後に入力を送った時刻 (elapsedRealtime)。ベルが入力への返事かを見分けるのに使う。 */
+    @Volatile private var lastInputAt = 0L
+
     fun writeBytes(bytes: ByteArray) {
+        lastInputAt = SystemClock.elapsedRealtime()
         // ユーザー入力時は必ず最下行へジャンプ。
         // スクロールバック中に typing 結果が見えなくなる事故を防ぐ。
         _scrollOffset.value = 0

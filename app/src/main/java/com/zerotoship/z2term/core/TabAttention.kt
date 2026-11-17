@@ -71,6 +71,17 @@ internal class AttentionState(private val armBytes: Int = ARM_BYTES) {
  * 「見ている」= アプリが前面にいて、そのタブが選ばれている。見ているタブでは何もしない。
  * 通知を押すとそのタブを開き、タブを見たら通知は消える。通知はタブごとに 1 つで、出し直すと置き換わる。
  */
+/** このくらい以内に鳴ったベルは、直前に届いた入力への返事とみなす (1.0.159)。SSH の往復も含めた余裕。 */
+internal const val BELL_REPLY_MS = 2_000L
+
+/**
+ * ベルが「直前の入力への返事」か (1.0.159)。行頭での ⌫ や補完の候補なしで鳴るベルは、打った人への
+ * その場の返事であって、タブが人を呼んでいるのではない。ブロードキャストで見えていないタブへ
+ * 送った入力に、各タブのシェルがベルで返すたびに「入力を待っています」が出ていた。
+ */
+internal fun bellAnswersInput(now: Long, lastInputAt: Long, windowMs: Long = BELL_REPLY_MS): Boolean =
+    lastInputAt > 0L && now >= lastInputAt && now - lastInputAt <= windowMs
+
 @SuppressLint("MissingPermission")
 internal object TabAttention {
     private const val CHANNEL = "z2term_attention"

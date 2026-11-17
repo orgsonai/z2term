@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.159 (versionCode 857)**: Three broadcast fixes. (1) Sending to tabs not on screen raised "waiting for input" notifications whenever their shells rang the bell (for example ⌫ at the start of a line); a bell right after input reached the tab is a reply to what was typed and is no longer reported. (2) During broadcast every receiving pane was yellow, making it hard to see which pane you were typing in; that pane now always has a thick green frame and a tinted title. (3) A group with only one tab is now shown as a group, with a tick box on its title, so it can join a broadcast.
+
 **1.0.158 (versionCode 856)**: Fixed SSH sessions opened from "Connect" dropping after a while. Several threads were writing keys you typed in quick succession to the SSH connection at once, corrupting what was sent, and the server closed the connection. A tab's input is now sent one piece at a time, in the order typed. Also fixed a `%` left at line ends with zsh in tabs opened from "Connect": the screen width did not reach the server during connecting, so it stayed at 80 columns; the width is now sent again once connected.
 
 **1.0.157 (versionCode 855)**: Fixed "… is waiting for input" notifications for panes that are on screen in a group. Only the focused tab counted as looked at, so another pane beside it ringing the bell (for example after a broadcast deleted too far) raised a notification. Every pane on screen now counts as looked at, and its notification is cleared.

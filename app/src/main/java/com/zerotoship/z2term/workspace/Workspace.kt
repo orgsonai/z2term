@@ -278,7 +278,9 @@ internal object Workspace {
             val label by session.label.collectAsState()
             val dragged = draggingId == id
             val isTarget = target == id
-            val maximized = panes.size == 1
+            // 1 枚だけのグループ (1.0.159) は「最大化」ではない。最大化しているのは、2 枚以上のうち 1 枚だけを出しているとき。
+            val maximized = group.members.size > 1 && panes.size == 1
+            val isActive = id == active.id
             var menuOpen by remember { mutableStateOf(false) }
             Column(childModifier
                 .onGloballyPositioned { c ->
@@ -286,16 +288,17 @@ internal object Workspace {
                     starts[id] = if (horizontal) p.x.toInt() else p.y.toInt()
                     extents[id] = if (horizontal) c.size.width else c.size.height
                 }
+                // ⭐ 入力先は送り先の警告色より優先して緑の太枠にする (1.0.159)。ブロードキャスト中は
+                // 送り先がすべて黄色になり、入力先も黄色だったので、どれに打っているのか見分けられなかった。
                 .border(
                     when {
-                        isTarget -> 3.dp
-                        id in sendingTo -> if (id == active.id) 3.dp else 2.dp
+                        isTarget || isActive -> 3.dp
+                        id in sendingTo -> 2.dp
                         else -> 1.dp
                     },
                     when {
-                        isTarget || dragged -> ZtsGreen
+                        isTarget || dragged || isActive -> ZtsGreen
                         id in sendingTo -> ZtsWarning
-                        id == active.id -> ZtsGreen
                         else -> ZtsBorder
                     })) {
                 // Maximize, or restore the whole group when this pane is already alone.
@@ -303,7 +306,10 @@ internal object Workspace {
                     Workspace.update { it.maximize(groupId, if (maximized) null else session.id) }
                     SessionManager.setActive(session.id)
                 }
-                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
+                // 入力先の見出しは地の色も変えて、枠の色だけに頼らない (1.0.159)。
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)
+                    .background(if (isActive) ZtsGreen.copy(alpha = 0.18f) else androidx.compose.ui.graphics.Color.Transparent),
+                    verticalAlignment = Alignment.CenterVertically) {
                 // Broadcast mode: tick the tabs that should receive input (terminal tabs only).
                 if (Broadcast.mode && session is TerminalSession) {
                     val checked = session.id in group.checked
@@ -372,7 +378,8 @@ internal object Workspace {
                     }
                 }
                 val toggleLabel = stringResource(if (maximized) R.string.group_restore else R.string.workspace_maximize)
-                Box(Modifier.fillMaxHeight().width(44.dp).clickable(
+                // 1 枚だけのグループでは大きくする相手がいないので出さない。
+                if (group.members.size > 1) Box(Modifier.fillMaxHeight().width(44.dp).clickable(
                         onClickLabel = toggleLabel, onClick = { toggleMaximized() }),
                     contentAlignment = Alignment.Center) {
                     Icon(if (maximized) Icons.Filled.CloseFullscreen else Icons.Filled.OpenInFull, toggleLabel,

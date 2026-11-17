@@ -4,7 +4,7 @@
 
 ## Split sessions (tab groups)
 
-Tabs you want side by side go into a **group** (1.0.146). A group of two or more tabs takes one entry in the tab bar (with a count, such as `Work ·3`); tapping it stacks its tabs top to bottom (or side by side). A one-tab group is just a tab.
+Tabs you want side by side go into a **group** (1.0.146). A group of two or more tabs takes one entry in the tab bar (with a count, such as `Work ·3`); tapping it stacks its tabs top to bottom (or side by side). A one-tab group is shown as a group too, so its pane title can be ticked for broadcast (1.0.159).
 
 **Making groups**
 

@@ -1,9 +1,9 @@
 package com.zerotoship.z2term.workspace
 
 /**
- * A named set of tabs shown side by side. A group with two or more members replaces the tab bar
- * entries of its members with one group entry; selecting it stacks the members as panes.
- * A group with a single member behaves exactly like a plain tab (no separate "group mode").
+ * A named set of tabs shown side by side. A group replaces the tab bar entries of its members with
+ * one group entry; selecting it stacks the members as panes. ⭐ A one-tab group is shown as a group
+ * too (1.0.159): with its pane title it can be ticked for broadcast, which a plain tab cannot.
  */
 internal data class TabGroup(
     val id: String,
@@ -19,8 +19,8 @@ internal data class TabGroup(
     /** Members ticked to receive broadcast input. */
     val checked: Set<String> = emptySet(),
 ) {
-    /** True when the members are shown as panes (two or more). */
-    val stacked: Boolean get() = members.size >= 2
+    /** True when the members are shown as panes (one or more; 1.0.158 and before needed two). */
+    val stacked: Boolean get() = members.isNotEmpty()
 
     /** Panes to show while [active] (a member) is focused. Maximizing only applies to the maximized member itself. */
     fun panes(active: String): List<String> = if (maximized == active && active in members) listOf(active) else members

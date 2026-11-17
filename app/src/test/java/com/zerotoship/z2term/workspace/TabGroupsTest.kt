@@ -10,13 +10,16 @@ class TabGroupsTest {
         return ids.fold(created) { st, s -> st.add(id, s, max)!! } to id
     }
 
-    @Test fun singleMemberGroupIsAPlainTabAndTwoAreStacked() {
+    // 1.0.159: a one-tab group is shown as a group too (so it can be ticked for broadcast).
+    @Test fun oneTabGroupIsShownAsAGroup() {
         val (one, id) = groupOf("a")
-        assertNull(one.stackedFor("a"))
-        assertEquals(listOf(TabUnit.Solo("a"), TabUnit.Solo("b")), one.units(listOf("a", "b")))
+        assertEquals(listOf("a"), one.stackedFor("a")!!.members)
+        assertEquals(listOf(TabUnit.Group(one.group(id)!!), TabUnit.Solo("b")), one.units(listOf("a", "b")))
         val two = one.add(id, "b", 4)!!
         assertEquals(listOf("a", "b"), two.stackedFor("b")!!.members)
         assertEquals(1, two.units(listOf("a", "b")).size)
+        // An emptied group shows nothing and is not a group of panes.
+        assertNull(one.removeMember("a").stackedFor("a"))
     }
 
     @Test fun aTabBelongsToOneGroupAndAFullGroupRefuses() {
@@ -126,10 +129,11 @@ class TabGroupsTest {
         assertEquals(listOf("a", "b", "d"), broadcastTargets(two, on = true, from = "a", eligible = all))
         // Typing in the unticked tab of the other group still reaches that tab alone.
         assertEquals(listOf("c"), broadcastTargets(two, on = true, from = "c", eligible = all))
-        // A tick left in a one-tab group (no tick box on screen) does not receive.
+        // 1.0.159: a one-tab group has a pane title with a tick box, so it takes part.
         val (st3, lone) = two.create(name)
         val withLone = st3.add(lone, "e", 4)!!.setChecked("e", true)
-        assertEquals(listOf("a", "b", "d"), broadcastTargets(withLone, on = true, from = "a", eligible = all))
+        assertEquals(listOf("a", "b", "d", "e"), broadcastTargets(withLone, on = true, from = "a", eligible = all))
+        assertEquals(listOf("a", "b", "d", "e"), broadcastTargets(withLone, on = true, from = "e", eligible = all))
     }
 
     @Test fun broadcastSkipsTabsThatCannotReceiveButKeepsTheFocusedOne() {
@@ -168,5 +172,15 @@ class TabGroupsTest {
         assertEquals(listOf("b"), st.maximize(id, "b").onScreen("b"))
         assertEquals(listOf("z"), st.onScreen("z"))
         assertTrue(st.onScreen(null).isEmpty())
+    }
+
+    // 1.0.159: a bell right after input reached the tab is a reply to that input, not a call.
+    @Test fun bellRightAfterInputIsAReply() {
+        assertTrue(com.zerotoship.z2term.core.bellAnswersInput(now = 10_500, lastInputAt = 10_000))
+        assertTrue(com.zerotoship.z2term.core.bellAnswersInput(now = 12_000, lastInputAt = 10_000))
+        assertFalse(com.zerotoship.z2term.core.bellAnswersInput(now = 12_001, lastInputAt = 10_000))
+        // Nothing typed yet, or a clock that went backwards: the bell is the tab calling.
+        assertFalse(com.zerotoship.z2term.core.bellAnswersInput(now = 500, lastInputAt = 0))
+        assertFalse(com.zerotoship.z2term.core.bellAnswersInput(now = 9_000, lastInputAt = 10_000))
     }
 }
