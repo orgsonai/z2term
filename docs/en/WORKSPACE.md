@@ -8,8 +8,8 @@ Tabs you want side by side go into a **group** (1.0.146). A group of two or more
 
 **Making groups**
 
-- **Long-press a tab and let go without moving** → **Add to a group…**, then pick a group or "+ New group".
-- **Edit groups…** (same menu) lists every group on the left and the tabs in no group on the right. Tap a tab on the right to put it in the group framed in green; tap a tab in a group to send it back. Long-press a tab in a group and drag to reorder it, or let go without moving to rename it. Long-press a group's name to rename or delete it. "Top / bottom" and "Left / right" under the name choose how its tabs are arranged (1.0.160; top / bottom at first). A tab made with "+ New tab" starts at once (long-press to pick an OS).
+- Groups are arranged in the **group editor** (the single place since 1.0.162). Open it with **long-press GUI (🖥) → Edit groups…**, the **📡 that slides out of + / 🖥**, or "Edit groups…" in a pane title's long-press menu. It is the same screen whichever way you open it.
+- The editor lists every group on the left and the tabs in no group on the right. Tap a tab on the right to put it in the group framed in green; tap a tab in a group to send it back. Long-press a tab in a group and drag to reorder it, or let go without moving to rename it. Long-press a group's name to rename or delete it. "Top / bottom" and "Left / right" under the name choose how its tabs are arranged (1.0.160; top / bottom at first). A tab made with "+ New tab" starts at once (long-press to pick an OS).
 - **Long-press the GUI (🖥) button next to +**, choose **Top / bottom** or **Left / right** and a tab: it joins the current tab's group (or the two become a new group).
 
 **Using the panes**
@@ -19,7 +19,7 @@ Tabs you want side by side go into a **group** (1.0.146). A group of two or more
 3. **Long-press a pane title and drag** to move that tab; let go once the pane it should land on gets a thick border. **Let go without moving** for a menu: rename, leave the group, close tab, edit groups.
 4. The **expand button** at the right end of a title, or a **double-tap on the title**, shows only that pane. Press it again to return to the group.
 5. The toolbar **⚪** turns the log on or off for the whole group (1.0.155). While it is on, a **⚪ / 🔴** appears left of the expand button; pressing it switches that pane alone between recording (🔴) and paused (⚪). Resuming from pause writes on to the same file. The file is created when there is first something to write.
-6. Long-press a group's entry and let go to rename it, switch between top/bottom and left/right, or ungroup it. **Long-press GUI → One pane** also ungroups the current tab's group.
+6. Long-press a group's entry and let go to rename or ungroup it (the direction is chosen in the editor). A tab's long-press menu only renames it (1.0.162). **Long-press GUI → One pane** also ungroups the current tab's group.
 
 How many tabs one group holds is set in **⚙ Settings → Tabs per group**: 4 by default, up to as many as fit with each pane keeping at least 4 rows with the keyboard open (at most 8).
 
@@ -34,8 +34,8 @@ Selecting a tab that is in no group shows that tab alone; the group stays, and s
 Sends the same input to every ticked tab **across groups** (1.0.147; across groups since 1.0.156). Groups only split tabs that do not fit on one screen, so ticked tabs receive whichever group they are in. Tabs in no group never receive.
 
 1. **Slide left starting on + / 🖥** at the right end of the tab bar. The 📡 hidden to their right slides in with your finger (1.0.151; it hides when pressed or after 4 seconds).
-2. 📡 opens the group editor. Choose a group (make one there if needed) and press **Start with this**. The editor opened from "Edit groups…" in a tab's long-press menu can start it too, with **📡 Start broadcast** (1.0.150). The terminal tabs of every group are ticked.
-3. A **📡 OFF / 📡 ON ·3** switch stays in the tab bar: tap for ON / OFF, long-press to rearrange the group. It starts OFF (change this with **⚙ Settings → Start broadcasting ON**).
+2. 📡 opens the group editor. Arrange the groups (to only arrange them, just close it) and press **📡 Start broadcast**. The editor opened from long-press GUI → "Edit groups…" is the same (1.0.162). The terminal tabs of every group are ticked.
+3. A **📡 OFF / 📡 ON ·3** switch stays in the tab bar: tap it for ON / OFF. It starts OFF (change this with **⚙ Settings → Start broadcasting ON**).
 4. Use the tick box at the left of each pane title to choose which tabs receive.
 
 **Who receives**
@@ -55,7 +55,7 @@ When more than one tab receives, the receiving panes are framed in the warning c
 - Tabs that have not started and GUI tabs receive nothing.
 - The confirmation for multi-line pastes shows how many tabs receive it.
 
-To stop, slide left on + / 🖥 again and press **📡 Stop**.
+To stop, slide left on + / 🖥 again and press **📡 Stop**, or use **long-press GUI → 📡 Stop** (1.0.162, so it can be stopped without knowing about the slide).
 
 **From a command** (1.0.149): `z2-session group new work 1 2 3` makes a group and `z2-session group send work 'uptime' --enter` types the same command into every terminal tab of it and runs it. This goes to the named group regardless of the on-screen ON/OFF and ticks. See `z2-session --help`.
 

@@ -53,8 +53,6 @@ internal object Workspace {
         private set
     /** While the group editor is open, empty groups survive [sync] so a new group can be filled. */
     var editorOpen by mutableStateOf(false)
-    /** The editor was opened to start broadcasting: its main button starts it for the selected group. */
-    var editorStartsBroadcast by mutableStateOf(false)
 
     /**
      * Applies [change] and keeps each group's members next to each other in the tab order, so
@@ -166,6 +164,11 @@ internal object Workspace {
             }
             TextButton(onClick = { Workspace.editorOpen = true; onDismiss() }) {
                 Text(stringResource(R.string.group_edit))
+            }
+            // 左へ滑らせる 📡 を知らなくても止められるように、ここにも解除を置く (1.0.162)。
+            // 始めるのは「グループを編集…」の編集画面から。
+            if (Broadcast.mode) TextButton(onClick = { Broadcast.stop(); onDismiss() }) {
+                Text(stringResource(R.string.broadcast_stop), color = ZtsWarning)
             }
             if (group != null) TextButton(onClick = { Workspace.update { it.delete(group.id) }; onDismiss() }) {
                 Text(stringResource(R.string.workspace_single))

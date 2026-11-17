@@ -43,7 +43,6 @@ import kotlin.math.abs
 internal sealed interface GroupDialog {
     data class RenameTab(val sessionId: String) : GroupDialog
     data class RenameGroup(val groupId: String) : GroupDialog
-    data class ChooseGroup(val sessionId: String) : GroupDialog
     data class CloseTab(val sessionId: String) : GroupDialog
 }
 
@@ -99,15 +98,12 @@ internal fun middleEllipsis(name: String, max: Int): String {
 @Composable private fun MenuItem(text: Int, onClick: () -> Unit) =
     DropdownMenuItem(text = { Text(stringResource(text)) }, onClick = onClick)
 
-/** Menu of a plain tab in the tab bar (long-press and let go). */
+/**
+ * Menu of a plain tab in the tab bar (long-press and let go): rename only (1.0.162). Grouping lives
+ * in the group editor; the entries that duplicated it here were too many ways in.
+ */
 @Composable internal fun TabMenu(session: AppSession, onDone: () -> Unit) {
     MenuItem(R.string.group_rename_tab) { onDone(); GroupUiState.dialog = GroupDialog.RenameTab(session.id) }
-    if (Workspace.groups.groupOf(session.id) == null) {
-        MenuItem(R.string.group_add_to) { onDone(); GroupUiState.dialog = GroupDialog.ChooseGroup(session.id) }
-    } else {
-        MenuItem(R.string.group_leave) { onDone(); Workspace.update { it.removeMember(session.id) } }
-    }
-    MenuItem(R.string.group_edit) { onDone(); Workspace.editorOpen = true }
 }
 
 /** Menu of a pane title inside a group. */
@@ -121,14 +117,10 @@ internal fun middleEllipsis(name: String, max: Int): String {
     MenuItem(R.string.group_edit) { onDone(); Workspace.editorOpen = true }
 }
 
-/** Menu of a group entry in the tab bar. */
+/** Menu of a group entry in the tab bar: rename and ungroup only (1.0.162; the direction is chosen in the editor). */
 @Composable internal fun GroupMenu(group: TabGroup, onDone: () -> Unit) {
     MenuItem(R.string.group_rename_group) { onDone(); GroupUiState.dialog = GroupDialog.RenameGroup(group.id) }
-    MenuItem(if (group.horizontal) R.string.group_arrange_vertical else R.string.group_arrange_horizontal) {
-        onDone(); Workspace.update { it.setHorizontal(group.id, !group.horizontal) }
-    }
     MenuItem(R.string.group_ungroup) { onDone(); Workspace.update { it.delete(group.id) } }
-    MenuItem(R.string.group_edit) { onDone(); Workspace.editorOpen = true }
 }
 
 /** Hosts the dialogs opened from the menus and the group editor. Placed once, next to the tab bar. */
@@ -146,7 +138,6 @@ internal fun middleEllipsis(name: String, max: Int): String {
             NameDialog(stringResource(R.string.group_name_title_group), g.name, GROUP_NAME_MAX,
                 onDone = { name -> Workspace.update { it.rename(g.id, name.take(GROUP_NAME_MAX)) }; dismiss() }, onDismiss = dismiss)
         }
-        is GroupDialog.ChooseGroup -> ChooseGroupDialog(d.sessionId, dismiss)
         is GroupDialog.CloseTab -> ConfirmDialog(
             title = stringResource(R.string.confirm_close_busy_title),
             message = stringResource(R.string.confirm_close_busy_msg),
@@ -158,7 +149,6 @@ internal fun middleEllipsis(name: String, max: Int): String {
     }
     if (Workspace.editorOpen) GroupEditorDialog(onDismiss = {
         Workspace.editorOpen = false
-        Workspace.editorStartsBroadcast = false
         Workspace.sync(SessionManager.sessions.value.map { it.id }.toSet())
     })
 }
@@ -180,38 +170,6 @@ private const val GROUP_NAME_MAX = 40
     )
 }
 
-/** Puts one tab into an existing group or a new one. */
-@Composable private fun ChooseGroupDialog(sessionId: String, onDismiss: () -> Unit) {
-    val maxTabs = rememberGroupMaxTabs()
-    val nameFor = groupNameFor()
-    fun join(groupId: String?) {
-        Workspace.update { st ->
-            val (base, id) = if (groupId != null) st to groupId else st.create(nameFor)
-            base.add(id, sessionId, maxTabs) ?: st
-        }
-        // Show the group the tab has joined.
-        SessionManager.setActive(sessionId)
-        onDismiss()
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = ZtsBgCard,
-        title = { Text(stringResource(R.string.group_choose_title)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Workspace.groups.groups.filter { it.members.isNotEmpty() }.forEach { g ->
-                    OutlinedButton(modifier = Modifier.fillMaxWidth(), enabled = g.members.size < maxTabs,
-                        onClick = { join(g.id) }) { Text("${g.name}  ${g.members.size}/$maxTabs", maxLines = 1) }
-                }
-                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { join(null) }) {
-                    Text(stringResource(R.string.group_new))
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) } },
-    )
-}
-
 /**
  * Groups on the left, tabs in no group on the right. Every group is shown open, with the selected
  * one framed in green, so the whole arrangement is visible at once. Changes apply immediately.
@@ -226,7 +184,6 @@ private const val GROUP_NAME_MAX = 40
     val maxTabs = rememberGroupMaxTabs()
     val nameFor = groupNameFor()
     val appSettings by remember { AppSettings(context.applicationContext) }.flow.collectAsState(initial = AppSettings.lastKnown)
-    val startsBroadcast = Workspace.editorStartsBroadcast
     var selected by remember { mutableStateOf(groups.groupOf(activeId)?.id ?: groups.groups.firstOrNull()?.id) }
     val selectedGroup = groups.group(selected)
     var osPickerOpen by remember { mutableStateOf(false) }
@@ -265,7 +222,8 @@ private const val GROUP_NAME_MAX = 40
             Column(Modifier.fillMaxSize().padding(windowPadding)) {
                 Text(stringResource(R.string.group_editor_title), fontSize = 16.sp, color = ZtsTextPrimary,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp))
-                if (startsBroadcast) Text(stringResource(R.string.broadcast_editor_hint), fontSize = 12.sp, lineHeight = 17.sp,
+                // ⭐ どこから開いても同じ画面 (1.0.162)。グループを組むだけで閉じても、ここから始めてもよい。
+                if (!Broadcast.mode) Text(stringResource(R.string.broadcast_editor_hint), fontSize = 12.sp, lineHeight = 17.sp,
                     color = ZtsWarning, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp))
                 Text(stringResource(R.string.group_editor_hint), fontSize = 12.sp, lineHeight = 17.sp, color = ZtsTextSecondary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
@@ -315,7 +273,7 @@ private const val GROUP_NAME_MAX = 40
                 // 下のボタン。狭い画面では折り返す (3 つ並ぶと 1 行に入らない)。
                 // ⭐ どの入口から開いても、ブロードキャストを始められる (1.0.150)。長押しメニューの
                 // 「グループを編集…」から開くと始めるボタンが無く、どこで始めるのか分からなかった。
-                // 📡 から開いたときは「この内容で開始」が主ボタン、それ以外は「このグループを表示」が主ボタン。
+                // どこから開いても同じボタン (1.0.162。以前は 📡 から開くと「この内容で開始」だけだった)。
                 // ブロードキャスト中は始めるボタンを出さない (始め直すとチェックが全部入り直す)。
                 // 送り先はすべてのグループにまたがる (1.0.156) ので、始められるかも全グループで数える。
                 val terminalCount = groups.groups.filter { it.stacked }.sumOf { g ->
@@ -340,9 +298,6 @@ private const val GROUP_NAME_MAX = 40
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.group_editor_close)) }
                     val green = ButtonDefaults.buttonColors(containerColor = ZtsGreen)
                     when {
-                        startsBroadcast -> Button(enabled = canStart, onClick = start, colors = green) {
-                            Text(stringResource(R.string.broadcast_start))
-                        }
                         Broadcast.mode -> Button(enabled = canShow, onClick = showGroup, colors = green) {
                             Text(stringResource(R.string.group_editor_show))
                         }
@@ -468,9 +423,8 @@ private const val GROUP_NAME_MAX = 40
 
 /**
  * The broadcast switch, always shown in the tab bar while in broadcast mode. ON shows how many tabs
- * receive what is typed now. Long-press opens the group editor to rearrange.
+ * receive what is typed now.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable internal fun BroadcastSwitch(targets: Int) {
     val on = Broadcast.on
     val label = if (on) stringResource(R.string.broadcast_on, targets) else stringResource(R.string.broadcast_off)
@@ -479,12 +433,8 @@ private const val GROUP_NAME_MAX = 40
         modifier = Modifier
             .border(1.dp, ZtsWarning, RoundedCornerShape(6.dp))
             .then(if (on) Modifier.background(ZtsWarning, RoundedCornerShape(6.dp)) else Modifier)
-            .combinedClickable(
-                onClickLabel = stringResource(R.string.broadcast_toggle),
-                onClick = { Broadcast.on = !on },
-                onLongClickLabel = stringResource(R.string.group_edit),
-                onLongClick = { Workspace.editorOpen = true },
-            )
+            // タップで ON / OFF だけ (1.0.162。長押しで編集画面を開くのは入口が多すぎたので外した)。
+            .clickable(onClickLabel = stringResource(R.string.broadcast_toggle)) { Broadcast.on = !on }
             .padding(horizontal = 8.dp, vertical = 6.dp))
 }
 
@@ -500,7 +450,7 @@ private const val GROUP_NAME_MAX = 40
             .border(1.dp, ZtsWarning, RoundedCornerShape(6.dp))
             .clickable {
                 if (stopping) Broadcast.stop()
-                else { Workspace.editorStartsBroadcast = true; Workspace.editorOpen = true }
+                else Workspace.editorOpen = true
                 onDone()
             }
             .padding(horizontal = 8.dp, vertical = 6.dp))

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.162 (versionCode 860)**: Fewer ways into groups. A tab's long-press menu now only renames it, a group's only renames or ungroups it, and long-pressing the 📡 switch no longer opens the editor. Groups are arranged in the editor, which is the same whether opened from 📡 or from long-press GUI → "Edit groups…": you can just arrange and close, or press "📡 Start broadcast". During broadcast, the GUI button's long-press offers "📡 Stop" as well.
+
 **1.0.161 (versionCode 859)**: While attached to a tab with `z2-session attach` (from a PC, for example), what you type there now follows the broadcast rule too: with broadcast ON and that tab ticked, it reaches every ticked tab. Cursor keys are rebuilt for each receiving tab.
 
 **1.0.160 (versionCode 858)**: The group editor now lets you choose each group's direction (top / bottom or left / right). The two choices sit under the group name, with the chosen one framed in green. Top / bottom is the default.
