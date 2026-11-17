@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-17 / Target version: 1.0.157 (versionCode 855)
+Last updated: 2026-11-17 / Target version: 1.0.158 (versionCode 856)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -2332,6 +2332,8 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
 - `SshHop` / `JumpProxy`: jump hosts (`ssh -J`). See "Jump hosts" in §6.3.
 - `PortForwarding`: the one place that actually installs `-L` / `-R` / `-D`, shared by `SshChannel` and `TunnelManager`. The `-D` listener lives in `SocksProxy` and is handed to `SshLink` so it folds away with the route.
 - `SshProfile`/`PortForward`/`SshHop`: persisted as JSON in DataStore (`z2term_ssh`).
+- ⚠⚠ **A tab's output is written from one thread, in the order typed (`TerminalSession.writeDispatcher`, 1.0.158).** Up to 1.0.157 each write was handed to `Dispatchers.IO` (a shared pool), so typing quickly had **several threads writing to the same output at once**. JSch's output is not built for concurrent writers; packets being assembled were corrupted, and the OpenSSH peer dropped the connection with `ssh_dispatch_run_fatal: … message authentication code incorrect` (seen in the PC's log: only connections with the app's built-in key `z2term_app` ended after 16 s and 5 min, while the `ssh` typed in a tab, key `z2term_default`, stayed up). With writes scattered across threads, even local tabs had no guarantee of receiving keys in order. Size changes (`resize`, a window-change packet over SSH) go through the same queue.
+- ⚠ **Once connected, the size the screen asked for is sent again (1.0.158).** A tab opened from "Connect" starts connecting at the default 24x80 before the screen has measured itself, and the measured size arrived mid-connection (no `channel` yet) and was dropped. The peer stayed at 80 columns, so zsh's line-end trick (`%` plus 79 spaces) wrapped on a 75-column screen and **left a `%` behind**.
 
 ### 4.8 Settings (`settings/AppSettings.kt`)
 

@@ -161,6 +161,21 @@ class TerminalSession(
     }
     private val emulatorDispatcher = emulatorExecutor.asCoroutineDispatcher()
 
+    /**
+     * PTY / SSH への書き込みと大きさの通知を、**1 本のスレッドに打った順で**並べる (1.0.158)。
+     *
+     * ⚠⚠ 以前は書き込み 1 回ごとに `Dispatchers.IO` (共有のスレッド群) へ投げていたので、続けて
+     * 打つと**同じ出口へ複数のスレッドが同時に書いていた**。SSH (JSch) の出口は同時に書かれる
+     * 前提で作られておらず、組み立て途中のパケットが壊れて、相手 (OpenSSH) が
+     * `message authentication code incorrect` で接続を切っていた (PC 側の記録で確認:
+     * アプリ内蔵の鍵の接続だけが 16 秒・5 分で切れ、タブで打つ ssh の接続は切れていない)。
+     * 投げる先がばらばらなので、ローカルのタブでも打った順に届く保証が無かった。
+     */
+    private val writeExecutor = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "z2term-write-${id.take(8)}").apply { isDaemon = true }
+    }
+    private val writeDispatcher = writeExecutor.asCoroutineDispatcher()
+
     private val installer = DistroInstaller(appContext)
     private val downloader = DistroDownloader(appContext)
     private val launcher = ProotLauncher(appContext)
@@ -929,6 +944,11 @@ class TerminalSession(
                 }
                 channel = ch
                 sshHost = profile.host
+                // ⚠ 繋ぎ始めた時点では画面がまだ大きさを測っておらず、初期値 (24x80) で繋いでいる。
+                // 測り終えた知らせは繋ぐ途中に届くので、通知する先が無くて捨てられていた。
+                // 繋がったここで画面が求めた大きさを伝え直す (1.0.158)。伝えないと相手は 80 桁の
+                // ままで、zsh が行末を整える「% + 79 個の空白」が折り返して % が残っていた。
+                if (screenRows > 0 && screenCols > 0 && attachSinks.isEmpty()) applySize(screenRows, screenCols)
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "ssh") }
                 if (!labelPinned) _label.value = "ssh:${profile.name.ifEmpty { profile.host }}"
                 // ポート転送が定義されていれば結果をバナーに出す (UX)
@@ -1141,7 +1161,9 @@ class TerminalSession(
             emulator.resize(rows, cols)
             bumpRedrawImmediate()
         }
-        channel?.resize(rows, cols)
+        // 大きさの通知も SSH では 1 つのパケットなので、書き込みと同じ列に並べる (1.0.158)。
+        val ch = channel ?: return
+        scope.launch(writeDispatcher) { ch.resize(rows, cols) }
     }
 
     fun setScrollOffset(offset: Int) { _scrollOffset.value = offset.coerceAtLeast(0) }
@@ -1462,6 +1484,9 @@ class TerminalSession(
         // 専用スレッドも片付ける (FG service 終了時のリーク防止)
         runCatching { emulatorDispatcher.close() }
         runCatching { emulatorExecutor.shutdownNow() }
+        // 書き込みの専用スレッドも片付ける (エミュレータのスレッドと同じ扱い)。
+        runCatching { writeDispatcher.close() }
+        runCatching { writeExecutor.shutdown() }
     }
 
     /** 合図を受けた (エミュレータのスレッドから)。 */
@@ -1498,8 +1523,8 @@ class TerminalSession(
 
     private fun writeToPty(bytes: ByteArray) {
         val pty = channel ?: return
-        // PTY 書込みは IO で十分 (emulator buffer に触れないため)
-        scope.launch(Dispatchers.IO) {
+        // 打った順に 1 つずつ書く ([writeDispatcher])。同じ出口へ同時に書かない。
+        scope.launch(writeDispatcher) {
             try {
                 pty.writer.write(bytes)
                 pty.writer.flush()

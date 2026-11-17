@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.158 (versionCode 856)**: Fixed SSH sessions opened from "Connect" dropping after a while. Several threads were writing keys you typed in quick succession to the SSH connection at once, corrupting what was sent, and the server closed the connection. A tab's input is now sent one piece at a time, in the order typed. Also fixed a `%` left at line ends with zsh in tabs opened from "Connect": the screen width did not reach the server during connecting, so it stayed at 80 columns; the width is now sent again once connected.
+
 **1.0.157 (versionCode 855)**: Fixed "… is waiting for input" notifications for panes that are on screen in a group. Only the focused tab counted as looked at, so another pane beside it ringing the bell (for example after a broadcast deleted too far) raised a notification. Every pane on screen now counts as looked at, and its notification is cleared.
 
 **1.0.156 (versionCode 854)**: Broadcast now reaches across groups. Typing in a ticked tab sends to every ticked tab **in any group** (before, only within the group of the tab you typed in). Groups are there to split tabs that do not fit on one screen. Starting ticks the terminal tabs of every group. Tabs in no group do not receive.

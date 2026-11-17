@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-11-17 / 対象バージョン: 1.0.157 (versionCode 855)
+最終更新: 2026-11-17 / 対象バージョン: 1.0.158 (versionCode 856)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -2301,6 +2301,8 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - `SshHop` / `JumpProxy`: 踏み台（`ssh -J`）。詳細は §6.3 の「踏み台」。
 - `PortForwarding`: `-L` / `-R` / `-D` を実際に張る 1 か所。`SshChannel` と `TunnelManager` が共有する。`-D` の待ち受けは `SocksProxy` が持ち、`SshLink` に預けて経路と一緒に畳む。
 - `SshProfile`/`PortForward`/`SshHop`: DataStore (`z2term_ssh`) に JSON 永続化。
+- ⚠⚠ **タブの出口へは 1 本のスレッドから、打った順に書く（`TerminalSession.writeDispatcher`・1.0.158）。** 1.0.157 までは書き込み 1 回ごとに `Dispatchers.IO`（共有のスレッド群）へ投げていて、続けて打つと**同じ出口へ複数のスレッドが同時に書いていた**。JSch の出口は同時に書かれる前提ではなく、組み立て途中のパケットが壊れて、相手の OpenSSH が `ssh_dispatch_run_fatal: … message authentication code incorrect` で接続を切っていた（PC 側の記録で確認。アプリ内蔵の鍵 `z2term_app` の接続だけが 16 秒・5 分で切れ、タブで打った `ssh` の接続 `z2term_default` は続いていた）。投げる先がばらばらなので、ローカルのタブでも打った順に届く保証が無かった。大きさの通知（`resize` = SSH では window-change のパケット）も同じ列に並べる。
+- ⚠ **接続が済んだら、画面が求めた大きさを伝え直す（1.0.158）。** 「接続」から開くタブは、画面が大きさを測る前に初期値（24x80）で繋ぎ始め、測り終えた知らせは繋ぐ途中に届いて（`channel` がまだ無く）捨てられていた。相手は 80 桁のままになり、zsh が行末を整える `%` + 79 個の空白が 75 桁の画面で折り返して **`%` が残っていた**。
 
 ### 4.8 設定 (`settings/AppSettings.kt`)
 
