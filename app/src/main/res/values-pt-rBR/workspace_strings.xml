@@ -73,4 +73,5 @@
     <string name="tip_broadcast_body">Aparece um botão 📡. Escolha um grupo e toque em Começar assim: o que você digitar em uma aba marcada vai para todas as abas marcadas do grupo. O interruptor 📡 fica na barra de abas durante a transmissão; toque para ON / OFF e segure para reorganizar o grupo. Os painéis que recebem têm borda na cor de alerta (o amarelo do tema). Deslize de novo para parar.</string>
     <string name="tip_tab_pinch_title">Faça pinça na barra de abas para alargar ou estreitar todas</string>
     <string name="tip_tab_pinch_body">Afaste dois dedos na barra de abas para ver nomes de abas e grupos mais longos; aproxime-os para caber mais abas. Todas mudam juntas e a largura fica guardada para a próxima vez.</string>
+    <string name="broadcast_start_button">📡 Iniciar transmissão</string>
 </resources>

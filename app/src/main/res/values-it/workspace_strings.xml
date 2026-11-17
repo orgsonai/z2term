@@ -73,4 +73,5 @@
     <string name="tip_broadcast_body">Compare un pulsante 📡. Scegli un gruppo e premi Avvia così: ciò che digiti in una scheda spuntata va a tutte le schede spuntate del gruppo. L\'interruttore 📡 resta nella barra delle schede durante la trasmissione; toccalo per ON / OFF, tienilo premuto per riorganizzare il gruppo. I riquadri che ricevono hanno un bordo del colore di avviso (il giallo del tema). Scorri di nuovo per interrompere.</string>
     <string name="tip_tab_pinch_title">Pizzica la barra delle schede per allargare o restringere tutte le schede</string>
     <string name="tip_tab_pinch_body">Allarga due dita sulla barra delle schede per mostrare nomi di schede e gruppi più lunghi, avvicinale per farci stare più schede. Tutte cambiano insieme e la larghezza resta per la volta successiva.</string>
+    <string name="broadcast_start_button">📡 Avvia trasmissione</string>
 </resources>

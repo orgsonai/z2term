@@ -399,9 +399,13 @@ private fun openUrl(context: Context, url: String) {
     }
 }
 
-/** Dialog insets are independent from the settings page that opened it. */
+/**
+ * Dialog insets are independent from the settings page that opened it.
+ * Also used by the tab group editor (1.0.150): a full-screen dialog measured to the whole window
+ * but placed below the status bar pushed its bottom row off screen.
+ */
 @Composable
-private fun licenseWindowPadding(): PaddingValues {
+internal fun licenseWindowPadding(): PaddingValues {
     val view = LocalView.current
     val density = LocalDensity.current
     var padding by remember(view) { mutableStateOf(android.graphics.Rect()) }

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.150 (versionCode 848)**: Fixed the bottom row of the group editor ("Close", "Start with this" and so on) falling off the bottom of the screen. Broadcast can now also be started with "📡 Start broadcast" when the editor is opened from "Edit groups…" in a tab's long-press menu.
+
 **1.0.149 (versionCode 847)**: `z2-session` can now manage tab groups. `z2-session group list` lists them, `group new <name> <tab>...` makes one, `group add` / `group remove` move tabs in and out, `group delete` ungroups and `group show` puts a group on screen. `group send <group> <text> --enter` types the same command into every terminal tab of the group and runs it (it goes to the named group regardless of the on-screen broadcast ON/OFF; without `--enter` it only types). `z2-session list` gains a 6th column with the group name (the first five columns are unchanged).
 
 **1.0.148 (versionCode 846)**: Pinching with two fingers on the tab bar now widens or narrows every tab and group at once. Spread to show longer names, pinch in to fit more tabs. The width ranges from 48 to 200dp and the number of characters shown follows it (the previous 12 characters correspond to 84dp). The width is kept for next time. One-finger scrolling, taps and long presses work as before.

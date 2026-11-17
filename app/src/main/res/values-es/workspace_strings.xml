@@ -73,4 +73,5 @@
     <string name="tip_broadcast_body">Aparece un botón 📡. Elige un grupo y pulsa Empezar así: lo que escribas en una pestaña marcada irá a todas las pestañas marcadas del grupo. El interruptor 📡 sigue en la barra de pestañas durante la difusión; tócalo para ON / OFF y mantenlo pulsado para reorganizar el grupo. Los paneles que reciben tienen un borde del color de aviso (el amarillo del tema). Desliza otra vez para detener.</string>
     <string name="tip_tab_pinch_title">Pellizca la barra de pestañas para ensanchar o estrechar todas</string>
     <string name="tip_tab_pinch_body">Separa dos dedos sobre la barra de pestañas para ver nombres de pestañas y grupos más largos; júntalos para que quepan más pestañas. Todas cambian a la vez y el ancho se conserva para la próxima vez.</string>
+    <string name="broadcast_start_button">📡 Iniciar difusión</string>
 </resources>

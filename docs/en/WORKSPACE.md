@@ -33,7 +33,7 @@ Selecting a tab that is in no group shows that tab alone; the group stays, and s
 Sends the same input to every ticked tab of a group (1.0.147).
 
 1. **Slide left starting on + / 🖥** at the right end of the tab bar. A 📡 button appears (it hides when pressed or after 4 seconds).
-2. 📡 opens the group editor. Choose a group (make one there if needed) and press **Start with this**. Every terminal tab of the group is ticked.
+2. 📡 opens the group editor. Choose a group (make one there if needed) and press **Start with this**. The editor opened from "Edit groups…" in a tab's long-press menu can start it too, with **📡 Start broadcast** (1.0.150). Every terminal tab of the group is ticked.
 3. A **📡 OFF / 📡 ON ·3** switch stays in the tab bar: tap for ON / OFF, long-press to rearrange the group. It starts OFF (change this with **⚙ Settings → Start broadcasting ON**).
 4. Use the tick box at the left of each pane title to choose which tabs receive.
 

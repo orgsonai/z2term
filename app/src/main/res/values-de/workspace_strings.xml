@@ -73,4 +73,5 @@
     <string name="tip_broadcast_body">Eine 📡-Schaltfläche erscheint. Wähle eine Gruppe und drücke Damit starten: Was du in einem angehakten Tab tippst, geht dann an alle angehakten Tabs der Gruppe. Der 📡-Schalter bleibt während des Broadcasts in der Tableiste; tippen für AN / AUS, lange drücken zum Umordnen. Empfangende Bereiche haben einen Rahmen in der Warnfarbe (Gelb des Themas). Erneut wischen beendet.</string>
     <string name="tip_tab_pinch_title">Tableiste zusammenziehen, um alle Tabs breiter oder schmaler zu machen</string>
     <string name="tip_tab_pinch_body">Zwei Finger auf der Tableiste spreizen zeigt längere Tab- und Gruppennamen, zusammenziehen bringt mehr Tabs unter. Alle Tabs ändern sich gemeinsam, und die Breite bleibt für das nächste Mal erhalten.</string>
+    <string name="broadcast_start_button">📡 Broadcast starten</string>
 </resources>

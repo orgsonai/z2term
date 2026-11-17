@@ -73,4 +73,5 @@
     <string name="tip_broadcast_body">Tombol 📡 muncul. Pilih grup dan tekan Mulai dengan ini: yang Anda ketik di tab yang dicentang akan dikirim ke semua tab yang dicentang di grup itu. Sakelar 📡 tetap di bilah tab selama siaran; ketuk untuk ON / OFF, tekan lama untuk menyusun ulang grup. Panel penerima berbingkai warna peringatan (kuning tema). Geser lagi untuk berhenti.</string>
     <string name="tip_tab_pinch_title">Cubit bilah tab untuk melebarkan atau menyempitkan semua tab</string>
     <string name="tip_tab_pinch_body">Renggangkan dua jari di bilah tab untuk menampilkan nama tab dan grup yang lebih panjang, rapatkan agar lebih banyak tab muat. Semua tab berubah bersama, dan lebarnya disimpan untuk berikutnya.</string>
+    <string name="broadcast_start_button">📡 Mulai siaran</string>
 </resources>

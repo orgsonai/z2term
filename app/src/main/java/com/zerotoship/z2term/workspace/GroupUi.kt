@@ -216,7 +216,7 @@ private const val GROUP_NAME_MAX = 40
  * Groups on the left, tabs in no group on the right. Every group is shown open, with the selected
  * one framed in green, so the whole arrangement is visible at once. Changes apply immediately.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable internal fun GroupEditorDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -255,9 +255,14 @@ private const val GROUP_NAME_MAX = 40
         }
     }
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    // ⚠ decorFitsSystemWindows = false と、窓の実際の余白 (licenseWindowPadding) の組で収める (1.0.150)。
+    // 既定 (true) のままだと中身が窓全体の高さで組まれたうえでステータスバーの下に置かれ、
+    // いちばん下のボタンの列 (閉じる / この内容で開始) が画面の外へ押し出されていた。
+    Dialog(onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        val windowPadding = com.zerotoship.z2term.legal.licenseWindowPadding()
         Surface(Modifier.fillMaxSize(), color = ZtsBgPrimary, contentColor = ZtsTextPrimary) {
-            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
+            Column(Modifier.fillMaxSize().padding(windowPadding)) {
                 Text(stringResource(R.string.group_editor_title), fontSize = 16.sp, color = ZtsTextPrimary,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp))
                 if (startsBroadcast) Text(stringResource(R.string.broadcast_editor_hint), fontSize = 12.sp, lineHeight = 17.sp,
@@ -307,19 +312,45 @@ private const val GROUP_NAME_MAX = 40
                     }
                 }
                 HorizontalDivider(color = ZtsBorder)
-                Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End)) {
+                // 下のボタン。狭い画面では折り返す (3 つ並ぶと 1 行に入らない)。
+                // ⭐ どの入口から開いても、ブロードキャストを始められる (1.0.150)。長押しメニューの
+                // 「グループを編集…」から開くと始めるボタンが無く、どこで始めるのか分からなかった。
+                // 📡 から開いたときは「この内容で開始」が主ボタン、それ以外は「このグループを表示」が主ボタン。
+                // ブロードキャスト中は始めるボタンを出さない (始め直すとチェックが全部入り直す)。
+                val terminalCount = selectedGroup?.members?.count { id -> sessions.any { it.id == id && it is TerminalSession } } ?: 0
+                val showGroup = {
+                    selectedGroup?.entry()?.let { SessionManager.setActive(it) }
+                    onDismiss()
+                }
+                val start = {
+                    selectedGroup?.let { g ->
+                        Broadcast.start(g.id, appSettings.broadcastStartOn)
+                        g.entry()?.let { SessionManager.setActive(it) }
+                    }
+                    onDismiss()
+                }
+                val canShow = selectedGroup?.members?.isNotEmpty() == true
+                val canStart = terminalCount >= 2
+                FlowRow(Modifier.fillMaxWidth().padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.group_editor_close)) }
-                    // Opened from 📡: start broadcasting to the selected group (all its terminal tabs
-                    // ticked; ON or OFF as set in Settings). Otherwise just show the group.
-                    val terminalCount = selectedGroup?.members?.count { id -> sessions.any { it.id == id && it is TerminalSession } } ?: 0
-                    Button(enabled = if (startsBroadcast) terminalCount >= 2 else selectedGroup?.members?.isNotEmpty() == true, onClick = {
-                        selectedGroup?.let { g ->
-                            if (startsBroadcast) Broadcast.start(g.id, appSettings.broadcastStartOn)
-                            g.entry()?.let { SessionManager.setActive(it) }
+                    val green = ButtonDefaults.buttonColors(containerColor = ZtsGreen)
+                    when {
+                        startsBroadcast -> Button(enabled = canStart, onClick = start, colors = green) {
+                            Text(stringResource(R.string.broadcast_start))
                         }
-                        onDismiss()
-                    }, colors = ButtonDefaults.buttonColors(containerColor = ZtsGreen)) {
-                        Text(stringResource(if (startsBroadcast) R.string.broadcast_start else R.string.group_editor_show))
+                        Broadcast.mode -> Button(enabled = canShow, onClick = showGroup, colors = green) {
+                            Text(stringResource(R.string.group_editor_show))
+                        }
+                        else -> {
+                            OutlinedButton(enabled = canStart, onClick = start) {
+                                Text(stringResource(R.string.broadcast_start_button))
+                            }
+                            Button(enabled = canShow, onClick = showGroup, colors = green) {
+                                Text(stringResource(R.string.group_editor_show))
+                            }
+                        }
                     }
                 }
             }

@@ -73,4 +73,5 @@
     <string name="tip_broadcast_body">Bir 📡 düğmesi çıkar. Bir grup seçip Bununla başlat düğmesine basın: işaretli bir sekmede yazdıklarınız gruptaki tüm işaretli sekmelere gider. Yayın sırasında 📡 anahtarı sekme çubuğunda kalır; AÇIK / KAPALI için dokunun, grubu yeniden düzenlemek için basılı tutun. Alan bölmeler uyarı renginde (temanın sarısı) çerçevelidir. Durdurmak için tekrar kaydırın.</string>
     <string name="tip_tab_pinch_title">Tüm sekmeleri genişletmek veya daraltmak için sekme çubuğunu kıstırın</string>
     <string name="tip_tab_pinch_body">Daha uzun sekme ve grup adları için sekme çubuğunda iki parmağınızı açın; daha çok sekme sığdırmak için kapatın. Tüm sekmeler birlikte değişir ve genişlik bir sonraki sefere saklanır.</string>
+    <string name="broadcast_start_button">📡 Yayını başlat</string>
 </resources>
