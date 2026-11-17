@@ -17,13 +17,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
@@ -38,7 +41,57 @@ import com.zerotoship.z2term.ui.terminal.TerminalRenderer
 import com.zerotoship.z2term.ui.theme.*
 
 internal object Workspace {
-    var layout by mutableStateOf(SessionLayout())
+    /** Tab groups. Kept while the app runs, like the tabs themselves (tabs are not restored on restart). */
+    var groups by mutableStateOf(TabGroups())
+        private set
+    /** While the group editor is open, empty groups survive [sync] so a new group can be filled. */
+    var editorOpen by mutableStateOf(false)
+
+    /**
+     * Applies [change] and keeps each group's members next to each other in the tab order, so
+     * `z2-session list` numbers match what the tab bar shows.
+     */
+    fun update(change: (TabGroups) -> TabGroups) {
+        groups = change(groups)
+        val ids = SessionManager.sessions.value.map { it.id }
+        val ordered = groups.ordered(ids)
+        if (ordered != ids) SessionManager.reorder(ordered)
+    }
+
+    /** Forgets closed tabs (and empty groups, unless the editor is open). */
+    fun sync(available: Set<String>) {
+        val pruned = groups.prune(available, keepEmpty = editorOpen)
+        if (pruned != groups) update { pruned }
+    }
+
+    fun stackedFor(active: String?): TabGroup? = groups.stackedFor(active)
+    fun isStacked(active: String?): Boolean = stackedFor(active) != null
+
+    /**
+     * Puts [other] next to [active] (the layout dialog): into the active tab's group when it has one,
+     * otherwise into a new group of the two. Returns false when that group is full.
+     */
+    fun pair(active: String, other: String, horizontal: Boolean, max: Int, nameFor: (Int) -> String): Boolean {
+        val current = groups.groupOf(active)
+        val (base, groupId) = if (current != null) groups to current.id else {
+            val (created, id) = groups.create(nameFor)
+            (created.add(id, active, max) ?: return false) to id
+        }
+        val added = base.add(groupId, other, max) ?: return false
+        update { added.setHorizontal(groupId, horizontal).maximize(groupId, null) }
+        return true
+    }
+
+    /** Closes a tab; when it was focused inside a group, focus moves to a neighbouring member, not the first tab. */
+    fun closeTab(id: String) {
+        val g = groups.groupOf(id)
+        if (g != null && SessionManager.activeId.value == id) {
+            val i = g.members.indexOf(id)
+            (g.members.getOrNull(i + 1) ?: g.members.getOrNull(i - 1))?.let { SessionManager.setActive(it) }
+        }
+        SessionManager.close(id)
+    }
+
     data class Projection(val session: String, val display: Int)
     var projection by mutableStateOf<Projection?>(null)
     fun projected(id: String) = projection?.session == id
@@ -48,7 +101,10 @@ internal object Workspace {
     val context = LocalContext.current
     val sessions by SessionManager.sessions.collectAsState()
     val active by SessionManager.activeId.collectAsState()
-    var horizontal by remember { mutableStateOf(Workspace.layout.horizontal) }
+    var horizontal by remember { mutableStateOf(Workspace.groups.groupOf(active)?.horizontal ?: false) }
+    val maxTabs = rememberGroupMaxTabs()
+    val nameFor = groupNameFor()
+    val group = Workspace.groups.groupOf(active)
     val displays = remember { context.getSystemService(DisplayManager::class.java) }
     var available by remember { mutableStateOf(displays.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION).toList()) }
     DisposableEffect(displays) {
@@ -79,15 +135,30 @@ internal object Workspace {
                 val currentLabel = sessions.firstOrNull { it.id == active }?.label?.collectAsState()?.value.orEmpty()
                 SplitPreview(horizontal, currentLabel)
             }
-            sessions.filter { it.id != active }.forEach { session ->
+            // 押したタブは、いまのタブのグループへ入る (グループが無ければ 2 枚のグループを作る)。
+            val full = group != null && group.members.size >= maxTabs
+            sessions.filter { it.id != active && group?.members?.contains(it.id) != true }.forEach { session ->
                 val label by session.label.collectAsState()
-                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
-                    Workspace.layout = SessionLayout(active, session.id, 1, horizontal)
-                    SessionManager.setActive(session.id); onDismiss()
+                OutlinedButton(modifier = Modifier.fillMaxWidth(), enabled = !full && active != null, onClick = {
+                    val current = active
+                    if (current != null && Workspace.pair(current, session.id, horizontal, maxTabs, nameFor)) {
+                        SessionManager.setActive(session.id)
+                    }
+                    onDismiss()
                 }) { Text(label) }
             }
             if (sessions.size < 2) Text(stringResource(R.string.workspace_need_two))
-            TextButton(onClick = { Workspace.layout = SessionLayout(first = active); onDismiss() }) {
+            if (full) Text(stringResource(R.string.group_full, maxTabs), color = ZtsTextSecondary)
+            // 向きだけ変えたいとき (もう並んでいるグループ)。
+            if (group != null && group.stacked && group.horizontal != horizontal) {
+                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = {
+                    Workspace.update { it.setHorizontal(group.id, horizontal) }; onDismiss()
+                }) { Text(stringResource(R.string.group_apply_direction)) }
+            }
+            TextButton(onClick = { Workspace.editorOpen = true; onDismiss() }) {
+                Text(stringResource(R.string.group_edit))
+            }
+            if (group != null) TextButton(onClick = { Workspace.update { it.delete(group.id) }; onDismiss() }) {
                 Text(stringResource(R.string.workspace_single))
             }
             HorizontalDivider()
@@ -155,69 +226,105 @@ internal object Workspace {
     }
 }
 
-/** Only the focused pane hosts the existing toolbar/keyboard input path. A first tap focuses the other pane. */
+/**
+ * Panes of the active tab's group, or the active tab alone. Only the focused pane hosts the existing
+ * toolbar/keyboard input path; a first tap on another pane only moves the focus there.
+ */
 @Composable internal fun SessionPanes(active: AppSession, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val sessions by SessionManager.sessions.collectAsState()
-    val state = Workspace.layout.select(active.id, sessions.map { it.id }.toSet())
-    LaunchedEffect(state) { Workspace.layout = state }
-    if (state.second == null) { Box(modifier) { content() }; return }
+    LaunchedEffect(active.id) { Workspace.update { it.focus(active.id) } }
+    val group = Workspace.stackedFor(active.id)
+    if (group == null) { Box(modifier) { content() }; return }
+    val panes = group.panes(active.id)
+    val horizontal = group.horizontal
+    // Gesture handlers outlive a composition; read the group through this so they never act on a stale one.
+    val groupId by rememberUpdatedState(group.id)
     var size by remember { mutableStateOf(IntSize.Zero) }
-    // Long-press a title and drag it toward the other pane to exchange them. Nothing moves while
-    // dragging: the other pane's frame thickens once letting go would swap.
-    var swapArmed by remember { mutableStateOf(false) }
-    val currentState by rememberUpdatedState(state)
-    val currentSize by rememberUpdatedState(size)
-    val pane: @Composable (String?, Modifier) -> Unit = { id, childModifier ->
+    // Long-press a title and drag it along the stack to move that tab. Nothing moves while dragging:
+    // the pane it would land on gets a thick frame, and letting go moves it there.
+    val starts = remember { mutableStateMapOf<String, Int>() }
+    val extents = remember { mutableStateMapOf<String, Int>() }
+    var draggingId by remember { mutableStateOf<String?>(null) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    val currentPanes by rememberUpdatedState(panes)
+    fun dropIndex(): Int? {
+        val id = draggingId ?: return null
+        val from = currentPanes.indexOf(id)
+        if (from < 0) return null
+        val center = (starts[id] ?: 0) + (extents[id] ?: 0) / 2f + dragOffset
+        val to = currentPanes.indexOfFirst { p ->
+            val start = starts[p] ?: return@indexOfFirst false
+            center >= start && center < start + (extents[p] ?: 0)
+        }
+        return if (to < 0) (if (dragOffset > 0) currentPanes.size - 1 else 0) else to
+    }
+    val target = dropIndex()?.let { i -> panes.getOrNull(i) }?.takeIf { it != draggingId }
+    val pane: @Composable (String, Modifier) -> Unit = { id, childModifier ->
         val session = sessions.firstOrNull { it.id == id }
         if (session != null) key(id) {
             val label by session.label.collectAsState()
-            var dragged by remember { mutableStateOf(false) }
-            val target = swapArmed && !dragged
-            Column(childModifier.border(if (target) 3.dp else 1.dp,
-                if (id == active.id || target || dragged) ZtsGreen else ZtsBorder)) {
-                // Showing only this tab: one place for the title's double-tap and its button.
-                val showAlone = {
-                    Workspace.layout = Workspace.layout.single(session.id)
+            val dragged = draggingId == id
+            val isTarget = target == id
+            val maximized = panes.size == 1
+            var menuOpen by remember { mutableStateOf(false) }
+            Column(childModifier
+                .onGloballyPositioned { c ->
+                    val p = c.positionInParent()
+                    starts[id] = if (horizontal) p.x.toInt() else p.y.toInt()
+                    extents[id] = if (horizontal) c.size.width else c.size.height
+                }
+                .border(if (isTarget) 3.dp else 1.dp,
+                    if (id == active.id || isTarget || dragged) ZtsGreen else ZtsBorder)) {
+                // Maximize, or restore the whole group when this pane is already alone.
+                val toggleMaximized by rememberUpdatedState {
+                    Workspace.update { it.maximize(groupId, if (maximized) null else session.id) }
                     SessionManager.setActive(session.id)
                 }
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
                 Text((if (dragged) "⇅ " else "") + label, color = if (id == active.id) ZtsGreen else ZtsTextSecondary,
-                    maxLines = 1, modifier = Modifier.weight(1f)
+                    maxLines = 1, modifier = Modifier.fillMaxWidth()
                         .pointerInput(session.id) {
                             detectTapGestures(
                                 onTap = { SessionManager.setActive(session.id) },
-                                // Double-tap a title to show only that tab.
-                                onDoubleTap = { showAlone() },
+                                // Double-tap a title to maximize it (or restore the group).
+                                onDoubleTap = { toggleMaximized() },
                             )
                         }
-                        .pointerInput(session.id) {
-                            var offset = 0f
-                            fun reset() { offset = 0f; dragged = false; swapArmed = false }
+                        .pointerInput(session.id, horizontal) {
+                            var moved = 0f
+                            fun reset() { dragOffset = 0f; draggingId = null; moved = 0f }
                             detectDragGesturesAfterLongPress(
-                                onDragStart = { offset = 0f; dragged = true },
+                                onDragStart = { moved = 0f; dragOffset = 0f; draggingId = session.id },
                                 onDrag = { change, amount ->
                                     change.consume()
-                                    val layout = currentState
-                                    offset += if (layout.horizontal) amount.x else amount.y
-                                    val extent = if (layout.horizontal) currentSize.width else currentSize.height
-                                    // Toward the other pane: down/right from the first, up/left from the second.
-                                    val toward = if (session.id == layout.first) offset else -offset
-                                    swapArmed = extent > 0 && toward > extent * SWAP_DISTANCE
+                                    val d = if (horizontal) amount.x else amount.y
+                                    moved += kotlin.math.abs(d)
+                                    dragOffset += d
                                 },
                                 onDragEnd = {
-                                    if (swapArmed) Workspace.layout = Workspace.layout.swap()
+                                    val from = currentPanes.indexOf(session.id)
+                                    val to = dropIndex()
+                                    if (moved < viewConfiguration.touchSlop) menuOpen = true
+                                    else if (from >= 0 && to != null && to != from) Workspace.update { it.move(groupId, from, to) }
                                     reset()
                                 },
                                 onDragCancel = { reset() },
                             )
                         }
                         .padding(6.dp))
+                // Long-press and let go without moving: the same menu as for a tab.
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    GroupMemberMenu(session, onDone = { menuOpen = false })
+                }
+                }
                 // The same as the double-tap, without having to know the gesture. As tall as the
                 // title and wider than its glyph, so it is easy to hit without growing the title.
+                val toggleLabel = stringResource(if (maximized) R.string.group_restore else R.string.workspace_maximize)
                 Box(Modifier.fillMaxHeight().width(44.dp).clickable(
-                        onClickLabel = stringResource(R.string.workspace_maximize), onClick = showAlone),
+                        onClickLabel = toggleLabel, onClick = { toggleMaximized() }),
                     contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.OpenInFull, stringResource(R.string.workspace_maximize),
+                    Icon(if (maximized) Icons.Filled.CloseFullscreen else Icons.Filled.OpenInFull, toggleLabel,
                         Modifier.size(16.dp), tint = if (id == active.id) ZtsGreen else ZtsTextSecondary)
                 }
                 }
@@ -236,25 +343,28 @@ internal object Workspace {
             }
         }
     }
-    val divider: @Composable () -> Unit = {
-        Box((if (state.horizontal) Modifier.width(12.dp).fillMaxHeight() else Modifier.height(12.dp).fillMaxWidth())
+    // The divider after pane [index]: only its two neighbours trade share.
+    val divider: @Composable (Int) -> Unit = { index ->
+        Box((if (horizontal) Modifier.width(12.dp).fillMaxHeight() else Modifier.height(12.dp).fillMaxWidth())
             .background(ZtsBgSecondary).draggable(
                 state = rememberDraggableState { delta ->
-                    val extent = if (state.horizontal) size.width else size.height
-                    if (extent > 0) Workspace.layout = Workspace.layout.resize(Workspace.layout.ratio + delta / extent)
-                }, orientation = if (state.horizontal) Orientation.Horizontal else Orientation.Vertical))
+                    val extent = if (horizontal) size.width else size.height
+                    if (extent > 0) Workspace.update { it.resize(groupId, index, delta / extent) }
+                }, orientation = if (horizontal) Orientation.Horizontal else Orientation.Vertical))
     }
-    if (state.horizontal) Row(modifier.onSizeChanged { size = it }) {
-        pane(state.first, Modifier.weight(state.ratio).fillMaxHeight()); divider()
-        pane(state.second, Modifier.weight(1 - state.ratio).fillMaxHeight())
+    val weightOf = { id: String -> if (panes.size == 1) 1f else group.weightOf(id).coerceAtLeast(0.01f) }
+    if (horizontal) Row(modifier.onSizeChanged { size = it }) {
+        panes.forEachIndexed { i, id ->
+            if (i > 0) divider(i - 1)
+            pane(id, Modifier.weight(weightOf(id)).fillMaxHeight())
+        }
     } else Column(modifier.onSizeChanged { size = it }) {
-        pane(state.first, Modifier.weight(state.ratio).fillMaxWidth()); divider()
-        pane(state.second, Modifier.weight(1 - state.ratio).fillMaxWidth())
+        panes.forEachIndexed { i, id ->
+            if (i > 0) divider(i - 1)
+            pane(id, Modifier.weight(weightOf(id)).fillMaxWidth())
+        }
     }
 }
-
-/** Share of the split extent a title must be dragged toward the other pane before letting go swaps them. */
-private const val SWAP_DISTANCE = 0.15f
 
 /**
  * Scrollback for a pane that is not focused: drag down for older lines, up for newer, with a fling.

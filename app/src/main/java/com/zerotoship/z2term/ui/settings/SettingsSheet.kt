@@ -158,6 +158,7 @@ import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.theme.ZtsError
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
+import com.zerotoship.z2term.ui.theme.ZtsTextTertiary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsWarning
 import com.zerotoship.z2term.ui.theme.rememberTerminalFontFamily
@@ -503,6 +504,26 @@ fun SettingsSheet(
                     valueLabel = { "${it.toInt()} 行" },
                     onChange = { session.setScrollbackLines(it.toInt()) }
                 )
+
+                // タブのグループに入れられるタブの数 (1.0.146)。選べる上限は画面の大きさで決まる
+                // (キーボードを開いた状態で各枠に 4 行以上入る数・最大 8)。
+                val groupLimit = com.zerotoship.z2term.workspace.groupDeviceLimit(settings)
+                val groupSettings = remember { AppSettings(context.applicationContext) }
+                if (groupLimit > AppSettings.MIN_GROUP_MAX_TABS) {
+                    SliderField(
+                        title = stringResource(R.string.settings_group_max_tabs),
+                        value = settings.groupMaxTabs.coerceAtMost(groupLimit).toFloat(),
+                        range = AppSettings.MIN_GROUP_MAX_TABS.toFloat()..groupLimit.toFloat(),
+                        steps = groupLimit - AppSettings.MIN_GROUP_MAX_TABS - 1,
+                        valueLabel = { "${it.toInt()}" },
+                        onChange = { v -> scope.launch { groupSettings.setGroupMaxTabs(v.toInt()) } }
+                    )
+                } else {
+                    Text(stringResource(R.string.settings_group_max_tabs) + ": ${AppSettings.MIN_GROUP_MAX_TABS}",
+                        color = ZtsTextSecondary, fontSize = 12.sp)
+                }
+                Text(stringResource(R.string.settings_group_max_tabs_desc, groupLimit),
+                    color = ZtsTextTertiary, fontSize = 11.sp, lineHeight = 16.sp)
 
                 ToggleField(
                     title = stringResource(R.string.settings_ambiguous_width),
@@ -3356,6 +3377,7 @@ private fun TipsSection() {
         TipItem(R.string.tip_kb_resize_title, R.string.tip_kb_resize_body)
         TipItem(R.string.tip_tab_close_title, R.string.tip_tab_close_body)
         TipItem(R.string.tip_tab_reorder_title, R.string.tip_tab_reorder_body)
+        TipItem(R.string.tip_tab_menu_title, R.string.tip_tab_menu_body)
         TipItem(R.string.tip_tab_new_os_title, R.string.tip_tab_new_os_body)
         TipItem(R.string.tip_esc_flick_title, R.string.tip_esc_flick_body)
         TipItem(R.string.tip_backspace_flick_title, R.string.tip_backspace_flick_body)

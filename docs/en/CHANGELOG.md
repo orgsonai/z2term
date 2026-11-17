@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.146 (versionCode 844)**: Tabs can now be put in groups. A group of two or more tabs takes one entry in the tab bar (with a count, such as `Work ·3`); tapping it stacks its tabs top to bottom (or side by side). Tap a pane to type there, drag a divider to resize, and long-press a pane title and drag to reorder. The button at the right end of a title, or a double-tap on the title, shows only that pane; press it again to return to the group. Long-pressing a tab and letting go without moving opens a menu: rename, add to or leave a group, and Edit groups…. Edit groups… lists every group on the left and the tabs in no group on the right: tap to move a tab in or out, long-press and drag to reorder (the selected group has a green frame). How many tabs one group holds is set in ⚙ Settings under "Tabs per group": 4 by default, up to as many as fit with each pane keeping at least 4 rows with the keyboard open (at most 8). Groups last while the app is running. The tab you pick from a long-press on 🖥 now joins the current tab's group too.
+
 **1.0.145 (versionCode 843)**: Restoring a font from a backup with the same name as the font in use now shows the restored font right away. Before, the previous font stayed until the app was reopened.
 
 **1.0.144 (versionCode 842)**: Imported fonts are now included in backups. After restoring, your imported fonts are usable as before. A font with the same name is replaced by the one in the backup. The confirmation shown before restoring also lists the number of fonts.

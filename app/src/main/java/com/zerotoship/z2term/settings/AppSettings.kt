@@ -29,6 +29,8 @@ class AppSettings(private val context: Context) {
         val themeName: String = DEFAULT_THEME,
         val fontSizeSp: Float = DEFAULT_FONT_SIZE_SP,
         val scrollbackLines: Int = DEFAULT_SCROLLBACK_LINES,
+        /** 1 つのグループに入れられるタブの数 (タブのグループ)。 */
+        val groupMaxTabs: Int = DEFAULT_GROUP_MAX_TABS,
         val distroId: String = DEFAULT_DISTRO,
         val fontId: String = DEFAULT_FONT,
         val ambiguousAsWide: Boolean = DEFAULT_AMBIGUOUS_AS_WIDE,
@@ -588,6 +590,7 @@ class AppSettings(private val context: Context) {
             themeName = p[KEY_THEME_NAME] ?: DEFAULT_THEME,
             fontSizeSp = p[KEY_FONT_SIZE] ?: DEFAULT_FONT_SIZE_SP,
             scrollbackLines = p[KEY_SCROLLBACK] ?: DEFAULT_SCROLLBACK_LINES,
+            groupMaxTabs = (p[KEY_GROUP_MAX_TABS] ?: DEFAULT_GROUP_MAX_TABS).coerceIn(MIN_GROUP_MAX_TABS, MAX_GROUP_MAX_TABS),
             distroId = p[KEY_DISTRO_ID] ?: DEFAULT_DISTRO,
             fontId = p[KEY_FONT_ID] ?: DEFAULT_FONT,
             ambiguousAsWide = p[KEY_AMBIGUOUS_WIDE] ?: DEFAULT_AMBIGUOUS_AS_WIDE,
@@ -1084,6 +1087,10 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_FONT_SIZE] = sp.coerceIn(MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP) }
     }
 
+    suspend fun setGroupMaxTabs(value: Int) {
+        context.dataStore.edit { it[KEY_GROUP_MAX_TABS] = value.coerceIn(MIN_GROUP_MAX_TABS, MAX_GROUP_MAX_TABS) }
+    }
+
     suspend fun setScrollbackLines(lines: Int) {
         context.dataStore.edit {
             it[KEY_SCROLLBACK] = lines.coerceIn(MIN_SCROLLBACK_LINES, MAX_SCROLLBACK_LINES)
@@ -1121,6 +1128,10 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_THEME = "ZTS Theme"
         const val DEFAULT_FONT_SIZE_SP = 13f
         const val DEFAULT_SCROLLBACK_LINES = 5000
+        const val DEFAULT_GROUP_MAX_TABS = 4
+        const val MIN_GROUP_MAX_TABS = 2
+        /** 選べる上限。実際の上限は画面の大きさから [groupMaxTabsFor] で決める。 */
+        const val MAX_GROUP_MAX_TABS = 8
         const val DEFAULT_DISTRO = "alpine"
         const val DEFAULT_FONT = "monospace"
         const val DEFAULT_AMBIGUOUS_AS_WIDE = false
@@ -1167,6 +1178,7 @@ class AppSettings(private val context: Context) {
         private val KEY_THEME_NAME = stringPreferencesKey("theme_name")
         private val KEY_FONT_SIZE = floatPreferencesKey("font_size_sp")
         private val KEY_SCROLLBACK = intPreferencesKey("scrollback_lines")
+        private val KEY_GROUP_MAX_TABS = intPreferencesKey("group_max_tabs")
         private val KEY_DISTRO_ID = stringPreferencesKey("distro_id")
         private val KEY_FONT_ID = stringPreferencesKey("font_id")
         private val KEY_AMBIGUOUS_WIDE = booleanPreferencesKey("ambiguous_as_wide")

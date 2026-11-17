@@ -266,9 +266,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     val physicalKeyboard = rememberPhysicalKeyboardConnected()
     val keyboardUi = remember { SessionKeyboardUi(physicalKeyboard) }
     LaunchedEffect(physicalKeyboard) { keyboardUi.collapsed.value = physicalKeyboard }
-    val split = activeId?.let {
-        com.zerotoship.z2term.workspace.Workspace.layout.select(it, sessions.map { session -> session.id }.toSet()).second != null
-    } ?: false
+    val split = com.zerotoship.z2term.workspace.Workspace.isStacked(activeId)
 
     // Keep the inset subscription alive across the terminal/GUI composition boundary.
     val screenInsets = if (activeSession is GuiSession && !split) WindowInsets.systemBars else WindowInsets.safeDrawing
@@ -3089,10 +3087,14 @@ private fun TabBar(
 ) {
     // ドラッグ並べ替え (要望): タブを長押ししてからドラッグすると並びを入れ替えられる。
     // 各タブの実測サイズ (id -> px。**主軸ぶんだけ**) を覚えておき、ドラッグ中のタブが
-    // 隣のタブの中心を越えたら SessionManager.moveSession で即スワップし、
+    // 隣のタブの中心を越えたら SessionManager.reorder で即スワップし、
     // その分だけ dragOffset を戻して連続移動を続ける。
     var workspaceOpen by remember { mutableStateOf(false) }
     if (workspaceOpen) com.zerotoship.z2term.workspace.WorkspaceDialog(onDismiss = { workspaceOpen = false })
+    // タブのグループ: メニューから開くダイアログとグループの編集画面 (1.0.146)。
+    com.zerotoship.z2term.workspace.GroupDialogsHost()
+    val groups = com.zerotoship.z2term.workspace.Workspace.groups
+    val units = groups.units(sessions.map { it.id })
     var osPickerOpen by remember { mutableStateOf(false) }
     if (osPickerOpen) NewTabOsDialog(onPick = { osPickerOpen = false; onNewInOs(it) }, onDismiss = { osPickerOpen = false })
     val osPickerLabel = stringResource(R.string.new_tab_os_title)
@@ -3103,23 +3105,31 @@ private fun TabBar(
     val gapPx = with(LocalDensity.current) { 4.dp.roundToPx() }
 
     // ドラッグ量に応じて隣とスワップ。並びの最新値は SessionManager から読む (クロージャの陳腐化回避)。
+    // ⚠ 入れ替える単位は「タブ欄の 1 項目」(タブ 1 枚、または 2 枚以上のグループ)。グループは
+    // 中のタブをまとめて動かす (グループのタブはいつも隣り合わせに並べている)。
     fun trySwap() {
-        val id = draggingId.value ?: return
-        val live = SessionManager.sessions.value
-        val idx = live.indexOfFirst { it.id == id }
+        val key = draggingId.value ?: return
+        val live = SessionManager.sessions.value.map { it.id }
+        val liveGroups = com.zerotoship.z2term.workspace.Workspace.groups
+        val liveUnits = liveGroups.units(live)
+        val idx = liveUnits.indexOfFirst { it.key == key }
         if (idx < 0) return
-        if (idx < live.size - 1) {
-            val nextW = (tabWidths[live[idx + 1].id] ?: 0) + gapPx
+        fun swapWith(other: Int) {
+            val reordered = liveUnits.toMutableList().apply { add(other, removeAt(idx)) }
+            SessionManager.reorder(liveGroups.flatten(reordered, live.toSet()))
+        }
+        if (idx < liveUnits.size - 1) {
+            val nextW = (tabWidths[liveUnits[idx + 1].key] ?: 0) + gapPx
             if (nextW > gapPx && dragOffset.value > nextW / 2f) {
-                SessionManager.moveSession(idx, idx + 1)
+                swapWith(idx + 1)
                 dragOffset.value -= nextW
                 return
             }
         }
         if (idx > 0) {
-            val prevW = (tabWidths[live[idx - 1].id] ?: 0) + gapPx
+            val prevW = (tabWidths[liveUnits[idx - 1].key] ?: 0) + gapPx
             if (prevW > gapPx && dragOffset.value < -prevW / 2f) {
-                SessionManager.moveSession(idx, idx - 1)
+                swapWith(idx - 1)
                 dragOffset.value += prevW
             }
         }
@@ -3176,8 +3186,44 @@ private fun TabBar(
             },
             onDragStart = { draggingId.value = sess.id; dragOffset.value = 0f },
             onDrag = { d -> dragOffset.value += d; trySwap() },
-            onDragEnd = { draggingId.value = null; dragOffset.value = 0f }
+            onDragEnd = { draggingId.value = null; dragOffset.value = 0f },
+            menu = { done -> com.zerotoship.z2term.workspace.TabMenu(sess, done) }
         )
+    }
+    // 2 枚以上のグループ 1 つぶん。押すとグループの枠の並びを出す。
+    val groupChip: @Composable (com.zerotoship.z2term.workspace.TabGroup) -> Unit = { group ->
+        val key = com.zerotoship.z2term.workspace.GROUP_KEY_PREFIX + group.id
+        val isDragging = draggingId.value == key
+        val active = activeId != null && activeId in group.members
+        GroupChip(
+            group = group,
+            active = active,
+            mark = when {
+                active -> TabMark.NONE
+                group.members.any { it in busyIds } -> TabMark.BUSY
+                group.members.any { it in endedIds } -> TabMark.ENDED
+                else -> TabMark.NONE
+            },
+            dragging = isDragging,
+            dragOffsetMain = if (isDragging) dragOffset.value else 0f,
+            vertical = vertical,
+            onMainSize = { tabWidths[key] = it },
+            onSelect = { group.entry()?.let(onSelect) },
+            onDragStart = { draggingId.value = key; dragOffset.value = 0f },
+            onDrag = { d -> dragOffset.value += d; trySwap() },
+            onDragEnd = { draggingId.value = null; dragOffset.value = 0f },
+        )
+    }
+    val entries: @Composable () -> Unit = {
+        units.forEach { unit ->
+            key(unit.key) {
+                when (unit) {
+                    is com.zerotoship.z2term.workspace.TabUnit.Solo ->
+                        sessions.firstOrNull { it.id == unit.id }?.let { chips(it) }
+                    is com.zerotoship.z2term.workspace.TabUnit.Group -> groupChip(unit.group)
+                }
+            }
+        }
     }
 
     if (vertical) {
@@ -3197,7 +3243,7 @@ private fun TabBar(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                sessions.forEach { sess -> key(sess.id) { chips(sess) } }
+                entries()
             }
             // ⚠ **縦に積む** (0.8.434)。タブ列は 44dp しか無いので、横に 2 個並べると
             // 2 個目 (🖥 = GUI タブ) が列からはみ出して見えなくなる。
@@ -3230,7 +3276,7 @@ private fun TabBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            sessions.forEach { sess -> key(sess.id) { chips(sess) } }
+            entries()
         }
         // 新規端末タブ
         // 長押しで OS を選んで、そのタブだけその OS で開く。
@@ -3276,7 +3322,7 @@ private fun NewTabButton(
  * 「ディストロ」で、確認もそちらにある)。設定で選んでいる OS は書き換えない。
  */
 @Composable
-private fun NewTabOsDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
+internal fun NewTabOsDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     // 設定の OS 一覧と同じ判定 (展開済みか)。
     val installed = remember {
@@ -3355,9 +3401,12 @@ private fun TabChip(
     onClose: () -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
-    onDragEnd: () -> Unit
+    onDragEnd: () -> Unit,
+    /** 長押しして動かさずに離したときのメニュー (名前の変更・グループ、1.0.146)。引数はメニューを閉じる関数。 */
+    menu: @Composable (() -> Unit) -> Unit = {}
 ) {
     val label by session.label.collectAsState()
+    var menuOpen by remember { mutableStateOf(false) }
     val bg = if (dragging) ZtsBgSecondary else if (active) ZtsBgCard else ZtsBgPrimary
     // ドラッグ中は緑枠で「掴んでいる」ことを示す。
     val border = if (dragging || active) ZtsGreen else ZtsBorder
@@ -3417,13 +3466,20 @@ private fun TabChip(
             .border(1.dp, border, RoundedCornerShape(6.dp))
             .clickable(onClick = onTap)
             .pointerInput(session.id, vertical) {
+                // 長押しのあと動かさずに離したらメニュー、動かしたら並べ替え。
+                var moved = 0f
                 detectDragGesturesAfterLongPress(
-                    onDragStart = { showInfo = true; onDragStart() },
+                    onDragStart = { moved = 0f; showInfo = true; onDragStart() },
                     onDrag = { change, amount ->
                         change.consume()
-                        onDrag(if (vertical) amount.y else amount.x)
+                        val d = if (vertical) amount.y else amount.x
+                        moved += kotlin.math.abs(d)
+                        onDrag(d)
                     },
-                    onDragEnd = { showInfo = false; onDragEnd() },
+                    onDragEnd = {
+                        showInfo = false; onDragEnd()
+                        if (moved < viewConfiguration.touchSlop) menuOpen = true
+                    },
                     onDragCancel = { showInfo = false; onDragEnd() }
                 )
             }
@@ -3495,6 +3551,9 @@ private fun TabChip(
         if (showInfo) {
             TabInfoPopup(name = label, engine = engineText)
         }
+        androidx.compose.material3.DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            menu { menuOpen = false }
+        }
     }
 
     if (showCloseConfirm) {
@@ -3505,6 +3564,96 @@ private fun TabChip(
             onConfirm = { showCloseConfirm = false; onClose() },
             onCancel = { showCloseConfirm = false }
         )
+    }
+}
+
+/**
+ * タブ欄の「2 枚以上のグループ」1 つぶん (1.0.146)。押すとグループの枠の並びを出す。
+ * 長押し→ドラッグで並べ替え (中のタブはまとめて動く)、長押しして離すとグループのメニュー。
+ * ⚠ ダブルタップで閉じない — 中のタブを全部閉じることになるので、閉じるのは枠の見出しのメニューから 1 枚ずつ。
+ */
+@Composable
+private fun GroupChip(
+    group: com.zerotoship.z2term.workspace.TabGroup,
+    active: Boolean,
+    mark: TabMark,
+    dragging: Boolean,
+    dragOffsetMain: Float,
+    vertical: Boolean,
+    onMainSize: (Int) -> Unit,
+    onSelect: () -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+) {
+    val bg = if (dragging) ZtsBgSecondary else if (active) ZtsBgCard else ZtsBgPrimary
+    val border = if (dragging || active) ZtsGreen else ZtsBorder
+    val fg = if (active) ZtsGreen else ZtsTextSecondary
+    var showInfo by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    val count = group.members.size
+    Box(
+        modifier = Modifier
+            .onSizeChanged { onMainSize(if (vertical) it.height else it.width) }
+            .zIndex(if (dragging) 1f else 0f)
+            .graphicsLayer { if (vertical) translationY = dragOffsetMain else translationX = dragOffsetMain }
+            .then(if (vertical) Modifier.fillMaxWidth() else Modifier)
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            // 枠を太くして、1 枚のタブと見分ける。
+            .border(2.dp, border, RoundedCornerShape(6.dp))
+            .clickable(onClick = onSelect)
+            .pointerInput(group.id, vertical) {
+                var moved = 0f
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { moved = 0f; showInfo = true; onDragStart() },
+                    onDrag = { change, amount ->
+                        change.consume()
+                        val d = if (vertical) amount.y else amount.x
+                        moved += kotlin.math.abs(d)
+                        onDrag(d)
+                    },
+                    onDragEnd = {
+                        showInfo = false; onDragEnd()
+                        if (moved < viewConfiguration.touchSlop) menuOpen = true
+                    },
+                    onDragCancel = { showInfo = false; onDragEnd() }
+                )
+            }
+            .padding(horizontal = if (vertical) 4.dp else 10.dp, vertical = 5.dp)
+    ) {
+        val markView: @Composable () -> Unit = {
+            when (mark) {
+                TabMark.BUSY -> Box(Modifier.size(4.dp).clip(RoundedCornerShape(2.dp)).background(ZtsGreen))
+                TabMark.ENDED -> Text("✓", color = ZtsTextSecondary, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                TabMark.NONE -> Unit
+            }
+        }
+        if (vertical) {
+            val name = if (group.name.length > VERTICAL_TAB_CHARS) group.name.take(VERTICAL_TAB_CHARS) + "…" else group.name
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(text = name.toCharArray().joinToString("\n"), color = fg, fontSize = 10.sp, lineHeight = 11.sp,
+                    fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center)
+                Text(text = "$count", color = fg, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                markView()
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // 長い名前は途中を「…」で省く (頭と末尾の両方が読める)。全体は長押しで出る。
+                Text(
+                    text = com.zerotoship.z2term.workspace.middleEllipsis(group.name, 12) + " ·$count",
+                    color = fg,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                )
+                Box(modifier = Modifier.padding(start = 5.dp)) { markView() }
+            }
+        }
+        if (showInfo) TabInfoPopup(name = group.name, engine = stringResource(R.string.group_count, count))
+        androidx.compose.material3.DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            com.zerotoship.z2term.workspace.GroupMenu(group) { menuOpen = false }
+        }
     }
 }
 

@@ -2,13 +2,29 @@
 
 0.8.643-alpha (versionCode 651). The app supplies session presentation, input routing, document selection and selected-text exchange. Users keep transformations and other task-specific behavior in commands/macros. No new Android library or third-party code is bundled.
 
-## Split sessions
+## Split sessions (tab groups)
 
-Open two terminal, local GUI, VNC or RDP tabs. In the tab strip, **long-press the GUI (🖥) button next to +**, choose **Top / bottom** or **Left / right**, then the other tab. Tap a pane to focus it; the first tap only changes focus. A terminal pane that is not focused still scrolls its scrollback when dragged up or down (a flick carries on); focus does not move and nothing is sent to the terminal. A full-screen program's screen has no scrollback, so it does not move (1.0.22). The green border identifies the input target. Drag the divider to adjust the ratio. **Long-press GUI → One pane** restores one view. Long-press a pane title and drag it toward the other pane; release once that pane's border thickens to swap them. Focus and share of the space move with each tab (0.9.1). Press the **expand button** at the right end of a pane title to show only that tab (1.0.1); **double-tapping the title** does the same (0.9.1).
+Tabs you want side by side go into a **group** (1.0.146). A group of two or more tabs takes one entry in the tab bar (with a count, such as `Work ·3`); tapping it stacks its tabs top to bottom (or side by side). A one-tab group is just a tab.
 
-A short press still opens GUI. **Settings → Tips** also explains the gesture. Split panes omit the GUI-specific outer frame and padding and keep their dimensions when focus changes between GUI and terminal. Keyboard visibility is shared. The built-in keyboard's conversion candidates appear at the bottom of the whole split area, just above the keyboard, whichever pane has focus (1.0.20).
+**Making groups**
 
-Selecting another tab replaces the focused pane. Closing either pane returns to a single active session. Placement does not terminate sessions and is retained for the current app process only.
+- **Long-press a tab and let go without moving** → **Add to a group…**, then pick a group or "+ New group".
+- **Edit groups…** (same menu) lists every group on the left and the tabs in no group on the right. Tap a tab on the right to put it in the group framed in green; tap a tab in a group to send it back. Long-press a tab in a group and drag to reorder it, or let go without moving to rename it. Long-press a group's name to rename or delete it. A tab made with "+ New tab" starts at once (long-press to pick an OS).
+- **Long-press the GUI (🖥) button next to +**, choose **Top / bottom** or **Left / right** and a tab: it joins the current tab's group (or the two become a new group).
+
+**Using the panes**
+
+1. Tap a pane to focus it; the first tap only changes focus. A terminal pane that is not focused still scrolls its scrollback when dragged up or down (a flick carries on); focus does not move and nothing is sent to the terminal. A full-screen program's screen has no scrollback, so it does not move (1.0.22). The green border identifies the input target.
+2. Drag a divider to resize. Only the two panes beside it change, and neither shrinks out of sight.
+3. **Long-press a pane title and drag** to move that tab; let go once the pane it should land on gets a thick border. **Let go without moving** for a menu: rename, leave the group, close tab, edit groups.
+4. The **expand button** at the right end of a title, or a **double-tap on the title**, shows only that pane. Press it again to return to the group.
+5. Long-press a group's entry and let go to rename it, switch between top/bottom and left/right, or ungroup it. **Long-press GUI → One pane** also ungroups the current tab's group.
+
+How many tabs one group holds is set in **⚙ Settings → Tabs per group**: 4 by default, up to as many as fit with each pane keeping at least 4 rows with the keyboard open (at most 8).
+
+A short press still opens GUI. **Settings → Tips** also explains the gestures. Grouped panes omit the GUI-specific outer frame and padding and keep their dimensions when focus changes between GUI and terminal. Keyboard visibility is shared. The built-in keyboard's conversion candidates appear at the bottom of the whole stack, just above the keyboard, whichever pane has focus (1.0.20).
+
+Selecting a tab that is in no group shows that tab alone; the group stays, and selecting its entry returns to the pane last focused. Closing a grouped tab leaves the rest stacked. Placement does not terminate sessions, and groups are retained for the current app process only.
 
 ## External display
 

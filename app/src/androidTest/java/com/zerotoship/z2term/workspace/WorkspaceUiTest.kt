@@ -42,13 +42,13 @@ class WorkspaceUiTest {
             var terminalId = ""
             var guiId = ""
             var previous: String? = null
-            var previousLayout = SessionLayout()
+            var previousGroups = TabGroups()
             var orientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             try {
                 scenario.onActivity { activity ->
                     orientation = activity.requestedOrientation
                     previous = SessionManager.activeId.value
-                    previousLayout = Workspace.layout
+                    previousGroups = Workspace.groups
                     terminalId = SessionManager.openNew(activity).id
                     val gui = SessionManager.openRemoteDesktop(activity, object : RemoteTarget {
                         override val host = "test.invalid"
@@ -73,7 +73,7 @@ class WorkspaceUiTest {
                         for (horizontal in listOf(false, true)) {
                             android.util.Log.i("WorkspaceUiTest", "mode=$mode rotation=$rotation position=$position horizontal=$horizontal")
                             scenario.onActivity {
-                                Workspace.layout = SessionLayout(terminalId, guiId, horizontal = horizontal)
+                                Workspace.update { TabGroups(listOf(TabGroup("layout-test", "Layout test", listOf(terminalId, guiId), horizontal = horizontal))) }
                                 SessionManager.setActive(terminalId)
                             }
                             val first = bounds(scenario, gui = false)
@@ -110,7 +110,7 @@ class WorkspaceUiTest {
                 instrumentation.uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
             } finally {
                 scenario.onActivity { activity ->
-                    Workspace.layout = previousLayout
+                    Workspace.update { previousGroups }
                     if (guiId.isNotEmpty()) SessionManager.close(guiId)
                     if (terminalId.isNotEmpty()) SessionManager.close(terminalId)
                     previous?.let(SessionManager::setActive)

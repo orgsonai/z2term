@@ -94,6 +94,9 @@ class GuiSession(
     )
     override val label: StateFlow<String> = _label.asStateFlow()
 
+    /** タブ名を付け替える (タブのメニューの「名前を変更」)。 */
+    fun setLabel(name: String) { _label.value = name }
+
     private val _message = MutableStateFlow("")
     val message: StateFlow<String> = _message.asStateFlow()
 

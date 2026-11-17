@@ -307,6 +307,20 @@ object SessionManager {
         schedulePersist()
     }
 
+    /**
+     * タブの並びを [ids] の順にする (タブのグループで、同じグループのタブを隣り合わせるため)。
+     * [ids] に無いタブは元の順のまま末尾に残し、知らない id は無視する。
+     */
+    fun reorder(ids: List<String>) = synchronized(lock) {
+        val rank = ids.withIndex().associate { it.value to it.index }
+        val next = mutableSessions.sortedBy { rank[it.id] ?: Int.MAX_VALUE }
+        if (next.map { it.id } == mutableSessions.map { it.id }) return@synchronized
+        mutableSessions.clear()
+        mutableSessions.addAll(next)
+        _sessions.value = mutableSessions.toList()
+        schedulePersist()
+    }
+
     /** アクティブを切り替える */
     fun setActive(id: String) = synchronized(lock) {
         if (mutableSessions.any { it.id == id }) {
