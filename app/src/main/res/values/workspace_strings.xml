@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">Pinch the tab bar to widen or narrow every tab</string>
     <string name="tip_tab_pinch_body">Spread two fingers on the tab bar to show longer tab and group names, pinch them together to fit more tabs. All tabs change together, and the width is kept for next time.</string>
     <string name="broadcast_start_button">📡 Start broadcast</string>
+    <string name="pane_log_record">Record a log of this tab</string>
+    <string name="pane_log_pause">Pause this tab\'s log</string>
+    <string name="log_not_created_yet">No file yet: it is created when something is first written.</string>
 </resources>

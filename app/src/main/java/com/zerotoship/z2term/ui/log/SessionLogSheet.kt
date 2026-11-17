@@ -155,6 +155,13 @@ fun SessionLogSheet(
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
+                    // ファイルは最初に書く中身が出たときに作る (1.0.154)。それまでは無いことを言う
+                    // (less で開いても「ファイルが無い」になるので、理由をここで先に見せる)。
+                    if (log.bytes == 0L && (log.recording || log.paused)) Text(
+                        text = stringResource(R.string.log_not_created_yet),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                    )
                     // 端末から中身を見るためのコマンド。1 タップでコピーしてそのまま貼れる。
                     LogActionButton(
                         label = stringResource(R.string.log_copy_open_command),

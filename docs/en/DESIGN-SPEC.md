@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-17 / Target version: 1.0.153 (versionCode 851)
+Last updated: 2026-11-17 / Target version: 1.0.154 (versionCode 852)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -3023,6 +3023,9 @@ Keeps writing what the tab shows to a text file. There is **exactly one tap poin
 (the only place everything shown in a tab passes through; only app-generated messages such as
 `writeBanner` take another path). It goes *after* processBytes because **whether the alt screen was
 entered can only be decided once that chunk has been processed**.
+
+- **The file is created when there is first something to write (1.0.154).** `SessionLogger` starts without opening the file and opens it the first time output (after plain-text conversion and masking) is at least one byte. Output that is only screen control (nothing left as plain text), or a recording stopped right after starting, **leaves no file** (no empty files). If, with append OFF, a file of the same name appeared between starting and the first write, the name moves to `-2`, `-3`, …; `file` gives the current name (`LogState.path` follows it every 500 ms). Failing to open is also found at the first write and reported with a toast then (later output is dropped; the PTY reader keeps going).
+- **Pause (1.0.154)**: `LogState` has three states: not recording / recording (`recording`) / paused (`paused`). Pausing keeps the file open and only stops the read loop from handing output to `SessionLogger.append` (`logPaused`); resuming writes **on to the same file**. The button on a group pane title (`togglePauseLogging`) goes recording ⇄ paused; the toolbar ⚪ (`toggleLogging`) still goes start ⇄ stop (closing the file), and resumes when pressed while paused. The pane button uses the same ⚪ / 🔴 as the toolbar.
 
 - **Threading**: `append` only queues the bytes on `SessionLogger`'s single-threaded executor, so the
   emulator thread that serializes drawing is never blocked. Flush runs every 500 ms, so an OS kill

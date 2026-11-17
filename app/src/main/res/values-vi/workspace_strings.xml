@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">Chụm thanh thẻ để nới rộng hoặc thu hẹp mọi thẻ</string>
     <string name="tip_tab_pinch_body">Tách hai ngón tay trên thanh thẻ để hiện tên thẻ và nhóm dài hơn, chụm lại để chứa nhiều thẻ hơn. Mọi thẻ thay đổi cùng lúc và độ rộng được giữ cho lần sau.</string>
     <string name="broadcast_start_button">📡 Bắt đầu phát</string>
+    <string name="pane_log_record">Ghi nhật ký thẻ này</string>
+    <string name="pane_log_pause">Tạm dừng nhật ký thẻ này</string>
+    <string name="log_not_created_yet">Chưa có tệp: tệp được tạo khi lần đầu có nội dung ghi vào.</string>
 </resources>

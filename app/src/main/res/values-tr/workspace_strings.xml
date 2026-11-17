@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">Tüm sekmeleri genişletmek veya daraltmak için sekme çubuğunu kıstırın</string>
     <string name="tip_tab_pinch_body">Daha uzun sekme ve grup adları için sekme çubuğunda iki parmağınızı açın; daha çok sekme sığdırmak için kapatın. Tüm sekmeler birlikte değişir ve genişlik bir sonraki sefere saklanır.</string>
     <string name="broadcast_start_button">📡 Yayını başlat</string>
+    <string name="pane_log_record">Bu sekmenin günlüğünü kaydet</string>
+    <string name="pane_log_pause">Bu sekmenin günlüğünü duraklat</string>
+    <string name="log_not_created_yet">Henüz dosya yok: ilk kez bir şey yazıldığında oluşturulur.</string>
 </resources>

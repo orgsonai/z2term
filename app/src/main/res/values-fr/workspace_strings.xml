@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">Pincez la barre d\'onglets pour élargir ou rétrécir tous les onglets</string>
     <string name="tip_tab_pinch_body">Écartez deux doigts sur la barre d\'onglets pour afficher des noms d\'onglets et de groupes plus longs, rapprochez-les pour faire tenir plus d\'onglets. Tous les onglets changent ensemble et la largeur est conservée.</string>
     <string name="broadcast_start_button">📡 Lancer la diffusion</string>
+    <string name="pane_log_record">Enregistrer le journal de cet onglet</string>
+    <string name="pane_log_pause">Mettre en pause le journal de cet onglet</string>
+    <string name="log_not_created_yet">Pas encore de fichier : il est créé à la première écriture.</string>
 </resources>

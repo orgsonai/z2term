@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">Cubit bilah tab untuk melebarkan atau menyempitkan semua tab</string>
     <string name="tip_tab_pinch_body">Renggangkan dua jari di bilah tab untuk menampilkan nama tab dan grup yang lebih panjang, rapatkan agar lebih banyak tab muat. Semua tab berubah bersama, dan lebarnya disimpan untuk berikutnya.</string>
     <string name="broadcast_start_button">📡 Mulai siaran</string>
+    <string name="pane_log_record">Rekam log tab ini</string>
+    <string name="pane_log_pause">Jeda log tab ini</string>
+    <string name="log_not_created_yet">Belum ada berkas: dibuat saat ada isi pertama yang ditulis.</string>
 </resources>

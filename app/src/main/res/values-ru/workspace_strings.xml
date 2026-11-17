@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">Сведите или разведите пальцы на панели вкладок, чтобы изменить ширину всех вкладок</string>
     <string name="tip_tab_pinch_body">Разведите два пальца на панели вкладок, чтобы видеть более длинные имена вкладок и групп; сведите, чтобы поместилось больше вкладок. Все вкладки меняются вместе, ширина сохраняется до следующего раза.</string>
     <string name="broadcast_start_button">📡 Начать рассылку</string>
+    <string name="pane_log_record">Записывать журнал этой вкладки</string>
+    <string name="pane_log_pause">Приостановить журнал этой вкладки</string>
+    <string name="log_not_created_yet">Файла пока нет: он создаётся при первой записи.</string>
 </resources>

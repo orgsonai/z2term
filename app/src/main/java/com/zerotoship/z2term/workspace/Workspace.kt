@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckBox
@@ -352,6 +355,19 @@ internal object Workspace {
                 }
                 // The same as the double-tap, without having to know the gesture. As tall as the
                 // title and wider than its glyph, so it is easy to hit without growing the title.
+                // タブごとのログ (1.0.154)。⚪ = 記録していない / 一時停止、🔴 = 記録中。
+                // 押すと 記録中 ⇄ 一時停止。一時停止から戻すと同じファイルの続きに書く。
+                // 字はツールバーの ⚪ / 🔴 と同じにして、同じ記録だと分かるようにする。
+                if (session is TerminalSession) {
+                    val log by session.logState.collectAsState()
+                    val logLabel = stringResource(if (log.recording) R.string.pane_log_pause else R.string.pane_log_record)
+                    Box(Modifier.fillMaxHeight().width(40.dp)
+                        .clickable(onClickLabel = logLabel) { session.togglePauseLogging() }
+                        .semantics { contentDescription = logLabel },
+                        contentAlignment = Alignment.Center) {
+                        Text(if (log.recording) "🔴" else "⚪", fontSize = 12.sp)
+                    }
+                }
                 val toggleLabel = stringResource(if (maximized) R.string.group_restore else R.string.workspace_maximize)
                 Box(Modifier.fillMaxHeight().width(44.dp).clickable(
                         onClickLabel = toggleLabel, onClick = { toggleMaximized() }),

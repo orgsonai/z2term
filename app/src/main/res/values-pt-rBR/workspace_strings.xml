@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">Faça pinça na barra de abas para alargar ou estreitar todas</string>
     <string name="tip_tab_pinch_body">Afaste dois dedos na barra de abas para ver nomes de abas e grupos mais longos; aproxime-os para caber mais abas. Todas mudam juntas e a largura fica guardada para a próxima vez.</string>
     <string name="broadcast_start_button">📡 Iniciar transmissão</string>
+    <string name="pane_log_record">Gravar o log desta aba</string>
+    <string name="pane_log_pause">Pausar o log desta aba</string>
+    <string name="log_not_created_yet">Ainda não há arquivo: ele é criado quando algo é escrito pela primeira vez.</string>
 </resources>

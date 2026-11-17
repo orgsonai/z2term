@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">Pizzica la barra delle schede per allargare o restringere tutte le schede</string>
     <string name="tip_tab_pinch_body">Allarga due dita sulla barra delle schede per mostrare nomi di schede e gruppi più lunghi, avvicinale per farci stare più schede. Tutte cambiano insieme e la larghezza resta per la volta successiva.</string>
     <string name="broadcast_start_button">📡 Avvia trasmissione</string>
+    <string name="pane_log_record">Registra il log di questa scheda</string>
+    <string name="pane_log_pause">Metti in pausa il log di questa scheda</string>
+    <string name="log_not_created_yet">Ancora nessun file: viene creato alla prima scrittura.</string>
 </resources>

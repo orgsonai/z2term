@@ -38,12 +38,22 @@ import java.util.concurrent.TimeUnit
  *                外に出す機会がいちばん多いのが不具合報告用のログなので、そこに穴を空けない。
  */
 class SessionLogger(
-    val file: File,
-    append: Boolean,
+    file: File,
+    private val append: Boolean,
     private val raw: Boolean,
     mask: Boolean,
-    timestamp: Boolean = false
+    timestamp: Boolean = false,
+    /** ファイルを開けなかったとき (書き込みスレッドから呼ぶ)。 */
+    private val onOpenFailed: (Throwable) -> Unit = {},
 ) {
+    /**
+     * 書き込み先。⭐ **最初に書く中身が出たときに初めて作る** (1.0.154)。記録を始めただけで
+     * 何も出ないまま止めると、空のファイルが残っていた。追記 OFF で、作る時点までに同じ名前が
+     * できていたら `-2` `-3` … へずらすので、作った後の名前はここで読む。
+     */
+    @Volatile
+    var file: File = file
+        private set
     private val executor = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "z2term-log").apply { isDaemon = true }
     }
@@ -51,7 +61,15 @@ class SessionLogger(
     // reaches the PTY reader instead of accumulating an unbounded executor queue.
     private val pending = java.util.concurrent.Semaphore(128)
     private val submissionLock = Any()
-    private val out = BufferedOutputStream(FileOutputStream(file, append), BUFFER_BYTES)
+    /** まだ開いていなければ null。書き込みスレッドだけが触る。 */
+    private var out: BufferedOutputStream? = null
+    /**
+     * 始めた時点で同じ名前のファイルが既にあったか。あったなら呼び出し側がそれを使うと決めている
+     * (追記、または呼び出し側の判断で上書き) のでずらさない。ずらすのは、始めてから最初に
+     * 書くまでの間に**よそで**同じ名前ができたときだけ。
+     */
+    private val existedAtStart = file.exists()
+    private var openFailed = false
     private val plain = if (raw) null else PlainTextFilter()
     private val masker = if (mask) SecretMasker() else null
 
@@ -91,9 +109,9 @@ class SessionLogger(
         private set
 
     init {
-        bytesWritten = if (append) file.length() else 0L
+        bytesWritten = if (append && file.exists()) file.length() else 0L
         executor.scheduleWithFixedDelay(
-            { runCatching { out.flush() } },
+            { runCatching { out?.flush() } },
             FLUSH_INTERVAL_MS, FLUSH_INTERVAL_MS, TimeUnit.MILLISECONDS
         )
     }
@@ -129,7 +147,7 @@ class SessionLogger(
                             val decoded = if (filter) plain?.filter(chunk) ?: chunk else chunk
                             val output = stampIfNeeded(maskIfNeeded(decoded))
                             if (output.isNotEmpty()) {
-                                out.write(output)
+                                stream()?.write(output)
                                 bytesWritten += output.size
                             }
                         } catch (e: Exception) {
@@ -216,17 +234,52 @@ class SessionLogger(
                 runCatching {
                     // 改行で終わっていない最後の 1 行も落とさない
                     // (整形 → 伏せ字 の順。伏せ字の持ち越しは整形の残りも含めて最後に吐く)。
-                    plain?.drain()?.let { if (it.isNotEmpty()) out.write(maskIfNeeded(it)) }
-                    drainMask().let { if (it.isNotEmpty()) out.write(it) }
-                    out.flush()
-                    out.close()
+                    plain?.drain()?.let { tail ->
+                        if (tail.isNotEmpty()) maskIfNeeded(tail).let { if (it.isNotEmpty()) stream()?.write(it) }
+                    }
+                    drainMask().let { if (it.isNotEmpty()) stream()?.write(it) }
+                    // 一度も書いていなければ開いてもいない = ファイルは作られない。
+                    out?.flush()
+                    out?.close()
                 }.onFailure { Log.w(TAG, "close failed: ${it.message}") }
             }
             executor.shutdown()
         }
     }
 
+    /**
+     * 書き込み先を (まだなら) 開く。書き込みスレッドから、書く中身があるときだけ呼ぶ。
+     * 開けなかったら 1 回だけ知らせ、以後は書かずに捨てる (PTY の読み取りは止めない)。
+     */
+    private fun stream(): BufferedOutputStream? {
+        out?.let { return it }
+        if (openFailed) return null
+        return runCatching {
+            if (!append && !existedAtStart && file.exists()) file = freeName(file)
+            BufferedOutputStream(FileOutputStream(file, append), BUFFER_BYTES)
+        }.onSuccess { out = it }
+            .onFailure { openFailed = true; Log.w(TAG, "open failed: ${it.message}"); onOpenFailed(it) }
+            .getOrNull()
+    }
+
     companion object {
+        /**
+         * [file] と同じ場所で、まだ無い名前 (`名前-2.拡張子`, `-3` …)。
+         * 記録を始めてから最初に書くまでの間に、同じ名前のファイルができていたとき用。
+         */
+        internal fun freeName(file: File, maxTries: Int = 999): File {
+            val dir = file.parentFile ?: return file
+            val name = file.name
+            val dot = name.lastIndexOf('.')
+            val stem = if (dot > 0) name.substring(0, dot) else name
+            val ext = if (dot > 0) name.substring(dot) else ""
+            for (n in 2..maxTries) {
+                val f = File(dir, "$stem-$n$ext")
+                if (!f.exists()) return f
+            }
+            return File(dir, "$stem-${System.currentTimeMillis()}$ext")
+        }
+
         /** 行頭判定に使う改行 (LF)。 */
         private const val NEWLINE: Byte = 10
         private const val TAG = "SessionLogger"

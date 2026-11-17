@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">Pellizca la barra de pestañas para ensanchar o estrechar todas</string>
     <string name="tip_tab_pinch_body">Separa dos dedos sobre la barra de pestañas para ver nombres de pestañas y grupos más largos; júntalos para que quepan más pestañas. Todas cambian a la vez y el ancho se conserva para la próxima vez.</string>
     <string name="broadcast_start_button">📡 Iniciar difusión</string>
+    <string name="pane_log_record">Grabar el registro de esta pestaña</string>
+    <string name="pane_log_pause">Pausar el registro de esta pestaña</string>
+    <string name="log_not_created_yet">Aún no hay archivo: se crea cuando se escribe algo por primera vez.</string>
 </resources>

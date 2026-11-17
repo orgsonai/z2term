@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">タブ欄をピンチしてタブの幅をまとめて変える</string>
     <string name="tip_tab_pinch_body">タブ欄の上で 2 本指を広げると、タブとグループの名前を長く表示します。狭めると、たくさんのタブが並びます。すべてのタブが一緒に変わり、幅は次に開いたときも残ります。</string>
     <string name="broadcast_start_button">📡 ブロードキャスト開始</string>
+    <string name="pane_log_record">このタブのログを記録する</string>
+    <string name="pane_log_pause">このタブのログを一時停止する</string>
+    <string name="log_not_created_yet">まだファイルはありません。最初に書く中身が出たときに作ります。</string>
 </resources>

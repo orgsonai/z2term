@@ -141,6 +141,11 @@ class TerminalSession(
      */
     data class LogState(
         val recording: Boolean = false,
+        /**
+         * 一時停止中 (1.0.154)。ファイルは開いたまま追記だけを止めている。[recording] は false。
+         * 再開すると同じファイルの続きに書く。グループの枠の見出しのログボタンが使う。
+         */
+        val paused: Boolean = false,
         val path: String = "",
         val realPath: String = "",
         val bytes: Long = 0L
@@ -266,6 +271,8 @@ class TerminalSession(
     // 記録の ON/OFF は**タブごと**の状態で、永続化しない (アプリを開き直すと必ず OFF)。
     // 画面に出たものがそのままファイルに入る機能なので、意図せず記録が続いている状態を作らない。
     private var logger: SessionLogger? = null
+    /** 一時停止中は PTY の出力をログへ渡さない (読み取りスレッドから見る)。 */
+    @Volatile private var logPaused = false
     private val _logState = MutableStateFlow(LogState())
     val logState: StateFlow<LogState> = _logState.asStateFlow()
 
@@ -999,7 +1006,7 @@ class TerminalSession(
                             // この塊を処理した後でないと正しく判定できないため。
                             // 書き込み自体は SessionLogger 側の専用スレッドへ積むだけで、
                             // 待ち行列が上限に達したときだけ、書き込みが追いつくまでPTY読込を待たせる。
-                            logger?.let { lg ->
+                            logger?.takeIf { !logPaused }?.let { lg ->
                                 if (emulator.buffer.primaryActive || settingsFlow.value.sessionLogAltScreen) {
                                     lg.append(chunk)
                                 }
@@ -1302,9 +1309,25 @@ class TerminalSession(
     /** セッションを終了 (PTY を閉じてジョブをキャンセル) */
     // ---------------------------------------------------------------- 端末ログ (⚪)
 
-    /** ツールバー ⚪ の短押し。記録していなければ始め、していれば止める。 */
+    /** ツールバー ⚪ の短押し。記録していなければ始め (一時停止中なら再開)、していれば止める。 */
     fun toggleLogging() {
         if (_logState.value.recording) stopLogging() else startLogging()
+    }
+
+    /**
+     * グループの枠の見出しのログボタン (1.0.154)。記録中 (赤) なら一時停止 (白) にし、
+     * 白なら記録する — 一時停止中なら**同じファイルの続きに**追記を再開し、まだ記録して
+     * いなければ新しく始める。ファイルを閉じるのはツールバーの ⚪ とタブを閉じたとき。
+     */
+    fun togglePauseLogging() {
+        if (_logState.value.recording) pauseLogging() else startLogging()
+    }
+
+    /** 追記だけを止める。ファイルは開いたまま (再開で続きに書く)。 */
+    fun pauseLogging() {
+        if (logger == null || !_logState.value.recording) return
+        logPaused = true
+        _logState.update { it.copy(recording = false, paused = true) }
     }
 
     /**
@@ -1321,6 +1344,12 @@ class TerminalSession(
      */
     fun startLogging(snapshot: AppSettings.Snapshot? = null) {
         if (_logState.value.recording) return
+        // 一時停止中なら新しいファイルを作らず、同じファイルの続きから書く。
+        if (logger != null && _logState.value.paused) {
+            logPaused = false
+            _logState.update { it.copy(recording = true, paused = false) }
+            return
+        }
         val s = snapshot ?: settingsFlow.value
         val home = File(appContext.filesDir, "shared_home")
         val relDir = s.sessionLogDir.trim().trim('/').ifBlank { AppSettings.DEFAULT_SESSION_LOG_DIR }
@@ -1339,7 +1368,9 @@ class TerminalSession(
                 append = s.sessionLogAppend,
                 raw = s.sessionLogRaw,
                 mask = s.sessionLogMaskSecrets,
-                timestamp = s.sessionLogTimestamp
+                timestamp = s.sessionLogTimestamp,
+                // ファイルは最初の書き込みで作るので、開けなかったことはそのときに分かる。
+                onOpenFailed = { _toastEvents.tryEmit(appContext.getString(R.string.toast_log_start_failed)) },
             )
         }
             .getOrElse {
@@ -1348,6 +1379,7 @@ class TerminalSession(
                 return
             }
         logger = lg
+        logPaused = false
         _logState.value = LogState(
             recording = true,
             path = "~/$relDir/${file.name}",
@@ -1363,21 +1395,25 @@ class TerminalSession(
             }
         }
         // サイズ表示を定期的に追いかける (ローテーションしないので現在値を必ず見せる)。
+        // 一時停止中も続ける (再開したときに止まったままにしない)。ファイル名は最初の書き込みで
+        // ずれることがある (同名ができていたら -2 …) ので、名前もここで追いかける。
         scope.launch {
-            while (_logState.value.recording && logger === lg) {
+            while (logger === lg) {
                 delay(LOG_SIZE_POLL_MS)
                 if (logger !== lg) break
-                _logState.update { it.copy(bytes = lg.bytesWritten) }
+                _logState.update { it.copy(bytes = lg.bytesWritten, path = "~/$relDir/${lg.file.name}", realPath = lg.file.absolutePath) }
             }
         }
     }
 
     /** 端末ログの記録を止め、書き残しを吐き出してファイルを閉じる。 */
     fun stopLogging() {
-        val lg = logger ?: run { _logState.update { it.copy(recording = false) }; return }
+        val lg = logger ?: run { _logState.update { it.copy(recording = false, paused = false) }; return }
         logger = null
+        logPaused = false
         lg.close()
-        _logState.update { it.copy(recording = false, bytes = lg.bytesWritten) }
+        _logState.update { it.copy(recording = false, paused = false, bytes = lg.bytesWritten,
+            path = it.path.substringBeforeLast('/') + "/" + lg.file.name, realPath = lg.file.absolutePath) }
     }
 
     /**

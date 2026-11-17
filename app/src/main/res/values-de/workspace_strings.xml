@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">Tableiste zusammenziehen, um alle Tabs breiter oder schmaler zu machen</string>
     <string name="tip_tab_pinch_body">Zwei Finger auf der Tableiste spreizen zeigt längere Tab- und Gruppennamen, zusammenziehen bringt mehr Tabs unter. Alle Tabs ändern sich gemeinsam, und die Breite bleibt für das nächste Mal erhalten.</string>
     <string name="broadcast_start_button">📡 Broadcast starten</string>
+    <string name="pane_log_record">Protokoll dieses Tabs aufzeichnen</string>
+    <string name="pane_log_pause">Protokoll dieses Tabs pausieren</string>
+    <string name="log_not_created_yet">Noch keine Datei: Sie wird beim ersten Schreiben angelegt.</string>
 </resources>

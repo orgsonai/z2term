@@ -74,4 +74,7 @@
     <string name="tip_tab_pinch_title">在分頁列上雙指縮放，一次調整所有分頁的寬度</string>
     <string name="tip_tab_pinch_body">在分頁列上張開兩指可顯示較長的分頁與群組名稱，捏合則能放下更多分頁。所有分頁一起變化，寬度下次開啟時仍會保留。</string>
     <string name="broadcast_start_button">📡 開始廣播</string>
+    <string name="pane_log_record">記錄此分頁的日誌</string>
+    <string name="pane_log_pause">暫停此分頁的日誌</string>
+    <string name="log_not_created_yet">尚無檔案：第一次寫入內容時才會建立。</string>
 </resources>
