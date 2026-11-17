@@ -9,7 +9,7 @@ Tabs you want side by side go into a **group** (1.0.146). A group of two or more
 **Making groups**
 
 - **Long-press a tab and let go without moving** → **Add to a group…**, then pick a group or "+ New group".
-- **Edit groups…** (same menu) lists every group on the left and the tabs in no group on the right. Tap a tab on the right to put it in the group framed in green; tap a tab in a group to send it back. Long-press a tab in a group and drag to reorder it, or let go without moving to rename it. Long-press a group's name to rename or delete it. A tab made with "+ New tab" starts at once (long-press to pick an OS).
+- **Edit groups…** (same menu) lists every group on the left and the tabs in no group on the right. Tap a tab on the right to put it in the group framed in green; tap a tab in a group to send it back. Long-press a tab in a group and drag to reorder it, or let go without moving to rename it. Long-press a group's name to rename or delete it. "Top / bottom" and "Left / right" under the name choose how its tabs are arranged (1.0.160; top / bottom at first). A tab made with "+ New tab" starts at once (long-press to pick an OS).
 - **Long-press the GUI (🖥) button next to +**, choose **Top / bottom** or **Left / right** and a tab: it joins the current tab's group (or the two become a new group).
 
 **Using the panes**

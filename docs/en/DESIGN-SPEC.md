@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-17 / Target version: 1.0.159 (versionCode 857)
+Last updated: 2026-11-17 / Target version: 1.0.160 (versionCode 858)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -2380,7 +2380,7 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
     - **Maximizing (`maximized`) applies only while that tab is the one being viewed** (`panes(active)`). Selecting the group entry returns to the tab viewed last (`focus`). The expand button or a double-tap on a title maximizes; again restores. The group stays.
     - **Long-pressing a title**: let go without moving for the menu (rename / leave the group / close tab / edit groups); move to reorder (the pane it would land on gets a thick frame, and letting go calls `move`). Tab bar entries follow the same rule. ⚠ A group entry is not closed by a double-tap (that would close all its tabs).
     - **Dialogs opened from a menu live outside it (`GroupDialogsHost`).** A menu closes, and its content disappears, the moment an item is pressed, which would take the dialog with it.
-    - **Group editor**: every group on the left, **shown open** (the selected one in a thick green frame); only the tabs in no group on the right. ⚠ Tabs of other groups are not listed on the right (it would be unclear whether tapping moves them or puts them in both). Empty groups survive only while the editor is open (`prune(keepEmpty)`). A tab created there **starts at once** (like `z2-session new`, since tabs not on screen do not start by themselves).
+    - **Group editor**: every group on the left, **shown open** (the selected one in a thick green frame); only the tabs in no group on the right. ⚠ Tabs of other groups are not listed on the right (it would be unclear whether tapping moves them or puts them in both). Empty groups survive only while the editor is open (`prune(keepEmpty)`). Each group's frame has a choice of direction (top/bottom or side by side; 1.0.160, top/bottom by default). A tab created there **starts at once** (like `z2-session new`, since tabs not on screen do not start by themselves).
     - **Limit = the smaller of the setting and what fits on screen** (`groupMaxTabsFor`): (long side − keyboard height − 150dp for tab bar, toolbar and system bars) divided by (42dp for title and divider + 4 rows at 1.2 × font size), between 2 and 8. It is an estimate, not a measurement. When panes no longer fit they only shrink; none is hidden.
     - Groups last while the app runs (tabs themselves come back as a single new tab after a restart). "Session layout" from a long-press on 🖥 now puts the chosen tab into the current tab's group (or makes a group of the two), and "One pane" ungroups it.
   - **Broadcast (`workspace/Broadcast`, 1.0.147 / 1.0.156)**: sends the same input to every ticked tab **across groups**. ⭐ Groups only split the tabs that do not fit on one screen; they are not the unit of sending (1.0.147–1.0.155 sent only within the focused tab's group).

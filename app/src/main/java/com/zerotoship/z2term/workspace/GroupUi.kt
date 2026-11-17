@@ -414,6 +414,20 @@ private const val GROUP_NAME_MAX = 40
                 MenuItem(R.string.group_delete) { menuOpen = false; Workspace.update { it.delete(group.id) } }
             }
         }
+        // 並べる向き (1.0.160)。既定は上下。選んでいる側を緑の枠にする (セッションの配置の選び方と同じ)。
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(false to R.string.workspace_vertical, true to R.string.workspace_horizontal).forEach { (horizontal, label) ->
+                val chosen = group.horizontal == horizontal
+                Text(stringResource(label), fontSize = 12.sp, maxLines = 1,
+                    color = if (chosen) ZtsGreen else ZtsTextSecondary,
+                    modifier = Modifier
+                        .border(if (chosen) 2.dp else 1.dp, if (chosen) ZtsGreen else ZtsBorder, RoundedCornerShape(4.dp))
+                        .clickable(role = androidx.compose.ui.semantics.Role.RadioButton) {
+                            Workspace.update { it.setHorizontal(group.id, horizontal) }
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp))
+            }
+        }
         if (group.members.isEmpty()) Text(stringResource(R.string.group_editor_empty), fontSize = 12.sp, color = ZtsTextTertiary,
             modifier = Modifier.padding(vertical = 6.dp))
         group.members.forEachIndexed { index, id ->
