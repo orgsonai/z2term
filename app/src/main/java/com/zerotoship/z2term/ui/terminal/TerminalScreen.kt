@@ -84,6 +84,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -3337,37 +3339,59 @@ private fun TabBar(
                 targets = activeTerminal?.let { com.zerotoship.z2term.workspace.Broadcast.targets(it).size } ?: 1
             )
         }
-        // 隠しボタン: + / 🖥 の上から左へ滑らせると出る。押すか 4 秒で引っ込む。
-        var broadcastRevealed by remember { mutableStateOf(false) }
-        LaunchedEffect(broadcastRevealed) {
-            if (broadcastRevealed) { delay(BROADCAST_REVEAL_MS); broadcastRevealed = false }
+        // 隠しボタン (1.0.151): 📡 は + / 🖥 の**右に隠れて**並んでいて、+ / 🖥 の上で左へ滑らせると
+        // 指に付いて右端から出てくる (+ / 🖥 はその分だけ左へ寄る)。半分より出ていれば離したとき
+        // 開ききり、それ未満なら戻る。開いたら押すか 4 秒で引っ込む。右へ滑らせても閉じる。
+        // ⚠ 判定するのは + / 🖥 の上から始めた横の滑りだけ。タブ一覧の横スクロールとはぶつからない。
+        val revealScope = rememberCoroutineScope()
+        val reveal = remember { androidx.compose.animation.core.Animatable(0f) }
+        var entryWidthPx by remember { mutableIntStateOf(0) }
+        val entryGapPx = with(LocalDensity.current) { 4.dp.roundToPx() }
+        val revealOpen = entryWidthPx > 0 && reveal.value >= entryWidthPx
+        LaunchedEffect(revealOpen) {
+            if (revealOpen) { delay(BROADCAST_REVEAL_MS); reveal.animateTo(0f) }
         }
-        if (broadcastRevealed) {
-            com.zerotoship.z2term.workspace.BroadcastEntryButton(onDone = { broadcastRevealed = false })
-        }
-        val revealDistancePx = with(LocalDensity.current) { 48.dp.toPx() }
-        Row(
-            // ⚠ 判定するのは + / 🖥 の上から始めた横の滑りだけ。タブ一覧の横スクロールとはぶつからない。
-            modifier = Modifier.pointerInput(Unit) {
-                var dx = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { dx = 0f },
-                    onHorizontalDrag = { change, amount ->
-                        dx += amount
-                        if (dx < -revealDistancePx) { broadcastRevealed = true; change.consume() }
-                    },
-                    onDragEnd = { dx = 0f },
-                    onDragCancel = { dx = 0f },
-                )
+        val closeReveal: () -> Unit = { revealScope.launch { reveal.animateTo(0f) } }
+        androidx.compose.ui.layout.Layout(
+            content = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // 新規端末タブ
+                    // 長押しで OS を選んで、そのタブだけその OS で開く。
+                    NewTabButton(label = "+", onClick = onNew, onLongClick = { osPickerOpen = true }, onLongClickLabel = osPickerLabel)
+                    // 新規 GUI タブ (Xvnc + RFB)。端末用「+」の隣に並べる。
+                    NewTabButton(label = "🖥", onClick = onNewGui, onLongClick = { workspaceOpen = true }, onLongClickLabel = workspaceLabel)
+                    // 隠れている 📡 (ブロードキャスト中は「📡 解除」)。左の余白 4dp も隠す幅に含める。
+                    Box(Modifier.onSizeChanged { entryWidthPx = it.width + entryGapPx }) {
+                        com.zerotoship.z2term.workspace.BroadcastEntryButton(onDone = closeReveal)
+                    }
+                }
             },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-        // 新規端末タブ
-        // 長押しで OS を選んで、そのタブだけその OS で開く。
-        NewTabButton(label = "+", onClick = onNew, onLongClick = { osPickerOpen = true }, onLongClickLabel = osPickerLabel)
-        // 新規 GUI タブ (Xvnc + RFB)。端末用「+」の隣に並べる。
-        NewTabButton(label = "🖥", onClick = onNewGui, onLongClick = { workspaceOpen = true }, onLongClickLabel = workspaceLabel)
+            modifier = Modifier
+                .clipToBounds()
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { change, amount ->
+                            if (entryWidthPx <= 0) return@detectHorizontalDragGestures
+                            change.consume()
+                            val next = (reveal.value - amount).coerceIn(0f, entryWidthPx.toFloat())
+                            revealScope.launch { reveal.snapTo(next) }
+                        },
+                        onDragEnd = {
+                            val target = if (reveal.value > entryWidthPx / 2f) entryWidthPx.toFloat() else 0f
+                            revealScope.launch { reveal.animateTo(target) }
+                        },
+                        onDragCancel = { revealScope.launch { reveal.animateTo(0f) } },
+                    )
+                },
+        ) { measurables, constraints ->
+            // 中身は 📡 まで含めた幅で測り、見せる幅は「+ / 🖥 の幅 + 出ている分」。右側ははみ出させて切る。
+            val row = measurables.first().measure(constraints.copy(minWidth = 0, maxWidth = androidx.compose.ui.unit.Constraints.Infinity))
+            val hidden = (entryWidthPx - reveal.value.toInt()).coerceIn(0, row.width)
+            val width = (row.width - hidden).coerceIn(constraints.minWidth, constraints.maxWidth)
+            layout(width, row.height) { row.placeRelative(0, 0) }
         }
     }
 }
