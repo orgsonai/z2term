@@ -18,7 +18,7 @@ Tabs you want side by side go into a **group** (1.0.146). A group of two or more
 2. Drag a divider to resize. Only the two panes beside it change, and neither shrinks out of sight.
 3. **Long-press a pane title and drag** to move that tab; let go once the pane it should land on gets a thick border. **Let go without moving** for a menu: rename, leave the group, close tab, edit groups.
 4. The **expand button** at the right end of a title, or a **double-tap on the title**, shows only that pane. Press it again to return to the group.
-5. The **⚪ / 🔴** left of the expand button is that tab's log (1.0.154). Pressing it switches between recording (🔴) and paused (⚪); resuming from pause writes on to the same file. The file is created when there is first something to write.
+5. The toolbar **⚪** turns the log on or off for the whole group (1.0.155). While it is on, a **⚪ / 🔴** appears left of the expand button; pressing it switches that pane alone between recording (🔴) and paused (⚪). Resuming from pause writes on to the same file. The file is created when there is first something to write.
 6. Long-press a group's entry and let go to rename it, switch between top/bottom and left/right, or ungroup it. **Long-press GUI → One pane** also ungroups the current tab's group.
 
 How many tabs one group holds is set in **⚙ Settings → Tabs per group**: 4 by default, up to as many as fit with each pane keeping at least 4 rows with the keyboard open (at most 8).

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.155 (versionCode 853)**: While a group is shown, the toolbar ⚪ now turns the log on or off for the whole group. On starts recording every terminal tab of the group and shows 🔴 on each pane title (press it to pause ⚪ / resume 🔴 that pane alone). Off ends every recording and the pane buttons disappear. Pane buttons appear only while the log is on.
+
 **1.0.154 (versionCode 852)**: Group pane titles now have a log button for each tab (left of the expand button). ⚪ means not recording or paused, 🔴 means recording. Pressing it switches between recording and paused, and resuming from pause appends **to the same file** (the toolbar ⚪ still starts and stops a recording, and resumes when pressed while paused). Log files are now also **created when there is first something to write**: starting a recording and stopping it before anything appears leaves no empty file. This applies to tabs outside groups too.
 
 **1.0.153 (versionCode 851)**: Pinching the tab bar now actually changes the width of tabs and groups. It used to change only the width limit, so short names (such as "Group 1") did not change. After a pinch every tab and group has the same width (a group's count, `·4`, stays outside it). Until you pinch, widths follow the names as before.

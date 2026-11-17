@@ -360,6 +360,14 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // 端末ログ (⚪): 記録状態はセッションが持ち、詳細設定シートの開閉だけ画面側で持つ。
     var logSheetOpen by remember { mutableStateOf(false) }
     val logState by active.logState.collectAsState()
+    // グループを表示しているときのツールバー ⚪ は**グループ全体の親スイッチ** (1.0.155)。
+    // 点くのは、グループの端末タブのどれかが記録中か一時停止中のとき。
+    val logGroup = com.zerotoship.z2term.workspace.Workspace.stackedFor(active.id)
+    val logGroupTerminals = logGroup?.members.orEmpty().mapNotNull { id -> sessions.firstOrNull { it.id == id } as? TerminalSession }
+    val groupLogOn by remember(logGroupTerminals.map { it.id }) {
+        if (logGroupTerminals.isEmpty()) kotlinx.coroutines.flow.flowOf(false)
+        else kotlinx.coroutines.flow.combine(logGroupTerminals.map { it.logState }) { states -> states.any { it.recording || it.paused } }
+    }.collectAsState(initial = false)
     // SFTP / FTP / SMB / WebDAV ファイルブラウザ対象 (service=null は SFTP)。
     // profile と service を別々に更新すると、SMB 等を押した瞬間だけ service=null の
     // SFTP 接続が先に起動できてしまう。1 値として更新し、別プロトコルへの誤接続を防ぐ。
@@ -621,8 +629,15 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             toolbarHidden = settings.toolbarHidden,
             onReorderToolbar = { active.setToolbarOrder(it) },
             onOpenSnippets = { snippetsSheetOpen = true },
-            logRecording = logState.recording,
-            onToggleLog = { active.toggleLogging() },
+            logRecording = if (logGroup != null) groupLogOn else logState.recording,
+            // グループでは、ON でグループの端末タブを全部記録し、OFF で全部終える (ファイルを閉じる)。
+            // 枠ごとの一時停止 / 再開は、ON の間だけ出る見出しの ⚪ / 🔴 で行う。
+            onToggleLog = {
+                if (logGroup == null) active.toggleLogging()
+                else if (logGroupTerminals.any { it.logState.value.recording || it.logState.value.paused }) {
+                    logGroupTerminals.forEach { it.stopLogging() }
+                } else logGroupTerminals.forEach { it.startLogging() }
+            },
             onOpenLogSettings = { logSheetOpen = true },
             searchActive = searchOpen,
             onToggleSearch = { searchOpen = !searchOpen },

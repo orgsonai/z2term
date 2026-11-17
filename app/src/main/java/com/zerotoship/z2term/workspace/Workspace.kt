@@ -358,8 +358,11 @@ internal object Workspace {
                 // タブごとのログ (1.0.154)。⚪ = 記録していない / 一時停止、🔴 = 記録中。
                 // 押すと 記録中 ⇄ 一時停止。一時停止から戻すと同じファイルの続きに書く。
                 // 字はツールバーの ⚪ / 🔴 と同じにして、同じ記録だと分かるようにする。
-                if (session is TerminalSession) {
-                    val log by session.logState.collectAsState()
+                // ⭐ 出すのは、そのタブの記録が ON (記録中か一時停止中) のときだけ (1.0.155)。
+                // ON / OFF そのものはツールバーの ⚪ (グループ全体) で決める。
+                val paneLog = (session as? TerminalSession)?.logState?.collectAsState()?.value
+                if (session is TerminalSession && paneLog != null && (paneLog.recording || paneLog.paused)) {
+                    val log = paneLog
                     val logLabel = stringResource(if (log.recording) R.string.pane_log_pause else R.string.pane_log_record)
                     Box(Modifier.fillMaxHeight().width(40.dp)
                         .clickable(onClickLabel = logLabel) { session.togglePauseLogging() }
