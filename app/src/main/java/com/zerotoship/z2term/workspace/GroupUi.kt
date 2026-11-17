@@ -317,7 +317,10 @@ private const val GROUP_NAME_MAX = 40
                 // 「グループを編集…」から開くと始めるボタンが無く、どこで始めるのか分からなかった。
                 // 📡 から開いたときは「この内容で開始」が主ボタン、それ以外は「このグループを表示」が主ボタン。
                 // ブロードキャスト中は始めるボタンを出さない (始め直すとチェックが全部入り直す)。
-                val terminalCount = selectedGroup?.members?.count { id -> sessions.any { it.id == id && it is TerminalSession } } ?: 0
+                // 送り先はすべてのグループにまたがる (1.0.156) ので、始められるかも全グループで数える。
+                val terminalCount = groups.groups.filter { it.stacked }.sumOf { g ->
+                    g.members.count { id -> sessions.any { it.id == id && it is TerminalSession } }
+                }
                 val showGroup = {
                     selectedGroup?.entry()?.let { SessionManager.setActive(it) }
                     onDismiss()

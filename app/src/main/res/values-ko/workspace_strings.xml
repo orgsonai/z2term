@@ -61,7 +61,7 @@
     <string name="broadcast_paste_targets">탭 %1$d개로</string>
     <string name="broadcast_include">%1$s에 보내기</string>
     <string name="broadcast_start">이대로 시작</string>
-    <string name="broadcast_editor_hint">브로드캐스트할 그룹을 고르고 \"이대로 시작\"을 누릅니다. 그 안의 터미널 탭에는 모두 체크가 들어갑니다.</string>
+    <string name="broadcast_editor_hint">그룹을 짠 뒤 \"이대로 시작\"을 누릅니다. 모든 그룹의 터미널 탭에 체크가 들어가고, 어느 그룹에 있든 체크된 탭 모두에 보냅니다.</string>
     <string name="broadcast_on">📡 ON ·%1$d</string>
     <string name="broadcast_off">📡 OFF</string>
     <string name="broadcast_toggle">브로드캐스트 ON / OFF</string>
@@ -70,7 +70,7 @@
     <string name="settings_broadcast_start_on">브로드캐스트를 ON으로 시작</string>
     <string name="settings_broadcast_start_on_desc">OFF(기본)이면 OFF 상태로 시작합니다. 받는 창을 확인한 뒤 ON으로 바꿀 수 있습니다.</string>
     <string name="tip_broadcast_title">+ / 🖥 를 왼쪽으로 밀면 브로드캐스트</string>
-    <string name="tip_broadcast_body">📡 버튼이 나타납니다. 그룹을 고르고 \"이대로 시작\"을 누르면, 체크된 탭에서 입력한 내용이 그 그룹의 체크된 탭 모두에 보내집니다. 브로드캐스트 중에는 탭 막대에 📡 스위치가 계속 표시되며, 누르면 ON / OFF, 길게 누르면 그룹을 다시 짤 수 있습니다. 받는 창은 경고색(테마의 노란색) 테두리가 됩니다. 다시 밀면 해제됩니다.</string>
+    <string name="tip_broadcast_body">📡 버튼이 밀려 나옵니다. 그룹을 짜고 \"이대로 시작\"을 누르면, 체크된 탭에서 입력한 내용이 모든 그룹의 체크된 탭에 보내집니다. 브로드캐스트 중에는 탭 막대에 📡 스위치가 계속 표시되며, 누르면 ON / OFF, 길게 누르면 그룹을 다시 짤 수 있습니다. 받는 창은 경고색(테마의 노란색) 테두리가 됩니다. 다시 밀면 해제됩니다.</string>
     <string name="tip_tab_pinch_title">탭 막대를 핀치해 모든 탭의 폭을 한꺼번에 바꾸기</string>
     <string name="tip_tab_pinch_body">탭 막대에서 두 손가락을 벌리면 탭과 그룹 이름을 길게 보여 주고, 오므리면 탭이 더 많이 들어갑니다. 모든 탭이 함께 바뀌며 폭은 다음에 열 때도 유지됩니다.</string>
     <string name="broadcast_start_button">📡 브로드캐스트 시작</string>

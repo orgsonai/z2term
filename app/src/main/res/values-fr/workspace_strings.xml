@@ -61,7 +61,7 @@
     <string name="broadcast_paste_targets">vers %1$d onglets</string>
     <string name="broadcast_include">Envoyer à %1$s</string>
     <string name="broadcast_start">Démarrer ainsi</string>
-    <string name="broadcast_editor_hint">Choisissez le groupe à diffuser puis appuyez sur Démarrer ainsi. Tous ses onglets de terminal sont cochés.</string>
+    <string name="broadcast_editor_hint">Organisez les groupes puis appuyez sur Démarrer ainsi. Tous les onglets de terminal de tous les groupes sont cochés, et la saisie part vers tous les onglets cochés, quel que soit leur groupe.</string>
     <string name="broadcast_on">📡 ON ·%1$d</string>
     <string name="broadcast_off">📡 OFF</string>
     <string name="broadcast_toggle">Activer ou désactiver la diffusion</string>
@@ -70,7 +70,7 @@
     <string name="settings_broadcast_start_on">Démarrer la diffusion activée</string>
     <string name="settings_broadcast_start_on_desc">Désactivé (par défaut) : la diffusion démarre sur OFF pour vérifier les volets surlignés avant d\'envoyer.</string>
     <string name="tip_broadcast_title">Glissez + / 🖥 vers la gauche pour diffuser</string>
-    <string name="tip_broadcast_body">Un bouton 📡 apparaît. Choisissez un groupe et appuyez sur Démarrer ainsi : ce que vous tapez dans un onglet coché part vers tous les onglets cochés du groupe. L\'interrupteur 📡 reste dans la barre d\'onglets pendant la diffusion ; touchez-le pour ON / OFF, appui long pour réorganiser le groupe. Les volets qui reçoivent ont un cadre de la couleur d\'alerte (le jaune du thème). Glissez à nouveau pour arrêter.</string>
+    <string name="tip_broadcast_body">Un bouton 📡 glisse. Organisez les groupes et appuyez sur Démarrer ainsi : ce que vous tapez dans un onglet coché part vers tous les onglets cochés de tous les groupes. L\'interrupteur 📡 reste dans la barre d\'onglets pendant la diffusion ; touchez-le pour ON / OFF, appui long pour réorganiser les groupes. Les volets qui reçoivent ont un cadre de la couleur d\'alerte (le jaune du thème). Glissez à nouveau pour arrêter.</string>
     <string name="tip_tab_pinch_title">Pincez la barre d\'onglets pour élargir ou rétrécir tous les onglets</string>
     <string name="tip_tab_pinch_body">Écartez deux doigts sur la barre d\'onglets pour afficher des noms d\'onglets et de groupes plus longs, rapprochez-les pour faire tenir plus d\'onglets. Tous les onglets changent ensemble et la largeur est conservée.</string>
     <string name="broadcast_start_button">📡 Lancer la diffusion</string>

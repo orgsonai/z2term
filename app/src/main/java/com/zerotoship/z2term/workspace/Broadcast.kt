@@ -7,7 +7,8 @@ import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
 
 /**
- * Broadcast: the user's input goes to every ticked tab of the focused tab's group.
+ * Broadcast: the user's input goes to every ticked tab of every group (1.0.156). Groups only split
+ * the tabs that do not fit on one screen, so a tick means the same in any group.
  *
  * Every place that writes the user's typing, pasting or snippets into a terminal goes through
  * here, so "what reaches which tab" is decided in one place ([broadcastTargets]).
@@ -23,12 +24,18 @@ internal object Broadcast {
     /** Whether input is sent to the ticked tabs while in [mode]. */
     var on by mutableStateOf(false)
 
-    /** Enters broadcast mode for [groupId] with all its terminal tabs ticked; [startOn] comes from the setting. */
+    /**
+     * Enters broadcast mode with the terminal tabs of **every** group ticked (1.0.156: broadcast is
+     * not per group). [groupId] is the group to show; [startOn] comes from the setting.
+     */
     fun start(groupId: String, startOn: Boolean) {
         val sessions = SessionManager.sessions.value
-        val group = Workspace.groups.group(groupId) ?: return
-        val terminals = group.members.filter { id -> sessions.any { it.id == id && it is TerminalSession } }
-        Workspace.update { it.checkOnly(groupId, terminals).maximize(groupId, null) }
+        if (Workspace.groups.group(groupId) == null) return
+        Workspace.update { st ->
+            st.groups.fold(st) { acc, g ->
+                acc.checkOnly(g.id, g.members.filter { id -> sessions.any { it.id == id && it is TerminalSession } })
+            }.maximize(groupId, null)
+        }
         on = startOn
         mode = true
     }

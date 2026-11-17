@@ -224,15 +224,19 @@ internal fun groupMaxTabsFor(longSideDp: Float, keyboardDp: Float, fontSp: Float
 
 /**
  * Who receives input typed into [from] (rule fixed with the user):
- * broadcast ON and [from] ticked → every ticked member of its group, in group order;
- * [from] not ticked, or broadcast OFF → [from] alone. [eligible] filters the other members
- * (terminal tabs that are running); [from] itself is always included.
+ * broadcast ON and [from] ticked → every ticked tab of **every** group (groups only exist because
+ * one screen cannot hold all the tabs; 1.0.156), in group order then member order;
+ * [from] not ticked, or broadcast OFF → [from] alone. Only groups shown as panes count (a one-tab
+ * group has no tick box on screen, so a tick left there must not receive unseen). [eligible] filters
+ * the others (terminal tabs that are running); [from] itself is always included.
  */
 internal fun broadcastTargets(groups: TabGroups, on: Boolean, from: String, eligible: (String) -> Boolean): List<String> {
     if (!on) return listOf(from)
     val g = groups.stackedFor(from) ?: return listOf(from)
     if (from !in g.checked) return listOf(from)
-    return g.members.filter { it in g.checked && (it == from || eligible(it)) }
+    return groups.groups.filter { it.stacked }.flatMap { grp ->
+        grp.members.filter { it in grp.checked && (it == from || eligible(it)) }
+    }
 }
 
 /** Width of one character of a tab name (11sp monospace), so the default 84dp holds 12 characters as before. */

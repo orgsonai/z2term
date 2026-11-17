@@ -61,7 +61,7 @@
     <string name="broadcast_paste_targets">tới %1$d thẻ</string>
     <string name="broadcast_include">Gửi tới %1$s</string>
     <string name="broadcast_start">Bắt đầu như vậy</string>
-    <string name="broadcast_editor_hint">Chọn nhóm để phát rồi nhấn Bắt đầu như vậy. Mọi thẻ terminal trong nhóm đều được đánh dấu.</string>
+    <string name="broadcast_editor_hint">Sắp xếp các nhóm rồi nhấn Bắt đầu như vậy. Mọi thẻ terminal của mọi nhóm đều được đánh dấu, và nội dung gõ được gửi tới mọi thẻ được đánh dấu, ở bất kỳ nhóm nào.</string>
     <string name="broadcast_on">📡 BẬT ·%1$d</string>
     <string name="broadcast_off">📡 TẮT</string>
     <string name="broadcast_toggle">Bật hoặc tắt phát</string>
@@ -70,7 +70,7 @@
     <string name="settings_broadcast_start_on">Bắt đầu phát ở trạng thái BẬT</string>
     <string name="settings_broadcast_start_on_desc">Khi tắt (mặc định), việc phát bắt đầu ở TẮT để bạn kiểm tra các khung được tô sáng trước khi gửi.</string>
     <string name="tip_broadcast_title">Vuốt + / 🖥 sang trái để phát</string>
-    <string name="tip_broadcast_body">Nút 📡 xuất hiện. Chọn một nhóm và nhấn Bắt đầu như vậy: nội dung bạn gõ ở thẻ được đánh dấu sẽ gửi tới mọi thẻ được đánh dấu của nhóm. Công tắc 📡 vẫn ở thanh thẻ trong khi phát; chạm để BẬT / TẮT, nhấn giữ để sắp xếp lại nhóm. Khung nhận có viền màu cảnh báo (màu vàng của giao diện). Vuốt lại để dừng.</string>
+    <string name="tip_broadcast_body">Nút 📡 trượt ra. Sắp xếp các nhóm và nhấn Bắt đầu như vậy: nội dung bạn gõ ở thẻ được đánh dấu sẽ gửi tới mọi thẻ được đánh dấu của mọi nhóm. Công tắc 📡 vẫn ở thanh thẻ trong khi phát; chạm để BẬT / TẮT, nhấn giữ để sắp xếp lại các nhóm. Khung nhận có viền màu cảnh báo (màu vàng của giao diện). Vuốt lại để dừng.</string>
     <string name="tip_tab_pinch_title">Chụm thanh thẻ để nới rộng hoặc thu hẹp mọi thẻ</string>
     <string name="tip_tab_pinch_body">Tách hai ngón tay trên thanh thẻ để hiện tên thẻ và nhóm dài hơn, chụm lại để chứa nhiều thẻ hơn. Mọi thẻ thay đổi cùng lúc và độ rộng được giữ cho lần sau.</string>
     <string name="broadcast_start_button">📡 Bắt đầu phát</string>

@@ -61,7 +61,7 @@
     <string name="broadcast_paste_targets">para %1$d abas</string>
     <string name="broadcast_include">Enviar para %1$s</string>
     <string name="broadcast_start">Começar assim</string>
-    <string name="broadcast_editor_hint">Escolha o grupo para transmitir e toque em Começar assim. Todas as abas de terminal dele ficam marcadas.</string>
+    <string name="broadcast_editor_hint">Organize os grupos e toque em Começar assim. Todas as abas de terminal de todos os grupos ficam marcadas, e a entrada vai para todas as abas marcadas, em qualquer grupo.</string>
     <string name="broadcast_on">📡 ON ·%1$d</string>
     <string name="broadcast_off">📡 OFF</string>
     <string name="broadcast_toggle">Ligar ou desligar a transmissão</string>
@@ -70,7 +70,7 @@
     <string name="settings_broadcast_start_on">Começar a transmissão ligada</string>
     <string name="settings_broadcast_start_on_desc">Desligado (padrão): a transmissão começa em OFF para você conferir os painéis destacados antes de enviar.</string>
     <string name="tip_broadcast_title">Deslize + / 🖥 para a esquerda para transmitir</string>
-    <string name="tip_broadcast_body">Aparece um botão 📡. Escolha um grupo e toque em Começar assim: o que você digitar em uma aba marcada vai para todas as abas marcadas do grupo. O interruptor 📡 fica na barra de abas durante a transmissão; toque para ON / OFF e segure para reorganizar o grupo. Os painéis que recebem têm borda na cor de alerta (o amarelo do tema). Deslize de novo para parar.</string>
+    <string name="tip_broadcast_body">Um botão 📡 desliza para fora. Organize os grupos e toque em Começar assim: o que você digitar em uma aba marcada vai para todas as abas marcadas de todos os grupos. O interruptor 📡 fica na barra de abas durante a transmissão; toque para ON / OFF e segure para reorganizar os grupos. Os painéis que recebem têm borda na cor de alerta (o amarelo do tema). Deslize de novo para parar.</string>
     <string name="tip_tab_pinch_title">Faça pinça na barra de abas para alargar ou estreitar todas</string>
     <string name="tip_tab_pinch_body">Afaste dois dedos na barra de abas para ver nomes de abas e grupos mais longos; aproxime-os para caber mais abas. Todas mudam juntas e a largura fica guardada para a próxima vez.</string>
     <string name="broadcast_start_button">📡 Iniciar transmissão</string>

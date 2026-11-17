@@ -61,7 +61,7 @@
     <string name="broadcast_paste_targets">a %1$d schede</string>
     <string name="broadcast_include">Invia a %1$s</string>
     <string name="broadcast_start">Avvia così</string>
-    <string name="broadcast_editor_hint">Scegli il gruppo a cui trasmettere e premi Avvia così. Tutte le sue schede terminale vengono spuntate.</string>
+    <string name="broadcast_editor_hint">Organizza i gruppi e premi Avvia così. Tutte le schede terminale di tutti i gruppi vengono spuntate e l\'input va a tutte le schede spuntate, in qualunque gruppo.</string>
     <string name="broadcast_on">📡 ON ·%1$d</string>
     <string name="broadcast_off">📡 OFF</string>
     <string name="broadcast_toggle">Attiva o disattiva la trasmissione</string>
@@ -70,7 +70,7 @@
     <string name="settings_broadcast_start_on">Avvia la trasmissione attiva</string>
     <string name="settings_broadcast_start_on_desc">Se disattivato (predefinito), la trasmissione parte su OFF così puoi controllare i riquadri evidenziati prima di inviare.</string>
     <string name="tip_broadcast_title">Scorri + / 🖥 a sinistra per trasmettere</string>
-    <string name="tip_broadcast_body">Compare un pulsante 📡. Scegli un gruppo e premi Avvia così: ciò che digiti in una scheda spuntata va a tutte le schede spuntate del gruppo. L\'interruttore 📡 resta nella barra delle schede durante la trasmissione; toccalo per ON / OFF, tienilo premuto per riorganizzare il gruppo. I riquadri che ricevono hanno un bordo del colore di avviso (il giallo del tema). Scorri di nuovo per interrompere.</string>
+    <string name="tip_broadcast_body">Scorre fuori un pulsante 📡. Organizza i gruppi e premi Avvia così: ciò che digiti in una scheda spuntata va a tutte le schede spuntate di tutti i gruppi. L\'interruttore 📡 resta nella barra delle schede durante la trasmissione; toccalo per ON / OFF, tienilo premuto per riorganizzare i gruppi. I riquadri che ricevono hanno un bordo del colore di avviso (il giallo del tema). Scorri di nuovo per interrompere.</string>
     <string name="tip_tab_pinch_title">Pizzica la barra delle schede per allargare o restringere tutte le schede</string>
     <string name="tip_tab_pinch_body">Allarga due dita sulla barra delle schede per mostrare nomi di schede e gruppi più lunghi, avvicinale per farci stare più schede. Tutte cambiano insieme e la larghezza resta per la volta successiva.</string>
     <string name="broadcast_start_button">📡 Avvia trasmissione</string>

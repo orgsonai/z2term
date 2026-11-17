@@ -115,6 +115,23 @@ class TabGroupsTest {
         assertEquals(listOf("z"), broadcastTargets(ticked, on = true, from = "z", eligible = all))
     }
 
+    // 1.0.156: groups only split tabs that do not fit on one screen; ticked tabs of every group receive.
+    @Test fun broadcastReachesTickedTabsOfEveryGroup() {
+        val (st, first) = groupOf("a", "b")
+        val (st2, second) = st.create(name)
+        val two = st2.add(second, "c", 4)!!.add(second, "d", 4)!!
+            .checkOnly(first, listOf("a", "b")).checkOnly(second, listOf("d"))
+        val all = { _: String -> true }
+        assertEquals(listOf("a", "b", "d"), broadcastTargets(two, on = true, from = "d", eligible = all))
+        assertEquals(listOf("a", "b", "d"), broadcastTargets(two, on = true, from = "a", eligible = all))
+        // Typing in the unticked tab of the other group still reaches that tab alone.
+        assertEquals(listOf("c"), broadcastTargets(two, on = true, from = "c", eligible = all))
+        // A tick left in a one-tab group (no tick box on screen) does not receive.
+        val (st3, lone) = two.create(name)
+        val withLone = st3.add(lone, "e", 4)!!.setChecked("e", true)
+        assertEquals(listOf("a", "b", "d"), broadcastTargets(withLone, on = true, from = "a", eligible = all))
+    }
+
     @Test fun broadcastSkipsTabsThatCannotReceiveButKeepsTheFocusedOne() {
         val (st, id) = groupOf("a", "b", "c")
         val ticked = st.checkOnly(id, listOf("a", "b", "c"))
