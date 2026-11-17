@@ -31,6 +31,8 @@ class AppSettings(private val context: Context) {
         val scrollbackLines: Int = DEFAULT_SCROLLBACK_LINES,
         /** 1 つのグループに入れられるタブの数 (タブのグループ)。 */
         val groupMaxTabs: Int = DEFAULT_GROUP_MAX_TABS,
+        /** タブ欄の 1 項目の幅の上限 (dp)。タブ欄のピンチで変える (1.0.148)。 */
+        val tabWidthDp: Float = DEFAULT_TAB_WIDTH_DP,
         /** ブロードキャストを始めたとき、送る (ON) 状態で始めるか。既定は OFF。 */
         val broadcastStartOn: Boolean = false,
         val distroId: String = DEFAULT_DISTRO,
@@ -593,6 +595,7 @@ class AppSettings(private val context: Context) {
             fontSizeSp = p[KEY_FONT_SIZE] ?: DEFAULT_FONT_SIZE_SP,
             scrollbackLines = p[KEY_SCROLLBACK] ?: DEFAULT_SCROLLBACK_LINES,
             broadcastStartOn = p[KEY_BROADCAST_START_ON] ?: false,
+            tabWidthDp = (p[KEY_TAB_WIDTH_DP] ?: DEFAULT_TAB_WIDTH_DP).coerceIn(MIN_TAB_WIDTH_DP, MAX_TAB_WIDTH_DP),
             groupMaxTabs = (p[KEY_GROUP_MAX_TABS] ?: DEFAULT_GROUP_MAX_TABS).coerceIn(MIN_GROUP_MAX_TABS, MAX_GROUP_MAX_TABS),
             distroId = p[KEY_DISTRO_ID] ?: DEFAULT_DISTRO,
             fontId = p[KEY_FONT_ID] ?: DEFAULT_FONT,
@@ -1090,6 +1093,11 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_FONT_SIZE] = sp.coerceIn(MIN_FONT_SIZE_SP, MAX_FONT_SIZE_SP) }
     }
 
+    suspend fun setTabWidthDp(value: Float) {
+        if (!value.isFinite()) return
+        context.dataStore.edit { it[KEY_TAB_WIDTH_DP] = value.coerceIn(MIN_TAB_WIDTH_DP, MAX_TAB_WIDTH_DP) }
+    }
+
     suspend fun setBroadcastStartOn(value: Boolean) {
         context.dataStore.edit { it[KEY_BROADCAST_START_ON] = value }
     }
@@ -1139,6 +1147,10 @@ class AppSettings(private val context: Context) {
         const val MIN_GROUP_MAX_TABS = 2
         /** 選べる上限。実際の上限は画面の大きさから [groupMaxTabsFor] で決める。 */
         const val MAX_GROUP_MAX_TABS = 8
+        /** タブ欄の 1 項目の幅の上限。既定の 84dp は 1.0.147 までの固定値 (12 字ぶん)。 */
+        const val DEFAULT_TAB_WIDTH_DP = 84f
+        const val MIN_TAB_WIDTH_DP = 48f
+        const val MAX_TAB_WIDTH_DP = 200f
         const val DEFAULT_DISTRO = "alpine"
         const val DEFAULT_FONT = "monospace"
         const val DEFAULT_AMBIGUOUS_AS_WIDE = false
@@ -1187,6 +1199,7 @@ class AppSettings(private val context: Context) {
         private val KEY_SCROLLBACK = intPreferencesKey("scrollback_lines")
         private val KEY_GROUP_MAX_TABS = intPreferencesKey("group_max_tabs")
         private val KEY_BROADCAST_START_ON = booleanPreferencesKey("broadcast_start_on")
+        private val KEY_TAB_WIDTH_DP = floatPreferencesKey("tab_width_dp")
         private val KEY_DISTRO_ID = stringPreferencesKey("distro_id")
         private val KEY_FONT_ID = stringPreferencesKey("font_id")
         private val KEY_AMBIGUOUS_WIDE = booleanPreferencesKey("ambiguous_as_wide")

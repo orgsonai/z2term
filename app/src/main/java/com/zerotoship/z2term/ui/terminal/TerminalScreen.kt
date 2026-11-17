@@ -18,6 +18,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -81,6 +83,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -3110,6 +3113,14 @@ private fun TabBar(
     com.zerotoship.z2term.workspace.GroupDialogsHost()
     val groups = com.zerotoship.z2term.workspace.Workspace.groups
     val units = groups.units(sessions.map { it.id })
+    // タブの幅 (1.0.148): タブ欄を 2 本指でピンチすると、全項目の幅の上限をまとめて変える。
+    // 指を動かしている間は手元の値だけを変え、離したときに 1 回だけ保存する。
+    val tabBarContext = LocalContext.current
+    val tabBarScope = rememberCoroutineScope()
+    val tabBarSettings = remember { AppSettings(tabBarContext.applicationContext) }
+    val tabBarSnapshot by tabBarSettings.flow.collectAsState(initial = AppSettings.lastKnown)
+    var tabWidthDp by remember { mutableFloatStateOf(tabBarSnapshot.tabWidthDp) }
+    LaunchedEffect(tabBarSnapshot.tabWidthDp) { tabWidthDp = tabBarSnapshot.tabWidthDp }
     var osPickerOpen by remember { mutableStateOf(false) }
     if (osPickerOpen) NewTabOsDialog(onPick = { osPickerOpen = false; onNewInOs(it) }, onDismiss = { osPickerOpen = false })
     val osPickerLabel = stringResource(R.string.new_tab_os_title)
@@ -3202,7 +3213,8 @@ private fun TabBar(
             onDragStart = { draggingId.value = sess.id; dragOffset.value = 0f },
             onDrag = { d -> dragOffset.value += d; trySwap() },
             onDragEnd = { draggingId.value = null; dragOffset.value = 0f },
-            menu = { done -> com.zerotoship.z2term.workspace.TabMenu(sess, done) }
+            menu = { done -> com.zerotoship.z2term.workspace.TabMenu(sess, done) },
+            maxWidthDp = tabWidthDp
         )
     }
     // 2 枚以上のグループ 1 つぶん。押すとグループの枠の並びを出す。
@@ -3227,6 +3239,7 @@ private fun TabBar(
             onDragStart = { draggingId.value = key; dragOffset.value = 0f },
             onDrag = { d -> dragOffset.value += d; trySwap() },
             onDragEnd = { draggingId.value = null; dragOffset.value = 0f },
+            maxWidthDp = tabWidthDp,
         )
     }
     val entries: @Composable () -> Unit = {
@@ -3287,6 +3300,30 @@ private fun TabBar(
         Row(
             modifier = Modifier
                 .weight(1f)
+                // ⚠ 横スクロールより外側で、子より先 (Initial) に見る。2 本目の指が触れた時点から
+                // 動きを食べるので、1 本指のスクロール・タップ・長押しはそのまま効く。
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        var pinched = false
+                        do {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            if (event.changes.count { it.pressed } >= 2) {
+                                val zoom = event.calculateZoom()
+                                if (zoom.isFinite() && zoom != 1f) {
+                                    tabWidthDp = (tabWidthDp * zoom)
+                                        .coerceIn(AppSettings.MIN_TAB_WIDTH_DP, AppSettings.MAX_TAB_WIDTH_DP)
+                                    pinched = true
+                                }
+                                event.changes.forEach { it.consume() }
+                            }
+                        } while (event.changes.any { it.pressed })
+                        if (pinched) {
+                            val width = tabWidthDp
+                            tabBarScope.launch { tabBarSettings.setTabWidthDp(width) }
+                        }
+                    }
+                }
                 .horizontalScroll(rememberScrollState()),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -3452,7 +3489,9 @@ private fun TabChip(
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
     /** 長押しして動かさずに離したときのメニュー (名前の変更・グループ、1.0.146)。引数はメニューを閉じる関数。 */
-    menu: @Composable (() -> Unit) -> Unit = {}
+    menu: @Composable (() -> Unit) -> Unit = {},
+    /** 幅の上限 (dp)。タブ欄のピンチで変わる (1.0.148)。字数もここから決める。 */
+    maxWidthDp: Float = AppSettings.DEFAULT_TAB_WIDTH_DP
 ) {
     val label by session.label.collectAsState()
     var menuOpen by remember { mutableStateOf(false) }
@@ -3585,13 +3624,13 @@ private fun TabChip(
                 Text(
                     // タブ名は最大固定字数で切り詰める (要望)。チップが伸びて新規タブボタンを
                     // 押し出さないよう、字数制限 + 上限幅 + 省略を併用する。
-                    text = label.take(12),
+                    text = label.take(com.zerotoship.z2term.workspace.tabNameChars(maxWidthDp)),
                     color = fg,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 84.dp)
+                    modifier = Modifier.widthIn(max = maxWidthDp.dp)
                 )
                 Box(modifier = Modifier.padding(start = 5.dp)) { mark() }
             }
@@ -3634,6 +3673,7 @@ private fun GroupChip(
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
+    maxWidthDp: Float = AppSettings.DEFAULT_TAB_WIDTH_DP,
 ) {
     val bg = if (dragging) ZtsBgSecondary else if (active) ZtsBgCard else ZtsBgPrimary
     val border = if (dragging || active) ZtsGreen else ZtsBorder
@@ -3690,7 +3730,8 @@ private fun GroupChip(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // 長い名前は途中を「…」で省く (頭と末尾の両方が読める)。全体は長押しで出る。
                 Text(
-                    text = com.zerotoship.z2term.workspace.middleEllipsis(group.name, 12) + " ·$count",
+                    text = com.zerotoship.z2term.workspace.middleEllipsis(group.name,
+                        com.zerotoship.z2term.workspace.tabNameChars(maxWidthDp)) + " ·$count",
                     color = fg,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,

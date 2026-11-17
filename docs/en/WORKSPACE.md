@@ -24,6 +24,8 @@ How many tabs one group holds is set in **⚙ Settings → Tabs per group**: 4 b
 
 A short press still opens GUI. **Settings → Tips** also explains the gestures. Grouped panes omit the GUI-specific outer frame and padding and keep their dimensions when focus changes between GUI and terminal. Keyboard visibility is shared. The built-in keyboard's conversion candidates appear at the bottom of the whole stack, just above the keyboard, whichever pane has focus (1.0.20).
 
+When group names are long, **pinch with two fingers** on the tab bar to widen or narrow every tab and group at once (1.0.148).
+
 Selecting a tab that is in no group shows that tab alone; the group stays, and selecting its entry returns to the pane last focused. Closing a grouped tab leaves the rest stacked. Placement does not terminate sessions, and groups are retained for the current app process only.
 
 ## Typing into several tabs at once (broadcast)

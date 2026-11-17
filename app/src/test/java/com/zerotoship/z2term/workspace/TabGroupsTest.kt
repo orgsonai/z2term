@@ -135,4 +135,12 @@ class TabGroupsTest {
         assertEquals(setOf("a", "b"), st2.add(id, "d", 4)!!.group(id)!!.checked)
         assertTrue(st2.add(other, "a", 4)!!.group(other)!!.checked.isEmpty())
     }
+
+    @Test fun tabNameLengthFollowsTheWidthAndTheDefaultKeepsTwelve() {
+        assertEquals(12, tabNameChars(84f))
+        assertEquals(6, tabNameChars(48f))
+        assertEquals(28, tabNameChars(200f))
+        assertEquals(3, tabNameChars(1f))
+        assertEquals(3, tabNameChars(Float.NaN))
+    }
 }

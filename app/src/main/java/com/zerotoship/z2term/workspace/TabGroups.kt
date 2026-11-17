@@ -234,3 +234,9 @@ internal fun broadcastTargets(groups: TabGroups, on: Boolean, from: String, elig
     if (from !in g.checked) return listOf(from)
     return g.members.filter { it in g.checked && (it == from || eligible(it)) }
 }
+
+/** Width of one character of a tab name (11sp monospace), so the default 84dp holds 12 characters as before. */
+private const val TAB_CHAR_DP = 7f
+
+/** How many characters of a name fit in a tab bar entry [widthDp] wide (at least 3). */
+internal fun tabNameChars(widthDp: Float): Int = if (widthDp.isFinite()) (widthDp / TAB_CHAR_DP).toInt().coerceAtLeast(3) else 3

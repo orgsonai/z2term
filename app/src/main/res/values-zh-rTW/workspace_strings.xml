@@ -71,4 +71,6 @@
     <string name="settings_broadcast_start_on_desc">關閉（預設）時廣播以「關」開始，可先確認醒目標示的窗格再傳送。</string>
     <string name="tip_broadcast_title">將 ＋ / 🖥 向左滑動即可廣播</string>
     <string name="tip_broadcast_body">會出現 📡 按鈕。選擇群組並輕觸「以此開始」後，在已勾選的分頁中輸入的內容會傳送到該群組所有已勾選的分頁。廣播期間分頁列會一直顯示 📡 開關，輕觸切換開 / 關，長按可重新整理群組。接收輸入的窗格有警告色（主題的黃色）外框。再次滑動即可結束。</string>
+    <string name="tip_tab_pinch_title">在分頁列上雙指縮放，一次調整所有分頁的寬度</string>
+    <string name="tip_tab_pinch_body">在分頁列上張開兩指可顯示較長的分頁與群組名稱，捏合則能放下更多分頁。所有分頁一起變化，寬度下次開啟時仍會保留。</string>
 </resources>

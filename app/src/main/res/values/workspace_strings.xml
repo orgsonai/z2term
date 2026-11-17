@@ -71,4 +71,6 @@
     <string name="settings_broadcast_start_on_desc">When off (the default), broadcast starts OFF so you can check the highlighted panes before sending.</string>
     <string name="tip_broadcast_title">Slide + / 🖥 to the left to broadcast</string>
     <string name="tip_broadcast_body">A 📡 button appears. Choose a group and press Start with this: what you type in a ticked tab then goes to every ticked tab of that group. The 📡 switch stays in the tab bar while broadcasting; tap it for ON / OFF, long-press it to rearrange the group. Panes that receive input are framed in the warning colour (the theme\'s yellow). Slide again to stop.</string>
+    <string name="tip_tab_pinch_title">Pinch the tab bar to widen or narrow every tab</string>
+    <string name="tip_tab_pinch_body">Spread two fingers on the tab bar to show longer tab and group names, pinch them together to fit more tabs. All tabs change together, and the width is kept for next time.</string>
 </resources>

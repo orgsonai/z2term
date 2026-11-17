@@ -71,4 +71,6 @@
     <string name="settings_broadcast_start_on_desc">关闭（默认）时广播以“关”开始，可先确认高亮的窗格再发送。</string>
     <string name="tip_broadcast_title">将 ＋ / 🖥 向左滑动即可广播</string>
     <string name="tip_broadcast_body">会出现 📡 按钮。选择分组并点按“以此开始”后，在已勾选的标签页中输入的内容会发送到该分组所有已勾选的标签页。广播期间标签栏会一直显示 📡 开关，点按切换开 / 关，长按可重新整理分组。接收输入的窗格带警告色（主题的黄色）边框。再次滑动即可结束。</string>
+    <string name="tip_tab_pinch_title">在标签栏上双指缩放，一次性调整所有标签页的宽度</string>
+    <string name="tip_tab_pinch_body">在标签栏上张开两指可显示更长的标签页和分组名称，捏合则能放下更多标签页。所有标签页一起变化，宽度下次打开时仍会保留。</string>
 </resources>
