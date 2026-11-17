@@ -51,7 +51,7 @@
     <string name="settings_section_theme">Theme</string>
     <string name="settings_section_font_family">Schriftart</string>
     <string name="settings_font_import">Schriftdatei importieren</string>
-    <string name="settings_font_import_desc">Du kannst eine TrueType-/OpenType-Schrift (.ttf / .otf / .ttc) vom Gerät hinzufügen. Das Terminal macht jedes Zeichen so breit wie „M“, wähle also eine Festbreitenschrift. Importierte Schriften sind nicht in Sicherungen enthalten.</string>
+    <string name="settings_font_import_desc">Du kannst eine TrueType-/OpenType-Schrift (.ttf / .otf / .ttc) vom Gerät hinzufügen. Das Terminal macht jedes Zeichen so breit wie „M“, wähle also eine Festbreitenschrift. Importierte Schriften sind in Sicherungen enthalten.</string>
     <string name="settings_font_imported">„%1$s“ importiert und aktiviert.</string>
     <string name="settings_font_too_large">Die Datei ist zu groß (bis 64 MB).</string>
     <string name="settings_font_not_a_font">Diese Datei konnte nicht als Schrift gelesen werden.</string>
@@ -1140,7 +1140,7 @@ Wähle eines aus den Reitern rechts.</string>
     <string name="settings_backup_export">Sicherung erstellen</string>
     <string name="settings_backup_import">Aus Sicherung wiederherstellen</string>
     <string name="backup_export_title">Sicherung erstellen</string>
-    <string name="backup_export_body">Schreibt Einstellungen, SSH-Verbindungen, Snippets, Automatisierungsregeln, Makros, dein Theme, Kachelzuweisungen, Symbole, Wörterbücher, Randpanels und Notizen sowie das von der Tastatur Gelernte in eine einzige Datei. Wohin sie gespeichert wird, wählst du als Nächstes.</string>
+    <string name="backup_export_body">Schreibt Einstellungen, SSH-Verbindungen, Snippets, Automatisierungsregeln, Makros, dein Theme, Kachelzuweisungen, Symbole, Wörterbücher, importierte Schriften, Randpanels und Notizen sowie das von der Tastatur Gelernte in eine einzige Datei. Wohin sie gespeichert wird, wählst du als Nächstes.</string>
     <string name="backup_include_secrets">SSH-Passwörter und -Schlüssel einschließen</string>
     <string name="backup_secrets_warning">⚠ Damit verlassen Geheimnisse das Gerät. Die ganze Sicherung außer ihrem Manifest wird mit einer Passphrase verschlüsselt (ohne sie lässt sich die Sicherung nicht wiederherstellen).</string>
     <string name="backup_passphrase">Passphrase</string>
@@ -1155,7 +1155,8 @@ Automatisierungsregeln: %5$d
 Makros: %6$d
 Kacheln: %7$d, Symbole: %8$d
 Theme: %9$d, Wörterbücher: %10$d, gelernte Wörter: %11$d
-Randpanels: %12$d, Notizen: %13$d</string>
+Randpanels: %12$d, Notizen: %13$d
+Schriften: %14$d</string>
     <string name="backup_import_merge_note">Nichts von dem, was du jetzt hast, wird gelöscht. Passende Einträge werden ersetzt, neue hinzugefügt.</string>
     <string name="backup_import_failed">Wiederherstellen nicht möglich. Prüfe Passphrase, Dateiintegrität und Zugriff auf das Ziel.</string>
     <string name="backup_import_do">Wiederherstellen</string>

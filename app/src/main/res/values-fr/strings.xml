@@ -51,7 +51,7 @@
     <string name="settings_section_theme">Thème</string>
     <string name="settings_section_font_family">Police</string>
     <string name="settings_font_import">Importer un fichier de police</string>
-    <string name="settings_font_import_desc">Vous pouvez ajouter une police TrueType / OpenType (.ttf / .otf / .ttc) depuis l’appareil. Le terminal donne à chaque caractère la largeur du « M » : choisissez une police à chasse fixe. Les polices importées ne sont pas incluses dans les sauvegardes.</string>
+    <string name="settings_font_import_desc">Vous pouvez ajouter une police TrueType / OpenType (.ttf / .otf / .ttc) depuis l’appareil. Le terminal donne à chaque caractère la largeur du « M » : choisissez une police à chasse fixe. Les polices importées sont incluses dans les sauvegardes.</string>
     <string name="settings_font_imported">« %1$s » importée et sélectionnée.</string>
     <string name="settings_font_too_large">Le fichier est trop volumineux (64 Mo maximum).</string>
     <string name="settings_font_not_a_font">Ce fichier n’a pas pu être lu comme une police.</string>
@@ -1150,7 +1150,7 @@ Choisissez-en un dans les onglets à droite.</string>
     <string name="settings_backup_export">Créer une sauvegarde</string>
     <string name="settings_backup_import">Restaurer une sauvegarde</string>
     <string name="backup_export_title">Créer une sauvegarde</string>
-    <string name="backup_export_body">Écrit dans un seul fichier les réglages, connexions SSH, extraits, règles d’automatisation, macros, votre thème, attributions de tuiles, icônes, dictionnaires, panneaux latéraux et notes, et ce que le clavier a appris. Vous choisissez ensuite où l’enregistrer.</string>
+    <string name="backup_export_body">Écrit dans un seul fichier les réglages, connexions SSH, extraits, règles d’automatisation, macros, votre thème, attributions de tuiles, icônes, dictionnaires, polices importées, panneaux latéraux et notes, et ce que le clavier a appris. Vous choisissez ensuite où l’enregistrer.</string>
     <string name="backup_include_secrets">Inclure les mots de passe et clés SSH</string>
     <string name="backup_secrets_warning">⚠ Cela fait sortir des secrets de l’appareil. Toute la sauvegarde sauf son manifeste est chiffrée avec une phrase secrète (sans elle, la sauvegarde ne peut pas être restaurée).</string>
     <string name="backup_passphrase">Phrase secrète</string>
@@ -1165,7 +1165,8 @@ Règles d’automatisation : %5$d
 Macros : %6$d
 Tuiles : %7$d, icônes : %8$d
 Thème : %9$d, dictionnaires : %10$d, mots appris : %11$d
-Panneaux latéraux : %12$d, notes : %13$d</string>
+Panneaux latéraux : %12$d, notes : %13$d
+Polices : %14$d</string>
     <string name="backup_import_merge_note">Rien de ce que vous avez maintenant n’est supprimé. Les éléments correspondants sont remplacés, les nouveaux sont ajoutés.</string>
     <string name="backup_import_failed">Restauration impossible. Vérifiez la phrase secrète, l’intégrité du fichier et l’accès à la destination.</string>
     <string name="backup_import_do">Restaurer</string>

@@ -51,7 +51,7 @@
     <string name="settings_section_theme">테마</string>
     <string name="settings_section_font_family">글꼴</string>
     <string name="settings_font_import">글꼴 파일 가져오기</string>
-    <string name="settings_font_import_desc">기기에 있는 TrueType / OpenType 글꼴(.ttf / .otf / .ttc)을 추가할 수 있습니다. 터미널은 모든 글자의 폭을 \"M\"에 맞추므로 고정폭 글꼴을 고르세요. 가져온 글꼴은 백업에 포함되지 않습니다.</string>
+    <string name="settings_font_import_desc">기기에 있는 TrueType / OpenType 글꼴(.ttf / .otf / .ttc)을 추가할 수 있습니다. 터미널은 모든 글자의 폭을 \"M\"에 맞추므로 고정폭 글꼴을 고르세요. 가져온 글꼴도 백업에 포함됩니다.</string>
     <string name="settings_font_imported">\"%1$s\"을(를) 가져와 이 글꼴로 바꿨습니다.</string>
     <string name="settings_font_too_large">파일이 너무 큽니다(최대 64MB).</string>
     <string name="settings_font_not_a_font">이 파일을 글꼴로 읽을 수 없습니다.</string>
@@ -1132,7 +1132,7 @@
     <string name="settings_backup_export">백업 만들기</string>
     <string name="settings_backup_import">백업에서 복원</string>
     <string name="backup_export_title">백업 만들기</string>
-    <string name="backup_export_body">설정, SSH 연결, 스니펫, 자동화 규칙, 매크로, 테마, 타일 배정, 아이콘, 사전, 엣지 패널과 메모, 키보드가 학습한 것을 파일 하나에 씁니다. 어디에 저장할지는 그다음에 고릅니다.</string>
+    <string name="backup_export_body">설정, SSH 연결, 스니펫, 자동화 규칙, 매크로, 테마, 타일 배정, 아이콘, 사전, 가져온 글꼴, 엣지 패널과 메모, 키보드가 학습한 것을 파일 하나에 씁니다. 어디에 저장할지는 그다음에 고릅니다.</string>
     <string name="backup_include_secrets">SSH 비밀번호와 키도 넣기</string>
     <string name="backup_secrets_warning">⚠ 비밀이 기기 밖으로 나갑니다. 매니페스트를 뺀 백업 전체를 암호 문구로 암호화합니다(그것이 없으면 백업을 복원할 수 없습니다).</string>
     <string name="backup_passphrase">암호 문구</string>
@@ -1147,7 +1147,8 @@ SSH 연결: %3$d
 매크로: %6$d
 타일: %7$d, 아이콘: %8$d
 테마: %9$d, 사전: %10$d, 학습한 단어: %11$d
-엣지 패널: %12$d, 메모: %13$d</string>
+엣지 패널: %12$d, 메모: %13$d
+글꼴: %14$d</string>
     <string name="backup_import_merge_note">지금 있는 것은 아무것도 지우지 않습니다. 같은 항목은 덮어쓰고, 새 항목은 더합니다.</string>
     <string name="backup_import_failed">복원하지 못했습니다. 암호 문구, 파일 손상 여부, 저장 위치의 접근 권한을 확인하세요.</string>
     <string name="backup_import_do">복원</string>

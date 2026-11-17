@@ -51,7 +51,7 @@
     <string name="settings_section_theme">Tema</string>
     <string name="settings_section_font_family">Fonte</string>
     <string name="settings_font_import">Importar arquivo de fonte</string>
-    <string name="settings_font_import_desc">Você pode adicionar uma fonte TrueType / OpenType (.ttf / .otf / .ttc) do aparelho. O terminal deixa cada caractere com a largura do \"M\", então escolha uma fonte monoespaçada. Fontes importadas não entram nos backups.</string>
+    <string name="settings_font_import_desc">Você pode adicionar uma fonte TrueType / OpenType (.ttf / .otf / .ttc) do aparelho. O terminal deixa cada caractere com a largura do \"M\", então escolha uma fonte monoespaçada. Fontes importadas também entram nos backups.</string>
     <string name="settings_font_imported">\"%1$s\" importada e em uso.</string>
     <string name="settings_font_too_large">O arquivo é grande demais (até 64 MB).</string>
     <string name="settings_font_not_a_font">Não foi possível ler este arquivo como fonte.</string>
@@ -1150,7 +1150,7 @@ Escolha um nas guias à direita.</string>
     <string name="settings_backup_export">Criar um backup</string>
     <string name="settings_backup_import">Restaurar de um backup</string>
     <string name="backup_export_title">Criar um backup</string>
-    <string name="backup_export_body">Grava num só arquivo as configurações, as conexões SSH, os trechos, as regras de automação, as macros, o seu tema, as atribuições de blocos, os ícones, os dicionários, os painéis laterais e as notas, e o que o teclado aprendeu. Em seguida você escolhe onde salvar.</string>
+    <string name="backup_export_body">Grava num só arquivo as configurações, as conexões SSH, os trechos, as regras de automação, as macros, o seu tema, as atribuições de blocos, os ícones, os dicionários, as fontes importadas, os painéis laterais e as notas, e o que o teclado aprendeu. Em seguida você escolhe onde salvar.</string>
     <string name="backup_include_secrets">Incluir as senhas e chaves SSH</string>
     <string name="backup_secrets_warning">⚠ Isto tira segredos do dispositivo. O backup inteiro, exceto o manifesto, é criptografado com uma frase secreta (sem ela, o backup não pode ser restaurado).</string>
     <string name="backup_passphrase">Frase secreta</string>
@@ -1165,7 +1165,8 @@ Regras de automação: %5$d
 Macros: %6$d
 Blocos: %7$d, ícones: %8$d
 Tema: %9$d, dicionários: %10$d, palavras aprendidas: %11$d
-Painéis laterais: %12$d, notas: %13$d</string>
+Painéis laterais: %12$d, notas: %13$d
+Fontes: %14$d</string>
     <string name="backup_import_merge_note">Nada do que você tem agora é excluído. Os itens que coincidem são substituídos e os novos são adicionados.</string>
     <string name="backup_import_failed">Não foi possível restaurar. Confira a frase secreta, a integridade do arquivo e o acesso ao destino.</string>
     <string name="backup_import_do">Restaurar</string>

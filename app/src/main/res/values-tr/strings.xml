@@ -50,7 +50,7 @@
     <string name="settings_section_theme">Tema</string>
     <string name="settings_section_font_family">Yazı tipi ailesi</string>
     <string name="settings_font_import">Yazı tipi dosyası içe aktar</string>
-    <string name="settings_font_import_desc">Cihazdan TrueType / OpenType yazı tipi (.ttf / .otf / .ttc) ekleyebilirsiniz. Terminal her karakteri \"M\" genişliğinde gösterir, bu yüzden eş aralıklı bir yazı tipi seçin. İçe aktarılan yazı tipleri yedeklere dahil edilmez.</string>
+    <string name="settings_font_import_desc">Cihazdan TrueType / OpenType yazı tipi (.ttf / .otf / .ttc) ekleyebilirsiniz. Terminal her karakteri \"M\" genişliğinde gösterir, bu yüzden eş aralıklı bir yazı tipi seçin. İçe aktarılan yazı tipleri yedeklere de dahil edilir.</string>
     <string name="settings_font_imported">\"%1$s\" içe aktarıldı ve kullanılıyor.</string>
     <string name="settings_font_too_large">Dosya çok büyük (en fazla 64 MB).</string>
     <string name="settings_font_not_a_font">Bu dosya yazı tipi olarak okunamadı.</string>
@@ -1139,7 +1139,7 @@ Sağdaki sekmelerden birini seçin.</string>
     <string name="settings_backup_export">Yedek oluştur</string>
     <string name="settings_backup_import">Yedekten geri yükle</string>
     <string name="backup_export_title">Yedek oluştur</string>
-    <string name="backup_export_body">Ayarları, SSH bağlantılarını, parçacıkları, otomasyon kurallarını, makroları, temanızı, kutucuk atamalarını, simgeleri, sözlükleri, kenar panellerini ve notları ve klavyenin öğrendiklerini tek bir dosyaya yazar. Nereye kaydedileceğini sonra seçersiniz.</string>
+    <string name="backup_export_body">Ayarları, SSH bağlantılarını, parçacıkları, otomasyon kurallarını, makroları, temanızı, kutucuk atamalarını, simgeleri, sözlükleri, içe aktarılan yazı tiplerini, kenar panellerini ve notları ve klavyenin öğrendiklerini tek bir dosyaya yazar. Nereye kaydedileceğini sonra seçersiniz.</string>
     <string name="backup_include_secrets">SSH şifrelerini ve anahtarlarını dahil et</string>
     <string name="backup_secrets_warning">⚠ Bu, sırları cihazdan çıkarır. İçerik listesi dışında tüm yedek bir parolayla şifrelenir (parola olmadan yedek geri yüklenemez).</string>
     <string name="backup_passphrase">Parola</string>
@@ -1154,7 +1154,8 @@ Otomasyon kuralları: %5$d
 Makrolar: %6$d
 Kutucuklar: %7$d, simgeler: %8$d
 Tema: %9$d, sözlükler: %10$d, öğrenilen kelimeler: %11$d
-Kenar panelleri: %12$d, notlar: %13$d</string>
+Kenar panelleri: %12$d, notlar: %13$d
+Yazı tipleri: %14$d</string>
     <string name="backup_import_merge_note">Şu an sahip olduğunuz hiçbir şey silinmez. Eşleşen öğeler değiştirilir, yeniler eklenir.</string>
     <string name="backup_import_failed">Geri yüklenemedi. Parolayı, dosya bütünlüğünü ve hedefe erişimi kontrol edin.</string>
     <string name="backup_import_do">Geri yükle</string>

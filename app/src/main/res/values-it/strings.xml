@@ -51,7 +51,7 @@
     <string name="settings_section_theme">Tema</string>
     <string name="settings_section_font_family">Famiglia di caratteri</string>
     <string name="settings_font_import">Importa un file di font</string>
-    <string name="settings_font_import_desc">Puoi aggiungere un font TrueType / OpenType (.ttf / .otf / .ttc) dal dispositivo. Il terminale rende ogni carattere largo quanto la «M», quindi scegli un font a spaziatura fissa. I font importati non sono inclusi nei backup.</string>
+    <string name="settings_font_import_desc">Puoi aggiungere un font TrueType / OpenType (.ttf / .otf / .ttc) dal dispositivo. Il terminale rende ogni carattere largo quanto la «M», quindi scegli un font a spaziatura fissa. I font importati sono inclusi nei backup.</string>
     <string name="settings_font_imported">«%1$s» importato e in uso.</string>
     <string name="settings_font_too_large">Il file è troppo grande (massimo 64 MB).</string>
     <string name="settings_font_not_a_font">Impossibile leggere questo file come font.</string>
@@ -1150,7 +1150,7 @@ Scegline una dalle schede a destra.</string>
     <string name="settings_backup_export">Crea un backup</string>
     <string name="settings_backup_import">Ripristina da un backup</string>
     <string name="backup_export_title">Crea un backup</string>
-    <string name="backup_export_body">Scrive in un unico file impostazioni, connessioni SSH, frammenti, regole di automazione, macro, il tuo tema, le assegnazioni dei riquadri, le icone, i dizionari, i pannelli laterali e le note, e ciò che la tastiera ha imparato. Poi scegli dove salvarlo.</string>
+    <string name="backup_export_body">Scrive in un unico file impostazioni, connessioni SSH, frammenti, regole di automazione, macro, il tuo tema, le assegnazioni dei riquadri, le icone, i dizionari, i font importati, i pannelli laterali e le note, e ciò che la tastiera ha imparato. Poi scegli dove salvarlo.</string>
     <string name="backup_include_secrets">Includi password e chiavi SSH</string>
     <string name="backup_secrets_warning">⚠ Questo porta i segreti fuori dal dispositivo. L’intero backup tranne il manifesto è cifrato con una passphrase (senza di essa il backup non si può ripristinare).</string>
     <string name="backup_passphrase">Passphrase</string>
@@ -1165,7 +1165,8 @@ Regole di automazione: %5$d
 Macro: %6$d
 Riquadri: %7$d, icone: %8$d
 Tema: %9$d, dizionari: %10$d, parole apprese: %11$d
-Pannelli laterali: %12$d, note: %13$d</string>
+Pannelli laterali: %12$d, note: %13$d
+Font: %14$d</string>
     <string name="backup_import_merge_note">Nulla di ciò che hai ora viene eliminato. Gli elementi corrispondenti vengono sostituiti, quelli nuovi aggiunti.</string>
     <string name="backup_import_failed">Impossibile ripristinare. Controlla la passphrase, l’integrità del file e l’accesso alla destinazione.</string>
     <string name="backup_import_do">Ripristina</string>

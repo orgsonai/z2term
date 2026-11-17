@@ -51,7 +51,7 @@
     <string name="settings_section_theme">Tema</string>
     <string name="settings_section_font_family">Jenis font</string>
     <string name="settings_font_import">Impor file font</string>
-    <string name="settings_font_import_desc">Anda dapat menambahkan font TrueType / OpenType (.ttf / .otf / .ttc) dari perangkat. Terminal membuat setiap karakter selebar \"M\", jadi pilih font monospace. Font yang diimpor tidak disertakan dalam cadangan.</string>
+    <string name="settings_font_import_desc">Anda dapat menambahkan font TrueType / OpenType (.ttf / .otf / .ttc) dari perangkat. Terminal membuat setiap karakter selebar \"M\", jadi pilih font monospace. Font yang diimpor juga disertakan dalam cadangan.</string>
     <string name="settings_font_imported">\"%1$s\" diimpor dan sekarang digunakan.</string>
     <string name="settings_font_too_large">File terlalu besar (maksimal 64 MB).</string>
     <string name="settings_font_not_a_font">File ini tidak dapat dibaca sebagai font.</string>
@@ -1130,7 +1130,7 @@ Pilih dari tab di kanan.</string>
     <string name="settings_backup_export">Buat cadangan</string>
     <string name="settings_backup_import">Pulihkan dari cadangan</string>
     <string name="backup_export_title">Buat cadangan</string>
-    <string name="backup_export_body">Menulis setelan, koneksi SSH, cuplikan, aturan otomatisasi, makro, tema Anda, penetapan kartu, ikon, kamus, panel tepi dan catatan, serta apa yang dipelajari keyboard ke satu file. Selanjutnya Anda memilih tempat menyimpannya.</string>
+    <string name="backup_export_body">Menulis setelan, koneksi SSH, cuplikan, aturan otomatisasi, makro, tema Anda, penetapan kartu, ikon, kamus, font yang diimpor, panel tepi dan catatan, serta apa yang dipelajari keyboard ke satu file. Selanjutnya Anda memilih tempat menyimpannya.</string>
     <string name="backup_include_secrets">Sertakan sandi dan kunci SSH</string>
     <string name="backup_secrets_warning">⚠ Ini membawa rahasia keluar dari perangkat. Seluruh cadangan kecuali manifesnya dienkripsi dengan frasa sandi (tanpanya, cadangan tidak bisa dipulihkan).</string>
     <string name="backup_passphrase">Frasa sandi</string>
@@ -1145,7 +1145,8 @@ Aturan otomatisasi: %5$d
 Makro: %6$d
 Kartu: %7$d, ikon: %8$d
 Tema: %9$d, kamus: %10$d, kata dipelajari: %11$d
-Panel tepi: %12$d, catatan: %13$d</string>
+Panel tepi: %12$d, catatan: %13$d
+Font: %14$d</string>
     <string name="backup_import_merge_note">Tidak ada yang Anda miliki sekarang yang dihapus. Item yang cocok diganti, yang baru ditambahkan.</string>
     <string name="backup_import_failed">Tidak bisa memulihkan. Periksa frasa sandi, keutuhan file, dan akses ke tujuan.</string>
     <string name="backup_import_do">Pulihkan</string>

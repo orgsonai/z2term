@@ -50,7 +50,7 @@
     <string name="settings_section_theme">Тема</string>
     <string name="settings_section_font_family">Шрифт</string>
     <string name="settings_font_import">Импортировать файл шрифта</string>
-    <string name="settings_font_import_desc">Можно добавить шрифт TrueType / OpenType (.ttf / .otf / .ttc) с устройства. Терминал делает каждый символ шириной с «M», поэтому выбирайте моноширинный шрифт. Импортированные шрифты не входят в резервные копии.</string>
+    <string name="settings_font_import_desc">Можно добавить шрифт TrueType / OpenType (.ttf / .otf / .ttc) с устройства. Терминал делает каждый символ шириной с «M», поэтому выбирайте моноширинный шрифт. Импортированные шрифты входят в резервные копии.</string>
     <string name="settings_font_imported">Шрифт «%1$s» импортирован и выбран.</string>
     <string name="settings_font_too_large">Файл слишком большой (до 64 МБ).</string>
     <string name="settings_font_not_a_font">Не удалось прочитать этот файл как шрифт.</string>
@@ -1159,7 +1159,7 @@
     <string name="settings_backup_export">Создать резервную копию</string>
     <string name="settings_backup_import">Восстановить из резервной копии</string>
     <string name="backup_export_title">Создать резервную копию</string>
-    <string name="backup_export_body">Записывает в один файл настройки, подключения SSH, фрагменты, правила автоматизации, макросы, вашу тему, назначения плиток, значки, словари, боковые панели и заметки, а также то, что выучила клавиатура. Куда сохранить, вы выберете дальше.</string>
+    <string name="backup_export_body">Записывает в один файл настройки, подключения SSH, фрагменты, правила автоматизации, макросы, вашу тему, назначения плиток, значки, словари, импортированные шрифты, боковые панели и заметки, а также то, что выучила клавиатура. Куда сохранить, вы выберете дальше.</string>
     <string name="backup_include_secrets">Включить пароли и ключи SSH</string>
     <string name="backup_secrets_warning">⚠ Секреты покидают устройство. Вся резервная копия, кроме её описи, шифруется парольной фразой (без неё копию не восстановить).</string>
     <string name="backup_passphrase">Парольная фраза</string>
@@ -1174,7 +1174,8 @@
 Макросы: %6$d
 Плитки: %7$d, значки: %8$d
 Тема: %9$d, словари: %10$d, выученные слова: %11$d
-Боковые панели: %12$d, заметки: %13$d</string>
+Боковые панели: %12$d, заметки: %13$d
+Шрифты: %14$d</string>
     <string name="backup_import_merge_note">Ничего из того, что у вас есть сейчас, не удаляется. Совпадающее заменяется, новое добавляется.</string>
     <string name="backup_import_failed">Не удалось восстановить. Проверьте парольную фразу, целостность файла и доступ к месту назначения.</string>
     <string name="backup_import_do">Восстановить</string>

@@ -50,7 +50,7 @@
     <string name="settings_section_theme">Chủ đề</string>
     <string name="settings_section_font_family">Họ phông chữ</string>
     <string name="settings_font_import">Nhập tệp phông chữ</string>
-    <string name="settings_font_import_desc">Bạn có thể thêm phông TrueType / OpenType (.ttf / .otf / .ttc) từ thiết bị. Terminal cho mỗi ký tự rộng bằng chữ \"M\", nên hãy chọn phông đơn cách. Phông đã nhập không có trong bản sao lưu.</string>
+    <string name="settings_font_import_desc">Bạn có thể thêm phông TrueType / OpenType (.ttf / .otf / .ttc) từ thiết bị. Terminal cho mỗi ký tự rộng bằng chữ \"M\", nên hãy chọn phông đơn cách. Phông đã nhập cũng có trong bản sao lưu.</string>
     <string name="settings_font_imported">Đã nhập \"%1$s\" và chuyển sang phông này.</string>
     <string name="settings_font_too_large">Tệp quá lớn (tối đa 64 MB).</string>
     <string name="settings_font_not_a_font">Không đọc được tệp này dưới dạng phông chữ.</string>
@@ -1129,7 +1129,7 @@ Chọn một cái từ các thẻ bên phải.</string>
     <string name="settings_backup_export">Tạo bản sao lưu</string>
     <string name="settings_backup_import">Khôi phục từ bản sao lưu</string>
     <string name="backup_export_title">Tạo bản sao lưu</string>
-    <string name="backup_export_body">Ghi cài đặt, kết nối SSH, đoạn lệnh, quy tắc tự động hóa, macro, chủ đề, việc gán ô, biểu tượng, từ điển, bảng cạnh và ghi chú, cùng những gì bàn phím đã học vào một tệp. Bạn chọn nơi lưu ở bước tiếp theo.</string>
+    <string name="backup_export_body">Ghi cài đặt, kết nối SSH, đoạn lệnh, quy tắc tự động hóa, macro, chủ đề, việc gán ô, biểu tượng, từ điển, phông chữ đã nhập, bảng cạnh và ghi chú, cùng những gì bàn phím đã học vào một tệp. Bạn chọn nơi lưu ở bước tiếp theo.</string>
     <string name="backup_include_secrets">Bao gồm mật khẩu và khóa SSH</string>
     <string name="backup_secrets_warning">⚠ Điều này đưa bí mật ra khỏi thiết bị. Toàn bộ bản sao lưu trừ phần mô tả được mã hóa bằng cụm mật khẩu (không có nó, bản sao lưu không khôi phục được).</string>
     <string name="backup_passphrase">Cụm mật khẩu</string>
@@ -1144,7 +1144,8 @@ Quy tắc tự động hóa: %5$d
 Macro: %6$d
 Ô: %7$d, biểu tượng: %8$d
 Chủ đề: %9$d, từ điển: %10$d, từ đã học: %11$d
-Bảng cạnh: %12$d, ghi chú: %13$d</string>
+Bảng cạnh: %12$d, ghi chú: %13$d
+Phông chữ: %14$d</string>
     <string name="backup_import_merge_note">Không có gì bạn đang có bị xóa. Mục trùng được thay thế, mục mới được thêm.</string>
     <string name="backup_import_failed">Không khôi phục được. Kiểm tra cụm mật khẩu, tính toàn vẹn của tệp và quyền truy cập nơi đến.</string>
     <string name="backup_import_do">Khôi phục</string>

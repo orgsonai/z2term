@@ -19,6 +19,7 @@ import com.zerotoship.z2term.tile.Z2TileService
 import com.zerotoship.z2term.ui.terminal.keyboard.CustomKaomojiStore
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
+import com.zerotoship.z2term.ui.theme.UserFonts
 import com.zerotoship.z2term.widget.WidgetStore
 import org.json.JSONObject
 import java.io.File
@@ -88,6 +89,8 @@ object BackupManager {
         val dictCount: Int = 0,
         /** IME が覚えている語数 (0.8.379)。 */
         val learnedCount: Int = 0,
+        /** 取り込んだフォントのファイル数 (1.0.144)。 */
+        val fontCount: Int = 0,
         val edgePanelCount: Int = 0,
         val edgeNoteCount: Int = 0,
     )
@@ -137,6 +140,8 @@ object BackupManager {
     private const val TILES = "tiles.json"
     private const val ICONS = "icons.json"
     private const val DICT_DIR = "user_dict/"
+    /** 取り込んだフォント ([UserFonts]。1.0.144)。 */
+    private const val FONT_DIR = "fonts/"
     private const val IME_HISTORY = "ime_history.json"
     /** 自分で足した顔文字・AA ([CustomKaomojiStore])。 */
     private const val KAOMOJI_CUSTOM = CustomKaomojiStore.FILE_NAME
@@ -176,6 +181,8 @@ object BackupManager {
         val iconsJson = IconStore.exportRaw(app)
         // 辞書は拡張子を決めていない (利用者が持ち込んだファイル名のまま置く) ので、全部拾う。
         val dicts = filesIn(UserDictStore.dictDir(app), "")
+        // フォントも持ち込んだファイル名のまま置いてある。取り込み途中の隠しファイルは除く。
+        val fonts = filesIn(UserFonts.dir(app), "").filterNot { it.name.startsWith(".") }
         val imeHistory = ImeHistoryStore.historyFile(app).takeIf { it.isFile }
         val kaomojiCustom = CustomKaomojiStore.file(app).takeIf { it.isFile }
         // 語数は読み込んでからでないと 0 に見える (数えるためだけに読む)。
@@ -194,6 +201,7 @@ object BackupManager {
             put(TILES, tilesJson.toByteArray())
             put(ICONS, iconsJson.toByteArray())
             dicts.forEach { put(DICT_DIR + it.name, it.readBytes()) }
+            fonts.forEach { put(FONT_DIR + it.name, it.readBytes()) }
             imeHistory?.let { put(IME_HISTORY, it.readBytes()) }
             kaomojiCustom?.let { put(KAOMOJI_CUSTOM, it.readBytes()) }
         }
@@ -217,6 +225,7 @@ object BackupManager {
             put("iconCount", IconStore.targets().count { IconStore.text(app, it) != null })
             put("themeCount", if (themeJson.isNotEmpty()) 1 else 0)
             put("dictCount", dicts.size)
+            put("fontCount", fonts.size)
             put("learnedCount", ImeHistoryStore.approximateCount())
             put("edgePanelCount", edge.panelCount)
             put("edgeNoteCount", edge.noteCount)
@@ -256,6 +265,7 @@ object BackupManager {
             iconCount = o.optInt("iconCount"),
             themeCount = o.optInt("themeCount"),
             dictCount = o.optInt("dictCount"),
+            fontCount = o.optInt("fontCount"),
             learnedCount = o.optInt("learnedCount"),
             edgePanelCount = o.optInt("edgePanelCount"),
             edgeNoteCount = o.optInt("edgeNoteCount"),
@@ -342,6 +352,8 @@ object BackupManager {
         val macroDir = WidgetStore.macroDir(app).apply { mkdirs() }
         val dictDir = UserDictStore.dictDir(app).apply { mkdirs() }
         var dictRestored = false
+        val fontDir = UserFonts.dir(app)
+        var fontRestored = false
         entries.forEach { (name, data) ->
             when {
                 name.startsWith(WHEN_DIR) && name.endsWith(".rule") ->
@@ -366,6 +378,15 @@ object BackupManager {
                         it.writeBytes(data)
                         dictRestored = true
                     }
+                // フォントもファイル名が fontId (`user:<ファイル名>`) なので名前ごと戻す。
+                // 同名は置き換え (戻した設定が指すのはバックアップの中のフォント)。
+                name.startsWith(FONT_DIR) ->
+                    safeChild(fontDir.apply { mkdirs() }, name.removePrefix(FONT_DIR))
+                        ?.takeIf { !it.name.startsWith(".") }
+                        ?.let {
+                            it.writeBytes(data)
+                            fontRestored = true
+                        }
             }
         }
         entries[IME_HISTORY]?.let { File(app.filesDir, IME_HISTORY).writeBytes(it) }
@@ -387,6 +408,7 @@ object BackupManager {
             (1..TileStore.COUNT).forEach { runCatching { Z2TileService.requestUpdate(app, it) } }
         }
         if (dictRestored) runCatching { UserDictStore.reload(app) }
+        if (fontRestored) runCatching { UserFonts.reload(app) }
         if (entries[IME_HISTORY] != null) runCatching { ImeHistoryStore.reload(app) }
         if (entries[KAOMOJI_CUSTOM] != null) runCatching { CustomKaomojiStore.reload(app) }
         return ImportResult(stopped)

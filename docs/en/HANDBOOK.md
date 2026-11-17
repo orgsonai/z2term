@@ -352,7 +352,7 @@ Settings > Maintenance > **"Take it with you"** writes your current setup to a s
 
 - Included: **settings, SSH connections, snippets, automation rules, macros**
 - Not included: **the OS image** (hundreds of MB — a reinstall brings it back) and logs
-- In it: **settings, SSH connections, snippets, automation rules and macros**, plus **your theme, tile assignments, icon drawings, dictionaries and what the keyboard has learned** (0.8.380). Out of it: the **OS image** (hundreds of MB — a reinstall brings it back), logs, and **home-screen widget assignments** (they are keyed by the number the launcher hands out, so restoring them would point at a different widget).
+- In it: **settings, SSH connections, snippets, automation rules and macros**, plus **your theme, tile assignments, icon drawings, dictionaries and what the keyboard has learned** (0.8.380), and **imported fonts** (1.0.144). Out of it: the **OS image** (hundreds of MB — a reinstall brings it back), logs, and **home-screen widget assignments** (they are keyed by the number the launcher hands out, so restoring them would point at a different widget).
 - **SSH passwords and keys are left out by default.** Tick the box to include them and you will be asked for a **passphrase** (without it the backup cannot be restored, so pick something you will remember). In that case **all data except the manifest used to show the item counts is encrypted**, including snippets, macros, automation rules and keyboard learning (0.8.449).
 - When restoring, you see **what and how many** will be added before deciding. Nothing you already have is deleted; only matching items are replaced.
 
@@ -784,7 +784,7 @@ Notification, SMS, event and unlock-failure detection and log formats remain in 
 | Setting | Description |
 |---|---|
 | Theme | Color scheme (9 options) |
-| Font | Display typeface (the 5 bundled fonts plus any you import, with preview). "Import a font file" adds your own .ttf / .otf / .ttc (1.0.143; pick a monospaced one; not included in backups) |
+| Font | Display typeface (the 5 bundled fonts plus any you import, with preview). "Import a font file" adds your own .ttf / .otf / .ttc (1.0.143; pick a monospaced one; included in backups from 1.0.144) |
 | Font size | 4–32 (also changeable by pinching) |
 | Scrollback lines | How many lines you can scroll back through |
 | Toolbar | **Choose which buttons appear above the terminal.** The real buttons are laid out; tap to remove or bring one back. A removed button's position is remembered. ⚙ is always rightmost and cannot be removed. If you remove 🔅 screen-on lock or 🔒 keep-alive, a switch for it appears in this section |
