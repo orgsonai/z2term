@@ -242,6 +242,8 @@
     <string name="confirm_close_busy_title">Close this tab?</string>
     <string name="confirm_close_busy_msg">A process is still running in this tab. Closing it will terminate the running program. Close anyway?</string>
     <string name="confirm_close_busy_action">Close</string>
+    <string name="confirm_close_group_title">Close this group?</string>
+    <string name="confirm_close_group_msg">A process is still running in one of the %1$d tabs in this group. Closing the group closes all of its tabs and terminates the running programs. Close anyway?</string>
     <string name="settings_init_command">Startup init command</string>
     <string name="settings_init_command_placeholder">e.g. zsh -l</string>
     <string name="settings_reset_terminal">Reset terminal</string>

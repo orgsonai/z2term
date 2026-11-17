@@ -27,7 +27,7 @@ A short press still opens GUI. **Settings → Tips** also explains the gestures.
 
 When group names are long, **pinch with two fingers** on the tab bar to widen or narrow every tab and group at once (1.0.148).
 
-Selecting a tab that is in no group shows that tab alone; the group stays, and selecting its entry returns to the pane last focused. Closing a grouped tab leaves the rest stacked. Placement does not terminate sessions, and groups are retained for the current app process only.
+Selecting a tab that is in no group shows that tab alone; the group stays, and selecting its entry returns to the pane last focused. Closing a grouped tab leaves the rest stacked. **Double-tap** a group in the tab bar to close the whole group, all its tabs (1.0.163; you are asked first if any of them is busy). Placement does not terminate sessions, and groups are retained for the current app process only.
 
 ## Typing into several tabs at once (broadcast)
 

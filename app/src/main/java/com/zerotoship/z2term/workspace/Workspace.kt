@@ -99,6 +99,22 @@ internal object Workspace {
         SessionManager.close(id)
     }
 
+    /**
+     * Closes every tab of a group (double-tap on the group in the tab bar, 1.0.163). When the
+     * focused tab is inside it, focus first moves to the nearest tab outside the group, so closing
+     * does not throw the user to the first tab. The emptied group is dropped by [sync].
+     */
+    fun closeGroup(groupId: String) {
+        val members = groups.group(groupId)?.members ?: return
+        val all = SessionManager.sessions.value.map { it.id }
+        if (SessionManager.activeId.value in members) {
+            val at = all.indexOf(SessionManager.activeId.value)
+            val outside = all.withIndex().filter { it.value !in members }
+            outside.minByOrNull { kotlin.math.abs(it.index - at) }?.let { SessionManager.setActive(it.value) }
+        }
+        members.forEach { SessionManager.close(it) }
+    }
+
     data class Projection(val session: String, val display: Int)
     var projection by mutableStateOf<Projection?>(null)
     fun projected(id: String) = projection?.session == id

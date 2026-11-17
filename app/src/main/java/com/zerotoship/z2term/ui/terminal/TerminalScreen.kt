@@ -3252,7 +3252,18 @@ private fun TabBar(
             dragOffsetMain = if (isDragging) dragOffset.value else 0f,
             vertical = vertical,
             onMainSize = { tabWidths[key] = it },
-            onSelect = { group.entry()?.let(onSelect) },
+            // ⭐ ダブルタップでグループごと閉じる (1.0.163)。タブ欄が空にならないよう、
+            // グループの外にタブが 1 枚も無いときは閉じない (最後の 1 枚を閉じないのと同じ)。
+            canClose = sessions.any { it.id !in group.members },
+            // 押したときだけ見る (判定は tcgetpgrp を伴うので、描画のたびに回さない)。
+            isBusy = { sessions.any { it.id in group.members && it.isBusy } },
+            onSelect = { activeBeforeTap = activeId; group.entry()?.let(onSelect) },
+            onClose = {
+                activeBeforeTap
+                    ?.takeIf { prev -> prev !in group.members && sessions.any { it.id == prev } }
+                    ?.let { prev -> onSelect(prev) }
+                com.zerotoship.z2term.workspace.Workspace.closeGroup(group.id)
+            },
             onDragStart = { draggingId.value = key; dragOffset.value = 0f },
             onDrag = { d -> dragOffset.value += d; trySwap() },
             onDragEnd = { draggingId.value = null; dragOffset.value = 0f },
@@ -3705,7 +3716,8 @@ private fun TabChip(
 /**
  * タブ欄の「2 枚以上のグループ」1 つぶん (1.0.146)。押すとグループの枠の並びを出す。
  * 長押し→ドラッグで並べ替え (中のタブはまとめて動く)、長押しして離すとグループのメニュー。
- * ⚠ ダブルタップで閉じない — 中のタブを全部閉じることになるので、閉じるのは枠の見出しのメニューから 1 枚ずつ。
+ * ダブルタップで**グループごと** (中のタブを全部) 閉じる (1.0.163。それまでは閉じられなかった)。
+ * どれかのタブが動作中なら、1 枚のタブと同じく確認を挟む。
  */
 @Composable
 private fun GroupChip(
@@ -3716,7 +3728,12 @@ private fun GroupChip(
     dragOffsetMain: Float,
     vertical: Boolean,
     onMainSize: (Int) -> Unit,
+    /** false = ダブルタップしても閉じない (グループの外にタブが無い)。 */
+    canClose: Boolean,
+    /** 中のどれかのタブが動作中か。true なら閉じる前に確認する。 */
+    isBusy: () -> Boolean,
     onSelect: () -> Unit,
+    onClose: () -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
@@ -3728,7 +3745,21 @@ private fun GroupChip(
     val fg = if (active) ZtsGreen else ZtsTextSecondary
     var showInfo by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
+    var showCloseConfirm by remember { mutableStateOf(false) }
     val count = group.members.size
+    // ダブルタップの判定は [TabChip] と同じ自前のもの (1 回目は待たずに切り替える)。
+    val doubleTapWindowMs = LocalViewConfiguration.current.doubleTapTimeoutMillis
+    var lastTapAt by remember { mutableLongStateOf(0L) }
+    val onTap: () -> Unit = {
+        val now = SystemClock.uptimeMillis()
+        val isSecondTap = canClose && lastTapAt != 0L && now - lastTapAt <= doubleTapWindowMs
+        lastTapAt = if (isSecondTap) 0L else now
+        when {
+            !isSecondTap -> onSelect()
+            isBusy() -> showCloseConfirm = true
+            else -> onClose()
+        }
+    }
     Box(
         modifier = Modifier
             .onSizeChanged { onMainSize(if (vertical) it.height else it.width) }
@@ -3739,7 +3770,7 @@ private fun GroupChip(
             .background(bg)
             // 枠を太くして、1 枚のタブと見分ける。
             .border(2.dp, border, RoundedCornerShape(6.dp))
-            .clickable(onClick = onSelect)
+            .clickable(onClick = onTap)
             .pointerInput(group.id, vertical) {
                 var moved = 0f
                 detectDragGesturesAfterLongPress(
@@ -3798,6 +3829,16 @@ private fun GroupChip(
         androidx.compose.material3.DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             com.zerotoship.z2term.workspace.GroupMenu(group) { menuOpen = false }
         }
+    }
+
+    if (showCloseConfirm) {
+        ConfirmDialog(
+            title = stringResource(R.string.confirm_close_group_title),
+            message = stringResource(R.string.confirm_close_group_msg, count),
+            confirmLabel = stringResource(R.string.confirm_close_busy_action),
+            onConfirm = { showCloseConfirm = false; onClose() },
+            onCancel = { showCloseConfirm = false }
+        )
     }
 }
 

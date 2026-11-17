@@ -233,6 +233,8 @@
     <string name="confirm_close_busy_title">이 탭을 닫을까요?</string>
     <string name="confirm_close_busy_msg">이 탭에서 아직 프로세스가 돌고 있습니다. 닫으면 실행 중인 프로그램이 종료됩니다. 그래도 닫을까요?</string>
     <string name="confirm_close_busy_action">닫기</string>
+    <string name="confirm_close_group_title">이 그룹을 닫을까요?</string>
+    <string name="confirm_close_group_msg">이 그룹의 탭 %1$d개 중 아직 프로세스가 돌고 있는 탭이 있습니다. 그룹을 닫으면 안의 탭이 모두 닫히고 실행 중인 프로그램이 종료됩니다. 그래도 닫을까요?</string>
     <string name="settings_init_command">시작할 때 실행할 명령</string>
     <string name="settings_init_command_placeholder">예: zsh -l</string>
     <string name="settings_reset_terminal">터미널 초기화</string>

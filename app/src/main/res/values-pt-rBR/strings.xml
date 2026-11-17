@@ -233,6 +233,8 @@
     <string name="confirm_close_busy_title">Fechar esta aba?</string>
     <string name="confirm_close_busy_msg">Ainda há um processo rodando nesta aba. Fechá-la encerra o programa em execução. Fechar mesmo assim?</string>
     <string name="confirm_close_busy_action">Fechar</string>
+    <string name="confirm_close_group_title">Fechar este grupo?</string>
+    <string name="confirm_close_group_msg">Ainda há um processo rodando em uma das %1$d abas deste grupo. Fechar o grupo fecha todas as abas dele e encerra os programas em execução. Fechar mesmo assim?</string>
     <string name="settings_init_command">Comando de inicialização</string>
     <string name="settings_init_command_placeholder">ex.: zsh -l</string>
     <string name="settings_reset_terminal">Redefinir o terminal</string>

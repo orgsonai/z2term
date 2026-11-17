@@ -233,6 +233,8 @@
     <string name="confirm_close_busy_title">Fermer cet onglet ?</string>
     <string name="confirm_close_busy_msg">Un processus tourne encore dans cet onglet. Le fermer arrête le programme en cours. Fermer quand même ?</string>
     <string name="confirm_close_busy_action">Fermer</string>
+    <string name="confirm_close_group_title">Fermer ce groupe ?</string>
+    <string name="confirm_close_group_msg">Un processus tourne encore dans l’un des %1$d onglets de ce groupe. Fermer le groupe ferme tous ses onglets et arrête les programmes en cours. Fermer quand même ?</string>
     <string name="settings_init_command">Commande au démarrage</string>
     <string name="settings_init_command_placeholder">ex. zsh -l</string>
     <string name="settings_reset_terminal">Réinitialiser le terminal</string>

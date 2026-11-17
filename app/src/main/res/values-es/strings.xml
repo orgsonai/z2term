@@ -233,6 +233,8 @@
     <string name="confirm_close_busy_title">¿Cerrar esta pestaña?</string>
     <string name="confirm_close_busy_msg">Todavía hay un proceso en marcha en esta pestaña. Al cerrarla se terminará el programa en ejecución. ¿Cerrarla de todos modos?</string>
     <string name="confirm_close_busy_action">Cerrar</string>
+    <string name="confirm_close_group_title">¿Cerrar este grupo?</string>
+    <string name="confirm_close_group_msg">Todavía hay un proceso en marcha en alguna de las %1$d pestañas de este grupo. Al cerrar el grupo se cierran todas sus pestañas y se terminan los programas en ejecución. ¿Cerrarlo de todos modos?</string>
     <string name="settings_init_command">Comando de inicio</string>
     <string name="settings_init_command_placeholder">p. ej. zsh -l</string>
     <string name="settings_reset_terminal">Reiniciar la terminal</string>

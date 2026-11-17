@@ -232,6 +232,8 @@
     <string name="confirm_close_busy_title">Закрыть эту вкладку?</string>
     <string name="confirm_close_busy_msg">В этой вкладке ещё работает процесс. Закрытие завершит запущенную программу. Всё равно закрыть?</string>
     <string name="confirm_close_busy_action">Закрыть</string>
+    <string name="confirm_close_group_title">Закрыть эту группу?</string>
+    <string name="confirm_close_group_msg">В одной из вкладок группы (всего %1$d) ещё работает процесс. Закрытие группы закроет все её вкладки и завершит запущенные программы. Всё равно закрыть?</string>
     <string name="settings_init_command">Команда при запуске</string>
     <string name="settings_init_command_placeholder">например, zsh -l</string>
     <string name="settings_reset_terminal">Сбросить терминал</string>

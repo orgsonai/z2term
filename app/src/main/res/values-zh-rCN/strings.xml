@@ -234,6 +234,8 @@
     <string name="confirm_close_busy_title">要关闭这个标签页吗？</string>
     <string name="confirm_close_busy_msg">这个标签页里还有东西在运行。关闭会终止正在执行的程序。确定要关闭吗？</string>
     <string name="confirm_close_busy_action">关闭</string>
+    <string name="confirm_close_group_title">要关闭这个分组吗？</string>
+    <string name="confirm_close_group_msg">这个分组的 %1$d 个标签页中还有东西在运行。关闭分组会关闭其中所有标签页，并终止正在执行的程序。确定要关闭吗？</string>
     <string name="settings_init_command">启动时的 init 命令</string>
     <string name="settings_init_command_placeholder">例: zsh -l</string>
     <string name="settings_reset_terminal">重置终端</string>

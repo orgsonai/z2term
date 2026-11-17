@@ -233,6 +233,8 @@
     <string name="confirm_close_busy_title">Chiudere questa scheda?</string>
     <string name="confirm_close_busy_msg">In questa scheda c’è ancora un processo in esecuzione. Chiuderla terminerà il programma in esecuzione. Chiudere comunque?</string>
     <string name="confirm_close_busy_action">Chiudi</string>
+    <string name="confirm_close_group_title">Chiudere questo gruppo?</string>
+    <string name="confirm_close_group_msg">In una delle %1$d schede di questo gruppo c’è ancora un processo in esecuzione. Chiudere il gruppo chiude tutte le sue schede e termina i programmi in esecuzione. Chiudere comunque?</string>
     <string name="settings_init_command">Comando iniziale all’avvio</string>
     <string name="settings_init_command_placeholder">es. zsh -l</string>
     <string name="settings_reset_terminal">Reimposta il terminale</string>

@@ -234,6 +234,8 @@
     <string name="confirm_close_busy_title">要關閉這個分頁嗎？</string>
     <string name="confirm_close_busy_msg">這個分頁裡還有東西在執行。關閉會終止正在執行的程式。確定要關閉嗎？</string>
     <string name="confirm_close_busy_action">關閉</string>
+    <string name="confirm_close_group_title">要關閉這個群組嗎？</string>
+    <string name="confirm_close_group_msg">這個群組的 %1$d 個分頁中還有東西在執行。關閉群組會關閉其中所有分頁，並終止正在執行的程式。確定要關閉嗎？</string>
     <string name="settings_init_command">啟動時的 init 指令</string>
     <string name="settings_init_command_placeholder">例: zsh -l</string>
     <string name="settings_reset_terminal">重設終端機</string>

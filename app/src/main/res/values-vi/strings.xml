@@ -232,6 +232,8 @@
     <string name="confirm_close_busy_title">Đóng thẻ này?</string>
     <string name="confirm_close_busy_msg">Một tiến trình vẫn đang chạy trong thẻ này. Đóng sẽ kết thúc chương trình đang chạy. Vẫn đóng?</string>
     <string name="confirm_close_busy_action">Đóng</string>
+    <string name="confirm_close_group_title">Đóng nhóm này?</string>
+    <string name="confirm_close_group_msg">Một tiến trình vẫn đang chạy trong một trong %1$d thẻ của nhóm này. Đóng nhóm sẽ đóng tất cả các thẻ và kết thúc các chương trình đang chạy. Vẫn đóng?</string>
     <string name="settings_init_command">Lệnh khởi động</string>
     <string name="settings_init_command_placeholder">ví dụ zsh -l</string>
     <string name="settings_reset_terminal">Đặt lại terminal</string>

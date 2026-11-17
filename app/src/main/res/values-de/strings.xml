@@ -233,6 +233,8 @@
     <string name="confirm_close_busy_title">Diesen Tab schließen?</string>
     <string name="confirm_close_busy_msg">In diesem Tab läuft noch ein Prozess. Schließen beendet das laufende Programm. Trotzdem schließen?</string>
     <string name="confirm_close_busy_action">Schließen</string>
+    <string name="confirm_close_group_title">Diese Gruppe schließen?</string>
+    <string name="confirm_close_group_msg">In einem der %1$d Tabs dieser Gruppe läuft noch ein Prozess. Schließen der Gruppe schließt alle ihre Tabs und beendet die laufenden Programme. Trotzdem schließen?</string>
     <string name="settings_init_command">Startbefehl</string>
     <string name="settings_init_command_placeholder">z. B. zsh -l</string>
     <string name="settings_reset_terminal">Terminal zurücksetzen</string>

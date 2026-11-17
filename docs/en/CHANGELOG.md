@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.163 (versionCode 861)**: Double-tapping a group in the tab bar now closes the whole group (all of its tabs); before, a group did not close on a double-tap. If something is running in any of its tabs, you are asked first, as with a single tab. A group does not close when there is no tab outside it (just as the last tab does not close).
+
 **1.0.162 (versionCode 860)**: Fewer ways into groups. A tab's long-press menu now only renames it, a group's only renames or ungroups it, and long-pressing the 📡 switch no longer opens the editor. Groups are arranged in the editor, which is the same whether opened from 📡 or from long-press GUI → "Edit groups…": you can just arrange and close, or press "📡 Start broadcast". During broadcast, the GUI button's long-press offers "📡 Stop" as well.
 
 **1.0.161 (versionCode 859)**: While attached to a tab with `z2-session attach` (from a PC, for example), what you type there now follows the broadcast rule too: with broadcast ON and that tab ticked, it reaches every ticked tab. Cursor keys are rebuilt for each receiving tab.

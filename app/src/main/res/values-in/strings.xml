@@ -233,6 +233,8 @@
     <string name="confirm_close_busy_title">Tutup tab ini?</string>
     <string name="confirm_close_busy_msg">Masih ada proses yang berjalan di tab ini. Menutupnya akan menghentikan program yang berjalan. Tetap tutup?</string>
     <string name="confirm_close_busy_action">Tutup</string>
+    <string name="confirm_close_group_title">Tutup grup ini?</string>
+    <string name="confirm_close_group_msg">Masih ada proses yang berjalan di salah satu dari %1$d tab dalam grup ini. Menutup grup akan menutup semua tabnya dan menghentikan program yang berjalan. Tetap tutup?</string>
     <string name="settings_init_command">Perintah awal saat mulai</string>
     <string name="settings_init_command_placeholder">mis. zsh -l</string>
     <string name="settings_reset_terminal">Atur ulang terminal</string>

@@ -232,6 +232,8 @@
     <string name="confirm_close_busy_title">Bu sekme kapatılsın mı?</string>
     <string name="confirm_close_busy_msg">Bu sekmede hâlâ bir işlem çalışıyor. Kapatmak çalışan programı sonlandırır. Yine de kapatılsın mı?</string>
     <string name="confirm_close_busy_action">Kapat</string>
+    <string name="confirm_close_group_title">Bu grup kapatılsın mı?</string>
+    <string name="confirm_close_group_msg">Bu gruptaki %1$d sekmeden birinde hâlâ bir işlem çalışıyor. Grubu kapatmak tüm sekmelerini kapatır ve çalışan programları sonlandırır. Yine de kapatılsın mı?</string>
     <string name="settings_init_command">Başlangıç komutu</string>
     <string name="settings_init_command_placeholder">örn. zsh -l</string>
     <string name="settings_reset_terminal">Terminali sıfırla</string>
