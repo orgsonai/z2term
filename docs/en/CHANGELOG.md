@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.161 (versionCode 859)**: While attached to a tab with `z2-session attach` (from a PC, for example), what you type there now follows the broadcast rule too: with broadcast ON and that tab ticked, it reaches every ticked tab. Cursor keys are rebuilt for each receiving tab.
+
 **1.0.160 (versionCode 858)**: The group editor now lets you choose each group's direction (top / bottom or left / right). The two choices sit under the group name, with the chosen one framed in green. Top / bottom is the default.
 
 **1.0.159 (versionCode 857)**: Three broadcast fixes. (1) Sending to tabs not on screen raised "waiting for input" notifications whenever their shells rang the bell (for example ⌫ at the start of a line); a bell right after input reached the tab is a reply to what was typed and is no longer reported. (2) During broadcast every receiving pane was yellow, making it hard to see which pane you were typing in; that pane now always has a thick green frame and a tinted title. (3) A group with only one tab is now shown as a group, with a tick box on its title, so it can join a broadcast.

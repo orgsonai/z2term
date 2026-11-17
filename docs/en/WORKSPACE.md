@@ -49,6 +49,7 @@ When more than one tab receives, the receiving panes are framed in the warning c
 **Sent / not sent**
 
 - Sent: text and keys from the built-in keyboard, toolbar keys, pasting (also from the clipboard history), snippets, voice input, input from the Android keyboard and a physical keyboard
+- Sent: what you type from a `z2-session attach` client (a PC, for example; 1.0.161)
 - Not sent: text still being converted (committed text is sent), scrolling, taps and mouse, the search box, `z2-session send` / `key`, automation rules
 - Cursor keys and pastes are rebuilt for each receiving tab's own state, so a tab running a full-screen program and a shell tab get the same key.
 - Tabs that have not started and GUI tabs receive nothing.

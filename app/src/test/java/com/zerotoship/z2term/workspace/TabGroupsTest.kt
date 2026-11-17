@@ -183,4 +183,18 @@ class TabGroupsTest {
         assertFalse(com.zerotoship.z2term.core.bellAnswersInput(now = 500, lastInputAt = 0))
         assertFalse(com.zerotoship.z2term.core.bellAnswersInput(now = 9_000, lastInputAt = 10_000))
     }
+
+    // 1.0.161: attach input is encoded for the attached tab; other tabs get cursor keys in their own form.
+    @Test fun cursorKeysAreRetargetedAndEverythingElsePassesThrough() {
+        val app = { k: com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey ->
+            byteArrayOf(0x1B, 'O'.code.toByte(), "ABCD"[k.ordinal.let { listOf(0, 1, 3, 2)[it] }].code.toByte())
+        }
+        fun s(b: ByteArray) = String(b, Charsets.ISO_8859_1)
+        assertEquals("ls\u001bOA\r", s(retargetCursorKeys("ls\u001b[A\r".toByteArray(Charsets.ISO_8859_1), app)))
+        assertEquals("\u001bOD\u001bOC", s(retargetCursorKeys("\u001bOD\u001b[C".toByteArray(Charsets.ISO_8859_1), app)))
+        // Modified keys and other sequences do not depend on the mode.
+        assertEquals("\u001b[1;5A\u001b[H\u0003", s(retargetCursorKeys("\u001b[1;5A\u001b[H\u0003".toByteArray(Charsets.ISO_8859_1), app)))
+        // A lone ESC at the end stays.
+        assertEquals("a\u001b", s(retargetCursorKeys("a\u001b".toByteArray(Charsets.ISO_8859_1), app)))
+    }
 }

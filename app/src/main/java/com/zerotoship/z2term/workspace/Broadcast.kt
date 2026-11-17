@@ -66,8 +66,46 @@ internal object Broadcast {
         targets(from).forEach { t -> build(t)?.let { if (it.isNotEmpty()) t.writeBytes(it) } }
     }
 
+    /**
+     * Bytes already encoded for [from] (input from `z2-session attach`, 1.0.161). [from] gets them as
+     * they are; every other target gets them with plain cursor keys rewritten to its own DECCKM form
+     * ([retargetCursorKeys]), since the attached terminal encoded them for [from]'s mode.
+     */
+    fun writeEncoded(from: TerminalSession, bytes: ByteArray) {
+        if (bytes.isEmpty()) return
+        targets(from).forEach { t ->
+            t.writeBytes(if (t === from) bytes else retargetCursorKeys(bytes, t.emulator::cursorKeyBytes))
+        }
+    }
+
     /** Pastes into every target; each wraps it in its own bracketed-paste markers when enabled. */
     fun paste(from: TerminalSession, text: String) {
         targets(from).forEach { it.pasteText(text, syncClipboard = false) }
     }
+}
+
+/**
+ * Rewrites unmodified cursor keys (`ESC [ A`…`D` and `ESC O A`…`D`) with [cursorBytes], which encodes them
+ * for the receiving terminal's mode. Everything else (text, control codes, modified keys such as
+ * `ESC [ 1 ; 5 A`, which do not depend on the mode) passes through unchanged.
+ */
+internal fun retargetCursorKeys(bytes: ByteArray, cursorBytes: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> ByteArray): ByteArray {
+    val out = java.io.ByteArrayOutputStream(bytes.size)
+    var i = 0
+    while (i < bytes.size) {
+        val b = bytes[i]
+        if (b == 0x1B.toByte() && i + 2 < bytes.size && (bytes[i + 1] == '['.code.toByte() || bytes[i + 1] == 'O'.code.toByte())) {
+            val key = when (bytes[i + 2].toInt().toChar()) {
+                'A' -> com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.UP
+                'B' -> com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.DOWN
+                'C' -> com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.RIGHT
+                'D' -> com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.LEFT
+                else -> null
+            }
+            if (key != null) { out.write(cursorBytes(key)); i += 3; continue }
+        }
+        out.write(b.toInt())
+        i++
+    }
+    return out.toByteArray()
 }

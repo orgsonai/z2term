@@ -183,7 +183,9 @@ object AttachServer {
             while (true) {
                 val f = readFrame(input) ?: break
                 when (f.type) {
-                    F_DATA -> onMain { term.writeBytes(f.payload) }
+                    // 繋いだ側から打ったものもブロードキャストの規則で送る (1.0.161)。届いた矢印は
+                    // このタブ用に組まれているので、他のタブへはそのタブの形に組み直す。
+                    F_DATA -> onMain { com.zerotoship.z2term.workspace.Broadcast.writeEncoded(term, f.payload) }
                     F_SIZE -> {
                         val parts = String(f.payload, Charsets.UTF_8).trim().split(" ")
                         val rows = parts.getOrNull(0)?.toIntOrNull() ?: continue
