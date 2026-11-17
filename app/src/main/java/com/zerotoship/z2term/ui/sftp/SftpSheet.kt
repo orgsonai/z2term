@@ -1168,8 +1168,13 @@ private fun FullScreenImagePreview(
             dismissOnBackPress = true,
             dismissOnClickOutside = false,
             usePlatformDefaultWidth = false,
+            // ⚠ 既定 (true) のままだと中身が窓全体の高さで組まれたうえでステータスバーの下に置かれ、
+            // いちばん下の行 (拡大の案内) が画面の外へ押し出される (1.0.152。グループの編集画面で
+            // 実機の部品の位置から確かめたのと同じ組み方)。窓の実際の余白を読んで内側に収める。
+            decorFitsSystemWindows = false,
         ),
     ) {
+        val windowPadding = com.zerotoship.z2term.legal.licenseWindowPadding()
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = ZtsBgPrimary,
@@ -1178,7 +1183,7 @@ private fun FullScreenImagePreview(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.systemBars),
+                    .padding(windowPadding),
             ) {
                 Row(
                     modifier = Modifier

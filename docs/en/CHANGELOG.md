@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.152 (versionCode 850)**: Fixed the zoom hint at the bottom of the full-screen SFTP image preview falling off the screen (the same cause as the group editor in 1.0.150).
+
 **1.0.151 (versionCode 849)**: Changed how the broadcast 📡 appears. It is hidden to the right of + / 🖥; sliding left on + / 🖥 pulls it in from the right edge with your finger (+ / 🖥 move left by the same amount). Let go with more than half of it out and it opens fully, otherwise it slides back. Once open it hides when pressed or after 4 seconds; sliding right closes it too.
 
 **1.0.150 (versionCode 848)**: Fixed the bottom row of the group editor ("Close", "Start with this" and so on) falling off the bottom of the screen. Broadcast can now also be started with "📡 Start broadcast" when the editor is opened from "Edit groups…" in a tab's long-press menu.
