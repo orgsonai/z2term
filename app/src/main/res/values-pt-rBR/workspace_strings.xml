@@ -58,4 +58,17 @@
     <string name="settings_group_max_tabs_desc">Quantas abas cabem em um grupo. Esta tela permite até %1$d (cada painel mantém pelo menos 4 linhas com o teclado aberto).</string>
     <string name="tip_tab_menu_title">Toque e segure uma aba e solte para ver o menu</string>
     <string name="tip_tab_menu_body">Renomeie a aba, coloque-a em um grupo ou tire-a. Um grupo mostra suas abas uma acima da outra; toque em um painel para digitar nele. \"Editar grupos…\" mostra todos os grupos e abas em uma só tela.</string>
+    <string name="broadcast_paste_targets">para %1$d abas</string>
+    <string name="broadcast_include">Enviar para %1$s</string>
+    <string name="broadcast_start">Começar assim</string>
+    <string name="broadcast_editor_hint">Escolha o grupo para transmitir e toque em Começar assim. Todas as abas de terminal dele ficam marcadas.</string>
+    <string name="broadcast_on">📡 ON ·%1$d</string>
+    <string name="broadcast_off">📡 OFF</string>
+    <string name="broadcast_toggle">Ligar ou desligar a transmissão</string>
+    <string name="broadcast_stop">📡 Parar</string>
+    <string name="broadcast_entry">📡 Transmitir</string>
+    <string name="settings_broadcast_start_on">Começar a transmissão ligada</string>
+    <string name="settings_broadcast_start_on_desc">Desligado (padrão): a transmissão começa em OFF para você conferir os painéis destacados antes de enviar.</string>
+    <string name="tip_broadcast_title">Deslize + / 🖥 para a esquerda para transmitir</string>
+    <string name="tip_broadcast_body">Aparece um botão 📡. Escolha um grupo e toque em Começar assim: o que você digitar em uma aba marcada vai para todas as abas marcadas do grupo. O interruptor 📡 fica na barra de abas durante a transmissão; toque para ON / OFF e segure para reorganizar o grupo. Os painéis que recebem têm borda na cor de alerta (o amarelo do tema). Deslize de novo para parar.</string>
 </resources>

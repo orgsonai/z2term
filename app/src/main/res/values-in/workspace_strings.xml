@@ -58,4 +58,17 @@
     <string name="settings_group_max_tabs_desc">Jumlah tab yang dapat dimuat satu grup. Layar ini mengizinkan hingga %1$d (setiap panel tetap menampilkan minimal 4 baris saat keyboard terbuka).</string>
     <string name="tip_tab_menu_title">Tekan lama tab lalu lepas untuk membuka menunya</string>
     <string name="tip_tab_menu_body">Ganti nama tab, masukkan ke grup, atau keluarkan. Grup menampilkan tab-tabnya bertumpuk; ketuk panel untuk mengetik di sana. \"Edit grup…\" menampilkan semua grup dan tab dalam satu layar.</string>
+    <string name="broadcast_paste_targets">ke %1$d tab</string>
+    <string name="broadcast_include">Kirim ke %1$s</string>
+    <string name="broadcast_start">Mulai dengan ini</string>
+    <string name="broadcast_editor_hint">Pilih grup tujuan siaran, lalu tekan Mulai dengan ini. Semua tab terminal di dalamnya dicentang.</string>
+    <string name="broadcast_on">📡 ON ·%1$d</string>
+    <string name="broadcast_off">📡 OFF</string>
+    <string name="broadcast_toggle">Nyalakan atau matikan siaran</string>
+    <string name="broadcast_stop">📡 Hentikan</string>
+    <string name="broadcast_entry">📡 Siarkan</string>
+    <string name="settings_broadcast_start_on">Mulai siaran dalam keadaan ON</string>
+    <string name="settings_broadcast_start_on_desc">Jika mati (bawaan), siaran dimulai OFF sehingga Anda bisa memeriksa panel yang disorot sebelum mengirim.</string>
+    <string name="tip_broadcast_title">Geser + / 🖥 ke kiri untuk menyiarkan</string>
+    <string name="tip_broadcast_body">Tombol 📡 muncul. Pilih grup dan tekan Mulai dengan ini: yang Anda ketik di tab yang dicentang akan dikirim ke semua tab yang dicentang di grup itu. Sakelar 📡 tetap di bilah tab selama siaran; ketuk untuk ON / OFF, tekan lama untuk menyusun ulang grup. Panel penerima berbingkai warna peringatan (kuning tema). Geser lagi untuk berhenti.</string>
 </resources>

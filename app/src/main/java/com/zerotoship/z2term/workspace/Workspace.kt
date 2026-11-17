@@ -15,8 +15,12 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material3.*
@@ -46,6 +50,8 @@ internal object Workspace {
         private set
     /** While the group editor is open, empty groups survive [sync] so a new group can be filled. */
     var editorOpen by mutableStateOf(false)
+    /** The editor was opened to start broadcasting: its main button starts it for the selected group. */
+    var editorStartsBroadcast by mutableStateOf(false)
 
     /**
      * Applies [change] and keeps each group's members next to each other in the tab order, so
@@ -259,6 +265,10 @@ internal object Workspace {
         return if (to < 0) (if (dragOffset > 0) currentPanes.size - 1 else 0) else to
     }
     val target = dropIndex()?.let { i -> panes.getOrNull(i) }?.takeIf { it != draggingId }
+    // Panes that receive what is typed now. Only shown while it is more than the focused pane,
+    // in the warning colour, so sending to several tabs is never mistaken for ordinary typing.
+    val sendingTo = (active as? TerminalSession)?.let { Broadcast.targets(it).map { t -> t.id } }.orEmpty()
+        .takeIf { it.size > 1 }.orEmpty().toSet()
     val pane: @Composable (String, Modifier) -> Unit = { id, childModifier ->
         val session = sessions.firstOrNull { it.id == id }
         if (session != null) key(id) {
@@ -273,14 +283,36 @@ internal object Workspace {
                     starts[id] = if (horizontal) p.x.toInt() else p.y.toInt()
                     extents[id] = if (horizontal) c.size.width else c.size.height
                 }
-                .border(if (isTarget) 3.dp else 1.dp,
-                    if (id == active.id || isTarget || dragged) ZtsGreen else ZtsBorder)) {
+                .border(
+                    when {
+                        isTarget -> 3.dp
+                        id in sendingTo -> if (id == active.id) 3.dp else 2.dp
+                        else -> 1.dp
+                    },
+                    when {
+                        isTarget || dragged -> ZtsGreen
+                        id in sendingTo -> ZtsWarning
+                        id == active.id -> ZtsGreen
+                        else -> ZtsBorder
+                    })) {
                 // Maximize, or restore the whole group when this pane is already alone.
                 val toggleMaximized by rememberUpdatedState {
                     Workspace.update { it.maximize(groupId, if (maximized) null else session.id) }
                     SessionManager.setActive(session.id)
                 }
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
+                // Broadcast mode: tick the tabs that should receive input (terminal tabs only).
+                if (Broadcast.mode && session is TerminalSession) {
+                    val checked = session.id in group.checked
+                    Box(Modifier.fillMaxHeight().width(40.dp)
+                        .toggleable(value = checked, role = Role.Checkbox,
+                            onValueChange = { v -> Workspace.update { it.setChecked(session.id, v) } }),
+                        contentAlignment = Alignment.Center) {
+                        Icon(if (checked) Icons.Filled.CheckBox else Icons.Filled.CheckBoxOutlineBlank,
+                            stringResource(R.string.broadcast_include, label), Modifier.size(18.dp),
+                            tint = if (checked) ZtsWarning else ZtsTextSecondary)
+                    }
+                }
                 Box(Modifier.weight(1f)) {
                 Text((if (dragged) "⇅ " else "") + label, color = if (id == active.id) ZtsGreen else ZtsTextSecondary,
                     maxLines = 1, modifier = Modifier.fillMaxWidth()

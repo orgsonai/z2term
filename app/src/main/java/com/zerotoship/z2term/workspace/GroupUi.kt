@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.workspace
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -157,6 +158,7 @@ internal fun middleEllipsis(name: String, max: Int): String {
     }
     if (Workspace.editorOpen) GroupEditorDialog(onDismiss = {
         Workspace.editorOpen = false
+        Workspace.editorStartsBroadcast = false
         Workspace.sync(SessionManager.sessions.value.map { it.id }.toSet())
     })
 }
@@ -223,6 +225,8 @@ private const val GROUP_NAME_MAX = 40
     val groups = Workspace.groups
     val maxTabs = rememberGroupMaxTabs()
     val nameFor = groupNameFor()
+    val appSettings by remember { AppSettings(context.applicationContext) }.flow.collectAsState(initial = AppSettings.lastKnown)
+    val startsBroadcast = Workspace.editorStartsBroadcast
     var selected by remember { mutableStateOf(groups.groupOf(activeId)?.id ?: groups.groups.firstOrNull()?.id) }
     val selectedGroup = groups.group(selected)
     var osPickerOpen by remember { mutableStateOf(false) }
@@ -256,6 +260,8 @@ private const val GROUP_NAME_MAX = 40
             Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
                 Text(stringResource(R.string.group_editor_title), fontSize = 16.sp, color = ZtsTextPrimary,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp))
+                if (startsBroadcast) Text(stringResource(R.string.broadcast_editor_hint), fontSize = 12.sp, lineHeight = 17.sp,
+                    color = ZtsWarning, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp))
                 Text(stringResource(R.string.group_editor_hint), fontSize = 12.sp, lineHeight = 17.sp, color = ZtsTextSecondary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
                 HorizontalDivider(color = ZtsBorder)
@@ -303,11 +309,17 @@ private const val GROUP_NAME_MAX = 40
                 HorizontalDivider(color = ZtsBorder)
                 Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End)) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.group_editor_close)) }
-                    Button(enabled = selectedGroup?.members?.isNotEmpty() == true, onClick = {
-                        selectedGroup?.entry()?.let { SessionManager.setActive(it) }
+                    // Opened from 📡: start broadcasting to the selected group (all its terminal tabs
+                    // ticked; ON or OFF as set in Settings). Otherwise just show the group.
+                    val terminalCount = selectedGroup?.members?.count { id -> sessions.any { it.id == id && it is TerminalSession } } ?: 0
+                    Button(enabled = if (startsBroadcast) terminalCount >= 2 else selectedGroup?.members?.isNotEmpty() == true, onClick = {
+                        selectedGroup?.let { g ->
+                            if (startsBroadcast) Broadcast.start(g.id, appSettings.broadcastStartOn)
+                            g.entry()?.let { SessionManager.setActive(it) }
+                        }
                         onDismiss()
                     }, colors = ButtonDefaults.buttonColors(containerColor = ZtsGreen)) {
-                        Text(stringResource(R.string.group_editor_show))
+                        Text(stringResource(if (startsBroadcast) R.string.broadcast_start else R.string.group_editor_show))
                     }
                 }
             }
@@ -404,4 +416,44 @@ private const val GROUP_NAME_MAX = 40
             }
         }
     }
+}
+
+/**
+ * The broadcast switch, always shown in the tab bar while in broadcast mode. ON shows how many tabs
+ * receive what is typed now. Long-press opens the group editor to rearrange.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable internal fun BroadcastSwitch(targets: Int) {
+    val on = Broadcast.on
+    val label = if (on) stringResource(R.string.broadcast_on, targets) else stringResource(R.string.broadcast_off)
+    Text(label, fontSize = 11.sp, fontFamily = FontFamily.Monospace, maxLines = 1,
+        color = if (on) ZtsBgPrimary else ZtsWarning,
+        modifier = Modifier
+            .border(1.dp, ZtsWarning, RoundedCornerShape(6.dp))
+            .then(if (on) Modifier.background(ZtsWarning, RoundedCornerShape(6.dp)) else Modifier)
+            .combinedClickable(
+                onClickLabel = stringResource(R.string.broadcast_toggle),
+                onClick = { Broadcast.on = !on },
+                onLongClickLabel = stringResource(R.string.group_edit),
+                onLongClick = { Workspace.editorOpen = true },
+            )
+            .padding(horizontal = 8.dp, vertical = 6.dp))
+}
+
+/**
+ * The hidden button revealed by sliding left on + / 🖥: 📡 to start (opens the group editor),
+ * or "stop" while in broadcast mode.
+ */
+@Composable internal fun BroadcastEntryButton(onDone: () -> Unit) {
+    val stopping = Broadcast.mode
+    Text(stringResource(if (stopping) R.string.broadcast_stop else R.string.broadcast_entry), fontSize = 12.sp,
+        fontFamily = FontFamily.Monospace, maxLines = 1, color = ZtsWarning,
+        modifier = Modifier
+            .border(1.dp, ZtsWarning, RoundedCornerShape(6.dp))
+            .clickable {
+                if (stopping) Broadcast.stop()
+                else { Workspace.editorStartsBroadcast = true; Workspace.editorOpen = true }
+                onDone()
+            }
+            .padding(horizontal = 8.dp, vertical = 6.dp))
 }

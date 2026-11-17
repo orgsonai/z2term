@@ -26,6 +26,33 @@ A short press still opens GUI. **Settings → Tips** also explains the gestures.
 
 Selecting a tab that is in no group shows that tab alone; the group stays, and selecting its entry returns to the pane last focused. Closing a grouped tab leaves the rest stacked. Placement does not terminate sessions, and groups are retained for the current app process only.
 
+## Typing into several tabs at once (broadcast)
+
+Sends the same input to every ticked tab of a group (1.0.147).
+
+1. **Slide left starting on + / 🖥** at the right end of the tab bar. A 📡 button appears (it hides when pressed or after 4 seconds).
+2. 📡 opens the group editor. Choose a group (make one there if needed) and press **Start with this**. Every terminal tab of the group is ticked.
+3. A **📡 OFF / 📡 ON ·3** switch stays in the tab bar: tap for ON / OFF, long-press to rearrange the group. It starts OFF (change this with **⚙ Settings → Start broadcasting ON**).
+4. Use the tick box at the left of each pane title to choose which tabs receive.
+
+**Who receives**
+
+- ON, typing **in a ticked tab** → every ticked tab of that group
+- Typing **in an unticked tab** → that tab alone
+- OFF → the tab you type in alone
+
+When more than one tab receives, the receiving panes are framed in the warning colour (the theme's yellow).
+
+**Sent / not sent**
+
+- Sent: text and keys from the built-in keyboard, toolbar keys, pasting (also from the clipboard history), snippets, voice input, input from the Android keyboard and a physical keyboard
+- Not sent: text still being converted (committed text is sent), scrolling, taps and mouse, the search box, `z2-session send` / `key`, automation rules
+- Cursor keys and pastes are rebuilt for each receiving tab's own state, so a tab running a full-screen program and a shell tab get the same key.
+- Tabs that have not started and GUI tabs receive nothing.
+- The confirmation for multi-line pastes shows how many tabs receive it.
+
+To stop, slide left on + / 🖥 again and press **📡 Stop**.
+
 ## External display
 
 Connect a screen that Android exposes as an independent presentation display. Select its name under **Long-press GUI** for the tab you want to move. Devices offering mirroring alone cannot provide this feature.

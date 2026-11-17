@@ -525,6 +525,14 @@ fun SettingsSheet(
                 Text(stringResource(R.string.settings_group_max_tabs_desc, groupLimit),
                     color = ZtsTextTertiary, fontSize = 11.sp, lineHeight = 16.sp)
 
+                // ブロードキャストを ON で始めるか (1.0.147)。既定は OFF (送り先の枠を見てから ON にする)。
+                ToggleField(
+                    title = stringResource(R.string.settings_broadcast_start_on),
+                    description = stringResource(R.string.settings_broadcast_start_on_desc),
+                    checked = settings.broadcastStartOn,
+                    onChange = { v -> scope.launch { groupSettings.setBroadcastStartOn(v) } }
+                )
+
                 ToggleField(
                     title = stringResource(R.string.settings_ambiguous_width),
                     description = stringResource(R.string.settings_ambiguous_width_desc),
@@ -3378,6 +3386,7 @@ private fun TipsSection() {
         TipItem(R.string.tip_tab_close_title, R.string.tip_tab_close_body)
         TipItem(R.string.tip_tab_reorder_title, R.string.tip_tab_reorder_body)
         TipItem(R.string.tip_tab_menu_title, R.string.tip_tab_menu_body)
+        TipItem(R.string.tip_broadcast_title, R.string.tip_broadcast_body)
         TipItem(R.string.tip_tab_new_os_title, R.string.tip_tab_new_os_body)
         TipItem(R.string.tip_esc_flick_title, R.string.tip_esc_flick_body)
         TipItem(R.string.tip_backspace_flick_title, R.string.tip_backspace_flick_body)

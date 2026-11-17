@@ -58,4 +58,17 @@
     <string name="settings_group_max_tabs_desc">How many tabs one group can hold. This screen allows up to %1$d (each pane keeps at least 4 rows with the keyboard open).</string>
     <string name="tip_tab_menu_title">Long-press a tab and let go for its menu</string>
     <string name="tip_tab_menu_body">Rename the tab, put it in a group or take it out. A group shows its tabs one above the other; tap a pane to type there. Edit groups… lays out every group and tab on one screen.</string>
+    <string name="broadcast_paste_targets">to %1$d tabs</string>
+    <string name="broadcast_include">Send to %1$s</string>
+    <string name="broadcast_start">Start with this</string>
+    <string name="broadcast_editor_hint">Choose the group to broadcast to, then press Start with this. Every terminal tab in it is ticked.</string>
+    <string name="broadcast_on">📡 ON ·%1$d</string>
+    <string name="broadcast_off">📡 OFF</string>
+    <string name="broadcast_toggle">Turn broadcast on or off</string>
+    <string name="broadcast_stop">📡 Stop</string>
+    <string name="broadcast_entry">📡 Broadcast</string>
+    <string name="settings_broadcast_start_on">Start broadcasting ON</string>
+    <string name="settings_broadcast_start_on_desc">When off (the default), broadcast starts OFF so you can check the highlighted panes before sending.</string>
+    <string name="tip_broadcast_title">Slide + / 🖥 to the left to broadcast</string>
+    <string name="tip_broadcast_body">A 📡 button appears. Choose a group and press Start with this: what you type in a ticked tab then goes to every ticked tab of that group. The 📡 switch stays in the tab bar while broadcasting; tap it for ON / OFF, long-press it to rearrange the group. Panes that receive input are framed in the warning colour (the theme\'s yellow). Slide again to stop.</string>
 </resources>

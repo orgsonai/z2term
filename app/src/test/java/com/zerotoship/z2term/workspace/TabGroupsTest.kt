@@ -101,4 +101,38 @@ class TabGroupsTest {
         assertEquals("short", middleEllipsis("short", 12))
         assertEquals("abcde…uvwxyz", middleEllipsis("abcdefghijklmnopqrstuvwxyz", 12))
     }
+
+    // The rule agreed for broadcast: ON and typing in a ticked tab → every ticked tab;
+    // typing in an unticked tab, or OFF → that tab alone.
+    @Test fun broadcastGoesToTickedTabsOnlyWhenTypingInATickedTab() {
+        val (st, id) = groupOf("a", "b", "c")
+        val ticked = st.checkOnly(id, listOf("a", "c"))
+        val all = { _: String -> true }
+        assertEquals(listOf("a", "c"), broadcastTargets(ticked, on = true, from = "c", eligible = all))
+        assertEquals(listOf("b"), broadcastTargets(ticked, on = true, from = "b", eligible = all))
+        assertEquals(listOf("a"), broadcastTargets(ticked, on = false, from = "a", eligible = all))
+        // A tab outside any stacked group never fans out.
+        assertEquals(listOf("z"), broadcastTargets(ticked, on = true, from = "z", eligible = all))
+    }
+
+    @Test fun broadcastSkipsTabsThatCannotReceiveButKeepsTheFocusedOne() {
+        val (st, id) = groupOf("a", "b", "c")
+        val ticked = st.checkOnly(id, listOf("a", "b", "c"))
+        assertEquals(listOf("a", "c"), broadcastTargets(ticked, on = true, from = "a") { it != "b" })
+        assertEquals(listOf("b"), broadcastTargets(ticked, on = true, from = "b") { it == "zz" })
+    }
+
+    @Test fun ticksFollowMembership() {
+        val (st, id) = groupOf("a", "b", "c")
+        val ticked = st.checkOnly(id, listOf("a", "b", "x"))
+        assertEquals(setOf("a", "b"), ticked.group(id)!!.checked)
+        assertEquals(setOf("a"), ticked.removeMember("b").group(id)!!.checked)
+        assertEquals(setOf("b"), ticked.prune(setOf("b", "c")).group(id)!!.checked)
+        assertEquals(setOf("a", "b", "c"), ticked.setChecked("c", true).group(id)!!.checked)
+        assertEquals(setOf("b"), ticked.setChecked("a", false).group(id)!!.checked)
+        // A tab joining later is not ticked by itself.
+        val (st2, other) = ticked.create(name)
+        assertEquals(setOf("a", "b"), st2.add(id, "d", 4)!!.group(id)!!.checked)
+        assertTrue(st2.add(other, "a", 4)!!.group(other)!!.checked.isEmpty())
+    }
 }

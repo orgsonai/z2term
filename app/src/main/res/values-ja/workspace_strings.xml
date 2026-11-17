@@ -58,4 +58,17 @@
     <string name="settings_group_max_tabs_desc">1 つのグループに入れるタブの数です。この画面で選べるのは %1$d 枚までです（キーボードを開いた状態で各枠に 4 行以上入る数）。</string>
     <string name="tip_tab_menu_title">タブを長押しして離すとメニュー</string>
     <string name="tip_tab_menu_body">タブの名前の変更、グループへの出し入れができます。グループを選ぶと中のタブが上下に並び、枠をタップするとそこへ入力します。「グループを編集…」ではすべてのグループとタブを 1 画面で組めます。</string>
+    <string name="broadcast_paste_targets">%1$d タブへ</string>
+    <string name="broadcast_include">%1$s に送る</string>
+    <string name="broadcast_start">この内容で開始</string>
+    <string name="broadcast_editor_hint">ブロードキャストするグループを選んで「この内容で開始」を押します。中の端末タブにはすべてチェックが入ります。</string>
+    <string name="broadcast_on">📡 ON ·%1$d</string>
+    <string name="broadcast_off">📡 OFF</string>
+    <string name="broadcast_toggle">ブロードキャストの ON / OFF</string>
+    <string name="broadcast_stop">📡 解除</string>
+    <string name="broadcast_entry">📡 ブロードキャスト</string>
+    <string name="settings_broadcast_start_on">ブロードキャストを ON で始める</string>
+    <string name="settings_broadcast_start_on_desc">OFF（既定）のときは OFF の状態で始まります。送り先の枠を確かめてから ON にできます。</string>
+    <string name="tip_broadcast_title">＋ / 🖥 を左へ滑らせるとブロードキャスト</string>
+    <string name="tip_broadcast_body">📡 ボタンが出ます。グループを選んで「この内容で開始」を押すと、チェックの入ったタブで打った内容が、そのグループのチェックの入ったタブすべてへ送られます。ブロードキャスト中はタブ欄に 📡 の切り替えが出たままになり、タップで ON / OFF、長押しでグループを組み直せます。送り先の枠は警告色（テーマの黄色）になります。もう一度滑らせると解除できます。</string>
 </resources>

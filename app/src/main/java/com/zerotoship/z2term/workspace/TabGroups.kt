@@ -16,6 +16,8 @@ internal data class TabGroup(
     val maximized: String? = null,
     /** The member focused last; selecting the group from the tab bar returns to it. */
     val focus: String? = null,
+    /** Members ticked to receive broadcast input. */
+    val checked: Set<String> = emptySet(),
 ) {
     /** True when the members are shown as panes (two or more). */
     val stacked: Boolean get() = members.size >= 2
@@ -85,6 +87,7 @@ internal data class TabGroups(val groups: List<TabGroup> = emptyList(), val next
                 weights = equalWeights(members.size),
                 maximized = it.maximized?.takeIf { m -> m != sessionId },
                 focus = it.focus?.takeIf { f -> f != sessionId },
+                checked = it.checked - sessionId,
             )
         }
     }
@@ -112,6 +115,16 @@ internal data class TabGroups(val groups: List<TabGroup> = emptyList(), val next
     /** Shows [sessionId] alone, or restores all panes when null. */
     fun maximize(groupId: String, sessionId: String?): TabGroups =
         mapGroup(groupId) { it.copy(maximized = sessionId?.takeIf { id -> id in it.members }) }
+
+    /** Ticks or unticks [sessionId] for broadcast input. */
+    fun setChecked(sessionId: String, checked: Boolean): TabGroups {
+        val g = groupOf(sessionId) ?: return this
+        return mapGroup(g.id) { it.copy(checked = if (checked) it.checked + sessionId else it.checked - sessionId) }
+    }
+
+    /** Ticks exactly [ids] (those in the group) for broadcast input. */
+    fun checkOnly(groupId: String, ids: Collection<String>): TabGroups =
+        mapGroup(groupId) { g -> g.copy(checked = ids.filterTo(HashSet()) { it in g.members }) }
 
     /** Remembers [sessionId] as the focused member of its group. */
     fun focus(sessionId: String): TabGroups {
@@ -150,6 +163,7 @@ internal data class TabGroups(val groups: List<TabGroup> = emptyList(), val next
                     weights = equalWeights(members.size),
                     maximized = g.maximized?.takeIf { it in members },
                     focus = g.focus?.takeIf { it in members },
+                    checked = g.checked.filterTo(HashSet()) { it in members },
                 )
             }
         }
@@ -206,4 +220,17 @@ internal fun groupMaxTabsFor(longSideDp: Float, keyboardDp: Float, fontSp: Float
     val available = longSideDp - keyboardDp - SCREEN_CHROME_DP
     if (pane <= 0f || !available.isFinite()) return min
     return (available / pane).toInt().coerceIn(min, max)
+}
+
+/**
+ * Who receives input typed into [from] (rule fixed with the user):
+ * broadcast ON and [from] ticked → every ticked member of its group, in group order;
+ * [from] not ticked, or broadcast OFF → [from] alone. [eligible] filters the other members
+ * (terminal tabs that are running); [from] itself is always included.
+ */
+internal fun broadcastTargets(groups: TabGroups, on: Boolean, from: String, eligible: (String) -> Boolean): List<String> {
+    if (!on) return listOf(from)
+    val g = groups.stackedFor(from) ?: return listOf(from)
+    if (from !in g.checked) return listOf(from)
+    return g.members.filter { it in g.checked && (it == from || eligible(it)) }
 }

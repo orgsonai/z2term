@@ -421,10 +421,13 @@ class TerminalInputView(context: Context) : View(context) {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         val sess = session ?: return super.onKeyDown(keyCode, event)
-        val bytes = AndroidKeyMapper.mapKeyEvent(event, ctrlSticky) { key ->
+        AndroidKeyMapper.mapKeyEvent(event, ctrlSticky) { key ->
             sess.emulator.cursorKeyBytes(key)
         } ?: return super.onKeyDown(keyCode, event)
-        sess.writeBytes(bytes)
+        // ブロードキャスト中は受け取る端末ごとに組み直す (矢印は端末ごとの DECCKM に従う)。
+        com.zerotoship.z2term.workspace.Broadcast.writeKey(sess) { t ->
+            AndroidKeyMapper.mapKeyEvent(event, ctrlSticky) { key -> t.emulator.cursorKeyBytes(key) }
+        }
         if (ctrlSticky) onCtrlConsumed?.invoke()
         return true
     }
@@ -1108,7 +1111,7 @@ private class TerminalInputConnection(
             val sess = session
             if (sess != null) {
                 val bs = ByteArray(beforeLength) { 0x7F }
-                sess.writeBytes(bs)
+                com.zerotoship.z2term.workspace.Broadcast.write(sess, bs)
             }
         }
         return true
@@ -1121,7 +1124,7 @@ private class TerminalInputConnection(
         val bytes = data?.getByteArray("bytes") ?: return false
         val sess = session ?: return false
         if (bytes.isNotEmpty()) {
-            sess.writeBytes(bytes)
+            com.zerotoship.z2term.workspace.Broadcast.write(sess, bytes)
             if (targetView.ctrlSticky) targetView.onCtrlConsumed?.invoke()
         }
         return true
@@ -1135,7 +1138,10 @@ private class TerminalInputConnection(
                     sess.emulator.cursorKeyBytes(key)
                 }
                 if (bytes != null) {
-                    sess.writeBytes(bytes)
+                    val sticky = targetView.ctrlSticky
+                    com.zerotoship.z2term.workspace.Broadcast.writeKey(sess) { t ->
+                        AndroidKeyMapper.mapKeyEvent(event, sticky) { key -> t.emulator.cursorKeyBytes(key) }
+                    }
                     if (targetView.ctrlSticky) targetView.onCtrlConsumed?.invoke()
                     return true
                 }
@@ -1164,10 +1170,10 @@ private class TerminalInputConnection(
                     s.toByteArray(Charsets.UTF_8).forEach { out.add(it) }
                 }
             }
-            sess.writeBytes(out.toByteArray())
+            com.zerotoship.z2term.workspace.Broadcast.write(sess, out.toByteArray())
             targetView.onCtrlConsumed?.invoke()
             return
         }
-        sess.writeBytes(raw.replace('\n', '\r').toByteArray(Charsets.UTF_8))
+        com.zerotoship.z2term.workspace.Broadcast.write(sess, raw.replace('\n', '\r').toByteArray(Charsets.UTF_8))
     }
 }

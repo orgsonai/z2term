@@ -58,4 +58,17 @@
     <string name="settings_group_max_tabs_desc">Wie viele Tabs eine Gruppe fassen kann. Dieser Bildschirm erlaubt bis zu %1$d (jeder Bereich behält mit geöffneter Tastatur mindestens 4 Zeilen).</string>
     <string name="tip_tab_menu_title">Tab lange drücken und loslassen für das Menü</string>
     <string name="tip_tab_menu_body">Tab umbenennen, in eine Gruppe legen oder herausnehmen. Eine Gruppe zeigt ihre Tabs übereinander; tippe auf einen Bereich, um dort zu schreiben. „Gruppen bearbeiten…“ zeigt alle Gruppen und Tabs auf einem Bildschirm.</string>
+    <string name="broadcast_paste_targets">an %1$d Tabs</string>
+    <string name="broadcast_include">An %1$s senden</string>
+    <string name="broadcast_start">Damit starten</string>
+    <string name="broadcast_editor_hint">Wähle die Gruppe für den Broadcast und drücke Damit starten. Alle Terminal-Tabs darin werden angehakt.</string>
+    <string name="broadcast_on">📡 AN ·%1$d</string>
+    <string name="broadcast_off">📡 AUS</string>
+    <string name="broadcast_toggle">Broadcast ein- oder ausschalten</string>
+    <string name="broadcast_stop">📡 Beenden</string>
+    <string name="broadcast_entry">📡 Broadcast</string>
+    <string name="settings_broadcast_start_on">Broadcast eingeschaltet starten</string>
+    <string name="settings_broadcast_start_on_desc">Wenn aus (Standard), startet der Broadcast AUS, damit du die markierten Bereiche vor dem Senden prüfen kannst.</string>
+    <string name="tip_broadcast_title">+ / 🖥 nach links wischen für Broadcast</string>
+    <string name="tip_broadcast_body">Eine 📡-Schaltfläche erscheint. Wähle eine Gruppe und drücke Damit starten: Was du in einem angehakten Tab tippst, geht dann an alle angehakten Tabs der Gruppe. Der 📡-Schalter bleibt während des Broadcasts in der Tableiste; tippen für AN / AUS, lange drücken zum Umordnen. Empfangende Bereiche haben einen Rahmen in der Warnfarbe (Gelb des Themas). Erneut wischen beendet.</string>
 </resources>

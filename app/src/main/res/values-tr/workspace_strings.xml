@@ -58,4 +58,17 @@
     <string name="settings_group_max_tabs_desc">Bir grubun alabileceği sekme sayısı. Bu ekranda en fazla %1$d (klavye açıkken her bölmede en az 4 satır kalır).</string>
     <string name="tip_tab_menu_title">Menü için bir sekmeyi basılı tutup bırakın</string>
     <string name="tip_tab_menu_body">Sekmeyi yeniden adlandırın, bir gruba koyun veya çıkarın. Bir grup sekmelerini üst üste gösterir; yazmak için bir bölmeye dokunun. \"Grupları düzenle…\" tüm grupları ve sekmeleri tek ekranda gösterir.</string>
+    <string name="broadcast_paste_targets">%1$d sekmeye</string>
+    <string name="broadcast_include">%1$s sekmesine gönder</string>
+    <string name="broadcast_start">Bununla başlat</string>
+    <string name="broadcast_editor_hint">Yayın yapılacak grubu seçip Bununla başlat düğmesine basın. İçindeki tüm terminal sekmeleri işaretlenir.</string>
+    <string name="broadcast_on">📡 AÇIK ·%1$d</string>
+    <string name="broadcast_off">📡 KAPALI</string>
+    <string name="broadcast_toggle">Yayını aç veya kapat</string>
+    <string name="broadcast_stop">📡 Durdur</string>
+    <string name="broadcast_entry">📡 Yayın</string>
+    <string name="settings_broadcast_start_on">Yayını açık başlat</string>
+    <string name="settings_broadcast_start_on_desc">Kapalıysa (varsayılan) yayın KAPALI başlar; göndermeden önce vurgulanan bölmeleri kontrol edebilirsiniz.</string>
+    <string name="tip_broadcast_title">Yayın için + / 🖥 düğmesini sola kaydırın</string>
+    <string name="tip_broadcast_body">Bir 📡 düğmesi çıkar. Bir grup seçip Bununla başlat düğmesine basın: işaretli bir sekmede yazdıklarınız gruptaki tüm işaretli sekmelere gider. Yayın sırasında 📡 anahtarı sekme çubuğunda kalır; AÇIK / KAPALI için dokunun, grubu yeniden düzenlemek için basılı tutun. Alan bölmeler uyarı renginde (temanın sarısı) çerçevelidir. Durdurmak için tekrar kaydırın.</string>
 </resources>

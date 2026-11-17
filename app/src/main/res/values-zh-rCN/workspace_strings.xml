@@ -58,4 +58,17 @@
     <string name="settings_group_max_tabs_desc">一个分组可容纳的标签页数量。此屏幕最多可选 %1$d 个（键盘打开时每个窗格至少保留 4 行）。</string>
     <string name="tip_tab_menu_title">长按标签页后松开即可打开菜单</string>
     <string name="tip_tab_menu_body">可以重命名标签页、加入或移出分组。选择分组后，其中的标签页会上下排列，点按窗格即可在其中输入。“编辑分组…”可在一个画面中整理所有分组和标签页。</string>
+    <string name="broadcast_paste_targets">发送到 %1$d 个标签页</string>
+    <string name="broadcast_include">发送到 %1$s</string>
+    <string name="broadcast_start">以此开始</string>
+    <string name="broadcast_editor_hint">选择要广播的分组，然后点按“以此开始”。其中的终端标签页都会被勾选。</string>
+    <string name="broadcast_on">📡 开 ·%1$d</string>
+    <string name="broadcast_off">📡 关</string>
+    <string name="broadcast_toggle">打开或关闭广播</string>
+    <string name="broadcast_stop">📡 结束</string>
+    <string name="broadcast_entry">📡 广播</string>
+    <string name="settings_broadcast_start_on">广播开始时为“开”</string>
+    <string name="settings_broadcast_start_on_desc">关闭（默认）时广播以“关”开始，可先确认高亮的窗格再发送。</string>
+    <string name="tip_broadcast_title">将 ＋ / 🖥 向左滑动即可广播</string>
+    <string name="tip_broadcast_body">会出现 📡 按钮。选择分组并点按“以此开始”后，在已勾选的标签页中输入的内容会发送到该分组所有已勾选的标签页。广播期间标签栏会一直显示 📡 开关，点按切换开 / 关，长按可重新整理分组。接收输入的窗格带警告色（主题的黄色）边框。再次滑动即可结束。</string>
 </resources>

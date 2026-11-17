@@ -58,4 +58,17 @@
     <string name="settings_group_max_tabs_desc">Сколько вкладок может быть в одной группе. На этом экране — до %1$d (каждая панель сохраняет не менее 4 строк при открытой клавиатуре).</string>
     <string name="tip_tab_menu_title">Удерживайте вкладку и отпустите — откроется меню</string>
     <string name="tip_tab_menu_body">Переименуйте вкладку, добавьте её в группу или уберите. Группа показывает вкладки друг над другом; нажмите панель, чтобы печатать в ней. «Изменить группы…» показывает все группы и вкладки на одном экране.</string>
+    <string name="broadcast_paste_targets">на %1$d вкладки</string>
+    <string name="broadcast_include">Отправлять в %1$s</string>
+    <string name="broadcast_start">Начать так</string>
+    <string name="broadcast_editor_hint">Выберите группу для рассылки и нажмите «Начать так». Все её вкладки терминала будут отмечены.</string>
+    <string name="broadcast_on">📡 ВКЛ ·%1$d</string>
+    <string name="broadcast_off">📡 ВЫКЛ</string>
+    <string name="broadcast_toggle">Включить или выключить рассылку</string>
+    <string name="broadcast_stop">📡 Остановить</string>
+    <string name="broadcast_entry">📡 Рассылка</string>
+    <string name="settings_broadcast_start_on">Начинать рассылку включённой</string>
+    <string name="settings_broadcast_start_on_desc">Если выключено (по умолчанию), рассылка начинается в состоянии ВЫКЛ, чтобы можно было проверить выделенные панели перед отправкой.</string>
+    <string name="tip_broadcast_title">Сдвиньте + / 🖥 влево для рассылки</string>
+    <string name="tip_broadcast_body">Появится кнопка 📡. Выберите группу и нажмите «Начать так»: то, что вы печатаете в отмеченной вкладке, уйдёт во все отмеченные вкладки группы. Переключатель 📡 остаётся на панели вкладок во время рассылки; нажмите для ВКЛ / ВЫКЛ, удерживайте, чтобы перестроить группу. Панели-получатели обведены цветом предупреждения (жёлтым цветом темы). Сдвиньте снова, чтобы остановить.</string>
 </resources>

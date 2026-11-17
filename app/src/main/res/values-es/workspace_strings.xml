@@ -58,4 +58,17 @@
     <string name="settings_group_max_tabs_desc">Cuántas pestañas caben en un grupo. Esta pantalla permite hasta %1$d (cada panel conserva al menos 4 filas con el teclado abierto).</string>
     <string name="tip_tab_menu_title">Mantén pulsada una pestaña y suelta para ver su menú</string>
     <string name="tip_tab_menu_body">Cambia el nombre de la pestaña, ponla en un grupo o sácala. Un grupo muestra sus pestañas una sobre otra; toca un panel para escribir ahí. «Editar grupos…» muestra todos los grupos y pestañas en una sola pantalla.</string>
+    <string name="broadcast_paste_targets">a %1$d pestañas</string>
+    <string name="broadcast_include">Enviar a %1$s</string>
+    <string name="broadcast_start">Empezar así</string>
+    <string name="broadcast_editor_hint">Elige el grupo al que difundir y pulsa Empezar así. Se marcan todas sus pestañas de terminal.</string>
+    <string name="broadcast_on">📡 ON ·%1$d</string>
+    <string name="broadcast_off">📡 OFF</string>
+    <string name="broadcast_toggle">Activar o desactivar la difusión</string>
+    <string name="broadcast_stop">📡 Detener</string>
+    <string name="broadcast_entry">📡 Difundir</string>
+    <string name="settings_broadcast_start_on">Empezar la difusión activada</string>
+    <string name="settings_broadcast_start_on_desc">Si está desactivado (predeterminado), la difusión empieza en OFF para que revises los paneles resaltados antes de enviar.</string>
+    <string name="tip_broadcast_title">Desliza + / 🖥 a la izquierda para difundir</string>
+    <string name="tip_broadcast_body">Aparece un botón 📡. Elige un grupo y pulsa Empezar así: lo que escribas en una pestaña marcada irá a todas las pestañas marcadas del grupo. El interruptor 📡 sigue en la barra de pestañas durante la difusión; tócalo para ON / OFF y mantenlo pulsado para reorganizar el grupo. Los paneles que reciben tienen un borde del color de aviso (el amarillo del tema). Desliza otra vez para detener.</string>
 </resources>

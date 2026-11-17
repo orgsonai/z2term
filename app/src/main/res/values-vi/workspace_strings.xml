@@ -58,4 +58,17 @@
     <string name="settings_group_max_tabs_desc">Số thẻ một nhóm có thể chứa. Màn hình này cho phép tối đa %1$d (mỗi khung giữ ít nhất 4 dòng khi bàn phím mở).</string>
     <string name="tip_tab_menu_title">Nhấn giữ một thẻ rồi thả ra để mở menu</string>
     <string name="tip_tab_menu_body">Đổi tên thẻ, đưa vào nhóm hoặc bỏ ra. Một nhóm hiển thị các thẻ chồng lên nhau; chạm vào khung để gõ ở đó. \"Sửa nhóm…\" hiển thị mọi nhóm và thẻ trên một màn hình.</string>
+    <string name="broadcast_paste_targets">tới %1$d thẻ</string>
+    <string name="broadcast_include">Gửi tới %1$s</string>
+    <string name="broadcast_start">Bắt đầu như vậy</string>
+    <string name="broadcast_editor_hint">Chọn nhóm để phát rồi nhấn Bắt đầu như vậy. Mọi thẻ terminal trong nhóm đều được đánh dấu.</string>
+    <string name="broadcast_on">📡 BẬT ·%1$d</string>
+    <string name="broadcast_off">📡 TẮT</string>
+    <string name="broadcast_toggle">Bật hoặc tắt phát</string>
+    <string name="broadcast_stop">📡 Dừng</string>
+    <string name="broadcast_entry">📡 Phát</string>
+    <string name="settings_broadcast_start_on">Bắt đầu phát ở trạng thái BẬT</string>
+    <string name="settings_broadcast_start_on_desc">Khi tắt (mặc định), việc phát bắt đầu ở TẮT để bạn kiểm tra các khung được tô sáng trước khi gửi.</string>
+    <string name="tip_broadcast_title">Vuốt + / 🖥 sang trái để phát</string>
+    <string name="tip_broadcast_body">Nút 📡 xuất hiện. Chọn một nhóm và nhấn Bắt đầu như vậy: nội dung bạn gõ ở thẻ được đánh dấu sẽ gửi tới mọi thẻ được đánh dấu của nhóm. Công tắc 📡 vẫn ở thanh thẻ trong khi phát; chạm để BẬT / TẮT, nhấn giữ để sắp xếp lại nhóm. Khung nhận có viền màu cảnh báo (màu vàng của giao diện). Vuốt lại để dừng.</string>
 </resources>

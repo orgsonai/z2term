@@ -20,6 +20,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
@@ -427,14 +428,14 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 if (searchOpen && keyboardMode == KeyboardMode.CUSTOM) {
                     searchInsert(text)
                 } else {
-                    active.writeBytes(text.toByteArray(Charsets.UTF_8))
+                    com.zerotoship.z2term.workspace.Broadcast.write(active, text.toByteArray(Charsets.UTF_8))
                 }
             },
             onPaste = { text ->
                 if (searchOpen && keyboardMode == KeyboardMode.CUSTOM) {
                     searchInsert(text)
                 } else {
-                    active.pasteText(text, syncClipboard = false)
+                    com.zerotoship.z2term.workspace.Broadcast.paste(active, text)
                 }
             },
         )
@@ -574,7 +575,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     ClipboardHistoryStore.currentFileEntry(context)?.let { entry ->
                         scope.launch {
                             ClipboardFilePaste.terminalText(context, entry)
-                                ?.let { target.pasteText(it, syncClipboard = false) }
+                                ?.let { com.zerotoship.z2term.workspace.Broadcast.paste(target, it) }
                         }
                     }
                     null
@@ -582,7 +583,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 when {
                     text.isNullOrEmpty() -> Unit
                     text.contains('\n') -> pastePreview = text
-                    else -> active.pasteText(text, syncClipboard = false)
+                    else -> com.zerotoship.z2term.workspace.Broadcast.paste(active, text)
                 }
             },
             onPasteHistory = { clipHistoryOpen = true },
@@ -689,7 +690,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             }
         }
         val onKeyboardBytes: (ByteArray) -> Unit = { bytes ->
-            if (searchTyping) routeSearchBytes(bytes) else active.writeBytes(bytes)
+            if (searchTyping) routeSearchBytes(bytes) else com.zerotoship.z2term.workspace.Broadcast.write(active, bytes)
         }
         val onKeyboardKey: (NamedKey, KeyModifiers) -> Unit = { key, mods ->
             // 検索欄には機能キーの VT バイト列を文字として挿入しない。
@@ -713,8 +714,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     else -> Unit
                 }
             } else {
-                AndroidKeyMapper.namedKeyBytes(key, mods, active.emulator::cursorKeyBytes)
-                    ?.let { active.writeBytes(it) }
+                // 矢印は受け取る端末ごとに組む (DECCKM は端末ごとに違う)。
+                com.zerotoship.z2term.workspace.Broadcast.writeKey(active) { t -> AndroidKeyMapper.namedKeyBytes(key, mods, t.emulator::cursorKeyBytes) }
             }
         }
         // 🎤 (1.0.61): 話した内容を打ち込むだけ。Enter / Ctrl+C は、発話全体が操作語のときだけ ([VoiceInput])。
@@ -864,8 +865,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 pastePreview?.let { text ->
                     PastePreviewBar(
                         text = text,
+                        targets = com.zerotoship.z2term.workspace.Broadcast.targets(active).size,
                         onPaste = {
-                            active.pasteText(text, syncClipboard = false)
+                            com.zerotoship.z2term.workspace.Broadcast.paste(active, text)
                             pastePreview = null
                         },
                         onDismiss = { pastePreview = null }
@@ -1065,7 +1067,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         SnippetsSheet(
             onDismiss = { snippetsSheetOpen = false },
             onRun = { command ->
-                active.writeBytes(command.toByteArray(Charsets.UTF_8))
+                com.zerotoship.z2term.workspace.Broadcast.write(active, command.toByteArray(Charsets.UTF_8))
             },
             // 接続は必ず新しいタブで開く。今のタブで開くと、そこで動いているシェルが終了する。
             // openNew がアクティブにし、同期的に STARTING へ進むのでローカルシェルは起動しない。
@@ -1105,7 +1107,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             // シートは選択と同時に閉じるので、確認バーはその後ろに出る。
             onSelect = { text ->
                 if (text.contains('\n')) pastePreview = text
-                else active.pasteText(text, syncClipboard = false)
+                else com.zerotoship.z2term.workspace.Broadcast.paste(active, text)
             }
         )
     }
@@ -2216,6 +2218,9 @@ private fun TopBar(
  */
 private const val VERTICAL_TAB_CHARS = 8
 
+/** 隠しのブロードキャストボタンを出しておく時間。 */
+private const val BROADCAST_REVEAL_MS = 4000L
+
 /** 横画面レールのツールバー列の幅。チップ (約 36dp) + 左右の余白。 */
 private val RAIL_TOOLBAR_WIDTH = 48.dp
 
@@ -2711,6 +2716,8 @@ private fun HintBar(
 @Composable
 private fun PastePreviewBar(
     text: String,
+    /** 送り先のタブ数。ブロードキャストで 2 以上のときだけ「N タブへ」を出す (1.0.147)。 */
+    targets: Int = 1,
     onPaste: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -2739,6 +2746,14 @@ private fun PastePreviewBar(
         // 行数を先頭に置く。ここでいちばん効く情報は「何行入るか」。
         Text(
             text = pluralStringResource(R.plurals.paste_preview_lines, lines.size, lines.size),
+            color = ZtsBgPrimary,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
+        if (targets > 1) Text(
+            text = stringResource(R.string.broadcast_paste_targets, targets),
             color = ZtsBgPrimary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
@@ -3278,11 +3293,45 @@ private fun TabBar(
         ) {
             entries()
         }
+        // ブロードキャスト (1.0.147)。モード中は ON/OFF をいつも出す (隠すのは「始める」入口だけ)。
+        val activeTerminal = sessions.firstOrNull { it.id == activeId } as? TerminalSession
+        if (com.zerotoship.z2term.workspace.Broadcast.mode) {
+            com.zerotoship.z2term.workspace.BroadcastSwitch(
+                targets = activeTerminal?.let { com.zerotoship.z2term.workspace.Broadcast.targets(it).size } ?: 1
+            )
+        }
+        // 隠しボタン: + / 🖥 の上から左へ滑らせると出る。押すか 4 秒で引っ込む。
+        var broadcastRevealed by remember { mutableStateOf(false) }
+        LaunchedEffect(broadcastRevealed) {
+            if (broadcastRevealed) { delay(BROADCAST_REVEAL_MS); broadcastRevealed = false }
+        }
+        if (broadcastRevealed) {
+            com.zerotoship.z2term.workspace.BroadcastEntryButton(onDone = { broadcastRevealed = false })
+        }
+        val revealDistancePx = with(LocalDensity.current) { 48.dp.toPx() }
+        Row(
+            // ⚠ 判定するのは + / 🖥 の上から始めた横の滑りだけ。タブ一覧の横スクロールとはぶつからない。
+            modifier = Modifier.pointerInput(Unit) {
+                var dx = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { dx = 0f },
+                    onHorizontalDrag = { change, amount ->
+                        dx += amount
+                        if (dx < -revealDistancePx) { broadcastRevealed = true; change.consume() }
+                    },
+                    onDragEnd = { dx = 0f },
+                    onDragCancel = { dx = 0f },
+                )
+            },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
         // 新規端末タブ
         // 長押しで OS を選んで、そのタブだけその OS で開く。
         NewTabButton(label = "+", onClick = onNew, onLongClick = { osPickerOpen = true }, onLongClickLabel = osPickerLabel)
         // 新規 GUI タブ (Xvnc + RFB)。端末用「+」の隣に並べる。
         NewTabButton(label = "🖥", onClick = onNewGui, onLongClick = { workspaceOpen = true }, onLongClickLabel = workspaceLabel)
+        }
     }
 }
 

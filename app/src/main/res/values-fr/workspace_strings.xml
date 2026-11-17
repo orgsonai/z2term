@@ -58,4 +58,17 @@
     <string name="settings_group_max_tabs_desc">Nombre d\'onglets qu\'un groupe peut contenir. Cet écran en permet jusqu\'à %1$d (chaque volet garde au moins 4 lignes clavier ouvert).</string>
     <string name="tip_tab_menu_title">Appui long sur un onglet puis relâcher pour son menu</string>
     <string name="tip_tab_menu_body">Renommez l\'onglet, mettez-le dans un groupe ou retirez-le. Un groupe affiche ses onglets les uns au-dessus des autres ; touchez un volet pour y écrire. « Modifier les groupes… » affiche tous les groupes et onglets sur un seul écran.</string>
+    <string name="broadcast_paste_targets">vers %1$d onglets</string>
+    <string name="broadcast_include">Envoyer à %1$s</string>
+    <string name="broadcast_start">Démarrer ainsi</string>
+    <string name="broadcast_editor_hint">Choisissez le groupe à diffuser puis appuyez sur Démarrer ainsi. Tous ses onglets de terminal sont cochés.</string>
+    <string name="broadcast_on">📡 ON ·%1$d</string>
+    <string name="broadcast_off">📡 OFF</string>
+    <string name="broadcast_toggle">Activer ou désactiver la diffusion</string>
+    <string name="broadcast_stop">📡 Arrêter</string>
+    <string name="broadcast_entry">📡 Diffuser</string>
+    <string name="settings_broadcast_start_on">Démarrer la diffusion activée</string>
+    <string name="settings_broadcast_start_on_desc">Désactivé (par défaut) : la diffusion démarre sur OFF pour vérifier les volets surlignés avant d\'envoyer.</string>
+    <string name="tip_broadcast_title">Glissez + / 🖥 vers la gauche pour diffuser</string>
+    <string name="tip_broadcast_body">Un bouton 📡 apparaît. Choisissez un groupe et appuyez sur Démarrer ainsi : ce que vous tapez dans un onglet coché part vers tous les onglets cochés du groupe. L\'interrupteur 📡 reste dans la barre d\'onglets pendant la diffusion ; touchez-le pour ON / OFF, appui long pour réorganiser le groupe. Les volets qui reçoivent ont un cadre de la couleur d\'alerte (le jaune du thème). Glissez à nouveau pour arrêter.</string>
 </resources>
