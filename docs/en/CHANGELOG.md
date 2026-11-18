@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.169 (versionCode 867)**: After switching the app language, messages such as "Starting …" in new tabs stayed in the previous language. They now follow the new language right away, as do toasts, notifications and other text created outside the main screen.
+
 **1.0.168 (versionCode 866)**: Punctuation and symbols no longer come before words in the predictive candidate bar. When nothing is typed, the bar shows words you confirm often, then set phrases, then symbols. Next-word candidates after a commit also list words first.
 
 **1.0.167 (versionCode 865)**: Three fixes. (1) The Copy button is hidden while you drag a selection, so it no longer shows up in the magnifier. It returns when you lift your finger. (2) Shells that cannot receive a paste as one block, such as Alpine's default ash, run a multi-line paste line by line. The bar shown before pasting now says so. (3) Typing きかない now offers 効かない. The conjugated forms of きく also offer 効く, 利く, 聴く and 訊く.

@@ -82,6 +82,7 @@ object LocaleHelper {
     fun setLanguage(context: Context, lang: String) {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         p.edit { putString(KEY_LANG, lang) }
+        (context.applicationContext as? com.zerotoship.z2term.Z2TermApplication)?.applySavedLanguage()
     }
 
     /**

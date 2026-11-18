@@ -2,6 +2,7 @@ package com.zerotoship.z2term
 
 import android.app.Application
 import android.content.Context
+import android.content.res.Resources
 import android.util.Log
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.emulator.AvailableThemes
@@ -44,6 +45,20 @@ class Z2TermApplication : Application() {
      */
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(LocaleHelper.applyLocale(base))
+    }
+
+    /**
+     * 言語を切り替えた後のリソース。⚠ [attachBaseContext] はプロセスの開始時に 1 回しか呼ばれず、
+     * 常駐サービスがあるのでプロセスは言語を切り替えても終わらない。ここで差し替えないと、
+     * Activity の外で作る文言 (タブの起動メッセージ・トースト・通知) が前の言語のまま残る。
+     */
+    @Volatile private var languageResources: Resources? = null
+
+    override fun getResources(): Resources = languageResources ?: super.getResources()
+
+    /** 保存された言語を、アプリ全体の Context の文言へ反映する。 */
+    fun applySavedLanguage() {
+        languageResources = LocaleHelper.applyLocale(baseContext).resources
     }
 
     override fun onCreate() {
