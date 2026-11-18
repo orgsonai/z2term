@@ -1096,6 +1096,7 @@
         <item quantity="other">%1$d줄</item>
     </plurals>
     <string name="paste_preview_do">붙여넣기</string>
+    <string name="paste_preview_runs_each_line">줄마다 바로 실행됩니다</string>
     <string name="brightness_reset">되돌리기</string>
     <string name="hint_ping">여기서는 ping이 되지 않습니다. nmap -sT나 curl을 쓰세요</string>
     <string name="hint_low_port">1024보다 작은 포트는 쓸 수 없습니다. 8022 같은 번호로 해 보세요</string>

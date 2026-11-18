@@ -1112,6 +1112,7 @@ Scegline una dalle schede a destra.</string>
         <item quantity="many">%1$d righe</item>
     </plurals>
     <string name="paste_preview_do">Incolla</string>
+    <string name="paste_preview_runs_each_line">Ogni riga viene eseguita subito</string>
     <string name="brightness_reset">Reimposta</string>
     <string name="hint_ping">ping non può funzionare qui. Usa invece nmap -sT o curl</string>
     <string name="hint_low_port">Le porte sotto 1024 non sono disponibili. Prova 8022 o simili</string>

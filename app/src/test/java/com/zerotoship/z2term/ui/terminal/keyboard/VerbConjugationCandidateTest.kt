@@ -59,6 +59,17 @@ class VerbConjugationCandidateTest {
     }
 
     @Test
+    fun kikuHomophonesConjugate() {
+        // 同じ読みの動詞は、表に載せた漢字の分しか活用形が出ない。
+        for (kanji in listOf("聞", "効", "利", "聴", "訊")) {
+            assertHas("きく", kanji + "く")
+            assertHas("きかない", kanji + "かない")
+            assertHas("きいて", kanji + "いて")
+            assertHas("ききます", kanji + "きます")
+        }
+    }
+
+    @Test
     fun theOppositesAreStillThere() {
         // 対になる語が消えていないこと (片側だけ直して逆を落とす事故を防ぐ)。
         assertHas("あける", "開ける")

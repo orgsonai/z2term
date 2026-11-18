@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-18 / Target version: 1.0.166 (versionCode 864)
+Last updated: 2026-11-18 / Target version: 1.0.167 (versionCode 865)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -978,7 +978,7 @@ An Android app UID cannot directly `open` `/dev/bus/usb/...`, while `UsbManager.
 
 - ⚠ **Never shown for a single line.** Widening this "for safety" instantly turns **the most frequently pressed button in the app into two taps**. The condition is exactly `text.contains('\n')` — no room to drift.
 - The bar leads with the **line count**: here, how many lines are about to land matters more than what they say. Only two lines are previewed (this is not a place to read the whole thing).
-- Pasting still **does not execute** (it lands on the input line; bracketed paste is unchanged). Same contract as receiving a share (B1).
+- With a shell that uses bracketed paste, pasting **does not execute** (it lands on the input line). Same contract as receiving a share (B1). ⚠ Shells without it (such as Alpine's default ash) run each line at its line break, so when any target has not enabled DECSET 2004 the bar shows that warning in place of the preview (1.0.167).
 - Placement and size match `SearchBar` — two different bars appear at the top of the terminal area, and they must not look unrelated.
 - **Picking from clipboard history shows the same bar (0.8.250)**. History (double-tap 📋) pasted the moment you picked a row, so the very same multi-line text skipped the confirmation just because it arrived through a different door. What is risky is that it lands and then runs; where it came from is irrelevant. The test stays the single `text.contains('\n')` used by 📋 — **no per-entry-point rules**. The history sheet closes as you pick, so the bar appears behind it. ⚠ The GUI tab (`GuiScreen`) types via keysym and confirms **neither** 📋 nor history, which is at least consistent — if that changes, change both together.
 

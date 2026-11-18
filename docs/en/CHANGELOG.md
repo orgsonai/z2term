@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.167 (versionCode 865)**: Three fixes. (1) The Copy button is hidden while you drag a selection, so it no longer shows up in the magnifier. It returns when you lift your finger. (2) Shells that cannot receive a paste as one block, such as Alpine's default ash, run a multi-line paste line by line. The bar shown before pasting now says so. (3) Typing きかない now offers 効かない. The conjugated forms of きく also offer 効く, 利く, 聴く and 訊く.
+
 **1.0.166 (versionCode 864)**: More predictive input candidates (with Settings → Japanese input → "Predictive input" on). Common words now appear from the first character of a reading. The common-word table grew from about 17,000 to 50,000 entries and includes conjugated forms, such as わかりました for わかりま and 連絡します for れんらく. Right after a commit, next words now include likely continuations as well as words you typed there before (が and を after 問題, します after お願い). Predictive input stays off by default.
 
 **1.0.165 (versionCode 863)**: Set phrases now rank lower in predictive input. While typing they follow common words and your own words. When nothing is typed, the bar shows punctuation, then words you confirm often, then set phrases.

@@ -1112,6 +1112,7 @@ Choisissez-en un dans les onglets à droite.</string>
         <item quantity="many">%1$d lignes</item>
     </plurals>
     <string name="paste_preview_do">Coller</string>
+    <string name="paste_preview_runs_each_line">Chaque ligne est exécutée au collage</string>
     <string name="brightness_reset">Réinitialiser</string>
     <string name="hint_ping">ping ne fonctionne pas ici. Utilisez plutôt nmap -sT ou curl</string>
     <string name="hint_low_port">Les ports sous 1024 ne sont pas disponibles. Essayez 8022 ou similaire</string>

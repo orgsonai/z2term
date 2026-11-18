@@ -1103,6 +1103,7 @@ Wähle eines aus den Reitern rechts.</string>
         <item quantity="other">%1$d Zeilen</item>
     </plurals>
     <string name="paste_preview_do">Einfügen</string>
+    <string name="paste_preview_runs_each_line">Jede Zeile wird sofort ausgeführt</string>
     <string name="brightness_reset">Zurücksetzen</string>
     <string name="hint_ping">ping funktioniert hier nicht. Nimm stattdessen nmap -sT oder curl</string>
     <string name="hint_low_port">Ports unter 1024 sind nicht verfügbar. Versuche 8022 o. ä.</string>

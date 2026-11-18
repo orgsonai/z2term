@@ -1114,6 +1114,7 @@ Elige uno en las pestañas de la derecha.</string>
         <item quantity="many">%1$d líneas</item>
     </plurals>
     <string name="paste_preview_do">Pegar</string>
+    <string name="paste_preview_runs_each_line">Cada línea se ejecuta al pegarla</string>
     <string name="brightness_reset">Restablecer</string>
     <string name="hint_ping">ping no puede funcionar aquí. Usa nmap -sT o curl en su lugar</string>
     <string name="hint_low_port">Los puertos por debajo de 1024 no están disponibles. Prueba con 8022 o similar</string>

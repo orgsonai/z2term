@@ -1112,6 +1112,7 @@ Escolha um nas guias à direita.</string>
         <item quantity="many">%1$d linhas</item>
     </plurals>
     <string name="paste_preview_do">Colar</string>
+    <string name="paste_preview_runs_each_line">Cada linha é executada ao colar</string>
     <string name="brightness_reset">Redefinir</string>
     <string name="hint_ping">O ping não funciona aqui. Use nmap -sT ou curl em vez dele</string>
     <string name="hint_low_port">As portas abaixo de 1024 não estão disponíveis. Tente 8022 ou parecida</string>

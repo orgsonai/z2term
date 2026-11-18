@@ -1120,6 +1120,7 @@
         <item quantity="other">%1$d строки</item>
     </plurals>
     <string name="paste_preview_do">Вставить</string>
+    <string name="paste_preview_runs_each_line">Каждая строка сразу выполнится</string>
     <string name="brightness_reset">Сбросить</string>
     <string name="hint_ping">ping здесь не работает. Используйте вместо него nmap -sT или curl</string>
     <string name="hint_low_port">Порты ниже 1024 недоступны. Попробуйте 8022 или похожий</string>

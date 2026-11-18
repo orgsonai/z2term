@@ -68,6 +68,11 @@ class TerminalInputView(context: Context) : View(context) {
     }
 
     var session: TerminalSession? = null
+        set(value) {
+            // 選択の途中で別のタブへ替わっても、元のタブのコピーボタンを隠したままにしない。
+            if (field !== value) field?.setSelectionDragging(false)
+            field = value
+        }
 
     var ctrlSticky: Boolean = false
 
@@ -271,6 +276,7 @@ class TerminalInputView(context: Context) : View(context) {
                 selectionAnchorRow = cell.first
                 selectionAnchorCol = cell.second
                 touchMode = TouchMode.SELECTING
+                sess.setSelectionDragging(true)
                 sess.setSelection(
                     TerminalSelection.of(cell.first, cell.second, cell.first, cell.second)
                 )
@@ -459,6 +465,7 @@ class TerminalInputView(context: Context) : View(context) {
                     Handle.START -> TouchMode.ADJUSTING_START
                     Handle.END -> TouchMode.ADJUSTING_END
                 }
+                session?.setSelectionDragging(true)
             }
         }
 
@@ -648,6 +655,7 @@ class TerminalInputView(context: Context) : View(context) {
         autoScrollDir = 0
         removeCallbacks(autoScrollRunnable)
         dismissMagnifier()
+        session?.setSelectionDragging(false)
     }
 
     // ---- 拡大鏡 (Magnifier) -------------------------------------------------
@@ -712,6 +720,7 @@ class TerminalInputView(context: Context) : View(context) {
         removeCallbacks(flingRunnable)
         magnifier?.dismiss()
         magnifier = null
+        session?.setSelectionDragging(false)
     }
 
     /** Share scrollback / wheel / alternate-scroll routing with accessibility; never send a drag. */

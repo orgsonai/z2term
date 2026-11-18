@@ -1189,6 +1189,7 @@ Pick one from the tabs on the right.</string>
         <item quantity="other">%1$d lines</item>
     </plurals>
     <string name="paste_preview_do">Paste</string>
+    <string name="paste_preview_runs_each_line">Each line runs as it is pasted</string>
     <string name="brightness_reset">Reset</string>
     <string name="hint_ping">ping cannot work here. Use nmap -sT or curl instead</string>
     <string name="hint_low_port">Ports below 1024 are not available. Try 8022 or similar</string>

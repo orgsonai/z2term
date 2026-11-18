@@ -1170,6 +1170,7 @@
         <item quantity="other">%1$d 行</item>
     </plurals>
     <string name="paste_preview_do">貼る</string>
+    <string name="paste_preview_runs_each_line">1 行ごとに実行されます</string>
     <string name="brightness_reset">戻す</string>
     <string name="hint_ping">ping は仕組み上使えません。nmap -sT か curl で代わりになります</string>
     <string name="hint_low_port">1024 より小さいポートは使えません。8022 などに変えてください</string>

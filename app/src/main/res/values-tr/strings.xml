@@ -1102,6 +1102,7 @@ Sağdaki sekmelerden birini seçin.</string>
         <item quantity="other">%1$d satır</item>
     </plurals>
     <string name="paste_preview_do">Yapıştır</string>
+    <string name="paste_preview_runs_each_line">Her satır hemen çalıştırılır</string>
     <string name="brightness_reset">Sıfırla</string>
     <string name="hint_ping">ping burada çalışamaz. Bunun yerine nmap -sT veya curl kullanın</string>
     <string name="hint_low_port">1024’ün altındaki bağlantı noktaları kullanılamaz. 8022 veya benzerini deneyin</string>

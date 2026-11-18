@@ -1093,6 +1093,7 @@ Chọn một cái từ các thẻ bên phải.</string>
         <item quantity="other">%1$d dòng</item>
     </plurals>
     <string name="paste_preview_do">Dán</string>
+    <string name="paste_preview_runs_each_line">Mỗi dòng sẽ chạy ngay khi dán</string>
     <string name="brightness_reset">Đặt lại</string>
     <string name="hint_ping">ping không hoạt động ở đây. Hãy dùng nmap -sT hoặc curl</string>
     <string name="hint_low_port">Không dùng được cổng dưới 1024. Thử 8022 hoặc tương tự</string>

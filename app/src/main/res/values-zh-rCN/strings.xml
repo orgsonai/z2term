@@ -1097,6 +1097,7 @@
         <item quantity="other">%1$d 行</item>
     </plurals>
     <string name="paste_preview_do">粘贴</string>
+    <string name="paste_preview_runs_each_line">每一行都会立即执行</string>
     <string name="brightness_reset">恢复</string>
     <string name="hint_ping">ping 从原理上就用不了。可以用 nmap -sT 或 curl 代替</string>
     <string name="hint_low_port">小于 1024 的端口用不了。请改成 8022 之类的</string>

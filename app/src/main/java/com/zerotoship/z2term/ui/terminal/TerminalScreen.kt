@@ -883,9 +883,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 }
                 // 複数行の貼り付け確認 (端末領域の上端にオーバーレイ・検索バーと同じ置き方)。
                 pastePreview?.let { text ->
+                    val pasteTargets = com.zerotoship.z2term.workspace.Broadcast.targets(active)
                     PastePreviewBar(
                         text = text,
-                        targets = com.zerotoship.z2term.workspace.Broadcast.targets(active).size,
+                        targets = pasteTargets.size,
+                        runsEachLine = pasteTargets.any { !it.emulator.bracketedPasteMode },
                         onPaste = {
                             com.zerotoship.z2term.workspace.Broadcast.paste(active, text)
                             pastePreview = null
@@ -2730,7 +2732,9 @@ private fun HintBar(
  * ⏎ を押すことになる。**改行を含むときだけ**この帯を出す — 1 行の貼り付けは今までどおり
  * 即挿入で、そこを広げると一番よく押すボタンが 2 タップになって台無しになる。
  *
- * 貼っても**実行はしない** (入力行に入るだけ)。共有の受け取り (B1) と同じ作法。
+ * bracketed paste を使うシェルでは、貼っても**実行はしない** (入力行に入るだけ)。
+ * ⚠ 使わないシェル (Alpine 標準の ash など) は改行のたびにその行を実行するので、
+ * [runsEachLine] のときは中身の代わりにそのことを出す。
  * 寸法と置き方は [SearchBar] に揃えてある (同じ場所に出る帯が 2 種類あるので)。
  */
 @Composable
@@ -2738,6 +2742,8 @@ private fun PastePreviewBar(
     text: String,
     /** 送り先のタブ数。ブロードキャストで 2 以上のときだけ「N タブへ」を出す (1.0.147)。 */
     targets: Int = 1,
+    /** 送り先のどれかが bracketed paste を使っておらず、改行で行が実行される。 */
+    runsEachLine: Boolean = false,
     onPaste: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -2782,7 +2788,8 @@ private fun PastePreviewBar(
         )
         // 中身は最大 2 行だけ覗かせる (全文を見せる場所ではない)。
         Text(
-            text = lines.take(2).joinToString(" ⏎ ") { it.trim() },
+            text = if (runsEachLine) "⚠ " + stringResource(R.string.paste_preview_runs_each_line)
+            else lines.take(2).joinToString(" ⏎ ") { it.trim() },
             // 緑地なので二次情報も暗色。⚠ ここは**細字にも薄くもしない** (0.8.259) —
             // 11sp の等幅で細いままだと「何を貼るのか」が読めず、帯を出した意味が消える。
             // 主役 (行数と「貼る」) との差は**文字の大きさ**だけで付ける。
@@ -4619,11 +4626,13 @@ private fun ScrollIndicators(
 ) {
     val scrollOffset by session.scrollOffset.collectAsState()
     val selection by session.selection.collectAsState()
+    val selectionDragging by session.selectionDragging.collectAsState()
 
     Box(modifier = modifier) {
         if (selection != null) {
             // 「コピー」フローティングボタン (中央下)
-            Box(
+            // ⚠ 拡大鏡は画面に描かれたものをそのまま写す。指で動かしている間は出さない。
+            if (!selectionDragging) Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 16.dp)

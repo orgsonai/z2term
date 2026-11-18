@@ -295,9 +295,14 @@ class TerminalSession(
     private val _selection = MutableStateFlow<TerminalSelection?>(null)
     val selection: StateFlow<TerminalSelection?> = _selection.asStateFlow()
 
+    /** 指で選択範囲を動かしている間だけ true。拡大鏡に写らないよう、コピーボタンをこの間は隠す。 */
+    private val _selectionDragging = MutableStateFlow(false)
+    val selectionDragging: StateFlow<Boolean> = _selectionDragging.asStateFlow()
+
     fun updateCellMetrics(metrics: CellMetrics) { _cellMetrics.value = metrics }
     fun setSelection(s: TerminalSelection?) { _selection.value = s }
     fun clearSelection() { _selection.value = null }
+    fun setSelectionDragging(dragging: Boolean) { _selectionDragging.value = dragging }
 
     /** 現在の選択範囲をクリップボードへコピーし、Toast を発火する。 */
     fun copySelectionToClipboard() {

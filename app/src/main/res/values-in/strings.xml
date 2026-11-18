@@ -1094,6 +1094,7 @@ Pilih dari tab di kanan.</string>
         <item quantity="other">%1$d baris</item>
     </plurals>
     <string name="paste_preview_do">Tempel</string>
+    <string name="paste_preview_runs_each_line">Setiap baris langsung dijalankan</string>
     <string name="brightness_reset">Atur ulang</string>
     <string name="hint_ping">ping tidak bisa berfungsi di sini. Pakai nmap -sT atau curl</string>
     <string name="hint_low_port">Port di bawah 1024 tidak tersedia. Coba 8022 atau sejenisnya</string>
