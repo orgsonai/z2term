@@ -1,0 +1,9 @@
+1.0.173
+
+- Group tabs and show them together on one screen.
+- Broadcast sends the same input to all ticked tabs.
+- Long lines can stay unwrapped; swipe sideways to move.
+- Import your own fonts.
+- More predictive input candidates.
+- z2-alarm accepts seconds, and macros can run without a time limit.
+- Fixes, including SSH sessions that dropped after a while.
