@@ -457,11 +457,11 @@ object KanaKanjiConverter {
             .map { it.second }
         val out = LinkedHashSet<String>()
         out.addAll(own.take(HISTORY_COMPLETION_FIRST))
-        // 定型文 (1.0.140) は表より先。あいさつは文章から集めた表にほぼ入っていない。
-        out.addAll(SetPhrases.predictWithReading(reading).map { it.second })
         out.addAll(PredictionDict.predict(reading, limit = 8))
         out.addAll(UserDictStore.predict(reading, limit = 6))
         out.addAll(own.drop(HISTORY_COMPLETION_FIRST))
+        // 定型文はいちばん後ろ (1.0.165・利用者の決定)。ほとんど使わないので、語の枠を取らせない。
+        out.addAll(SetPhrases.predictWithReading(reading).map { it.second })
         return Completions(out.toList(), own.drop(HISTORY_COMPLETION_FIRST))
     }
 
@@ -1911,7 +1911,7 @@ class ComposingState(
     }
 
     /**
-     * 何も打っていないときの候補 (1.0.140): 記号 (、。？！…) → 定型文 ([SetPhrases]) → よく確定している語。
+     * 何も打っていないときの候補 (1.0.140): 記号 (、。？！…) → よく確定している語 → 定型文 ([SetPhrases])。
      * 予測変換が ON で日本語の面を開いている間は、開いた直後も ⌫ の後も、バーを空にしない
      * (場所は空けてあるので、空だと何も無い帯になる・利用者の決定)。
      * キーを送るたびに呼ばれるので、出している間は引き直さない。
@@ -1925,8 +1925,8 @@ class ComposingState(
         if (showingIdle && nextWords.isNotEmpty()) return
         val out = LinkedHashSet<String>()
         out.addAll(SetPhrases.symbols)
-        for ((_, w) in SetPhrases.all) out.add(w)
         out.addAll(ImeHistoryStore.frequentWords(IDLE_LEARNED_LIMIT))
+        for ((_, w) in SetPhrases.all) out.add(w)
         nextWords = out.toList()
         showingIdle = true
     }

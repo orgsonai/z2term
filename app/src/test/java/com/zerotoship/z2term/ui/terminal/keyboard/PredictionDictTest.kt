@@ -183,11 +183,13 @@ class PredictionDictTest {
         }
     }
 
-    /** 定型文は、打ちかけの補完に出る (1.0.140)。文章から集めた表にはあいさつがほぼ無い。 */
+    /** 定型文は補完に出るが、よく使われる語の枠は取らない (1.0.165)。 */
     @Test
-    fun setPhrasesAreOfferedAsCompletions() {
+    fun setPhrasesAreOfferedAfterOrdinaryCompletions() {
         val c = KanaKanjiConverter.convertFlexible("よろ")
-        assertTrue("よろ の補完に よろしくお願いします が無い: ${c.take(6)}", "よろしくお願いします" in c.take(5))
+        assertTrue("よろ で定型文が語の枠を取った: ${c.take(6)}", "よろしくお願いします" !in c.take(5))
+        val longer = KanaKanjiConverter.convertFlexible("よろしくお")
+        assertTrue("よろしくお の補完に定型文が無い: ${longer.take(6)}", "よろしくお願いします" in longer.take(5))
         assertEquals(
             "よろしくおねがいします",
             KanaKanjiConverter.predictionReadingMap("よろ")["よろしくお願いします"],

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.165 (versionCode 863)**: Set phrases now rank lower in predictive input. While typing they follow common words and your own words. When nothing is typed, the bar shows punctuation, then words you confirm often, then set phrases.
+
 **1.0.164 (versionCode 862)**: `z2-alarm` now accepts seconds: `z2-alarm at 12:34:56 name` and `z2-alarm daily 07:00:30 name` (a time with seconds used to read the seconds as the minutes). `z2-alarm in` no longer always fails when no OS is installed. Android action macros can run without a time limit using `timeout=0`; the 10000-instruction limit is lifted too, and `z2-action run` / `wait` wait until the run ends. Stop such a run with the stop bar, the notification or `z2-action stop`.
 
 **1.0.163 (versionCode 861)**: Double-tapping a group in the tab bar now closes the whole group (all of its tabs); before, a group did not close on a double-tap. If something is running in any of its tabs, you are asked first, as with a single tab. A group does not close when there is no tab outside it (just as the last tab does not close).
