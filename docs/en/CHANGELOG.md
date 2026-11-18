@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.172 (versionCode 870)**: No line wrap and Wrap lines now apply to every terminal tab. Your choice is saved, so new tabs and later app launches keep it.
+
 **1.0.171 (versionCode 869)**: The terminal can now be shown without line wrapping. Long-press a tab and let go without moving, then choose No line wrap or Wrap lines to switch that tab (wrapping is on by default). The menu on a group pane title has the same entry. With wrapping off, swipe sideways to move left and right. Typing brings the view to the cursor. Full-screen programs still use the screen width. Lines already on screen keep their shape when you switch.
 
 **1.0.170 (versionCode 868)**: While broadcasting, a pinch now changes the text size only in the tabs that receive your input. Unticked tabs stay as they are. With the 📡 switch off, or when you pinch in an unticked tab, only that tab changes. Each tab scales from its current size by the same ratio, so pinch to the minimum or maximum to make them match. Outside broadcast, a pinch still changes every tab. The text size slider in Settings makes every tab the same size.

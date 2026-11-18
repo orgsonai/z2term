@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -534,18 +535,19 @@ class TerminalSession(
     }
 
     fun setThemeName(name: String) { scope.launch { settings.setTheme(name) } }
-    /** このタブを折り返さずに表示するか。既定は折り返す。 */
-    private val _noWrap = MutableStateFlow(false)
-    val noWrap: StateFlow<Boolean> = _noWrap.asStateFlow()
+    /** 折り返さずに表示するか (全タブ共通の保存される設定)。既定は折り返す。 */
+    val noWrap: StateFlow<Boolean> = baseSettings.map { it.noWrap }
+        .stateIn(scope, SharingStarted.Eagerly, AppSettings.DEFAULT_NO_WRAP)
 
     /** 折り返しなしのときの横の表示位置 (px)。 */
     private val _scrollXPx = MutableStateFlow(0f)
     val scrollXPx: StateFlow<Float> = _scrollXPx.asStateFlow()
 
     fun toggleNoWrap() {
-        _noWrap.value = !_noWrap.value
-        _scrollXPx.value = 0f
-        _toastEvents.tryEmit(appContext.getString(if (_noWrap.value) R.string.no_wrap_on else R.string.no_wrap_off))
+        val next = !baseSettings.value.noWrap
+        SessionManager.sessions.value.filterIsInstance<TerminalSession>().forEach { it.setScrollX(0f) }
+        scope.launch { settings.setNoWrap(next) }
+        _toastEvents.tryEmit(appContext.getString(if (next) R.string.no_wrap_on else R.string.no_wrap_off))
     }
 
     fun setScrollX(px: Float) { _scrollXPx.value = px.coerceAtLeast(0f) }

@@ -315,6 +315,8 @@ class AppSettings(private val context: Context) {
          * opt-in に関係なく従来通り mouse capture 中なら送出する。
          */
         val sgrMouseInputEnabled: Boolean = DEFAULT_SGR_MOUSE_INPUT,
+        /** 端末の長い行を折り返さずに表示する (全タブ共通)。既定は折り返す。 */
+        val noWrap: Boolean = DEFAULT_NO_WRAP,
         /**
          * 常駐サーバー定義 (JSON 配列)。[com.zerotoship.z2term.settings.ServerEntry.decode] で
          * `List<ServerEntry>` に復元する。空文字 = 未設定。
@@ -660,6 +662,7 @@ class AppSettings(private val context: Context) {
             traceLogEnabled = p[KEY_TRACE_LOG] ?: DEFAULT_TRACE_LOG,
             kittyExternalFileEnabled = p[KEY_KITTY_EXTERNAL_FILE] ?: DEFAULT_KITTY_EXTERNAL_FILE,
             sgrMouseInputEnabled = p[KEY_SGR_MOUSE_INPUT] ?: DEFAULT_SGR_MOUSE_INPUT,
+            noWrap = p[KEY_NO_WRAP] ?: DEFAULT_NO_WRAP,
             serverEntries = p[KEY_SERVER_ENTRIES] ?: "",
             serversAutostartOnBoot = p[KEY_SERVERS_AUTOSTART] ?: DEFAULT_SERVERS_AUTOSTART,
             serversLowPower = p[KEY_SERVERS_LOW_POWER] ?: DEFAULT_SERVERS_LOW_POWER,
@@ -893,6 +896,10 @@ class AppSettings(private val context: Context) {
 
     suspend fun setKittyExternalFileEnabled(value: Boolean) {
         context.dataStore.edit { it[KEY_KITTY_EXTERNAL_FILE] = value }
+    }
+
+    suspend fun setNoWrap(value: Boolean) {
+        context.dataStore.edit { it[KEY_NO_WRAP] = value }
     }
 
     suspend fun setSgrMouseInputEnabled(value: Boolean) {
@@ -1289,6 +1296,7 @@ class AppSettings(private val context: Context) {
         private val KEY_TRACE_LOG = booleanPreferencesKey("trace_log_enabled")
         private val KEY_KITTY_EXTERNAL_FILE = booleanPreferencesKey("kitty_external_file_enabled")
         private val KEY_SGR_MOUSE_INPUT = booleanPreferencesKey("sgr_mouse_input_enabled")
+        private val KEY_NO_WRAP = booleanPreferencesKey("terminal_no_wrap")
         private val KEY_SERVER_ENTRIES = stringPreferencesKey("server_entries")
         private val KEY_SERVERS_AUTOSTART = booleanPreferencesKey("servers_autostart_on_boot")
         private val KEY_SERVERS_LOW_POWER = booleanPreferencesKey("servers_low_power")
@@ -1425,6 +1433,7 @@ class AppSettings(private val context: Context) {
          * 従来通り送出する。
          */
         const val DEFAULT_SGR_MOUSE_INPUT = false
+        const val DEFAULT_NO_WRAP = false
 
         /** 外部 SD 認識は既定 OFF (オプトイン)。OFF の間は検出処理も走らない。 */
         const val DEFAULT_EXTERNAL_STORAGE = false

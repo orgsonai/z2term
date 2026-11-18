@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-18 / Target version: 1.0.171 (versionCode 869)
+Last updated: 2026-11-18 / Target version: 1.0.172 (versionCode 870)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -2405,7 +2405,7 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
     - The clock is `SystemClock.uptimeMillis()` (monotonic); a wall clock can jump on a time sync and misjudge. Once a tap has been consumed as the second one the timestamp resets to 0, so a triple tap does not read as another double.
     - **Restore the pre-tap active tab before closing** (`TabBar.activeBeforeTap`). The first tap has already moved you onto that tab, so closing it straight away makes `SessionManager.close` fall back to **the leftmost tab** — "I only deleted another tab and got thrown somewhere else".
     - ⚠ "Commit on the first tap" only works because selecting a tab is **idempotent**. The toolbar's 📋/🔅/⚪ (`ToolbarChip`) have a side effect on the first tap (paste, lock, start recording), so the same substitution is not available there; removing that latency needs a different design.
-- **No-wrap view (`core/NoWrapView`, 1.0.171)**: per-tab state (`TerminalSession.noWrap`, off by default, not saved), switched from the long-press menu of a tab or pane title. While on, the PTY is told `NO_WRAP_COLS` (200) columns and drawing shifts left by `scrollXPx`, clipped to the screen. Touch-to-column mapping and selection handles use the same shift. Each swipe locks to one axis. The alt screen keeps the screen width. The view follows the cursor only right after input and during composition, never on output alone. Existing lines are not reflowed.
+- **No-wrap view (`core/NoWrapView`, 1.0.171)**: a saved setting shared by all tabs (`AppSettings.noWrap`, off by default, 1.0.172), switched from the long-press menu of a tab or pane title. While on, the PTY is told `NO_WRAP_COLS` (200) columns and drawing shifts left by `scrollXPx`, clipped to the screen. Touch-to-column mapping and selection handles use the same shift. Each swipe locks to one axis. The alt screen keeps the screen width. The view follows the cursor only right after input and during composition, never on output alone. Existing lines are not reflowed.
 - `terminal/input/TerminalInputView.kt` (AndroidView): physical key/OS IME input, gestures (tap/long-press selection/drag scroll/pinch zoom/mouse click emission). Selection is in [§6.5](#65-text-selection-ux).
 - `terminal/keyboard/`:
   - `TerminalKeyboard.kt`: 5-row custom keyboard. 3-state Shift, flick, long-press repeat on all keys. **The key background turns bright green when pressed**, and **during a flick the hint in the crossed-threshold direction is bolded + enlarged 1.6×** (the center character stays unchanged).
