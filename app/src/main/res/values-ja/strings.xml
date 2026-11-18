@@ -810,6 +810,8 @@
     <string name="tb_log">端末ログを記録</string>
     <string name="no_wrap_on">折り返しなし</string>
     <string name="no_wrap_off">折り返しあり</string>
+    <string name="settings_no_wrap_default">長い行を折り返さない</string>
+    <string name="settings_no_wrap_default_desc">すべての端末タブの標準になります。横スワイプで左右に動かせます。タブの長押しメニューでは、そのタブだけを一時的に切り替えられます。</string>
     <string name="tb_pointer_mode">カーソル 相対 / 絶対</string>
     <string name="tb_clipboard_file">端末のファイルを相手へ送る</string>
     <string name="clipboard_file_unavailable">このファイルを読み込めません。別のファイルを選んでください。</string>

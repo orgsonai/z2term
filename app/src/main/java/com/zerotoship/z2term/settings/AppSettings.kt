@@ -315,7 +315,7 @@ class AppSettings(private val context: Context) {
          * opt-in に関係なく従来通り mouse capture 中なら送出する。
          */
         val sgrMouseInputEnabled: Boolean = DEFAULT_SGR_MOUSE_INPUT,
-        /** 端末の長い行を折り返さずに表示する (全タブ共通)。既定は折り返す。 */
+        /** 端末の長い行を折り返さずに表示するのを標準にする。タブごとの一時的な切り替えはここに保存しない。 */
         val noWrap: Boolean = DEFAULT_NO_WRAP,
         /**
          * 常駐サーバー定義 (JSON 配列)。[com.zerotoship.z2term.settings.ServerEntry.decode] で

@@ -759,6 +759,8 @@
     <string name="tb_log">Terminalprotokoll aufzeichnen</string>
     <string name="no_wrap_on">Kein Zeilenumbruch</string>
     <string name="no_wrap_off">Zeilenumbruch</string>
+    <string name="settings_no_wrap_default">Lange Zeilen nicht umbrechen</string>
+    <string name="settings_no_wrap_default_desc">Gilt für alle Terminal-Tabs. Zum Verschieben seitlich wischen. Das Tab-Menü (lange drücken) schaltet einen Tab vorübergehend um.</string>
     <string name="tb_pointer_mode">Cursor: relativ / absolut</string>
     <string name="tb_clipboard_file">Dateien an Remotedesktop senden</string>
     <string name="clipboard_file_unavailable">Diese Datei kann nicht gelesen werden. Wähle eine andere Datei.</string>

@@ -753,6 +753,8 @@
     <string name="tb_log">记录终端日志</string>
     <string name="no_wrap_on">不换行</string>
     <string name="no_wrap_off">自动换行</string>
+    <string name="settings_no_wrap_default">长行不换行</string>
+    <string name="settings_no_wrap_default_desc">作为所有终端标签页的默认设置。左右滑动可移动。长按标签页的菜单可临时切换该标签页。</string>
     <string name="tb_pointer_mode">光标 相对 / 绝对</string>
     <string name="tb_clipboard_file">向远程桌面发送文件</string>
     <string name="clipboard_file_unavailable">无法读取此文件，请选择其他文件。</string>

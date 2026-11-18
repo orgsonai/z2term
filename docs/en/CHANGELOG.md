@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.173 (versionCode 871)**: Settings now has "Do not wrap long lines" to choose the standard behavior (off at first). Changing it updates every terminal tab and carries over to new tabs and later launches. No line wrap and Wrap lines in the tab long-press menu now switch only that tab temporarily and are not saved.
+
 **1.0.172 (versionCode 870)**: No line wrap and Wrap lines now apply to every terminal tab. Your choice is saved, so new tabs and later app launches keep it.
 
 **1.0.171 (versionCode 869)**: The terminal can now be shown without line wrapping. Long-press a tab and let go without moving, then choose No line wrap or Wrap lines to switch that tab (wrapping is on by default). The menu on a group pane title has the same entry. With wrapping off, swipe sideways to move left and right. Typing brings the view to the cursor. Full-screen programs still use the screen width. Lines already on screen keep their shape when you switch.

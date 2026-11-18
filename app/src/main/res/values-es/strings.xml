@@ -768,6 +768,8 @@
     <string name="tb_log">Registrar la salida de la terminal</string>
     <string name="no_wrap_on">Sin ajuste de línea</string>
     <string name="no_wrap_off">Ajuste de línea</string>
+    <string name="settings_no_wrap_default">No ajustar las líneas largas</string>
+    <string name="settings_no_wrap_default_desc">Se aplica a todas las pestañas de terminal. Desliza de lado para moverte. El menú de la pestaña (pulsación larga) cambia solo esa pestaña temporalmente.</string>
     <string name="tb_pointer_mode">Cursor: relativo / absoluto</string>
     <string name="tb_clipboard_file">Enviar archivos al escritorio remoto</string>
     <string name="clipboard_file_unavailable">Este archivo no se puede leer. Elige otro.</string>

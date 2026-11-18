@@ -824,6 +824,8 @@
     <string name="tb_log">Record terminal log</string>
     <string name="no_wrap_on">No line wrap</string>
     <string name="no_wrap_off">Wrap lines</string>
+    <string name="settings_no_wrap_default">Do not wrap long lines</string>
+    <string name="settings_no_wrap_default_desc">Used by every terminal tab. Swipe sideways to move. The tab long-press menu switches one tab until it is closed.</string>
     <string name="tb_pointer_mode">Cursor: relative / absolute</string>
     <string name="tb_clipboard_file">Send files to remote desktop</string>
     <string name="clipboard_file_unavailable">This file cannot be read. Choose another file.</string>

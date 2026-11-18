@@ -751,6 +751,8 @@
     <string name="tb_log">Rekam log terminal</string>
     <string name="no_wrap_on">Tanpa bungkus baris</string>
     <string name="no_wrap_off">Bungkus baris</string>
+    <string name="settings_no_wrap_default">Jangan bungkus baris panjang</string>
+    <string name="settings_no_wrap_default_desc">Berlaku untuk semua tab terminal. Geser ke samping untuk berpindah. Menu tab (tekan lama) mengubah tab itu saja untuk sementara.</string>
     <string name="tb_pointer_mode">Kursor: relatif / absolut</string>
     <string name="tb_clipboard_file">Kirim file ke desktop jarak jauh</string>
     <string name="clipboard_file_unavailable">File ini tidak bisa dibaca. Pilih file lain.</string>

@@ -767,6 +767,8 @@
     <string name="tb_log">Enregistrer le journal du terminal</string>
     <string name="no_wrap_on">Sans retour à la ligne</string>
     <string name="no_wrap_off">Retour à la ligne</string>
+    <string name="settings_no_wrap_default">Ne pas couper les longues lignes</string>
+    <string name="settings_no_wrap_default_desc">S’applique à tous les onglets de terminal. Balayez sur le côté pour vous déplacer. Le menu de l’onglet (appui long) change temporairement cet onglet seulement.</string>
     <string name="tb_pointer_mode">Curseur : relatif / absolu</string>
     <string name="tb_clipboard_file">Envoyer des fichiers au bureau distant</string>
     <string name="clipboard_file_unavailable">Ce fichier ne peut pas être lu. Choisissez-en un autre.</string>

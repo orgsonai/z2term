@@ -496,6 +496,13 @@ fun SettingsSheet(
                     onChange = { session.setFontSize(it) }
                 )
 
+                ToggleField(
+                    title = stringResource(R.string.settings_no_wrap_default),
+                    description = stringResource(R.string.settings_no_wrap_default_desc),
+                    checked = settings.noWrap,
+                    onChange = { session.setNoWrapDefault(it) }
+                )
+
                 SliderField(
                     title = stringResource(R.string.settings_section_scrollback),
                     value = settings.scrollbackLines.toFloat(),

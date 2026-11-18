@@ -42,7 +42,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -535,8 +534,11 @@ class TerminalSession(
     }
 
     fun setThemeName(name: String) { scope.launch { settings.setTheme(name) } }
-    /** 折り返さずに表示するか (全タブ共通の保存される設定)。既定は折り返す。 */
-    val noWrap: StateFlow<Boolean> = baseSettings.map { it.noWrap }
+    /** タブのメニューで一時的に切り替えた状態。null なら設定の標準に従う。保存しない。 */
+    private val tabNoWrap = MutableStateFlow<Boolean?>(null)
+
+    /** このタブを折り返さずに表示するか。 */
+    val noWrap: StateFlow<Boolean> = combine(baseSettings, tabNoWrap) { base, tab -> tab ?: base.noWrap }
         .stateIn(scope, SharingStarted.Eagerly, AppSettings.DEFAULT_NO_WRAP)
 
     /** 折り返しなしのときの横の表示位置 (px)。 */
@@ -544,10 +546,19 @@ class TerminalSession(
     val scrollXPx: StateFlow<Float> = _scrollXPx.asStateFlow()
 
     fun toggleNoWrap() {
-        val next = !baseSettings.value.noWrap
-        SessionManager.sessions.value.filterIsInstance<TerminalSession>().forEach { it.setScrollX(0f) }
-        scope.launch { settings.setNoWrap(next) }
+        val next = !(tabNoWrap.value ?: baseSettings.value.noWrap)
+        tabNoWrap.value = next
+        _scrollXPx.value = 0f
         _toastEvents.tryEmit(appContext.getString(if (next) R.string.no_wrap_on else R.string.no_wrap_off))
+    }
+
+    /** 設定画面の標準: タブごとの一時的な切り替えをなくして、全タブをこの状態に揃える。 */
+    fun setNoWrapDefault(value: Boolean) {
+        SessionManager.sessions.value.filterIsInstance<TerminalSession>().forEach {
+            it.tabNoWrap.value = null
+            it.setScrollX(0f)
+        }
+        scope.launch { settings.setNoWrap(value) }
     }
 
     fun setScrollX(px: Float) { _scrollXPx.value = px.coerceAtLeast(0f) }

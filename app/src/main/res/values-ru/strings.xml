@@ -774,6 +774,8 @@
     <string name="tb_log">Записывать журнал терминала</string>
     <string name="no_wrap_on">Без переноса строк</string>
     <string name="no_wrap_off">Перенос строк</string>
+    <string name="settings_no_wrap_default">Не переносить длинные строки</string>
+    <string name="settings_no_wrap_default_desc">Действует для всех вкладок терминала. Листайте вбок для перемещения. Меню вкладки (долгое нажатие) временно переключает только её.</string>
     <string name="tb_pointer_mode">Курсор: относительный / абсолютный</string>
     <string name="tb_clipboard_file">Отправить файлы на удалённый рабочий стол</string>
     <string name="clipboard_file_unavailable">Этот файл нельзя прочитать. Выберите другой файл.</string>

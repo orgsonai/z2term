@@ -753,6 +753,8 @@
     <string name="tb_log">記錄終端機日誌</string>
     <string name="no_wrap_on">不換行</string>
     <string name="no_wrap_off">自動換行</string>
+    <string name="settings_no_wrap_default">長行不換行</string>
+    <string name="settings_no_wrap_default_desc">作為所有終端機分頁的預設值。左右滑動可移動。長按分頁的選單可暫時切換該分頁。</string>
     <string name="tb_pointer_mode">游標 相對 / 絕對</string>
     <string name="tb_clipboard_file">傳送檔案到遠端桌面</string>
     <string name="clipboard_file_unavailable">無法讀取此檔案，請選擇其他檔案。</string>

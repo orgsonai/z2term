@@ -767,6 +767,8 @@
     <string name="tb_log">Gravar o registro do terminal</string>
     <string name="no_wrap_on">Sem quebra de linha</string>
     <string name="no_wrap_off">Quebra de linha</string>
+    <string name="settings_no_wrap_default">Não quebrar linhas longas</string>
+    <string name="settings_no_wrap_default_desc">Vale para todas as abas do terminal. Deslize para o lado para mover. O menu da aba (toque longo) muda só essa aba temporariamente.</string>
     <string name="tb_pointer_mode">Cursor: relativo / absoluto</string>
     <string name="tb_clipboard_file">Enviar arquivos para a área de trabalho remota</string>
     <string name="clipboard_file_unavailable">Este arquivo não pode ser lido. Escolha outro arquivo.</string>

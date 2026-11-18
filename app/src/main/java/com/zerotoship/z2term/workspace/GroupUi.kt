@@ -107,7 +107,7 @@ internal fun middleEllipsis(name: String, max: Int): String {
     NoWrapMenuItem(session, onDone)
 }
 
-/** Switches line wrapping for every terminal tab. The entry names the state it switches to. */
+/** Temporarily switches line wrapping for this terminal tab. The entry names the state it switches to. */
 @Composable private fun NoWrapMenuItem(session: AppSession, onDone: () -> Unit) {
     val terminal = session as? com.zerotoship.z2term.core.TerminalSession ?: return
     val noWrap by terminal.noWrap.collectAsState()

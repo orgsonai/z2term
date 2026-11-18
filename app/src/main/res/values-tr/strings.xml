@@ -758,6 +758,8 @@
     <string name="tb_log">Terminal kaydını tut</string>
     <string name="no_wrap_on">Satır kaydırma yok</string>
     <string name="no_wrap_off">Satır kaydırma</string>
+    <string name="settings_no_wrap_default">Uzun satırları kaydırma</string>
+    <string name="settings_no_wrap_default_desc">Tüm terminal sekmeleri için geçerlidir. Hareket etmek için yana kaydırın. Sekmenin uzun basma menüsü yalnızca o sekmeyi geçici olarak değiştirir.</string>
     <string name="tb_pointer_mode">İmleç: göreli / mutlak</string>
     <string name="tb_clipboard_file">Uzak masaüstüne dosya gönder</string>
     <string name="clipboard_file_unavailable">Bu dosya okunamıyor. Başka bir dosya seçin.</string>

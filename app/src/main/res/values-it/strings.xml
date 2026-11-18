@@ -767,6 +767,8 @@
     <string name="tb_log">Registra il terminale</string>
     <string name="no_wrap_on">Senza a capo</string>
     <string name="no_wrap_off">A capo automatico</string>
+    <string name="settings_no_wrap_default">Non andare a capo nelle righe lunghe</string>
+    <string name="settings_no_wrap_default_desc">Vale per tutte le schede del terminale. Scorri di lato per spostarti. Il menu della scheda (pressione lunga) cambia temporaneamente solo quella scheda.</string>
     <string name="tb_pointer_mode">Cursore: relativo / assoluto</string>
     <string name="tb_clipboard_file">Invia file al desktop remoto</string>
     <string name="clipboard_file_unavailable">Questo file non si può leggere. Scegli un altro file.</string>

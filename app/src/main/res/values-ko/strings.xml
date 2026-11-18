@@ -752,6 +752,8 @@
     <string name="tb_log">터미널 로그 기록</string>
     <string name="no_wrap_on">줄 바꿈 안 함</string>
     <string name="no_wrap_off">줄 바꿈</string>
+    <string name="settings_no_wrap_default">긴 줄을 바꾸지 않음</string>
+    <string name="settings_no_wrap_default_desc">모든 터미널 탭의 기본값이 됩니다. 옆으로 밀어 이동합니다. 탭을 길게 눌러 나오는 메뉴에서는 해당 탭만 임시로 바꿀 수 있습니다.</string>
     <string name="tb_pointer_mode">커서: 상대 / 절대</string>
     <string name="tb_clipboard_file">원격 데스크톱으로 파일 보내기</string>
     <string name="clipboard_file_unavailable">이 파일은 읽을 수 없습니다. 다른 파일을 고르세요.</string>
