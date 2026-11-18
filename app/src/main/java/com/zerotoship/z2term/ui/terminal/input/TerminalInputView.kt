@@ -104,9 +104,8 @@ class TerminalInputView(context: Context) : View(context) {
     private var touchMode = TouchMode.NONE
     private var selectionAnchorRow = 0
     private var selectionAnchorCol = 0
-    private var initialFontSizeSp: Float = 13f
+    private var fontPinch: com.zerotoship.z2term.core.FontPinch? = null
     private var initialSpan: Float = 0f
-    private var lastAppliedFontSp: Float = 0f
     /**
      * 直前の単タップが「リンクを開いてよいもの」だったか。
      * [GestureDetector.SimpleOnGestureListener.onSingleTapUp] が決め、
@@ -185,27 +184,18 @@ class TerminalInputView(context: Context) : View(context) {
         context,
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
-                initialFontSizeSp = session?.settingsFlow?.value?.fontSizeSp ?: 13f
+                fontPinch = session?.let { com.zerotoship.z2term.core.FontPinch(it) }
                 // ピンチ開始時の指間距離を基準にする。以降は currentSpan/initialSpan の
                 // 累積比でサイズを決める。旧実装は detector.scaleFactor (前イベント比) を
                 // initial に掛けていたため、ほぼ 1.0 の値が揺れて「ウニョウニョ」していた。
                 initialSpan = detector.currentSpan
-                lastAppliedFontSp = initialFontSizeSp
                 return true
             }
 
             override fun onScale(detector: ScaleGestureDetector): Boolean {
-                val sess = session ?: return false
+                val pinch = fontPinch ?: return false
                 if (initialSpan <= 0f) return false
-                val ratio = detector.currentSpan / initialSpan
-                // 0.5sp 単位に量子化。微小変化での resize 連打 (重い) を防ぎ滑らかに。
-                val raw = (initialFontSizeSp * ratio)
-                    .coerceIn(AppSettings.MIN_FONT_SIZE_SP, AppSettings.MAX_FONT_SIZE_SP)
-                val quantized = Math.round(raw * 2f) / 2f
-                if (quantized != lastAppliedFontSp) {
-                    lastAppliedFontSp = quantized
-                    sess.setFontSize(quantized)
-                }
+                pinch.scale(detector.currentSpan / initialSpan)
                 return true
             }
         }

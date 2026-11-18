@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.170 (versionCode 868)**: While broadcasting, a pinch now changes the text size only in the tabs that receive your input. Unticked tabs stay as they are. With the 📡 switch off, or when you pinch in an unticked tab, only that tab changes. Each tab scales from its current size by the same ratio, so pinch to the minimum or maximum to make them match. Outside broadcast, a pinch still changes every tab. The text size slider in Settings makes every tab the same size.
+
 **1.0.169 (versionCode 867)**: After switching the app language, messages such as "Starting …" in new tabs stayed in the previous language. They now follow the new language right away, as do toasts, notifications and other text created outside the main screen.
 
 **1.0.168 (versionCode 866)**: Punctuation and symbols no longer come before words in the predictive candidate bar. When nothing is typed, the bar shows words you confirm often, then set phrases, then symbols. Next-word candidates after a commit also list words first.

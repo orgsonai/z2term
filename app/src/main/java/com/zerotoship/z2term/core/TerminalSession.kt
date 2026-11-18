@@ -390,9 +390,16 @@ class TerminalSession(
     private val _toastEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 4)
     val toastEvents = _toastEvents.asSharedFlow()
 
-    val settingsFlow: StateFlow<AppSettings.Snapshot> = settings.flow.stateIn(
+    private val baseSettings: StateFlow<AppSettings.Snapshot> = settings.flow.stateIn(
         scope = scope, started = SharingStarted.Eagerly, initialValue = AppSettings.Snapshot()
     )
+
+    /** このタブだけの文字サイズ (ブロードキャスト中のピンチで決まる)。null なら全タブ共通の設定に従う。 */
+    private val tabFontSize = MutableStateFlow<Float?>(null)
+
+    val settingsFlow: StateFlow<AppSettings.Snapshot> = combine(baseSettings, tabFontSize) { base, tabSp ->
+        if (tabSp == null) base else base.copy(fontSizeSp = tabSp)
+    }.stateIn(scope = scope, started = SharingStarted.Eagerly, initialValue = AppSettings.Snapshot())
 
     private var channel: ProcessChannel? = null
     private var readJob: Job? = null
@@ -527,7 +534,19 @@ class TerminalSession(
     }
 
     fun setThemeName(name: String) { scope.launch { settings.setTheme(name) } }
-    fun setFontSize(sp: Float) { scope.launch { settings.setFontSize(sp) } }
+    /** 全タブ共通の文字サイズ。 */
+    val baseFontSizeSp: Float get() = baseSettings.value.fontSizeSp
+    /** このタブがいま使っている文字サイズ。 */
+    val currentFontSizeSp: Float get() = tabFontSize.value ?: baseFontSizeSp
+    val hasTabFontSize: Boolean get() = tabFontSize.value != null
+    fun setTabFontSize(sp: Float?) { tabFontSize.value = sp }
+    fun setBaseFontSize(sp: Float) { scope.launch { settings.setFontSize(sp) } }
+
+    /** 設定画面の文字サイズ: タブごとの違いをなくして、全タブをこの大きさに揃える。 */
+    fun setFontSize(sp: Float) {
+        SessionManager.sessions.value.filterIsInstance<TerminalSession>().forEach { it.setTabFontSize(null) }
+        setBaseFontSize(sp)
+    }
     fun setScrollbackLines(lines: Int) { scope.launch { settings.setScrollbackLines(lines) } }
     fun setDistro(id: String) { scope.launch { settings.setDistro(id) } }
     fun setFontId(id: String) { scope.launch { settings.setFontId(id) } }
