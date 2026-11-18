@@ -1906,8 +1906,11 @@ class ComposingState(
     private fun showNextWords() {
         val prev = prevCommitSurface
         val next = if (text.isEmpty() && prediction && prev != null) {
-            (ImeHistoryStore.nextWords(prev, limit = NEXT_WORD_LIMIT) + NextWordDict.next(prev, NEXT_WORD_LIMIT))
-                .distinct().take(NEXT_WORD_LIMIT)
+            SetPhrases.orderNextWords(
+                ImeHistoryStore.nextWords(prev, limit = NEXT_WORD_LIMIT),
+                NextWordDict.next(prev, NEXT_WORD_LIMIT),
+                NEXT_WORD_LIMIT,
+            )
         } else {
             emptyList()
         }
@@ -1917,7 +1920,7 @@ class ComposingState(
     }
 
     /**
-     * 何も打っていないときの候補 (1.0.140): 記号 (、。？！…) → よく確定している語 → 定型文 ([SetPhrases])。
+     * 何も打っていないときの候補 (1.0.140): よく確定している語 → 定型文 → 記号 ([SetPhrases.idleCandidates])。
      * 予測変換が ON で日本語の面を開いている間は、開いた直後も ⌫ の後も、バーを空にしない
      * (場所は空けてあるので、空だと何も無い帯になる・利用者の決定)。
      * キーを送るたびに呼ばれるので、出している間は引き直さない。
@@ -1929,11 +1932,7 @@ class ComposingState(
             return
         }
         if (showingIdle && nextWords.isNotEmpty()) return
-        val out = LinkedHashSet<String>()
-        out.addAll(SetPhrases.symbols)
-        out.addAll(ImeHistoryStore.frequentWords(IDLE_LEARNED_LIMIT))
-        for ((_, w) in SetPhrases.all) out.add(w)
-        nextWords = out.toList()
+        nextWords = SetPhrases.idleCandidates(ImeHistoryStore.frequentWords(IDLE_LEARNED_LIMIT))
         showingIdle = true
     }
 

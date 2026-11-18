@@ -10,7 +10,7 @@ package com.zerotoship.z2term.ui.terminal.keyboard
  */
 internal object SetPhrases {
 
-    /** 何も打っていないときの候補の先頭に置く記号。文の区切りに毎回使うので、定型文より前。 */
+    /** 何も打っていないときの候補の最後に置く記号 (1.0.168)。語より前に出すと語が隠れる。 */
     val symbols: List<String> = listOf("、", "。", "？", "！", "…", "ー", "・")
 
     /** (読み, 表記)。並びは候補バーに出す順。 */
@@ -30,6 +30,23 @@ internal object SetPhrases {
     )
 
     private const val MIN_PREFIX = 2
+
+    /** 句読点や記号だけでできた候補か。「ー」は文字扱いなので [symbols] でも見る。 */
+    fun isSymbol(word: String): Boolean = word in symbols || word.none { it.isLetterOrDigit() }
+
+    /** 何も打っていないときの候補: よく確定している語 → 定型文 → 記号。 */
+    fun idleCandidates(frequentWords: List<String>): List<String> =
+        (frequentWords + all.map { it.second } + symbols).distinct()
+
+    /**
+     * 確定直後に出す次の言葉: 学習した語 → 続きやすい語 → 記号。
+     * 句読点を確定した回数が多くても語より前には出さない。記号しか無いときは空を返す
+     * (何も打っていないときの候補に任せる)。
+     */
+    fun orderNextWords(learned: List<String>, table: List<String>, limit: Int): List<String> {
+        val (marks, words) = (learned + table).distinct().partition { isSymbol(it) }
+        return if (words.isEmpty()) emptyList() else (words + marks).take(limit)
+    }
 
     /** 打った読み [prefix] で始まり、それより長い定型文。2 文字から。 */
     fun predictWithReading(prefix: String): List<Pair<String, String>> {
