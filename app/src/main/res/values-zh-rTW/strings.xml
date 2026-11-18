@@ -751,6 +751,8 @@
     <string name="tb_keyboard">切換鍵盤</string>
     <string name="tb_settings">設定</string>
     <string name="tb_log">記錄終端機日誌</string>
+    <string name="no_wrap_on">不換行</string>
+    <string name="no_wrap_off">自動換行</string>
     <string name="tb_pointer_mode">游標 相對 / 絕對</string>
     <string name="tb_clipboard_file">傳送檔案到遠端桌面</string>
     <string name="clipboard_file_unavailable">無法讀取此檔案，請選擇其他檔案。</string>

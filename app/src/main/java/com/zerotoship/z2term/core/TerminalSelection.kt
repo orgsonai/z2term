@@ -11,7 +11,11 @@ data class CellMetrics(
     val lineHeight: Float = 0f,
     val canvasRows: Int = 0,
     val canvasCols: Int = 0,
-    val horizontalPaddingPx: Float = 0f
+    val horizontalPaddingPx: Float = 0f,
+    /** 横に動かせる範囲も含めた桁数。折り返しありなら [canvasCols] と同じ。 */
+    val contentCols: Int = 0,
+    /** 横に動かせる最大量 (px)。折り返しありなら 0。 */
+    val maxScrollXPx: Float = 0f
 )
 
 /**

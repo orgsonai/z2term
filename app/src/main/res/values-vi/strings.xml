@@ -748,6 +748,8 @@
     <string name="tb_keyboard">Chuyển bàn phím</string>
     <string name="tb_settings">Cài đặt</string>
     <string name="tb_log">Ghi nhật ký terminal</string>
+    <string name="no_wrap_on">Không ngắt dòng</string>
+    <string name="no_wrap_off">Ngắt dòng</string>
     <string name="tb_pointer_mode">Con trỏ: tương đối / tuyệt đối</string>
     <string name="tb_clipboard_file">Gửi tệp đến máy tính từ xa</string>
     <string name="clipboard_file_unavailable">Không đọc được tệp này. Hãy chọn tệp khác.</string>

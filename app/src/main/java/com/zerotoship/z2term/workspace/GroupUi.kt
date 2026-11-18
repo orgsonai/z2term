@@ -104,11 +104,20 @@ internal fun middleEllipsis(name: String, max: Int): String {
  */
 @Composable internal fun TabMenu(session: AppSession, onDone: () -> Unit) {
     MenuItem(R.string.group_rename_tab) { onDone(); GroupUiState.dialog = GroupDialog.RenameTab(session.id) }
+    NoWrapMenuItem(session, onDone)
+}
+
+/** Switches line wrapping for this terminal tab. The entry names the state it switches to. */
+@Composable private fun NoWrapMenuItem(session: AppSession, onDone: () -> Unit) {
+    val terminal = session as? com.zerotoship.z2term.core.TerminalSession ?: return
+    val noWrap by terminal.noWrap.collectAsState()
+    MenuItem(if (noWrap) R.string.no_wrap_off else R.string.no_wrap_on) { onDone(); terminal.toggleNoWrap() }
 }
 
 /** Menu of a pane title inside a group. */
 @Composable internal fun GroupMemberMenu(session: AppSession, onDone: () -> Unit) {
     MenuItem(R.string.group_rename_tab) { onDone(); GroupUiState.dialog = GroupDialog.RenameTab(session.id) }
+    NoWrapMenuItem(session, onDone)
     MenuItem(R.string.group_leave) { onDone(); Workspace.update { it.removeMember(session.id) } }
     MenuItem(R.string.group_close_tab) {
         onDone()

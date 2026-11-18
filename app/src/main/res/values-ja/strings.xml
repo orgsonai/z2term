@@ -808,6 +808,8 @@
     <string name="tb_keyboard">キーボード切替</string>
     <string name="tb_settings">設定</string>
     <string name="tb_log">端末ログを記録</string>
+    <string name="no_wrap_on">折り返しなし</string>
+    <string name="no_wrap_off">折り返しあり</string>
     <string name="tb_pointer_mode">カーソル 相対 / 絶対</string>
     <string name="tb_clipboard_file">端末のファイルを相手へ送る</string>
     <string name="clipboard_file_unavailable">このファイルを読み込めません。別のファイルを選んでください。</string>

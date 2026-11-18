@@ -765,6 +765,8 @@
     <string name="tb_keyboard">Trocar o teclado</string>
     <string name="tb_settings">Configurações</string>
     <string name="tb_log">Gravar o registro do terminal</string>
+    <string name="no_wrap_on">Sem quebra de linha</string>
+    <string name="no_wrap_off">Quebra de linha</string>
     <string name="tb_pointer_mode">Cursor: relativo / absoluto</string>
     <string name="tb_clipboard_file">Enviar arquivos para a área de trabalho remota</string>
     <string name="clipboard_file_unavailable">Este arquivo não pode ser lido. Escolha outro arquivo.</string>

@@ -765,6 +765,8 @@
     <string name="tb_keyboard">Cambia tastiera</string>
     <string name="tb_settings">Impostazioni</string>
     <string name="tb_log">Registra il terminale</string>
+    <string name="no_wrap_on">Senza a capo</string>
+    <string name="no_wrap_off">A capo automatico</string>
     <string name="tb_pointer_mode">Cursore: relativo / assoluto</string>
     <string name="tb_clipboard_file">Invia file al desktop remoto</string>
     <string name="clipboard_file_unavailable">Questo file non si può leggere. Scegli un altro file.</string>

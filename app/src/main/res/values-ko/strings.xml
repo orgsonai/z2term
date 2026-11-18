@@ -750,6 +750,8 @@
     <string name="tb_keyboard">키보드 전환</string>
     <string name="tb_settings">설정</string>
     <string name="tb_log">터미널 로그 기록</string>
+    <string name="no_wrap_on">줄 바꿈 안 함</string>
+    <string name="no_wrap_off">줄 바꿈</string>
     <string name="tb_pointer_mode">커서: 상대 / 절대</string>
     <string name="tb_clipboard_file">원격 데스크톱으로 파일 보내기</string>
     <string name="clipboard_file_unavailable">이 파일은 읽을 수 없습니다. 다른 파일을 고르세요.</string>

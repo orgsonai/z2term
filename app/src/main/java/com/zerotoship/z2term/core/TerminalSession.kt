@@ -534,6 +534,25 @@ class TerminalSession(
     }
 
     fun setThemeName(name: String) { scope.launch { settings.setTheme(name) } }
+    /** このタブを折り返さずに表示するか。既定は折り返す。 */
+    private val _noWrap = MutableStateFlow(false)
+    val noWrap: StateFlow<Boolean> = _noWrap.asStateFlow()
+
+    /** 折り返しなしのときの横の表示位置 (px)。 */
+    private val _scrollXPx = MutableStateFlow(0f)
+    val scrollXPx: StateFlow<Float> = _scrollXPx.asStateFlow()
+
+    fun toggleNoWrap() {
+        _noWrap.value = !_noWrap.value
+        _scrollXPx.value = 0f
+        _toastEvents.tryEmit(appContext.getString(if (_noWrap.value) R.string.no_wrap_on else R.string.no_wrap_off))
+    }
+
+    fun setScrollX(px: Float) { _scrollXPx.value = px.coerceAtLeast(0f) }
+
+    /** 打った直後か。出力だけで横の表示位置を動かさないために見る。 */
+    val typedRecently: Boolean get() = SystemClock.elapsedRealtime() - lastInputAt < TYPED_RECENTLY_MS
+
     /** 全タブ共通の文字サイズ。 */
     val baseFontSizeSp: Float get() = baseSettings.value.fontSizeSp
     /** このタブがいま使っている文字サイズ。 */
@@ -1608,6 +1627,7 @@ class TerminalSession(
     private fun currentSize(): Pair<Int, Int> = emulator.buffer.rows to emulator.buffer.columns
 
     companion object {
+        private const val TYPED_RECENTLY_MS = 1500L
         private const val TAG = "TerminalSession"
         /** init コマンド送出までの待機 (シェルプロンプト表示待ち) */
         private const val INIT_DELAY_MS = 400L

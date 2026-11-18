@@ -772,6 +772,8 @@
     <string name="tb_keyboard">Сменить клавиатуру</string>
     <string name="tb_settings">Настройки</string>
     <string name="tb_log">Записывать журнал терминала</string>
+    <string name="no_wrap_on">Без переноса строк</string>
+    <string name="no_wrap_off">Перенос строк</string>
     <string name="tb_pointer_mode">Курсор: относительный / абсолютный</string>
     <string name="tb_clipboard_file">Отправить файлы на удалённый рабочий стол</string>
     <string name="clipboard_file_unavailable">Этот файл нельзя прочитать. Выберите другой файл.</string>

@@ -757,6 +757,8 @@
     <string name="tb_keyboard">Tastatur wechseln</string>
     <string name="tb_settings">Einstellungen</string>
     <string name="tb_log">Terminalprotokoll aufzeichnen</string>
+    <string name="no_wrap_on">Kein Zeilenumbruch</string>
+    <string name="no_wrap_off">Zeilenumbruch</string>
     <string name="tb_pointer_mode">Cursor: relativ / absolut</string>
     <string name="tb_clipboard_file">Dateien an Remotedesktop senden</string>
     <string name="clipboard_file_unavailable">Diese Datei kann nicht gelesen werden. Wähle eine andere Datei.</string>

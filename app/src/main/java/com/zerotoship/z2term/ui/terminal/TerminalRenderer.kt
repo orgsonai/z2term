@@ -1,5 +1,10 @@
 package com.zerotoship.z2term.ui.terminal
 
+import com.zerotoship.z2term.core.scrollXToShowColumn
+import com.zerotoship.z2term.core.ptyColumns
+import com.zerotoship.z2term.core.maxScrollX
+import androidx.core.graphics.withClip
+import androidx.compose.runtime.derivedStateOf
 import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
@@ -67,6 +72,14 @@ fun TerminalRenderer(
     val scrollOffset by session.scrollOffset.collectAsState()
     val settings by session.settingsFlow.collectAsState()
     val selection by session.selection.collectAsState()
+    val noWrap by session.noWrap.collectAsState()
+    val scrollX by session.scrollXPx.collectAsState()
+    // 毎回の出力で作り直さないよう、値が変わったときだけ読み直す。
+    val altScreen by remember(session.id) {
+        derivedStateOf { redrawTick; !session.emulator.buffer.primaryActive }
+    }
+    val bufferCols by remember(session.id) { derivedStateOf { redrawTick; session.emulator.buffer.columns } }
+    val cursorCol by remember(session.id) { derivedStateOf { redrawTick; session.emulator.cursorCol } }
     // Kitty graphics animation の再描画 tick。 redrawTick とは別経路で、 frame 切替が
     // 起きた瞬間だけインクリメントする (アイドル時は idle poll で CPU を握らない)。
     var animTick by remember { mutableIntStateOf(0) }
@@ -125,8 +138,22 @@ fun TerminalRenderer(
         val hPadPx = H_PAD_DP * density.density
         val cols = ((canvasWPx - 2 * hPadPx) / cellW).toInt().coerceAtLeast(1)
         val rows = (canvasHPx / lineHeight).toInt().coerceAtLeast(1)
+        val noWrapActive = noWrap && !altScreen
+        val ptyCols = ptyColumns(cols, noWrap, altScreen)
+        val contentCols = if (noWrapActive) maxOf(cols, bufferCols) else cols
+        val maxScrollXPx = if (noWrapActive) maxScrollX(contentCols, cellW, canvasWPx, hPadPx) else 0f
+        val composing = composingText.isNotEmpty()
 
-        LaunchedEffect(session.id, rows, cols) {
+        // 打っている場所が画面の外へ出ないように追いかける。出力だけでは動かさない (読んでいる位置を保つ)。
+        LaunchedEffect(session.id, cursorCol, composing, noWrapActive, maxScrollXPx) {
+            if (noWrapActive && (composing || session.typedRecently)) {
+                session.setScrollX(
+                    scrollXToShowColumn(session.scrollXPx.value, cursorCol, cellW, canvasWPx, hPadPx, maxScrollXPx)
+                )
+            }
+        }
+
+        LaunchedEffect(session.id, rows, ptyCols) {
             // ピンチ中はフォントサイズが連続変化し rows/cols が高速に変わる。
             // 120ms 待って「最後の値」だけで resize することで、連打 resize による
             // バッファ再構築で文字が一瞬消える症状を防ぐ。
@@ -140,19 +167,21 @@ fun TerminalRenderer(
             // 「ピンチすると直る」現象になっていた。session.id をキーに足して、タブ切替
             // 時点で必ず再走させる ([updateCellMetrics] と同じ修正パターン)。
             delay(120)
-            session.onResize(rows, cols)
+            session.onResize(rows, ptyCols)
         }
         // session.id をキーに含めないと、同寸の新規タブへ切り替えたとき再実行されず、
         // 新 session の cellMetrics が初期値(0)のままになる。すると pixelToAbsCell() が
         // null を返し、ピンチで resize するまで長押し選択が効かない。
-        LaunchedEffect(session.id, cellW, lineHeight, rows, cols) {
+        LaunchedEffect(session.id, cellW, lineHeight, rows, cols, contentCols, maxScrollXPx) {
             session.updateCellMetrics(
                 CellMetrics(
                     cellW = cellW,
                     lineHeight = lineHeight,
                     canvasRows = rows,
                     canvasCols = cols,
-                    horizontalPaddingPx = hPadPx
+                    horizontalPaddingPx = hPadPx,
+                    contentCols = contentCols,
+                    maxScrollXPx = maxScrollXPx
                 )
             )
             // Kitty graphics 等で `c=N`/`r=N` 省略時に画像ピクセル数から
@@ -185,24 +214,26 @@ fun TerminalRenderer(
                 // パディング部分も含め全面を背景色で塗ってから、中身を右へずらして描く。
                 bgPaint.color = session.emulator.colors.defaultBackground
                 nc.drawRect(0f, 0f, canvasWPx, lineHeight * rows, bgPaint)
-                nc.withTranslation(x = hPadPx) {
-                    drawBuffer(
-                        nativeCanvas = nc,
-                        session = session,
-                        textPaint = textPaint,
-                        bgPaint = bgPaint,
-                        underlinePaint = underlinePaint,
-                        cellW = cellW,
-                        lineHeight = lineHeight,
-                        baselineOffset = baselineOffset,
-                        canvasRows = rows,
-                        canvasCols = cols,
-                        scrollOffset = scrollOffset,
-                        selection = selection,
-                        composingText = composingText,
-                        searchMatches = searchMatches,
-                        currentMatch = currentMatch
-                    )
+                nc.withClip(0f, 0f, canvasWPx, canvasHPx) {
+                    nc.withTranslation(x = hPadPx - scrollX.coerceIn(0f, maxScrollXPx)) {
+                        drawBuffer(
+                            nativeCanvas = nc,
+                            session = session,
+                            textPaint = textPaint,
+                            bgPaint = bgPaint,
+                            underlinePaint = underlinePaint,
+                            cellW = cellW,
+                            lineHeight = lineHeight,
+                            baselineOffset = baselineOffset,
+                            canvasRows = rows,
+                            canvasCols = contentCols,
+                            scrollOffset = scrollOffset,
+                            selection = selection,
+                            composingText = composingText,
+                            searchMatches = searchMatches,
+                            currentMatch = currentMatch
+                        )
+                    }
                 }
             }
         }

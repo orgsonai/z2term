@@ -26,6 +26,10 @@ import com.zerotoship.z2term.settings.AppSettings
 private const val AUTO_SCROLL_INTERVAL_MS = 45L
 /** フリング(慣性スクロール)の減衰係数。1 フレーム(約16ms)ごとに速度へ乗算。 */
 private const val FLING_DECELERATION = 0.90f
+private const val SWIPE_AXIS_NONE = 0
+private const val SWIPE_AXIS_X = 1
+private const val SWIPE_AXIS_Y = 2
+private const val SELECTION_PAN_EDGE_CELLS = 3f
 /** マウスレポーティング有効時、スワイプを 1 ホイールノッチに換算するピクセル量。 */
 private const val MOUSE_WHEEL_STEP_PX = 40f
 
@@ -113,6 +117,19 @@ class TerminalInputView(context: Context) : View(context) {
      */
     private var linkTapCandidate: Boolean = false
     private var scrollAccumDy: Float = 0f
+    // 1 回のスワイプは縦か横のどちらかに決める (斜めに動かしても両方へ動かさない)。
+    private var swipeAxis: Int = SWIPE_AXIS_NONE
+    private var panFlingPxPerFrame: Float = 0f
+    private val panFlingRunnable = object : Runnable {
+        override fun run() {
+            val sess = session ?: return
+            val max = sess.cellMetrics.value.maxScrollXPx
+            if (max <= 0f || kotlin.math.abs(panFlingPxPerFrame) < 1f) { panFlingPxPerFrame = 0f; return }
+            sess.setScrollX((sess.scrollXPx.value.coerceIn(0f, max) + panFlingPxPerFrame).coerceIn(0f, max))
+            panFlingPxPerFrame *= FLING_DECELERATION
+            postDelayed(this, 16)
+        }
+    }
     private var mouseWheelAccumDy: Float = 0f
     private var arrowScrollAccumDy: Float = 0f
 
@@ -208,6 +225,9 @@ class TerminalInputView(context: Context) : View(context) {
                 // 走行中のフリングを止める (タップで即停止)
                 flingVelocityRows = 0f
                 removeCallbacks(flingRunnable)
+                panFlingPxPerFrame = 0f
+                removeCallbacks(panFlingRunnable)
+                swipeAxis = SWIPE_AXIS_NONE
                 scrollAccumDy = 0f
                 mouseWheelAccumDy = 0f
                 arrowScrollAccumDy = 0f
@@ -224,6 +244,12 @@ class TerminalInputView(context: Context) : View(context) {
                 val sess = session ?: return false
                 val m = sess.cellMetrics.value
                 if (m.lineHeight <= 0f) return false
+                if (swipeAxis == SWIPE_AXIS_X) {
+                    panFlingPxPerFrame = -velocityX / 60f
+                    removeCallbacks(panFlingRunnable)
+                    post(panFlingRunnable)
+                    return true
+                }
                 val isAltScreen = !sess.emulator.buffer.primaryActive
                 // マウスモード中の「上方向フリング (=次へ進む方向)」は primary 画面で
                 // scrollback==0 のときだけ no-op (もう過去側に戻る余地が無く、wheel イベントは
@@ -295,6 +321,18 @@ class TerminalInputView(context: Context) : View(context) {
                 if (isSgrMouseInputActive(sess) && e2.pointerCount == 1) {
                     sendSgrMouseDrag(e2.x, e2.y, sess)
                     return true
+                }
+                if (m.maxScrollXPx > 0f) {
+                    if (swipeAxis == SWIPE_AXIS_NONE) {
+                        val dx = kotlin.math.abs(e2.x - (e1?.x ?: e2.x))
+                        val dy = kotlin.math.abs(e2.y - (e1?.y ?: e2.y))
+                        swipeAxis = if (dx > dy) SWIPE_AXIS_X else SWIPE_AXIS_Y
+                    }
+                    if (swipeAxis == SWIPE_AXIS_X) {
+                        val current = sess.scrollXPx.value.coerceIn(0f, m.maxScrollXPx)
+                        sess.setScrollX((current + distanceX).coerceIn(0f, m.maxScrollXPx))
+                        return true
+                    }
                 }
                 return scrollByDistance(e2.x, e2.y, distanceY)
             }
@@ -593,6 +631,20 @@ class TerminalInputView(context: Context) : View(context) {
         val sess = session ?: return
         lastTouchX = x
         lastTouchY = y
+        // 折り返しなしで画面の端まで選んだら、続きが見えるように横へ動かす。
+        val metrics = sess.cellMetrics.value
+        if (metrics.maxScrollXPx > 0f) {
+            val edge = metrics.cellW * SELECTION_PAN_EDGE_CELLS
+            val step = when {
+                x < edge -> -metrics.cellW
+                x > width - edge -> metrics.cellW
+                else -> 0f
+            }
+            if (step != 0f) {
+                val current = sess.scrollXPx.value.coerceIn(0f, metrics.maxScrollXPx)
+                sess.setScrollX((current + step).coerceIn(0f, metrics.maxScrollXPx))
+            }
+        }
         val cell = pixelToAbsCell(x, y) ?: return
         val sel = sess.selection.value
         val newSel = when (touchMode) {
@@ -708,6 +760,7 @@ class TerminalInputView(context: Context) : View(context) {
         super.onDetachedFromWindow()
         removeCallbacks(autoScrollRunnable)
         removeCallbacks(flingRunnable)
+        removeCallbacks(panFlingRunnable)
         magnifier?.dismiss()
         magnifier = null
         session?.setSelectionDragging(false)
@@ -852,7 +905,7 @@ class TerminalInputView(context: Context) : View(context) {
         val radius = (m.lineHeight * 2.2f).coerceAtLeast(96f)
         val r2 = radius * radius
 
-        val hPad = m.horizontalPaddingPx
+        val hPad = m.horizontalPaddingPx - sess.scrollXPx.value.coerceIn(0f, m.maxScrollXPx)
         var startD = Float.MAX_VALUE
         val startCanvasRow = sel.startAbsRow - topAbsRow
         if (startCanvasRow in 0 until m.canvasRows) {
@@ -1057,7 +1110,9 @@ class TerminalInputView(context: Context) : View(context) {
         val topAbsRow = currentTopAbsRow(sess, m) ?: return null
         val canvasRow = (y / m.lineHeight).toInt().coerceIn(0, m.canvasRows - 1)
         // 描画は hPad 分右へずらしているので、タッチ x から余白を引いて列へ変換。
-        val canvasCol = ((x - m.horizontalPaddingPx) / m.cellW).toInt().coerceIn(0, m.canvasCols - 1)
+        val scrollX = sess.scrollXPx.value.coerceIn(0f, m.maxScrollXPx)
+        val lastCol = maxOf(m.canvasCols, m.contentCols) - 1
+        val canvasCol = ((x + scrollX - m.horizontalPaddingPx) / m.cellW).toInt().coerceIn(0, lastCol)
         return (topAbsRow + canvasRow) to canvasCol
     }
 
