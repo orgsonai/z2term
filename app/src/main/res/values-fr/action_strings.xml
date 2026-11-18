@@ -20,7 +20,7 @@
     <string name="action_edit_text">Texte</string>
     <string name="action_edit_copy_text">Copier le texte</string>
     <string name="action_edit_copied">Définition copiée</string>
-    <string name="action_edit_timeout">Délai (secondes, 1–300)</string>
+    <string name="action_edit_timeout">Délai (secondes, 0–300 ; 0 = sans limite)</string>
     <string name="action_edit_screen">Écran : current ou LARGEURxHAUTEUR@ROTATION</string>
     <string name="action_edit_up">Monter</string>
     <string name="action_edit_down">Descendre</string>

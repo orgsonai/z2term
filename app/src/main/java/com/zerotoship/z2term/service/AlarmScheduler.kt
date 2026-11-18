@@ -53,7 +53,8 @@ object AlarmScheduler {
         val at: Long,
         /** `daily` のときの時刻 (再セット用)。`once` では -1。 */
         val hour: Int = -1,
-        val minute: Int = -1
+        val minute: Int = -1,
+        val second: Int = 0
     ) {
         fun toJson(): JSONObject = JSONObject().apply {
             put("id", id)
@@ -64,6 +65,7 @@ object AlarmScheduler {
             if (kind == KIND_DAILY) {
                 put("hour", hour)
                 put("minute", minute)
+                put("second", second)
             }
         }
 
@@ -74,7 +76,8 @@ object AlarmScheduler {
                 kind = o.optString("kind", KIND_ONCE),
                 at = o.optLong("at"),
                 hour = o.optInt("hour", -1),
-                minute = o.optInt("minute", -1)
+                minute = o.optInt("minute", -1),
+                second = o.optInt("second", 0)
             )
         }
     }
@@ -93,14 +96,15 @@ object AlarmScheduler {
      * アラームを 1 件登録する。[hour]/[minute] 指定なら「今日のその時刻、既に過ぎていれば明日」。
      * 戻り値は登録内容の JSON (CLI がそのまま表示する)。
      */
-    fun add(context: Context, name: String, kind: String, at: Long, hour: Int, minute: Int): String {
+    fun add(context: Context, name: String, kind: String, at: Long, hour: Int, minute: Int, second: Int = 0): String {
         val entry = AlarmEntry(
             id = Random.nextInt(1, Int.MAX_VALUE),
             name = name.ifBlank { "alarm" },
             kind = kind,
             at = at,
             hour = hour,
-            minute = minute
+            minute = minute,
+            second = second
         )
         synchronized(lock) {
             val list = load(context).toMutableList()
@@ -154,7 +158,7 @@ object AlarmScheduler {
             for (e in load(context)) {
                 when {
                     // 再起動中に時刻を過ぎた daily は次の該当時刻へ送る (取りこぼしても鳴り続けさせない)。
-                    e.kind == KIND_DAILY -> kept.add(e.copy(at = nextDailyAt(e.hour, e.minute)))
+                    e.kind == KIND_DAILY -> kept.add(e.copy(at = nextDailyAt(e.hour, e.minute, e.second)))
                     e.at > now -> kept.add(e)
                     // 過ぎてしまった once は捨てる (後追いで発火させると意図しない動作になる)。
                     else -> Log.i(TAG, "dropping stale alarm ${e.id} (${e.name})")
@@ -177,7 +181,7 @@ object AlarmScheduler {
         }
         EventEmitter.emit(context, event = "alarm", name = entry.name)
         if (entry.kind == KIND_DAILY) {
-            val next = entry.copy(at = nextDailyAt(entry.hour, entry.minute))
+            val next = entry.copy(at = nextDailyAt(entry.hour, entry.minute, entry.second))
             synchronized(lock) {
                 save(context, load(context).map { if (it.id == id) next else it })
             }
@@ -189,12 +193,12 @@ object AlarmScheduler {
         }
     }
 
-    /** `HH:MM` の次の発火時刻 (今日のその時刻を既に過ぎていれば明日)。 */
-    fun nextDailyAt(hour: Int, minute: Int): Long {
+    /** `HH:MM[:SS]` の次の発火時刻 (今日のその時刻を既に過ぎていれば明日)。 */
+    fun nextDailyAt(hour: Int, minute: Int, second: Int = 0): Long {
         val c = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)
-            set(Calendar.SECOND, 0)
+            set(Calendar.SECOND, second)
             set(Calendar.MILLISECOND, 0)
         }
         if (c.timeInMillis <= System.currentTimeMillis()) c.add(Calendar.DAY_OF_MONTH, 1)

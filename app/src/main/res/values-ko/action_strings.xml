@@ -20,7 +20,7 @@
     <string name="action_edit_text">텍스트</string>
     <string name="action_edit_copy_text">정의 복사</string>
     <string name="action_edit_copied">정의를 복사했습니다</string>
-    <string name="action_edit_timeout">제한 시간 (초, 1~300)</string>
+    <string name="action_edit_timeout">제한 시간 (초, 0~300, 0은 무제한)</string>
     <string name="action_edit_screen">화면: current 또는 너비x높이@회전</string>
     <string name="action_edit_up">위로</string>
     <string name="action_edit_down">아래로</string>

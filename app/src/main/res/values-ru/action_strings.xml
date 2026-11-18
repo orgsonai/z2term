@@ -20,7 +20,7 @@
     <string name="action_edit_text">Текст</string>
     <string name="action_edit_copy_text">Копировать текст</string>
     <string name="action_edit_copied">Описание скопировано</string>
-    <string name="action_edit_timeout">Ограничение времени (секунды, 1–300)</string>
+    <string name="action_edit_timeout">Ограничение времени (секунды, 0–300; 0 = без ограничения)</string>
     <string name="action_edit_screen">Экран: current или ШИРИНАxВЫСОТА@ПОВОРОТ</string>
     <string name="action_edit_up">Выше</string>
     <string name="action_edit_down">Ниже</string>

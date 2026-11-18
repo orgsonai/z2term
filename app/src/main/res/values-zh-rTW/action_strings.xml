@@ -20,7 +20,7 @@
     <string name="action_edit_text">文字</string>
     <string name="action_edit_copy_text">複製定義</string>
     <string name="action_edit_copied">已複製定義</string>
-    <string name="action_edit_timeout">時限（秒，1–300）</string>
+    <string name="action_edit_timeout">時限（秒，0–300，0為不限時）</string>
     <string name="action_edit_screen">螢幕：current 或 寬x高@方向</string>
     <string name="action_edit_up">上移</string>
     <string name="action_edit_down">下移</string>

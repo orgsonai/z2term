@@ -20,7 +20,7 @@
     <string name="action_edit_text">Teks</string>
     <string name="action_edit_copy_text">Salin teks</string>
     <string name="action_edit_copied">Definisi disalin</string>
-    <string name="action_edit_timeout">Batas waktu (detik, 1–300)</string>
+    <string name="action_edit_timeout">Batas waktu (detik, 0–300; 0 = tanpa batas)</string>
     <string name="action_edit_screen">Layar: current atau LEBARxTINGGI@ROTASI</string>
     <string name="action_edit_up">Naikkan</string>
     <string name="action_edit_down">Turunkan</string>

@@ -20,7 +20,7 @@
     <string name="action_edit_text">Metin</string>
     <string name="action_edit_copy_text">Metni kopyala</string>
     <string name="action_edit_copied">Tanım kopyalandı</string>
-    <string name="action_edit_timeout">Süre sınırı (saniye, 1–300)</string>
+    <string name="action_edit_timeout">Süre sınırı (saniye, 0–300; 0 = sınırsız)</string>
     <string name="action_edit_screen">Ekran: current veya GENİŞLİKxYÜKSEKLİK@DÖNME</string>
     <string name="action_edit_up">Yukarı taşı</string>
     <string name="action_edit_down">Aşağı taşı</string>

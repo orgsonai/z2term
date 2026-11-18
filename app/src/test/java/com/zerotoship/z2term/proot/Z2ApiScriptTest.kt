@@ -556,6 +556,33 @@ class Z2ApiScriptTest {
         }
     }
 
+    /** 秒まで渡せること。`in` のミリ秒は 32 ビットの sh でも桁あふれしない形で作ること (issue #3)。 */
+    @Test fun alarmPassesSecondsAndBuildsMillisecondsWithoutMultiplying() {
+        val dir = Files.createTempDirectory("alarm-api").toFile()
+        try {
+            val stub = File(dir, "z2api").apply {
+                writeText("#!/bin/sh\necho \"ARGS: ${'$'}*\"\n")
+                setExecutable(true)
+            }
+            val script = File(dir, "z2-alarm").apply {
+                writeText(scripts.getValue("z2-alarm").replace("/usr/local/bin/z2api", stub.absolutePath))
+            }
+            fun run(vararg args: String): String {
+                val proc = ProcessBuilder(listOf("sh", script.absolutePath) + args).redirectErrorStream(true).start()
+                val out = proc.inputStream.bufferedReader().readText().trim()
+                proc.waitFor()
+                return out
+            }
+            assertEquals("ARGS: 1 alarm once 12 34 Hoge 56", run("at", "12:34:56", "Hoge"))
+            assertEquals("ARGS: 1 alarm daily 07 00 Hoge 0", run("daily", "07:00", "Hoge"))
+            val relative = run("in", "2670s", "Hoge")
+            assertTrue(relative, relative.matches(Regex("ARGS: 1 alarm at [0-9]+000 Hoge")))
+            assertTrue(run("at", "12:34:56:78").contains("usage:"))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     /**
      * `z2-tile set` が**表示名とコマンドを取り違えない**こと。
      *

@@ -149,7 +149,7 @@ internal class ActionMacrosEditor(
                     updated = ActionEditorDocument(updated).withHeader("screen", result.screen.toString())
                     val timeout = ActionEditorDocument(updated).header("timeout")?.toLongOrNull() ?: 30L
                     val needed = ((result.durationMs ?: 0) / 1000 + 10).coerceAtMost(300)
-                    if (needed > timeout) updated = ActionEditorDocument(updated).withHeader("timeout", needed.toString())
+                    if (timeout != 0L && needed > timeout) updated = ActionEditorDocument(updated).withHeader("timeout", needed.toString())
                     raw = updated; stepDraft = null; pickedScreen = null; render()
                 } catch (e: Exception) { stepDraft = null; failure(e) }
             } else if (result?.selector != null) {

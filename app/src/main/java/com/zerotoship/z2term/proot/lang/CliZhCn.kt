@@ -85,7 +85,7 @@ internal object CliZhCn : CliLanguage {
             "keyring.msgInitFail" to "❌ pacman-key --init 失败了。下次打开这个标签页时会再试一次。",
             "keyring.msgNoKeyrings" to "❌ 找不到随附的密钥环 (/usr/share/pacman/keyrings)。",
             "keyring.msgPopulateFail" to "❌ pacman-key --populate 失败了。下次打开这个标签页时会再试一次。",
-            "action.description" to "命名的Android操作宏。用 z2-key permission 启用Android操作。\n保存时验证并替换定义；screen=current 记录当前屏幕尺寸。\nrun 等待完成，start 返回运行ID。中断 run 会停止该次运行。\n同时运行一个，定义最多64条指令、1–300秒。可从通知或 stop 停止后续步骤。\n坐标操作要求目标应用和匹配的屏幕尺寸、方向。单次操作最多3秒。\n手势入口使用 start，Shell宏或 z2-when 使用 run。\n保存到 /root/.z2term/actions/NAME.actions（共享主目录）。也可用 z2-macro actions。",
+            "action.description" to "命名的Android操作宏。用 z2-key permission 启用Android操作。\n保存时验证并替换定义；screen=current 记录当前屏幕尺寸。\nrun 等待完成，start 返回运行ID。中断 run 会停止该次运行。\n同时运行一个，定义最多64条指令、0–300秒（0为不限时）。可从通知或 stop 停止后续步骤。\n坐标操作要求目标应用和匹配的屏幕尺寸、方向。单次操作最多3秒。\n手势入口使用 start，Shell宏或 z2-when 使用 run。\n保存到 /root/.z2term/actions/NAME.actions（共享主目录）。也可用 z2-macro actions。",
             "action.controlHelp" to "version=2 支持 repeat 次数|forever ... end、if 条件 ... else ... end 和 call 名称。\n条件使用 z2-state 键或 foreground=包名；逗号表示AND，!表示否定。\n无法获取条件状态时运行失败。运行前验证并固定所有调用的宏。\n每个定义最多64条指令，每次运行最多执行10000条。父宏和子宏的超时均有效。",
             "action.pauseHelp" to "pause [运行ID] 暂停运行；进行中的步骤在继续时从头重新发送。下拉通知栏也会暂停。\nresume [运行ID] 在 z2term 以外的画面稳定在前台后继续（最多5秒，否则保持暂停）。有结果后才返回：继续则 state 为 running、退出码 0；仍暂停则为 paused、退出码非 0。暂停期间时间限制停止计时。",
             "action.uiHelp" to "version=2还支持click 选择器、long-click 选择器和wait-ui 毫秒 选择器。\n选择器示例：text=继续、desc=更多选项、id=org.example.app:id/next。精确匹配，空格不加引号。\n先设置target或launch。wait-ui每250毫秒查询，期限1–30000毫秒；多项匹配时失败。\n操作仅发送一次，下一画面使用wait-ui等待。输入框及密码框除外。\ninspect 包名以JSON返回前台目标应用的显示文本、说明和ID。",
@@ -1262,8 +1262,8 @@ private class ApiMsgZhCn(d: String) : Z2ApiMsg("zh-CN", d) {
     override val notiUsage: String get() = "usage: z2-noti list | trace start [package] | trace dump | trace stop"
 
     override val alarmHelp: String get() = """
-        |# z2-alarm at HH:MM [名称]     … 在下一个 HH:MM 响一次 (今天已过就是明天)
-        |# z2-alarm daily HH:MM [名称]  … 每天 HH:MM
+        |# z2-alarm at HH:MM[:SS] [名称]     … 在下一个 HH:MM 响一次 (今天已过就是明天)
+        |# z2-alarm daily HH:MM[:SS] [名称]  … 每天 HH:MM
         |# z2-alarm in <N|Ns|Nm|Nh> [名称] … N 秒/分钟/小时后响一次
         |# z2-alarm list                … 列出预约 (JSON。"exact" 表示是否准点响)
         |# z2-alarm cancel <id|名称|all> … 取消

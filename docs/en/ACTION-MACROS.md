@@ -167,7 +167,7 @@ State uses the existing `z2-state` snapshot. `foreground` is the focused window'
 
 Blocks use a hierarchical form. Add step at each group end offers a step, repeat or condition; headings edit counts/expressions and child rows edit steps. The ⋮ menu moves within a group or to another group end, duplicates or deletes the whole item. Blocks retain else/end delimiters and leading body comments; self-nesting moves are rejected. An if menu adds or removes its else branch. Refill empty bodies before saving. Saved calls have a name picker. Adding control/element instructions selects version=2. Switch between text and forms; malformed structure or more than 256 source rows requires text editing.
 
-Each definition allows 64 source instructions, 64KiB and eight block levels. The instruction count includes repeat, if, call and both branches, excluding target, else and end. Calls allow eight levels including the root, with at most 16 combined call/block frames and 64 referenced definitions. One run executes at most 10000 instructions. Loops are interpreted without materializing their expansion; control instructions and iteration boundaries yield to accept stop requests.
+Each definition allows 64 source instructions, 64KiB and eight block levels. The instruction count includes repeat, if, call and both branches, excluding target, else and end. Calls allow eight levels including the root, with at most 16 combined call/block frames and 64 referenced definitions. One run executes at most 10000 instructions (no limit when the macro started first has `timeout=0`). Loops are interpreted without materializing their expansion; control instructions and iteration boundaries yield to accept stop requests.
 
 For programs with repeat, if or call, `status` / `history` report JSON `null` for `total`; `step` counts all visited instructions including control flow. `action_macro` identifies the current definition, `path` gives its one-based nested instruction position (with yes/no segments for branches), `iteration` is the innermost loop's iteration, and `call_depth` counts the root as one. Conditions produce `state=branch` records with `detail=true/false`. The GUI shows location, iteration and branch outcomes.
 
@@ -247,7 +247,7 @@ Headers precede the body. Use one step per line. Blank lines and lines starting 
 | Syntax | Meaning |
 |---|---|
 | `version=1` / `version=2` | Required format version; controls require 2 |
-| `timeout=30` | Whole-run timeout, 1–300 seconds; default 30 |
+| `timeout=30` | Whole-run timeout, 0–300 seconds; default 30; `0` means no limit |
 | `screen=current` | Save display geometry; required for coordinates/scroll |
 | `screen=1080x2400@0` | Explicit display geometry |
 | `target PACKAGE` | Set the target app for subsequent coordinates, scrolling and UI elements without launching it |

@@ -98,7 +98,19 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |while [ ! -e "${d}resp" ]; do
         |  # 最初の 400 回 (約 0.3 秒) は組み込みの確認だけで待つ。sleep は 1 回で 0.16 秒かかる。
         |  if [ "${d}spin" -lt 400 ]; then spin=${d}((spin + 1)); continue; fi
-        |  [ "${d}i" -lt "${d}wait_n" ] || break
+        |  case "${d}wait_n" in
+        |    forever)
+        |      # 制限時間なしのマクロの完了待ち。長く待つ間は起こす回数を減らし、
+        |      # アプリが起動し直して合言葉が変わったら、応答はもう来ないので待つのをやめる。
+        |      if [ "${d}i" -ge 3000 ]; then
+        |        sleep 1
+        |        now_tok=''
+        |        IFS= read -r now_tok 2>/dev/null < "${d}DIR/.token"
+        |        [ "${d}now_tok" = "${d}tok" ] || break
+        |        continue
+        |      fi ;;
+        |    *) [ "${d}i" -lt "${d}wait_n" ] || break ;;
+        |  esac
         |  sleep 0.1; i=${d}((i + 1))
         |done
         |if [ ! -e "${d}resp" ]; then echo "z2api: timeout waiting for app" >&2; exit 1; fi
@@ -709,27 +721,30 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
 
     val alarm = "#!/bin/sh\n" + m.alarmHelp + "\n" + helpCase + """
         |usage() {
-        |  echo "usage: z2-alarm at HH:MM [name] | daily HH:MM [name] | in <N[s|m|h]> [name] | list | cancel <id|name|all>" >&2
+        |  echo "usage: z2-alarm at HH:MM[:SS] [name] | daily HH:MM[:SS] [name] | in <N[s|m|h]> [name] | list | cancel <id|name|all>" >&2
         |  exit 1
         |}
-        |# "HH:MM" を hour/minute に割る。数値化はアプリ側 (10進で解釈) に任せるので、
-        |# ここでは形が HH:MM かどうかだけ見る (sh の $(()) は先頭 0 を 8 進と誤解する実装があるため触らない)。
+        |# "HH:MM[:SS]" を hour/minute/second に割る。数値化はアプリ側 (10進で解釈) に任せるので、
+        |# ここでは形だけ見る (sh の $(()) は先頭 0 を 8 進と誤解する実装があるため触らない)。
         |split_hm() {
         |  case "${d}1" in
-        |    [0-9]*:[0-9]*) ;;
+        |    *:*:*:*) usage ;;
+        |    [0-9]*:[0-9]*:[0-9]*)
+        |      hour=${d}{1%%:*}; rest=${d}{1#*:}; minute=${d}{rest%%:*}; second=${d}{rest#*:} ;;
+        |    [0-9]*:[0-9]*)
+        |      hour=${d}{1%%:*}; minute=${d}{1##*:}; second=0 ;;
         |    *) usage ;;
         |  esac
-        |  hour=${d}{1%%:*}; minute=${d}{1##*:}
         |}
         |case "${d}1" in
         |  at)
         |    [ ${d}# -ge 2 ] || usage
         |    split_hm "${d}2"
-        |    exec /usr/local/bin/z2api 1 alarm once "${d}hour" "${d}minute" "${d}3" ;;
+        |    exec /usr/local/bin/z2api 1 alarm once "${d}hour" "${d}minute" "${d}3" "${d}second" ;;
         |  daily)
         |    [ ${d}# -ge 2 ] || usage
         |    split_hm "${d}2"
-        |    exec /usr/local/bin/z2api 1 alarm daily "${d}hour" "${d}minute" "${d}3" ;;
+        |    exec /usr/local/bin/z2api 1 alarm daily "${d}hour" "${d}minute" "${d}3" "${d}second" ;;
         |  in)
         |    [ ${d}# -ge 2 ] || usage
         |    spec="${d}2"
@@ -745,7 +760,8 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    esac
         |    [ "${d}secs" -gt 0 ] 2>/dev/null || usage
         |    now=${d}(date +%s) || { echo "${m.alarmNoDate}" >&2; exit 1; }
-        |    exec /usr/local/bin/z2api 1 alarm at "${d}((  (now+secs)*1000  ))" "${d}3" ;;
+        |    # ⚠ ミリ秒は掛け算せず 000 を継ぎ足す。Android の sh は 32 ビット演算で、掛けると桁あふれする。
+        |    exec /usr/local/bin/z2api 1 alarm at "${d}((now+secs))000" "${d}3" ;;
         |  list)   exec /usr/local/bin/z2api 1 alarm list ;;
         |  cancel)
         |    [ ${d}# -ge 2 ] || usage

@@ -991,8 +991,8 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
 
     open val alarmHelp: String get() = t(
         en = """
-        |# z2-alarm at HH:MM [name]     … once at the next HH:MM (tomorrow if already past)
-        |# z2-alarm daily HH:MM [name]  … every day at HH:MM
+        |# z2-alarm at HH:MM[:SS] [name]     … once at the next HH:MM (tomorrow if already past)
+        |# z2-alarm daily HH:MM[:SS] [name]  … every day at HH:MM
         |# z2-alarm in <N|Ns|Nm|Nh> [name] … once, N seconds/minutes/hours from now
         |# z2-alarm list                … list what is scheduled (JSON; "exact" says how punctual)
         |# z2-alarm cancel <id|name|all> … cancel
@@ -1003,8 +1003,8 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
         |# flips it to true (no extra permission is asked for).
     """.trimMargin(),
         ja = """
-        |# z2-alarm at HH:MM [名前]     … 次の HH:MM に 1 回 (今日を過ぎていれば明日)
-        |# z2-alarm daily HH:MM [名前]  … 毎日 HH:MM
+        |# z2-alarm at HH:MM[:SS] [名前]     … 次の HH:MM に 1 回 (今日を過ぎていれば明日)
+        |# z2-alarm daily HH:MM[:SS] [名前]  … 毎日 HH:MM
         |# z2-alarm in <N|Ns|Nm|Nh> [名前] … N 秒/分/時間後に 1 回
         |# z2-alarm list                … 予約一覧 (JSON。"exact" が時刻どおりに鳴るかどうか)
         |# z2-alarm cancel <id|名前|all> … 取り消し

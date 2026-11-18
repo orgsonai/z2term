@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-17 / Target version: 1.0.163 (versionCode 861)
+Last updated: 2026-11-18 / Target version: 1.0.164 (versionCode 862)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -649,6 +649,7 @@ Appends an `alarm` event (with `{name}`) to events.jsonl at a given time.
 
 **Persistence and recovery from reboot**
 - Schedules live in `filesDir/alarms.json`
+- `at` / `daily` take `HH:MM[:SS]` (1.0.164). `in` appends `000` instead of multiplying to get milliseconds: `/system/bin/sh` without an installed OS uses 32-bit arithmetic, and the product overflows into a time in the past
 - AlarmManager registrations are lost on reboot and re-registered by `BootReceiver`
 - `daily` re-arms for the next day when it fires, `once` is deleted
 - A `daily` whose time passed during the reboot is moved to its next occurrence and a stale `once` is dropped (no catch-up firing)

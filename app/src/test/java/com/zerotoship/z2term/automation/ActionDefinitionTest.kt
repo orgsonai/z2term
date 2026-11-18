@@ -63,11 +63,15 @@ class ActionDefinitionTest {
         rejects { parse("target currnet\ntap px 1 2") }
     }
     @Test fun rejectsDuplicateHeadersUnknownStepsAndUnboundedFiles() {
-        for (text in listOf("version=3\nwait 0", "version=1\nversion=1\nwait 0", "version=1\ntimeout=301\nwait 0",
+        for (text in listOf("version=3\nwait 0", "version=1\nversion=1\nwait 0", "version=1\ntimeout=301\nwait 0", "version=1\ntimeout=-1\nwait 0",
             "version=1\nunknown 20", "version=1\ncommand", "version=1\nwait 0\nscreen=10x10@0",
             "version=1\n" + "wait 0\n".repeat(65), "version=1\ncommand " + "a".repeat(65536))) {
             rejects { ActionDefinition.parse(text) }
         }
+    }
+    @Test fun timeoutZeroMeansNoLimit() {
+        assertTrue(ActionDefinition.parse("version=1\ntimeout=0\nwait 0").unlimited)
+        assertFalse(ActionDefinition.parse("version=1\ntimeout=1\nwait 0").unlimited)
     }
     @Test fun shellArgumentsRemainLiteralInDefinitions() {
         val command = "printf '%s' \"a=b; "+'$'+"(printf x)\""

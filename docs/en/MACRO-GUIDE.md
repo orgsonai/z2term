@@ -297,7 +297,7 @@ prerequisite → 3-A).
 | `z2-screen` | `z2-screen keepon 1h` / `keepon off` / `status` | **Hold off the automatic screen timeout, with a deadline** (below) | state JSON |
 | `z2-tile` | `z2-tile set <1-12> <macro\|command>` etc. | Assign it to a **quick-settings tile** (below) | TSV of all 12 slots |
 | `z2-icon` | `z2-icon pick <notify\|1-12>` etc. | Draw the **status-bar / tile icons** yourself (below) | a preview of the drawing |
-| `z2-alarm` | `z2-alarm at\|daily HH:MM [name]` etc. | Set a **time trigger** (see below) | JSON of the schedule |
+| `z2-alarm` | `z2-alarm at\|daily HH:MM[:SS] [name]` etc. | Set a **time trigger** (see below) | JSON of the schedule |
 | `z2-when` | `z2-when <trigger> run <command>` etc. | **Register a trigger** (→ 3-A, and below) | the rule id |
 | `z2-noti` | `z2-noti list` | Read **the notifications on screen right now** (read-only, see below) | TSV |
 | `z2-session` | `z2-session list\|new\|send\|capture\|attach\|close` | Drive **the app's own tabs** (see below) | TSV / index |
@@ -545,6 +545,7 @@ A time trigger for things like "every morning at 7". When the time comes, one li
 
 ```sh
 z2-alarm at 07:00 morning      # once at the next 07:00 (tomorrow if today has passed)
+z2-alarm at 07:00:30 morning   # with seconds (daily too)
 z2-alarm daily 07:00 morning   # every day at 07:00
 z2-alarm in 5m tea             # once, 5 minutes from now (30s / 2h also work)
 z2-alarm list                  # list what is scheduled

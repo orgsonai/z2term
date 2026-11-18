@@ -20,7 +20,7 @@
     <string name="action_edit_text">Texto</string>
     <string name="action_edit_copy_text">Copiar texto</string>
     <string name="action_edit_copied">Definição copiada</string>
-    <string name="action_edit_timeout">Tempo limite (segundos, 1–300)</string>
+    <string name="action_edit_timeout">Tempo limite (segundos, 0–300; 0 = sem limite)</string>
     <string name="action_edit_screen">Tela: atual ou LARGURAxALTURA@ROTAÇÃO</string>
     <string name="action_edit_up">Mover para cima</string>
     <string name="action_edit_down">Mover para baixo</string>

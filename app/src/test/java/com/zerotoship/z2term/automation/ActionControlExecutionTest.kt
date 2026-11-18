@@ -64,6 +64,19 @@ class ActionControlExecutionTest {
         assertTrue(instructions in 2..100)
     }
 
+    @Test fun timeoutZeroHasNeitherDeadlineNorInstructionLimit() {
+        val clock = Clock(); val engine = ActionExecution(clock::schedule)
+        val results = mutableListOf<ActionExecution.Result>()
+        var instructions = 0
+        engine.start(definition("repeat forever\nwait 0\nend", 0), { _, done -> done(null); null },
+            { _, _ -> instructions++ }, results::add)
+        clock.advance(600_000)
+        assertTrue(results.isEmpty())
+        assertTrue(instructions > ActionExecution.MAX_EXECUTED_STEPS)
+        engine.stop()
+        assertEquals("cancelled", results.single().state)
+    }
+
     @Test fun stopCancelsTheChildAndLateCompletionCannotAdvanceAnotherRun() {
         val clock = Clock(); val engine = ActionExecution(clock::schedule)
         val results = mutableListOf<ActionExecution.Result>()

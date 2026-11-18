@@ -85,7 +85,7 @@ internal object CliKo : CliLanguage {
             "keyring.msgInitFail" to "❌ pacman-key --init에 실패했습니다. 이 탭을 다음에 열 때 다시 시도합니다.",
             "keyring.msgNoKeyrings" to "❌ /usr/share/pacman/keyrings 아래에서 함께 실은 키링을 찾지 못했습니다.",
             "keyring.msgPopulateFail" to "❌ pacman-key --populate에 실패했습니다. 이 탭을 다음에 열 때 다시 시도합니다.",
-            "action.description" to "이름이 있는 Android 동작 매크로입니다. z2-key permission으로 Android 동작을 켜세요.\n저장할 때 정의를 검사하고 바꿉니다. screen=current는 현재 화면 크기를 기록합니다.\nrun은 완료를 기다리고 start는 실행 ID를 반환합니다. run 중단 시 해당 실행을 멈춥니다.\n동시에 1개, 정의마다 최대 64개 명령, 1–300초입니다. 알림이나 stop으로 남은 단계를 멈춥니다.\n좌표 동작은 대상 앱과 화면 크기·방향이 일치해야 합니다. 동작당 최대 3초입니다.\n패널 제스처에서는 start, 셸 매크로나 z2-when에서는 run을 사용하세요.\n저장 위치: /root/.z2term/actions/NAME.actions (공유 홈). z2-macro actions도 같은 명령입니다.",
+            "action.description" to "이름이 있는 Android 동작 매크로입니다. z2-key permission으로 Android 동작을 켜세요.\n저장할 때 정의를 검사하고 바꿉니다. screen=current는 현재 화면 크기를 기록합니다.\nrun은 완료를 기다리고 start는 실행 ID를 반환합니다. run 중단 시 해당 실행을 멈춥니다.\n동시에 1개, 정의마다 최대 64개 명령, 0–300초(0은 무제한)입니다. 알림이나 stop으로 남은 단계를 멈춥니다.\n좌표 동작은 대상 앱과 화면 크기·방향이 일치해야 합니다. 동작당 최대 3초입니다.\n패널 제스처에서는 start, 셸 매크로나 z2-when에서는 run을 사용하세요.\n저장 위치: /root/.z2term/actions/NAME.actions (공유 홈). z2-macro actions도 같은 명령입니다.",
             "action.controlHelp" to "version=2에서 repeat 횟수|forever ... end, if 조건 ... else ... end, call 이름을 사용할 수 있습니다.\n조건은 z2-state 키 또는 foreground=패키지입니다. 쉼표는 AND, !는 부정입니다.\n조건 상태를 얻지 못하면 실패합니다. 호출할 매크로도 실행 전에 검사하고 고정합니다.\n정의마다 최대 64개 명령, 실행 전체에서 최대 10000개 명령입니다. 상위 및 하위 매크로의 제한 시간이 적용됩니다.",
             "action.pauseHelp" to "pause [실행ID]로 일시정지합니다. 진행 중이던 단계는 재개할 때 처음부터 보냅니다. 알림창을 내려도 일시정지합니다.\nresume [실행ID]는 z2term이 아닌 화면이 앞에서 안정되면 이어서 실행합니다(최대 5초, 아니면 일시정지 유지). 결과가 나온 뒤 응답합니다: 이어지면 state running·종료 코드 0, 일시정지가 유지되면 paused·0이 아닌 코드. 일시정지 중에는 제한 시간이 멈춥니다.",
             "action.uiHelp" to "version=2는 click 선택자, long-click 선택자, wait-ui 밀리초 선택자도 지원합니다.\n선택자 예: text=계속, desc=추가 옵션, id=org.example.app:id/next. 정확히 일치하며 공백을 따옴표로 감싸지 않습니다.\n먼저 target이나 launch를 지정하세요. wait-ui는 250밀리초마다 1–30000밀리초 동안 검색합니다. 여러 항목이 일치하면 실패합니다.\n동작은 한 번만 전송합니다. 다음 화면은 wait-ui로 기다리세요. 입력란과 비밀번호란은 제외됩니다.\ninspect 패키지는 전면 대상 앱의 표시 글자, 설명과 ID를 JSON으로 반환합니다.",
@@ -1315,8 +1315,8 @@ private class ApiMsgKo(d: String) : Z2ApiMsg("ko", d) {
     override val notiUsage: String get() = "사용법: z2-noti list | trace start [package] | trace dump | trace stop"
 
     override val alarmHelp: String get() = """
-        |# z2-alarm at HH:MM [이름]    … 한 번만, 다음 HH:MM에 (이미 지났으면 내일)
-        |# z2-alarm daily HH:MM [이름] … 날마다 HH:MM에
+        |# z2-alarm at HH:MM[:SS] [이름]    … 한 번만, 다음 HH:MM에 (이미 지났으면 내일)
+        |# z2-alarm daily HH:MM[:SS] [이름] … 날마다 HH:MM에
         |# z2-alarm in <N|Ns|Nm|Nh> [이름] … 한 번만, N초/분/시간 뒤에
         |# z2-alarm list               … 예약된 것 (JSON. "exact"가 얼마나 정확한지 알려 줍니다)
         |# z2-alarm cancel <id|이름|all> … 취소

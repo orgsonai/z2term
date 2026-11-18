@@ -20,7 +20,7 @@
     <string name="action_edit_text">テキスト編集</string>
     <string name="action_edit_copy_text">定義をコピー</string>
     <string name="action_edit_copied">定義をコピーしました</string>
-    <string name="action_edit_timeout">制限時間（秒、1〜300）</string>
+    <string name="action_edit_timeout">制限時間（秒、0〜300。0は無制限）</string>
     <string name="action_edit_screen">画面：current または 幅x高さ@向き</string>
     <string name="action_edit_up">上へ</string>
     <string name="action_edit_down">下へ</string>

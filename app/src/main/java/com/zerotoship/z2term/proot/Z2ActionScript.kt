@@ -5,8 +5,8 @@ fun z2ActionScript(lang: String): String {
     val d = '$'
     val t = CliText(lang)
     val description = t("action.description",
-        en = "Named Android action macros. Enable z2term Android actions with z2-key permission.\nSave validates and replaces the definition; screen=current records the display.\nrun waits for completion; start returns a run ID. Interrupting run stops that run.\nOne run at a time, 64 source instructions, 1–300 seconds. Notification and stop cancel remaining steps.\nCoordinates use the foreground app by default and require matching screen size/orientation. Manual gestures: up to 3 seconds; recorded touches: up to 30 seconds.\nUse start from a panel gesture; use run in a shell macro or z2-when command.\nStored in /root/.z2term/actions/NAME.actions (shared home). z2-macro actions is an alias.",
-        ja = "名前付きAndroid操作マクロ。z2-key permission でAndroid操作を有効にしてください。\n保存時に検査して定義を置換。screen=current は現在の画面寸法を記録します。\nrun は完了待ち、start は実行IDを返します。run の中断はその実行を停止します。\n同時1本、定義ごとに最大64命令、1〜300秒。通知と stop で残りの手順を停止できます。\n座標操作の既定対象は前面アプリで、画面寸法・向きの一致が必要です。手動操作は最大3秒、記録したタッチは最大30秒。\n取っ手からは start、シェルマクロや z2-when からは run を使えます。\n保存先: /root/.z2term/actions/NAME.actions（共有ホーム）。z2-macro actions も同じ入口です。"
+        en = "Named Android action macros. Enable z2term Android actions with z2-key permission.\nSave validates and replaces the definition; screen=current records the display.\nrun waits for completion; start returns a run ID. Interrupting run stops that run.\nOne run at a time, 64 source instructions, 0–300 seconds (0 = no limit). Notification and stop cancel remaining steps.\nCoordinates use the foreground app by default and require matching screen size/orientation. Manual gestures: up to 3 seconds; recorded touches: up to 30 seconds.\nUse start from a panel gesture; use run in a shell macro or z2-when command.\nStored in /root/.z2term/actions/NAME.actions (shared home). z2-macro actions is an alias.",
+        ja = "名前付きAndroid操作マクロ。z2-key permission でAndroid操作を有効にしてください。\n保存時に検査して定義を置換。screen=current は現在の画面寸法を記録します。\nrun は完了待ち、start は実行IDを返します。run の中断はその実行を停止します。\n同時1本、定義ごとに最大64命令、0〜300秒（0は無制限）。通知と stop で残りの手順を停止できます。\n座標操作の既定対象は前面アプリで、画面寸法・向きの一致が必要です。手動操作は最大3秒、記録したタッチは最大30秒。\n取っ手からは start、シェルマクロや z2-when からは run を使えます。\n保存先: /root/.z2term/actions/NAME.actions（共有ホーム）。z2-macro actions も同じ入口です。"
     )
     val controlHelp = t("action.controlHelp",
         en = "version=2 adds repeat N|forever ... end, if CONDITION ... else ... end, and call NAME.\nConditions use z2-state keys or foreground=PACKAGE; commas mean AND, ! negates a term.\nUnavailable condition state fails the run. Calls are validated and frozen before execution.\n64 source instructions per definition; 10000 executed instructions per run. Root and child timeouts apply.",
@@ -54,14 +54,14 @@ fun z2ActionScript(lang: String): String {
         |  run)
         |    [ "${d}#" -eq 2 ] || { echo 'z2-action run NAME' >&2; exit 1; }
         |    action_id=${d}(z2api 1 action start "${d}2") || exit ${d}?
-        |    Z2API_WAIT=3100 z2api 1 action wait "${d}action_id" &
+        |    Z2API_WAIT=forever z2api 1 action wait "${d}action_id" &
         |    action_waiter=${d}!
         |    trap 'z2api 1 action stop "${d}action_id" >/dev/null 2>&1; kill "${d}action_waiter" 2>/dev/null; exit 130' HUP INT TERM
         |    wait "${d}action_waiter"
         |    action_status=${d}?
         |    trap - HUP INT TERM
         |    exit "${d}action_status" ;;
-        |  wait) Z2API_WAIT=3100 exec z2api 1 action "${d}@" ;;
+        |  wait) Z2API_WAIT=forever exec z2api 1 action "${d}@" ;;
         |  resume) Z2API_WAIT=100 exec z2api 1 action "${d}@" ;;
         |  *) exec z2api 1 action "${d}@" ;;
         |esac

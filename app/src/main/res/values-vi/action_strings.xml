@@ -20,7 +20,7 @@
     <string name="action_edit_text">Văn bản</string>
     <string name="action_edit_copy_text">Sao chép văn bản</string>
     <string name="action_edit_copied">Đã sao chép định nghĩa</string>
-    <string name="action_edit_timeout">Giới hạn thời gian (giây, 1–300)</string>
+    <string name="action_edit_timeout">Giới hạn thời gian (giây, 0–300; 0 = không giới hạn)</string>
     <string name="action_edit_screen">Màn hình: current hoặc RỘNGxCAO@XOAY</string>
     <string name="action_edit_up">Chuyển lên</string>
     <string name="action_edit_down">Chuyển xuống</string>

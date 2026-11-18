@@ -292,7 +292,7 @@ z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term
 | `z2-screen` | `z2-screen keepon 1h` / `keepon off` / `status` | **画面の自動消灯を期限つきで止める**（下記） | 状態 JSON |
 | `z2-tile` | `z2-tile set <1-12> <マクロ\|コマンド>` ほか | **クイック設定タイル**に割り当てる（下記） | 12 枠の TSV |
 | `z2-icon` | `z2-icon pick <notify\|1-12>` ほか | **ステータスバー / タイルのアイコン**を描き替える（下記） | 絵のプレビュー |
-| `z2-alarm` | `z2-alarm at\|daily HH:MM [名前]` ほか | **時刻トリガー**を仕掛ける（下記） | 予約内容 JSON |
+| `z2-alarm` | `z2-alarm at\|daily HH:MM[:SS] [名前]` ほか | **時刻トリガー**を仕掛ける（下記） | 予約内容 JSON |
 | `z2-when` | `z2-when <トリガー> run <コマンド>` ほか | **きっかけを登録**する（→ 3-A・下記） | 登録した id |
 | `z2-noti` | `z2-noti list` | **いま出ている通知**を読む（読むだけ・下記） | TSV |
 | `z2-session` | `z2-session list\|new\|send\|capture\|attach\|close` | **アプリ自身のタブ**を操る（下記） | TSV / 番号 |
@@ -535,6 +535,7 @@ printf '..##..\n.####.\n..##..\n' | z2-icon set 3 -   # 標準入力から
 
 ```sh
 z2-alarm at 07:00 morning      # 次の 07:00 に 1 回（今日を過ぎていれば明日）
+z2-alarm at 07:00:30 morning   # 秒まで指定（daily も同じ）
 z2-alarm daily 07:00 morning   # 毎日 07:00
 z2-alarm in 5m tea             # 5 分後に 1 回（30s / 2h なども可）
 z2-alarm list                  # 予約の一覧

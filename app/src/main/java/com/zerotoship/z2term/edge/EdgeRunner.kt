@@ -82,7 +82,8 @@ class EdgeRunner(private val context: Context) {
                 }
                 }
                 job.timer = timer
-                if (!job.delivered.get() && !job.stopping) main.postDelayed(timer, timeout * 1000)
+                // 0 = no limit (an action macro with timeout=0); it ends by exiting or being stopped.
+                if (timeout > 0 && !job.delivered.get() && !job.stopping) main.postDelayed(timer, timeout * 1000)
             }
         }
         return true

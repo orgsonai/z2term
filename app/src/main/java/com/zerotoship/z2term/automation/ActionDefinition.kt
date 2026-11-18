@@ -2,6 +2,8 @@ package com.zerotoship.z2term.automation
 
 /** Text is authoritative; shell text is preserved and other steps use a strict grammar. */
 internal data class ActionDefinition(val text: String, val timeoutMs: Long, val screen: Screen?, val steps: List<Step>) {
+    /** `timeout=0`: no time limit. A root macro with it also has no limit on executed instructions. */
+    val unlimited get() = timeoutMs == 0L
     data class Screen(val width: Int, val height: Int, val rotation: Int) {
         init { require(width in 1..32768 && height in 1..32768 && rotation in 0..3) { "Invalid screen geometry" } }
         override fun toString() = "${width}x${height}@$rotation"
@@ -268,7 +270,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             require(headers["version"] in setOf("1", "2")) { "Start the definition with version=1 or version=2" }
             require(steps.isNotEmpty()) { "No executable steps" }
             val timeout = (headers["timeout"] ?: "30").toLongOrNull()
-            require(timeout != null && timeout in 1..300) { "timeout must be 1..300 seconds" }
+            require(timeout != null && timeout in 0..300) { "timeout must be 0..300 seconds (0 = no limit)" }
             val screen = headers["screen"]?.let {
                 val match = Regex("([0-9]+)x([0-9]+)@([0-3])").matchEntire(it)
                     ?: throw IllegalArgumentException("screen must be WIDTHxHEIGHT@ROTATION or current when saving")

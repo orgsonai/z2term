@@ -48,6 +48,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
     /** Bumped whenever the step in flight is abandoned (pause), so its late completion is ignored. */
     private var attempt = 0
     private var stepInFlight = false
+    private var limitSteps = true
     private var cancelStep: (() -> Unit)? = null
     private var deadline: Deadline? = null
     private var cancelNext: (() -> Unit)? = null
@@ -98,11 +99,13 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         name: String = "", branch: (String, Boolean) -> Unit = { _, _ -> }) {
         check(!running) { "An action macro is already running" }
         running = true; step = 0; completed = done
+        limitSteps = !definition.unlimited
         macro = name; path = ""; iteration = 1; callDepth = 1
         loops = emptyList(); blockStep = 0; blockSize = 0
         frames += Frame(definition.steps, name)
         val token = ++generation
-        deadline = Deadline(definition.timeoutMs) { if (token == generation) finish("timeout", "Macro timed out") }.also { it.start() }
+        deadline = if (definition.unlimited) null else
+            Deadline(definition.timeoutMs) { if (token == generation) finish("timeout", "Macro timed out") }.also { it.start() }
         fun push(frame: Frame) {
             check(frames.size < ActionProgram.MAX_FRAME_DEPTH) { "Execution nesting limit reached" }
             frames += frame
@@ -127,7 +130,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
             callDepth = 1 + frames.count { it.call }
             loops = frames.filter { it.loop }.map { it.iteration to it.repeats }
             blockStep = frame.index; blockSize = frame.steps.size
-            if (step >= MAX_EXECUTED_STEPS) { finish("failed", "Execution exceeds $MAX_EXECUTED_STEPS instructions"); return }
+            if (limitSteps && step >= MAX_EXECUTED_STEPS) { finish("failed", "Execution exceeds $MAX_EXECUTED_STEPS instructions"); return }
             val index = ++step
             val tried = attempt
             var delivered = false
@@ -160,7 +163,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                         val called = resolve(action.name)
                         val child = Frame(called.steps, action.name, call = true)
                         push(child)
-                        child.timeout = Deadline(called.timeoutMs) {
+                        child.timeout = if (called.unlimited) null else Deadline(called.timeoutMs) {
                             if (token == generation) finish("timeout", "Called macro timed out: " + action.name)
                         }.also { it.start() }
                         cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
