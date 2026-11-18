@@ -489,7 +489,7 @@ object KanaKanjiConverter {
 
     /**
      * 変換のすぐ後ろ (候補の 2 番目から) に並べる補完の数。打った読みが短いほど当たりにくいので絞る。
-     * 1 文字 → 2 件 (学習とユーザー辞書からだけ出る)、2 文字 → 4 件、3 文字以上 → 5 件
+     * 1 文字 → 2 件、2 文字 → 4 件、3 文字以上 → 5 件
      * (1.0.139 で 3 / 4 から増やした。打っている途中は予測が主役なので、続きの語を多めに見せる)。
      */
     internal fun completionSlots(readingLength: Int): Int = when {
@@ -1455,7 +1455,8 @@ class ComposingState(
 
     /**
      * 次の言葉の予測 (1.0.139)。確定した直後、何も打たなくても出す「直前の語に続けて確定したことの
-     * ある語」([ImeHistoryStore.nextWords])。かなを打つ・端末へキーを送る ([dismissNextWords]) と消える。
+     * ある語」([ImeHistoryStore.nextWords]) と「続きやすい語」([NextWordDict]・1.0.166)。
+     * かなを打つ・端末へキーを送る ([dismissNextWords]) と消える。
      */
     var nextWords by mutableStateOf<List<String>>(emptyList())
         private set
@@ -1895,13 +1896,14 @@ class ComposingState(
     }
 
     /**
-     * 打ちかけが無くなった直後に、直前の語に続く語を出す。続く語を学習していなければ、
+     * 打ちかけが無くなった直後に、直前の語に続く語を出す (学習した語が先)。続く語が無ければ、
      * 何も打っていないときの候補 ([showIdle]) を出す。予測変換が OFF なら何も出さない。
      */
     private fun showNextWords() {
         val prev = prevCommitSurface
         val next = if (text.isEmpty() && prediction && prev != null) {
-            ImeHistoryStore.nextWords(prev, limit = NEXT_WORD_LIMIT)
+            (ImeHistoryStore.nextWords(prev, limit = NEXT_WORD_LIMIT) + NextWordDict.next(prev, NEXT_WORD_LIMIT))
+                .distinct().take(NEXT_WORD_LIMIT)
         } else {
             emptyList()
         }

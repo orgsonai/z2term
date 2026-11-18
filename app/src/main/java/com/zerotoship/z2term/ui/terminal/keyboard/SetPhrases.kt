@@ -29,9 +29,11 @@ internal object SetPhrases {
         "おやすみなさい" to "おやすみなさい",
     )
 
-    /** 打った読み [prefix] で始まり、それより長い定型文。補完と同じく 2 文字から。 */
+    private const val MIN_PREFIX = 2
+
+    /** 打った読み [prefix] で始まり、それより長い定型文。2 文字から。 */
     fun predictWithReading(prefix: String): List<Pair<String, String>> {
-        if (prefix.length < PredictionDict.MIN_PREFIX) return emptyList()
+        if (prefix.length < MIN_PREFIX) return emptyList()
         return all.filter { (r, _) -> r.length > prefix.length && r.startsWith(prefix) }
     }
 }

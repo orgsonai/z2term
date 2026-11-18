@@ -221,6 +221,10 @@ object KkcConverter {
             runCatching {
                 context.assets.open("kkc_predict.tsv").bufferedReader(Charsets.UTF_8).use { PredictionDict.loadFrom(it) }
             }
+            // 確定した語の次に出す語の表。
+            runCatching {
+                context.assets.open("kkc_next.tsv").bufferedReader(Charsets.UTF_8).use { NextWordDict.loadFrom(it) }
+            }
             // 学習リランカー (HistoryReranker) がまだ載っていなければ共起リランカーを既定で入れる。
             // ImeHistoryStore.ensureLoaded は CompositeReranker で上書きするので順序非依存。
             if (reranker === IdentityReranker && collocationFilter != null) {

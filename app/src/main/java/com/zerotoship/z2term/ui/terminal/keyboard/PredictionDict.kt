@@ -52,8 +52,7 @@ object PredictionDict {
      * [prefix] で始まり、[prefix] より長い読みを持つ語を、回数の多い順に最大 [limit] 件返す。
      * 戻り値は `(読み, 表層)`。確定時に「打った接頭辞」でなく実際の読みで学習させるため、読みを伴う。
      *
-     * ⚠ 1 文字の接頭辞には答えない。「あ」で始まる語は数千あり、多い順の上位は打ちたい語と
-     * ほぼ関係が無い (候補の列を埋めるだけになる)。
+     * 1 文字の接頭辞にも答える (1.0.166)。出す数は [KanaKanjiConverter.completionSlots] が絞る。
      */
     fun predictWithReading(prefix: String, limit: Int = 8): List<Pair<String, String>> {
         val t = table
@@ -88,5 +87,5 @@ object PredictionDict {
     fun predict(prefix: String, limit: Int = 8): List<String> = predictWithReading(prefix, limit).map { it.second }
 
     /** これ未満の長さの接頭辞には補完を返さない。 */
-    const val MIN_PREFIX = 2
+    const val MIN_PREFIX = 1
 }

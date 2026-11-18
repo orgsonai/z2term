@@ -73,9 +73,18 @@ class PredictionDictTest {
     }
 
     @Test
-    fun singleKanaPrefixGetsNothing() {
-        // 1 文字では絞れない (候補の列を無関係な語で埋めるだけになる)。
-        assertTrue(PredictionDict.predict("あ").isEmpty())
+    fun singleKanaPrefixGetsCommonWords() {
+        assertTrue(PredictionDict.predict("あ").isNotEmpty())
+        // 候補の列を埋めないよう、1 文字のときの補完は 2 件まで。
+        assertEquals(2, KanaKanjiConverter.completionSlots(1))
+    }
+
+    /** 活用した形も補完に出る (1.0.166)。文章に少ない丁寧な言い方は、活用の規則で作ってある。 */
+    @Test
+    fun conjugatedFormsAreOffered() {
+        val words = PredictionDict.predictWithReading("わかりま", limit = 20)
+        assertTrue("わかりま の補完に わかりました が無い: $words", words.any { it.first == "わかりました" })
+        assertTrue(PredictionDict.predictWithReading("かんがえま", limit = 20).any { it.second == "考えました" })
     }
 
     @Test

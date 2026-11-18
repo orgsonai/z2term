@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.166 (versionCode 864)**: More predictive input candidates (with Settings → Japanese input → "Predictive input" on). Common words now appear from the first character of a reading. The common-word table grew from about 17,000 to 50,000 entries and includes conjugated forms, such as わかりました for わかりま and 連絡します for れんらく. Right after a commit, next words now include likely continuations as well as words you typed there before (が and を after 問題, します after お願い). Predictive input stays off by default.
+
 **1.0.165 (versionCode 863)**: Set phrases now rank lower in predictive input. While typing they follow common words and your own words. When nothing is typed, the bar shows punctuation, then words you confirm often, then set phrases.
 
 **1.0.164 (versionCode 862)**: `z2-alarm` now accepts seconds: `z2-alarm at 12:34:56 name` and `z2-alarm daily 07:00:30 name` (a time with seconds used to read the seconds as the minutes). `z2-alarm in` no longer always fails when no OS is installed. Android action macros can run without a time limit using `timeout=0`; the 10000-instruction limit is lifted too, and `z2-action run` / `wait` wait until the run ends. Stop such a run with the stop bar, the notification or `z2-action stop`.

@@ -1,7 +1,8 @@
 #!/bin/sh
 # かな漢字変換の頻度補正データ app/src/main/assets/kkc_freq.tsv と、
 # 文の中で使う地名・人名 app/src/main/assets/kkc_names.tsv、
-# 打ちかけの補完に使う語の表 app/src/main/assets/kkc_predict.tsv を作る。
+# 打ちかけの補完に使う語の表 app/src/main/assets/kkc_predict.tsv、
+# 確定した語の次に出す語の表 app/src/main/assets/kkc_next.tsv を作る。
 #
 # 日本語版ウィキペディアの文章を先頭から CHAR_LIMIT 文字だけ取り込み、MeCab (IPADIC) で単語に
 # 分けて数え、同じ読み・同じ品詞の語のうち少ないほうを後ろへ回す補正を出す。
@@ -17,6 +18,7 @@
 #   OUT        : 頻度補正の出力 (既定 app/src/main/assets/kkc_freq.tsv)
 #   OUT_NAMES  : 地名・人名の出力 (既定 app/src/main/assets/kkc_names.tsv)
 #   OUT_PREDICT: 補完用の語の表の出力 (既定 app/src/main/assets/kkc_predict.tsv)
+#   OUT_NEXT   : 次の語の表の出力 (既定 app/src/main/assets/kkc_next.tsv)
 #
 # 道具: python3・curl・bzcat。mecab-python3 と ipadic は WORK の venv へ pip で入れる (アプリには入らない)。
 # ⚠ ダンプは日々変わるので、作り直すと数字は少し変わる。
@@ -30,6 +32,7 @@ ASSETS="$SCRIPT_DIR/../app/src/main/assets"
 OUT="${OUT:-$ASSETS/kkc_freq.tsv}"
 OUT_NAMES="${OUT_NAMES:-$ASSETS/kkc_names.tsv}"
 OUT_PREDICT="${OUT_PREDICT:-$ASSETS/kkc_predict.tsv}"
+OUT_NEXT="${OUT_NEXT:-$ASSETS/kkc_next.tsv}"
 WORKERS="${WORKERS:-$(( $(nproc) / 2 ))}"
 [ "$WORKERS" -ge 1 ] || WORKERS=1
 PY="$SCRIPT_DIR/build_kkc_freq.py"
@@ -49,8 +52,9 @@ if [ ! -x "$WORK/venv/bin/python" ]; then
 fi
 
 echo "[build-kkc-freq] 数えます (並列 $WORKERS)"
-"$WORK/venv/bin/python" "$PY" count "$TEXT" "$WORK/count.tsv" "$WORKERS" "$WORK/names.tsv" "$WORK/words.tsv"
+"$WORK/venv/bin/python" "$PY" count "$TEXT" "$WORK/count.tsv" "$WORKERS" "$WORK/names.tsv" "$WORK/words.tsv" "$WORK/pairs.tsv"
 python3 "$PY" build "$WORK/count.tsv" "$ASSETS/kkc_lex.tsv" "$OUT"
 python3 "$PY" names "$WORK/names.tsv" "$ASSETS/kkc_lex.tsv" "$OUT_NAMES"
 python3 "$PY" predict "$WORK/words.tsv" "$WORK/names.tsv" "$OUT_PREDICT"
-echo "[build-kkc-freq] 出力: $OUT / $OUT_NAMES / $OUT_PREDICT"
+python3 "$PY" next "$WORK/pairs.tsv" "$OUT_NEXT"
+echo "[build-kkc-freq] 出力: $OUT / $OUT_NAMES / $OUT_PREDICT / $OUT_NEXT"
