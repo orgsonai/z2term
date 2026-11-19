@@ -53,4 +53,11 @@
     <string name="ui_bridge_op_noti">Pulsar “%2$s” en la notificación de %1$s</string>
     <string name="ui_bridge_op_noti_reply">Enviar “%3$s” con “%2$s” en la notificación de %1$s</string>
     <string name="ui_bridge_op_drag">Arrastrar por %2$d puntos en %1$s</string>
+    <string name="ui_bridge_mcp_title">Enseña z2term a tu IA</string>
+    <string name="ui_bridge_mcp_desc">Para herramientas de IA que ejecutan comandos, como Claude Code o Codex (no para IA solo de chat). Regístralo una vez y la IA consultará por sí misma cómo funciona z2term, leyendo solo lo necesario.</string>
+    <string name="ui_bridge_mcp_here">Usar una IA en este teléfono</string>
+    <string name="ui_bridge_mcp_pc">Usar una IA en un PC (mantén sshd como servidor residente)</string>
+    <string name="ui_bridge_mcp_no_ip">Se muestra cuando el teléfono tiene una IP (conéctate a Wi-Fi)</string>
+    <string name="ui_bridge_mcp_last">Última conexión de IA: %1$s</string>
+    <string name="ui_bridge_mcp_never">Ninguna IA se ha conectado aún</string>
 </resources>

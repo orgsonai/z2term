@@ -53,4 +53,11 @@
     <string name="ui_bridge_op_noti">Nhấn “%2$s” trên thông báo của %1$s</string>
     <string name="ui_bridge_op_noti_reply">Gửi “%3$s” bằng “%2$s” trên thông báo của %1$s</string>
     <string name="ui_bridge_op_drag">Kéo qua %2$d điểm trong %1$s</string>
+    <string name="ui_bridge_mcp_title">Dạy AI của bạn về z2term</string>
+    <string name="ui_bridge_mcp_desc">Dành cho công cụ AI có thể chạy lệnh, như Claude Code hoặc Codex (không dành cho AI chỉ trò chuyện). Đăng ký một lần là AI tự tra cách z2term hoạt động, chỉ đọc phần cần thiết.</string>
+    <string name="ui_bridge_mcp_here">Dùng AI trên điện thoại này</string>
+    <string name="ui_bridge_mcp_pc">Dùng AI trên PC (giữ sshd chạy như máy chủ thường trú)</string>
+    <string name="ui_bridge_mcp_no_ip">Hiển thị khi điện thoại có địa chỉ IP (hãy kết nối Wi-Fi)</string>
+    <string name="ui_bridge_mcp_last">Lần AI kết nối gần nhất: %1$s</string>
+    <string name="ui_bridge_mcp_never">Chưa có AI nào kết nối</string>
 </resources>

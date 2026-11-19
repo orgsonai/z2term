@@ -52,4 +52,11 @@
     <string name="ui_bridge_op_noti">In der Benachrichtigung von %1$s „%2$s“ drücken</string>
     <string name="ui_bridge_op_noti_reply">In der Benachrichtigung von %1$s mit „%2$s“ „%3$s“ senden</string>
     <string name="ui_bridge_op_drag">In %1$s durch %2$d Punkte ziehen</string>
+    <string name="ui_bridge_mcp_title">z2term deiner KI beibringen</string>
+    <string name="ui_bridge_mcp_desc">Für KI-Werkzeuge, die Befehle ausführen, etwa Claude Code oder Codex (nicht für reine Chat-KI). Einmal registriert, schlägt die KI selbst nach, wie z2term funktioniert, und liest nur die nötigen Teile.</string>
+    <string name="ui_bridge_mcp_here">KI auf diesem Telefon nutzen</string>
+    <string name="ui_bridge_mcp_pc">KI auf einem PC nutzen (sshd als residenten Server laufen lassen)</string>
+    <string name="ui_bridge_mcp_no_ip">Wird angezeigt, sobald das Telefon eine IP-Adresse hat (mit WLAN verbinden)</string>
+    <string name="ui_bridge_mcp_last">Letzte KI-Verbindung: %1$s</string>
+    <string name="ui_bridge_mcp_never">Noch keine KI verbunden</string>
 </resources>

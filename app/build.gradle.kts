@@ -59,8 +59,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 873
-        versionName = "1.0.175"
+        versionCode = 874
+        versionName = "1.0.176"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -323,6 +323,41 @@ val verifyBundledFonts = tasks.register("verifyBundledFonts") {
 tasks.matching {
     it.name.startsWith("merge") && it.name.endsWith("Assets")
 }.configureEach { dependsOn(verifyBundledFonts) }
+
+// ---------------------------------------------------------------------------
+// AI 向けの文書 (1.0.176)。MCP の `docs` 道具が assets/ai-docs/ から引く (automation/AiDocs.kt)。
+// 正本は docs/en/ で、ビルドのたびに写す (手で写すと版がずれるため、git には入れない)。
+// 英語の使い方の文書だけ。内部設計書 (DESIGN-SPEC) と変更履歴・計画は使い方に要らず、
+// 容量の大半を占めるので入れない (日本語版も AI には要らない)。
+abstract class CopyAiDocs : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NAME_ONLY)
+    abstract val docs: ConfigurableFileCollection
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val root = outputDir.get().asFile
+        root.deleteRecursively()
+        val dir = root.resolve("ai-docs").apply { mkdirs() }
+        docs.files.forEach { it.copyTo(dir.resolve(it.name), overwrite = true) }
+    }
+}
+
+val copyAiDocs = tasks.register<CopyAiDocs>("copyAiDocs") {
+    docs.from(rootProject.fileTree("docs/en") {
+        include("*.md")
+        exclude("DESIGN-SPEC.md", "CHANGELOG.md", "AUTOMATION-ROADMAP.md")
+    })
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyAiDocs, CopyAiDocs::outputDir)
+    }
+}
 
 kotlin {
     compilerOptions {

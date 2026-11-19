@@ -53,4 +53,11 @@
     <string name="ui_bridge_op_noti">点击 %1$s 通知中的“%2$s”</string>
     <string name="ui_bridge_op_noti_reply">通过 %1$s 通知中的“%2$s”发送“%3$s”</string>
     <string name="ui_bridge_op_drag">在 %1$s 中拖动经过 %2$d 个点</string>
+    <string name="ui_bridge_mcp_title">让 AI 了解 z2term</string>
+    <string name="ui_bridge_mcp_desc">适用于能执行命令的 AI 工具，例如 Claude Code 或 Codex（不适用于只能聊天的 AI）。注册一次后，AI 会自己查阅 z2term 的用法，只读取需要的部分。</string>
+    <string name="ui_bridge_mcp_here">在这台手机上使用 AI</string>
+    <string name="ui_bridge_mcp_pc">从电脑上的 AI 使用（让 sshd 作为常驻服务器运行）</string>
+    <string name="ui_bridge_mcp_no_ip">手机有 IP 地址时显示（请连接 Wi-Fi）</string>
+    <string name="ui_bridge_mcp_last">AI 上次连接：%1$s</string>
+    <string name="ui_bridge_mcp_never">还没有 AI 连接过</string>
 </resources>

@@ -52,4 +52,11 @@
     <string name="ui_bridge_op_noti">Tekan “%2$s” pada notifikasi %1$s</string>
     <string name="ui_bridge_op_noti_reply">Kirim “%3$s” dengan “%2$s” pada notifikasi %1$s</string>
     <string name="ui_bridge_op_drag">Seret melalui %2$d titik di %1$s</string>
+    <string name="ui_bridge_mcp_title">Ajarkan z2term ke AI Anda</string>
+    <string name="ui_bridge_mcp_desc">Untuk alat AI yang menjalankan perintah, seperti Claude Code atau Codex (bukan AI khusus obrolan). Daftarkan sekali dan AI dapat mencari sendiri cara kerja z2term, hanya membaca bagian yang perlu.</string>
+    <string name="ui_bridge_mcp_here">Gunakan AI di ponsel ini</string>
+    <string name="ui_bridge_mcp_pc">Gunakan AI di PC (jalankan sshd sebagai server residen)</string>
+    <string name="ui_bridge_mcp_no_ip">Ditampilkan saat ponsel punya alamat IP (sambungkan ke Wi-Fi)</string>
+    <string name="ui_bridge_mcp_last">Koneksi AI terakhir: %1$s</string>
+    <string name="ui_bridge_mcp_never">Belum ada AI yang terhubung</string>
 </resources>

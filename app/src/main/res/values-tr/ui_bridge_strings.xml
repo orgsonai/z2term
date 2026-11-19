@@ -53,4 +53,11 @@
     <string name="ui_bridge_op_noti">%1$s bildiriminde “%2$s” düğmesine bas</string>
     <string name="ui_bridge_op_noti_reply">%1$s bildiriminde “%2$s” ile “%3$s” gönder</string>
     <string name="ui_bridge_op_drag">%1$s içinde %2$d noktadan geçerek sürükle</string>
+    <string name="ui_bridge_mcp_title">z2term\'i yapay zekânıza öğretin</string>
+    <string name="ui_bridge_mcp_desc">Claude Code veya Codex gibi komut çalıştıran yapay zekâ araçları içindir (yalnızca sohbet eden yapay zekâ için değil). Bir kez kaydedin; yapay zekâ z2term\'in nasıl çalıştığına yalnızca gereken kısımları okuyarak kendisi bakar.</string>
+    <string name="ui_bridge_mcp_here">Bu telefonda yapay zekâ kullan</string>
+    <string name="ui_bridge_mcp_pc">Bir PC\'deki yapay zekâdan kullan (sshd\'yi kalıcı sunucu olarak çalıştırın)</string>
+    <string name="ui_bridge_mcp_no_ip">Telefonun IP adresi olduğunda gösterilir (Wi-Fi\'ye bağlanın)</string>
+    <string name="ui_bridge_mcp_last">Son yapay zekâ bağlantısı: %1$s</string>
+    <string name="ui_bridge_mcp_never">Henüz bağlanan yapay zekâ yok</string>
 </resources>

@@ -53,4 +53,11 @@
     <string name="ui_bridge_op_noti">Press “%2$s” on the %1$s notification</string>
     <string name="ui_bridge_op_noti_reply">Send “%3$s” with “%2$s” on the %1$s notification</string>
     <string name="ui_bridge_op_drag">Drag through %2$d points in %1$s</string>
+    <string name="ui_bridge_mcp_title">Teach z2term to your AI</string>
+    <string name="ui_bridge_mcp_desc">For AI tools that run commands, such as Claude Code or Codex (not for chat-only AI). Register z2term once and the AI can look up how z2term works by itself, reading only the parts it needs.</string>
+    <string name="ui_bridge_mcp_here">Use an AI on this phone</string>
+    <string name="ui_bridge_mcp_pc">Use an AI on a PC (keep sshd running as a resident server)</string>
+    <string name="ui_bridge_mcp_no_ip">Shown when the phone has an IP address (connect to Wi-Fi)</string>
+    <string name="ui_bridge_mcp_last">Last AI connection: %1$s</string>
+    <string name="ui_bridge_mcp_never">No AI has connected yet</string>
 </resources>

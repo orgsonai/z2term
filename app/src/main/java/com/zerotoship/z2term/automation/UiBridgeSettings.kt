@@ -55,6 +55,11 @@ internal class UiBridgeSettings(context: Context) {
         get() = prefs.getBoolean(KEY_SHOW_BAR, true)
         set(value) { prefs.edit().putBoolean(KEY_SHOW_BAR, value).apply() }
 
+    /** AI が最後に MCP で繋いだ時刻 (epoch ms、0 = まだ)。登録できたかを画面で確かめるためだけのもの (1.0.176)。 */
+    var mcpLastConnect: Long
+        get() = prefs.getLong(KEY_MCP_LAST_CONNECT, 0L)
+        set(value) { prefs.edit().putLong(KEY_MCP_LAST_CONNECT, value).apply() }
+
     var grantMinutes: Int
         get() = UiBridgePolicy.grantMinutes(prefs.getInt(KEY_GRANT, UiBridgePolicy.GRANT_DEFAULT_MINUTES))
         set(value) { prefs.edit().putInt(KEY_GRANT, UiBridgePolicy.grantMinutes(value)).apply() }
@@ -82,5 +87,6 @@ internal class UiBridgeSettings(context: Context) {
         private const val KEY_STRICT_SETTLE = "strict_settle"
         private const val KEY_SHOW_TRAIL = "show_trail"
         private const val KEY_SHOW_BAR = "show_bar"
+        private const val KEY_MCP_LAST_CONNECT = "mcp_last_connect"
     }
 }

@@ -11,7 +11,9 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 This handbook and the design spec are long. Rather than reading from the top, **we recommend loading them into an AI and asking questions.**
 Ask for what you want to do, and it will find the relevant parts and turn them into steps.
 
-Three ways, in order of preference:
+**For an AI that runs commands (Claude Code, Codex and the like), connecting it to z2term is the easiest (1.0.176).** In 📜 › Automation › AI, tap a command under "Teach z2term to your AI" to copy it, then paste and run it in the AI's terminal (once; from a PC, use the command that goes over SSH). The connected AI looks up only the sections it needs in the user docs (English), which uses less of the conversation than having it read whole documents. z2term never edits the AI's own settings files.
+
+To hand the docs to an AI instead, there are three ways, in order of preference:
 
 1. **For the most detail — give it the whole repository**
    Clone it and let an AI that can read files and code load the whole folder.

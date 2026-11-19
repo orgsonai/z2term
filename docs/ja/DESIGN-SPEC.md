@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-11-19 / 対象バージョン: 1.0.175 (versionCode 873)
+最終更新: 2026-11-19 / 対象バージョン: 1.0.176 (versionCode 874)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -2678,8 +2678,9 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - **指を置いたままの撮影（1.0.37）**: `--peek MS`（`long @X,Y` / `swipe` / `drag`）は、操作を `async` で送ったまま MS 後に撮る（`AndroidUiLook.Peek`）。以前は撮影も操作も z2-ui の 1 本の流れで順に待っていたので、指を離すまで撮れず、長押し・なぞる途中にだけ出る表示（残り時間など）を見られなかった。`held` は撮り終えた時点で指が離れていないか（操作の結果の呼び戻しで直接残した印で見る）。`long @X,Y --hold MS` は指を置く長さ（100〜10000、既定 600）。手順の保存では z2-action の長押しの範囲（500〜3000）を外れる長さを断る。撮った画面（`shot.*` / `peek.*`）は、2 分呼ばれなかったとき・停止・OFF で消し、MCP は画像を返したらすぐ消す。
 - **画面操作の drag（1.0.35）**: `drag UNIT MS X,Y …` は `ActionDefinition` で各点に `i × MS` の時刻を付けた 1 本の `Step.Stroke` にし、再生は記録した軌跡と同じ経路（時刻つきの点）を使う。座標取得は `ActionCoordinatePicker` の `multi`（指を離すたびに 1 点、`1 つ戻す`、点に番号と線）。z2-ui の `save` は `drag` を `drag px` の行にする。
 - **速さ（1.0.34）**: 座標の操作（`tap @` / `long @` / `swipe` / `drag`）は前後の画面の印を取らない（要素を持たない画面では変化を検出できず、`changedAfter` が毎回 1 秒まるまる待っていた）。`drag` は 1 本の `Path`（`moveTo` + `lineTo`）を 1 回の `dispatchGesture` で送る。z2-ui 自身の撮影は `EdgeHandleContrast.lastRequestAt` から 340 ミリ秒（Android の下限 333 ミリ秒）だけ空け、断られたときだけ 1 秒空けて撮り直す。`--jpeg` は品質 85 の JPEG で書く（MCP の既定）。手順の保存では `drag` を `swipe-path`（各点を同じ間隔）にする。
-- **AI 用ガイド（1.0.33、`UiBridgeGuide`）**: `z2-ui --help` は AI 向けの英語のガイドを出す（人向けの短い説明は持たない）。文面は `UiBridgeGuide.TEXT` 1 か所で、`Z2UiScript` がそのままスクリプトの先頭コメントに書き出し（空行は `#` だけの行）、MCP は `instructions` と `guide` 道具で同じものを返す。`UiBridgeGuideTest` が、`handle()` の受ける命令と `UiBridgeGuide.VERBS` が一致すること・各命令がガイドに載っていること・`--help` がガイドと一字一句同じことを確かめる。
+- **AI 用ガイド（1.0.33、`UiBridgeGuide`）**: `z2-ui --help` は AI 向けの英語のガイドを出す（人向けの短い説明は持たない）。文面は `UiBridgeGuide.TEXT` 1 か所で、`Z2UiScript` がそのままスクリプトの先頭コメントに書き出し（空行は `#` だけの行）、MCP は `guide` 道具で同じものを返す（1.0.175 までは `instructions` にも全文を入れていた）。`UiBridgeGuideTest` が、`handle()` の受ける命令と `UiBridgeGuide.VERBS` が一致すること・各命令がガイドに載っていること・`--help` がガイドと一字一句同じことを確かめる。
 - **第 3 段（1.0.32、`UiBridgeExtras.kt`）**: `z2-ui mcp` はスクリプトが 1 行ずつ `z2api 1 ui mcp <行>` へ渡し、`UiBridgeMcp` が JSON-RPC を解いて道具を `UiBridge.execute` へ流す（CLI と同じ判定・記録・控え）。id の無い通知には返事を書かない。アプリが答えないときは、スクリプトが行から id を拾って `-32000` のエラーを返す。手順の保存は `UiBridgeRecorder` が成功した操作を控え、`UiBridgeReplay`（Android 非依存・`UiBridgePolicyTest`）が z2-action の行へ書き直す。書き直せない操作を含む区間は断り、同名のマクロは上書きしない。覚え書きは `~/.z2term/ui/notes/<パッケージ名>.md` の 1 行目に `<!-- z2-ui app-version: … -->` を置き、`look` が今の版と比べる。通知の一覧・ボタンは `NotificationLogService.uiNotifications` / `pressUiAction`（z2term 自身の通知は出さない・押す直前にボタン名を照らし合わせる・Android 14 以降は裏からの起動を許す指定を付けて送る）。
+- **MCP を軽くする（1.0.176）**: `instructions` は z2term の概要と道具の使い分けだけの短い文（`UiBridgeMcp.INSTRUCTIONS`）。説明と道具の一覧は会話のたびに AI の文脈に載るため、ガイド全文は `guide` 道具へ、使い方は `docs` 道具へ移した。`tools/list` は `UiBridgeSettings.enabled` が OFF なら `docs` と `status` だけを返す（`listChanged` は出さないので、ON にしたら AI 側でつなぎ直す）。`docs` は `AiDocs`: assets/ai-docs/ の英語の文書（ビルド時に `copyAiDocs` が `docs/en/` から写す。DESIGN-SPEC・CHANGELOG・AUTOMATION-ROADMAP は除く）を `#`〜`####` の見出しで節に分け（コードブロック内は除く）、語を多く含む節から返す（見出しの語は 5 倍）。2,500 文字を超える節は語を含む行と表の見出し行だけにし、1 回 8,000 文字まで。`section` / `part` で 1 節を読む。判定・記録は通らない（読むだけ）。`initialize` で `mcpLastConnect` を記録し、📜 › 自動化 › AI の「AI に z2term を教える」に出す（登録コマンドを押してコピー。PC 用は `SshEndpoint.sshCommand` を前に付ける）。アプリは AI 側の設定ファイルに書き込まない。
 
 ### 4.14 エッジパネル (`edge/`、0.8.549)
 

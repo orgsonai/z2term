@@ -53,4 +53,11 @@
     <string name="ui_bridge_op_noti">%1$s の通知の「%2$s」を押す</string>
     <string name="ui_bridge_op_noti_reply">%1$s の通知の「%2$s」で「%3$s」を送る</string>
     <string name="ui_bridge_op_drag">%1$s で %2$d 点をなぞる</string>
+    <string name="ui_bridge_mcp_title">AI に z2term を教える</string>
+    <string name="ui_bridge_mcp_desc">Claude Code や Codex のような、コマンドを実行できる AI 向けです（チャットだけの AI には登録できません）。一度登録すると、AI が z2term の使い方を、要る所だけ自分で調べられるようになります。</string>
+    <string name="ui_bridge_mcp_here">このスマホの中で AI を使う</string>
+    <string name="ui_bridge_mcp_pc">PC の AI から使う（常駐サーバーで sshd を動かしておく）</string>
+    <string name="ui_bridge_mcp_no_ip">スマホの IP が分かると表示します（Wi-Fi に接続してください）</string>
+    <string name="ui_bridge_mcp_last">最後に AI が繋いだ: %1$s</string>
+    <string name="ui_bridge_mcp_never">まだ AI は繋いでいません</string>
 </resources>

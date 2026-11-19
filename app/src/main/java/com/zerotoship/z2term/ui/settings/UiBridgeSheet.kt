@@ -51,6 +51,7 @@ import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsWarning
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -80,8 +81,11 @@ fun UiBridgeBody() {
     val strictSettle = remember(tick) { settings.strictSettle }
     val showTrail = remember(tick) { settings.showTrail }
     val showBar = remember(tick) { settings.showBar }
+    val lastConnect = remember(tick) { settings.mcpLastConnect }
     var editingGrant by remember { mutableStateOf(false) }
     var paused by remember { mutableStateOf(UiBridge.isPaused) }
+
+    McpRegisterBlock(lastConnect)
 
     Text(stringResource(R.string.ui_bridge_title), color = ZtsGreen, fontSize = 18.sp,
         fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
@@ -214,6 +218,71 @@ fun UiBridgeBody() {
             },
             dismissButton = { PillButton(label = stringResource(R.string.action_cancel)) { editingGrant = false } }
         )
+    }
+}
+
+/**
+ * 「AI に z2term を教える」(1.0.176)。MCP の登録コマンドを並べて、押せばコピーする。
+ * アプリは AI 側の設定ファイルに書き込まない (登録は利用者が自分の AI で行う)。
+ * [lastConnect] は AI が最後に繋いだ時刻。登録できたかを、画面を見比べずに確かめるためのもの。
+ */
+@Composable
+private fun McpRegisterBlock(lastConnect: Long) {
+    val context = LocalContext.current
+    var pcCommand by remember { mutableStateOf<String?>(null) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        pcCommand = withContext(Dispatchers.IO) {
+            runCatching {
+                val snap = com.zerotoship.z2term.settings.AppSettings(context).flow.first()
+                com.zerotoship.z2term.service.SshEndpoint.sshCommand(context, snap.distroId,
+                    com.zerotoship.z2term.service.SshEndpoint.sshdServerCommand(snap.serverEntries))
+            }.getOrNull()
+        }
+    }
+    Text(stringResource(R.string.ui_bridge_mcp_title), color = ZtsGreen, fontSize = 18.sp,
+        fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+    Text(stringResource(R.string.ui_bridge_mcp_desc), color = ZtsTextSecondary, fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace)
+    SectionTitle(stringResource(R.string.ui_bridge_mcp_here))
+    CopyCommand("claude mcp add z2term -- z2-ui mcp")
+    CopyCommand("codex mcp add z2term -- z2-ui mcp")
+    SectionTitle(stringResource(R.string.ui_bridge_mcp_pc))
+    val pc = pcCommand
+    if (pc != null) CopyCommand("claude mcp add z2term -- $pc z2-ui mcp")
+    else Text(stringResource(R.string.ui_bridge_mcp_no_ip), color = ZtsTextSecondary, fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace)
+    Text(
+        if (lastConnect > 0L) stringResource(R.string.ui_bridge_mcp_last,
+            android.text.format.DateUtils.getRelativeTimeSpanString(lastConnect).toString())
+        else stringResource(R.string.ui_bridge_mcp_never),
+        color = if (lastConnect > 0L) ZtsGreen else ZtsTextSecondary, fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace, modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+    )
+}
+
+/** 押すとコピーするコマンド 1 行。Android は前面のアプリしかクリップボードを触れないので、ここ (押した時) で写す。 */
+@Composable
+private fun CopyCommand(command: String) {
+    val context = LocalContext.current
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(ZtsBgCard)
+            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+            .clickable(onClickLabel = stringResource(R.string.terminal_action_copy)) {
+                val copied = runCatching {
+                    val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("z2term mcp", command))
+                    true
+                }.getOrDefault(false)
+                android.widget.Toast.makeText(context, if (copied) R.string.clip_copied else R.string.clip_copy_failed,
+                    android.widget.Toast.LENGTH_SHORT).show()
+            }.padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(command, color = ZtsTextPrimary, fontSize = 11.sp, fontFamily = FontFamily.Monospace,
+            modifier = Modifier.weight(1f))
+        Text(stringResource(R.string.terminal_action_copy), color = ZtsGreen, fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace)
     }
 }
 

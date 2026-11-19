@@ -53,4 +53,11 @@
     <string name="ui_bridge_op_noti">Нажать «%2$s» в уведомлении %1$s</string>
     <string name="ui_bridge_op_noti_reply">Отправить «%3$s» через «%2$s» в уведомлении %1$s</string>
     <string name="ui_bridge_op_drag">Протянуть через %2$d точек в %1$s</string>
+    <string name="ui_bridge_mcp_title">Научить ИИ работе с z2term</string>
+    <string name="ui_bridge_mcp_desc">Для ИИ-инструментов, которые выполняют команды, например Claude Code или Codex (не для ИИ, который только общается в чате). После одной регистрации ИИ сам узнаёт, как работает z2term, читая только нужное.</string>
+    <string name="ui_bridge_mcp_here">Использовать ИИ на этом телефоне</string>
+    <string name="ui_bridge_mcp_pc">Использовать ИИ на ПК (держите sshd запущенным как постоянный сервер)</string>
+    <string name="ui_bridge_mcp_no_ip">Показывается, когда у телефона есть IP-адрес (подключитесь к Wi-Fi)</string>
+    <string name="ui_bridge_mcp_last">Последнее подключение ИИ: %1$s</string>
+    <string name="ui_bridge_mcp_never">ИИ ещё не подключался</string>
 </resources>

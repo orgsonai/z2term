@@ -157,8 +157,21 @@ internal object UiBridgeNotifications {
  */
 internal object UiBridgeMcp {
     private val VERSIONS = listOf("2025-06-18", "2025-03-26", "2024-11-05")
-    /** 接続したときに AI へ渡す説明。CLI の `z2-ui guide` と同じ文面 ([UiBridgeGuide])。 */
-    private val INSTRUCTIONS get() = UiBridgeGuide.TEXT
+    /**
+     * 接続したときに AI へ渡す説明 (1.0.176)。会話のたびに AI の文脈に載るので、短くしておく。
+     * ⚠ 1.0.175 までは z2-ui のガイド全文 ([UiBridgeGuide]、約 33KB) をここで渡していた。アプリを操作しない
+     * 会話でも毎回その量を使うため、全文は `guide` 道具で、使い方は `docs` 道具で、要るときだけ読ませる。
+     */
+    private const val INSTRUCTIONS =
+        "z2term is an Android terminal app: a Linux userland with a root shell, plus z2-* commands that reach Android " +
+        "(z2-notify notifications, z2-clip clipboard, z2-session tabs/groups/broadcast, z2-when automation rules, " +
+        "z2-edge edge panel, z2-tile quick settings, z2-ui other apps' screens, and more). This server runs inside that app; " +
+        "if you reached it over ssh, the z2-* commands run on the phone the same way.\n" +
+        "- Every z2-* command has --help, and z2help lists them all.\n" +
+        "- Before guessing how z2term behaves, call docs with English keywords. It returns only the matching sections of " +
+        "the user handbook and guides, so you do not need to read whole files.\n" +
+        "- Tools that operate other Android apps (look, tap, shot ...) appear only while the user has turned on AI operation " +
+        "in z2term (reconnect after they do). Read guide before operating."
 
     fun handle(app: Context, line: String): String {
         val request = try { JSONObject(line) } catch (_: Exception) { return error(JSONObject.NULL, -32700, "Parse error") }
@@ -167,13 +180,13 @@ internal object UiBridgeMcp {
         val id = request.get("id")
         val params = request.optJSONObject("params") ?: JSONObject()
         return when (val method = request.optString("method")) {
-            "initialize" -> result(id, JSONObject()
+            "initialize" -> result(id, JSONObject().also { UiBridgeSettings(app).mcpLastConnect = System.currentTimeMillis() }
                 .put("protocolVersion", params.optString("protocolVersion").takeIf { it in VERSIONS } ?: VERSIONS[0])
                 .put("capabilities", JSONObject().put("tools", JSONObject().put("listChanged", false)))
                 .put("serverInfo", JSONObject().put("name", "z2term").put("version", BuildConfig.VERSION_NAME))
                 .put("instructions", INSTRUCTIONS))
             "ping" -> result(id, JSONObject())
-            "tools/list" -> result(id, JSONObject().put("tools", tools()))
+            "tools/list" -> result(id, JSONObject().put("tools", tools(UiBridgeSettings(app).enabled)))
             "tools/call" -> result(id, call(app, params.optString("name"), params.optJSONObject("arguments") ?: JSONObject()))
             else -> error(id, -32601, "Method not found: $method")
         }
@@ -187,6 +200,14 @@ internal object UiBridgeMcp {
         // ガイドは判定も記録も要らない (CLI では z2-ui --help がこれを出す)。
         if (name == "guide") return JSONObject().put("isError", false)
             .put("content", JSONArray().put(JSONObject().put("type", "text").put("text", UiBridgeGuide.TEXT)))
+        // 使い方の文書も判定・記録の外 (読むだけで、端末にも他のアプリにも触れない)。
+        if (name == "docs") {
+            val section = a.optString("section").takeIf { it.isNotBlank() }
+            val text = if (section != null) AiDocs.read(app, section, a.optInt("part", 1))
+                else AiDocs.search(app, a.optString("query"))
+            return JSONObject().put("isError", false)
+                .put("content", JSONArray().put(JSONObject().put("type", "text").put("text", text)))
+        }
         fun text(key: String) = a.optString(key).takeIf { a.has(key) && it.isNotEmpty() }
             ?: throw Refusal("bad_args", "$name needs $key")
         fun optional(key: String) = if (a.has(key) && !a.isNull(key)) a.get(key).toString() else null
@@ -316,7 +337,11 @@ internal object UiBridgeMcp {
         return JSONObject().put("content", content).put("isError", !result.optBoolean("ok"))
     }
 
-    private fun tools(): JSONArray {
+    /**
+     * [operate] が false (AI からのアプリ操作が OFF) の間は、docs と status だけを見せる (1.0.176)。
+     * 道具の説明も会話のたびに AI の文脈に載るので、使えない道具を並べない。
+     */
+    private fun tools(operate: Boolean): JSONArray {
         fun prop(type: String, description: String, values: List<String>? = null) = JSONObject().put("type", type)
             .put("description", description).apply { values?.let { put("enum", JSONArray(it)) } }
         val target = prop("string", "Element: \"#N\" from the last look, \"text=…\", \"desc=…\", \"id=PACKAGE:id/NAME\", \"@X,Y\" (pixels) " +
@@ -352,7 +377,15 @@ internal object UiBridgeMcp {
         fun tool(name: String, description: String, props: Map<String, JSONObject> = emptyMap(), required: List<String> = emptyList()) =
             JSONObject().put("name", name).put("description", description).put("inputSchema", JSONObject().put("type", "object")
                 .put("properties", JSONObject((if (name in operations) props + afterShot else props) as Map<*, *>)).put("required", JSONArray(required)))
+        val docs = tool("docs", "Search z2term's user handbook and guides (English). Returns only the matching sections. " +
+            "Use it before guessing how z2term or a z2-* command behaves.",
+            mapOf("query" to prop("string", "English keywords, e.g. \"broadcast group\" or \"z2-when battery\""),
+                "section" to prop("string", "Read one section by the id a search returned, instead of searching"),
+                "part" to prop("integer", "With section: which part of a long section, default 1")))
+        val status = tool("status", "Permission state: enabled, paused, levels, approval grants.")
+        if (!operate) return JSONArray(listOf(docs, status))
         return JSONArray(listOf(
+            docs,
             tool("front", "Foreground app: package, name, permission level, screen size, whether locked."),
             tool("look", "Read the foreground screen as numbered elements with role, text, position and available operations.",
                 mapOf("all" to prop("boolean", "Include containers without text or operations"),
@@ -416,7 +449,7 @@ internal object UiBridgeMcp {
             tool("press_notification", "Press a notification button, with reply text if the button has a reply field.",
                 mapOf("key" to prop("string", "Notification key from notifications"), "label" to prop("string", "Button label"),
                     "reply" to prop("string", "Reply text")), listOf("key", "label")),
-            tool("status", "Permission state: enabled, paused, levels, approval grants."),
+            status,
             tool("guide", "The full z2-ui guide for AI agents: rules, commands, error codes. Read it before operating."),
         ))
     }

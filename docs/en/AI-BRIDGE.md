@@ -240,7 +240,10 @@ While operations continue, the notification "AI is controlling an app (org.examp
 - `shot` also returns the image, so AIs that read images can look at it directly. It defaults to scale 0.5 to keep the conversation small.
 - **The guide for AIs is `z2-ui --help` (also with no arguments; 1.0.33).** z2-ui is a command for AIs, so its help is not a short note for people but a detailed guide for the AI to read (in English): every command's arguments and limits, the JSON fields, what to do for each error code, and rules of conduct (put `interrupted` first, never repeat a refused operation, never work around permissions, irreversible actions only on the user's explicit request). AIs try `--help` on unknown commands first, so they find it even when their instruction file says nothing.
 - People get the same text, so you can always check what the AI is told; to read it in Japanese, ask the AI to summarise `z2-ui --help`. This document stays the source of truth; the guide is written from it for AIs. Adding a command without updating the guide fails a test (`UiBridgeGuideTest`).
-- Over MCP the same guide is sent as the connection `instructions` and through the `guide` tool.
+- Over MCP the same guide is sent through the `guide` tool. **The connection `instructions` are now a short note only (1.0.176).** They sit in the AI's context for the whole conversation, so sending the full guide (about 33 KB) as before 1.0.176 cost that much every time, even in conversations that never operate an app.
+- **The `docs` tool (1.0.176)**: given English words, it returns only the sections of the user docs (the English handbook and feature guides) that contain them. Long sections are cut down to the matching lines; `section` reads one in full. Each reply is at most about 8,000 characters. The docs are copied from `docs/en/` into the APK at build time (the internal design spec, changelog and plans are left out).
+- **While AI app control is off, only `docs` and `status` are listed (1.0.176)**, because tool descriptions also stay in the context. After turning it on, reconnect from the AI to get the operation tools.
+- Registration help is in 📜 › Automation › AI under "Teach z2term to your AI" (a command for an AI on this phone and one over SSH for an AI on a PC; tap to copy). It also shows when an AI last connected, so you can tell the registration worked.
 
 ## 7. How the AI learns an app
 
@@ -254,7 +257,7 @@ The AI can start without a manual, just as a person using an app for the first t
 
 - Notes and saved steps are plain text that people can read and fix.
 - When the app is updated (its version changes), `look` says the notes are for an older version; the AI uses them while double-checking.
-- Resource IDs (`id=`) survive app updates better than labels; the MCP instructions ask the AI to prefer IDs in notes.
+- Resource IDs (`id=`) survive app updates better than labels; the guide asks the AI to prefer IDs in notes.
 
 **Rules for saving steps (`save`):**
 
