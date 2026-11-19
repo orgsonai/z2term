@@ -1354,6 +1354,8 @@ private class ApiMsgKo(d: String) : Z2ApiMsg("ko", d) {
         |# z2-session group delete <그룹>        … 그룹을 해제한다 (탭은 닫지 않는다)
         |# z2-session group show <그룹>          … 그 그룹을 화면에 띄운다
         |# z2-session group send <그룹> <텍스트>... [--enter] … 그 그룹의 터미널 탭 모두에 글자를 넣는다 (실행하지 않는다)
+        |# z2-session group broadcast start <그룹> [--on|--off] | on | off | stop | status … 📡 브로드캐스트: 시작 (그 그룹을 표시) / 보내기 전환 / 해제 / 상태 (stop・off・on) 출력
+        |# z2-session group broadcast tab <탭>... on|off … 그 탭의 체크를 넣는다 / 뺀다 (start 후)
         |#   <그룹>은 group list의 번호 / id / 그룹 이름 중 무엇이든 된다. list의 6번째 열은 각 탭의 그룹
         |#
         |# <탭>은 list의 색인, id, 탭 이름 중 아무거나 됩니다. '.'이나 생략은 화면에 있는 탭입니다.

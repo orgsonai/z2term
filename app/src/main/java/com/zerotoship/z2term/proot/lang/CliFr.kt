@@ -1328,6 +1328,8 @@ private class ApiMsgFr(d: String) : Z2ApiMsg("fr", d) {
         |# z2-session group delete <groupe>    … dissout le groupe (les onglets restent ouverts)
         |# z2-session group show <groupe>      … affiche ce groupe à l'écran
         |# z2-session group send <groupe> <texte>... [--enter] … tape dans tous les onglets de terminal de ce groupe (sans exécuter)
+        |# z2-session group broadcast start <groupe> [--on|--off] | on | off | stop | status … diffusion 📡 : démarrer (affiche ce groupe), activer/couper l'envoi, arrêter ou afficher stop/off/on
+        |# z2-session group broadcast tab <onglet>... on|off … coche / décoche ces onglets pour la diffusion (après start)
         |#   <groupe> peut être le numéro de group list, un id ou un nom de groupe. list indique le groupe de chaque onglet en 6e colonne
         |#
         |# <onglet> peut être l’index de list, un id ou un nom d’onglet. « . » ou omis = l’onglet à l’écran.

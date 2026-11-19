@@ -1328,6 +1328,8 @@ private class ApiMsgId(d: String) : Z2ApiMsg("id", d) {
         |# z2-session group delete <grup>      … bubarkan grup (tab tetap terbuka)
         |# z2-session group show <grup>        … tampilkan grup itu di layar
         |# z2-session group send <grup> <teks>... [--enter] … ketik ke semua tab terminal grup itu (tidak menjalankan)
+        |# z2-session group broadcast start <grup> [--on|--off] | on | off | stop | status … siaran 📡: mulai (menampilkan grup itu), ganti pengiriman, akhiri, atau cetak stop/off/on
+        |# z2-session group broadcast tab <tab>... on|off … centang / hapus centang tab itu untuk siaran (setelah start)
         |#   <grup> boleh nomor dari group list, id, atau nama grup. list menampilkan grup tiap tab di kolom ke-6
         |#
         |# <tab> bisa indeks dari list, id, atau nama tab. "." atau dihilangkan = tab di layar.

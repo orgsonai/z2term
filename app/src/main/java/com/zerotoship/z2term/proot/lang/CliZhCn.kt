@@ -1300,6 +1300,8 @@ private class ApiMsgZhCn(d: String) : Z2ApiMsg("zh-CN", d) {
         |# z2-session group delete <分组>        … 解散分组（标签页不关闭）
         |# z2-session group show <分组>          … 在屏幕上显示该分组
         |# z2-session group send <分组> <文本>... [--enter] … 向该分组的所有终端标签页输入文字（不执行）
+        |# z2-session group broadcast start <分组> [--on|--off] | on | off | stop | status … 📡 广播：开始（显示该分组）、切换发送、结束，或输出 stop/off/on
+        |# z2-session group broadcast tab <标签页>... on|off … 勾选 / 取消勾选这些标签页的广播输入（start 之后）
         |#   <分组> 可以是 group list 的编号、id 或分组名称。list 的第 6 列是各标签页所在的分组
         |#
         |# <目标> 可以是 list 的编号 / id / 标签页名称。写 '.' 或者省略表示当前显示的标签页。

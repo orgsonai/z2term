@@ -1328,6 +1328,8 @@ private class ApiMsgIt(d: String) : Z2ApiMsg("it", d) {
         |# z2-session group delete <gruppo>    … separa il gruppo (le schede restano aperte)
         |# z2-session group show <gruppo>      … mostra quel gruppo sullo schermo
         |# z2-session group send <gruppo> <testo>... [--enter] … scrive in tutte le schede terminale di quel gruppo (senza eseguire)
+        |# z2-session group broadcast start <gruppo> [--on|--off] | on | off | stop | status … trasmissione 📡: avvia (mostra quel gruppo), attiva/disattiva l'invio, termina o stampa stop/off/on
+        |# z2-session group broadcast tab <scheda>... on|off … spunta / togli la spunta a quelle schede per la trasmissione (dopo start)
         |#   <gruppo> può essere il numero di group list, un id o un nome di gruppo. list mostra il gruppo di ogni scheda nella 6ª colonna
         |#
         |# <scheda> può essere l’indice di list, un id o il nome di una scheda. "." o omesso = la scheda sullo schermo.

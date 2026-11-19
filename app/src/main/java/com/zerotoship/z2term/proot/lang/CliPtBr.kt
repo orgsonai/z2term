@@ -1328,6 +1328,8 @@ private class ApiMsgPtBr(d: String) : Z2ApiMsg("pt-BR", d) {
         |# z2-session group delete <grupo>     … desfaz o grupo (as abas continuam abertas)
         |# z2-session group show <grupo>       … mostra esse grupo na tela
         |# z2-session group send <grupo> <texto>... [--enter] … digita em todas as abas de terminal desse grupo (não executa)
+        |# z2-session group broadcast start <grupo> [--on|--off] | on | off | stop | status … transmissão 📡: iniciar (mostra esse grupo), ligar/desligar o envio, encerrar ou mostrar stop/off/on
+        |# z2-session group broadcast tab <aba>... on|off … marca / desmarca essas abas para a transmissão (após start)
         |#   <grupo> pode ser o número de group list, um id ou um nome de grupo. list mostra o grupo de cada aba na 6ª coluna
         |#
         |# <aba> pode ser o índice do list, um id ou o nome de uma aba. '.' ou omitido = a aba na tela.

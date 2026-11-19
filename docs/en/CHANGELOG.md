@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.175 (versionCode 873)**: The 📡 broadcast can now be driven from the command line. `z2-session group broadcast start <group>` starts it (`--on` sends from the start), `on` / `off` switches sending, `stop` ends it, and `status` prints the current state. `tab <tab>... on|off` decides per tab whether input reaches it. A macro can now open tabs, connect them to servers, group them and start broadcasting, and `z2-when` can launch it
+
 **1.0.174 (versionCode 872)**: SSH tabs no longer get cut when left idle, which happened mostly on mobile data. An SSH tab is silent while you are not typing, so the carrier's shared exit (NAT) or routers on the way discarded the connection as unused. Tabs now send a small keepalive every 15 seconds, for every destination. If the other side does not answer for 45 seconds (3 in a row), the tab treats the connection as lost and closes it.
 
 **1.0.173 (versionCode 871)**: Settings now has "Do not wrap long lines" to choose the standard behavior (off at first). Changing it updates every terminal tab and carries over to new tabs and later launches. No line wrap and Wrap lines in the tab long-press menu now switch only that tab temporarily and are not saved.

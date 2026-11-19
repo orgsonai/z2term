@@ -1327,6 +1327,8 @@ private class ApiMsgDe(d: String) : Z2ApiMsg("de", d) {
         |# z2-session group delete <Gruppe>    … Gruppe auflösen (die Tabs bleiben offen)
         |# z2-session group show <Gruppe>      … diese Gruppe auf dem Bildschirm zeigen
         |# z2-session group send <Gruppe> <Text>... [--enter] … in alle Terminal-Tabs dieser Gruppe tippen (führt nicht aus)
+        |# z2-session group broadcast start <Gruppe> [--on|--off] | on | off | stop | status … 📡-Broadcast: starten (zeigt die Gruppe), Senden ein/aus, beenden oder stop/off/on ausgeben
+        |# z2-session group broadcast tab <Tab>... on|off … diese Tabs für den Broadcast an- / abhaken (nach start)
         |#   <Gruppe> kann die Nummer aus group list, eine id oder ein Gruppenname sein. list zeigt die Gruppe jedes Tabs in Spalte 6
         |#
         |# <Tab> kann der Index aus list, eine id oder ein Tabname sein. '.' oder weggelassen = der Tab auf dem Bildschirm.

@@ -1321,6 +1321,8 @@ private class ApiMsgEs(d: String) : Z2ApiMsg("es", d) {
         |# z2-session group delete <grupo>     … desagrupa (las pestañas siguen abiertas)
         |# z2-session group show <grupo>       … muestra ese grupo en pantalla
         |# z2-session group send <grupo> <texto>... [--enter] … escribe en todas las pestañas de terminal de ese grupo (no lo ejecuta)
+        |# z2-session group broadcast start <grupo> [--on|--off] | on | off | stop | status … difusión 📡: iniciar (muestra ese grupo), activar/desactivar el envío, terminar o mostrar stop/off/on
+        |# z2-session group broadcast tab <pestaña>... on|off … marca / desmarca esas pestañas para la difusión (tras start)
         |#   <grupo> puede ser el número de group list, un id o un nombre de grupo. list muestra el grupo de cada pestaña en la 6.ª columna
         |#
         |# <pest> puede ser el índice de list, un id o el nombre de una pestaña. '.' u omitido = la que está en pantalla.

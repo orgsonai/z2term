@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-19 / Target version: 1.0.174 (versionCode 872)
+Last updated: 2026-11-19 / Target version: 1.0.175 (versionCode 873)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -728,6 +728,8 @@ open another working tab, place a command into a different tab, or grab what is 
 | `group add <group> <target>...` / `group remove <target>...` | puts tabs into a group / takes them out (tabs stay open) |
 | `group delete <group>` / `group show <group>` | ungroups / shows that group on screen |
 | `group send <group> <text>... [--enter]` | types into **every terminal tab** of the group, regardless of the on-screen broadcast ON/OFF and ticks (the group is named explicitly from outside). Like `send`, it only types unless `--enter` is given, and does not change the tab on screen |
+| `group broadcast start <group> [--on\|--off]` / `on` / `off` / `stop` / `status` | drives the on-screen 📡 broadcast from outside (1.0.175). `start` is the same as "📡 Start broadcast" (re-ticks the terminal tabs of every group and shows that group). Whether input is sent defaults to the "Start broadcasting ON" setting; `--on` / `--off` override it. `on` / `off` refuse before a start (turning it on with nothing ticked would send nowhere and confuse). Each prints the state as one word: `stop` / `off` / `on` |
+| `group broadcast tab <tab>... on\|off` | ticks / unticks single tabs (the same tick as on the pane title) (1.0.175). Accepted only after `start`, since `start` re-ticks. If any given tab is outside a group or not a terminal, nothing changes and it refuses |
 
 `list` adds a 6th column with the tab's group name (`-` if none) (1.0.149). ⚠ The column is **appended** — moving existing columns would break scripts that pick the tab name with `cut -f5`. A group is resolved **by number (column 1 of `group list`) → id → name (exact, then a prefix matching only one)**. Groups are Compose state, so reads and writes go through `runOnMainSync`, and the setting (the limit) is read beforehand, off the main thread.
 

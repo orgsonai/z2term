@@ -1046,6 +1046,8 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
         |# z2-session group delete <group>     … ungroup (the tabs stay open)
         |# z2-session group show <group>       … show that group on screen
         |# z2-session group send <group> <text>... [--enter] … type into every terminal tab of that group (does not run it)
+        |# z2-session group broadcast start <group> [--on|--off] | on | off | stop | status … the 📡 broadcast: start (shows that group), switch sending, end, or print stop/off/on
+        |# z2-session group broadcast tab <tab>... on|off … tick / untick those tabs for broadcast input (after start)
         |#   <group> can be the number from group list, an id, or a group name. list shows each tab's group in a 6th column
         |#
         |# <tab> can be the index from list, an id, or a tab name. '.' or omitted = the tab on screen.
@@ -1076,6 +1078,8 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
         |# z2-session group delete <グループ>      … グループを解除する (タブは閉じない)
         |# z2-session group show <グループ>        … そのグループを画面に出す
         |# z2-session group send <グループ> <文字列>... [--enter] … そのグループの端末タブすべてに文字を入れる (実行はしない)
+        |# z2-session group broadcast start <グループ> [--on|--off] | on | off | stop | status … 📡 ブロードキャストを始める (そのグループを出す) / 送るを切り替える / 解除 / 状態 (stop・off・on) を出す
+        |# z2-session group broadcast tab <先>... on|off … そのタブのチェックを入れる / 外す (start の後で)
         |#   <グループ> は group list の番号 / id / 名前 のどれでもよい。list の 6 列目は各タブのグループ
         |#
         |# <先> は list の番号 / id / タブ名 のどれでもよい。'.' か省略で今表示しているタブ。

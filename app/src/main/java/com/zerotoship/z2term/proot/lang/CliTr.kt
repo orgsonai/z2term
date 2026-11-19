@@ -1328,6 +1328,8 @@ private class ApiMsgTr(d: String) : Z2ApiMsg("tr", d) {
         |# z2-session group delete <grup>      … grubu dağıtır (sekmeler açık kalır)
         |# z2-session group show <grup>        … o grubu ekranda gösterir
         |# z2-session group send <grup> <metin>... [--enter] … o grubun tüm terminal sekmelerine yazar (çalıştırmaz)
+        |# z2-session group broadcast start <grup> [--on|--off] | on | off | stop | status … 📡 yayın: başlat (o grubu gösterir), göndermeyi aç/kapat, bitir veya stop/off/on yazdır
+        |# z2-session group broadcast tab <sekme>... on|off … o sekmeleri yayın için işaretle / işareti kaldır (start sonrası)
         |#   <grup>, group list numarası, bir id veya grup adı olabilir. list her sekmenin grubunu 6. sütunda gösterir
         |#
         |# <sekme> list’teki dizin, bir id veya sekme adı olabilir. "." veya verilmezse = ekrandaki sekme.

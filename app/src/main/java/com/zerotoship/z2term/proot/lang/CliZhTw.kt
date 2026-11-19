@@ -1300,6 +1300,8 @@ private class ApiMsgZhTw(d: String) : Z2ApiMsg("zh-TW", d) {
         |# z2-session group delete <群組>        … 解散群組（分頁不關閉）
         |# z2-session group show <群組>          … 在螢幕上顯示該群組
         |# z2-session group send <群組> <文字>... [--enter] … 在該群組的所有終端分頁輸入文字（不執行）
+        |# z2-session group broadcast start <群組> [--on|--off] | on | off | stop | status … 📡 廣播：開始（顯示該群組）、切換傳送、結束，或輸出 stop/off/on
+        |# z2-session group broadcast tab <分頁>... on|off … 勾選 / 取消勾選這些分頁的廣播輸入（start 之後）
         |#   <群組> 可以是 group list 的編號、id 或群組名稱。list 的第 6 欄是各分頁所在的群組
         |#
         |# <目標> 可以是 list 的編號 / id / 分頁名稱。寫 '.' 或者省略表示當前顯示的分頁。

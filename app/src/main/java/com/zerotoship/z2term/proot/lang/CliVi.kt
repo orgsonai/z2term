@@ -1328,6 +1328,8 @@ private class ApiMsgVi(d: String) : Z2ApiMsg("vi", d) {
         |# z2-session group delete <nhóm>      … bỏ nhóm (các thẻ vẫn mở)
         |# z2-session group show <nhóm>        … hiển thị nhóm đó trên màn hình
         |# z2-session group send <nhóm> None... [--enter] … gõ vào mọi thẻ terminal của nhóm đó (không chạy)
+        |# z2-session group broadcast start <nhóm> [--on|--off] | on | off | stop | status … phát 📡: bắt đầu (hiện nhóm đó), bật/tắt gửi, kết thúc, hoặc in stop/off/on
+        |# z2-session group broadcast tab <thẻ>... on|off … đánh dấu / bỏ đánh dấu các thẻ đó để phát (sau start)
         |#   <nhóm> có thể là số từ group list, id hoặc tên nhóm. list hiện nhóm của mỗi thẻ ở cột thứ 6
         |#
         |# <thẻ> có thể là chỉ số trong list, id hoặc tên thẻ. "." hoặc bỏ trống = thẻ trên màn hình.
