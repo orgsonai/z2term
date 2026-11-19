@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.179 (versionCode 877)**: Connecting a PC's AI to z2term over SSH got no answer to any call. When SSH runs a single command, the search path (PATH) lacks the folder of the helper z2-ui uses to talk to the app, so it was not found. z2-ui now adds its own folder to the path
+
 **1.0.178 (versionCode 876)**: Fixed the registration commands in "Teach z2term to your AI". The Claude Code ones now add `-s user` so the AI finds z2term from any folder (without it, only in the folder where it was registered). The PC ones give `z2-ui` as a full path so it is found over SSH, and there is now a Codex line for the PC too
 
 **1.0.177 (versionCode 875)**: Split screens can now mix rows and columns. Long-press a pane title and drag it to the edge of another pane; let go and it sits on that side (let go in the middle to swap). Tabs in the tab bar can be dragged onto a pane the same way and join the group on screen; dropped on a single ungrouped tab, the two become a new group. Before you let go, the place it will take is shaded green, and each divider can still be dragged

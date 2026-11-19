@@ -21,7 +21,11 @@ fun z2UiScript(lang: String): String {
     // ヘルプを読み上げる awk が途中で止まらないようにする。
     val header = com.zerotoship.z2term.automation.UiBridgeGuide.TEXT.lines()
         .joinToString("\n") { if (it.isEmpty()) "#" else "# $it" }
+    // ⚠ 自分の置き場所 (z2api と同じ /usr/local/bin) を PATH の先頭に足す (1.0.179)。ssh でコマンドだけを
+    // 打つと PATH に /usr/local/bin が入らず、z2-ui をフルパスで呼んでも中の z2api が見つからなかった
+    // (PC の AI から `ssh <スマホ> /usr/local/bin/z2-ui mcp` で繋ぐと、どの呼び出しも答えが無い扱いになる)。
     return "#!/bin/sh\n$header\n" + """
+        |case "${d}0" in */*) PATH="${d}{0%/*}:${d}PATH" ;; esac
         |case "${d}{1:-}" in
         |  ''|-h|--help|help)
         |    awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 && NF { exit }' "${d}0"; exit 0 ;;
