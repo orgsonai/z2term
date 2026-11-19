@@ -169,7 +169,8 @@ internal object UiBridgeMcp {
         "if you reached it over ssh, the z2-* commands run on the phone the same way.\n" +
         "- Every z2-* command has --help, and z2help lists them all.\n" +
         "- Before guessing how z2term behaves, call docs with English keywords. It returns only the matching sections of " +
-        "the user handbook and guides, so you do not need to read whole files.\n" +
+        "the user handbook and guides, so you do not need to read whole files. Internals (how it is built) are not there; " +
+        "they are in docs/en/DESIGN-SPEC.md of https://github.com/orgsonai/z2term.\n" +
         "- Tools that operate other Android apps (look, tap, shot ...) appear only while the user has turned on AI operation " +
         "in z2term (reconnect after they do). Read guide before operating."
 

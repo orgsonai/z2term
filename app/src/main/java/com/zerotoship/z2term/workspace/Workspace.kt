@@ -33,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
@@ -113,6 +113,54 @@ internal object Workspace {
             outside.minByOrNull { kotlin.math.abs(it.index - at) }?.let { SessionManager.setActive(it.value) }
         }
         members.forEach { SessionManager.close(it) }
+    }
+
+    /**
+     * Where each pane on screen is, in root coordinates (1.0.177). Written by the panes as they are
+     * laid out and removed when they leave, so a drag from the tab bar or a pane title can tell which
+     * pane it is over. Not state: nothing redraws from it.
+     */
+    val paneBounds = HashMap<String, androidx.compose.ui.geometry.Rect>()
+
+    /** A pane [dragged] would land on [side] of [target] if let go now. Drawn over [target]. */
+    data class DockHover(val dragged: String, val target: String, val side: DockSide)
+    var dockHover by mutableStateOf<DockHover?>(null)
+
+    /** Follows a drag of tab [dragged] at ([x], [y]) in root coordinates. */
+    fun hover(dragged: String, x: Float, y: Float) {
+        val hit = paneBounds.entries.firstNotNullOfOrNull { (id, r) ->
+            if (id == dragged) null
+            else dockSideAt(x, y, r.left, r.top, r.width, r.height)?.let { DockHover(dragged, id, it) }
+        }
+        // Over the dragged pane itself: nothing happens, so nothing is shown.
+        val self = paneBounds[dragged]?.contains(androidx.compose.ui.geometry.Offset(x, y)) == true
+        val next = if (self) null else hit
+        if (next != dockHover) dockHover = next
+    }
+
+    enum class Drop { NONE, DOCKED, FULL }
+
+    /**
+     * Lets go of tab [dragged]. Over a pane of a group it joins that group (when it was not in it)
+     * and lands on that side; over a tab shown alone the two become a new group. [max] is the group size limit.
+     */
+    fun drop(dragged: String, max: Int, nameFor: (Int) -> String): Drop {
+        val h = dockHover?.takeIf { it.dragged == dragged && it.target != dragged }
+        dockHover = null
+        if (h == null) return Drop.NONE
+        val target = groups.groupOf(h.target)
+        if (target == null) {
+            // A tab shown alone: swapping with it means nothing, so only the sides count.
+            if (h.side == DockSide.CENTER) return Drop.NONE
+            val (created, id) = groups.create(nameFor)
+            val both = created.add(id, h.target, max)?.add(id, dragged, max) ?: return Drop.FULL
+            update { both.dock(id, dragged, h.target, h.side) }
+        } else {
+            val base = if (dragged in target.members) groups else groups.add(target.id, dragged, max) ?: return Drop.FULL
+            update { base.dock(target.id, dragged, h.target, h.side) }
+        }
+        SessionManager.setActive(dragged)
+        return Drop.DOCKED
     }
 
     data class Projection(val session: String, val display: Int)
@@ -262,31 +310,19 @@ internal object Workspace {
     val sessions by SessionManager.sessions.collectAsState()
     LaunchedEffect(active.id) { Workspace.update { it.focus(active.id) } }
     val group = Workspace.stackedFor(active.id)
-    if (group == null) { Box(modifier) { content() }; return }
+    // A tab shown alone is still a place to drop a tab from the tab bar (1.0.177): dropping it on a
+    // side makes a group of the two.
+    if (group == null) {
+        Box(modifier.paneBounds(active.id)) { content(); DockPreview(active.id) }
+        return
+    }
     val panes = group.panes(active.id)
-    val horizontal = group.horizontal
     // Gesture handlers outlive a composition; read the group through this so they never act on a stale one.
     val groupId by rememberUpdatedState(group.id)
-    var size by remember { mutableStateOf(IntSize.Zero) }
-    // Long-press a title and drag it along the stack to move that tab. Nothing moves while dragging:
-    // the pane it would land on gets a thick frame, and letting go moves it there.
-    val starts = remember { mutableStateMapOf<String, Int>() }
-    val extents = remember { mutableStateMapOf<String, Int>() }
+    // Long-press a title and drag it onto another pane (1.0.177): near an edge it goes to that side
+    // (so rows and columns can be mixed), in the middle the two swap. Nothing moves while dragging;
+    // the place it would land is shaded, and letting go puts it there.
     var draggingId by remember { mutableStateOf<String?>(null) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    val currentPanes by rememberUpdatedState(panes)
-    fun dropIndex(): Int? {
-        val id = draggingId ?: return null
-        val from = currentPanes.indexOf(id)
-        if (from < 0) return null
-        val center = (starts[id] ?: 0) + (extents[id] ?: 0) / 2f + dragOffset
-        val to = currentPanes.indexOfFirst { p ->
-            val start = starts[p] ?: return@indexOfFirst false
-            center >= start && center < start + (extents[p] ?: 0)
-        }
-        return if (to < 0) (if (dragOffset > 0) currentPanes.size - 1 else 0) else to
-    }
-    val target = dropIndex()?.let { i -> panes.getOrNull(i) }?.takeIf { it != draggingId }
     // Panes that receive what is typed now. Only shown while it is more than the focused pane,
     // in the warning colour, so sending to several tabs is never mistaken for ordinary typing.
     val sendingTo = (active as? TerminalSession)?.let { Broadcast.targets(it).map { t -> t.id } }.orEmpty()
@@ -296,17 +332,14 @@ internal object Workspace {
         if (session != null) key(id) {
             val label by session.label.collectAsState()
             val dragged = draggingId == id
-            val isTarget = target == id
+            val isTarget = Workspace.dockHover?.target == id
             // 1 枚だけのグループ (1.0.159) は「最大化」ではない。最大化しているのは、2 枚以上のうち 1 枚だけを出しているとき。
             val maximized = group.members.size > 1 && panes.size == 1
             val isActive = id == active.id
             var menuOpen by remember { mutableStateOf(false) }
+            val titleCoords = remember { arrayOfNulls<androidx.compose.ui.layout.LayoutCoordinates>(1) }
             Column(childModifier
-                .onGloballyPositioned { c ->
-                    val p = c.positionInParent()
-                    starts[id] = if (horizontal) p.x.toInt() else p.y.toInt()
-                    extents[id] = if (horizontal) c.size.width else c.size.height
-                }
+                .paneBounds(id)
                 // ⭐ 入力先は送り先の警告色より優先して緑の太枠にする (1.0.159)。ブロードキャスト中は
                 // 送り先がすべて黄色になり、入力先も黄色だったので、どれに打っているのか見分けられなかった。
                 .border(
@@ -342,8 +375,9 @@ internal object Workspace {
                     }
                 }
                 Box(Modifier.weight(1f)) {
-                Text((if (dragged) "⇅ " else "") + label, color = if (id == active.id) ZtsGreen else ZtsTextSecondary,
+                Text((if (dragged) "✥ " else "") + label, color = if (id == active.id) ZtsGreen else ZtsTextSecondary,
                     maxLines = 1, modifier = Modifier.fillMaxWidth()
+                        .onGloballyPositioned { titleCoords[0] = it }
                         .pointerInput(session.id) {
                             detectTapGestures(
                                 onTap = { SessionManager.setActive(session.id) },
@@ -351,22 +385,22 @@ internal object Workspace {
                                 onDoubleTap = { toggleMaximized() },
                             )
                         }
-                        .pointerInput(session.id, horizontal) {
+                        .pointerInput(session.id) {
                             var moved = 0f
-                            fun reset() { dragOffset = 0f; draggingId = null; moved = 0f }
+                            fun reset() { draggingId = null; moved = 0f; Workspace.dockHover = null }
                             detectDragGesturesAfterLongPress(
-                                onDragStart = { moved = 0f; dragOffset = 0f; draggingId = session.id },
+                                onDragStart = { moved = 0f; draggingId = session.id },
                                 onDrag = { change, amount ->
                                     change.consume()
-                                    val d = if (horizontal) amount.x else amount.y
-                                    moved += kotlin.math.abs(d)
-                                    dragOffset += d
+                                    moved += kotlin.math.abs(amount.x) + kotlin.math.abs(amount.y)
+                                    titleCoords[0]?.takeIf { it.isAttached }?.localToRoot(change.position)?.let {
+                                        Workspace.hover(session.id, it.x, it.y)
+                                    }
                                 },
                                 onDragEnd = {
-                                    val from = currentPanes.indexOf(session.id)
-                                    val to = dropIndex()
-                                    if (moved < viewConfiguration.touchSlop) menuOpen = true
-                                    else if (from >= 0 && to != null && to != from) Workspace.update { it.move(groupId, from, to) }
+                                    if (moved < viewConfiguration.touchSlop) { Workspace.dockHover = null; menuOpen = true }
+                                    // Already in this group, so the size limit does not apply.
+                                    else Workspace.drop(session.id, Int.MAX_VALUE) { "" }
                                     reset()
                                 },
                                 onDragCancel = { reset() },
@@ -416,30 +450,75 @@ internal object Workspace {
                                 Modifier.passiveScroll(session) else Modifier)
                             .clickable { SessionManager.setActive(session.id) })
                     }
+                    DockPreview(id)
                 }
             }
         }
     }
-    // The divider after pane [index]: only its two neighbours trade share.
-    val divider: @Composable (Int) -> Unit = { index ->
-        Box((if (horizontal) Modifier.width(12.dp).fillMaxHeight() else Modifier.height(12.dp).fillMaxWidth())
-            .background(ZtsBgSecondary).draggable(
-                state = rememberDraggableState { delta ->
-                    val extent = if (horizontal) size.width else size.height
-                    if (extent > 0) Workspace.update { it.resize(groupId, index, delta / extent) }
-                }, orientation = if (horizontal) Orientation.Horizontal else Orientation.Vertical))
+    val tree = if (panes.size == 1) PaneNode.Leaf(panes[0]) else group.tree()
+    if (tree == null) { Box(modifier) { content() }; return }
+    PaneTree(tree, emptyList(), modifier, pane) { path, index, delta ->
+        Workspace.update { it.resizeAt(groupId, path, index, delta) }
     }
-    val weightOf = { id: String -> if (panes.size == 1) 1f else group.weightOf(id).coerceAtLeast(0.01f) }
-    if (horizontal) Row(modifier.onSizeChanged { size = it }) {
-        panes.forEachIndexed { i, id ->
-            if (i > 0) divider(i - 1)
-            pane(id, Modifier.weight(weightOf(id)).fillMaxHeight())
+}
+
+/**
+ * Draws [node]: a pane, or a row / column of children with a draggable divider between each two.
+ * [path] is the child indexes from the outermost split, passed to [onResize] with the divider and
+ * the drag as a fraction of this split's extent.
+ */
+@Composable private fun PaneTree(node: PaneNode, path: List<Int>, modifier: Modifier,
+        pane: @Composable (String, Modifier) -> Unit, onResize: (List<Int>, Int, Float) -> Unit) {
+    when (node) {
+        is PaneNode.Leaf -> pane(node.id, modifier)
+        is PaneNode.Split -> {
+            var size by remember { mutableStateOf(IntSize.Zero) }
+            val horizontal = node.horizontal
+            val divider: @Composable (Int) -> Unit = { index ->
+                Box((if (horizontal) Modifier.width(12.dp).fillMaxHeight() else Modifier.height(12.dp).fillMaxWidth())
+                    .background(ZtsBgSecondary).draggable(
+                        state = rememberDraggableState { delta ->
+                            val extent = if (horizontal) size.width else size.height
+                            if (extent > 0) onResize(path, index, delta / extent)
+                        }, orientation = if (horizontal) Orientation.Horizontal else Orientation.Vertical))
+            }
+            val child: @Composable (Int, Modifier) -> Unit = { i, m ->
+                val c = node.children[i]
+                // key: a pane keeps its terminal view when the shape around it changes.
+                key(c.ids().joinToString(",")) { PaneTree(c, path + i, m, pane, onResize) }
+            }
+            val weight = { i: Int -> node.weights.getOrElse(i) { 1f / node.children.size }.coerceAtLeast(0.01f) }
+            if (horizontal) Row(modifier.onSizeChanged { size = it }) {
+                node.children.indices.forEach { i ->
+                    if (i > 0) divider(i - 1)
+                    child(i, Modifier.weight(weight(i)).fillMaxHeight())
+                }
+            } else Column(modifier.onSizeChanged { size = it }) {
+                node.children.indices.forEach { i ->
+                    if (i > 0) divider(i - 1)
+                    child(i, Modifier.weight(weight(i)).fillMaxWidth())
+                }
+            }
         }
-    } else Column(modifier.onSizeChanged { size = it }) {
-        panes.forEachIndexed { i, id ->
-            if (i > 0) divider(i - 1)
-            pane(id, Modifier.weight(weightOf(id)).fillMaxWidth())
-        }
+    }
+}
+
+/** Records where pane [id] is, for dragging a tab onto it ([Workspace.paneBounds]). */
+@Composable private fun Modifier.paneBounds(id: String): Modifier {
+    DisposableEffect(id) { onDispose { Workspace.paneBounds.remove(id) } }
+    return onGloballyPositioned { c -> Workspace.paneBounds[id] = c.boundsInRoot() }
+}
+
+/** Shades the part of pane [id] a dragged tab would take if let go now (the whole pane for a swap). */
+@Composable private fun BoxScope.DockPreview(id: String) {
+    val hover = Workspace.dockHover?.takeIf { it.target == id } ?: return
+    val shade = Modifier.background(ZtsGreen.copy(alpha = 0.22f)).border(2.dp, ZtsGreen)
+    when (hover.side) {
+        DockSide.LEFT -> Box(shade.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterStart))
+        DockSide.RIGHT -> Box(shade.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterEnd))
+        DockSide.TOP -> Box(shade.fillMaxWidth().fillMaxHeight(0.5f).align(Alignment.TopCenter))
+        DockSide.BOTTOM -> Box(shade.fillMaxWidth().fillMaxHeight(0.5f).align(Alignment.BottomCenter))
+        DockSide.CENTER -> Box(shade.fillMaxSize())
     }
 }
 

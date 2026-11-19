@@ -18,6 +18,11 @@ internal data class TabGroup(
     val focus: String? = null,
     /** Members ticked to receive broadcast input. */
     val checked: Set<String> = emptySet(),
+    /**
+     * Mixed vertical/horizontal split built by dragging panes (1.0.177), or null for one row or column
+     * in [horizontal] with [weights]. Its tabs in reading order are always [members].
+     */
+    val layout: PaneNode? = null,
 ) {
     /** True when the members are shown as panes (one or more; 1.0.158 and before needed two). */
     val stacked: Boolean get() = members.isNotEmpty()
@@ -26,6 +31,9 @@ internal data class TabGroup(
     fun panes(active: String): List<String> = if (maximized == active && active in members) listOf(active) else members
 
     fun weightOf(id: String): Float = members.indexOf(id).let { i -> if (i < 0) 0f else weights.getOrElse(i) { 1f / members.size } }
+
+    /** The split to draw: [layout], or one row or column of the members. Null when the group is empty. */
+    fun tree(): PaneNode? = layout?.takeIf { it.ids() == members } ?: flatLayout(members, horizontal, weights)
 
     /** The member to focus when the group entry is selected. */
     fun entry(): String? = focus?.takeIf { it in members } ?: members.firstOrNull()
@@ -39,9 +47,6 @@ internal sealed interface TabUnit {
 }
 
 internal const val GROUP_KEY_PREFIX = "group:"
-
-/** Smallest share of one pane, relative to an equal share, so dragging a divider never hides a pane. */
-private const val MIN_SHARE_OF_EQUAL = 0.4f
 
 internal fun equalWeights(n: Int): List<Float> = if (n <= 0) emptyList() else List(n) { 1f / n }
 
@@ -80,7 +85,9 @@ internal data class TabGroups(val groups: List<TabGroup> = emptyList(), val next
         if (target.members.size >= max) return null
         return removeMember(sessionId).mapGroup(groupId) { g ->
             val members = g.members + sessionId
-            g.copy(members = members, weights = equalWeights(members.size))
+            // A mixed split keeps its shape; the new tab becomes one more row or column at the end.
+            val layout = g.layout?.let { g.tree().appended(sessionId, g.horizontal) }
+            g.copy(members = layout?.ids() ?: members, weights = equalWeights(members.size), layout = layout)
         }
     }
 
@@ -92,6 +99,7 @@ internal data class TabGroups(val groups: List<TabGroup> = emptyList(), val next
             it.copy(
                 members = members,
                 weights = equalWeights(members.size),
+                layout = it.layout?.without(sessionId),
                 maximized = it.maximized?.takeIf { m -> m != sessionId },
                 focus = it.focus?.takeIf { f -> f != sessionId },
                 checked = it.checked - sessionId,
@@ -106,7 +114,8 @@ internal data class TabGroups(val groups: List<TabGroup> = emptyList(), val next
         if (target == from) return@mapGroup g
         val members = g.members.toMutableList().apply { add(target, removeAt(from)) }
         val weights = g.weights.toMutableList().apply { if (size == members.size) add(target, removeAt(from)) }
-        g.copy(members = members, weights = if (weights.size == members.size) weights else equalWeights(members.size))
+        g.copy(members = members, weights = if (weights.size == members.size) weights else equalWeights(members.size),
+            layout = g.layout?.withOrder(members))
     }
 
     fun rename(groupId: String, name: String): TabGroups {
@@ -117,7 +126,24 @@ internal data class TabGroups(val groups: List<TabGroup> = emptyList(), val next
     /** Removes the group; its tabs become plain tabs again. */
     fun delete(groupId: String): TabGroups = copy(groups = groups.filterNot { it.id == groupId })
 
-    fun setHorizontal(groupId: String, horizontal: Boolean): TabGroups = mapGroup(groupId) { it.copy(horizontal = horizontal) }
+    /** Lays the group out as one row or column again (a mixed split is dropped). */
+    fun setHorizontal(groupId: String, horizontal: Boolean): TabGroups =
+        mapGroup(groupId) { it.copy(horizontal = horizontal, layout = null) }
+
+    /**
+     * Drags pane [dragged] onto [side] of pane [target] in the same group (1.0.177). Shows every pane
+     * again, since docking onto a maximized pane means the user wants them side by side.
+     */
+    fun dock(groupId: String, dragged: String, target: String, side: DockSide): TabGroups = mapGroup(groupId) { g ->
+        val next = g.tree()?.dock(dragged, target, side) ?: return@mapGroup g
+        g.copy(members = next.ids(), layout = next, maximized = null, weights = equalWeights(g.members.size))
+    }
+
+    /** Drags a divider of the split at [path] (see [PaneNode.resized]). */
+    fun resizeAt(groupId: String, path: List<Int>, divider: Int, delta: Float): TabGroups = mapGroup(groupId) { g ->
+        val next = g.tree()?.resized(path, divider, delta) ?: return@mapGroup g
+        g.copy(layout = next)
+    }
 
     /** Shows [sessionId] alone, or restores all panes when null. */
     fun maximize(groupId: String, sessionId: String?): TabGroups =
@@ -168,6 +194,7 @@ internal data class TabGroups(val groups: List<TabGroup> = emptyList(), val next
                 else -> g.copy(
                     members = members,
                     weights = equalWeights(members.size),
+                    layout = g.layout?.let { l -> (g.members - members.toSet()).fold<String, PaneNode?>(l) { acc, id -> acc?.without(id) } },
                     maximized = g.maximized?.takeIf { it in members },
                     focus = g.focus?.takeIf { it in members },
                     checked = g.checked.filterTo(HashSet()) { it in members },

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.177 (versionCode 875)**: Split screens can now mix rows and columns. Long-press a pane title and drag it to the edge of another pane; let go and it sits on that side (let go in the middle to swap). Tabs in the tab bar can be dragged onto a pane the same way and join the group on screen; dropped on a single ungrouped tab, the two become a new group. Before you let go, the place it will take is shaded green, and each divider can still be dragged
+
 **1.0.176 (versionCode 874)**: You can now teach z2term to an AI that runs commands (Claude Code, Codex and the like). In 📜 › Automation › AI, tap a registration command under "Teach z2term to your AI" to copy it and run it once on the AI side (there is also an SSH command for an AI on a PC). The connected AI looks up only the sections it needs in the English user docs bundled with the app. The note sent when an AI connects is now short, and the app-operation tools are hidden while AI app control is off, so every conversation uses much less. The screen also shows when an AI last connected
 
 **1.0.175 (versionCode 873)**: The 📡 broadcast can now be driven from the command line. `z2-session group broadcast start <group>` starts it (`--on` sends from the start), `on` / `off` switches sending, `stop` ends it, and `status` prints the current state. `tab <tab>... on|off` decides per tab whether input reaches it. A macro can now open tabs, connect them to servers, group them and start broadcasting, and `z2-when` can launch it

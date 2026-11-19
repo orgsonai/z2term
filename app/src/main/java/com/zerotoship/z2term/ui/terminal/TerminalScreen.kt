@@ -99,6 +99,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -3137,6 +3138,10 @@ private fun TabBar(
     com.zerotoship.z2term.workspace.GroupDialogsHost()
     val groups = com.zerotoship.z2term.workspace.Workspace.groups
     val units = groups.units(sessions.map { it.id })
+    // タブを画面の枠へドラッグして並べる (1.0.177)。枠の端なら横・縦に並び、真ん中なら入れ替わる。
+    val dockMax = com.zerotoship.z2term.workspace.rememberGroupMaxTabs()
+    val dockName = com.zerotoship.z2term.workspace.groupNameFor()
+    val dockContext = androidx.compose.ui.platform.LocalContext.current
     // タブの幅 (1.0.148): タブ欄を 2 本指でピンチすると、全項目の幅の上限をまとめて変える。
     // 指を動かしている間は手元の値だけを変え、離したときに 1 回だけ保存する。
     val tabBarContext = LocalContext.current
@@ -3236,7 +3241,16 @@ private fun TabBar(
             },
             onDragStart = { draggingId.value = sess.id; dragOffset.value = 0f },
             onDrag = { d -> dragOffset.value += d; trySwap() },
-            onDragEnd = { draggingId.value = null; dragOffset.value = 0f },
+            onDragEnd = {
+                draggingId.value = null; dragOffset.value = 0f
+                com.zerotoship.z2term.workspace.Workspace.dockHover = null
+            },
+            onDragAt = { p -> com.zerotoship.z2term.workspace.Workspace.hover(sess.id, p.x, p.y) },
+            onDrop = {
+                val r = com.zerotoship.z2term.workspace.Workspace.drop(sess.id, dockMax, dockName)
+                if (r == com.zerotoship.z2term.workspace.Workspace.Drop.FULL) Toast.makeText(dockContext,
+                    dockContext.getString(R.string.group_full, dockMax), Toast.LENGTH_SHORT).show()
+            },
             menu = { done -> com.zerotoship.z2term.workspace.TabMenu(sess, done) },
             widthDp = tabWidthDp
         )
@@ -3547,6 +3561,10 @@ private fun TabChip(
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
+    /** ドラッグ中の指の位置 (画面全体の座標)。画面の枠へ落とすため (1.0.177)。 */
+    onDragAt: (Offset) -> Unit = {},
+    /** 動かしてから離したとき ([onDragEnd] の前)。枠の上なら、そこへ並べる (1.0.177)。 */
+    onDrop: () -> Unit = {},
     /** 長押しして動かさずに離したときのメニュー (名前の変更・グループ、1.0.146)。引数はメニューを閉じる関数。 */
     menu: @Composable (() -> Unit) -> Unit = {},
     /**
@@ -3557,6 +3575,7 @@ private fun TabChip(
 ) {
     val label by session.label.collectAsState()
     var menuOpen by remember { mutableStateOf(false) }
+    val chipCoords = remember { arrayOfNulls<androidx.compose.ui.layout.LayoutCoordinates>(1) }
     val bg = if (dragging) ZtsBgSecondary else if (active) ZtsBgCard else ZtsBgPrimary
     // ドラッグ中は緑枠で「掴んでいる」ことを示す。
     val border = if (dragging || active) ZtsGreen else ZtsBorder
@@ -3615,19 +3634,25 @@ private fun TabChip(
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
             .clickable(onClick = onTap)
+            // 指の位置を画面全体の座標にするための自分の位置 (1.0.177)。平行移動の後ろに置くので、
+            // ドラッグで動いた分も localToRoot に入る。
+            .onGloballyPositioned { chipCoords[0] = it }
             .pointerInput(session.id, vertical) {
-                // 長押しのあと動かさずに離したらメニュー、動かしたら並べ替え。
+                // 長押しのあと動かさずに離したらメニュー、動かしたら並べ替え (画面の枠の上なら、そこへ並べる)。
                 var moved = 0f
                 detectDragGesturesAfterLongPress(
                     onDragStart = { moved = 0f; showInfo = true; onDragStart() },
                     onDrag = { change, amount ->
                         change.consume()
                         val d = if (vertical) amount.y else amount.x
-                        moved += kotlin.math.abs(d)
+                        moved += kotlin.math.abs(amount.x) + kotlin.math.abs(amount.y)
                         onDrag(d)
+                        chipCoords[0]?.takeIf { it.isAttached }?.localToRoot(change.position)?.let(onDragAt)
                     },
                     onDragEnd = {
-                        showInfo = false; onDragEnd()
+                        showInfo = false
+                        if (moved >= viewConfiguration.touchSlop) onDrop()
+                        onDragEnd()
                         if (moved < viewConfiguration.touchSlop) menuOpen = true
                     },
                     onDragCancel = { showInfo = false; onDragEnd() }
