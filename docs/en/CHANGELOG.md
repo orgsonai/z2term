@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.174 (versionCode 872)**: SSH tabs no longer get cut when left idle, which happened mostly on mobile data. An SSH tab is silent while you are not typing, so the carrier's shared exit (NAT) or routers on the way discarded the connection as unused. Tabs now send a small keepalive every 15 seconds, for every destination. If the other side does not answer for 45 seconds (3 in a row), the tab treats the connection as lost and closes it.
+
 **1.0.173 (versionCode 871)**: Settings now has "Do not wrap long lines" to choose the standard behavior (off at first). Changing it updates every terminal tab and carries over to new tabs and later launches. No line wrap and Wrap lines in the tab long-press menu now switch only that tab temporarily and are not saved.
 
 **1.0.172 (versionCode 870)**: No line wrap and Wrap lines now apply to every terminal tab. Your choice is saved, so new tabs and later app launches keep it.

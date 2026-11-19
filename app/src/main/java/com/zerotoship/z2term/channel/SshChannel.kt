@@ -62,6 +62,10 @@ class SshChannel private constructor(
             // (SFTP・サービス経路・常駐トンネルと共有)。
             val link = SshSessionFactory.create(profile, context)
             try {
+                // 生存確認。無いと、モバイル回線の共有出口 (CGNAT) や途中のルーターが
+                // 黙っている接続を数分〜数十分で捨て、放置したタブが切れる。
+                // ⚠ 繋ぐ前に呼ぶ (JSch は接続の最後にこの値を読み取りタイムアウトへ写す)。
+                link.enableKeepAlive(KEEPALIVE_MS, KEEPALIVE_COUNT_MAX)
                 link.connect(CONNECT_TIMEOUT_MS)
 
                 // M7: ポート転送をセッション開通直後に設定。向きは PortForward.reverse で決まる。
@@ -87,5 +91,9 @@ class SshChannel private constructor(
         }
 
         private const val CONNECT_TIMEOUT_MS = 15_000
+
+        /** 生存確認の間隔。KEEPALIVE_MS × KEEPALIVE_COUNT_MAX 応答が無ければ切れたとみなす。 */
+        private const val KEEPALIVE_MS = 15_000
+        private const val KEEPALIVE_COUNT_MAX = 3
     }
 }

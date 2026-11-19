@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-11-18 / 対象バージョン: 1.0.173 (versionCode 871)
+最終更新: 2026-11-19 / 対象バージョン: 1.0.174 (versionCode 872)
 
 **1.0.5（versionCode 703）**: 端末のフォントに「Z2 Mono」を足しました。このアプリのために作った等幅フォントで、英字・数字・記号を持ちます（日本語などは今までどおりシステムのフォントで出ます）。設定の「フォントファミリー」で選べます。GitHub の APK にも F-Droid 版にも入ります。
 
@@ -2297,7 +2297,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 
 - `ProcessChannel` (interface): `reader`/`writer`/`isAlive`/`exitCode`/`resize`/`close`。
 - `LocalPtyChannel`: PtyProcess をラップ (ローカル proot)。
-- `SshChannel`: JSch でリモート接続。`shell` チャネル + ポート転送、host key 検証 (`KnownHosts`/`HostKeyVerificationDialog`)、鍵は Keystore で暗号化 (`KeystoreCrypt`)。
+- `SshChannel`: JSch でリモート接続。`shell` チャネル + ポート転送、host key 検証 (`KnownHosts`/`HostKeyVerificationDialog`)、鍵は Keystore で暗号化 (`KeystoreCrypt`)。**繋ぐ前に keepalive を入れる**（15 秒ごと・3 回応答が無ければ切断、1.0.174）。それまで SSH タブには無く、モバイル回線の共有出口 (CGNAT) や途中のルーターが黙っている接続を捨て、放置したタブが切れていた。
 - `SshSessionFactory` / `SshLink`: 認証・known_hosts・踏み台をまとめて 1 本の経路にする入口。**シェル・SFTP・サービス経路・常駐トンネルはすべてここを通る**（通信量の上限もこの 1 か所で見る）。`SshLink` は経路まるごとを持ち、`close()` で**奥から順に**畳む（手前を先に切ると奥のセッションが宙に浮く）。
 - `SshHop` / `JumpProxy`: 踏み台（`ssh -J`）。詳細は §6.3 の「踏み台」。
 - `PortForwarding`: `-L` / `-R` / `-D` を実際に張る 1 か所。`SshChannel` と `TunnelManager` が共有する。`-D` の待ち受けは `SocksProxy` が持ち、`SshLink` に預けて経路と一緒に畳む。

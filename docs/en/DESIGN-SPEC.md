@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-18 / Target version: 1.0.173 (versionCode 871)
+Last updated: 2026-11-19 / Target version: 1.0.174 (versionCode 872)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -2328,7 +2328,7 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
 
 - `ProcessChannel` (interface): `reader`/`writer`/`isAlive`/`exitCode`/`resize`/`close`.
 - `LocalPtyChannel`: wraps PtyProcess (local proot).
-- `SshChannel`: remote connection via JSch. `shell` channel + port forwarding, host key verification (`KnownHosts`/`HostKeyVerificationDialog`), keys encrypted with the Keystore (`KeystoreCrypt`).
+- `SshChannel`: remote connection via JSch. `shell` channel + port forwarding, host key verification (`KnownHosts`/`HostKeyVerificationDialog`), keys encrypted with the Keystore (`KeystoreCrypt`). **Keepalive is set before connecting** (every 15 s, dropped after 3 missed replies, 1.0.174). SSH tabs had none before, so carrier NAT (CGNAT) or routers on the way discarded idle connections and tabs left alone got cut.
 - `SshSessionFactory` / `SshLink`: the single entry point that turns authentication, known_hosts and jump hosts into one route. **The shell, SFTP, service routes and resident tunnels all go through it** (which is also why the data cap is checked in exactly one place). `SshLink` holds the whole route and `close()` tears it down **from the far end inwards** — cutting the near end first leaves the hops dangling.
 - `SshHop` / `JumpProxy`: jump hosts (`ssh -J`). See "Jump hosts" in §6.3.
 - `PortForwarding`: the one place that actually installs `-L` / `-R` / `-D`, shared by `SshChannel` and `TunnelManager`. The `-D` listener lives in `SocksProxy` and is handed to `SshLink` so it folds away with the route.
