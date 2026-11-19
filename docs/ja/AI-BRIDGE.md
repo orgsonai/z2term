@@ -233,7 +233,7 @@ AI の操作が続いている間は、常駐通知「AI がアプリを操作�
 |---|---|
 | z2term の中で動く AI | シェルコマンドとして `z2-ui …` を呼ぶ |
 | PC の AI | `ssh <スマホ> z2-ui …` |
-| MCP 対応の AI | `z2-ui mcp` が標準入出力で MCP のやり取りを受け、§4 のコマンドを道具として見せる。PC からは `ssh <スマホ> z2-ui mcp` を MCP サーバー（標準入出力で動くもの）として登録する |
+| MCP 対応の AI | `z2-ui mcp` が標準入出力で MCP のやり取りを受け、§4 のコマンドを道具として見せる。PC からは `ssh <スマホ> /usr/local/bin/z2-ui mcp` を MCP サーバー（標準入出力で動くもの）として登録する（ssh でコマンドだけを打つと PATH に `/usr/local/bin` が入らないため、フルパスで書く。1.0.178） |
 
 - MCP のやり取りは、JSON を 1 行ずつ受け渡すだけの取り決めなので、外部ライブラリを使わずに書きました。ライセンスの追加はありません。
 - 道具の名前は `front` / `look` / `shot` / `tap` / `long` / `type` / `enter` / `key` / `open` / `wait` / `wait_change` / `scroll` / `swipe` / `notes` / `write_notes` / `mark` / `save` / `notifications` / `press_notification` / `status` / `guide` です。中身は CLI と同じで、同じ判定・承認・記録を通ります。一時停止・指示・停止と許可の変更は、道具には置きません（人が使うもののため）。

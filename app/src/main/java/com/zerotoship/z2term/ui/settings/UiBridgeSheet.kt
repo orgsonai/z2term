@@ -244,12 +244,16 @@ private fun McpRegisterBlock(lastConnect: Long) {
     Text(stringResource(R.string.ui_bridge_mcp_desc), color = ZtsTextSecondary, fontSize = 11.sp,
         fontFamily = FontFamily.Monospace)
     SectionTitle(stringResource(R.string.ui_bridge_mcp_here))
-    CopyCommand("claude mcp add z2term -- z2-ui mcp")
+    // -s user: 何も付けないと「今いるフォルダ専用」の登録になり、別のフォルダで起動した AI からは見えない。
+    CopyCommand("claude mcp add -s user z2term -- z2-ui mcp")
     CopyCommand("codex mcp add z2term -- z2-ui mcp")
     SectionTitle(stringResource(R.string.ui_bridge_mcp_pc))
     val pc = pcCommand
-    if (pc != null) CopyCommand("claude mcp add z2term -- $pc z2-ui mcp")
-    else Text(stringResource(R.string.ui_bridge_mcp_no_ip), color = ZtsTextSecondary, fontSize = 11.sp,
+    // ⚠ ssh でコマンドだけを打つと PATH に /usr/local/bin が入らないので、z2-ui はフルパスで書く。
+    if (pc != null) {
+        CopyCommand("claude mcp add -s user z2term -- $pc /usr/local/bin/z2-ui mcp")
+        CopyCommand("codex mcp add z2term -- $pc /usr/local/bin/z2-ui mcp")
+    } else Text(stringResource(R.string.ui_bridge_mcp_no_ip), color = ZtsTextSecondary, fontSize = 11.sp,
         fontFamily = FontFamily.Monospace)
     Text(
         if (lastConnect > 0L) stringResource(R.string.ui_bridge_mcp_last,

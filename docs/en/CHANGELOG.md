@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.178 (versionCode 876)**: Fixed the registration commands in "Teach z2term to your AI". The Claude Code ones now add `-s user` so the AI finds z2term from any folder (without it, only in the folder where it was registered). The PC ones give `z2-ui` as a full path so it is found over SSH, and there is now a Codex line for the PC too
+
 **1.0.177 (versionCode 875)**: Split screens can now mix rows and columns. Long-press a pane title and drag it to the edge of another pane; let go and it sits on that side (let go in the middle to swap). Tabs in the tab bar can be dragged onto a pane the same way and join the group on screen; dropped on a single ungrouped tab, the two become a new group. Before you let go, the place it will take is shaded green, and each divider can still be dragged
 
 **1.0.176 (versionCode 874)**: You can now teach z2term to an AI that runs commands (Claude Code, Codex and the like). In 📜 › Automation › AI, tap a registration command under "Teach z2term to your AI" to copy it and run it once on the AI side (there is also an SSH command for an AI on a PC). The connected AI looks up only the sections it needs in the English user docs bundled with the app. The note sent when an AI connects is now short, and the app-operation tools are hidden while AI app control is off, so every conversation uses much less. The screen also shows when an AI last connected

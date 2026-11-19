@@ -348,8 +348,8 @@ notification. You learn about it as the reply to your next call:
 
 ## 15. MCP
 
-- Start: `z2-ui mcp` (stdio). From a PC, register `ssh <phone> z2-ui mcp` as a stdio MCP server.
-- Tools: front, look (all, tree, in), shot (scale, format, stable, box, if_changed; also returns the image), colors (points or grid
+- Start: `z2-ui mcp` (stdio). From a PC, register `ssh <phone> /usr/local/bin/z2-ui mcp` as a stdio MCP server.
+- Tools: docs (query, or section and part: searches the z2term user docs), front, look (all, tree, in), shot (scale, format, stable, box, if_changed; also returns the image), colors (points or grid
   {origin, step, cols, rows}, radius, hex, stable, until as one string such as "brighter 120", within_ms), seq (steps as [["tap", "@540,700"], ["sleep", "500"], ...]; the image of
   a last shot step and of a --peek in any step are returned), tap, long, enter (target), type (target, text,
   append), key (name), open (target), wait (selector, ms), wait_change (ms), scroll (target, direction),

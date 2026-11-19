@@ -233,7 +233,7 @@ While operations continue, the notification "AI is controlling an app (org.examp
 |---|---|
 | AI inside z2term | Run `z2-ui …` as shell commands |
 | AI on a PC | `ssh <phone> z2-ui …` |
-| MCP-capable AI | `z2-ui mcp` speaks MCP over stdin/stdout and exposes §4 as tools. On a PC, register `ssh <phone> z2-ui mcp` as a (stdio) MCP server |
+| MCP-capable AI | `z2-ui mcp` speaks MCP over stdin/stdout and exposes §4 as tools. On a PC, register `ssh <phone> /usr/local/bin/z2-ui mcp` as a (stdio) MCP server |
 
 - MCP only exchanges JSON line by line, so it is written without external libraries; no license was added.
 - Tools: `front` / `look` / `shot` / `tap` / `long` / `type` / `enter` / `key` / `open` / `wait` / `wait_change` / `scroll` / `swipe` / `notes` / `write_notes` / `mark` / `save` / `notifications` / `press_notification` / `status` / `guide`. They do the same as the CLI and go through the same checks, approvals and log. Pause, instruct, stop and permission changes are not tools, because they are for people.
