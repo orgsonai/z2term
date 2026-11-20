@@ -214,7 +214,7 @@ end
 
 With `human=on` in the headers, finger operations and waits come closer to a person's finger. What each step means (where to press, from where to where) stays the same.
 
-**Strength (1.0.186)**: `human=1`..`human=10` chooses how much it varies. Larger numbers give larger offsets, more bending, rounder corners, more hand drift and more variation in speed and timing (proportional to the number). `human=on` is 5; `off` and `0` mean none. The figures below are for strength 2; at 10 they are about five times larger. At high strength a drag passes a little off its points (about 20 px at 10).
+**Strength (1.0.186; up to 20 since 1.0.187)**: `human=1`..`human=20` chooses how much it varies. Larger numbers give larger offsets, more bending, rounder corners, more hand drift and more variation in speed and timing (proportional to the number). `human=on` is 5; `off` and `0` mean none. The figures below are for strength 2; at 10 they are about five times larger, at 20 ten times. At high strength a drag passes off its points (about 20 px at 10, 40 px at 20). Strength 11 and above is large movement that may miss its targets (time order and staying on screen are still kept).
 
 - Taps, long presses and double taps: the point moves a little each time (up to 0.6% of the screen's short side, about 6 px at 1080 px wide). Taps last 60–110 ms, long presses vary by ±8% and the double-tap gap by ±15%.
 - Swipes: the line bows slightly (up to 5% of its length, 48 px at most), starts and stops slowly with a little variation on the way, and ends slightly off the exact point; the whole duration varies by ±8%. This takes precedence over accelerate/decelerate.
@@ -226,7 +226,7 @@ With `human=on` in the headers, finger operations and waits come closer to a per
 
 **Show the trail of operations (1.0.185)**: with "Show the trail of operations" on in the screen-actions tab, a running macro's presses and traced lines are drawn on screen in the same green as AI app control. The line grows along the path actually sent (human-like movement, two fingers and timing included) and fades one second after the finger lifts. The drawing cannot be touched, so it never gets in the way, and it is removed before a colour condition is read. Off by default.
 
-While running, **～** on the stop bar turns it off and on (accent colour when on; turning it back on restores the strength), from the next step. The strength comes from the first macro's header; `human=` in called macros is not used. In the form editor, tap the "Human-like input" row to enter a strength from 0 to 10.
+While running, **～** on the stop bar turns it off and on (accent colour when on; turning it back on restores the strength), from the next step. The strength comes from the first macro's header; `human=` in called macros is not used. In the form editor, tap the "Human-like input" row to enter a strength from 0 to 20.
 
 ### Run steps a program decides (run-output, 1.0.183)
 
@@ -342,7 +342,7 @@ end
 | `timeout=30` | Whole-run timeout, 0–300 seconds; default 30; `0` means no limit |
 | `screen=current` | Save display geometry; required for coordinates/scroll |
 | `screen=1080x2400@0` | Explicit display geometry |
-| `human=0`..`human=10` / `on` / `off` | Strength of human-like input (default off; `on` = 5); see "Human-like input" below |
+| `human=0`..`human=20` / `on` / `off` | Strength of human-like input (default off; `on` = 5); see "Human-like input" below |
 | `target PACKAGE` | Set the target app for subsequent coordinates, scrolling and UI elements without launching it |
 | `target current` | Use the foreground app at the start of each subsequent step; the default when no target is specified |
 | `launch PACKAGE` | Launch the app and wait until it is in front (up to 10 seconds, 1.0.111); also updates the target |

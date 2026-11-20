@@ -489,7 +489,7 @@ internal class ActionMacrosEditor(
             add(setting(R.string.action_edit_screen, document.header("screen") ?: "—") {
                 editHeader("screen", R.string.action_edit_screen, document.header("screen") ?: "current")
             })
-            // 強さを 0〜10 で入れる (0 はなし、on は 5)。
+            // 強さを 0〜20 で入れる (0 はなし、on は 5)。
             val human = document.header("human") ?: "off"
             add(setting(R.string.action_edit_human, human) {
                 editHeader("human", R.string.action_edit_human, human.takeUnless { it == "off" } ?: "0")

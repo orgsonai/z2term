@@ -21,7 +21,7 @@ class ActionHumanizeTest {
         assertEquals(ActionHumanize.DEFAULT_LEVEL, ActionDefinition.parse("version=1\nhuman=on\nwait 1").humanLevel)
         assertEquals(8, ActionDefinition.parse("version=1\nhuman=8\nwait 1").humanLevel)
         assertFalse(ActionDefinition.parse("version=1\nhuman=0\nwait 1").human)
-        assertThrows(IllegalArgumentException::class.java) { ActionDefinition.parse("version=1\nhuman=11\nwait 1") }
+        assertThrows(IllegalArgumentException::class.java) { ActionDefinition.parse("version=1\nhuman=21\nwait 1") }
     }
 
     @Test fun tapsMoveALittleAndVaryTheirLength() {
@@ -143,5 +143,18 @@ class ActionHumanizeTest {
         strong.tracks(screen)
         assertEquals(1000L, ActionHumanize.waitMs(1000, Random(1), level = 0))
         assertTrue((1..200).map { ActionHumanize.waitMs(1000, Random(it), level = 10) }.let { w -> w.max() - w.min() > 600 })
+    }
+
+    @Test fun strength20StillSendsValidGestures() {
+        assertEquals(20, ActionDefinition.parse("version=1\nhuman=20\nwait 1").humanLevel)
+        val all = steps("tap percent 50 50\nlong-press percent 50 50 700\ndouble-tap percent 50 50 100\n" +
+            "swipe percent 20 60 80 60 800\ndrag percent 100 20,40 50,30 80,40\npinch-out percent 50 50 10 40 400\n" +
+            "touch px 10,10,0 20,12,16 30,15,32 40,20,48")
+        for (seed in 1..30) for (step in all) {
+            val human = ActionHumanize.stroke(step, screen, area, Random(seed), level = 20)
+            human.tracks(screen).forEach { track -> assertTrue(track.zipWithNext().all { (a, b) -> a.ms < b.ms }) }
+            if (human.path.isEmpty()) assertTrue(human.ms in 60..3000 && human.gapMs in 40..300)
+        }
+        assertTrue((1..100).all { ActionHumanize.waitMs(1000, Random(it), level = 20) >= 0 })
     }
 }

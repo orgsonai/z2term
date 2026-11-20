@@ -10,9 +10,10 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 
 /**
- * 人らしい操作 (`human=1..10`、`on` は 5。1.0.184、強さは 1.0.186): 機械的な操作 (同じ点・直線・一定の速さ・
+ * 人らしい操作 (`human=1..20`、`on` は 5。1.0.184、強さは 1.0.186、20 までは 1.0.187): 機械的な操作 (同じ点・直線・一定の速さ・
  * 同じ待ち) を、人の指に近い揺らぎのある操作に変える。揺らぎの大きさは強さ [level] に比例する
- * (下の数値は強さ 2 のときのもの。強さ 10 ならその 5 倍)。
+ * (下の数値は強さ 2 のときのもの。強さ 10 ならその 5 倍、20 なら 10 倍)。強さ 11 以上は動きが崩れてもよい前提で、
+ * 割合の揺れの頭打ちも広げてある (区間の時間が 0 に近づくなど、操作として成り立つ範囲だけは守る)。
  *
  * - タップ・長押し・ダブルタップ: 押す位置を画面の短辺の 0.6% までずらし、押す長さと間隔をばらつかせる。
  * - スワイプ (直線): 長さの 5% まで弓なりにし、動き出しと止まり際を遅く、途中の速さも揺らす。終点も少しずらす。
@@ -29,7 +30,7 @@ internal object ActionHumanize {
     /** 窓の範囲 (px、right / bottom は含まない)。 */
     data class Area(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
-    const val MAX_LEVEL = 10
+    const val MAX_LEVEL = 20
     /** `human=on` の強さ。 */
     const val DEFAULT_LEVEL = 5
     private const val MANUAL_MAX_MS = 3000L
@@ -40,7 +41,7 @@ internal object ActionHumanize {
     fun waitMs(ms: Long, random: Random, level: Int = DEFAULT_LEVEL): Long {
         val f = scale(level)
         if (ms <= 0 || f <= 0) return ms
-        val spread = minOf(ms * minOf(0.1 * f, 0.5), 300.0 * f)
+        val spread = minOf(ms * minOf(0.1 * f, 0.9), 300.0 * f)
         return (ms + (random.nextDouble() * 2 - 1) * spread).roundToLong().coerceAtLeast(0)
     }
 
@@ -64,10 +65,10 @@ internal object ActionHumanize {
                 // タップ (80 ms) は 60〜(110 + 強さに応じて) ms、長押しは ±8%×倍率、ダブルタップの間隔は ±15%×倍率。
                 val tapMax = 110 + (15 * (f - 1)).coerceAtLeast(0.0)
                 val ms = if (step.ms < 500) 60 + (random.nextDouble() * (tapMax - 60)).roundToLong()
-                    else spread(step.ms, minOf(0.08 * f, 0.3)).coerceIn(500, MANUAL_MAX_MS)
+                    else spread(step.ms, minOf(0.08 * f, 0.6)).coerceIn(500, MANUAL_MAX_MS)
                 val x = clampX(x1 + dx); val y = clampY(y1 + dy)
                 return step.copy(unit = "px", x1 = x, y1 = y, x2 = x, y2 = y, ms = ms, easing = "linear",
-                    gapMs = if (step.taps > 1) spread(step.gapMs, minOf(0.15 * f, 0.5)).coerceIn(40, 300) else step.gapMs)
+                    gapMs = if (step.taps > 1) spread(step.gapMs, minOf(0.15 * f, 0.9)).coerceIn(40, 300) else step.gapMs)
             }
             val path = swipe(x1 + dx, y1 + dy, x2, y2, step.ms, radius, f, random).map { it.copy(x = clampX(it.x), y = clampY(it.y)) }
             return step.copy(unit = "px", path = path, easing = "linear", x1 = path.first().x, y1 = path.first().y,
@@ -92,14 +93,14 @@ internal object ActionHumanize {
         val end = random.nextDouble() * 2 * PI
         val x2 = endX + (cos(end) * radius * 0.6).toFloat()
         val y2 = endY + (sin(end) * radius * 0.6).toFloat()
-        val duration = (ms * (1 + (random.nextDouble() * 2 - 1) * minOf(0.08 * f, 0.3))).roundToLong()
+        val duration = (ms * (1 + (random.nextDouble() * 2 - 1) * minOf(0.08 * f, 0.6))).roundToLong()
             .coerceIn(1, maxOf(ms, MANUAL_MAX_MS))
         val length = hypot(x2 - x1, y2 - y1)
-        val bow = ((random.nextDouble() * 2 - 1) * minOf(0.05 * f, 0.3) * length).toFloat()
+        val bow = ((random.nextDouble() * 2 - 1) * minOf(0.05 * f, 0.6) * length).toFloat()
             .coerceIn((-48 * f).toFloat(), (48 * f).toFloat())
         val nx = if (length > 0) -(y2 - y1) / length else 0f
         val ny = if (length > 0) (x2 - x1) / length else 0f
-        val wobble = random.nextDouble() * minOf(0.04 * f, 0.15)
+        val wobble = random.nextDouble() * minOf(0.04 * f, 0.3)
         val phase = random.nextDouble() * 2 * PI
         val times = ((0L until duration step ActionGesture.SAMPLE_MS).toList() + duration).distinct()
         var reached = 0.0
@@ -123,7 +124,7 @@ internal object ActionHumanize {
         if (track.size < 2) return track
         val start = track.first().ms
         val total = track.last().ms - start
-        val jitter = minOf(0.2 * f, 0.45)
+        val jitter = minOf(0.2 * f, 0.9)
         val weights = track.zipWithNext { a, b -> (b.ms - a.ms).toDouble() * (1 + (random.nextDouble() * 2 - 1) * jitter) }
         val sum = weights.sum().takeIf { it > 0 } ?: return track
         // 点は 16 ms ごと。長いなぞりでも点の数が上限 (2048) を超えないよう間隔を広げる。
@@ -138,10 +139,10 @@ internal object ActionHumanize {
             val length = hypot(b.x - a.x, b.y - a.y)
             val nx = if (length > 0) -(b.y - a.y) / length else 0f
             val ny = if (length > 0) (b.x - a.x) / length else 0f
-            val bow = ((random.nextDouble() * 2 - 1) * minOf(0.06 * f, 0.3) * length).toFloat().coerceIn(-bowCap, bowCap)
+            val bow = ((random.nextDouble() * 2 - 1) * minOf(0.06 * f, 0.6) * length).toFloat().coerceIn(-bowCap, bowCap)
             val k = 0.5 + random.nextDouble() * 0.3
             // 区間の中の速さの揺れ (強さに比例)。進み具合は後戻りさせない。
-            val wobble = random.nextDouble() * minOf(0.015 * f, 0.12)
+            val wobble = random.nextDouble() * minOf(0.015 * f, 0.25)
             val cycles = 1 + random.nextInt(3)
             val phase = random.nextDouble() * 2 * PI
             var reached = 0.0
@@ -212,7 +213,7 @@ internal object ActionHumanize {
     private fun retime(track: List<ActionGesture.Point>, radius: Float, f: Double, random: Random): List<ActionGesture.Point> {
         if (track.size < 3) return track
         val total = track.last().ms - track.first().ms
-        val jitter = minOf(0.2 * f, 0.45)
+        val jitter = minOf(0.2 * f, 0.9)
         val gaps = track.zipWithNext { a, b -> (b.ms - a.ms).toDouble() * (1 + (random.nextDouble() * 2 - 1) * jitter) }
         val sum = gaps.sum().takeIf { it > 0 } ?: return track
         val tremor = minOf((1.5 * f).toFloat(), radius / 4)

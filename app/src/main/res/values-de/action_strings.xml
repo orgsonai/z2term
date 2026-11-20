@@ -80,7 +80,7 @@
     <string name="action_edit_wait_while">Warten solange</string>
     <string name="action_edit_run_output">Ausgabe als Schritte ausführen</string>
     <string name="action_edit_human">Menschliche Eingabe</string>
-    <string name="action_edit_human_hint">0 bis 10 (0 = aus, on = 5; größer bewegt mehr)</string>
+    <string name="action_edit_human_hint">0 bis 20 (0 = aus, on = 5; größer bewegt mehr)</string>
     <string name="action_macro_human_on">Menschliche Eingabe: an</string>
     <string name="action_macro_human_off">Menschliche Eingabe: aus</string>
     <string name="action_trail_setting">Spur der Bedienung anzeigen</string>

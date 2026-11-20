@@ -80,7 +80,7 @@
     <string name="action_edit_wait_while">Attendre tant que</string>
     <string name="action_edit_run_output">Exécuter la sortie comme étapes</string>
     <string name="action_edit_human">Saisie naturelle</string>
-    <string name="action_edit_human_hint">0 à 10 (0 = désactivé, on = 5 ; plus grand bouge davantage)</string>
+    <string name="action_edit_human_hint">0 à 20 (0 = désactivé, on = 5 ; plus grand bouge davantage)</string>
     <string name="action_macro_human_on">Saisie naturelle : activée</string>
     <string name="action_macro_human_off">Saisie naturelle : désactivée</string>
     <string name="action_trail_setting">Afficher la trace des actions</string>

@@ -3,8 +3,8 @@ package com.zerotoship.z2term.automation
 /** Text is authoritative; shell text is preserved and other steps use a strict grammar. */
 internal data class ActionDefinition(val text: String, val timeoutMs: Long, val screen: Screen?, val steps: List<Step>,
     /**
-     * 人らしい操作の強さ (1.0.184、数字は 1.0.186)。0 はなし、1〜10 は大きいほど揺れる ([ActionHumanize])。
-     * 見出しは `human=0..10`、`on` は [ActionHumanize.DEFAULT_LEVEL]、`off` は 0。
+     * 人らしい操作の強さ (1.0.184、数字は 1.0.186)。0 はなし、1〜20 は大きいほど揺れる ([ActionHumanize])。
+     * 見出しは `human=0..20`、`on` は [ActionHumanize.DEFAULT_LEVEL]、`off` は 0。
      */
     val humanLevel: Int = 0) {
     val human get() = humanLevel > 0

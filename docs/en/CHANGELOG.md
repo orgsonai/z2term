@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.187 (versionCode 885)**: Human-like input now goes up to strength 20 (`human=20`); 11 and above move enough to miss their targets
+
 **1.0.186 (versionCode 884)**: Human-like input gains a strength: `human=1`..`human=10`, larger numbers move more (`human=on` is 5). Drag corners no longer stay sharp: they are rounded along the path, and speed waves within segments and slow hand drift were added. The "Human-like input" row in the form editor takes a strength from 0 to 10
 
 **1.0.185 (versionCode 883)**: Drags (`drag`) with `human=on` now look like a finger. Segments used to stay straight, so corners such as an inverted V looked mechanical; now every given point is still passed, but each segment bows a little, the finger slows near corners and corners are slightly rounded. The screen-actions tab gains "Show the trail of operations": like AI app control, it draws where a macro presses and the lines it traces (human-like movement included)
