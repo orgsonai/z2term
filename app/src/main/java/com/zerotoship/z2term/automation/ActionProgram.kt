@@ -5,6 +5,7 @@ internal data class ActionProgram(val name: String, val definitions: Map<String,
     val root get() = definitions.getValue(name)
     val hasControlFlow = ActionDefinition.allSteps(root.steps).any {
         it is ActionDefinition.Step.Repeat || it is ActionDefinition.Step.Branch || it is ActionDefinition.Step.Call ||
+            it is ActionDefinition.Step.Try ||
             it is ActionDefinition.Step.Watch || it is ActionDefinition.Step.RunOutput
     }
     val usesCurrentTarget get() = definitions.values.any { definition ->
@@ -56,6 +57,7 @@ internal data class ActionProgram(val name: String, val definitions: Map<String,
                     when (step) {
                         is ActionDefinition.Step.Repeat -> 1 + bodyDepth(step.body)
                         is ActionDefinition.Step.Branch -> 1 + maxOf(bodyDepth(step.yes), bodyDepth(step.no))
+                        is ActionDefinition.Step.Try -> 1 + maxOf(bodyDepth(step.body), bodyDepth(step.recover))
                         is ActionDefinition.Step.Call -> visit(step.name, callDepth + 1)
                         // 割り込みで呼ぶ先も、呼び出しと同じく実行前に検査・固定する。
                         is ActionDefinition.Step.Watch -> visit(step.name, callDepth + 1)

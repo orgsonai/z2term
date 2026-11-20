@@ -101,6 +101,12 @@
     <string name="action_block_move">Verschieben nach…</string>
     <string name="action_block_add_else">Sonst-Zweig hinzufügen</string>
     <string name="action_block_remove_else">Sonst-Zweig entfernen</string>
+    <string name="action_edit_add_try">Versuch hinzufügen (Schritte bei Fehler)</string>
+    <string name="action_try_body">Versuchte Schritte</string>
+    <string name="action_try_failed">Bei Fehler</string>
+    <string name="action_block_add_failure">Schritte bei Fehler hinzufügen</string>
+    <string name="action_block_remove_failure">Schritte bei Fehler entfernen</string>
+    <string name="action_state_caught">Fehler abgefangen; weiter</string>
     <string name="action_block_options">Optionen für Schritt %1$s</string>
     <string name="action_block_invalid">Korrigiere zuerst die Blockstruktur im Text: %1$s</string>
     <string name="action_block_count">Anzahl Wiederholungen</string>

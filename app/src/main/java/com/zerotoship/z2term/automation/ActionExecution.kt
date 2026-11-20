@@ -23,7 +23,9 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         var index: Int = 0, var iteration: Int = 1, var timeout: Deadline? = null,
         /** `repeat … until` (1.0.188): checked before each pass ([checked]); [exit] ends the loop. */
         val until: String? = null, val untilTarget: String = ActionDefinition.CURRENT_TARGET,
-        var checked: Boolean = false, var exit: Boolean = false)
+        var checked: Boolean = false, var exit: Boolean = false,
+        /** Non-null for the body of `try` (1.0.190): the steps that run when something inside fails. */
+        val recover: List<ActionDefinition.Step>? = null)
     private val frames = mutableListOf<Frame>()
     var running = false
         private set
@@ -145,7 +147,11 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         test: ((String, String, (Boolean?, String?) -> Unit) -> (() -> Unit)?)? = null,
         expand: (ActionDefinition.Step.RunOutput, (List<ActionDefinition.Step>?, String?) -> Unit) -> (() -> Unit)? =
             { _, _ -> error("run-output is unavailable") },
-        watched: (ActionDefinition.Step.Watch) -> Unit = {}) {
+        watched: (ActionDefinition.Step.Watch) -> Unit = {},
+        /** Whether a failure may be caught by `try` (false for a locked screen and the like). */
+        catchable: (String) -> Boolean = { true },
+        /** A failure a `try` caught, before its `else` runs. */
+        caught: (String) -> Unit = {}) {
         check(!running) { "An action macro is already running" }
         running = true; step = 0; completed = done
         limitSteps = !definition.unlimited
@@ -167,6 +173,25 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
             if (removed === handling) handling = null
             return removed
         }
+        /**
+         * A step failed. The innermost `try` (also across calls) takes it: every frame above it goes, and its
+         * `else` steps run in its place. Without one, or for a failure [catchable] refuses, the run fails.
+         */
+        fun fail(error: String) {
+            if (!running || token != generation) return
+            val at = frames.indexOfLast { it.recover != null }
+            if (at < 0 || !catchable(error)) { finish("failed", error); return }
+            val owner = frames[at]
+            while (frames.size > at) pop()
+            caught(error)
+            if (!running || token != generation) return
+            try {
+                val recover = owner.recover.orEmpty()
+                if (recover.isNotEmpty()) push(Frame(recover, owner.macro, owner.prefix.removeSuffix("try.") + "else."))
+            } catch (e: Exception) { finish("failed", e.message ?: error); return }
+            // advance() is declared below; [proceed] points at it before the first step runs.
+            cancelNext = schedule(CONTROL_DELAY_MS) { proceed?.invoke() }
+        }
         fun advance() {
             if (!running || paused || token != generation) return
             cancelNext = null
@@ -184,7 +209,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                         if (token == generation) finish("timeout", "Called macro timed out: " + fired.name)
                     }.also { it.start() }
                     watched(fired)
-                } catch (e: Exception) { finish("failed", e.message ?: "watch failed"); return }
+                } catch (e: Exception) { fail(e.message ?: "watch failed"); return }
                 if (!running || token != generation) return
             }
             while (frames.isNotEmpty() && frames.last().index == frames.last().steps.size) {
@@ -207,7 +232,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                     cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
                 }
                 if (test == null) {
-                    try { leave(condition(until)) } catch (e: Exception) { finish("failed", e.message ?: "Condition failed") }
+                    try { leave(condition(until)) } catch (e: Exception) { fail(e.message ?: "Condition failed") }
                     return
                 }
                 val tried = attempt
@@ -217,10 +242,10 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                     test(until, frame.untilTarget) answer@{ matched, error ->
                         if (answered || !running || token != generation || tried != attempt) return@answer
                         answered = true; cancelStep = null; stepInFlight = false; untilInFlight = false
-                        if (error != null || matched == null) { finish("failed", error ?: "Condition failed"); return@answer }
+                        if (error != null || matched == null) { fail(error ?: "Condition failed"); return@answer }
                         leave(matched)
                     }
-                } catch (e: Exception) { finish("failed", e.message ?: "Condition failed"); return }
+                } catch (e: Exception) { fail(e.message ?: "Condition failed"); return }
                 if (!answered && running && token == generation && tried == attempt) cancelStep = cancel
                 else if (!answered) runCatching { cancel?.invoke() }
                 return
@@ -238,7 +263,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
             val next: (String?) -> Unit = next@{ error ->
                 if (delivered || !running || token != generation || index != step || tried != attempt) return@next
                 delivered = true; cancelStep = null; stepInFlight = false; inFlight = null
-                if (error != null) finish("failed", error)
+                if (error != null) fail(error)
                 else cancelNext = schedule(0) { advance() }
             }
             try {
@@ -269,8 +294,8 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                             val cancel = test(action.condition, action.target) answer@{ matched, error ->
                                 if (answered || !running || token != generation || index != step || tried != attempt) return@answer
                                 answered = true; cancelStep = null; stepInFlight = false; inFlight = null
-                                if (error != null || matched == null) { finish("failed", error ?: "Condition failed"); return@answer }
-                                try { decide(matched) } catch (e: Exception) { finish("failed", e.message ?: "Action failed") }
+                                if (error != null || matched == null) { fail(error ?: "Condition failed"); return@answer }
+                                try { decide(matched) } catch (e: Exception) { fail(e.message ?: "Action failed") }
                             }
                             if (!answered && running && token == generation && index == step && tried == attempt) cancelStep = cancel
                             else if (!answered) runCatching { cancel?.invoke() }
@@ -285,6 +310,10 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                         child.timeout = if (called.unlimited) null else Deadline(called.timeoutMs) {
                             if (token == generation) finish("timeout", "Called macro timed out: " + action.name)
                         }.also { it.start() }
+                        cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
+                    }
+                    is ActionDefinition.Step.Try -> {
+                        push(Frame(action.body, macro, "$path.try.", recover = action.recover))
                         cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
                     }
                     is ActionDefinition.Step.Break -> {
@@ -306,11 +335,11 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                         val cancel = expand(action) produced@{ steps, error ->
                             if (answered || !running || token != generation || index != step || tried != attempt) return@produced
                             answered = true; cancelStep = null; stepInFlight = false; inFlight = null
-                            if (error != null || steps == null) { finish("failed", error ?: "run-output failed"); return@produced }
+                            if (error != null || steps == null) { fail(error ?: "run-output failed"); return@produced }
                             try {
                                 if (steps.isNotEmpty()) push(Frame(steps, macro, "$here."))
                                 cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
-                            } catch (e: Exception) { finish("failed", e.message ?: "run-output failed") }
+                            } catch (e: Exception) { fail(e.message ?: "run-output failed") }
                         }
                         if (!answered && running && token == generation && index == step && tried == attempt) cancelStep = cancel
                         else if (!answered) runCatching { cancel?.invoke() }

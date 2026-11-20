@@ -101,6 +101,12 @@
     <string name="action_block_move">Mover a…</string>
     <string name="action_block_add_else">Añadir rama alternativa</string>
     <string name="action_block_remove_else">Eliminar rama alternativa</string>
+    <string name="action_edit_add_try">Añadir intento (pasos si falla)</string>
+    <string name="action_try_body">Pasos que se intentan</string>
+    <string name="action_try_failed">Si falla</string>
+    <string name="action_block_add_failure">Añadir pasos si falla</string>
+    <string name="action_block_remove_failure">Quitar pasos si falla</string>
+    <string name="action_state_caught">Fallo capturado; continúa</string>
     <string name="action_block_options">Opciones del paso %1$s</string>
     <string name="action_block_invalid">Corrige primero los bloques en texto: %1$s</string>
     <string name="action_block_count">Número de repeticiones</string>

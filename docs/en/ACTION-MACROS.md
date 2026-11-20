@@ -148,11 +148,35 @@ end
 - `repeat until CONDITION ... end` (1.0.188) checks the condition **before each pass** and leaves once it holds (if it already holds, the body never runs). `repeat 10 until CONDITION` means at most 10 passes, ending early when it holds. Conditions are written as for `if`; the check is not counted as an instruction.
 - `break` (1.0.188) leaves the innermost `repeat` at once (also from inside an `if`). It cannot appear outside a `repeat`.
 - `if CONDITION ... else ... end` evaluates current state and runs only the selected branch. `else` is optional. Inside a loop the condition is evaluated each time. Empty blocks and explicitly empty else branches are rejected.
-- `call NAME` runs a saved macro and waits for it to return. Each invocation applies the child's own timeout alongside the remaining parent deadline. Failure, cancellation or timeout at any level ends the whole run.
+- `call NAME` runs a saved macro and waits for it to return. Each invocation applies the child's own timeout alongside the remaining parent deadline. Failure, cancellation or timeout at any level ends the whole run (a failure can be caught with `try`, below).
+- `try ... else ... end` (1.0.190): when a step inside fails, the rest is skipped, the `else` steps run, and the run continues after `end`. `else` is optional; without it the failure is dropped and the run continues after `end`. Without a failure the `else` steps do not run. See "A way out when something fails" below.
 
 Saving checks syntax and condition expressions. A helper may be created later: existence and cycle checks occur at start. Every referenced definition and its screen geometry is validated, including unused branches, before dispatching any action. Definitions are frozen for that run; subsequent edits or deletions affect future runs.
 
 A block inherits the outer `target` / `launch` target; `else` and `end` restore that outer target. Called macros do not inherit the caller target; unspecified targets use the foreground app at each step. Restoring the definition's target does not switch the foreground app. Add an explicit `launch` and `wait` after returning if needed.
+
+### A way out when something fails (try, 1.0.190)
+
+Keeps one missing element in a long loop from ending the whole macro.
+
+```text
+version=2
+repeat forever
+  try
+    wait-ui 3000 text=Claim reward
+    click text=Claim reward
+  else
+    key back          # when it did not appear, go back and carry on
+  end
+end
+```
+
+- Caught: failures of a step itself — no element or more than one, a `wait-ui` / `wait-until` / `wait-while` time-out, a shell (`command`, `run-output`, a `command` condition) exiting non-zero or timing out, coordinates outside the screen or a cancelled touch, unavailable condition state, and failures inside a called macro (`call` or a `watch` handler).
+- Not caught: stopping (notification, stop bar, `z2-action stop`, screen off), pausing, the run's and called macros' time limits, the instruction limit (10000), the screen turning off, locking or changing size or orientation, accessibility disconnecting, and operating z2term itself while AI operation is paused. Any next step would fail the same way, so the run ends there.
+- The innermost `try` catches. A failure inside its `else` goes to the enclosing `try` (or fails the run). A failure inside a macro called from the `try` is caught too, and the rest of that macro is abandoned.
+- A caught failure is recorded in the history as `state=caught` with the reason in `detail`; the GUI history shows "Failure caught; continuing".
+- `try` counts as an instruction (`else` and `end` do not). `path` inserts `try` for the body and `else` for the failure side (e.g. `3.try.2`, `3.else.1`).
+- The GUI's Add step offers "Add try (steps on failure)", and the ⋮ menu adds or removes the steps on failure.
 
 ### Condition expressions
 
@@ -245,9 +269,9 @@ run-output python3 /root/plan.py   # read the board and print the moves
 
 ### GUI, limits and progress
 
-Blocks use a hierarchical form. Add step at each group end offers a step, repeat or condition; headings edit counts/expressions and child rows edit steps. The ⋮ menu moves within a group or to another group end, duplicates or deletes the whole item. Blocks retain else/end delimiters and leading body comments; self-nesting moves are rejected. An if menu adds or removes its else branch. Refill empty bodies before saving. Saved calls have a name picker. Adding control/element instructions selects version=2. Switch between text and forms; malformed structure or more than 256 source rows requires text editing.
+Blocks use a hierarchical form. Add step at each group end offers a step, repeat or condition; headings edit counts/expressions and child rows edit steps. The ⋮ menu moves within a group or to another group end, duplicates or deletes the whole item. Blocks retain else/end delimiters and leading body comments; self-nesting moves are rejected. An if menu adds or removes its else branch; a try menu adds or removes its steps on failure (1.0.190). Refill empty bodies before saving. Saved calls have a name picker. Adding control/element instructions selects version=2. Switch between text and forms; malformed structure or more than 256 source rows requires text editing.
 
-Each definition allows 64 source instructions, 64KiB and eight block levels. The instruction count includes repeat, if, call and both branches, excluding target, else and end. Calls allow eight levels including the root, with at most 16 combined call/block frames and 64 referenced definitions. One run executes at most 10000 instructions (no limit when the macro started first has `timeout=0`). Loops are interpreted without materializing their expansion; control instructions and iteration boundaries yield to accept stop requests.
+Each definition allows 64 source instructions, 64KiB and eight block levels. The instruction count includes repeat, if, try, call and both branches, excluding target, else and end. Calls allow eight levels including the root, with at most 16 combined call/block frames and 64 referenced definitions. One run executes at most 10000 instructions (no limit when the macro started first has `timeout=0`). Loops are interpreted without materializing their expansion; control instructions and iteration boundaries yield to accept stop requests.
 
 For programs with repeat, if or call, `status` / `history` report JSON `null` for `total`; `step` counts all visited instructions including control flow. `action_macro` identifies the current definition, `path` gives its one-based nested instruction position (with yes/no segments for branches), `iteration` is the innermost loop's iteration, and `call_depth` counts the root as one. Conditions produce `state=branch` records with `detail=true/false`. The GUI shows location, iteration and branch outcomes.
 

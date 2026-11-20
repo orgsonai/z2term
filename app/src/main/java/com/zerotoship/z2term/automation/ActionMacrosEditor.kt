@@ -560,11 +560,11 @@ internal class ActionMacrosEditor(
             apply = {
                 val verb = it.trim().split(Regex("\\s+")).first()
                 val sourceLine = it.trimStart()
-                val source = if (stepLine < 0 && verb in listOf("repeat", "if")) sourceLine + "\n  wait 800\nend" else sourceLine
+                val source = if (stepLine < 0 && verb in listOf("repeat", "if", "try")) sourceLine + "\n  wait 800\nend" else sourceLine
                 var updated = if (stepLine < 0) ActionBlockDocument(raw).insert(insertionGroup().start, source)
                     else ActionEditorDocument(raw).replace(stepLine, source)
                 val tapUi = sourceLine.split(Regex("\\s+")).getOrNull(1) == "ui" && verb == "tap"
-                if (tapUi || verb in listOf("call", "repeat", "if", "click", "long-click", "wait-ui", "wait-until", "wait-while", "run-output", "type", "enter", "touch", "swipe-path", "swipe-two-path"))
+                if (tapUi || verb in listOf("call", "repeat", "if", "try", "click", "long-click", "wait-ui", "wait-until", "wait-while", "run-output", "type", "enter", "touch", "swipe-path", "swipe-two-path"))
                     updated = ActionEditorDocument(updated).withHeader("version", "2")
                 // 色の条件は画面の点を読むので、座標の手順と同じく画面の寸法が要る。
                 val colorCondition = runCatching {
@@ -727,6 +727,7 @@ internal class ActionMacrosEditor(
             "completed" -> R.string.action_state_completed
             "cancelled" -> R.string.action_state_cancelled
             "failed" -> R.string.action_state_failed
+            "caught" -> R.string.action_state_caught
             "timeout" -> R.string.action_state_timeout
             else -> R.string.action_state_idle
         }

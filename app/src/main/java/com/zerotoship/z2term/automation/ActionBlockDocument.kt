@@ -28,7 +28,7 @@ internal class ActionBlockDocument(val text: String) {
                 val row = rows[index++]
                 val kind = verb(row)
                 val prefix = when (branch) {
-                    "yes", "no" -> "$path.$branch."
+                    "yes", "no", "try", "else" -> "$path.$branch."
                     else -> if (path.isEmpty()) "" else "$path."
                 }
                 val suffix = if (kind == "target") "target" + (items.count { it.verb == "target" } + 1)
@@ -37,11 +37,11 @@ internal class ActionBlockDocument(val text: String) {
                 var body: Group? = null
                 var otherwise: Group? = null
                 var end = row.line + 1
-                if (kind in setOf("repeat", "if")) {
-                    body = group(row.line + 1, depth + 1, position, if (kind == "if") "yes" else "repeat")
+                if (kind in setOf("repeat", "if", "try")) {
+                    body = group(row.line + 1, depth + 1, position, when (kind) { "if" -> "yes"; "try" -> "try"; else -> "repeat" })
                     if (index < rows.size && verb(rows[index]) == "else") {
-                        require(kind == "if") { "else requires an if block" }
-                        otherwise = group(rows[index++].line + 1, depth + 1, position, "no")
+                        require(kind != "repeat") { "else requires an if or try block" }
+                        otherwise = group(rows[index++].line + 1, depth + 1, position, if (kind == "try") "else" else "no")
                     }
                     require(index < rows.size && verb(rows[index]) == "end") { "Missing end for block at line " + (row.line + 1) }
                     end = rows[index++].line + 1
@@ -97,7 +97,7 @@ internal class ActionBlockDocument(val text: String) {
     }
     fun addElse(line: Int): String {
         val item = item(line)
-        require(item.verb == "if" && item.otherwise == null) { "This block already has an else branch" }
+        require(item.verb in setOf("if", "try") && item.otherwise == null) { "This block already has an else branch" }
         return splice(item.end - 1, item.end - 1, content("else\n  wait 800", owner(line).depth))
     }
     fun removeElse(line: Int): String {

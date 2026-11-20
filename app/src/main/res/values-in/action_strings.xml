@@ -101,6 +101,12 @@
     <string name="action_block_move">Pindahkan ke…</string>
     <string name="action_block_add_else">Tambah cabang else</string>
     <string name="action_block_remove_else">Hapus cabang else</string>
+    <string name="action_edit_add_try">Tambah coba (langkah bila gagal)</string>
+    <string name="action_try_body">Langkah yang dicoba</string>
+    <string name="action_try_failed">Bila gagal</string>
+    <string name="action_block_add_failure">Tambah langkah bila gagal</string>
+    <string name="action_block_remove_failure">Hapus langkah bila gagal</string>
+    <string name="action_state_caught">Kegagalan ditangani; lanjut</string>
     <string name="action_block_options">Opsi untuk langkah %1$s</string>
     <string name="action_block_invalid">Perbaiki dulu struktur blok di teks: %1$s</string>
     <string name="action_block_count">Jumlah pengulangan</string>

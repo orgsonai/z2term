@@ -31,6 +31,8 @@ internal object ActionBlockEditor {
                 group.path, context.getString(when (group.branch) {
                     "yes" -> R.string.action_branch_true
                     "no" -> R.string.action_branch_false
+                    "try" -> R.string.action_try_body
+                    "else" -> R.string.action_try_failed
                     else -> R.string.action_block_body
                 }))
         fun options(item: ActionBlockDocument.Item, index: Int, size: Int) {
@@ -45,6 +47,9 @@ internal object ActionBlockEditor {
             }
             entries += R.string.action_edit_duplicate to { mutate { document.duplicate(item.line) } }
             if (item.verb == "if") entries += (if (item.otherwise == null) R.string.action_block_add_else else R.string.action_block_remove_else) to {
+                mutate { if (item.otherwise == null) document.addElse(item.line) else document.removeElse(item.line) }
+            }
+            if (item.verb == "try") entries += (if (item.otherwise == null) R.string.action_block_add_failure else R.string.action_block_remove_failure) to {
                 mutate { if (item.otherwise == null) document.addElse(item.line) else document.removeElse(item.line) }
             }
             entries += R.string.action_edit_remove to { mutate { document.remove(item.line) } }
@@ -86,8 +91,9 @@ internal object ActionBlockEditor {
                 }
             }
             ActionUi.add(container, ActionUi.pill(context, context.getString(R.string.action_edit_add)) {
-                val labels = intArrayOf(R.string.action_edit_add, R.string.action_edit_add_repeat, R.string.action_edit_add_branch, R.string.action_record_title)
-                val drafts = listOf("wait 800", "repeat 3", "if charging", "@record")
+                val labels = intArrayOf(R.string.action_edit_add, R.string.action_edit_add_repeat, R.string.action_edit_add_branch,
+                    R.string.action_edit_add_try, R.string.action_record_title)
+                val drafts = listOf("wait 800", "repeat 3", "if charging", "try", "@record")
                 show(ActionUi.choices(context, groupName(group), labels.map { context.getString(it) }) { position ->
                     add(group.start, drafts[position])
                 })

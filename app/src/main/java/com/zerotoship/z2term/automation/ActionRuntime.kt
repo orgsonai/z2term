@@ -183,6 +183,7 @@ internal object ActionRuntime {
                 is ActionDefinition.Step.Call -> "call"
                 is ActionDefinition.Step.Watch -> "watch"
                 is ActionDefinition.Step.Break -> "break"
+                is ActionDefinition.Step.Try -> "try"
                 is ActionDefinition.Step.Input -> if (step.text == null) "enter" else "type"
                 is ActionDefinition.Step.UiTap -> "tap-ui"
                 is ActionDefinition.Step.RunOutput -> "run-output"
@@ -202,8 +203,16 @@ internal object ActionRuntime {
             test = { spec, target, answer -> test(run, spec, target, answer) },
             expand = { step, produced -> expand(run, step, produced) },
             // 割り込みは手順の 1 つとして記録する (履歴の一覧では手順と同じく畳まれる)。
-            watched = { log(run, "step", "watch " + it.name) })
+            watched = { log(run, "step", "watch " + it.name) },
+            catchable = ::catchable,
+            caught = { error -> log(run, "caught", error) })
     }
+    /**
+     * `try` で受け止めない失敗 (1.0.190)。画面が消えた・回転した・ユーザー補助が切れた・AI 操作の一時停止で
+     * z2term 自身を操作できない、はどの手順へ進んでも同じく失敗するので、別の手順へ逃がさずに止める。
+     */
+    private fun catchable(error: String) = error !in setOf("Screen is off or locked", "Accessibility disconnected",
+        "Screen size/orientation changed") && !error.startsWith("AI operation is paused")
     /**
      * `run-output`: シェルの標準出力を手順として読む。今の画面寸法と、その行の対象アプリを引き継いで検査する。
      * 出力は 64 KiB まで (EdgeRunner の上限)。終了コードが 0 以外なら失敗 (出力は使わない)。
@@ -330,7 +339,8 @@ internal object ActionRuntime {
             else requested
         when (step) {
             is ActionDefinition.Step.Repeat, is ActionDefinition.Step.Branch, is ActionDefinition.Step.Call,
-            is ActionDefinition.Step.Watch, is ActionDefinition.Step.RunOutput, is ActionDefinition.Step.Break ->
+            is ActionDefinition.Step.Watch, is ActionDefinition.Step.RunOutput, is ActionDefinition.Step.Break,
+            is ActionDefinition.Step.Try ->
                 error("Control flow must be handled by the execution engine")
             is ActionDefinition.Step.Ui -> {
                 val resolved = step.copy(target = target(step.target))

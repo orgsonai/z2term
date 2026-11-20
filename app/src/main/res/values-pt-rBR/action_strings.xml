@@ -101,6 +101,12 @@
     <string name="action_block_move">Mover para…</string>
     <string name="action_block_add_else">Adicionar ramo senão</string>
     <string name="action_block_remove_else">Remover ramo senão</string>
+    <string name="action_edit_add_try">Adicionar tentativa (passos em caso de falha)</string>
+    <string name="action_try_body">Passos tentados</string>
+    <string name="action_try_failed">Em caso de falha</string>
+    <string name="action_block_add_failure">Adicionar passos em caso de falha</string>
+    <string name="action_block_remove_failure">Remover passos em caso de falha</string>
+    <string name="action_state_caught">Falha tratada; continuando</string>
     <string name="action_block_options">Opções do passo %1$s</string>
     <string name="action_block_invalid">Corrija antes a estrutura dos blocos no texto: %1$s</string>
     <string name="action_block_count">Número de repetições</string>

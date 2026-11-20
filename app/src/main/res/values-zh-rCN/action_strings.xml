@@ -101,6 +101,12 @@
     <string name="action_block_move">选择移入位置</string>
     <string name="action_block_add_else">添加不成立分支</string>
     <string name="action_block_remove_else">删除不成立分支</string>
+    <string name="action_edit_add_try">添加尝试（失败时的步骤）</string>
+    <string name="action_try_body">尝试的步骤</string>
+    <string name="action_try_failed">失败时</string>
+    <string name="action_block_add_failure">添加失败时的步骤</string>
+    <string name="action_block_remove_failure">删除失败时的步骤</string>
+    <string name="action_state_caught">已接住失败，继续</string>
     <string name="action_block_options">步骤%1$s的选项</string>
     <string name="action_block_invalid">请先在文本中修正代码块结构：%1$s</string>
     <string name="action_block_count">重复次数</string>

@@ -101,6 +101,12 @@
     <string name="action_block_move">Déplacer dans…</string>
     <string name="action_block_add_else">Ajouter une branche sinon</string>
     <string name="action_block_remove_else">Retirer la branche sinon</string>
+    <string name="action_edit_add_try">Ajouter un essai (étapes en cas d\'échec)</string>
+    <string name="action_try_body">Étapes essayées</string>
+    <string name="action_try_failed">En cas d\'échec</string>
+    <string name="action_block_add_failure">Ajouter des étapes en cas d\'échec</string>
+    <string name="action_block_remove_failure">Supprimer les étapes en cas d\'échec</string>
+    <string name="action_state_caught">Échec intercepté ; suite</string>
     <string name="action_block_options">Options de l’étape %1$s</string>
     <string name="action_block_invalid">Corrigez d’abord la structure des blocs dans le texte : %1$s</string>
     <string name="action_block_count">Nombre de répétitions</string>

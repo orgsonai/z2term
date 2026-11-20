@@ -16,6 +16,7 @@ internal object ActionStepEditor {
     private val kinds = listOf(
         Kind("repeat", R.string.action_edit_add_repeat, listOf(R.string.action_block_count), listOf("3")),
         Kind("if", R.string.action_edit_add_branch, listOf(R.string.action_block_condition), listOf("charging")),
+        Kind("try", R.string.action_edit_add_try, emptyList(), emptyList()),
         Kind("click", R.string.action_ui_click, listOf(R.string.action_ui_selector), listOf("text=")),
         Kind("tap ui", R.string.action_edit_tap_ui, listOf(R.string.action_ui_selector), listOf("text=")),
         Kind("type", R.string.action_edit_input, listOf(R.string.action_edit_type_text), listOf("")),
@@ -70,8 +71,8 @@ internal object ActionStepEditor {
         val error = ActionUi.label(context, "", 11f, ActionUi.dangerColor)
         val trimmed = initial.trim()
         val initialVerb = verbOf(trimmed)
-        val available = if (initialVerb in listOf("repeat", "if")) kinds.filter { it.verb == initialVerb }
-            else kinds.filterNot { it.verb in listOf("repeat", "if", "touch", "swipe-path", "swipe-two-path") && it.verb != initialVerb }
+        val available = if (initialVerb in listOf("repeat", "if", "try")) kinds.filter { it.verb == initialVerb }
+            else kinds.filterNot { it.verb in listOf("repeat", "if", "try", "touch", "swipe-path", "swipe-two-path") && it.verb != initialVerb }
         var kind = available.firstOrNull { it.verb == initialVerb }
             ?: kinds.first { it.verb == "wait" }
         // repeat は「3」「forever」「until 条件」「5 until 条件」を 1 つの欄で受ける (1.0.188)。
@@ -95,7 +96,7 @@ internal object ActionStepEditor {
         var appDialog: Dialog? = null
         fun publish() {
             if (rendering) return
-            current = kind.verb + " " + values.joinToString(" ")
+            current = (kind.verb + " " + values.joinToString(" ")).trimEnd()
             draft(current); error.text = ""
         }
         fun render() {
@@ -264,7 +265,7 @@ internal object ActionStepEditor {
             try {
                 ActionEditorDocument.singleLine(current)
                 // The entire document, including the real target/order, is checked on save.
-                val executable = if (kind.verb in listOf("repeat", "if")) current + "\nwait 0\nend" else current
+                val executable = if (kind.verb in listOf("repeat", "if", "try")) current + "\nwait 0\nend" else current
                 ActionDefinition.parse("version=2\nscreen=$screen\ntarget org.example.target\n$executable\nwait 0")
                 apply(current); it.dismiss()
             } catch (e: Exception) { error.text = e.message }

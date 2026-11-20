@@ -24,6 +24,11 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         /** `break` (1.0.188): leaves the innermost `repeat` at once. */
         data object Break : Step
         /**
+         * `try … else … end` (1.0.190): when a step in [body] fails, the rest of [body] is skipped and [recover]
+         * runs instead (empty = carry on after `end`). Stopping, pausing and the time/instruction limits are not caught.
+         */
+        data class Try(val body: List<Step>, val recover: List<Step>) : Step
+        /**
          * `type 文字` / `enter` (1.0.189): the input field that has focus in [target]. [text] replaces its content
          * (empty clears it); null presses the keyboard's enter key. Password fields are refused.
          */
@@ -93,7 +98,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         /** `drag` の点の数の上限。z2-ui の drag と揃える。 */
         const val MAX_DRAG_POINTS = 256
         /** 行頭に来る流れの語。編集画面でアクセント色にする対象。 */
-        val FLOW_WORDS = setOf("repeat", "if", "else", "end", "call", "watch", "break")
+        val FLOW_WORDS = setOf("repeat", "if", "try", "else", "end", "call", "watch", "break")
         private val trailingComment = Regex("(?<=\\s)#(?=\\s|$)")
         /**
          * [line] の中でコメントが始まる位置 (無ければ null)。
@@ -146,6 +151,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             listOf(step) + when (step) {
                 is Step.Repeat -> allSteps(step.body)
                 is Step.Branch -> allSteps(step.yes) + allSteps(step.no)
+                is Step.Try -> allSteps(step.body) + allSteps(step.recover)
                 else -> emptyList()
             }
         }
@@ -205,7 +211,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                     require(it in low..high) { "Duration must be $low..$high ms" }
                 } ?: throw IllegalArgumentException("Invalid duration")
                 fun destination() = target ?: CURRENT_TARGET
-                if (words[0] in setOf("repeat", "if", "else", "end", "call", "break")) {
+                if (words[0] in setOf("repeat", "if", "try", "else", "end", "call", "break")) {
                     require(headers["version"] == "2") { "Control flow requires version=2" }
                     when (words[0]) {
                         "repeat", "if" -> {
@@ -229,11 +235,18 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                             steps = mutableListOf()
                             size++
                         }
+                        "try" -> {
+                            count(1)
+                            require(blocks.size < MAX_NESTING) { "At most $MAX_NESTING nested blocks" }
+                            blocks += Block("try", "", steps, target)
+                            steps = mutableListOf()
+                            size++
+                        }
                         "else" -> {
                             count(1)
                             val block = blocks.lastOrNull()
-                            require(block != null && block.kind == "if" && block.yes == null) { "else requires an unmatched if" }
-                            require(steps.isNotEmpty()) { "Empty if branch" }
+                            require(block != null && block.kind in setOf("if", "try") && block.yes == null) { "else requires an unmatched if or try" }
+                            require(steps.isNotEmpty()) { "Empty ${block.kind} branch" }
                             block.yes = steps.toList(); steps = mutableListOf(); target = block.target
                         }
                         "end" -> {
@@ -244,6 +257,8 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                             val closed = if (block.kind == "repeat") Step.Repeat(
                                 block.argument.takeUnless { it == "forever" }?.toInt(), steps.toList(), block.until,
                                 block.target ?: CURRENT_TARGET)
+                            else if (block.kind == "try") Step.Try(block.yes ?: steps.toList(),
+                                if (block.yes != null) steps.toList() else emptyList())
                             else Step.Branch(block.argument, block.yes ?: steps.toList(),
                                 if (block.yes != null) steps.toList() else emptyList(), block.target ?: CURRENT_TARGET)
                             steps = block.parent; steps += closed; target = block.target

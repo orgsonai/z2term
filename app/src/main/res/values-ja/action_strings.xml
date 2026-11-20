@@ -101,6 +101,12 @@
     <string name="action_block_move">移動先を選ぶ</string>
     <string name="action_block_add_else">不成立側を追加</string>
     <string name="action_block_remove_else">不成立側を削除</string>
+    <string name="action_edit_add_try">失敗に備える (try)</string>
+    <string name="action_try_body">試す手順</string>
+    <string name="action_try_failed">失敗したとき</string>
+    <string name="action_block_add_failure">失敗したときの手順を追加</string>
+    <string name="action_block_remove_failure">失敗したときの手順を削除</string>
+    <string name="action_state_caught">失敗を受け止めて続行</string>
     <string name="action_block_options">手順 %1$s の操作</string>
     <string name="action_block_invalid">先にテキストでブロック構造を修正してください: %1$s</string>
     <string name="action_block_count">繰り返し回数</string>

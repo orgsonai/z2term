@@ -101,6 +101,12 @@
     <string name="action_block_move">이동 위치 선택</string>
     <string name="action_block_add_else">불충족 분기 추가</string>
     <string name="action_block_remove_else">불충족 분기 삭제</string>
+    <string name="action_edit_add_try">실패 대비 추가 (try)</string>
+    <string name="action_try_body">시도할 단계</string>
+    <string name="action_try_failed">실패했을 때</string>
+    <string name="action_block_add_failure">실패했을 때의 단계 추가</string>
+    <string name="action_block_remove_failure">실패했을 때의 단계 삭제</string>
+    <string name="action_state_caught">실패를 받아 계속</string>
     <string name="action_block_options">%1$s단계 옵션</string>
     <string name="action_block_invalid">먼저 텍스트에서 블록 구조를 수정하세요: %1$s</string>
     <string name="action_block_count">반복 횟수</string>

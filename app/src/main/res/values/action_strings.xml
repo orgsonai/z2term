@@ -101,6 +101,12 @@
     <string name="action_block_move">Move into…</string>
     <string name="action_block_add_else">Add else branch</string>
     <string name="action_block_remove_else">Remove else branch</string>
+    <string name="action_edit_add_try">Add try (steps on failure)</string>
+    <string name="action_try_body">Steps tried</string>
+    <string name="action_try_failed">On failure</string>
+    <string name="action_block_add_failure">Add steps on failure</string>
+    <string name="action_block_remove_failure">Remove steps on failure</string>
+    <string name="action_state_caught">Failure caught; continuing</string>
     <string name="action_block_options">Options for step %1$s</string>
     <string name="action_block_invalid">Fix the block structure in text first: %1$s</string>
     <string name="action_block_count">Repeat count</string>

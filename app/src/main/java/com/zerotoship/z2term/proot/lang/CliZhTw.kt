@@ -91,6 +91,7 @@ internal object CliZhTw : CliLanguage {
             "action.humanHelp" to "human=1..20（on 為 5，off 和 0 為關閉；越大抖動越明顯）讓點按、滑動、拖曳和 wait 更接近人的手指（位置稍有偏移，滑動線稍彎且起止較慢，時間略有變化）。執行中也可以用停止列的 ~ 切換。",
             "action.loopHelp" to "repeat until 條件 ... end（或 repeat 次數 until 條件）在每一輪開始前檢查條件，成立即退出；break 立即退出最內層的 repeat。\ntext~=部分 / desc~=部分 在文字或描述包含該部分時相符（click、wait-ui 和條件中的 ui）。",
             "action.inputHelp" to "tap ui 選擇器 用手指點按元素的中心（用於 click 無效的螢幕；輸入框可依其提示文字指定）。\ntype 文字 將有焦點的輸入框內容替換為該文字（留空則清空）；enter 按下鍵盤的確認鍵。不會輸入到密碼框。version=2。",
+            "action.tryHelp" to "try ... else ... end：其中的步驟失敗時（找不到元素、wait-ui/wait-until 逾時、shell 結束碼不為 0、被呼叫的巨集失敗），略過其餘步驟並執行 else 的步驟；沒有 else 時從 end 之後繼續。停止、暫停、時間限制、指令數上限以及螢幕鎖定或旋轉不會被接住。version=2。",
             "action.controlHelp" to "version=2 支援 repeat 次數|forever ... end、if 條件 ... else ... end 及 call 名稱。\n條件使用 z2-state 鍵或 foreground=套件名稱；逗號表示AND，!表示否定。\n無法取得條件狀態時執行失敗。執行前驗證並固定所有呼叫的巨集。\n每個定義最多64條指令，每次執行最多10000條。父巨集和子巨集的逾時均有效。",
             "action.pauseHelp" to "pause [執行ID] 暫停執行；進行中的步驟在繼續時從頭重新送出。下拉通知欄也會暫停。\nresume [執行ID] 在 z2term 以外的畫面穩定在前景後繼續（最多5秒，否則保持暫停）。有結果後才返回：繼續則 state 為 running、結束碼 0；仍暫停則為 paused、結束碼非 0。暫停期間時間限制停止計時。",
             "action.uiHelp" to "version=2還支援click 選擇器、long-click 選擇器和wait-ui 毫秒 選擇器。\n選擇器範例：text=繼續、desc=更多選項、id=org.example.app:id/next。精確比對，空格不加引號。\n先設定target或launch。wait-ui每250毫秒查詢，期限1–30000毫秒；多項符合時失敗。\n操作僅傳送一次，下一畫面使用wait-ui等待。輸入欄位及密碼欄位除外。\ninspect 套件名稱以JSON傳回前景目標應用程式的顯示文字、說明和ID。",

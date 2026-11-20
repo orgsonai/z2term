@@ -101,6 +101,12 @@
     <string name="action_block_move">Переместить в…</string>
     <string name="action_block_add_else">Добавить ветку «иначе»</string>
     <string name="action_block_remove_else">Убрать ветку «иначе»</string>
+    <string name="action_edit_add_try">Добавить попытку (шаги при ошибке)</string>
+    <string name="action_try_body">Пробуемые шаги</string>
+    <string name="action_try_failed">При ошибке</string>
+    <string name="action_block_add_failure">Добавить шаги при ошибке</string>
+    <string name="action_block_remove_failure">Удалить шаги при ошибке</string>
+    <string name="action_state_caught">Ошибка перехвачена; продолжение</string>
     <string name="action_block_options">Параметры шага %1$s</string>
     <string name="action_block_invalid">Сначала исправьте структуру блоков в тексте: %1$s</string>
     <string name="action_block_count">Число повторов</string>

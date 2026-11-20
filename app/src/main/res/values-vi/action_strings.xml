@@ -101,6 +101,12 @@
     <string name="action_block_move">Chuyển vào…</string>
     <string name="action_block_add_else">Thêm nhánh ngược lại</string>
     <string name="action_block_remove_else">Gỡ nhánh ngược lại</string>
+    <string name="action_edit_add_try">Thêm thử (bước khi thất bại)</string>
+    <string name="action_try_body">Các bước thử</string>
+    <string name="action_try_failed">Khi thất bại</string>
+    <string name="action_block_add_failure">Thêm bước khi thất bại</string>
+    <string name="action_block_remove_failure">Xóa bước khi thất bại</string>
+    <string name="action_state_caught">Đã bắt lỗi; tiếp tục</string>
     <string name="action_block_options">Tùy chọn cho bước %1$s</string>
     <string name="action_block_invalid">Hãy sửa cấu trúc khối trong văn bản trước: %1$s</string>
     <string name="action_block_count">Số lần lặp</string>

@@ -101,6 +101,12 @@
     <string name="action_block_move">İçine taşı…</string>
     <string name="action_block_add_else">Aksi halde dalı ekle</string>
     <string name="action_block_remove_else">Aksi halde dalını kaldır</string>
+    <string name="action_edit_add_try">Deneme ekle (hata olursa adımlar)</string>
+    <string name="action_try_body">Denenen adımlar</string>
+    <string name="action_try_failed">Hata olursa</string>
+    <string name="action_block_add_failure">Hata olursa adım ekle</string>
+    <string name="action_block_remove_failure">Hata olursa adımlarını kaldır</string>
+    <string name="action_state_caught">Hata yakalandı; devam</string>
     <string name="action_block_options">%1$s adımı seçenekleri</string>
     <string name="action_block_invalid">Önce blok yapısını metin içinde düzeltin: %1$s</string>
     <string name="action_block_count">Tekrar sayısı</string>
