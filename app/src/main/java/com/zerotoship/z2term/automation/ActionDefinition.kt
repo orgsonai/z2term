@@ -16,6 +16,13 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         /** `wait-until` ([until]) / `wait-while`: poll [condition] for up to [ms] (0 = until the macro's own limit). */
         data class WaitFor(val target: String, val condition: String, val until: Boolean, val ms: Long) : Step
         data class Call(val name: String) : Step
+        /**
+         * `watch 条件 call 名前`: 書いたブロックが終わるまで [condition] を見張り、成立したら [name] を割り込みで呼ぶ。
+         * 条件に `command` は使えない (見張りは短い間隔で繰り返すため)。
+         */
+        data class Watch(val target: String, val condition: String, val name: String) : Step
+        /** `run-output シェル`: 標準出力に書かれた手順を検査して、その場で実行する。 */
+        data class RunOutput(val target: String, val text: String) : Step
         data class Ui(val target: String, val operation: String, val selector: ActionSelector, val timeoutMs: Long = 0) : Step
         data class Wait(val ms: Long) : Step
         data class Launch(val packageName: String) : Step
@@ -64,7 +71,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         /** `drag` の点の数の上限。z2-ui の drag と揃える。 */
         const val MAX_DRAG_POINTS = 256
         /** 行頭に来る流れの語。編集画面でアクセント色にする対象。 */
-        val FLOW_WORDS = setOf("repeat", "if", "else", "end", "call")
+        val FLOW_WORDS = setOf("repeat", "if", "else", "end", "call", "watch")
         private val trailingComment = Regex("(?<=\\s)#(?=\\s|$)")
         /**
          * [line] の中でコメントが始まる位置 (無ければ null)。
@@ -76,7 +83,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             val code = line.trimStart()
             if (code.startsWith('#')) return line.length - code.length
             val verb = code.split(Regex("\\s+"), limit = 2).first()
-            if (verb == "command") return null
+            if (verb in SHELL_VERBS) return null
             val found = trailingComment.find(line)?.range?.first ?: return null
             // 条件の `command` 項から後ろはシェルの文。`#` もシェルに渡す。
             if (verb in CONDITION_VERBS) {
@@ -90,6 +97,8 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             }
             return found
         }
+        /** 後ろをそのままシェルに渡す命令。行末の `#` もシェルのもの。 */
+        val SHELL_VERBS = setOf("command", "run-output")
         /** 条件式を取る命令。`if 条件` / `wait-until ミリ秒 条件` / `wait-while ミリ秒 条件`。 */
         val CONDITION_VERBS = setOf("if", "wait-until", "wait-while")
         /** `wait-until` / `wait-while` の上限 (ミリ秒)。0 は無期限 (マクロ全体の制限時間と停止は効く)。 */
@@ -106,6 +115,22 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 is Step.Branch -> allSteps(step.yes) + allSteps(step.no)
                 else -> emptyList()
             }
+        }
+        /**
+         * `run-output` が出した手順。呼び出し元の画面寸法と対象を引き継いで検査する。見出しは書けない。
+         * `call` / `run-output` / `watch` は断る (呼び出し先は実行前に検査・固定するため、出力から増やさない)。
+         * 空の出力は「何もしない」。
+         */
+        fun fragment(output: String, screen: Screen?, target: String): List<Step> {
+            if (output.lines().all { code(it).isEmpty() }) return emptyList()
+            val head = "version=2\ntimeout=0\n" + (screen?.let { "screen=$it\n" } ?: "") + "target $target\n"
+            val steps = try { parse(head + output, screen).steps } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("run-output: " + e.message, e)
+            }
+            require(allSteps(steps).none { it is Step.Call || it is Step.RunOutput || it is Step.Watch }) {
+                "run-output cannot produce call, run-output or watch"
+            }
+            return steps
         }
         private data class Block(val kind: String, val argument: String, val parent: MutableList<Step>,
             val target: String?, var yes: List<Step>? = null)
@@ -187,6 +212,22 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 }
                 val before = steps.size
                 when (words[0]) {
+                    "watch" -> {
+                        require(headers["version"] == "2") { "watch requires version=2" }
+                        // 最後の 2 語が `call 名前`。条件はその前すべて。
+                        require(words.size >= 4 && words[words.size - 2] == "call") { "Use watch CONDITION call NAME" }
+                        val condition = line.split(Regex("\\s+"), limit = 2).last().trim()
+                            .removeSuffix(words.last()).trimEnd().removeSuffix("call").trim()
+                        val expression = ActionCondition.parse(condition)
+                        require(expression.terms.none { it is ActionCondition.Term.Shell }) { "watch conditions cannot use command" }
+                        steps += Step.Watch(destination(), condition, macroName(words.last()))
+                    }
+                    "run-output" -> {
+                        require(headers["version"] == "2") { "run-output requires version=2" }
+                        val text = line.dropWhile { !it.isWhitespace() }.trimStart()
+                        require(text.isNotBlank()) { "Empty shell command" }
+                        steps += Step.RunOutput(destination(), text)
+                    }
                     "wait-until", "wait-while" -> {
                         require(headers["version"] == "2") { "Condition waits require version=2" }
                         require(words.size >= 3) { "${words[0]} requires milliseconds and a condition" }
@@ -325,7 +366,8 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             }
             val flat = allSteps(steps)
             if (flat.any { it is Step.Stroke || it is Step.Scroll }) require(screen != null) { "Coordinates/scroll require screen=current or saved geometry" }
-            val colors = flat.mapNotNull { when (it) { is Step.Branch -> it.condition; is Step.WaitFor -> it.condition; else -> null } }
+            val colors = flat.mapNotNull { when (it) { is Step.Branch -> it.condition; is Step.WaitFor -> it.condition
+                is Step.Watch -> it.condition; else -> null } }
                 .flatMap { ActionCondition.parse(it).terms }.filterIsInstance<ActionCondition.Term.Color>()
             if (colors.isNotEmpty()) {
                 require(screen != null) { "Colour conditions require screen=current or saved geometry" }

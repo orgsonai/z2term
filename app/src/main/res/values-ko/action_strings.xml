@@ -78,6 +78,7 @@
     <string name="action_edit_toggle_comment"># 주석</string>
     <string name="action_edit_wait_until">조건까지 대기</string>
     <string name="action_edit_wait_while">조건 동안 대기</string>
+    <string name="action_edit_run_output">출력을 단계로 실행</string>
     <string name="action_edit_blocks_hint">각 블록 안에 단계를 추가하세요. ⋮에서 단계와 블록 전체를 이동, 복제 또는 삭제할 수 있습니다.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · %3$d단계</string>
     <string name="action_edit_location">%1$s / %2$s · %3$d회차</string>

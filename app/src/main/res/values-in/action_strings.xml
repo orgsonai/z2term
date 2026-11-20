@@ -78,6 +78,7 @@
     <string name="action_edit_toggle_comment"># Komentar</string>
     <string name="action_edit_wait_until">Tunggu sampai</string>
     <string name="action_edit_wait_while">Tunggu selama</string>
+    <string name="action_edit_run_output">Jalankan keluaran sebagai langkah</string>
     <string name="action_edit_blocks_hint">Tambahkan langkah di dalam setiap blok. Pakai ⋮ untuk memindahkan, menduplikat, atau menghapus langkah dan blok utuh.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · instruksi: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · iterasi %3$d</string>

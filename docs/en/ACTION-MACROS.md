@@ -193,6 +193,36 @@ command z2-notify "A confirmation appeared; please choose"
 wait-until 0 !ui text=Yes,!ui text=No   # until both are gone
 ```
 
+### Interrupt with a macro (watch, 1.0.183)
+
+```text
+version=2
+timeout=0
+watch ui text=Yes|ui text=No call ask-user   # whenever the confirmation shows, call ask-user
+repeat forever
+  tap percent 50 70
+  wait 1500
+end
+```
+
+- `watch CONDITION call NAME`: from the moment the line runs **until the block it is written in ends** (the whole macro at top level, the loop inside a `repeat`), the condition is checked every 300 ms. When it holds, macro NAME runs and the macro then continues where it was.
+- It interrupts at step boundaries. `wait` / `wait-until` / `wait-while` / `wait-ui` and the check of an `if` condition are cut short and start again from the beginning afterwards. Taps, swipes, app launches and shell commands finish first.
+- While the called macro runs, no watch interrupts again. If the condition still holds after it returns, it is called again (make the called macro clear the condition).
+- Conditions are written as for `if`, but `command` is not allowed (they are checked repeatedly). The called macro is checked and frozen before the run like `call` and counts toward call depth. Nothing is checked while paused.
+
+### Run steps a program decides (run-output, 1.0.183)
+
+```text
+version=2
+screen=current
+run-output python3 /root/plan.py   # read the board and print the moves
+```
+
+- `run-output SHELL`: runs the command where `command` steps run, checks the lines it prints on standard output as steps and executes them in place, then moves on to the next line.
+- The output inherits this macro's screen (`screen=`) and the target app of that line. It cannot contain headers (`version=` and so on) and `call` / `run-output` / `watch` are refused (called macros are frozen before the run). Comments and blank lines are fine; empty output does nothing.
+- Output is limited to 64 KiB and 64 instructions. A non-zero exit status fails the run without using the output. After a pause, the command runs again on resume.
+- A trailing `#` is part of the command and goes to the shell.
+
 ### GUI, limits and progress
 
 Blocks use a hierarchical form. Add step at each group end offers a step, repeat or condition; headings edit counts/expressions and child rows edit steps. The ⋮ menu moves within a group or to another group end, duplicates or deletes the whole item. Blocks retain else/end delimiters and leading body comments; self-nesting moves are rejected. An if menu adds or removes its else branch. Refill empty bodies before saving. Saved calls have a name picker. Adding control/element instructions selects version=2. Switch between text and forms; malformed structure or more than 256 source rows requires text editing.
@@ -222,6 +252,8 @@ long-click desc=More options
 | `click SELECTOR` | Click once |
 | `long-click SELECTOR` | Long-click once |
 | `wait-ui MS SELECTOR` | Wait for visibility for 1–30000ms |
+| `watch CONDITION call NAME` | Watch the condition until the block ends and call NAME when it holds |
+| `run-output SHELL` | Check the steps the command prints and execute them in place |
 | `wait-until MS CONDITION` / `wait-while MS CONDITION` | Wait until / while the condition holds, 0–300000ms (0 = up to the whole limit) |
 | `z2-action inspect PACKAGE` | Return focused target-app elements as JSON; a CLI command, not a macro instruction |
 

@@ -4,7 +4,8 @@ package com.zerotoship.z2term.automation
 internal data class ActionProgram(val name: String, val definitions: Map<String, ActionDefinition>) {
     val root get() = definitions.getValue(name)
     val hasControlFlow = ActionDefinition.allSteps(root.steps).any {
-        it is ActionDefinition.Step.Repeat || it is ActionDefinition.Step.Branch || it is ActionDefinition.Step.Call
+        it is ActionDefinition.Step.Repeat || it is ActionDefinition.Step.Branch || it is ActionDefinition.Step.Call ||
+            it is ActionDefinition.Step.Watch || it is ActionDefinition.Step.RunOutput
     }
     val usesCurrentTarget get() = definitions.values.any { definition ->
         ActionDefinition.allSteps(definition.steps).any { step ->
@@ -17,6 +18,10 @@ internal data class ActionProgram(val name: String, val definitions: Map<String,
                     ActionCondition.parse(step.condition).readsScreen
                 is ActionDefinition.Step.WaitFor -> step.target == ActionDefinition.CURRENT_TARGET &&
                     ActionCondition.parse(step.condition).readsScreen
+                is ActionDefinition.Step.Watch -> step.target == ActionDefinition.CURRENT_TARGET &&
+                    ActionCondition.parse(step.condition).readsScreen
+                // 出力される手順は前面の画面を相手にするかもしれない。
+                is ActionDefinition.Step.RunOutput -> step.target == ActionDefinition.CURRENT_TARGET
                 else -> false
             }
         }
@@ -48,6 +53,8 @@ internal data class ActionProgram(val name: String, val definitions: Map<String,
                         is ActionDefinition.Step.Repeat -> 1 + bodyDepth(step.body)
                         is ActionDefinition.Step.Branch -> 1 + maxOf(bodyDepth(step.yes), bodyDepth(step.no))
                         is ActionDefinition.Step.Call -> visit(step.name, callDepth + 1)
+                        // 割り込みで呼ぶ先も、呼び出しと同じく実行前に検査・固定する。
+                        is ActionDefinition.Step.Watch -> visit(step.name, callDepth + 1)
                         else -> 0
                     }
                 } ?: 0
@@ -55,7 +62,8 @@ internal data class ActionProgram(val name: String, val definitions: Map<String,
                 require(depth <= MAX_FRAME_DEPTH) { "Combined call/block nesting exceeds $MAX_FRAME_DEPTH" }
                 visiting -= current
                 heights[current] = 1 + (ActionDefinition.allSteps(definition.steps)
-                    .filterIsInstance<ActionDefinition.Step.Call>().maxOfOrNull { heights.getValue(it.name) } ?: 0)
+                    .mapNotNull { (it as? ActionDefinition.Step.Call)?.name ?: (it as? ActionDefinition.Step.Watch)?.name }
+                    .maxOfOrNull { heights.getValue(it) } ?: 0)
                 depths[current] = depth
                 return depth
             }

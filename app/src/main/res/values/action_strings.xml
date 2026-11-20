@@ -78,6 +78,7 @@
     <string name="action_edit_toggle_comment"># Comment</string>
     <string name="action_edit_wait_until">Wait until</string>
     <string name="action_edit_wait_while">Wait while</string>
+    <string name="action_edit_run_output">Run output as steps</string>
     <string name="action_edit_blocks_hint">Add steps inside each block. Use ⋮ to move, duplicate or remove complete steps and blocks.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · instructions: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · iteration %3$d</string>

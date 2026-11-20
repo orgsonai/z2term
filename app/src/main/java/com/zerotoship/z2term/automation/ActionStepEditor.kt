@@ -39,6 +39,7 @@ internal object ActionStepEditor {
         Kind("swipe-two-path", R.string.action_edit_two_path, listOf(R.string.action_edit_unit, R.string.action_edit_path_data), listOf("percent", "")),
         Kind("scroll", R.string.action_edit_scroll, listOf(R.string.action_edit_speed, R.string.action_edit_ms, R.string.action_edit_window_x, R.string.action_edit_window_y), listOf("-600", "2000", "50", "50")),
         Kind("command", R.string.action_edit_command, listOf(R.string.action_edit_command), listOf("")),
+        Kind("run-output", R.string.action_edit_run_output, listOf(R.string.action_edit_command), listOf("")),
     )
 
     private fun Float.round3(): String =
@@ -47,7 +48,7 @@ internal object ActionStepEditor {
     fun supports(line: String): Boolean {
         val words = line.trim().split(Regex("\\s+"))
         val kind = kinds.firstOrNull { it.verb == words.first() } ?: return false
-        return kind.verb in listOf("command", "if", "repeat", "click", "long-click", "wait-ui", "wait-until", "wait-while", "touch", "swipe-path", "swipe-two-path", "drag") ||
+        return kind.verb in listOf("command", "run-output", "if", "repeat", "click", "long-click", "wait-ui", "wait-until", "wait-while", "touch", "swipe-path", "swipe-two-path", "drag") ||
             words.size == kind.fields.size + 1 || (kind.fields.lastOrNull() == R.string.action_edit_easing && words.size == kind.fields.size)
     }
 
@@ -64,7 +65,7 @@ internal object ActionStepEditor {
             else kinds.filterNot { it.verb in listOf("repeat", "if", "touch", "swipe-path", "swipe-two-path") && it.verb != initialVerb }
         var kind = available.firstOrNull { it.verb == trimmed.split(Regex("\\s+")).first() }
             ?: kinds.first { it.verb == "wait" }
-        var values = if (kind.verb in listOf("command", "if", "click", "long-click")) listOf(trimmed.removePrefix(kind.verb).trimStart())
+        var values = if (kind.verb in listOf("command", "run-output", "if", "click", "long-click")) listOf(trimmed.removePrefix(kind.verb).trimStart())
             else if (kind.verb in listOf("wait-ui", "wait-until", "wait-while", "touch", "swipe-path", "swipe-two-path")) trimmed.split(Regex("\\s+"), limit = 3).drop(1)
             // drag は「単位・1 区間の時間・点の並び (空白区切り)」の 3 欄。点は 1 つの欄にまとめる。
             else if (kind.verb == "drag") trimmed.split(Regex("\\s+"), limit = 4).drop(1).let { if (it.size == 2) it + "" else it }

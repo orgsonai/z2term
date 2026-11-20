@@ -167,6 +167,8 @@ internal object ActionRuntime {
                 is ActionDefinition.Step.Repeat -> "repeat"
                 is ActionDefinition.Step.Branch -> "if"
                 is ActionDefinition.Step.Call -> "call"
+                is ActionDefinition.Step.Watch -> "watch"
+                is ActionDefinition.Step.RunOutput -> "run-output"
                 is ActionDefinition.Step.Ui -> step.operation
                 is ActionDefinition.Step.WaitFor -> if (step.until) "wait-until" else "wait-while"
                 is ActionDefinition.Step.Wait -> "wait"
@@ -180,7 +182,28 @@ internal object ActionRuntime {
             resolve = { run.program.definitions.getValue(it) },
             name = run.name,
             branch = { _, matched -> log(run, "branch", matched.toString()) },
-            test = { spec, target, answer -> test(run, spec, target, answer) })
+            test = { spec, target, answer -> test(run, spec, target, answer) },
+            expand = { step, produced -> expand(run, step, produced) },
+            // 割り込みは手順の 1 つとして記録する (履歴の一覧では手順と同じく畳まれる)。
+            watched = { log(run, "step", "watch " + it.name) })
+    }
+    /**
+     * `run-output`: シェルの標準出力を手順として読む。今の画面寸法と、その行の対象アプリを引き継いで検査する。
+     * 出力は 64 KiB まで (EdgeRunner の上限)。終了コードが 0 以外なら失敗 (出力は使わない)。
+     */
+    private fun expand(run: Run, step: ActionDefinition.Step.RunOutput,
+        produced: (List<ActionDefinition.Step>?, String?) -> Unit): () -> Unit {
+        checkDevice(run)
+        val started = run.runner.run("macro:${run.id}", step.text, run.definition.timeoutMs / 1000) { result ->
+            if (result.error != null) produced(null, result.error)
+            else {
+                val steps = try { ActionDefinition.fragment(result.output, run.screen, step.target) }
+                    catch (e: Exception) { produced(null, e.message ?: "run-output produced invalid steps"); return@run }
+                produced(steps, null)
+            }
+        }
+        check(started) { "Cannot start shell command" }
+        return { run.runner.cancelAll() }
     }
     /**
      * 条件式を 1 回確かめる (if / wait-until / wait-while)。端末の状態はその場で読み、画面の要素・色と
@@ -288,7 +311,8 @@ internal object ActionRuntime {
             AndroidActions.focusedPackage() ?: error(run.context.getString(com.zerotoship.z2term.R.string.action_run_no_foreground))
             else requested
         when (step) {
-            is ActionDefinition.Step.Repeat, is ActionDefinition.Step.Branch, is ActionDefinition.Step.Call ->
+            is ActionDefinition.Step.Repeat, is ActionDefinition.Step.Branch, is ActionDefinition.Step.Call,
+            is ActionDefinition.Step.Watch, is ActionDefinition.Step.RunOutput ->
                 error("Control flow must be handled by the execution engine")
             is ActionDefinition.Step.Ui -> {
                 val resolved = step.copy(target = target(step.target))
