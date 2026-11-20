@@ -82,6 +82,8 @@
     <string name="action_edit_human">Masukan alami</string>
     <string name="action_macro_human_on">Masukan alami: aktif</string>
     <string name="action_macro_human_off">Masukan alami: nonaktif</string>
+    <string name="action_trail_setting">Tampilkan jejak operasi</string>
+    <string name="action_trail_setting_desc">Saat makro berjalan, menggambar titik yang ditekan dan garis yang ditelusuri, termasuk gerakan alami. Gambar tidak dapat disentuh sehingga tidak mengganggu, dan dihapus sebelum kondisi warna dibaca.</string>
     <string name="action_edit_blocks_hint">Tambahkan langkah di dalam setiap blok. Pakai ⋮ untuk memindahkan, menduplikat, atau menghapus langkah dan blok utuh.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · instruksi: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · iterasi %3$d</string>

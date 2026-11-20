@@ -82,6 +82,8 @@
     <string name="action_edit_human">Saisie naturelle</string>
     <string name="action_macro_human_on">Saisie naturelle : activée</string>
     <string name="action_macro_human_off">Saisie naturelle : désactivée</string>
+    <string name="action_trail_setting">Afficher la trace des actions</string>
+    <string name="action_trail_setting_desc">Pendant une macro, dessine où elle appuie et les lignes qu’elle trace, mouvement naturel compris. Le dessin ne capte pas le toucher, il ne gêne donc pas, et il est retiré avant la lecture d’une condition de couleur.</string>
     <string name="action_edit_blocks_hint">Ajoutez des étapes dans chaque bloc. Utilisez ⋮ pour déplacer, dupliquer ou retirer des étapes et des blocs entiers.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · instructions : %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · itération %3$d</string>

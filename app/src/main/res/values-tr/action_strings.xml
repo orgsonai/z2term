@@ -82,6 +82,8 @@
     <string name="action_edit_human">İnsan gibi giriş</string>
     <string name="action_macro_human_on">İnsan gibi giriş: açık</string>
     <string name="action_macro_human_off">İnsan gibi giriş: kapalı</string>
+    <string name="action_trail_setting">İşlem izini göster</string>
+    <string name="action_trail_setting_desc">Makro çalışırken bastığı yerleri ve çizdiği çizgileri, insan gibi hareket dahil, ekrana çizer. Çizim dokunmayı almaz, bu yüzden engel olmaz; renk koşulu okunmadan önce kaldırılır.</string>
     <string name="action_edit_blocks_hint">Her bloğun içine adım ekleyin. Tüm adımları ve blokları taşımak, çoğaltmak veya kaldırmak için ⋮ kullanın.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · talimat: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · tur %3$d</string>

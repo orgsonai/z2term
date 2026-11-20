@@ -82,6 +82,8 @@
     <string name="action_edit_human">사람다운 조작</string>
     <string name="action_macro_human_on">사람다운 조작: 켬</string>
     <string name="action_macro_human_off">사람다운 조작: 끔</string>
+    <string name="action_trail_setting">조작 궤적 표시</string>
+    <string name="action_trail_setting_desc">실행 중 매크로가 누른 위치와 그은 선을 화면에 그립니다(사람다운 조작의 흔들림 포함). 터치되지 않는 창이라 조작을 방해하지 않으며, 색 조건을 읽기 전에는 지웁니다.</string>
     <string name="action_edit_blocks_hint">각 블록 안에 단계를 추가하세요. ⋮에서 단계와 블록 전체를 이동, 복제 또는 삭제할 수 있습니다.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · %3$d단계</string>
     <string name="action_edit_location">%1$s / %2$s · %3$d회차</string>

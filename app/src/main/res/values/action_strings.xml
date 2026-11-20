@@ -82,6 +82,8 @@
     <string name="action_edit_human">Human-like input</string>
     <string name="action_macro_human_on">Human-like input: on</string>
     <string name="action_macro_human_off">Human-like input: off</string>
+    <string name="action_trail_setting">Show the trail of operations</string>
+    <string name="action_trail_setting_desc">While a macro runs, draws where it presses and the lines it traces, including human-like movement. The drawing cannot be touched, so it does not get in the way, and it is removed before a colour condition is read.</string>
     <string name="action_edit_blocks_hint">Add steps inside each block. Use ⋮ to move, duplicate or remove complete steps and blocks.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · instructions: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · iteration %3$d</string>

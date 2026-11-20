@@ -82,6 +82,8 @@
     <string name="action_edit_human">擬人操作</string>
     <string name="action_macro_human_on">擬人操作：開</string>
     <string name="action_macro_human_off">擬人操作：關</string>
+    <string name="action_trail_setting">顯示操作軌跡</string>
+    <string name="action_trail_setting_desc">執行巨集時，在螢幕上畫出它點按的位置和劃過的線（包含擬人操作的抖動）。該視窗不接收觸控，不會妨礙操作；讀取顏色條件前會先清除。</string>
     <string name="action_edit_blocks_hint">在各區塊內新增步驟。用⋮移動、複製或刪除整個步驟和區塊。</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · %3$d條指令</string>
     <string name="action_edit_location">%1$s / %2$s · 第%3$d次</string>

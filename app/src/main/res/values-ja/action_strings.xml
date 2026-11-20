@@ -82,6 +82,8 @@
     <string name="action_edit_human">人らしい操作</string>
     <string name="action_macro_human_on">人らしい操作: オン</string>
     <string name="action_macro_human_off">人らしい操作: オフ</string>
+    <string name="action_trail_setting">操作の軌跡を表示</string>
+    <string name="action_trail_setting_desc">実行中、マクロが押した位置となぞった線を画面に描きます（人らしい操作の揺らぎも含みます）。触れない窓なので操作の邪魔はしません。色の条件を読む前には消します。</string>
     <string name="action_edit_blocks_hint">各ブロックの「手順を追加」で内部に追加できます。⋮から手順・ブロック全体を移動・複製・削除できます。</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · %3$d手順</string>
     <string name="action_edit_location">%1$s / %2$s · %3$d回目</string>

@@ -82,6 +82,8 @@
     <string name="action_edit_human">Input naturale</string>
     <string name="action_macro_human_on">Input naturale: attivo</string>
     <string name="action_macro_human_off">Input naturale: disattivato</string>
+    <string name="action_trail_setting">Mostra la traccia delle azioni</string>
+    <string name="action_trail_setting_desc">Durante una macro disegna dove tocca e le linee che traccia, incluso il movimento naturale. Il disegno non riceve tocchi, quindi non intralcia, e viene tolto prima di leggere una condizione di colore.</string>
     <string name="action_edit_blocks_hint">Aggiungi passaggi dentro ogni blocco. Usa ⋮ per spostare, duplicare o eliminare passaggi e blocchi interi.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · istruzioni: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · iterazione %3$d</string>

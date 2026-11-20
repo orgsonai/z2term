@@ -216,9 +216,12 @@ With `human=on` in the headers, finger operations and waits come closer to a per
 
 - Taps, long presses and double taps: the point moves a little each time (up to 0.6% of the screen's short side, about 6 px at 1080 px wide). Taps last 60–110 ms, long presses vary by ±8% and the double-tap gap by ±15%.
 - Swipes: the line bows slightly (up to 5% of its length, 48 px at most), starts and stops slowly with a little variation on the way, and ends slightly off the exact point; the whole duration varies by ±8%. This takes precedence over accelerate/decelerate.
-- Drags and recorded touches: the shape stays, the position moves slightly, and with one finger each segment's time varies by ±20% (same total). Two-finger gestures move together.
+- Drags (`drag`, 1.0.185): every given point is still passed through (for puzzles where the cells matter). Each segment bows slightly (4% of its length, 12 px at most), the finger slows near the points without stopping, and corners are rounded by at most 4 px. Segment times vary by ±20% with the same total.
+- Recorded touches: the shape stays, the position moves slightly, and with one finger each segment's time varies by ±20% (same total). Two-finger gestures move together.
 - `wait`: ±10% (up to ±300 ms).
 - Moved points stay inside the foreground app's window. Scrolling (`scroll`) and element actions (`click` and so on) are unchanged.
+
+**Show the trail of operations (1.0.185)**: with "Show the trail of operations" on in the screen-actions tab, a running macro's presses and traced lines are drawn on screen in the same green as AI app control. The line grows along the path actually sent (human-like movement, two fingers and timing included) and fades one second after the finger lifts. The drawing cannot be touched, so it never gets in the way, and it is removed before a colour condition is read. Off by default.
 
 While running, **～** on the stop bar switches it (accent colour when on), from the next step. Whether it starts on is decided by the first macro's header; `human=` in called macros is not used. In the form editor, tapping the "Human-like input" row flips on / off.
 

@@ -33,7 +33,9 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         data class Stroke(val target: String, val unit: String, val x1: Float, val y1: Float,
             val x2: Float, val y2: Float, val ms: Long, val path: List<ActionGesture.Point> = emptyList(),
             val easing: String = "linear", val secondPath: List<ActionGesture.Point> = emptyList(),
-            val taps: Int = 1, val gapMs: Long = 100) : Step {
+            val taps: Int = 1, val gapMs: Long = 100,
+            /** `drag`: [path] is points the finger must pass through (not a recorded trace). */
+            val waypoints: Boolean = false) : Step {
             val durationMs get() = ms * taps + gapMs * (taps - 1)
             fun tracks(screen: Screen): List<List<ActionGesture.Point>> {
                 val tracks = listOf(timedPoints(screen)) + if (secondPath.isEmpty()) emptyList()
@@ -332,7 +334,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                         require(total <= ActionGesture.MAX_MS) { "The whole drag must finish within ${ActionGesture.MAX_MS} ms" }
                         val path = coordinates.mapIndexed { i, (x, y) -> ActionGesture.Point(x, y, i * step) }
                         steps += Step.Stroke(destination(), words[1], path.first().x, path.first().y,
-                            path.last().x, path.last().y, total, path)
+                            path.last().x, path.last().y, total, path, waypoints = true)
                     }
                     "swipe-path", "swipe-two-path", "touch" -> {
                         require(headers["version"] == "2") { "Freehand swipes require version=2" }

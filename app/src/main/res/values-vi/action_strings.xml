@@ -82,6 +82,8 @@
     <string name="action_edit_human">Thao tác tự nhiên</string>
     <string name="action_macro_human_on">Thao tác tự nhiên: bật</string>
     <string name="action_macro_human_off">Thao tác tự nhiên: tắt</string>
+    <string name="action_trail_setting">Hiện vết thao tác</string>
+    <string name="action_trail_setting_desc">Khi macro chạy, vẽ chỗ nó chạm và đường nó kéo, kể cả chuyển động tự nhiên. Hình vẽ không nhận chạm nên không cản trở, và được xóa trước khi đọc điều kiện màu.</string>
     <string name="action_edit_blocks_hint">Thêm bước vào trong từng khối. Dùng ⋮ để di chuyển, nhân bản hoặc gỡ trọn bước và khối.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · lệnh: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · lượt %3$d</string>

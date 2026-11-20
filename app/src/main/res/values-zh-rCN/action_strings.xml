@@ -82,6 +82,8 @@
     <string name="action_edit_human">拟人操作</string>
     <string name="action_macro_human_on">拟人操作：开</string>
     <string name="action_macro_human_off">拟人操作：关</string>
+    <string name="action_trail_setting">显示操作轨迹</string>
+    <string name="action_trail_setting_desc">运行宏时，在屏幕上画出它点按的位置和划过的线（包含拟人操作的抖动）。该窗口不接收触摸，不会妨碍操作；读取颜色条件前会先清除。</string>
     <string name="action_edit_blocks_hint">在各代码块内添加步骤。用⋮移动、复制或删除整个步骤和代码块。</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · %3$d条指令</string>
     <string name="action_edit_location">%1$s / %2$s · 第%3$d次</string>

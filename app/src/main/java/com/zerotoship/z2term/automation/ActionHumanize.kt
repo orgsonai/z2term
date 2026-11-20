@@ -14,7 +14,9 @@ import kotlin.random.Random
  *
  * - タップ・長押し・ダブルタップ: 押す位置を少しずらし、押す長さと間隔をばらつかせる。
  * - スワイプ (直線): 線を少し曲げ、動き出しと止まり際を遅く、途中の速さも揺らす。終点も少しずらす。
- * - なぞる・記録した軌跡: 形はそのまま位置だけずらし、1 本指なら区間ごとの時間を揺らす (全体の長さは同じ)。
+ * - なぞる (`drag`、1.0.185): 決めた点は必ず通り、区間ごとに少し弓なりにして、点の近くで速さを落とす
+ *   (止まりはしない)。角は最大 4 px だけ丸める。区間の時間を揺らし、全体の長さは同じ。
+ * - 記録した軌跡: 形はそのまま位置だけずらし、1 本指なら区間ごとの時間を揺らす (全体の長さは同じ)。
  * - wait: ±10% (最大 ±300 ms) ばらつかせる。
  *
  * 点は [area] (前面の窓の中) に収める。座標は px の手順にして返す。
@@ -64,8 +66,11 @@ internal object ActionHumanize {
             }
         }
         val tracks = step.tracks(screen).map { track -> track.map { it.copy(x = clampX(it.x + dx), y = clampY(it.y + dy)) } }
-        val first = if (tracks.size == 1) retime(tracks[0], radius, random).map { it.copy(x = clampX(it.x), y = clampY(it.y)) }
-            else tracks[0]
+        val first = when {
+            tracks.size != 1 -> tracks[0]
+            step.waypoints -> waypoints(tracks[0], radius, random)
+            else -> retime(tracks[0], radius, random)
+        }.map { it.copy(x = clampX(it.x), y = clampY(it.y)) }
         return step.copy(unit = "px", x1 = first.first().x, y1 = first.first().y, x2 = first.last().x, y2 = first.last().y,
             path = first, secondPath = tracks.getOrNull(1).orEmpty())
     }
@@ -96,6 +101,61 @@ internal object ActionHumanize {
             ActionGesture.Point(x1 + (x2 - x1) * s + nx * side, y1 + (y2 - y1) * s + ny * side, time)
         }
     }
+
+    /**
+     * `drag` の通過点を人の線にする。点は必ず通る (パズルのように、通るマスが決まっている画面のため)。
+     * 区間ごとに長さの 4% (最大 12 px) まで弓なりにし、進み方は `u - k·sin(2πu)/2π` (k = 0.5〜0.8) で
+     * 点の近くを遅く・区間の中ほどを速くする (k < 1 なので止まらず後戻りもしない)。区間の時間は ±20%
+     * (合計は同じ)。最後に角を最大 [MAX_CORNER_PX] だけ丸め、0.5 px ほど震わせる。
+     */
+    private fun waypoints(track: List<ActionGesture.Point>, radius: Float, random: Random): List<ActionGesture.Point> {
+        if (track.size < 2) return track
+        val start = track.first().ms
+        val total = track.last().ms - start
+        val weights = track.zipWithNext { a, b -> (b.ms - a.ms).toDouble() * (1 + (random.nextDouble() * 2 - 1) * 0.2) }
+        val sum = weights.sum().takeIf { it > 0 } ?: return track
+        // 点は 16 ms ごと。長いなぞりでも点の数が上限 (2048) を超えないよう間隔を広げる。
+        val sample = maxOf(ActionGesture.SAMPLE_MS, total / 1800 + 1)
+        val bowCap = minOf(12f, radius * 2)
+        val out = mutableListOf(track.first())
+        var segmentStart = start.toDouble()
+        for (i in 0 until track.lastIndex) {
+            val a = track[i]; val b = track[i + 1]
+            val segmentEnd = if (i == track.lastIndex - 1) track.last().ms.toDouble() else segmentStart + weights[i] / sum * total
+            val length = hypot(b.x - a.x, b.y - a.y)
+            val nx = if (length > 0) -(b.y - a.y) / length else 0f
+            val ny = if (length > 0) (b.x - a.x) / length else 0f
+            val bow = ((random.nextDouble() * 2 - 1) * 0.04 * length).toFloat().coerceIn(-bowCap, bowCap)
+            val k = 0.5 + random.nextDouble() * 0.3
+            var time = out.last().ms + sample
+            while (time < segmentEnd.roundToLong()) {
+                val u = (time - segmentStart) / (segmentEnd - segmentStart)
+                val s = (u - k * sin(2 * PI * u) / (2 * PI)).toFloat()
+                val side = bow * sin(PI * s).toFloat()
+                out += ActionGesture.Point(a.x + (b.x - a.x) * s + nx * side, a.y + (b.y - a.y) * s + ny * side, time)
+                time += sample
+            }
+            val end = segmentEnd.roundToLong().coerceAtLeast(out.last().ms + 1)
+            out += ActionGesture.Point(b.x, b.y, if (i == track.lastIndex - 1) track.last().ms else end)
+            segmentStart = segmentEnd
+        }
+        // 時刻は増え続けること (最後の点は元の終わりの時刻)。詰まった点は落とす。
+        val timed = out.dropLast(1).filter { it.ms < track.last().ms }
+            .fold(mutableListOf<ActionGesture.Point>()) { list, p -> if (list.isEmpty() || p.ms > list.last().ms) list += p; list }
+        timed += out.last()
+        val corner = minOf(MAX_CORNER_PX, radius / 2)
+        val tremor = minOf(0.5f, radius / 8)
+        return timed.mapIndexed { i, p ->
+            if (i == 0 || i == timed.lastIndex) return@mapIndexed p
+            val mx = (timed[i - 1].x + timed[i + 1].x) / 2 - p.x
+            val my = (timed[i - 1].y + timed[i + 1].y) / 2 - p.y
+            val shift = hypot(mx, my)
+            val scale = if (shift > corner) corner / shift else 1f
+            p.copy(x = p.x + mx * scale + ((random.nextDouble() * 2 - 1) * tremor).toFloat(),
+                y = p.y + my * scale + ((random.nextDouble() * 2 - 1) * tremor).toFloat())
+        }
+    }
+    private const val MAX_CORNER_PX = 4f
 
     /** 1 本指の軌跡の区間ごとの時間を ±20% 揺らす。始まりと終わりの時刻は同じ。途中の点を 1 px ほど震わせる。 */
     private fun retime(track: List<ActionGesture.Point>, radius: Float, random: Random): List<ActionGesture.Point> {

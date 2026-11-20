@@ -57,6 +57,7 @@ internal object ActionRunOverlay {
 
     private const val PREFS = "action_run_overlay"
     private const val KEY_ENABLED = "enabled"
+    private const val KEY_TRAIL = "trail"
     private const val KEY_X = "x"
     private const val KEY_Y = "y"
     private const val KEY_PICKED = "picked"
@@ -77,6 +78,9 @@ internal object ActionRunOverlay {
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     fun enabled(context: Context): Boolean = prefs(context).getBoolean(KEY_ENABLED, false)
     fun setEnabled(context: Context, value: Boolean) { prefs(context).edit().putBoolean(KEY_ENABLED, value).apply() }
+    /** マクロの指の軌跡を画面に描くか (1.0.185、既定 OFF)。描くのは [com.zerotoship.z2term.edge.UiTrail]。 */
+    fun trailEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_TRAIL, false)
+    fun setTrailEnabled(context: Context, value: Boolean) { prefs(context).edit().putBoolean(KEY_TRAIL, value).apply() }
 
     private var service: AccessibilityService? = null
     private var root: View? = null

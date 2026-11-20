@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.185 (versionCode 883)**: Drags (`drag`) with `human=on` now look like a finger. Segments used to stay straight, so corners such as an inverted V looked mechanical; now every given point is still passed, but each segment bows a little, the finger slows near corners and corners are slightly rounded. The screen-actions tab gains "Show the trail of operations": like AI app control, it draws where a macro presses and the lines it traces (human-like movement included)
+
 **1.0.184 (versionCode 882)**: Screen-action macros gain `human=on`: taps land slightly off each time, swipes bow a little and start and stop slowly, and drags and `wait` vary their timing a little. ～ on the stop bar switches it while running, and the "Human-like input" row in the form editor flips on / off
 
 **1.0.183 (versionCode 881)**: Screen-action macros gain `watch CONDITION call NAME`, which watches the condition until its block ends and, when it holds, calls that macro as an interruption before returning to where it was. A waiting step is cut short and redone afterwards; taps and shell commands finish first. `run-output SHELL` was added too: the steps a program prints on standard output are checked and executed in place, so work such as reading a board and deciding the moves can become a macro without an AI

@@ -377,7 +377,8 @@ internal object ActionRuntime {
                 return ActionRunOverlay.clear({ box -> points.any { box.contains(it.x.toInt(), it.y.toInt()) } }, ::schedule, ::done) { finished ->
                     check(current === run) { "Stopped" }
                     AndroidActions.stroke(resolved, run.screen, finished,
-                        human = if (run.human) { stroke, area -> ActionHumanize.stroke(stroke, run.screen, area, run.random) } else null)
+                        human = if (run.human) { stroke, area -> ActionHumanize.stroke(stroke, run.screen, area, run.random) } else null,
+                        trail = ActionRunOverlay.trailEnabled(run.context))
                 }
             }
             is ActionDefinition.Step.Scroll -> {

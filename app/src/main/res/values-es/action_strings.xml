@@ -82,6 +82,8 @@
     <string name="action_edit_human">Entrada humana</string>
     <string name="action_macro_human_on">Entrada humana: activada</string>
     <string name="action_macro_human_off">Entrada humana: desactivada</string>
+    <string name="action_trail_setting">Mostrar el rastro de las acciones</string>
+    <string name="action_trail_setting_desc">Mientras se ejecuta una macro, dibuja dónde toca y las líneas que traza, incluido el movimiento humano. El dibujo no se puede tocar, así que no estorba, y se quita antes de leer una condición de color.</string>
     <string name="action_edit_blocks_hint">Añade pasos dentro de cada bloque. Usa ⋮ para mover, duplicar o eliminar pasos y bloques completos.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · %3$d instrucciones</string>
     <string name="action_edit_location">%1$s / %2$s · repetición %3$d</string>

@@ -62,17 +62,48 @@ class ActionHumanizeTest {
         human.tracks(screen)
     }
 
-    @Test fun dragsKeepTheirShapeAndTotalTimeAndStayInsideTheWindow() {
-        val drag = steps("drag px 100 10,10 500,10 500,500 10,500").single()
-        val human = ActionHumanize.stroke(drag, screen, ActionHumanize.Area(0, 0, 1080, 2400), Random(3))
-        assertEquals(drag.path.size, human.path.size)
-        assertEquals(drag.path.last().ms, human.path.last().ms)
-        assertTrue(human.path.zipWithNext().all { (a, b) -> a.ms < b.ms })
-        assertTrue(human.path.zip(drag.path).all { (h, d) -> hypot(h.x - d.x, h.y - d.y) <= radius + 2f })
-        assertTrue(human.path.all { it.x >= 0 && it.y >= 0 })
+    @Test fun dragsPassEveryPointSlowDownAtCornersAndBend() {
+        // 逆 V: 左下 → 上の頂点 → 右下。1 区間 300 ms。
+        val drag = steps("drag px 300 200,800 500,500 800,800").single()
+        assertTrue(drag.waypoints)
+        assertFalse(steps("touch px 1,1,0 2,2,16 3,3,32").single().waypoints)
+        val human = ActionHumanize.stroke(drag, screen, area, Random(3))
+        val path = human.path
+        assertEquals(600L, path.last().ms)
+        assertEquals(0L, path.first().ms)
+        assertTrue(path.zipWithNext().all { (a, b) -> a.ms < b.ms })
+        assertTrue(path.size > 20)                                   // 16 ms ごとの点になる
+        // 決めた点はどれも通る (ずらし + 角の丸め 4 px + 震え 0.5 px の内側)
+        for (p in drag.path) assertTrue(path.minOf { hypot(it.x - p.x, it.y - p.y) } <= radius + 4.6f)
+        // 頂点の近くは区間の中ほどより遅い (止まりはしない)
+        fun speedAt(target: Float): Float {
+            val i = path.indices.drop(1).minByOrNull { abs(path[it].x - target) }!!
+            return hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y) / (path[i].ms - path[i - 1].ms)
+        }
+        assertTrue(speedAt(500f) < speedAt(350f))
+        assertTrue(speedAt(500f) > 0f)
+        // 多くの回で、区間がまっすぐではない
+        val bent = (1..40).count { seed ->
+            val moved = ActionHumanize.stroke(drag, screen, area, Random(seed)).path
+            // 全体のずれを戻してから、左の区間の直線 (y = 800 - (x - 200)) からの離れを見る
+            val ox = moved.first().x - 200; val oy = moved.first().y - 800
+            moved.map { it.x - ox to it.y - oy }.filter { it.first in 260f..440f }.any { (x, y) ->
+                abs(y - (800 - (x - 200))) / 1.414f > 2.5f
+            }
+        }
+        assertTrue(bent > 25)
+        human.tracks(screen)
         val edge = ActionHumanize.stroke(steps("tap px 0 0").single(), screen, ActionHumanize.Area(0, 100, 1080, 2400), Random(5))
         assertTrue(edge.x1 >= 0 && edge.y1 >= 100)
-        human.tracks(screen)
+    }
+
+    @Test fun recordedTouchesKeepTheirPointsAndTotalTime() {
+        val touch = steps("touch px 10,10,0 20,12,16 30,15,32 40,20,48 50,30,64").single()
+        val human = ActionHumanize.stroke(touch, screen, area, Random(4))
+        assertEquals(touch.path.size, human.path.size)
+        assertEquals(touch.path.last().ms, human.path.last().ms)
+        assertTrue(human.path.zipWithNext().all { (a, b) -> a.ms < b.ms })
+        assertTrue(human.path.zip(touch.path).all { (h, d) -> hypot(h.x - d.x, h.y - d.y) <= radius + 2f })
     }
 
     @Test fun twoFingerGesturesOnlyShiftTogether() {

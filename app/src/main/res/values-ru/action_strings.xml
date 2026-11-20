@@ -82,6 +82,8 @@
     <string name="action_edit_human">Живой ввод</string>
     <string name="action_macro_human_on">Живой ввод: вкл.</string>
     <string name="action_macro_human_off">Живой ввод: выкл.</string>
+    <string name="action_trail_setting">Показывать след действий</string>
+    <string name="action_trail_setting_desc">Во время макроса рисует, куда он нажимает и какие линии проводит, включая живое движение. Рисунок не принимает касаний и не мешает, а перед чтением условия по цвету убирается.</string>
     <string name="action_edit_blocks_hint">Добавляйте шаги внутрь каждого блока. Через ⋮ можно перемещать, дублировать или удалять целые шаги и блоки.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · инструкций: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · проход %3$d</string>

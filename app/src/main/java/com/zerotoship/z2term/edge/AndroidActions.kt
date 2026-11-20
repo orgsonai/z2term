@@ -385,7 +385,8 @@ class AndroidActions : AccessibilityService() {
         internal fun stroke(step: com.zerotoship.z2term.automation.ActionDefinition.Step.Stroke,
             screen: com.zerotoship.z2term.automation.ActionDefinition.Screen, done: (String?) -> Unit,
             human: ((com.zerotoship.z2term.automation.ActionDefinition.Step.Stroke,
-                com.zerotoship.z2term.automation.ActionHumanize.Area) -> com.zerotoship.z2term.automation.ActionDefinition.Step.Stroke)? = null): () -> Unit {
+                com.zerotoship.z2term.automation.ActionHumanize.Area) -> com.zerotoship.z2term.automation.ActionDefinition.Step.Stroke)? = null,
+            trail: Boolean = false): () -> Unit {
             val service = active ?: error("Enable z2term Android actions in Accessibility settings")
             check(!service.autoScroll.running && !service.autoScroll.inFlight) { "Wait for scrolling to finish" }
             val target = service.focusedTarget() ?: error("No focused application window")
@@ -397,6 +398,9 @@ class AndroidActions : AccessibilityService() {
             check(points.all { target.bounds.contains(it.x.toInt(), it.y.toInt()) }) {
                 "Coordinates must be inside the visible target window, above the keyboard"
             }
+            // 指の軌跡 (画面操作のタブの設定、1.0.185)。送る経路そのもの (揺らぎ込み) を描く。
+            if (trail) UiTrail.timed(service, sent.tracks(screen).map { track -> track.map { Triple(it.x, it.y, it.ms) } },
+                sent.durationMs)
             return service.coordinateStroke.dispatch(sent, screen, stillTarget = {
                 val current = service.focusedTarget()
                 current != null && current.id == target.id && current.bounds == target.bounds &&
