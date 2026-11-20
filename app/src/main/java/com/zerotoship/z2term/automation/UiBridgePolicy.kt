@@ -308,7 +308,7 @@ internal object UiBridgePolicy {
 /**
  * `z2-ui save` の材料。成功した操作を z2-action の 1 行へ書き直す (Android 非依存・UiBridgePolicyTest)。
  *
- * ⚠ **書き直せない操作は黙って落とさない。** 文字入力・確定キー・スクロール・画面の変化待ち・URI を開く
+ * ⚠ **書き直せない操作は黙って落とさない。** 追記の文字入力・スクロール・画面の変化待ち・URI を開く
  * ・通知は z2-action に同じ命令が無い。落として保存すると、再生したときに途中が抜けた別の手順になる。
  * そうした操作を含む区間は保存を断り、`mark` で区切り直してもらう。
  */
@@ -331,6 +331,28 @@ internal object UiBridgeReplay {
     fun step(verb: String, args: List<String>, named: (Int) -> Named?): Step {
         if (verb in READ_ONLY) return Step(null, null)
         return when (verb) {
+            // 文字入力と確定キー (1.0.193)。z2-ui は欄を指定するが、z2-action はフォーカスのある欄に入れるので、
+            // 「欄を指で押す (tap ui / tap)」→ type / enter の 2 行にする。続けて同じ欄なら押し直しは definition で省く。
+            "type", "enter" -> {
+                val text = if (verb == "type") args.getOrNull(1) ?: return Step(null, verb) else null
+                if (verb == "type" && args.getOrNull(2) == "--append") return Step(null, "type --append")
+                // 1 行に収まり、前後の空白と `$1` を含まない文字だけ (z2-action の type は行の残りをそのまま入れ、
+                // 前後の空白は落ち、`$1` は呼び出しの値に置き換わる)。
+                if (text != null && (text != text.trim() || '\n' in text || '\r' in text || Regex("\\$[1-9#]").containsMatchIn(text) ||
+                        text.length > ActionDefinition.MAX_TYPE_CHARS)) return Step(null, "type (text z2-action cannot type as is)")
+                val action = if (text == null) "enter" else "type $text"
+                fun at(x: Int, y: Int) = Step("tap px $x $y\n$action", null, coordinates = true)
+                when (val target = UiBridgePolicy.target(args[0])) {
+                    is UiBridgePolicy.Target.Find -> Step("tap ui ${target.selector}\n$action", null)
+                    is UiBridgePolicy.Target.Point -> at(target.x, target.y)
+                    is UiBridgePolicy.Target.Ref -> {
+                        val element = named(target.n) ?: return Step(null, "$verb #${target.n}")
+                        // 欄の文字は中身のこともあるので、ID が無ければ座標で押す。
+                        element.id?.let { "id=$it" }?.takeIf { runCatching { ActionSelector.parse(it) }.isSuccess }
+                            ?.let { Step("tap ui $it\n$action", null) } ?: at(element.x, element.y)
+                    }
+                }
+            }
             "open" -> if (':' in args[0]) Step(null, "open URI") else Step("launch ${args[0]}", null)
             "key" -> Step("key ${args[0]}", null)
             "swipe" -> Step("swipe px ${args.take(4).joinToString(" ")} ${args.getOrNull(4) ?: 300}", null, coordinates = true)
@@ -376,7 +398,13 @@ internal object UiBridgeReplay {
             val line = step.line ?: continue
             val gap = previous?.let { (at - it).coerceIn(0, 2000) }
             if (gap != null && gap >= 200) lines += "wait $gap"
-            lines += line
+            val parts = line.split('\n')
+            // 同じ欄へ続けて type / enter するなら、欄を押し直さない (フォーカスはそのまま)。
+            val focus = parts.size == 2 && (parts[1] == "enter" || parts[1].startsWith("type"))
+            val last = lines.lastOrNull { !it.startsWith("wait ") }
+            val sameField = focus && last != null && (last == "enter" || last.startsWith("type")) &&
+                lines.lastOrNull { it.startsWith("tap ") } == parts[0]
+            lines += if (sameField) parts.drop(1) else parts
             previous = at
         }
         if (lines.size > 64) throw Refusal("too_long", "z2-action allows 64 steps; mark and save shorter parts")

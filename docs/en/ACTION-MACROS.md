@@ -302,6 +302,7 @@ With `human=on` in the headers, finger operations and waits come closer to a per
 - Drags (`drag`, 1.0.185): the finger passes close to every given point. Each segment bows (6% of its length, 12 px at most), slows near the points without stopping and varies its speed within the segment. Corners are rounded by averaging 4 px of path on either side. Segment times vary by ±20% with the same total.
 - Swipes and drags also get slow hand drift (1 px) and fine tremor (0.5 px).
 - Recorded touches: the shape stays, the position moves slightly, and with one finger each segment's time varies by ±20% (same total). Two-finger gestures move together.
+- `type` (1.0.193): the text grows one character at a time with a gap between characters (about 110 ms, about 220 ms after a space or punctuation; ±37% at strength 5, growing with strength up to ±90%). Text longer than 256 characters goes in at once. After a pause it is typed again from the start (it replaces the content, so nothing doubles).
 - `wait`: ±10% (up to ±300 ms).
 - Moved points stay inside the foreground app's window. Scrolling (`scroll`) and element actions (`click` and so on) are unchanged.
 

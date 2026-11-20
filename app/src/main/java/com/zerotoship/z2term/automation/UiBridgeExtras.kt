@@ -444,7 +444,7 @@ internal object UiBridgeMcp {
             tool("write_notes", "Replace your notes for an app (plain text, up to 64 KiB). Prefer resource IDs over labels.",
                 mapOf("package" to prop("string", "Package name"), "text" to prop("string", "Notes")), listOf("package", "text")),
             tool("mark", "Start recording operations for save."),
-            tool("save", "Save the operations since mark as a z2-action macro that replays without the AI. Fails if they include typing, scrolling or other steps z2-action cannot replay.",
+            tool("save", "Save the operations since mark as a z2-action macro that replays without the AI. Typing and enter become a tap on the field followed by type / enter. Fails if they include scrolling, appending text or other steps z2-action cannot replay.",
                 mapOf("name" to prop("string", "1..64 letters, digits, _ or -")), listOf("name")),
             tool("notifications", "List current notifications with their buttons."),
             tool("press_notification", "Press a notification button, with reply text if the button has a reply field.",

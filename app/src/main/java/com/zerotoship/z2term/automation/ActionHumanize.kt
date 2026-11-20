@@ -38,6 +38,28 @@ internal object ActionHumanize {
     /** 強さ 2 を 1 とした倍率。 */
     private fun scale(level: Int) = level.coerceIn(0, MAX_LEVEL) / 2.0
 
+    /** 人らしい打鍵で 1 文字ずつ入れる上限 (コードポイント)。長い文字は一度に入れる。 */
+    const val MAX_TYPED_ONE_BY_ONE = 256
+
+    /**
+     * 次の文字を打つまでの間 (1.0.193)。[previous] は打ったばかりの文字。空白や句読点の後は少し長く止まり、
+     * 強さが大きいほど間がばらつく。
+     */
+    fun keyMs(previous: Int, random: Random, level: Int = DEFAULT_LEVEL): Long {
+        val pause = Character.isWhitespace(previous) || previous.toChar() in ".,!?、。！？・"
+        val base = if (pause) 220.0 else 110.0
+        val ratio = (0.15 * scale(level)).coerceAtMost(0.9)
+        return (base * (1 + (random.nextDouble() * 2 - 1) * ratio)).roundToLong().coerceAtLeast(20)
+    }
+
+    /** [text] を打っていく途中の文字 (1 文字ずつ長くなる。サロゲートペアは分けない)。 */
+    fun prefixes(text: String): List<String> {
+        val ends = mutableListOf<Int>()
+        var i = 0
+        while (i < text.length) { i = text.offsetByCodePoints(i, 1); ends += i }
+        return ends.map { text.substring(0, it) }
+    }
+
     fun waitMs(ms: Long, random: Random, level: Int = DEFAULT_LEVEL): Long {
         val f = scale(level)
         if (ms <= 0 || f <= 0) return ms

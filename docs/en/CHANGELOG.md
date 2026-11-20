@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.193 (versionCode 891)**: With `human=`, screen-action macros now `type` one character at a time with gaps (a little longer after a space or punctuation). Saving steps recorded through AI app control now keeps typing and Enter: they become a finger tap on the field followed by `type` / `enter` (appending text is still refused)
+
 **1.0.192 (versionCode 890)**: Screen-action macros gain variables. `set NAME VALUE` stores, `add NAME NUMBER` adds, and the conditions `var NAME>3` / `var NAME=VALUE` compare. "Stop after 10 successes" or "tell me after 3 failures in a row" no longer need a shell. Variables start empty on every run and are shared with called macros; shell steps read them as `$Z2_VAR_NAME`
 
 **1.0.191 (versionCode 889)**: Screen-action macros can pass values to a call. With `call tap-at 540 1200`, the called macro's `$1` and `$2` become those values (`$#` is their count), so one macro serves steps that differ only in coordinates or text. Shell steps get them as their own `$1`. `z2-action run NAME VALUE…` passes values to the first macro. Each call is checked with its values before the run starts. `$` followed by a digit outside shell text is now read as a value; rewrite text such as `text=$5` with a partial match

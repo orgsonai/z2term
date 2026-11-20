@@ -181,7 +181,15 @@ class UiBridgePolicyTest {
         assertEquals("click desc=戻る", step("tap", "desc=戻る").line)
         assertEquals("launch org.example.app", step("open", "org.example.app").line)
         assertEquals("open URI", step("open", "https://example.org").unsupported)
-        assertEquals("type", step("type", "#1", "abc").unsupported)
+        // 文字入力は「欄を押す → type / enter」の 2 行 (1.0.193)。ID の無い欄は座標で押す。
+        assertEquals("tap ui id=org.example.app:id/next\ntype abc", step("type", "#1", "abc").line)
+        assertEquals("tap px 30 40\ntype abc", step("type", "#2", "abc").line)
+        assertEquals("tap ui text=検索\nenter", step("enter", "text=検索").line)
+        assertEquals("tap px 5 6\ntype x", step("type", "@5,6", "x").line)
+        assertEquals("type --append", step("type", "#1", "abc", "--append").unsupported)
+        org.junit.Assert.assertNotNull(step("type", "#1", "a\nb").unsupported)
+        org.junit.Assert.assertNotNull(step("type", "#1", " a").unsupported)
+        org.junit.Assert.assertNotNull(step("type", "#1", "$1").unsupported)
         assertEquals("wait-ui 5000 text=完了", step("wait", "text=完了").line)
         assertEquals("swipe px 1 2 3 4 300", step("swipe", "1", "2", "3", "4").line)
         assertEquals("drag px 80 10,20 30,40 50,60", step("drag", "10,20", "30,40", "--step", "80", "@50,60").line)
@@ -195,6 +203,17 @@ class UiBridgePolicyTest {
         assertNull(step("look").line)
         assertNull(step("look").unsupported)
         assertEquals("tap #9", step("tap", "#9").unsupported)
+    }
+
+    @Test fun typingIntoTheSameFieldTapsItOnce() {
+        val steps = listOf(UiBridgeReplay.Step("tap ui text=検索\ntype abc", null) to 0L,
+            UiBridgeReplay.Step("tap ui text=検索\nenter", null) to 100L,
+            UiBridgeReplay.Step("tap ui text=検索\ntype def", null) to 900L,
+            UiBridgeReplay.Step("tap ui text=名前\ntype g", null) to 1000L)
+        val text = UiBridgeReplay.definition(steps)
+        assertEquals(listOf("tap ui text=検索", "type abc", "enter", "wait 800", "type def", "tap ui text=名前", "type g"),
+            text.lines().drop(2).filter { it.isNotEmpty() })
+        ActionDefinition.parse(text)
     }
 
     @Test fun definitionWaitsTheRealGapsUpToTwoSeconds() {

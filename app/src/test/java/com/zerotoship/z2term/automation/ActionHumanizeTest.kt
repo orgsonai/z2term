@@ -157,4 +157,14 @@ class ActionHumanizeTest {
         }
         assertTrue((1..100).all { ActionHumanize.waitMs(1000, Random(it), level = 20) >= 0 })
     }
+
+    @Test fun typingGoesOneCharacterAtATimeWithVariedGaps() {
+        assertEquals(listOf("a", "a😀", "a😀b"), ActionHumanize.prefixes("a😀b"))
+        val random = kotlin.random.Random(1)
+        val letters = (1..50).map { ActionHumanize.keyMs('a'.code, random, 5) }
+        assertTrue(letters.all { it in 40L..200L })
+        assertTrue(letters.toSet().size > 10)
+        assertTrue((1..50).map { ActionHumanize.keyMs(' '.code, random, 5) }.average() > letters.average())
+        assertTrue((1..50).map { ActionHumanize.keyMs('a'.code, random, 1) }.all { it in 90L..130L })
+    }
 }

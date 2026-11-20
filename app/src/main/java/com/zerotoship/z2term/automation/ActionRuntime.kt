@@ -423,10 +423,32 @@ internal object ActionRuntime {
                 return { lookup(); inner?.invoke() }
             }
             is ActionDefinition.Step.Input -> {
-                run.target = target(step.target)
+                val field = target(step.target)
+                run.target = field
                 checkDevice(run)
-                AndroidActions.input(run.target!!, step.text)
-                done(null)
+                val text = step.text
+                val typed = if (run.human && text != null) ActionHumanize.prefixes(text) else emptyList()
+                if (typed.size < 2 || typed.size > ActionHumanize.MAX_TYPED_ONE_BY_ONE) {
+                    AndroidActions.input(field, text)
+                    done(null)
+                } else {
+                    // 人らしい打鍵 (1.0.193): 1 文字ずつ長くして入れ、文字の間を少しずつ空ける。
+                    // 一時停止で取り消され、再開すると最初から入れ直す (置き換えなので二重にならない)。
+                    var index = 0
+                    var cancel: (() -> Unit)? = null
+                    fun next() {
+                        cancel = null
+                        if (current !== run) return
+                        try { checkDevice(run); AndroidActions.input(field, typed[index]) }
+                        catch (e: Exception) { done(e.message ?: "Typing failed"); return }
+                        index++
+                        if (index == typed.size) { done(null); return }
+                        val last = typed[index - 1].codePointBefore(typed[index - 1].length)
+                        cancel = schedule(ActionHumanize.keyMs(last, run.random, run.humanLevel)) { next() }
+                    }
+                    next()
+                    return { cancel?.invoke(); cancel = null }
+                }
             }
             is ActionDefinition.Step.Scroll -> {
                 run.target = target(step.target)
