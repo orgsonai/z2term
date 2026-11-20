@@ -70,6 +70,11 @@ internal object AndroidUiElements {
             val parents = mutableListOf<AccessibilityNodeInfo>()
             try {
                 val found = retained.filter { eligible(it, step.target, window) && matches(it, step.selector) }
+                // 条件 (`if ui` / `wait-until ui`) は「あるか」だけを見る。いくつあっても成立。
+                if (step.operation == "if-ui") {
+                    withContext(Dispatchers.Main) { if (guard().id != window.id) throw Changed("Target window changed") }
+                    return@readTree found.isNotEmpty()
+                }
                 check(found.size <= 1) { "More than one UI element matches; use a unique text, description or resource ID" }
                 val selected = found.singleOrNull() ?: return@readTree false
                 if (!selected.refresh() || !eligible(selected, step.target, window) || !matches(selected, step.selector))

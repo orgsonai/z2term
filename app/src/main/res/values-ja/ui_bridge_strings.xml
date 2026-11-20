@@ -17,7 +17,7 @@
     <string name="ui_bridge_grant_input_title">分数を入力</string>
     <string name="ui_bridge_grant_input_hint">1〜1440</string>
     <string name="ui_bridge_set">設定</string>
-    <string name="ui_bridge_protected_note">z2term・Android の設定・インストーラー・通知欄は、許可に関係なく AI に操作させません。</string>
+    <string name="ui_bridge_protected_note">z2term・Android の設定・インストーラー・通知欄は、許可に関係なく AI に操作させません。画面操作のマクロ（z2-action）はこの許可の対象外で、どのアプリの画面も読み取り・操作できます。AI 側で使えるコマンドを決められるなら、z2-ui だけを許してください。</string>
     <string name="ui_bridge_log_note">操作の記録: ~/.z2term/ui/log.jsonl（入れた文字は記録しません）</string>
     <string name="ui_bridge_channel">AI からのアプリ操作</string>
     <string name="ui_bridge_ask_channel">AI の操作の確認</string>

@@ -389,6 +389,9 @@ internal object ActionRunOverlay {
         Rect(at[0] - margin, at[1] - margin, at[0] + v.width + margin, at[1] + v.height + margin)
     }
 
+    /** 画面の点 [x],[y] が停止の帯に重なるか (帯は薄くしても写るので、色の条件はそこを読めない)。 */
+    fun covers(x: Int, y: Int): Boolean = box()?.contains(x, y) == true
+
     /**
      * 座標の操作を送る前に呼ぶ (マクロ)。指が通る範囲 ([hits] が帯の画面上の四角で true を返す) が帯に重なるなら、
      * 帯を隠して入力に反映されるのを待ってから [action] を送る。[action] には終わりの知らせを渡す。

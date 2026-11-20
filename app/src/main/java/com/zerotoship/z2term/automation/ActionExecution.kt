@@ -96,7 +96,8 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         progress: (Int, ActionDefinition.Step) -> Unit, done: (Result) -> Unit,
         resolve: (String) -> ActionDefinition = { error("Unresolved macro: $it") },
         condition: (String) -> Boolean = { error("Condition evaluator unavailable") },
-        name: String = "", branch: (String, Boolean) -> Unit = { _, _ -> }) {
+        name: String = "", branch: (String, Boolean) -> Unit = { _, _ -> },
+        test: ((String, String, (Boolean?, String?) -> Unit) -> (() -> Unit)?)? = null) {
         check(!running) { "An action macro is already running" }
         running = true; step = 0; completed = done
         limitSteps = !definition.unlimited
@@ -149,13 +150,30 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                         cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
                     }
                     is ActionDefinition.Step.Branch -> {
-                        val matched = condition(action.condition)
-                        if (!running || token != generation) return
-                        branch(action.condition, matched)
-                        if (!running || token != generation) return
-                        val branchPath = "$path." + (if (matched) "yes." else "no.")
-                        push(Frame(if (matched) action.yes else action.no, macro, branchPath))
-                        cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
+                        val here = path
+                        fun decide(matched: Boolean) {
+                            if (!running || token != generation) return
+                            branch(action.condition, matched)
+                            if (!running || token != generation) return
+                            val branchPath = "$here." + (if (matched) "yes." else "no.")
+                            push(Frame(if (matched) action.yes else action.no, macro, branchPath))
+                            cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
+                        }
+                        if (test == null) decide(condition(action.condition))
+                        else {
+                            // 画面やシェルを見る条件は答えを待つ。待つ間は手順と同じく「送っている途中」で、
+                            // 一時停止すると取り消し、再開で条件を最初から見直す。
+                            stepInFlight = true
+                            var answered = false
+                            val cancel = test(action.condition, action.target) answer@{ matched, error ->
+                                if (answered || !running || token != generation || index != step || tried != attempt) return@answer
+                                answered = true; cancelStep = null; stepInFlight = false
+                                if (error != null || matched == null) { finish("failed", error ?: "Condition failed"); return@answer }
+                                try { decide(matched) } catch (e: Exception) { finish("failed", e.message ?: "Action failed") }
+                            }
+                            if (!answered && running && token == generation && index == step && tried == attempt) cancelStep = cancel
+                            else if (!answered) runCatching { cancel?.invoke() }
+                        }
                     }
                     is ActionDefinition.Step.Call -> {
                         check(frames.none { it.macro == action.name }) { "Recursive macro call: " + action.name }

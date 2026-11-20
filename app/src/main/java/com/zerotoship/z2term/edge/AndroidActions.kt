@@ -351,7 +351,7 @@ class AndroidActions : AccessibilityService() {
             val service = active ?: error("Accessibility disconnected")
             val job = CoroutineScope(Dispatchers.Main.immediate).launch {
                 try { done(AndroidUiElements.query(service, step) { uiTarget(service, step.target) }, null) } catch (e: CancellationException) { throw e } catch (e: Exception) {
-                    if (step.operation == "wait-ui" && e is AndroidUiElements.Changed) done(false, null)
+                    if (step.operation in setOf("wait-ui", "if-ui") && e is AndroidUiElements.Changed) done(false, null)
                     else done(false, e.message ?: "UI lookup failed")
                 }
             }

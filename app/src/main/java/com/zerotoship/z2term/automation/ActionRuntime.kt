@@ -15,6 +15,10 @@ import androidx.core.content.ContextCompat
 import com.zerotoship.z2term.edge.AndroidActions
 import com.zerotoship.z2term.edge.EdgeRunner
 import com.zerotoship.z2term.edge.EdgeRuntime
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -51,6 +55,7 @@ internal object ActionRuntime {
     private const val SHADE_REASON = "Notification shade opened"
     /** How long a launch step waits for the launched app to come to the front. */
     private const val LAUNCH_WAIT_MS = 10_000L
+    private const val COLOR_RADIUS = 4
     fun store(context: Context) = ActionStore(File(context.filesDir, "shared_home/.z2term/actions"))
 
     @Suppress("DEPRECATION")
@@ -163,6 +168,7 @@ internal object ActionRuntime {
                 is ActionDefinition.Step.Branch -> "if"
                 is ActionDefinition.Step.Call -> "call"
                 is ActionDefinition.Step.Ui -> step.operation
+                is ActionDefinition.Step.WaitFor -> if (step.until) "wait-until" else "wait-while"
                 is ActionDefinition.Step.Wait -> "wait"
                 is ActionDefinition.Step.Launch -> "launch"
                 is ActionDefinition.Step.Key -> "key"
@@ -172,14 +178,64 @@ internal object ActionRuntime {
             })
         }, { result -> finish(run, result) },
             resolve = { run.program.definitions.getValue(it) },
-            condition = { spec ->
-                checkDevice(run)
-                val state = com.zerotoship.z2term.service.Z2ApiBridge.stateSnapshot(run.context).toMutableMap()
-                AndroidActions.focusedPackage()?.let { state["foreground"] = it }
-                ActionCondition.matches(spec, state)
-            },
             name = run.name,
-            branch = { _, matched -> log(run, "branch", matched.toString()) })
+            branch = { _, matched -> log(run, "branch", matched.toString()) },
+            test = { spec, target, answer -> test(run, spec, target, answer) })
+    }
+    /**
+     * 条件式を 1 回確かめる (if / wait-until / wait-while)。端末の状態はその場で読み、画面の要素・色と
+     * シェルは答えを待つ。画面を読む項は手順と同じ対象アプリを見て、対象が前面に無ければ「無い」と答える。
+     * ⚠ 画面の読み取りに z2-ui のアプリごとの許可は使わない。操作は元から z2-action で許可なしにできるため、
+     * 読み取りだけ縛っても守りにならない (HANDBOOK「AI app control」の注意を参照)。
+     */
+    private fun test(run: Run, spec: String, target: String, answer: (Boolean?, String?) -> Unit): () -> Unit {
+        checkDevice(run)
+        return ActionCondition.evaluate(ActionCondition.parse(spec), state = {
+            val state = com.zerotoship.z2term.service.Z2ApiBridge.stateSnapshot(run.context).toMutableMap()
+            AndroidActions.focusedPackage()?.let { state["foreground"] = it }
+            state
+        }, probe = { term, done -> probe(run, term, target, done) }, done = answer)
+    }
+    private fun probe(run: Run, term: ActionCondition.Term, target: String, done: (Boolean?, String?) -> Unit): () -> Unit {
+        val noWork: () -> Unit = {}
+        val resolved = if (target == ActionDefinition.CURRENT_TARGET) AndroidActions.focusedPackage() else target
+        fun shown() = resolved != null && AndroidActions.targetMatches(resolved)
+        return when (term) {
+            is ActionCondition.Term.State -> error("State terms are evaluated directly")
+            is ActionCondition.Term.Ui -> {
+                if (!shown()) { done(false, null); return noWork }
+                AndroidActions.queryUi(ActionDefinition.Step.Ui(resolved!!, "if-ui", term.selector)) { found, error -> done(found, error) }
+            }
+            is ActionCondition.Term.Color -> {
+                if (android.os.Build.VERSION.SDK_INT < 30) { done(null, "Colour conditions require Android 11 or later"); return noWork }
+                if (!shown()) { done(false, null); return noWork }
+                if (ActionRunOverlay.covers(term.x, term.y)) {
+                    done(null, "The colour point ${term.x},${term.y} is under the stop bar; move the bar away from it"); return noWork
+                }
+                color(term, done)
+            }
+            is ActionCondition.Term.Shell -> {
+                val started = run.runner.run("macro:${run.id}", term.text, run.definition.timeoutMs / 1000) { result ->
+                    if (result.exit != null) done(result.exit == 0, null) else done(null, result.error ?: "Shell condition failed")
+                }
+                if (!started) { done(null, "Cannot start shell command"); return noWork }
+                ({ run.runner.cancelAll() })
+            }
+        }
+    }
+    /** 1 点の色を 1 回読む。点は [COLOR_RADIUS] px 四方の中央値 (z2-ui colors と同じ読み方)。 */
+    @androidx.annotation.RequiresApi(30)
+    private fun color(term: ActionCondition.Term.Color, done: (Boolean?, String?) -> Unit): () -> Unit {
+        val job = CoroutineScope(Dispatchers.Main.immediate).launch {
+            try {
+                val sample = com.zerotoship.z2term.edge.AndroidUiLook.sample(
+                    com.zerotoship.z2term.edge.AndroidUiLook.Points(listOf(term.x to term.y), COLOR_RADIUS), gate = {}, stableMs = 0)
+                done(term.matches(sample.rgb[0]), null)
+            } catch (e: CancellationException) { throw e } catch (e: Exception) {
+                done(null, e.message ?: "Cannot read the screen colour")
+            }
+        }
+        return { job.cancel() }
     }
     /**
      * While AI operation (z2-ui) is paused or stopped, a macro may not operate z2term's own screen (1.0.103).
@@ -257,6 +313,15 @@ internal object ActionRuntime {
                 return AndroidActions.queryUi(resolved) { found, error -> done(error ?: if (found) null else "UI element not found") }
             }
             is ActionDefinition.Step.Wait -> return schedule(step.ms) { done(null) }
+            is ActionDefinition.Step.WaitFor -> {
+                val label = if (step.until) "wait-until" else "wait-while"
+                return ActionUiWait(::schedule).start(step.ms, { callback ->
+                    // 成立 (wait-until) / 不成立 (wait-while) になったら次へ。
+                    test(run, step.condition, step.target) { matched, error ->
+                        callback(matched == step.until, error ?: if (matched == null) "Condition failed" else null)
+                    }
+                }, ::done, "$label timed out after ${step.ms} ms")
+            }
             is ActionDefinition.Step.Launch -> {
                 val intent = run.context.packageManager.getLaunchIntentForPackage(step.packageName) ?: error("No launchable app: ${step.packageName}")
                 run.context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

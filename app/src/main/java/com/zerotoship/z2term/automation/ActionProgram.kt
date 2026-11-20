@@ -12,6 +12,11 @@ internal data class ActionProgram(val name: String, val definitions: Map<String,
                 is ActionDefinition.Step.Stroke -> step.target == ActionDefinition.CURRENT_TARGET
                 is ActionDefinition.Step.Scroll -> step.target == ActionDefinition.CURRENT_TARGET
                 is ActionDefinition.Step.Ui -> step.target == ActionDefinition.CURRENT_TARGET
+                // 画面を読む条件 (ui / color) も前面の画面が相手。状態だけの条件は画面を見ない。
+                is ActionDefinition.Step.Branch -> step.target == ActionDefinition.CURRENT_TARGET &&
+                    ActionCondition.parse(step.condition).readsScreen
+                is ActionDefinition.Step.WaitFor -> step.target == ActionDefinition.CURRENT_TARGET &&
+                    ActionCondition.parse(step.condition).readsScreen
                 else -> false
             }
         }

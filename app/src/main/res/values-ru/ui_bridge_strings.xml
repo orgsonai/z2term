@@ -17,7 +17,7 @@
     <string name="ui_bridge_grant_input_title">Введите минуты</string>
     <string name="ui_bridge_grant_input_hint">1–1440</string>
     <string name="ui_bridge_set">Задать</string>
-    <string name="ui_bridge_protected_note">z2term, настройки Android, установщики и шторка уведомлений никогда не доступны ИИ, какими бы ни были разрешения.</string>
+    <string name="ui_bridge_protected_note">z2term, настройки Android, установщики и шторка уведомлений никогда не доступны ИИ, какими бы ни были разрешения. Макросы действий на экране (z2-action) не подчиняются этим разрешениям и могут читать и управлять любым приложением. Если вы можете выбрать, какие команды запускает ИИ, разрешите только z2-ui.</string>
     <string name="ui_bridge_log_note">Журнал действий: ~/.z2term/ui/log.jsonl (вводимый текст не записывается)</string>
     <string name="ui_bridge_channel">Управление приложениями ИИ</string>
     <string name="ui_bridge_ask_channel">Одобрение действий ИИ</string>

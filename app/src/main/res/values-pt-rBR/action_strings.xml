@@ -76,6 +76,8 @@
     <string name="action_edit_add_repeat">Adicionar repetição</string>
     <string name="action_edit_add_branch">Adicionar condição</string>
     <string name="action_edit_toggle_comment"># Comentário</string>
+    <string name="action_edit_wait_until">Esperar até</string>
+    <string name="action_edit_wait_while">Esperar enquanto</string>
     <string name="action_edit_blocks_hint">Adicione passos dentro de cada bloco. Use ⋮ para mover, duplicar ou remover passos e blocos inteiros.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · instruções: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · iteração %3$d</string>

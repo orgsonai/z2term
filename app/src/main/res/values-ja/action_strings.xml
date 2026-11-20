@@ -76,6 +76,8 @@
     <string name="action_edit_add_repeat">繰り返しを追加</string>
     <string name="action_edit_add_branch">条件分岐を追加</string>
     <string name="action_edit_toggle_comment"># コメント</string>
+    <string name="action_edit_wait_until">条件まで待つ</string>
+    <string name="action_edit_wait_while">条件の間待つ</string>
     <string name="action_edit_blocks_hint">各ブロックの「手順を追加」で内部に追加できます。⋮から手順・ブロック全体を移動・複製・削除できます。</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · %3$d手順</string>
     <string name="action_edit_location">%1$s / %2$s · %3$d回目</string>

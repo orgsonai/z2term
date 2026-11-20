@@ -10,7 +10,11 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
     }
     sealed interface Step {
         data class Repeat(val count: Int?, val body: List<Step>) : Step
-        data class Branch(val condition: String, val yes: List<Step>, val no: List<Step>) : Step
+        /** [target] is the app whose screen `ui` / `color` terms read (as for the steps around it). */
+        data class Branch(val condition: String, val yes: List<Step>, val no: List<Step>,
+            val target: String = CURRENT_TARGET) : Step
+        /** `wait-until` ([until]) / `wait-while`: poll [condition] for up to [ms] (0 = until the macro's own limit). */
+        data class WaitFor(val target: String, val condition: String, val until: Boolean, val ms: Long) : Step
         data class Call(val name: String) : Step
         data class Ui(val target: String, val operation: String, val selector: ActionSelector, val timeoutMs: Long = 0) : Step
         data class Wait(val ms: Long) : Step
@@ -71,9 +75,25 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         fun commentStart(line: String): Int? {
             val code = line.trimStart()
             if (code.startsWith('#')) return line.length - code.length
-            if (code.split(Regex("\\s+"), limit = 2).first() == "command") return null
-            return trailingComment.find(line)?.range?.first
+            val verb = code.split(Regex("\\s+"), limit = 2).first()
+            if (verb == "command") return null
+            val found = trailingComment.find(line)?.range?.first ?: return null
+            // 条件の `command` 項から後ろはシェルの文。`#` もシェルに渡す。
+            if (verb in CONDITION_VERBS) {
+                var from = line.length - code.length + verb.length
+                if (verb != "if") {
+                    while (from < line.length && line[from].isWhitespace()) from++
+                    while (from < line.length && !line[from].isWhitespace()) from++
+                }
+                val shell = ActionCondition.shellStart(line.substring(from))?.plus(from)
+                if (shell != null && found > shell) return null
+            }
+            return found
         }
+        /** 条件式を取る命令。`if 条件` / `wait-until ミリ秒 条件` / `wait-while ミリ秒 条件`。 */
+        val CONDITION_VERBS = setOf("if", "wait-until", "wait-while")
+        /** `wait-until` / `wait-while` の上限 (ミリ秒)。0 は無期限 (マクロ全体の制限時間と停止は効く)。 */
+        const val MAX_CONDITION_WAIT_MS = 300_000L
         /** コメントを除いた本文 (前後の空白も除く)。 */
         fun code(line: String): String = (commentStart(line)?.let { line.substring(0, it) } ?: line).trim()
         fun macroName(value: String): String {
@@ -157,7 +177,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                             val closed = if (block.kind == "repeat") Step.Repeat(
                                 block.argument.takeUnless { it == "forever" }?.toInt(), steps.toList())
                             else Step.Branch(block.argument, block.yes ?: steps.toList(),
-                                if (block.yes != null) steps.toList() else emptyList())
+                                if (block.yes != null) steps.toList() else emptyList(), block.target ?: CURRENT_TARGET)
                             steps = block.parent; steps += closed; target = block.target
                         }
                         "call" -> { count(2); steps += Step.Call(macroName(words[1])); size++ }
@@ -167,6 +187,14 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 }
                 val before = steps.size
                 when (words[0]) {
+                    "wait-until", "wait-while" -> {
+                        require(headers["version"] == "2") { "Condition waits require version=2" }
+                        require(words.size >= 3) { "${words[0]} requires milliseconds and a condition" }
+                        val ms = millis(1, 0, MAX_CONDITION_WAIT_MS)
+                        val condition = line.split(Regex("\\s+"), limit = 3).last()
+                        ActionCondition.validate(condition)
+                        steps += Step.WaitFor(destination(), condition, words[0] == "wait-until", ms)
+                    }
                     "click", "long-click", "wait-ui" -> {
                         require(headers["version"] == "2") { "UI elements require version=2" }
                         val wait = words[0] == "wait-ui"
@@ -297,6 +325,12 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             }
             val flat = allSteps(steps)
             if (flat.any { it is Step.Stroke || it is Step.Scroll }) require(screen != null) { "Coordinates/scroll require screen=current or saved geometry" }
+            val colors = flat.mapNotNull { when (it) { is Step.Branch -> it.condition; is Step.WaitFor -> it.condition; else -> null } }
+                .flatMap { ActionCondition.parse(it).terms }.filterIsInstance<ActionCondition.Term.Color>()
+            if (colors.isNotEmpty()) {
+                require(screen != null) { "Colour conditions require screen=current or saved geometry" }
+                require(colors.all { it.x < screen.width && it.y < screen.height }) { "Colour points are outside the saved screen" }
+            }
             flat.filterIsInstance<Step.Stroke>().forEach { it.tracks(screen!!) }
             return ActionDefinition(lines.joinToString("\n").trimEnd() + "\n", timeout * 1000, screen, steps.toList())
         }

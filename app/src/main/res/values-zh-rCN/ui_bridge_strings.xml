@@ -17,7 +17,7 @@
     <string name="ui_bridge_grant_input_title">输入分钟数</string>
     <string name="ui_bridge_grant_input_hint">1–1440</string>
     <string name="ui_bridge_set">设置</string>
-    <string name="ui_bridge_protected_note">z2term、Android 设置、安装程序和通知栏无论授权如何都不允许 AI 操作。</string>
+    <string name="ui_bridge_protected_note">z2term、Android 设置、安装程序和通知栏无论授权如何都不允许 AI 操作。屏幕操作宏（z2-action）不受这些授权限制，可以读取并操作任何应用。如果能限定 AI 可运行的命令，请只允许 z2-ui。</string>
     <string name="ui_bridge_log_note">操作记录：~/.z2term/ui/log.jsonl（不记录输入的文字）</string>
     <string name="ui_bridge_channel">AI 操作应用</string>
     <string name="ui_bridge_ask_channel">AI 操作确认</string>

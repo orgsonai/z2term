@@ -4,7 +4,8 @@ package com.zerotoship.z2term.automation
 internal class ActionUiWait(private val schedule: (Long, () -> Unit) -> (() -> Unit)) {
     fun start(timeoutMs: Long, probe: ((Boolean, String?) -> Unit) -> (() -> Unit),
         done: (String?) -> Unit, timeoutError: String = "UI element wait timed out"): () -> Unit {
-        require(timeoutMs in 1..30000)
+        // 0 は自分では打ち切らない (マクロ全体の制限時間と停止で止まる)。条件待ちは 300 秒まで。
+        require(timeoutMs in 0..ActionDefinition.MAX_CONDITION_WAIT_MS)
         var active = true
         var generation = 0
         var cancelQuery: (() -> Unit)? = null
@@ -35,7 +36,7 @@ internal class ActionUiWait(private val schedule: (Long, () -> Unit) -> (() -> U
                 else if (!delivered) cancel()
             } catch (e: Exception) { finish(e.message ?: "UI lookup failed") }
         }
-        cancelTimeout = schedule(timeoutMs) { finish(timeoutError) }
+        if (timeoutMs > 0) cancelTimeout = schedule(timeoutMs) { finish(timeoutError) }
         cancelNext = schedule(0) { query() }
         return { finish(null, notify = false) }
     }

@@ -154,15 +154,44 @@ A block inherits the outer `target` / `launch` target; `else` and `end` restore 
 
 ### Condition expressions
 
-Commas mean AND; a leading `!` negates a term. There are no parentheses, OR or quoted escapes. A condition accepts at most 16 terms.
+Commas mean AND, `|` means OR and a leading `!` negates a term. AND binds tighter, so `a,b|c` is "a and b" or "c" (1.0.182). There are no parentheses or quoted escapes, so a `ui` value cannot contain `,` or `|` (a `command` term is the exception). A condition accepts at most 16 terms.
 
 | Type | Keys | Syntax |
 |---|---|---|
 | Boolean | `screen locked idle charging wifi airplane headset bt_audio` | `charging`, `!wifi`, `screen=true`; accepts true/on/yes/1 and false/off/no/0 |
 | Number | `level temp volume volume_max` | `level>20`, `temp<40`, `volume=0`; operators = / < / > |
 | Text | `ssid ringer plug foreground` | `ringer=silent`, `foreground=org.example.app`; operator = |
+| Screen element | `ui` | `ui text=OK`, `ui desc=Menu`, `ui id=…`; exact match as in `click` / `wait-ui`; any number of matches counts as present |
+| Screen colour | `color` | `color 540,1200=green`, `color 540,1200=#33aa55`; screen px. Names are the 12 of z2-ui `colors` (black gray white red orange brown yellow green cyan blue purple pink); `#RRGGBB` matches when red, green and blue are each within 24. Needs `screen=` |
+| Shell | `command` | `command test -f /root/flag`; true on exit status 0. It reads the rest as shell, so it is always the last term (`,` `|` `#` go to the shell) |
 
-State uses the existing `z2-state` snapshot. `foreground` is the focused window's package metadata; no UI-element content is read. Text comparisons ignore case except for package names. An evaluated value that is missing, blank or the numeric unavailable sentinel `-1` fails the run instead of choosing else. AND evaluates left to right and skips remaining terms once false is known.
+State uses the existing `z2-state` snapshot. `foreground` is the focused window's package metadata. Text comparisons ignore case except for package names. An evaluated value that is missing, blank or the numeric unavailable sentinel `-1` fails the run instead of choosing else. Terms are evaluated left to right and skipped once the answer is known (a false term moves on to the next OR group; a true group ends it).
+
+`ui` and `color` read the screen of the same target app as the surrounding steps (set by `target` / `launch`, otherwise the foreground app). When that app is not in front they count as absent. A colour point under the stop bar cannot be read correctly, so that fails the run (move the bar). Colours need Android 11 or later. A shell term runs where `command` steps run; a timeout or a failure to start fails the run.
+
+⚠ Reading the screen does not use the per-app permissions of AI app control (z2-ui). z2-action could already operate any app without them, so restricting only reading would protect nothing. When an AI with a shell uses z2term, let it run only `z2-ui` if your AI lets you choose.
+
+### Wait for a condition (1.0.182)
+
+```text
+version=2
+screen=current
+wait-until 10000 ui text=Done|ui text=OK   # until either appears, at most 10 s
+wait-while 0 color 540,1200=gray           # while it is grey (0 = up to the macro's own limit)
+```
+
+- `wait-until MS CONDITION` waits until the condition holds; `wait-while MS CONDITION` waits while it holds.
+- It checks every 250 ms (colours about every 1/3 s, the capture interval). MS is 0–300000; 0 has no limit of its own and stops with the macro's `timeout` or a stop. Timing out fails the macro.
+- Conditions are written as for `if`. Pausing cancels the wait and resuming starts it again; an `if` condition is checked again too.
+
+For example, to notify when a confirmation appears and wait until it is answered, save this as `ask-user` and `call ask-user` where needed:
+
+```text
+version=2
+timeout=0
+command z2-notify "A confirmation appeared; please choose"
+wait-until 0 !ui text=Yes,!ui text=No   # until both are gone
+```
 
 ### GUI, limits and progress
 
@@ -193,6 +222,7 @@ long-click desc=More options
 | `click SELECTOR` | Click once |
 | `long-click SELECTOR` | Long-click once |
 | `wait-ui MS SELECTOR` | Wait for visibility for 1–30000ms |
+| `wait-until MS CONDITION` / `wait-while MS CONDITION` | Wait until / while the condition holds, 0–300000ms (0 = up to the whole limit) |
 | `z2-action inspect PACKAGE` | Return focused target-app elements as JSON; a CLI command, not a macro instruction |
 
 Choose one of `text=Continue`, `desc=More options` or `id=org.example.app:id/next`. Text and descriptions match exactly after trimming outer whitespace, with case preserved. Values contain 1–256 characters. Interior spaces, equals signs and quotes are literal; there is no shell expansion, regex or substring matching.

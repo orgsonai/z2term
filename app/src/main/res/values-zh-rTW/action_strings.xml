@@ -76,6 +76,8 @@
     <string name="action_edit_add_repeat">新增重複</string>
     <string name="action_edit_add_branch">新增條件分支</string>
     <string name="action_edit_toggle_comment"># 註解</string>
+    <string name="action_edit_wait_until">等待直到</string>
+    <string name="action_edit_wait_while">持續時等待</string>
     <string name="action_edit_blocks_hint">在各區塊內新增步驟。用⋮移動、複製或刪除整個步驟和區塊。</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · %3$d條指令</string>
     <string name="action_edit_location">%1$s / %2$s · 第%3$d次</string>

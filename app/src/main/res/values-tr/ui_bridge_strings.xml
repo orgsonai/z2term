@@ -17,7 +17,7 @@
     <string name="ui_bridge_grant_input_title">Dakika girin</string>
     <string name="ui_bridge_grant_input_hint">1–1440</string>
     <string name="ui_bridge_set">Ayarla</string>
-    <string name="ui_bridge_protected_note">z2term, Android ayarları, yükleyiciler ve bildirim paneli izinden bağımsız olarak YZ’ye asla açık değildir.</string>
+    <string name="ui_bridge_protected_note">z2term, Android ayarları, yükleyiciler ve bildirim paneli izinden bağımsız olarak YZ’ye asla açık değildir. Ekran eylem makroları (z2-action) bu izinlerin dışındadır ve her uygulamayı okuyup kullanabilir. YZ’nin hangi komutları çalıştıracağını seçebiliyorsanız yalnızca z2-ui’ye izin verin.</string>
     <string name="ui_bridge_log_note">Etkinlik kaydı: ~/.z2term/ui/log.jsonl (yazılan metin kaydedilmez)</string>
     <string name="ui_bridge_channel">YZ uygulama kontrolü</string>
     <string name="ui_bridge_ask_channel">YZ işlem onayı</string>

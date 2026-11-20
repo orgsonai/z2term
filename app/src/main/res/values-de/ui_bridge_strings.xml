@@ -16,7 +16,7 @@
     <string name="ui_bridge_grant_input_title">Minuten eingeben</string>
     <string name="ui_bridge_grant_input_hint">1–1440</string>
     <string name="ui_bridge_set">Festlegen</string>
-    <string name="ui_bridge_protected_note">z2term, Android-Einstellungen, Installer und die Benachrichtigungsleiste sind für die KI nie verfügbar, egal welche Berechtigung.</string>
+    <string name="ui_bridge_protected_note">z2term, Android-Einstellungen, Installer und die Benachrichtigungsleiste sind für die KI nie verfügbar, egal welche Berechtigung. Bildschirm-Aktionsmakros (z2-action) unterliegen diesen Berechtigungen nicht und können jede App lesen und bedienen. Wenn du festlegen kannst, welche Befehle deine KI ausführen darf, erlaube nur z2-ui.</string>
     <string name="ui_bridge_log_note">Aktivitätsprotokoll: ~/.z2term/ui/log.jsonl (getippter Text wird nicht aufgezeichnet)</string>
     <string name="ui_bridge_channel">App-Steuerung durch KI</string>
     <string name="ui_bridge_ask_channel">Freigabe von KI-Aktionen</string>

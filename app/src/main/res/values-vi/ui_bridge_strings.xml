@@ -17,7 +17,7 @@
     <string name="ui_bridge_grant_input_title">Nhập số phút</string>
     <string name="ui_bridge_grant_input_hint">1–1440</string>
     <string name="ui_bridge_set">Đặt</string>
-    <string name="ui_bridge_protected_note">z2term, cài đặt Android, trình cài đặt và ngăn thông báo không bao giờ dành cho AI, bất kể quyền.</string>
+    <string name="ui_bridge_protected_note">z2term, cài đặt Android, trình cài đặt và ngăn thông báo không bao giờ dành cho AI, bất kể quyền. Macro thao tác màn hình (z2-action) nằm ngoài các quyền này và có thể đọc, điều khiển mọi ứng dụng. Nếu bạn chọn được lệnh mà AI được chạy, chỉ cho phép z2-ui.</string>
     <string name="ui_bridge_log_note">Nhật ký hoạt động: ~/.z2term/ui/log.jsonl (văn bản đã nhập không được ghi)</string>
     <string name="ui_bridge_channel">AI điều khiển ứng dụng</string>
     <string name="ui_bridge_ask_channel">Phê duyệt thao tác AI</string>

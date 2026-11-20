@@ -12,7 +12,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** Uses the common local execution path; stdout, stdin and selection values are separate from code. */
 class EdgeRunner(private val context: Context) {
-    data class Result(val output: String, val error: String? = null)
+    /** [exit] is the shell's exit status when the command ran to its end (null if it timed out, was stopped or could not start). */
+    data class Result(val output: String, val error: String? = null, val exit: Int? = null)
     private class Job(val name: String) {
         val cancelled = AtomicBoolean(false)
         val delivered = AtomicBoolean(false)
@@ -56,7 +57,8 @@ class EdgeRunner(private val context: Context) {
                     val code = read(status).trim()
                     val error = if (job.stopping) null else failure ?: job.failure ?: if (code != "0") read(errors).trim().take(2000).ifBlank { "Command exited: $code" }
                         else if (output.length() > 65536) "Output exceeds 64 KiB" else null
-                    Result(read(output), error)
+                    val exit = if (job.stopping || failure != null || job.failure != null) null else code.toIntOrNull()
+                    Result(read(output), error, exit)
                 }.getOrElse { Result("", it.message ?: "Cannot read output") }
                 output.delete(); errors.delete(); status.delete(); stdin.delete()
                 jobs.remove(key, job)

@@ -16,7 +16,7 @@
     <string name="ui_bridge_grant_input_title">Masukkan menit</string>
     <string name="ui_bridge_grant_input_hint">1–1440</string>
     <string name="ui_bridge_set">Atur</string>
-    <string name="ui_bridge_protected_note">z2term, setelan Android, penginstal, dan bayangan notifikasi tidak pernah tersedia untuk AI, apa pun izinnya.</string>
+    <string name="ui_bridge_protected_note">z2term, setelan Android, penginstal, dan bayangan notifikasi tidak pernah tersedia untuk AI, apa pun izinnya. Makro aksi layar (z2-action) berada di luar izin ini dan dapat membaca serta mengoperasikan aplikasi apa pun. Jika Anda dapat memilih perintah yang boleh dijalankan AI, izinkan hanya z2-ui.</string>
     <string name="ui_bridge_log_note">Log aktivitas: ~/.z2term/ui/log.jsonl (teks yang diketik tidak dicatat)</string>
     <string name="ui_bridge_channel">Kendali aplikasi oleh AI</string>
     <string name="ui_bridge_ask_channel">Persetujuan aksi AI</string>

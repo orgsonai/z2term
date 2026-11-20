@@ -17,7 +17,7 @@
     <string name="ui_bridge_grant_input_title">분 입력</string>
     <string name="ui_bridge_grant_input_hint">1–1440</string>
     <string name="ui_bridge_set">설정</string>
-    <string name="ui_bridge_protected_note">z2term·Android 설정·설치 프로그램·알림창은 허용과 관계없이 AI가 조작할 수 없습니다.</string>
+    <string name="ui_bridge_protected_note">z2term·Android 설정·설치 프로그램·알림창은 허용과 관계없이 AI가 조작할 수 없습니다. 화면 조작 매크로(z2-action)는 이 허용의 대상이 아니며 모든 앱의 화면을 읽고 조작할 수 있습니다. AI가 쓸 수 있는 명령을 정할 수 있다면 z2-ui만 허용하세요.</string>
     <string name="ui_bridge_log_note">조작 기록: ~/.z2term/ui/log.jsonl (입력한 글자는 기록하지 않습니다)</string>
     <string name="ui_bridge_channel">AI 앱 조작</string>
     <string name="ui_bridge_ask_channel">AI 조작 확인</string>

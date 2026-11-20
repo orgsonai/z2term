@@ -12,6 +12,10 @@ fun z2ActionScript(lang: String): String {
         en = "version=2 adds repeat N|forever ... end, if CONDITION ... else ... end, and call NAME.\nConditions use z2-state keys or foreground=PACKAGE; commas mean AND, ! negates a term.\nUnavailable condition state fails the run. Calls are validated and frozen before execution.\n64 source instructions per definition; 10000 executed instructions per run. Root and child timeouts apply.",
         ja = "version=2 で repeat 回数|forever ... end、if 条件 ... else ... end、call 名前 を使えます。\n条件は z2-state のキーや foreground=パッケージ名。カンマはAND、!は否定です。\n条件の状態が取得できない場合は失敗します。呼び出し先も実行前に検査・固定します。\n定義ごとに最大64命令、全体で実行10000命令。親と子の制限時間が適用されます。"
     )
+    val conditionHelp = t("action.conditionHelp",
+        en = "Conditions may also use ui SELECTOR (an element is on screen), color X,Y=NAME|#RRGGBB (a screen pixel in px; needs screen=) and command SHELL (exit status 0; it reads the rest as shell, so it comes last).\n| means OR and binds looser than the comma (AND). wait-until MS CONDITION / wait-while MS CONDITION check every 250ms; 0 waits up to the macro's own limit. Timing out fails the run.\nScreen terms read the target app (or the foreground one) and need no per-app permission.",
+        ja = "条件には ui 対象（要素が画面にある）、color X,Y=色名|#RRGGBB（画面の点、px。screen= が必要）、command シェル（終了コード0で成立。残りをすべてシェルとして読むので最後の項）も使えます。\n| はORで、カンマ（AND）より弱く結び付きます。wait-until ミリ秒 条件 / wait-while ミリ秒 条件 は250ミリ秒ごとに確かめ、0はマクロ全体の制限時間まで待ちます。時間切れは失敗です。\n画面を読む項は対象アプリ（無ければ前面アプリ）を見ます。アプリごとの許可は要りません。"
+    )
     val uiHelp = t("action.uiHelp",
         en = "version=2 also supports click SELECTOR, long-click SELECTOR and wait-ui MS SELECTOR.\nSelectors: text=Continue, desc=More options, id=org.example.app:id/next. Exact matches; no quoting around spaces.\nSet target or launch first. wait-ui searches every 250ms for up to 1–30000ms; multiple matches fail.\nActions are sent once; use wait-ui for the next screen. Input/password fields are excluded.\ninspect PACKAGE returns visible text, descriptions and IDs from the focused target app as JSON.",
         ja = "version=2 では click 対象、long-click 対象、wait-ui ミリ秒 対象 も使えます。\n対象は text=次へ、desc=その他、id=org.example.app:id/next。完全一致で、空白を引用符で囲みません。\n先に target または launch を指定します。wait-ui は250ミリ秒間隔、1〜30000ミリ秒まで検索。複数一致は失敗です。\n操作は1回だけ送り、次の画面には wait-ui を使います。入力欄・パスワード欄は対象外です。\ninspect パッケージ名 は、前面の対象アプリの表示文字・説明・IDをJSONで返します。"
@@ -20,7 +24,7 @@ fun z2ActionScript(lang: String): String {
         en = "pause [RUN_ID] holds the run; the step in progress is sent again from its start. Opening the notification shade also pauses.\nresume [RUN_ID] continues once a screen other than z2term stays in front (up to 5 seconds; otherwise it stays paused). It answers after that: state running and exit 0, or paused and a non-zero exit. The time limit stops while paused.",
         ja = "pause [実行ID] で一時停止。途中の手順は再開時に最初から送ります。通知欄を下ろしても一時停止します。\nresume [実行ID] は z2term 以外の画面が前に出て落ち着いてから続けます（5秒まで。出なければ一時停止のまま）。結果が出てから返り、再開できれば state は running で終了コード 0、一時停止のままなら paused で 0 以外です。一時停止の間は制限時間が止まります。"
     )
-    val header = (description + "\n" + pauseHelp + "\n" + controlHelp + "\n" + uiHelp).lines().joinToString("\n") { "# $it" }
+    val header = (description + "\n" + pauseHelp + "\n" + controlHelp + "\n" + conditionHelp + "\n" + uiHelp).lines().joinToString("\n") { "# $it" }
     return "#!/bin/sh\n$header\n" + """
         |# z2-action list | show NAME | save NAME FILE|- | delete NAME
         |# z2-action run NAME | start NAME | wait RUN_ID | status [RUN_ID] | stop [RUN_ID] | pause [RUN_ID] | resume [RUN_ID]
@@ -38,6 +42,7 @@ fun z2ActionScript(lang: String): String {
         |# scroll SIGNED_DP_PER_SECOND MILLISECONDS X_PERCENT Y_PERCENT
         |# click SELECTOR / long-click SELECTOR / wait-ui MILLISECONDS SELECTOR (version=2)
         |# repeat N|forever ... end / if CONDITION ... [else ...] end / call NAME (version=2)
+        |# wait-until MILLISECONDS CONDITION / wait-while MILLISECONDS CONDITION (version=2; 0 = no own limit)
         |case "${d}{1:-}" in
         |  ''|-h|--help|help)
         |    awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 && NF { exit }' "${d}0"; exit 0 ;;

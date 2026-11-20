@@ -17,7 +17,7 @@
     <string name="ui_bridge_grant_input_title">Enter minutes</string>
     <string name="ui_bridge_grant_input_hint">1–1440</string>
     <string name="ui_bridge_set">Set</string>
-    <string name="ui_bridge_protected_note">z2term, Android settings, installers and the notification shade are never available to the AI, regardless of permission.</string>
+    <string name="ui_bridge_protected_note">z2term, Android settings, installers and the notification shade are never available to the AI, regardless of permission. Screen-action macros (z2-action) are outside these permissions and can read and operate any app. If your AI lets you choose which commands it may run, allow only z2-ui.</string>
     <string name="ui_bridge_log_note">Activity log: ~/.z2term/ui/log.jsonl (typed text is not recorded)</string>
     <string name="ui_bridge_channel">AI app control</string>
     <string name="ui_bridge_ask_channel">AI action approval</string>

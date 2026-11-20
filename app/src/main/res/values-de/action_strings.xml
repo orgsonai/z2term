@@ -76,6 +76,8 @@
     <string name="action_edit_add_repeat">Wiederholung hinzufügen</string>
     <string name="action_edit_add_branch">Bedingung hinzufügen</string>
     <string name="action_edit_toggle_comment"># Kommentar</string>
+    <string name="action_edit_wait_until">Warten bis</string>
+    <string name="action_edit_wait_while">Warten solange</string>
     <string name="action_edit_blocks_hint">Füge Schritte in jeden Block ein. Mit ⋮ verschiebst, duplizierst oder entfernst du ganze Schritte und Blöcke.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · Anweisungen: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · Durchlauf %3$d</string>

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.182 (versionCode 880)**: Screen-action macros can now decide from what is on screen. `if` conditions can test whether an element is shown (`ui text=OK`), the colour of a screen point (`color 540,1200=green` or `=#33aa55`) and a shell exit status (`command …`), and `|` joins alternatives. New `wait-until MS CONDITION` waits until a condition holds and `wait-while MS CONDITION` waits while it holds; 0 ms waits up to the macro's own limit. Reading the screen needs no per-app permission, and the AI control screen now says that z2-action is outside those permissions
+
 **1.0.181 (versionCode 879)**: Screen-action macros can now carry a comment after a step (`wait 800  # until the screen opens`). It starts at a `#` that follows whitespace and is followed by whitespace or the end of the line, so text such as `text=#5` and the shell text of `command` lines are unchanged. Text editing shows comments in grey and `repeat` `if` `else` `end` `call` in the accent colour, and the **# Comment** button comments out the selected lines or restores them. Editing a step through the form keeps its trailing comment
 
 **1.0.180 (versionCode 878)**: Eight hours after the app started, SSH tabs dropped while the screen was off, and resident servers stopped answering from outside. What keeps the device from sleeping with the screen off ran out after 8 hours and was never taken again (the resident notification stayed up). It now renews itself before it runs out for as long as the app stays resident. With low-power mode on it is still not used

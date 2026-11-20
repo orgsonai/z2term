@@ -17,7 +17,7 @@
     <string name="ui_bridge_grant_input_title">Introduce los minutos</string>
     <string name="ui_bridge_grant_input_hint">1–1440</string>
     <string name="ui_bridge_set">Aplicar</string>
-    <string name="ui_bridge_protected_note">z2term, los ajustes de Android, los instaladores y el panel de notificaciones nunca están disponibles para la IA, sea cual sea el permiso.</string>
+    <string name="ui_bridge_protected_note">z2term, los ajustes de Android, los instaladores y el panel de notificaciones nunca están disponibles para la IA, sea cual sea el permiso. Las macros de acciones de pantalla (z2-action) quedan fuera de estos permisos y pueden leer y manejar cualquier app. Si puedes elegir qué comandos ejecuta tu IA, permite solo z2-ui.</string>
     <string name="ui_bridge_log_note">Registro: ~/.z2term/ui/log.jsonl (no se guarda el texto escrito)</string>
     <string name="ui_bridge_channel">Control de apps por IA</string>
     <string name="ui_bridge_ask_channel">Aprobación de acciones de IA</string>
