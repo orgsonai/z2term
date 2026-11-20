@@ -79,6 +79,11 @@
     <string name="action_edit_wait_until">조건까지 대기</string>
     <string name="action_edit_wait_while">조건 동안 대기</string>
     <string name="action_edit_run_output">출력을 단계로 실행</string>
+    <string name="action_edit_tap_ui">요소 탭</string>
+    <string name="action_edit_input">글자 입력</string>
+    <string name="action_edit_type_text">입력할 글자</string>
+    <string name="action_edit_enter">확인 키</string>
+    <string name="action_edit_type_hint">지금 포커스가 있는 입력란에 넣습니다(먼저 “요소 탭” 등으로 입력란을 누르세요). 내용이 이 글자로 바뀌고, 비우면 지워집니다. 비밀번호 입력란에는 넣지 않습니다.</string>
     <string name="action_edit_human">사람다운 조작</string>
     <string name="action_edit_human_hint">0~20 (0은 끔, on은 5. 클수록 많이 흔들림)</string>
     <string name="action_macro_human_on">사람다운 조작: 켬</string>

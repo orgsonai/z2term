@@ -79,6 +79,11 @@
     <string name="action_edit_wait_until">等待直到</string>
     <string name="action_edit_wait_while">持续时等待</string>
     <string name="action_edit_run_output">把输出作为步骤运行</string>
+    <string name="action_edit_tap_ui">点按元素</string>
+    <string name="action_edit_input">输入文字</string>
+    <string name="action_edit_type_text">要输入的文字</string>
+    <string name="action_edit_enter">确认键</string>
+    <string name="action_edit_type_hint">输入到当前有焦点的输入框（请先点按该输入框，例如用“点按元素”）。内容会被替换为这段文字；留空则清空。不会输入到密码框。</string>
     <string name="action_edit_human">拟人操作</string>
     <string name="action_edit_human_hint">0～20（0 为关闭，on 为 5；越大抖动越明显）</string>
     <string name="action_macro_human_on">拟人操作：开</string>

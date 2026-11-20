@@ -90,6 +90,7 @@ internal object CliZhCn : CliLanguage {
             "action.watchHelp" to "watch 条件 call 名称 在所在的块结束前（位于最上层时为整个宏）每 300 毫秒检查一次条件，成立时运行 名称，然后继续宏。等待类步骤会被中断并重新发送，其他步骤会先完成。watch 的条件不能使用 command。\nrun-output SHELL 运行命令，并在检查后执行它输出的步骤（不能有标题、call、run-output 或 watch）。退出码非 0 时运行失败。",
             "action.humanHelp" to "human=1..20（on 为 5，off 和 0 为关闭；越大抖动越明显）让点按、滑动、拖动和 wait 更接近人的手指（位置稍有偏移，滑动线稍弯且起止较慢，时间略有变化）。运行中也可以用停止栏的 ~ 切换。",
             "action.loopHelp" to "repeat until 条件 ... end（或 repeat 次数 until 条件）在每一轮开始前检查条件，成立即退出；break 立即退出最内层的 repeat。\ntext~=部分 / desc~=部分 在文字或描述包含该部分时匹配（click、wait-ui 和条件中的 ui）。",
+            "action.inputHelp" to "tap ui 选择器 用手指点按元素的中心（用于 click 无效的屏幕；输入框可按其提示文字指定）。\ntype 文字 将有焦点的输入框内容替换为该文字（留空则清空）；enter 按下键盘的确认键。不会输入到密码框。version=2。",
             "action.controlHelp" to "version=2 支持 repeat 次数|forever ... end、if 条件 ... else ... end 和 call 名称。\n条件使用 z2-state 键或 foreground=包名；逗号表示AND，!表示否定。\n无法获取条件状态时运行失败。运行前验证并固定所有调用的宏。\n每个定义最多64条指令，每次运行最多执行10000条。父宏和子宏的超时均有效。",
             "action.pauseHelp" to "pause [运行ID] 暂停运行；进行中的步骤在继续时从头重新发送。下拉通知栏也会暂停。\nresume [运行ID] 在 z2term 以外的画面稳定在前台后继续（最多5秒，否则保持暂停）。有结果后才返回：继续则 state 为 running、退出码 0；仍暂停则为 paused、退出码非 0。暂停期间时间限制停止计时。",
             "action.uiHelp" to "version=2还支持click 选择器、long-click 选择器和wait-ui 毫秒 选择器。\n选择器示例：text=继续、desc=更多选项、id=org.example.app:id/next。精确匹配，空格不加引号。\n先设置target或launch。wait-ui每250毫秒查询，期限1–30000毫秒；多项匹配时失败。\n操作仅发送一次，下一画面使用wait-ui等待。输入框及密码框除外。\ninspect 包名以JSON返回前台目标应用的显示文本、说明和ID。",

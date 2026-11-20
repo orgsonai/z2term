@@ -17,6 +17,9 @@ internal object ActionStepEditor {
         Kind("repeat", R.string.action_edit_add_repeat, listOf(R.string.action_block_count), listOf("3")),
         Kind("if", R.string.action_edit_add_branch, listOf(R.string.action_block_condition), listOf("charging")),
         Kind("click", R.string.action_ui_click, listOf(R.string.action_ui_selector), listOf("text=")),
+        Kind("tap ui", R.string.action_edit_tap_ui, listOf(R.string.action_ui_selector), listOf("text=")),
+        Kind("type", R.string.action_edit_input, listOf(R.string.action_edit_type_text), listOf("")),
+        Kind("enter", R.string.action_edit_enter, emptyList(), emptyList()),
         Kind("long-click", R.string.action_ui_hold, listOf(R.string.action_ui_selector), listOf("text=")),
         Kind("wait-ui", R.string.action_ui_wait, listOf(R.string.action_edit_ms, R.string.action_ui_selector), listOf("5000", "text=")),
         Kind("wait-until", R.string.action_edit_wait_until, listOf(R.string.action_edit_ms, R.string.action_block_condition), listOf("5000", "ui text=")),
@@ -45,10 +48,16 @@ internal object ActionStepEditor {
     private fun Float.round3(): String =
         java.math.BigDecimal(toString()).setScale(3, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
 
+    /** `tap ui …` は座標の `tap` と別の種類 (1.0.189)。 */
+    private fun verbOf(line: String): String {
+        val words = line.trim().split(Regex("\\s+"))
+        return if (words.first() == "tap" && words.getOrNull(1) == "ui") "tap ui" else words.first()
+    }
+
     fun supports(line: String): Boolean {
         val words = line.trim().split(Regex("\\s+"))
-        val kind = kinds.firstOrNull { it.verb == words.first() } ?: return false
-        return kind.verb in listOf("command", "run-output", "if", "repeat", "click", "long-click", "wait-ui", "wait-until", "wait-while", "touch", "swipe-path", "swipe-two-path", "drag") ||
+        val kind = kinds.firstOrNull { it.verb == verbOf(line) } ?: return false
+        return kind.verb in listOf("command", "run-output", "type", "tap ui", "if", "repeat", "click", "long-click", "wait-ui", "wait-until", "wait-while", "touch", "swipe-path", "swipe-two-path", "drag") ||
             words.size == kind.fields.size + 1 || (kind.fields.lastOrNull() == R.string.action_edit_easing && words.size == kind.fields.size)
     }
 
@@ -60,13 +69,13 @@ internal object ActionStepEditor {
         val fields = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         val error = ActionUi.label(context, "", 11f, ActionUi.dangerColor)
         val trimmed = initial.trim()
-        val initialVerb = trimmed.split(Regex("\\s+")).first()
+        val initialVerb = verbOf(trimmed)
         val available = if (initialVerb in listOf("repeat", "if")) kinds.filter { it.verb == initialVerb }
             else kinds.filterNot { it.verb in listOf("repeat", "if", "touch", "swipe-path", "swipe-two-path") && it.verb != initialVerb }
-        var kind = available.firstOrNull { it.verb == trimmed.split(Regex("\\s+")).first() }
+        var kind = available.firstOrNull { it.verb == initialVerb }
             ?: kinds.first { it.verb == "wait" }
         // repeat は「3」「forever」「until 条件」「5 until 条件」を 1 つの欄で受ける (1.0.188)。
-        var values = if (kind.verb in listOf("command", "run-output", "if", "repeat", "click", "long-click")) listOf(trimmed.removePrefix(kind.verb).trimStart())
+        var values = if (kind.verb in listOf("command", "run-output", "type", "tap ui", "if", "repeat", "click", "long-click")) listOf(trimmed.removePrefix(kind.verb).trimStart())
             else if (kind.verb in listOf("wait-ui", "wait-until", "wait-while", "touch", "swipe-path", "swipe-two-path")) trimmed.split(Regex("\\s+"), limit = 3).drop(1)
             // drag は「単位・1 区間の時間・点の並び (空白区切り)」の 3 欄。点は 1 つの欄にまとめる。
             else if (kind.verb == "drag") trimmed.split(Regex("\\s+"), limit = 4).drop(1).let { if (it.size == 2) it + "" else it }
@@ -152,6 +161,7 @@ internal object ActionStepEditor {
                     val input = ActionUi.field(context).apply {
                         contentDescription = context.getString(label)
                         inputType = if (label in listOf(R.string.action_edit_package, R.string.action_edit_command, R.string.action_edit_macro_name,
+                            R.string.action_edit_type_text,
                             R.string.action_ui_selector, R.string.action_block_count, R.string.action_block_condition, R.string.action_edit_points))
                             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
                         else InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
@@ -167,6 +177,7 @@ internal object ActionStepEditor {
                     fun hint(text: Int) = ActionUi.add(fields, ActionUi.note(context, context.getString(text)), gap = 6)
                     fun below(view: View) = ActionUi.add(fields, view, gap = 6)
                     if (label == R.string.action_block_count) hint(R.string.action_block_count_hint)
+                    if (label == R.string.action_edit_type_text) hint(R.string.action_edit_type_hint)
                     if (label == R.string.action_edit_points) {
                         hint(R.string.action_points_hint)
                         val count = values[index].trim().split(Regex("\\s+")).count { it.isNotEmpty() }

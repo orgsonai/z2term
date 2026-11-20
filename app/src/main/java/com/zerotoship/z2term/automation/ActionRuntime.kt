@@ -62,6 +62,8 @@ internal object ActionRuntime {
     /** How long a launch step waits for the launched app to come to the front. */
     private const val LAUNCH_WAIT_MS = 10_000L
     private const val COLOR_RADIUS = 4
+    /** `tap ui` の押す長さ (座標の tap と同じ)。 */
+    private const val TAP_MS = 80L
     fun store(context: Context) = ActionStore(File(context.filesDir, "shared_home/.z2term/actions"))
 
     @Suppress("DEPRECATION")
@@ -181,6 +183,8 @@ internal object ActionRuntime {
                 is ActionDefinition.Step.Call -> "call"
                 is ActionDefinition.Step.Watch -> "watch"
                 is ActionDefinition.Step.Break -> "break"
+                is ActionDefinition.Step.Input -> if (step.text == null) "enter" else "type"
+                is ActionDefinition.Step.UiTap -> "tap-ui"
                 is ActionDefinition.Step.RunOutput -> "run-output"
                 is ActionDefinition.Step.Ui -> step.operation
                 is ActionDefinition.Step.WaitFor -> if (step.until) "wait-until" else "wait-while"
@@ -318,6 +322,7 @@ internal object ActionRuntime {
     private fun executeStep(run: Run, step: ActionDefinition.Step, completed: (String?) -> Unit): (() -> Unit)? {
         checkDevice(run)
         if (step is ActionDefinition.Step.Stroke || step is ActionDefinition.Step.Scroll || step is ActionDefinition.Step.Key ||
+            step is ActionDefinition.Step.Input || step is ActionDefinition.Step.UiTap ||
             (step is ActionDefinition.Step.Ui && step.operation != "wait-ui")) guardOwnScreen(run)
         fun done(error: String?) { run.target = null; completed(error) }
         fun target(requested: String): String = if (requested == ActionDefinition.CURRENT_TARGET)
@@ -381,14 +386,29 @@ internal object ActionRuntime {
             is ActionDefinition.Step.Stroke -> {
                 val resolved = step.copy(target = target(step.target))
                 run.target = resolved.target
-                // Only where a finger lands decides which window receives it; avoid the stop bar along the whole path.
-                val points = resolved.tracks(run.screen).flatten()
-                return ActionRunOverlay.clear({ box -> points.any { box.contains(it.x.toInt(), it.y.toInt()) } }, ::schedule, ::done) { finished ->
-                    check(current === run) { "Stopped" }
-                    AndroidActions.stroke(resolved, run.screen, finished,
-                        human = if (run.human) { stroke, area -> ActionHumanize.stroke(stroke, run.screen, area, run.random, run.humanLevel) } else null,
-                        trail = ActionRunOverlay.trailEnabled(run.context))
+                return send(run, resolved, ::done)
+            }
+            is ActionDefinition.Step.UiTap -> {
+                // 要素を探して、その真ん中を指でタップする (人らしい操作・軌跡も座標の tap と同じ)。
+                val resolved = target(step.target)
+                run.target = resolved
+                checkDevice(run)
+                var inner: (() -> Unit)? = null
+                val lookup = AndroidActions.locateUi(resolved, step.selector) { box, error ->
+                    if (current !== run) return@locateUi
+                    if (error != null || box == null) { done(error ?: "UI element not found: ${step.selector}"); return@locateUi }
+                    inner = try {
+                        send(run, ActionDefinition.Step.Stroke(resolved, "px", box.exactCenterX(), box.exactCenterY(),
+                            box.exactCenterX(), box.exactCenterY(), TAP_MS), ::done)
+                    } catch (e: Exception) { done(e.message ?: "Action failed"); null }
                 }
+                return { lookup(); inner?.invoke() }
+            }
+            is ActionDefinition.Step.Input -> {
+                run.target = target(step.target)
+                checkDevice(run)
+                AndroidActions.input(run.target!!, step.text)
+                done(null)
             }
             is ActionDefinition.Step.Scroll -> {
                 run.target = target(step.target)
@@ -397,6 +417,17 @@ internal object ActionRuntime {
             }
         }
         return null
+    }
+    /** 座標の指を送る。停止の帯をよけ、人らしい操作 (human=) と軌跡の表示 (設定) を掛ける。 */
+    private fun send(run: Run, stroke: ActionDefinition.Step.Stroke, done: (String?) -> Unit): (() -> Unit)? {
+        // Only where a finger lands decides which window receives it; avoid the stop bar along the whole path.
+        val points = stroke.tracks(run.screen).flatten()
+        return ActionRunOverlay.clear({ box -> points.any { box.contains(it.x.toInt(), it.y.toInt()) } }, ::schedule, done) { finished ->
+            check(current === run) { "Stopped" }
+            AndroidActions.stroke(stroke, run.screen, finished,
+                human = if (run.human) { s, area -> ActionHumanize.stroke(s, run.screen, area, run.random, run.humanLevel) } else null,
+                trail = ActionRunOverlay.trailEnabled(run.context))
+        }
     }
     private fun scroll(run: Run, step: ActionDefinition.Step.Scroll, done: (String?) -> Unit): () -> Unit {
         var ending = false

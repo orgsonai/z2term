@@ -10,6 +10,7 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import android.graphics.Rect
+import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import android.view.accessibility.AccessibilityEvent
 import org.json.JSONObject
@@ -356,6 +357,48 @@ class AndroidActions : AccessibilityService() {
                 }
             }
             return { job.cancel() }
+        }
+
+        /** `tap ui` (1.0.189): the element's box in screen px, or null when it is not on screen. */
+        internal fun locateUi(targetPackage: String, selector: com.zerotoship.z2term.automation.ActionSelector,
+            done: (Rect?, String?) -> Unit): () -> Unit {
+            val service = active ?: error("Accessibility disconnected")
+            val job = CoroutineScope(Dispatchers.Main.immediate).launch {
+                try { done(AndroidUiElements.locate(service, targetPackage, selector) { uiTarget(service, targetPackage) }, null) }
+                catch (e: CancellationException) { throw e } catch (e: Exception) { done(null, e.message ?: "UI lookup failed") }
+            }
+            return { job.cancel() }
+        }
+
+        /**
+         * `type` / `enter` (1.0.189, main thread): the input field that has focus in the focused window of
+         * [targetPackage]. [text] replaces the content; null presses the keyboard's enter key. Password fields are refused.
+         */
+        internal fun input(targetPackage: String, text: String?) {
+            val service = active ?: error("Accessibility disconnected")
+            val window = service.focusedTarget() ?: error("No focused application window")
+            check(service.packageOf(window.id) == targetPackage) { "Target app is not focused" }
+            val node = service.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                ?: error("No input field has focus; tap the field first")
+            try {
+                check(node.windowId == window.id && node.packageName?.toString() == targetPackage) {
+                    "The focused input field is not in the target app"
+                }
+                check(!node.isPassword) { "Macros do not type into password fields" }
+                check(node.isEditable) { "The focused element is not an input field" }
+                if (text != null) {
+                    val args = android.os.Bundle().apply {
+                        putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+                    }
+                    if (!node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
+                        // 入力欄によってはフォーカスを持つまで受け付けない。
+                        node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                        check(node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) { "Android rejected the text" }
+                    }
+                } else if (Build.VERSION.SDK_INT >= 30) {
+                    check(node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)) { "Android rejected enter" }
+                } else error("enter requires Android 11 or later")
+            } finally { @Suppress("DEPRECATION") node.recycle() }
         }
 
         internal suspend fun inspectUi(targetPackage: String): List<AndroidUiElements.Entry> {

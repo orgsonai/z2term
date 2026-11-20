@@ -23,6 +23,13 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             val target: String = CURRENT_TARGET) : Step
         /** `break` (1.0.188): leaves the innermost `repeat` at once. */
         data object Break : Step
+        /**
+         * `type 文字` / `enter` (1.0.189): the input field that has focus in [target]. [text] replaces its content
+         * (empty clears it); null presses the keyboard's enter key. Password fields are refused.
+         */
+        data class Input(val target: String, val text: String?) : Step
+        /** `tap ui 対象` (1.0.189): a finger tap at the centre of the element (works where `click` cannot). */
+        data class UiTap(val target: String, val selector: ActionSelector) : Step
         /** [target] is the app whose screen `ui` / `color` terms read (as for the steps around it). */
         data class Branch(val condition: String, val yes: List<Step>, val no: List<Step>,
             val target: String = CURRENT_TARGET) : Step
@@ -121,11 +128,14 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         }
         val HEADERS = setOf("version", "timeout", "screen", "human")
         /** 後ろをそのままシェルに渡す命令。行末の `#` もシェルのもの。 */
-        val SHELL_VERBS = setOf("command", "run-output")
+        /** `type` の文字もそのまま入れる (1.0.189)。 */
+        val SHELL_VERBS = setOf("command", "run-output", "type")
         /** 条件式を取る命令。`if 条件` / `wait-until ミリ秒 条件` / `wait-while ミリ秒 条件`。 */
         val CONDITION_VERBS = setOf("if", "wait-until", "wait-while")
         /** `wait-until` / `wait-while` の上限 (ミリ秒)。0 は無期限 (マクロ全体の制限時間と停止は効く)。 */
         const val MAX_CONDITION_WAIT_MS = 300_000L
+        /** `type` で一度に入れる文字の上限。 */
+        const val MAX_TYPE_CHARS = 4096
         /** コメントを除いた本文 (前後の空白も除く)。 */
         fun code(line: String): String = (commentStart(line)?.let { line.substring(0, it) } ?: line).trim()
         fun macroName(value: String): String {
@@ -249,7 +259,17 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                     return@map original
                 }
                 val before = steps.size
-                when (words[0]) {
+                // `tap ui 対象` は座標の tap と別の手順 (1.0.189)。
+                when (if (words[0] == "tap" && words.getOrNull(1) == "ui") "tap ui" else words[0]) {
+                    "type", "enter" -> {
+                        require(headers["version"] == "2") { "${words[0]} requires version=2" }
+                        if (words[0] == "enter") { count(1); steps += Step.Input(destination(), null) }
+                        else {
+                            val text = line.substring(4).trimStart()
+                            require(text.length <= MAX_TYPE_CHARS) { "type takes at most $MAX_TYPE_CHARS characters" }
+                            steps += Step.Input(destination(), text)
+                        }
+                    }
                     "watch" -> {
                         require(headers["version"] == "2") { "watch requires version=2" }
                         // 最後の 2 語が `call 名前`。条件はその前すべて。
@@ -294,6 +314,11 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                         val text = line.dropWhile { !it.isWhitespace() }.trimStart()
                         require(text.isNotBlank()) { "Empty shell command" }
                         steps += Step.Command(text)
+                    }
+                    "tap ui" -> {
+                        require(headers["version"] == "2") { "tap ui requires version=2" }
+                        require(words.size >= 3) { "tap ui requires a selector" }
+                        steps += Step.UiTap(destination(), ActionSelector.parse(line.split(Regex("\\s+"), limit = 3).last()))
                     }
                     "tap", "long-press", "swipe" -> {
                         val swipe = words[0] == "swipe"

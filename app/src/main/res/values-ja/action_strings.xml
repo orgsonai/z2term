@@ -79,6 +79,11 @@
     <string name="action_edit_wait_until">条件まで待つ</string>
     <string name="action_edit_wait_while">条件の間待つ</string>
     <string name="action_edit_run_output">出力を手順として実行</string>
+    <string name="action_edit_tap_ui">要素をタップ</string>
+    <string name="action_edit_input">文字を入力</string>
+    <string name="action_edit_type_text">入力する文字</string>
+    <string name="action_edit_enter">確定キー</string>
+    <string name="action_edit_type_hint">いまフォーカスのある入力欄に入れます（先に「要素をタップ」などで欄を押してください）。中身はこの文字に置き換わり、空にすると消えます。パスワード欄には入れません。</string>
     <string name="action_edit_human">人らしい操作</string>
     <string name="action_edit_human_hint">0〜20（0 はなし、on は 5。大きいほど揺れる）</string>
     <string name="action_macro_human_on">人らしい操作: オン</string>

@@ -20,6 +20,10 @@ fun z2ActionScript(lang: String): String {
         en = "repeat until CONDITION ... end (or repeat N until CONDITION) checks the condition before each pass and leaves once it holds; break leaves the innermost repeat at once.\ntext~=PART / desc~=PART match when the text or description contains PART (click, wait-ui and ui conditions).",
         ja = "repeat until 条件 ... end（または repeat 回数 until 条件）は各回の始めに条件を確かめ、成立したら抜けます。break はいちばん内側の repeat をその場で抜けます。\ntext~=部分 / desc~=部分 は、文字や説明にその部分を含めば一致します（click・wait-ui・条件の ui）。"
     )
+    val inputHelp = t("action.inputHelp",
+        en = "tap ui SELECTOR taps the centre of the element with a finger (for screens where click does not work); input fields match by their hint.\ntype TEXT replaces the content of the focused input field (empty clears it); enter presses the keyboard's enter key. Password fields are refused. version=2.",
+        ja = "tap ui 対象 は要素の真ん中を指でタップします（click が効かない画面向け。入力欄は表示されているヒントの文字で指定できます）。\ntype 文字 はフォーカスのある入力欄の中身をその文字に置き換えます（空なら消す）。enter はキーボードの確定キーです。パスワード欄には入れません。version=2。"
+    )
     val watchHelp = t("action.watchHelp",
         en = "watch CONDITION call NAME checks the condition every 300ms until its block ends (the whole macro at top level). When it holds, NAME runs and the macro then continues; a waiting step is cut short and sent again, other steps finish first. Watch conditions cannot use command.\nrun-output SHELL runs the command and executes the steps it prints (checked first; no headers, call, run-output or watch). A non-zero exit fails the run.",
         ja = "watch 条件 call 名前 は、書いたブロックが終わるまで（最上位ならマクロ全体）300ミリ秒ごとに条件を確かめ、成立したら 名前 を呼んでから続きへ戻ります。待ちの手順は打ち切って最初から送り直し、ほかの手順は終わるのを待ちます。watch の条件に command は使えません。\nrun-output シェル はコマンドを動かし、標準出力に書かれた手順を検査してから実行します（見出し・call・run-output・watch は不可）。終了コードが0以外なら失敗です。"
@@ -36,7 +40,7 @@ fun z2ActionScript(lang: String): String {
         en = "pause [RUN_ID] holds the run; the step in progress is sent again from its start. Opening the notification shade also pauses.\nresume [RUN_ID] continues once a screen other than z2term stays in front (up to 5 seconds; otherwise it stays paused). It answers after that: state running and exit 0, or paused and a non-zero exit. The time limit stops while paused.",
         ja = "pause [実行ID] で一時停止。途中の手順は再開時に最初から送ります。通知欄を下ろしても一時停止します。\nresume [実行ID] は z2term 以外の画面が前に出て落ち着いてから続けます（5秒まで。出なければ一時停止のまま）。結果が出てから返り、再開できれば state は running で終了コード 0、一時停止のままなら paused で 0 以外です。一時停止の間は制限時間が止まります。"
     )
-    val header = (description + "\n" + pauseHelp + "\n" + controlHelp + "\n" + conditionHelp + "\n" + loopHelp + "\n" + watchHelp + "\n" + humanHelp + "\n" + uiHelp).lines().joinToString("\n") { "# $it" }
+    val header = (description + "\n" + pauseHelp + "\n" + controlHelp + "\n" + conditionHelp + "\n" + loopHelp + "\n" + inputHelp + "\n" + watchHelp + "\n" + humanHelp + "\n" + uiHelp).lines().joinToString("\n") { "# $it" }
     return "#!/bin/sh\n$header\n" + """
         |# z2-action list | show NAME | save NAME FILE|- | delete NAME
         |# z2-action run NAME | start NAME | wait RUN_ID | status [RUN_ID] | stop [RUN_ID] | pause [RUN_ID] | resume [RUN_ID]
@@ -53,6 +57,7 @@ fun z2ActionScript(lang: String): String {
         |# command SHELL_TEXT
         |# scroll SIGNED_DP_PER_SECOND MILLISECONDS X_PERCENT Y_PERCENT
         |# click SELECTOR / long-click SELECTOR / wait-ui MILLISECONDS SELECTOR (version=2)
+        |# tap ui SELECTOR / type TEXT / enter (version=2)
         |# repeat N|forever ... end / if CONDITION ... [else ...] end / call NAME (version=2)
         |# repeat [N|forever] until CONDITION ... end / break / text~=PART desc~=PART (version=2)
         |# wait-until MILLISECONDS CONDITION / wait-while MILLISECONDS CONDITION (version=2; 0 = no own limit)

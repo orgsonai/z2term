@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.189 (versionCode 887)**: Screen-action macros can type: `type TEXT` replaces the content of the focused input field and `enter` presses the enter key (password fields are refused). New `tap ui SELECTOR` finds an element and taps its centre with a finger, so it works in games and web pages where `click` does not. Input fields match by their hint, so tap the field, type and confirm can be written as is
+
 **1.0.188 (versionCode 886)**: Screen-action loops can now end on a condition: `repeat until CONDITION` checks before each pass and stops once it holds, and `repeat 10 until CONDITION` runs at most 10 passes. `break` leaves the innermost loop at once. Element selectors gain partial matches, `text~=` / `desc~=`, for labels whose numbers change; AI app control accepts them too
 
 **1.0.187 (versionCode 885)**: Human-like input now goes up to strength 20 (`human=20`); 11 and above move enough to miss their targets

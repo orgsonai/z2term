@@ -107,6 +107,28 @@ internal object AndroidUiElements {
                 retained.forEach { it.recycle() }
             }
         }
+    /**
+     * `tap ui` (1.0.189): the on-screen box of the one element matching [selector], or null if none. Input fields
+     * are included and matched by their hint (`text=`), never by what was typed; password fields are not.
+     */
+    suspend fun locate(service: AccessibilityService, target: String, selector: ActionSelector, guard: () -> Window): Rect? =
+        readTree {
+            val window = withContext(Dispatchers.Main) { guard() }
+            val retained = nodes(service, target, window)
+            try {
+                val found = retained.filter { node ->
+                    node.windowId == window.id && node.packageName?.toString() == target && !node.isPassword &&
+                        node.isVisibleToUser && Rect.intersects(bounds(node), window.bounds) && selector.matches(
+                        if (selector.key == "id") node.viewIdResourceName else null,
+                        if (selector.key == "text") (if (node.isEditable) node.hintText else node.text)?.toString() else null,
+                        if (selector.key == "desc") node.contentDescription?.toString() else null)
+                }
+                check(found.size <= 1) { "More than one UI element matches; use a unique text, description or resource ID" }
+                val box = found.singleOrNull()?.let { bounds(it).apply { intersect(window.bounds) } }
+                withContext(Dispatchers.Main) { if (guard().id != window.id) throw Changed("Target window changed") }
+                box
+            } finally { retained.forEach { it.recycle() } }
+        }
     suspend fun inspect(service: AccessibilityService, target: String, guard: () -> Window): List<Entry> =
         readTree {
             val window = withContext(Dispatchers.Main) { guard() }

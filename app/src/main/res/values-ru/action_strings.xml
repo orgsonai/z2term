@@ -79,6 +79,11 @@
     <string name="action_edit_wait_until">Ждать, пока не</string>
     <string name="action_edit_wait_while">Ждать, пока</string>
     <string name="action_edit_run_output">Выполнить вывод как шаги</string>
+    <string name="action_edit_tap_ui">Нажать элемент</string>
+    <string name="action_edit_input">Ввести текст</string>
+    <string name="action_edit_type_text">Текст для ввода</string>
+    <string name="action_edit_enter">Клавиша ввода</string>
+    <string name="action_edit_type_hint">Вводит в поле, на котором фокус (сначала нажмите поле, например «Нажать элемент»). Текст заменяет содержимое; пусто — очистить поле. Поля паролей не принимаются.</string>
     <string name="action_edit_human">Живой ввод</string>
     <string name="action_edit_human_hint">от 0 до 20 (0 — выкл., on — 5; больше — сильнее)</string>
     <string name="action_macro_human_on">Живой ввод: вкл.</string>

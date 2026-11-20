@@ -272,12 +272,30 @@ long-click desc=More options
 | `click SELECTOR` | Click once |
 | `long-click SELECTOR` | Long-click once |
 | `wait-ui MS SELECTOR` | Wait for visibility for 1–30000ms |
+| `tap ui SELECTOR` | Tap the element's centre with a finger (1.0.189) |
+| `type TEXT` / `enter` | Replace the content of the focused input field / press the enter key (1.0.189) |
 | `watch CONDITION call NAME` | Watch the condition until the block ends and call NAME when it holds |
 | `run-output SHELL` | Check the steps the command prints and execute them in place |
 | `wait-until MS CONDITION` / `wait-while MS CONDITION` | Wait until / while the condition holds, 0–300000ms (0 = up to the whole limit) |
 | `z2-action inspect PACKAGE` | Return focused target-app elements as JSON; a CLI command, not a macro instruction |
 
 Choose one of `text=Continue`, `desc=More options` or `id=org.example.app:id/next`. Text and descriptions match exactly after trimming outer whitespace, with case preserved. Values contain 1–256 characters. Interior spaces, equals signs and quotes are literal; there is no shell expansion or regex.
+
+**Tap an element with a finger (1.0.189)**: `tap ui SELECTOR` finds the element and taps its centre with a coordinate tap. `click` presses through Android's button mechanism, which does nothing where nothing is marked as pressable, as in games and web pages; `tap ui` works there. Input fields can be targets too: `text=` is compared with the hint shown in the field (typed content is never read; password fields are excluded). Human-like input, the trail and stop-bar avoidance work as for a coordinate `tap`. It fails when no element or more than one matches.
+
+**Type text (1.0.189)**:
+
+```text
+version=2
+tap ui text=Search      # tap the field so it takes focus
+wait 300
+type weather in Tokyo   # replaces the content (a # goes in as text)
+enter                   # the keyboard's enter key
+```
+
+- `type TEXT` replaces the content of the input field that has focus (the one the keyboard is for). `type` alone clears it. A trailing `#` goes in as text. Up to 4096 characters at once.
+- `enter` presses the keyboard's enter key (search, send and so on). Android 11 or later.
+- It fails when no input field has focus, when the field is outside the target app, or when it is a password field.
 
 **Partial match (1.0.188)**: `text~=left` / `desc~=More` match when the text or description contains that part (for labels whose numbers change, such as "3 left"). Not for `id`. `click` / `long-click` fail when two or more elements match, so pick a part no other element shares. AI app control (z2-ui) accepts the same form for its targets.
 
