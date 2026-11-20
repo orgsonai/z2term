@@ -11,7 +11,6 @@ import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
-import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.zerotoship.z2term.MainActivity
@@ -39,7 +38,8 @@ import kotlinx.coroutines.runBlocking
  */
 class ServerDaemonService : Service() {
 
-    private var wakeLock: PowerManager.WakeLock? = null
+    /** 期限前に取り直し続ける WakeLock (1.0.180)。 */
+    private val wakeLock by lazy { RenewingWakeLock(this, "z2term:servers") }
     private var wifiLock: WifiManager.WifiLock? = null
     @Volatile private var refresher: Thread? = null
 
@@ -195,13 +195,9 @@ class ServerDaemonService : Service() {
     }
 
     private fun acquireLocks() {
-        if (wakeLock?.isHeld != true) {
-            val pm = getSystemService(POWER_SERVICE) as PowerManager
-            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "z2term:servers").apply {
-                setReferenceCounted(false)
-                acquire(MAX_WAKELOCK_MILLIS)
-            }
-        }
+        // 期限前に自分で取り直し続ける (1.0.180)。1.0.179 までは 8 時間で黙って切れ、
+        // 常駐しているのに画面消灯中は CPU が眠っていた。
+        wakeLock.acquire()
         // ⚠ **WifiLock は今の Android では画面消灯中の到達性に効かない (0.8.367 に裏取り)。**
         //  - `WIFI_MODE_FULL_HIGH_PERF` は非機能化していて `WIFI_MODE_FULL_LOW_LATENCY` に
         //    読み替えられる。
@@ -222,8 +218,7 @@ class ServerDaemonService : Service() {
     }
 
     private fun releaseLocks() {
-        wakeLock?.let { if (it.isHeld) it.release() }
-        wakeLock = null
+        wakeLock.release()
         wifiLock?.let { if (it.isHeld) it.release() }
         wifiLock = null
     }
@@ -232,6 +227,8 @@ class ServerDaemonService : Service() {
         super.onDestroy()
         stopNotificationRefresher()
         releaseLocks()
+        // 起動スレッドがこの後に acquireLocks しても握らないようにする。
+        wakeLock.close()
         TunnelManager.stopAll()
         // 常駐が終わった＝ホーム画面ウィジェットの「常駐 N」が古くなるので描き直す。
         StatusWidgetProvider.refresh(this)
@@ -243,7 +240,6 @@ class ServerDaemonService : Service() {
         // よう新 ID にする (旧 z2term_servers チャンネルは未使用のまま残るだけ)。
         private const val CHANNEL_ID = "z2term_servers_v2"
         private const val NOTIFICATION_ID = 1002
-        private const val MAX_WAKELOCK_MILLIS = 8L * 60 * 60 * 1000
 
         /** 起動直後、status の書き込みラグに追従するため短い周期で見る時間。 */
         private const val SETTLE_MILLIS = 60_000L

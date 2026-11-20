@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.180 (versionCode 878)**: Eight hours after the app started, SSH tabs dropped while the screen was off, and resident servers stopped answering from outside. What keeps the device from sleeping with the screen off ran out after 8 hours and was never taken again (the resident notification stayed up). It now renews itself before it runs out for as long as the app stays resident. With low-power mode on it is still not used
+
 **1.0.179 (versionCode 877)**: Connecting a PC's AI to z2term over SSH got no answer to any call. When SSH runs a single command, the search path (PATH) lacks the folder of the helper z2-ui uses to talk to the app, so it was not found. z2-ui now adds its own folder to the path
 
 **1.0.178 (versionCode 876)**: Fixed the registration commands in "Teach z2term to your AI". The Claude Code ones now add `-s user` so the AI finds z2term from any folder (without it, only in the folder where it was registered). The PC ones give `z2-ui` as a full path so it is found over SSH, and there is now a Codex line for the PC too

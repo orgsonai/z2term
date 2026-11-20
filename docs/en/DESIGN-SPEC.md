@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-19 / Target version: 1.0.179 (versionCode 877)
+Last updated: 2026-11-20 / Target version: 1.0.180 (versionCode 878)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -361,6 +361,8 @@ emulator state updates are concentrated on a **dedicated single thread** (`z2ter
 
 While keep-alive is on it holds a `PARTIAL_WAKE_LOCK` (keeps the CPU running) and **nothing else**. It is released on detach (keep-alive off), stop and destroy.
 
+**Renewed before it expires (1.0.180)**: the WakeLock is held through `RenewingWakeLock`. Each hold carries a 1-hour timeout and renews itself every 30 minutes (`acquire(timeout)` on a non-reference-counted lock replaces the previous timeout). Through 1.0.179 it was taken once with an 8-hour timeout and only renewed in `onStartCommand`, so **8 hours after start-up the service was still running but no WakeLock was held**: with the screen off the CPU slept, the SSH tab's keepalive stopped and the tab dropped within about 15 minutes (seen on a real device). The timeout stays, so if renewal ever stops the lock is still let go within an hour. `onDestroy` calls `close()`, so a start-up thread that tries to acquire afterwards is refused. `ServerDaemonService` uses the same class.
+
 **It honours low-power mode (0.8.269)**: that `PARTIAL_WAKE_LOCK` is not taken when `serversLowPower` is on. Through 0.8.268 this service alone ignored the setting, so turning on low-power mode for resident servers **did not take full effect** — while resident servers ran, two services each held their own copy of the same WakeLock. Holding one of them anyway breaks the promise made to someone who chose battery over reachability, so a single flag covers both. ⚠ The check only happens in `onStartCommand`, so changing the setting must be followed by another `TerminalService.start` to re-evaluate it (the settings toggle does this; the call is idempotent). ⚠ **The toggle is in Command list -> Servers since 0.8.581** (`SettingsSheet`); the re-`start` call has to travel with it.
 
 **No `WifiLock` here (0.8.268)**: 0.8.143 through 0.8.267 also held a `WIFI_MODE_FULL_HIGH_PERF` `WifiLock`. That setting takes the Wi-Fi radio out of power-save (PSM) entirely, keeping it at full power even while the screen is off — which costs battery and generates heat directly. Keeping the radio awake belongs to the side that **accepts inbound connections**, i.e. resident servers (`ServerDaemonService`), which holds that same `WifiLock`. This service only has to keep the interactive session's process alive, so it no longer holds a duplicate.
@@ -466,6 +468,7 @@ Measured (old and new run side by side for 60s on the same device): **44 ticks �
 
 **Residency and stopping**
 - Foreground persistence (so the process is not killed) and LAN reachability (WakeLock + WifiLock) are handled by the dedicated `ServerDaemonService`. ⚠ **The `WifiLock` does not guarantee reachability** (measured: it drops at the ARP layer right after a Wi-Fi reconnect — see "Foreground residency and its lock" above)
+- The WakeLock is the same `RenewingWakeLock` as in `TerminalService` (a 1-hour timeout renewed every 30 minutes, 1.0.180). Through 1.0.179 it lapsed after 8 hours and was never taken again
 - **`BootReceiver` (`RECEIVE_BOOT_COMPLETED`) auto-starts the daemon right after boot without opening the app** (only when "auto-start on boot" is on and at least one server is enabled)
 - Stopping — via the "Stop servers" notification action or the settings — **kills the supervisor engine = stops all servers at once** (children are reaped together)
 - Ports below 1024 cannot be bound by a non-root engine

@@ -10,7 +10,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.zerotoship.z2term.MainActivity
@@ -50,7 +49,8 @@ import kotlinx.coroutines.runBlocking
  */
 class TerminalService : Service() {
 
-    private var wakeLock: PowerManager.WakeLock? = null
+    /** 期限前に取り直し続ける WakeLock。8 時間で黙って切れていた (1.0.179 まで) のを直した。 */
+    private val wakeLock by lazy { RenewingWakeLock(this, "z2term:session") }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -112,22 +112,16 @@ class TerminalService : Service() {
         stopSelf()
     }
 
+    /** 握る。握っていれば期限を付け直すだけ (1.0.180 から期限前に自分で取り直し続ける)。 */
     private fun acquireWakeLock() {
-        if (wakeLock?.isHeld == true) return
-        val pm = getSystemService(POWER_SERVICE) as PowerManager
-        val wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "z2term:session")
-        wl.setReferenceCounted(false)
-        wl.acquire(MAX_WAKELOCK_MILLIS)
-        wakeLock = wl
-        Log.i(TAG, "Partial WakeLock acquired")
+        val wasHeld = wakeLock.isHeld
+        wakeLock.acquire()
+        if (!wasHeld) Log.i(TAG, "Partial WakeLock acquired")
     }
 
     private fun releaseWakeLock() {
-        wakeLock?.let { wl ->
-            if (wl.isHeld) wl.release()
-            Log.i(TAG, "Partial WakeLock released")
-        }
-        wakeLock = null
+        if (wakeLock.isHeld) Log.i(TAG, "Partial WakeLock released")
+        wakeLock.release()
     }
 
     private fun ensureChannel() {
@@ -181,7 +175,8 @@ class TerminalService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        releaseWakeLock()
+        if (wakeLock.isHeld) Log.i(TAG, "Partial WakeLock released")
+        wakeLock.close()
         Log.i(TAG, "TerminalService destroyed")
     }
 
@@ -189,8 +184,6 @@ class TerminalService : Service() {
         private const val TAG = "TerminalService"
         private const val CHANNEL_ID = "z2term_session"
         private const val NOTIFICATION_ID = 1001
-        /** WakeLock の絶対上限 (8 時間)。超えると自動解放 */
-        private const val MAX_WAKELOCK_MILLIS = 8L * 60 * 60 * 1000
         const val ACTION_STOP = "com.zerotoship.z2term.STOP"
         const val ACTION_DETACH = "com.zerotoship.z2term.DETACH"
 
