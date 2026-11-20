@@ -20,6 +20,8 @@ internal data class ActionProgram(val name: String, val definitions: Map<String,
                     ActionCondition.parse(step.condition).readsScreen
                 is ActionDefinition.Step.Watch -> step.target == ActionDefinition.CURRENT_TARGET &&
                     ActionCondition.parse(step.condition).readsScreen
+                is ActionDefinition.Step.Repeat -> step.target == ActionDefinition.CURRENT_TARGET &&
+                    step.until?.let { ActionCondition.parse(it).readsScreen } == true
                 // 出力される手順は前面の画面を相手にするかもしれない。
                 is ActionDefinition.Step.RunOutput -> step.target == ActionDefinition.CURRENT_TARGET
                 else -> false

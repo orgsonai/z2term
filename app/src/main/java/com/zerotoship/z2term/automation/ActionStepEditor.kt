@@ -65,7 +65,8 @@ internal object ActionStepEditor {
             else kinds.filterNot { it.verb in listOf("repeat", "if", "touch", "swipe-path", "swipe-two-path") && it.verb != initialVerb }
         var kind = available.firstOrNull { it.verb == trimmed.split(Regex("\\s+")).first() }
             ?: kinds.first { it.verb == "wait" }
-        var values = if (kind.verb in listOf("command", "run-output", "if", "click", "long-click")) listOf(trimmed.removePrefix(kind.verb).trimStart())
+        // repeat は「3」「forever」「until 条件」「5 until 条件」を 1 つの欄で受ける (1.0.188)。
+        var values = if (kind.verb in listOf("command", "run-output", "if", "repeat", "click", "long-click")) listOf(trimmed.removePrefix(kind.verb).trimStart())
             else if (kind.verb in listOf("wait-ui", "wait-until", "wait-while", "touch", "swipe-path", "swipe-two-path")) trimmed.split(Regex("\\s+"), limit = 3).drop(1)
             // drag は「単位・1 区間の時間・点の並び (空白区切り)」の 3 欄。点は 1 つの欄にまとめる。
             else if (kind.verb == "drag") trimmed.split(Regex("\\s+"), limit = 4).drop(1).let { if (it.size == 2) it + "" else it }

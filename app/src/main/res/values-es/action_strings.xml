@@ -99,7 +99,7 @@
     <string name="action_block_options">Opciones del paso %1$s</string>
     <string name="action_block_invalid">Corrige primero los bloques en texto: %1$s</string>
     <string name="action_block_count">Número de repeticiones</string>
-    <string name="action_block_count_hint">Indica 1–10000 o forever. Se mantienen la parada y los plazos.</string>
+    <string name="action_block_count_hint">Indica 1–10000 o forever. Se mantienen la parada y los plazos. «until CONDICIÓN» (o «5 until CONDICIÓN») sale cuando se cumple la condición; break dentro sale al momento.</string>
     <string name="action_block_condition">Condición</string>
     <string name="action_block_condition_hint">Ejemplo: charging,level&gt;20,!wifi. La coma significa AND y ! niega. Admite foreground=PAQUETE y claves de z2-state.</string>
     <string name="action_ui_click">Pulsar elemento</string>

@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.188 (versionCode 886)**: Screen-action loops can now end on a condition: `repeat until CONDITION` checks before each pass and stops once it holds, and `repeat 10 until CONDITION` runs at most 10 passes. `break` leaves the innermost loop at once. Element selectors gain partial matches, `text~=` / `desc~=`, for labels whose numbers change; AI app control accepts them too
+
 **1.0.187 (versionCode 885)**: Human-like input now goes up to strength 20 (`human=20`); 11 and above move enough to miss their targets
 
 **1.0.186 (versionCode 884)**: Human-like input gains a strength: `human=1`..`human=10`, larger numbers move more (`human=on` is 5). Drag corners no longer stay sharp: they are rounded along the path, and speed waves within segments and slow hand drift were added. The "Human-like input" row in the form editor takes a strength from 0 to 10

@@ -99,7 +99,7 @@
     <string name="action_block_options">%1$s adımı seçenekleri</string>
     <string name="action_block_invalid">Önce blok yapısını metin içinde düzeltin: %1$s</string>
     <string name="action_block_count">Tekrar sayısı</string>
-    <string name="action_block_count_hint">1–10000 veya forever girin. Durdurma ve süre sınırları yine geçerlidir.</string>
+    <string name="action_block_count_hint">1–10000 veya forever girin. Durdurma ve süre sınırları yine geçerlidir. “until KOŞUL” (veya “5 until KOŞUL”) koşul sağlanınca çıkar; içindeki break hemen çıkar.</string>
     <string name="action_block_condition">Koşul</string>
     <string name="action_block_condition_hint">Örnek: charging,level&gt;20,!wifi. Virgül VE demektir; ! olumsuzlar. foreground=PAKET ve z2-state anahtarları da desteklenir.</string>
     <string name="action_ui_click">Arayüz öğesine tıkla</string>

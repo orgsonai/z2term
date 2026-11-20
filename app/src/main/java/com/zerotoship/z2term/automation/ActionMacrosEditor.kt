@@ -566,9 +566,14 @@ internal class ActionMacrosEditor(
                 if (verb in listOf("call", "repeat", "if", "click", "long-click", "wait-ui", "wait-until", "wait-while", "run-output", "touch", "swipe-path", "swipe-two-path"))
                     updated = ActionEditorDocument(updated).withHeader("version", "2")
                 // 色の条件は画面の点を読むので、座標の手順と同じく画面の寸法が要る。
-                val colorCondition = verb in ActionDefinition.CONDITION_VERBS && runCatching {
-                    val words = sourceLine.split(Regex("\\s+"), limit = if (verb == "if") 2 else 3)
-                    ActionCondition.parse(ActionDefinition.code(words.last())).terms.any { it is ActionCondition.Term.Color }
+                val colorCondition = runCatching {
+                    val code = ActionDefinition.code(sourceLine)
+                    val condition = when {
+                        verb == "repeat" -> Regex("\\suntil\\s+(.+)").find(code)?.groupValues?.get(1)
+                        verb in ActionDefinition.CONDITION_VERBS -> code.split(Regex("\\s+"), limit = if (verb == "if") 2 else 3).last()
+                        else -> null
+                    }
+                    condition != null && ActionCondition.parse(condition).terms.any { it is ActionCondition.Term.Color }
                 }.getOrDefault(false)
                 if (colorCondition && ActionEditorDocument(updated).header("screen") == null)
                     updated = ActionEditorDocument(updated).withHeader("screen", geometry.toString())

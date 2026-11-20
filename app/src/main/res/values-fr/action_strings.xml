@@ -99,7 +99,7 @@
     <string name="action_block_options">Options de l’étape %1$s</string>
     <string name="action_block_invalid">Corrigez d’abord la structure des blocs dans le texte : %1$s</string>
     <string name="action_block_count">Nombre de répétitions</string>
-    <string name="action_block_count_hint">Saisissez 1–10000 ou forever. L’arrêt et les délais s’appliquent toujours.</string>
+    <string name="action_block_count_hint">Saisissez 1–10000 ou forever. L’arrêt et les délais s’appliquent toujours. « until CONDITION » (ou « 5 until CONDITION ») sort dès que la condition est vraie ; break à l’intérieur sort aussitôt.</string>
     <string name="action_block_condition">Condition</string>
     <string name="action_block_condition_hint">Exemple : charging,level&gt;20,!wifi. Les virgules signifient ET ; ! inverse. Accepte aussi foreground=PAQUET et les clés de z2-state.</string>
     <string name="action_ui_click">Cliquer sur un élément d’interface</string>

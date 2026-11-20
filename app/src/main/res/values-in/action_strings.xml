@@ -99,7 +99,7 @@
     <string name="action_block_options">Opsi untuk langkah %1$s</string>
     <string name="action_block_invalid">Perbaiki dulu struktur blok di teks: %1$s</string>
     <string name="action_block_count">Jumlah pengulangan</string>
-    <string name="action_block_count_hint">Masukkan 1–10000 atau forever. Berhenti dan batas waktu tetap berlaku.</string>
+    <string name="action_block_count_hint">Masukkan 1–10000 atau forever. Berhenti dan batas waktu tetap berlaku. “until KONDISI” (atau “5 until KONDISI”) keluar saat kondisi terpenuhi; break di dalamnya langsung keluar.</string>
     <string name="action_block_condition">Kondisi</string>
     <string name="action_block_condition_hint">Contoh: charging,level&gt;20,!wifi. Koma berarti DAN; ! membalik. Juga mendukung foreground=PAKET dan kunci z2-state.</string>
     <string name="action_ui_click">Klik elemen UI</string>

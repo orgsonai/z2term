@@ -99,7 +99,7 @@
     <string name="action_block_options">Optionen für Schritt %1$s</string>
     <string name="action_block_invalid">Korrigiere zuerst die Blockstruktur im Text: %1$s</string>
     <string name="action_block_count">Anzahl Wiederholungen</string>
-    <string name="action_block_count_hint">Gib 1–10000 oder forever ein. Stopp und Zeitlimits gelten weiterhin.</string>
+    <string name="action_block_count_hint">Gib 1–10000 oder forever ein. Stopp und Zeitlimits gelten weiterhin. „until BEDINGUNG“ (oder „5 until BEDINGUNG“) endet, sobald die Bedingung zutrifft; break darin endet sofort.</string>
     <string name="action_block_condition">Bedingung</string>
     <string name="action_block_condition_hint">Beispiel: charging,level&gt;20,!wifi. Kommas bedeuten UND; ! verneint. Unterstützt auch foreground=PAKET und z2-state-Schlüssel.</string>
     <string name="action_ui_click">UI-Element anklicken</string>

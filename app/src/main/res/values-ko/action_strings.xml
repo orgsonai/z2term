@@ -99,7 +99,7 @@
     <string name="action_block_options">%1$s단계 옵션</string>
     <string name="action_block_invalid">먼저 텍스트에서 블록 구조를 수정하세요: %1$s</string>
     <string name="action_block_count">반복 횟수</string>
-    <string name="action_block_count_hint">1–10000 또는 forever를 입력하세요. 중지와 제한 시간은 항상 적용됩니다.</string>
+    <string name="action_block_count_hint">1–10000 또는 forever를 입력하세요. 중지와 제한 시간은 항상 적용됩니다. “until 조건”(또는 “5 until 조건”)은 조건이 성립하면 빠져나옵니다. 안에 break를 쓰면 바로 빠져나옵니다.</string>
     <string name="action_block_condition">조건식</string>
     <string name="action_block_condition_hint">예: charging,level&gt;20,!wifi. 쉼표는 AND, !는 부정입니다. foreground=패키지와 z2-state 키도 사용할 수 있습니다.</string>
     <string name="action_ui_click">요소 누르기</string>

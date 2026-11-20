@@ -99,7 +99,7 @@
     <string name="action_block_options">手順 %1$s の操作</string>
     <string name="action_block_invalid">先にテキストでブロック構造を修正してください: %1$s</string>
     <string name="action_block_count">繰り返し回数</string>
-    <string name="action_block_count_hint">1〜10000、または forever を指定します。停止と制限時間は常に有効です。</string>
+    <string name="action_block_count_hint">1〜10000、または forever を指定します。停止と制限時間は常に有効です。「until 条件」（または「5 until 条件」）で、条件が成立したら抜けます。中に break を書くとその場で抜けます。</string>
     <string name="action_block_condition">条件式</string>
     <string name="action_block_condition_hint">例: charging,level&gt;20,!wifi。カンマはAND、!は否定です。foreground=パッケージ名 や z2-state のキーも使えます。</string>
     <string name="action_ui_click">要素を押す</string>

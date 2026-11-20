@@ -180,6 +180,7 @@ internal object ActionRuntime {
                 is ActionDefinition.Step.Branch -> "if"
                 is ActionDefinition.Step.Call -> "call"
                 is ActionDefinition.Step.Watch -> "watch"
+                is ActionDefinition.Step.Break -> "break"
                 is ActionDefinition.Step.RunOutput -> "run-output"
                 is ActionDefinition.Step.Ui -> step.operation
                 is ActionDefinition.Step.WaitFor -> if (step.until) "wait-until" else "wait-while"
@@ -324,7 +325,7 @@ internal object ActionRuntime {
             else requested
         when (step) {
             is ActionDefinition.Step.Repeat, is ActionDefinition.Step.Branch, is ActionDefinition.Step.Call,
-            is ActionDefinition.Step.Watch, is ActionDefinition.Step.RunOutput ->
+            is ActionDefinition.Step.Watch, is ActionDefinition.Step.RunOutput, is ActionDefinition.Step.Break ->
                 error("Control flow must be handled by the execution engine")
             is ActionDefinition.Step.Ui -> {
                 val resolved = step.copy(target = target(step.target))

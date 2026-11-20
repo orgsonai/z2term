@@ -143,6 +143,8 @@ end
 ```
 
 - `repeat N ... end`: 1〜10000回。各回の処理が終わってから次へ進みます。`repeat forever` は停止・失敗・制限時間・実行数の上限に達するまで続けます。
+- `repeat until 条件 ... end`（1.0.188）: 各回の**始める前**に条件を確かめ、成立していたら抜けます（最初から成立していれば 1 回も動きません）。`repeat 10 until 条件` は「最大 10 回、途中で成立したら終わり」です。条件の書き方は `if` と同じで、確かめは命令の数に数えません。
+- `break`（1.0.188）: いちばん内側の `repeat` をその場で抜けます（`if` の中から使えます）。`repeat` の外には書けません。
 - `if 条件 ... else ... end`: 条件をその場で評価し、成立側だけ実行します。`else` は省略できます。反復内では毎回評価します。空のブロックや明示した空の `else` は保存できません。
 - `call 名前`: 保存済みのマクロを呼び、完了してから戻ります。子マクロも自分の `timeout` を持ち、親の残り時間と両方が適用されます。どの階層の失敗・停止・タイムアウトでも実行全体が終了します。
 
@@ -159,7 +161,7 @@ end
 | 真偽値 | `screen locked idle charging wifi airplane headset bt_audio` | `charging`、`!wifi`、`screen=true`。true/on/yes/1 と false/off/no/0 を使用可能 |
 | 数値 | `level temp volume volume_max` | `level>20`、`temp<40`、`volume=0`。比較は = / < / > |
 | 文字列 | `ssid ringer plug foreground` | `ringer=silent`、`foreground=org.example.app`。比較は = |
-| 画面の要素 | `ui` | `ui text=OK`、`ui desc=メニュー`、`ui id=…`。指定は `click` / `wait-ui` と同じ完全一致。いくつあっても「ある」 |
+| 画面の要素 | `ui` | `ui text=OK`、`ui desc=メニュー`、`ui id=…`、部分一致の `ui text~=残り`。指定は `click` / `wait-ui` と同じ。いくつあっても「ある」 |
 | 画面の色 | `color` | `color 540,1200=green`、`color 540,1200=#33aa55`。画面の px。色名は z2-ui `colors` と同じ12色（black gray white red orange brown yellow green cyan blue purple pink）、`#RRGGBB` は赤・緑・青がそれぞれ24以内なら一致。`screen=` が必要 |
 | シェル | `command` | `command test -f /root/flag`。終了コード0で成立。後ろをすべてシェルとして読むので、必ず最後の項（`,` `|` `#` もシェルに渡す） |
 
@@ -273,7 +275,9 @@ long-click desc=その他の操作
 | `wait-until MS 条件` / `wait-while MS 条件` | 条件が成立するまで／成立している間、0〜300000ミリ秒待つ（0は全体の制限時間まで） |
 | `z2-action inspect PACKAGE` | 前面の対象アプリの要素をJSONで取得。マクロ内の命令ではなくCLIコマンド |
 
-対象は `text=次へ`、`desc=その他の操作`、`id=org.example.app:id/next` のいずれか1つです。文字・説明は前後の空白を除いて完全一致し、大文字小文字を区別します。値は1〜256文字。途中の空白や `=` はそのまま書き、引用符も文字として扱います。シェル展開・正規表現・部分一致は使いません。
+対象は `text=次へ`、`desc=その他の操作`、`id=org.example.app:id/next` のいずれか1つです。文字・説明は前後の空白を除いて完全一致し、大文字小文字を区別します。値は1〜256文字。途中の空白や `=` はそのまま書き、引用符も文字として扱います。シェル展開と正規表現は使いません。
+
+**部分一致（1.0.188）**: `text~=残り`・`desc~=その他` と書くと、文字・説明にその部分を含めば一致します（「残り 3 回」のように数字が変わる表示向け）。`id` には使えません。`click` / `long-click` は一致が 2 つ以上あると失敗するので、ほかと重ならない部分を選んでください。AI からのアプリ操作（z2-ui）の対象にも同じ書き方が使えます。
 
 先行する `target` / `launch` の対象を使い、未指定または `target current` なら各手順の開始時に前面アプリを解決します。ブロックと子マクロの対象指定も座標操作と共通です。要素だけの新規マクロに `screen` は不要です。GUIは座標操作の追加時に画面情報を記録し、画面情報の編集欄を空欄にすると既存の指定を外せます。保存済み画面情報がある場合の一致検査と、実行中の消灯・ロック・回転による停止は維持します。
 

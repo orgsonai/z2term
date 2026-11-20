@@ -145,6 +145,8 @@ end
 ```
 
 - `repeat N ... end` runs 1–10000 times, awaiting each iteration. `repeat forever` continues until cancellation, failure, timeout or the execution limit.
+- `repeat until CONDITION ... end` (1.0.188) checks the condition **before each pass** and leaves once it holds (if it already holds, the body never runs). `repeat 10 until CONDITION` means at most 10 passes, ending early when it holds. Conditions are written as for `if`; the check is not counted as an instruction.
+- `break` (1.0.188) leaves the innermost `repeat` at once (also from inside an `if`). It cannot appear outside a `repeat`.
 - `if CONDITION ... else ... end` evaluates current state and runs only the selected branch. `else` is optional. Inside a loop the condition is evaluated each time. Empty blocks and explicitly empty else branches are rejected.
 - `call NAME` runs a saved macro and waits for it to return. Each invocation applies the child's own timeout alongside the remaining parent deadline. Failure, cancellation or timeout at any level ends the whole run.
 
@@ -161,7 +163,7 @@ Commas mean AND, `|` means OR and a leading `!` negates a term. AND binds tighte
 | Boolean | `screen locked idle charging wifi airplane headset bt_audio` | `charging`, `!wifi`, `screen=true`; accepts true/on/yes/1 and false/off/no/0 |
 | Number | `level temp volume volume_max` | `level>20`, `temp<40`, `volume=0`; operators = / < / > |
 | Text | `ssid ringer plug foreground` | `ringer=silent`, `foreground=org.example.app`; operator = |
-| Screen element | `ui` | `ui text=OK`, `ui desc=Menu`, `ui id=…`; exact match as in `click` / `wait-ui`; any number of matches counts as present |
+| Screen element | `ui` | `ui text=OK`, `ui desc=Menu`, `ui id=…`, partial `ui text~=left`; same selectors as `click` / `wait-ui`; any number of matches counts as present |
 | Screen colour | `color` | `color 540,1200=green`, `color 540,1200=#33aa55`; screen px. Names are the 12 of z2-ui `colors` (black gray white red orange brown yellow green cyan blue purple pink); `#RRGGBB` matches when red, green and blue are each within 24. Needs `screen=` |
 | Shell | `command` | `command test -f /root/flag`; true on exit status 0. It reads the rest as shell, so it is always the last term (`,` `|` `#` go to the shell) |
 
@@ -275,7 +277,9 @@ long-click desc=More options
 | `wait-until MS CONDITION` / `wait-while MS CONDITION` | Wait until / while the condition holds, 0–300000ms (0 = up to the whole limit) |
 | `z2-action inspect PACKAGE` | Return focused target-app elements as JSON; a CLI command, not a macro instruction |
 
-Choose one of `text=Continue`, `desc=More options` or `id=org.example.app:id/next`. Text and descriptions match exactly after trimming outer whitespace, with case preserved. Values contain 1–256 characters. Interior spaces, equals signs and quotes are literal; there is no shell expansion, regex or substring matching.
+Choose one of `text=Continue`, `desc=More options` or `id=org.example.app:id/next`. Text and descriptions match exactly after trimming outer whitespace, with case preserved. Values contain 1–256 characters. Interior spaces, equals signs and quotes are literal; there is no shell expansion or regex.
+
+**Partial match (1.0.188)**: `text~=left` / `desc~=More` match when the text or description contains that part (for labels whose numbers change, such as "3 left"). Not for `id`. `click` / `long-click` fail when two or more elements match, so pick a part no other element shares. AI app control (z2-ui) accepts the same form for its targets.
 
 Elements use the preceding target or launch directive and existing block/call target rules. With no target or with target current, each step resolves the foreground app at its start and holds that target through any wait. New element-only macros need no screen metadata. The GUI adds geometry for coordinate steps; clear the screen field to remove it. Retained metadata must match, and screen off, lock or rotation during a run still cancels execution.
 

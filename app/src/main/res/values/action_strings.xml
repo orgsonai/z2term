@@ -99,7 +99,7 @@
     <string name="action_block_options">Options for step %1$s</string>
     <string name="action_block_invalid">Fix the block structure in text first: %1$s</string>
     <string name="action_block_count">Repeat count</string>
-    <string name="action_block_count_hint">Enter 1–10000 or forever. Stop and time limits still apply.</string>
+    <string name="action_block_count_hint">Enter 1–10000 or forever. Stop and time limits still apply. “until CONDITION” (or “5 until CONDITION”) leaves once the condition holds; break inside leaves at once.</string>
     <string name="action_block_condition">Condition</string>
     <string name="action_block_condition_hint">Example: charging,level&gt;20,!wifi. Commas mean AND; ! negates. Also supports foreground=PACKAGE and z2-state keys.</string>
     <string name="action_ui_click">Click UI element</string>

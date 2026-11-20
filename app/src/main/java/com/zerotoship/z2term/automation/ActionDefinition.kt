@@ -15,7 +15,14 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         override fun toString() = "${width}x${height}@$rotation"
     }
     sealed interface Step {
-        data class Repeat(val count: Int?, val body: List<Step>) : Step
+        /**
+         * [count] null = forever. [until] (1.0.188): checked before every pass; the loop ends once it holds.
+         * [target] is the app whose screen `ui` / `color` terms in [until] read.
+         */
+        data class Repeat(val count: Int?, val body: List<Step>, val until: String? = null,
+            val target: String = CURRENT_TARGET) : Step
+        /** `break` (1.0.188): leaves the innermost `repeat` at once. */
+        data object Break : Step
         /** [target] is the app whose screen `ui` / `color` terms read (as for the steps around it). */
         data class Branch(val condition: String, val yes: List<Step>, val no: List<Step>,
             val target: String = CURRENT_TARGET) : Step
@@ -79,7 +86,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         /** `drag` の点の数の上限。z2-ui の drag と揃える。 */
         const val MAX_DRAG_POINTS = 256
         /** 行頭に来る流れの語。編集画面でアクセント色にする対象。 */
-        val FLOW_WORDS = setOf("repeat", "if", "else", "end", "call", "watch")
+        val FLOW_WORDS = setOf("repeat", "if", "else", "end", "call", "watch", "break")
         private val trailingComment = Regex("(?<=\\s)#(?=\\s|$)")
         /**
          * [line] の中でコメントが始まる位置 (無ければ null)。
@@ -94,6 +101,13 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             if (verb in SHELL_VERBS) return null
             val found = trailingComment.find(line)?.range?.first ?: return null
             // 条件の `command` 項から後ろはシェルの文。`#` もシェルに渡す。
+            if (verb == "repeat") {
+                // `repeat … until 条件` の条件も、command の項から後ろはシェルの文。
+                val until = Regex("\\suntil\\s").find(line) ?: return found
+                val from = until.range.last
+                val shell = ActionCondition.shellStart(line.substring(from))?.plus(from)
+                return if (shell != null && found > shell) null else found
+            }
             if (verb in CONDITION_VERBS) {
                 var from = line.length - code.length + verb.length
                 if (verb != "if") {
@@ -142,7 +156,8 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             return steps
         }
         private data class Block(val kind: String, val argument: String, val parent: MutableList<Step>,
-            val target: String?, var yes: List<Step>? = null)
+            // `repeat … until 条件` の条件 (1.0.188)。
+            val target: String?, var yes: List<Step>? = null, val until: String? = null)
         fun packageName(value: String): String {
             require(value.matches(Regex("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+"))) { "Invalid application package ID" }
             return value
@@ -180,19 +195,27 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                     require(it in low..high) { "Duration must be $low..$high ms" }
                 } ?: throw IllegalArgumentException("Invalid duration")
                 fun destination() = target ?: CURRENT_TARGET
-                if (words[0] in setOf("repeat", "if", "else", "end", "call")) {
+                if (words[0] in setOf("repeat", "if", "else", "end", "call", "break")) {
                     require(headers["version"] == "2") { "Control flow requires version=2" }
                     when (words[0]) {
                         "repeat", "if" -> {
+                            var until: String? = null
+                            var times = "forever"
                             if (words[0] == "repeat") {
-                                count(2)
-                                require(words[1] == "forever" || words[1].toIntOrNull()?.let { it in 1..10000 } == true) {
-                                    "repeat requires 1..10000 or forever"
+                                // repeat N / repeat forever / repeat [N|forever] until 条件 (1.0.188)
+                                val loop = Regex("repeat\\s+(?:(forever|[0-9]+)\\s+)?until\\s+(.+)").matchEntire(line)
+                                if (loop != null) {
+                                    until = loop.groupValues[2].trim()
+                                    ActionCondition.validate(until)
+                                    times = loop.groupValues[1].ifEmpty { "forever" }
+                                } else { count(2); times = words[1] }
+                                require(times == "forever" || times.toIntOrNull()?.let { it in 1..10000 } == true) {
+                                    "repeat requires 1..10000 or forever (optionally followed by until CONDITION)"
                                 }
                             } else ActionCondition.validate(line.dropWhile { !it.isWhitespace() }.trim())
                             require(blocks.size < MAX_NESTING) { "At most $MAX_NESTING nested blocks" }
-                            blocks += Block(words[0], if (words[0] == "repeat") words[1]
-                                else line.dropWhile { !it.isWhitespace() }.trim(), steps, target)
+                            blocks += Block(words[0], if (words[0] == "repeat") times
+                                else line.dropWhile { !it.isWhitespace() }.trim(), steps, target, until = until)
                             steps = mutableListOf()
                             size++
                         }
@@ -209,12 +232,18 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                             require(steps.isNotEmpty()) { "Empty control-flow block" }
                             val block = blocks.removeAt(blocks.lastIndex)
                             val closed = if (block.kind == "repeat") Step.Repeat(
-                                block.argument.takeUnless { it == "forever" }?.toInt(), steps.toList())
+                                block.argument.takeUnless { it == "forever" }?.toInt(), steps.toList(), block.until,
+                                block.target ?: CURRENT_TARGET)
                             else Step.Branch(block.argument, block.yes ?: steps.toList(),
                                 if (block.yes != null) steps.toList() else emptyList(), block.target ?: CURRENT_TARGET)
                             steps = block.parent; steps += closed; target = block.target
                         }
                         "call" -> { count(2); steps += Step.Call(macroName(words[1])); size++ }
+                        "break" -> {
+                            count(1)
+                            require(blocks.any { it.kind == "repeat" }) { "break must be inside repeat" }
+                            steps += Step.Break; size++
+                        }
                     }
                     require(size <= MAX_STEPS) { "At most $MAX_STEPS steps including control flow" }
                     return@map original
@@ -376,7 +405,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             val flat = allSteps(steps)
             if (flat.any { it is Step.Stroke || it is Step.Scroll }) require(screen != null) { "Coordinates/scroll require screen=current or saved geometry" }
             val colors = flat.mapNotNull { when (it) { is Step.Branch -> it.condition; is Step.WaitFor -> it.condition
-                is Step.Watch -> it.condition; else -> null } }
+                is Step.Watch -> it.condition; is Step.Repeat -> it.until; else -> null } }
                 .flatMap { ActionCondition.parse(it).terms }.filterIsInstance<ActionCondition.Term.Color>()
             if (colors.isNotEmpty()) {
                 require(screen != null) { "Colour conditions require screen=current or saved geometry" }

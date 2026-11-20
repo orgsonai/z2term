@@ -102,6 +102,7 @@ Output fields:
 
 - `#N`: element number from the latest look. Preferred.
 - `text=Exact text`, `desc=Exact description`, `id=package:id/name`: exact match (trimmed, case-sensitive), searched now.
+  `text~=Part` / `desc~=Part` match when the text or description contains Part (for labels with changing numbers).
   For input fields, `text=` matches the hint, not the typed content. If several elements match: `ambiguous` — use `#N`.
   Pass the whole selector as one argument: `z2-ui tap 'text=Sign in'`.
 - `@X,Y`: screen pixel coordinates, only for tap and long. Last resort for screens without elements (games, canvases).

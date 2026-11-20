@@ -99,7 +99,7 @@
     <string name="action_block_options">步骤%1$s的选项</string>
     <string name="action_block_invalid">请先在文本中修正代码块结构：%1$s</string>
     <string name="action_block_count">重复次数</string>
-    <string name="action_block_count_hint">输入1–10000或forever。停止和超时始终有效。</string>
+    <string name="action_block_count_hint">输入1–10000或forever。停止和超时始终有效。写“until 条件”（或“5 until 条件”）时，条件成立即退出；在内部写 break 会立即退出。</string>
     <string name="action_block_condition">条件表达式</string>
     <string name="action_block_condition_hint">例如：charging,level&gt;20,!wifi。逗号表示AND，!表示否定。也支持foreground=包名和z2-state键。</string>
     <string name="action_ui_click">点击界面元素</string>

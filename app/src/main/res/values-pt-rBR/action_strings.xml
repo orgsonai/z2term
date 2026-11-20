@@ -99,7 +99,7 @@
     <string name="action_block_options">Opções do passo %1$s</string>
     <string name="action_block_invalid">Corrija antes a estrutura dos blocos no texto: %1$s</string>
     <string name="action_block_count">Número de repetições</string>
-    <string name="action_block_count_hint">Digite de 1 a 10000 ou forever. Parar e os tempos limite continuam valendo.</string>
+    <string name="action_block_count_hint">Digite de 1 a 10000 ou forever. Parar e os tempos limite continuam valendo. “until CONDIÇÃO” (ou “5 until CONDIÇÃO”) sai quando a condição vale; break dentro sai na hora.</string>
     <string name="action_block_condition">Condição</string>
     <string name="action_block_condition_hint">Exemplo: charging,level&gt;20,!wifi. Vírgulas significam E; ! nega. Também aceita foreground=PACOTE e as chaves do z2-state.</string>
     <string name="action_ui_click">Clicar num elemento da interface</string>

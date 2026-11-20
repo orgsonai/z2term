@@ -20,7 +20,10 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
     data class Result(val state: String, val step: Int, val error: String? = null)
     private data class Frame(val steps: List<ActionDefinition.Step>, val macro: String, val prefix: String = "",
         val repeats: Int? = 1, val loop: Boolean = false, val call: Boolean = false,
-        var index: Int = 0, var iteration: Int = 1, var timeout: Deadline? = null)
+        var index: Int = 0, var iteration: Int = 1, var timeout: Deadline? = null,
+        /** `repeat … until` (1.0.188): checked before each pass ([checked]); [exit] ends the loop. */
+        val until: String? = null, val untilTarget: String = ActionDefinition.CURRENT_TARGET,
+        var checked: Boolean = false, var exit: Boolean = false)
     private val frames = mutableListOf<Frame>()
     var running = false
         private set
@@ -48,6 +51,8 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
     /** Bumped whenever the step in flight is abandoned (pause), so its late completion is ignored. */
     private var attempt = 0
     private var stepInFlight = false
+    /** The condition of `repeat … until` is being checked (not an instruction, so pause does not step back). */
+    private var untilInFlight = false
     private var limitSteps = true
     private var cancelStep: (() -> Unit)? = null
     private var deadline: Deadline? = null
@@ -84,6 +89,14 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
     private fun rewind() {
         stepInFlight = false; inFlight = null
         attempt++
+        if (untilInFlight) {
+            // 繰り返しの条件は、再開したらもう一度確かめる (手順の数には入っていない)。
+            untilInFlight = false
+            frames.lastOrNull()?.checked = false
+            val cancel = cancelStep; cancelStep = null
+            runCatching { cancel?.invoke() }
+            return
+        }
         frames.lastOrNull()?.let { it.index-- }
         step--
         val cancel = cancelStep; cancelStep = null
@@ -112,7 +125,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
     }
     private fun finish(state: String, error: String? = null) {
         if (!running) return
-        running = false; paused = false; stepInFlight = false; proceed = null; inFlight = null
+        running = false; paused = false; stepInFlight = false; untilInFlight = false; proceed = null; inFlight = null
         generation++
         stopPolling(); startPolling = null
         watches.clear(); handling = null; pendingWatch = null
@@ -146,6 +159,14 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
             check(frames.size < ActionProgram.MAX_FRAME_DEPTH) { "Execution nesting limit reached" }
             frames += frame
         }
+        /** Removes the top frame with everything that belongs to it. */
+        fun pop(): Frame {
+            val removed = frames.removeAt(frames.lastIndex)
+            removed.timeout?.stop()
+            watches.removeAll { it.owner === removed }
+            if (removed === handling) handling = null
+            return removed
+        }
         fun advance() {
             if (!running || paused || token != generation) return
             cancelNext = null
@@ -168,18 +189,42 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
             }
             while (frames.isNotEmpty() && frames.last().index == frames.last().steps.size) {
                 val frame = frames.last()
-                if (frame.loop && (frame.repeats == null || frame.iteration < frame.repeats)) {
-                    frame.index = 0; frame.iteration++
+                if (frame.loop && !frame.exit && (frame.repeats == null || frame.iteration < frame.repeats)) {
+                    frame.index = 0; frame.iteration++; frame.checked = false
                     cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
                     return
                 }
-                val removed = frames.removeAt(frames.lastIndex)
-                removed.timeout?.stop()
-                watches.removeAll { it.owner === removed }
-                if (removed === handling) handling = null
+                pop()
             }
             if (frames.isEmpty()) { finish("completed"); return }
             val frame = frames.last()
+            // `repeat … until`: 各回の始めに条件を確かめ、成立していれば抜ける。答えを待つ間は送信中と同じ扱い。
+            val until = frame.until
+            if (frame.loop && until != null && frame.index == 0 && !frame.checked) {
+                frame.checked = true
+                fun leave(matched: Boolean) {
+                    if (matched) { frame.exit = true; frame.index = frame.steps.size }
+                    cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
+                }
+                if (test == null) {
+                    try { leave(condition(until)) } catch (e: Exception) { finish("failed", e.message ?: "Condition failed") }
+                    return
+                }
+                val tried = attempt
+                stepInFlight = true; untilInFlight = true
+                var answered = false
+                val cancel = try {
+                    test(until, frame.untilTarget) answer@{ matched, error ->
+                        if (answered || !running || token != generation || tried != attempt) return@answer
+                        answered = true; cancelStep = null; stepInFlight = false; untilInFlight = false
+                        if (error != null || matched == null) { finish("failed", error ?: "Condition failed"); return@answer }
+                        leave(matched)
+                    }
+                } catch (e: Exception) { finish("failed", e.message ?: "Condition failed"); return }
+                if (!answered && running && token == generation && tried == attempt) cancelStep = cancel
+                else if (!answered) runCatching { cancel?.invoke() }
+                return
+            }
             val action = frame.steps[frame.index++]
             macro = frame.macro; path = frame.prefix + frame.index
             iteration = frames.lastOrNull { it.loop }?.iteration ?: 1
@@ -201,7 +246,8 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                 if (!running || token != generation) return
                 when (action) {
                     is ActionDefinition.Step.Repeat -> {
-                        push(Frame(action.body, macro, "$path.", action.count, loop = true))
+                        push(Frame(action.body, macro, "$path.", action.count, loop = true,
+                            until = action.until, untilTarget = action.target))
                         cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
                     }
                     is ActionDefinition.Step.Branch -> {
@@ -239,6 +285,11 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                         child.timeout = if (called.unlimited) null else Deadline(called.timeoutMs) {
                             if (token == generation) finish("timeout", "Called macro timed out: " + action.name)
                         }.also { it.start() }
+                        cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
+                    }
+                    is ActionDefinition.Step.Break -> {
+                        // いちばん内側の繰り返しを、途中の分岐のブロックごと抜ける (解析で repeat の中だけに限っている)。
+                        while (frames.isNotEmpty()) { if (pop().loop) break }
                         cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
                     }
                     is ActionDefinition.Step.Watch -> {

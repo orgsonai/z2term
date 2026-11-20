@@ -89,6 +89,7 @@ Elements are addressed in one of these ways.
 |---|---|
 | `#2` | Element number from the last `look` |
 | `text=Next` / `desc=Back` / `id=…` | Exact match, the same as `z2-action` |
+| `text~=left` / `desc~=More` | Partial match (1.0.188): matches when it contains the part |
 | `@540,1200` | Coordinates in pixels; a last resort for screens without elements |
 
 | Command | Action | Stage |

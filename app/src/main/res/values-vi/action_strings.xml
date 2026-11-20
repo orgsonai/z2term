@@ -99,7 +99,7 @@
     <string name="action_block_options">Tùy chọn cho bước %1$s</string>
     <string name="action_block_invalid">Hãy sửa cấu trúc khối trong văn bản trước: %1$s</string>
     <string name="action_block_count">Số lần lặp</string>
-    <string name="action_block_count_hint">Nhập 1–10000 hoặc forever. Dừng và giới hạn thời gian vẫn áp dụng.</string>
+    <string name="action_block_count_hint">Nhập 1–10000 hoặc forever. Dừng và giới hạn thời gian vẫn áp dụng. “until ĐIỀU_KIỆN” (hoặc “5 until ĐIỀU_KIỆN”) thoát khi điều kiện đúng; break bên trong thoát ngay.</string>
     <string name="action_block_condition">Điều kiện</string>
     <string name="action_block_condition_hint">Ví dụ: charging,level&gt;20,!wifi. Dấu phẩy nghĩa là VÀ; ! là phủ định. Cũng hỗ trợ foreground=GÓI và các khóa z2-state.</string>
     <string name="action_ui_click">Nhấp phần tử giao diện</string>

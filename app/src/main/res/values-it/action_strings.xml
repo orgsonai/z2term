@@ -99,7 +99,7 @@
     <string name="action_block_options">Opzioni per il passaggio %1$s</string>
     <string name="action_block_invalid">Correggi prima la struttura dei blocchi nel testo: %1$s</string>
     <string name="action_block_count">Numero di ripetizioni</string>
-    <string name="action_block_count_hint">Inserisci 1–10000 o forever. Ferma e il timeout valgono comunque.</string>
+    <string name="action_block_count_hint">Inserisci 1–10000 o forever. Ferma e il timeout valgono comunque. «until CONDIZIONE» (o «5 until CONDIZIONE») esce quando la condizione vale; break all’interno esce subito.</string>
     <string name="action_block_condition">Condizione</string>
     <string name="action_block_condition_hint">Esempio: charging,level&gt;20,!wifi. La virgola significa E; ! inverte. Supporta anche foreground=PACCHETTO e le chiavi di z2-state.</string>
     <string name="action_ui_click">Clic su elemento UI</string>

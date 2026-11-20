@@ -99,7 +99,7 @@
     <string name="action_block_options">Параметры шага %1$s</string>
     <string name="action_block_invalid">Сначала исправьте структуру блоков в тексте: %1$s</string>
     <string name="action_block_count">Число повторов</string>
-    <string name="action_block_count_hint">Введите 1–10000 или forever. Остановка и ограничения времени по-прежнему действуют.</string>
+    <string name="action_block_count_hint">Введите 1–10000 или forever. Остановка и ограничения времени по-прежнему действуют. «until УСЛОВИЕ» (или «5 until УСЛОВИЕ») выходит, когда условие выполнено; break внутри выходит сразу.</string>
     <string name="action_block_condition">Условие</string>
     <string name="action_block_condition_hint">Пример: charging,level&gt;20,!wifi. Запятые означают И; ! — отрицание. Также поддерживаются foreground=ПАКЕТ и ключи z2-state.</string>
     <string name="action_ui_click">Нажать элемент интерфейса</string>
