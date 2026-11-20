@@ -20,6 +20,10 @@ fun z2ActionScript(lang: String): String {
         en = "watch CONDITION call NAME checks the condition every 300ms until its block ends (the whole macro at top level). When it holds, NAME runs and the macro then continues; a waiting step is cut short and sent again, other steps finish first. Watch conditions cannot use command.\nrun-output SHELL runs the command and executes the steps it prints (checked first; no headers, call, run-output or watch). A non-zero exit fails the run.",
         ja = "watch 条件 call 名前 は、書いたブロックが終わるまで（最上位ならマクロ全体）300ミリ秒ごとに条件を確かめ、成立したら 名前 を呼んでから続きへ戻ります。待ちの手順は打ち切って最初から送り直し、ほかの手順は終わるのを待ちます。watch の条件に command は使えません。\nrun-output シェル はコマンドを動かし、標準出力に書かれた手順を検査してから実行します（見出し・call・run-output・watch は不可）。終了コードが0以外なら失敗です。"
     )
+    val humanHelp = t("action.humanHelp",
+        en = "human=on makes taps, swipes, drags and waits less mechanical: small position offsets, curved swipes that start and stop slowly, and slightly varied timing. The ~ button on the stop bar switches it while the macro runs.",
+        ja = "human=on で、タップ・スワイプ・なぞる操作と wait を人の指に近づけます（位置を少しずらす、線を少し曲げて動き出しと止まり際を遅く、時間を少しばらつかせる）。停止バーの ～ で実行中にも切り替えられます。"
+    )
     val uiHelp = t("action.uiHelp",
         en = "version=2 also supports click SELECTOR, long-click SELECTOR and wait-ui MS SELECTOR.\nSelectors: text=Continue, desc=More options, id=org.example.app:id/next. Exact matches; no quoting around spaces.\nSet target or launch first. wait-ui searches every 250ms for up to 1–30000ms; multiple matches fail.\nActions are sent once; use wait-ui for the next screen. Input/password fields are excluded.\ninspect PACKAGE returns visible text, descriptions and IDs from the focused target app as JSON.",
         ja = "version=2 では click 対象、long-click 対象、wait-ui ミリ秒 対象 も使えます。\n対象は text=次へ、desc=その他、id=org.example.app:id/next。完全一致で、空白を引用符で囲みません。\n先に target または launch を指定します。wait-ui は250ミリ秒間隔、1〜30000ミリ秒まで検索。複数一致は失敗です。\n操作は1回だけ送り、次の画面には wait-ui を使います。入力欄・パスワード欄は対象外です。\ninspect パッケージ名 は、前面の対象アプリの表示文字・説明・IDをJSONで返します。"
@@ -28,13 +32,13 @@ fun z2ActionScript(lang: String): String {
         en = "pause [RUN_ID] holds the run; the step in progress is sent again from its start. Opening the notification shade also pauses.\nresume [RUN_ID] continues once a screen other than z2term stays in front (up to 5 seconds; otherwise it stays paused). It answers after that: state running and exit 0, or paused and a non-zero exit. The time limit stops while paused.",
         ja = "pause [実行ID] で一時停止。途中の手順は再開時に最初から送ります。通知欄を下ろしても一時停止します。\nresume [実行ID] は z2term 以外の画面が前に出て落ち着いてから続けます（5秒まで。出なければ一時停止のまま）。結果が出てから返り、再開できれば state は running で終了コード 0、一時停止のままなら paused で 0 以外です。一時停止の間は制限時間が止まります。"
     )
-    val header = (description + "\n" + pauseHelp + "\n" + controlHelp + "\n" + conditionHelp + "\n" + watchHelp + "\n" + uiHelp).lines().joinToString("\n") { "# $it" }
+    val header = (description + "\n" + pauseHelp + "\n" + controlHelp + "\n" + conditionHelp + "\n" + watchHelp + "\n" + humanHelp + "\n" + uiHelp).lines().joinToString("\n") { "# $it" }
     return "#!/bin/sh\n$header\n" + """
         |# z2-action list | show NAME | save NAME FILE|- | delete NAME
         |# z2-action run NAME | start NAME | wait RUN_ID | status [RUN_ID] | stop [RUN_ID] | pause [RUN_ID] | resume [RUN_ID]
         |# z2-action screen | history | inspect PACKAGE
         |# z2-action pick   (a bar over the current app: choose a macro, run it with ▶; it then becomes the stop bar)
-        |# version=1|2 / timeout=30 / screen=current
+        |# version=1|2 / timeout=30 / screen=current / human=on|off
         |# target PACKAGE / launch PACKAGE / wait MILLISECONDS / key back|home|recents|shade|quicksettings|screenshot|split
         |# tap px|percent X Y / long-press px|percent X Y MILLISECONDS
         |# swipe px|percent X1 Y1 X2 Y2 MILLISECONDS [linear|accelerate|decelerate]

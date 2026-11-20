@@ -105,7 +105,8 @@ internal object ActionRunOverlay {
      * ユーザー補助なしなら何もしない。出せたら true。
      */
     fun show(host: AccessibilityService?, name: String, stop: () -> Unit, toggle: () -> Unit,
-        force: Boolean = false, owner: Owner = Owner.MACRO, stopLabel: String? = null): Boolean {
+        force: Boolean = false, owner: Owner = Owner.MACRO, stopLabel: String? = null,
+        human: (() -> Boolean)? = null, humanOn: Boolean = false): Boolean {
         dismiss()
         if (host == null || !(force || enabled(host))) return false
         fun dp(value: Int) = ActionUi.dp(host, value)
@@ -117,10 +118,21 @@ internal object ActionRunOverlay {
         // 幅の上限は画面の幅からボタンと余白を引いた分。それでも入りきらない分は流して見せる ([Ticker]、1.0.115)。
         // 最小の幅は、手順ごとに帯の幅が変わってちらつかないため。
         val progressView = ActionUi.label(host, "", 13f, ActionUi.textColor, ActionUi.medium).apply { maxLines = 1 }
-        val progressBox = Ticker(host, progressView, ActionRuntime.screen(host).width - dp(12 + 4 + 48 + 48 + 4 + 16)).apply {
+        val progressBox = Ticker(host, progressView, ActionRuntime.screen(host).width - dp(12 + 4 + 48 + 48 + 4 + 16) -
+            (if (human != null) dp(48) else 0)).apply {
             minimumWidth = dp(120)
         }
         val toggleText = control(host, "‖", ActionUi.textColor, host.getString(R.string.action_macro_pause), toggle)
+        // ～ は人らしい操作 (human=on)。オンはアクセント色、オフは薄い色。押すたびに次の手順から切り替わる (1.0.184)。
+        var humanText: TextView? = null
+        fun paintHuman(on: Boolean) = humanText?.apply {
+            setTextColor(if (on) ActionUi.accentColor else ActionUi.faintColor)
+            contentDescription = host.getString(if (on) R.string.action_macro_human_on else R.string.action_macro_human_off)
+        }
+        if (human != null) {
+            humanText = control(host, "～", ActionUi.faintColor, "") { paintHuman(human()) }
+            paintHuman(humanOn)
+        }
         val stopText = control(host, "■", ActionUi.dangerColor, stopLabel ?: host.getString(R.string.action_macro_stop), stop)
         val bar = handle(host).apply {
             setPadding(dp(12), dp(4), dp(4), dp(4))
@@ -128,12 +140,15 @@ internal object ActionRunOverlay {
                 orientation = LinearLayout.VERTICAL
                 addView(nameView); addView(progressBox)
             }, LinearLayout.LayoutParams(-2, -2))
-            addView(toggleText, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(4) })
+            humanText?.let { addView(it, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(4) }) }
+            addView(toggleText, LinearLayout.LayoutParams(-2, -2).apply { if (humanText == null) leftMargin = dp(4) })
             addView(stopText, LinearLayout.LayoutParams(-2, -2))
         }
         val shown = attach(host, bar, bar, owner, nameView, progressView) { x ->
+            val humanView = humanText
             if (x >= stopText.left) stopText.performClick()
-            else if (x >= toggleText.left - dp(4)) toggleText.performClick()
+            else if (x >= toggleText.left - (if (humanView == null) dp(4) else 0)) toggleText.performClick()
+            else if (humanView != null && x >= humanView.left - dp(4)) humanView.performClick()
         }
         if (!shown) return false
         progress = progressView; this.nameView = nameView; toggleView = toggleText; runName = name

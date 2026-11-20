@@ -383,16 +383,21 @@ class AndroidActions : AccessibilityService() {
         internal fun gesturesInFlight(): Boolean = active?.let { it.coordinateStroke.inFlight || it.autoScroll.inFlight } == true
 
         internal fun stroke(step: com.zerotoship.z2term.automation.ActionDefinition.Step.Stroke,
-            screen: com.zerotoship.z2term.automation.ActionDefinition.Screen, done: (String?) -> Unit): () -> Unit {
+            screen: com.zerotoship.z2term.automation.ActionDefinition.Screen, done: (String?) -> Unit,
+            human: ((com.zerotoship.z2term.automation.ActionDefinition.Step.Stroke,
+                com.zerotoship.z2term.automation.ActionHumanize.Area) -> com.zerotoship.z2term.automation.ActionDefinition.Step.Stroke)? = null): () -> Unit {
             val service = active ?: error("Enable z2term Android actions in Accessibility settings")
             check(!service.autoScroll.running && !service.autoScroll.inFlight) { "Wait for scrolling to finish" }
             val target = service.focusedTarget() ?: error("No focused application window")
             check(service.packageOf(target.id) == step.target) { "Target app is not focused; switch to ${step.target}" }
-            val points = step.tracks(screen).flatten()
+            // 人らしい揺らぎ (human=on) は窓の中に収めるので、窓が分かってから掛ける。
+            val sent = human?.invoke(step, com.zerotoship.z2term.automation.ActionHumanize.Area(
+                target.bounds.left, target.bounds.top, target.bounds.right, target.bounds.bottom)) ?: step
+            val points = sent.tracks(screen).flatten()
             check(points.all { target.bounds.contains(it.x.toInt(), it.y.toInt()) }) {
                 "Coordinates must be inside the visible target window, above the keyboard"
             }
-            return service.coordinateStroke.dispatch(step, screen, stillTarget = {
+            return service.coordinateStroke.dispatch(sent, screen, stillTarget = {
                 val current = service.focusedTarget()
                 current != null && current.id == target.id && current.bounds == target.bounds &&
                     service.packageOf(current.id) == step.target &&

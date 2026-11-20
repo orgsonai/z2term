@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.184 (versionCode 882)**: Screen-action macros gain `human=on`: taps land slightly off each time, swipes bow a little and start and stop slowly, and drags and `wait` vary their timing a little. ～ on the stop bar switches it while running, and the "Human-like input" row in the form editor flips on / off
+
 **1.0.183 (versionCode 881)**: Screen-action macros gain `watch CONDITION call NAME`, which watches the condition until its block ends and, when it holds, calls that macro as an interruption before returning to where it was. A waiting step is cut short and redone afterwards; taps and shell commands finish first. `run-output SHELL` was added too: the steps a program prints on standard output are checked and executed in place, so work such as reading a board and deciding the moves can become a macro without an AI
 
 **1.0.182 (versionCode 880)**: Screen-action macros can now decide from what is on screen. `if` conditions can test whether an element is shown (`ui text=OK`), the colour of a screen point (`color 540,1200=green` or `=#33aa55`) and a shell exit status (`command …`), and `|` joins alternatives. New `wait-until MS CONDITION` waits until a condition holds and `wait-while MS CONDITION` waits while it holds; 0 ms waits up to the macro's own limit. Reading the screen needs no per-app permission, and the AI control screen now says that z2-action is outside those permissions

@@ -472,6 +472,12 @@ internal class ActionMacrosEditor(
             add(setting(R.string.action_edit_screen, document.header("screen") ?: "—") {
                 editHeader("screen", R.string.action_edit_screen, document.header("screen") ?: "current")
             })
+            // 押すたびに on / off を入れ替える (値は 2 つだけなので入力欄は出さない)。
+            val human = document.header("human") ?: "off"
+            add(setting(R.string.action_edit_human, human) {
+                try { raw = ActionEditorDocument(raw).withHeader("human", if (human == "on") "off" else "on"); render() }
+                catch (e: Exception) { failure(e) }
+            })
             ActionBlockEditor.render(this, body, structure.getOrThrow(),
                 edit = { line, source -> stepLine = line; stepGroup = -1; stepDraft = source; pickedScreen = null; showStep() },
                 add = { group, source -> stepLine = -1; stepGroup = group; stepDraft = source; pickedScreen = null; showStep() },

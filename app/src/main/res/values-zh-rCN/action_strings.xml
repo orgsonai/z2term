@@ -79,6 +79,9 @@
     <string name="action_edit_wait_until">等待直到</string>
     <string name="action_edit_wait_while">持续时等待</string>
     <string name="action_edit_run_output">把输出作为步骤运行</string>
+    <string name="action_edit_human">拟人操作</string>
+    <string name="action_macro_human_on">拟人操作：开</string>
+    <string name="action_macro_human_off">拟人操作：关</string>
     <string name="action_edit_blocks_hint">在各代码块内添加步骤。用⋮移动、复制或删除整个步骤和代码块。</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · %3$d条指令</string>
     <string name="action_edit_location">%1$s / %2$s · 第%3$d次</string>

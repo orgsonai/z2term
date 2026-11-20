@@ -1,7 +1,9 @@
 package com.zerotoship.z2term.automation
 
 /** Text is authoritative; shell text is preserved and other steps use a strict grammar. */
-internal data class ActionDefinition(val text: String, val timeoutMs: Long, val screen: Screen?, val steps: List<Step>) {
+internal data class ActionDefinition(val text: String, val timeoutMs: Long, val screen: Screen?, val steps: List<Step>,
+    /** `human=on` (1.0.184): 指の操作と wait を人に近い揺らぎのあるものにする ([ActionHumanize])。 */
+    val human: Boolean = false) {
     /** `timeout=0`: no time limit. A root macro with it also has no limit on executed instructions. */
     val unlimited get() = timeoutMs == 0L
     data class Screen(val width: Int, val height: Int, val rotation: Int) {
@@ -97,6 +99,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             }
             return found
         }
+        val HEADERS = setOf("version", "timeout", "screen", "human")
         /** 後ろをそのままシェルに渡す命令。行末の `#` もシェルのもの。 */
         val SHELL_VERBS = setOf("command", "run-output")
         /** 条件式を取る命令。`if 条件` / `wait-until ミリ秒 条件` / `wait-while ミリ秒 条件`。 */
@@ -154,7 +157,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 val comment = original.trim().substring(line.length)
                 if (!body && '=' in line && line.substringBefore('=').matches(Regex("[a-z]+"))) {
                     val key = line.substringBefore('=')
-                    require(key in setOf("version", "timeout", "screen") && key !in headers) { "Unknown or duplicate header: $key" }
+                    require(key in HEADERS && key !in headers) { "Unknown or duplicate header: $key" }
                     val value = line.substringAfter('=').let {
                         if (key == "screen" && it == "current") (current ?: error("screen=current requires z2-action save")).toString() else it
                     }
@@ -374,7 +377,9 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 require(colors.all { it.x < screen.width && it.y < screen.height }) { "Colour points are outside the saved screen" }
             }
             flat.filterIsInstance<Step.Stroke>().forEach { it.tracks(screen!!) }
-            return ActionDefinition(lines.joinToString("\n").trimEnd() + "\n", timeout * 1000, screen, steps.toList())
+            val human = when (headers["human"]) { null, "off" -> false; "on" -> true
+                else -> throw IllegalArgumentException("human must be on or off") }
+            return ActionDefinition(lines.joinToString("\n").trimEnd() + "\n", timeout * 1000, screen, steps.toList(), human)
         }
     }
 }

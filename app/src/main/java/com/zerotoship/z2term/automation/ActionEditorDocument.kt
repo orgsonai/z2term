@@ -30,7 +30,7 @@ internal class ActionEditorDocument(val text: String) {
         .firstOrNull { it.trim().startsWith("$name=") }?.let(ActionDefinition::code)?.substringAfter('=')
 
     fun withHeader(name: String, value: String): String {
-        require(name in setOf("version", "timeout", "screen"))
+        require(name in ActionDefinition.HEADERS)
         singleLine(value)
         val end = rows.firstOrNull()?.line ?: lines.size
         val indices = lines.indices.filter { it < end && lines[it].trim().startsWith("$name=") }

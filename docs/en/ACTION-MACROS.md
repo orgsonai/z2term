@@ -210,6 +210,18 @@ end
 - While the called macro runs, no watch interrupts again. If the condition still holds after it returns, it is called again (make the called macro clear the condition).
 - Conditions are written as for `if`, but `command` is not allowed (they are checked repeatedly). The called macro is checked and frozen before the run like `call` and counts toward call depth. Nothing is checked while paused.
 
+### Human-like input (human=on, 1.0.184)
+
+With `human=on` in the headers, finger operations and waits come closer to a person's finger. What each step means (where to press, from where to where) stays the same.
+
+- Taps, long presses and double taps: the point moves a little each time (up to 0.6% of the screen's short side, about 6 px at 1080 px wide). Taps last 60–110 ms, long presses vary by ±8% and the double-tap gap by ±15%.
+- Swipes: the line bows slightly (up to 5% of its length, 48 px at most), starts and stops slowly with a little variation on the way, and ends slightly off the exact point; the whole duration varies by ±8%. This takes precedence over accelerate/decelerate.
+- Drags and recorded touches: the shape stays, the position moves slightly, and with one finger each segment's time varies by ±20% (same total). Two-finger gestures move together.
+- `wait`: ±10% (up to ±300 ms).
+- Moved points stay inside the foreground app's window. Scrolling (`scroll`) and element actions (`click` and so on) are unchanged.
+
+While running, **～** on the stop bar switches it (accent colour when on), from the next step. Whether it starts on is decided by the first macro's header; `human=` in called macros is not used. In the form editor, tapping the "Human-like input" row flips on / off.
+
 ### Run steps a program decides (run-output, 1.0.183)
 
 ```text
@@ -324,6 +336,7 @@ end
 | `timeout=30` | Whole-run timeout, 0–300 seconds; default 30; `0` means no limit |
 | `screen=current` | Save display geometry; required for coordinates/scroll |
 | `screen=1080x2400@0` | Explicit display geometry |
+| `human=on` / `human=off` | Human-like input (default off); see "Human-like input" below |
 | `target PACKAGE` | Set the target app for subsequent coordinates, scrolling and UI elements without launching it |
 | `target current` | Use the foreground app at the start of each subsequent step; the default when no target is specified |
 | `launch PACKAGE` | Launch the app and wait until it is in front (up to 10 seconds, 1.0.111); also updates the target |

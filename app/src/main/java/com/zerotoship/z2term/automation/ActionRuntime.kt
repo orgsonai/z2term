@@ -42,6 +42,9 @@ internal object ActionRuntime {
         /** Started from the macro chooser: show the stop bar even when its setting is off. */
         val bar: Boolean = false) {
         val definition get() = program.root
+        /** 人らしい操作。最初のマクロの `human=` で始まり、停止の帯の ～ で実行中に切り替えられる (1.0.184)。 */
+        var human: Boolean = program.root.human
+        val random = kotlin.random.Random(System.nanoTime())
     }
     private var current: Run? = null
     private var retiringService: ActionService? = null
@@ -140,7 +143,8 @@ internal object ActionRuntime {
         run.service = service
         service.showRun(run.name)
         ActionRunOverlay.show(AndroidActions.overlayHost(), run.name, stop = { runCatching { stop(run.id) } },
-            toggle = { runCatching { if (run.engine.paused) resume(run.id) else pause(run.id) } }, force = run.bar)
+            toggle = { runCatching { if (run.engine.paused) resume(run.id) else pause(run.id) } }, force = run.bar,
+            human = { if (current === run) run.human = !run.human; run.human }, humanOn = run.human)
         if (run.awaitBackground) {
             run.cancelStart = ActionForegroundWait(::schedule).start(if (run.allowOwnForeground) "" else run.context.packageName, {
                 checkDevice(run)
@@ -336,7 +340,7 @@ internal object ActionRuntime {
                 checkDevice(run)
                 return AndroidActions.queryUi(resolved) { found, error -> done(error ?: if (found) null else "UI element not found") }
             }
-            is ActionDefinition.Step.Wait -> return schedule(step.ms) { done(null) }
+            is ActionDefinition.Step.Wait -> return schedule(if (run.human) ActionHumanize.waitMs(step.ms, run.random) else step.ms) { done(null) }
             is ActionDefinition.Step.WaitFor -> {
                 val label = if (step.until) "wait-until" else "wait-while"
                 return ActionUiWait(::schedule).start(step.ms, { callback ->
@@ -372,7 +376,8 @@ internal object ActionRuntime {
                 val points = resolved.tracks(run.screen).flatten()
                 return ActionRunOverlay.clear({ box -> points.any { box.contains(it.x.toInt(), it.y.toInt()) } }, ::schedule, ::done) { finished ->
                     check(current === run) { "Stopped" }
-                    AndroidActions.stroke(resolved, run.screen, finished)
+                    AndroidActions.stroke(resolved, run.screen, finished,
+                        human = if (run.human) { stroke, area -> ActionHumanize.stroke(stroke, run.screen, area, run.random) } else null)
                 }
             }
             is ActionDefinition.Step.Scroll -> {
