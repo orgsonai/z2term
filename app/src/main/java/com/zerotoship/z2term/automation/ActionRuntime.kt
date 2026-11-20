@@ -98,8 +98,8 @@ internal object ActionRuntime {
         ""
     }
     fun start(context: Context, name: String, background: (() -> Unit)? = null, waitForForeground: Boolean = false,
-        bar: Boolean = false): String {
-        val program = store(context).snapshot(name)
+        bar: Boolean = false, args: List<String> = emptyList()): String {
+        val program = store(context).snapshot(name, args)
         return EdgeRuntime.onMain {
             check(!ActionCoordinatePicker.active) { context.getString(com.zerotoship.z2term.R.string.action_pick_busy) }
             check(current == null) { "An action macro is already running; use z2-action status or stop" }
@@ -220,10 +220,11 @@ internal object ActionRuntime {
     private fun expand(run: Run, step: ActionDefinition.Step.RunOutput,
         produced: (List<ActionDefinition.Step>?, String?) -> Unit): () -> Unit {
         checkDevice(run)
-        val started = run.runner.run("macro:${run.id}", step.text, run.definition.timeoutMs / 1000) { result ->
+        val values = run.engine.args
+        val started = run.runner.run("macro:${run.id}", step.text, run.definition.timeoutMs / 1000, positional = values) { result ->
             if (result.error != null) produced(null, result.error)
             else {
-                val steps = try { ActionDefinition.fragment(result.output, run.screen, step.target) }
+                val steps = try { ActionDefinition.fragment(result.output, run.screen, step.target, values) }
                     catch (e: Exception) { produced(null, e.message ?: "run-output produced invalid steps"); return@run }
                 produced(steps, null)
             }
@@ -264,7 +265,8 @@ internal object ActionRuntime {
                 color(term, done)
             }
             is ActionCondition.Term.Shell -> {
-                val started = run.runner.run("macro:${run.id}", term.text, run.definition.timeoutMs / 1000) { result ->
+                val started = run.runner.run("macro:${run.id}", term.text, run.definition.timeoutMs / 1000,
+                    positional = run.engine.args) { result ->
                     if (result.exit != null) done(result.exit == 0, null) else done(null, result.error ?: "Shell condition failed")
                 }
                 if (!started) { done(null, "Cannot start shell command"); return noWork }
@@ -390,7 +392,8 @@ internal object ActionRuntime {
             }
             is ActionDefinition.Step.Key -> { AndroidActions.command(run.context, listOf(step.name)); done(null) }
             is ActionDefinition.Step.Command -> {
-                check(run.runner.run("macro:${run.id}", step.text, run.definition.timeoutMs / 1000) { done(it.error) }) { "Cannot start shell command" }
+                check(run.runner.run("macro:${run.id}", step.text, run.definition.timeoutMs / 1000,
+                    positional = run.engine.args) { done(it.error) }) { "Cannot start shell command" }
                 return { run.runner.cancelAll() }
             }
             is ActionDefinition.Step.Stroke -> {

@@ -13,18 +13,18 @@ class ActionProgramTest {
         assertEquals(listOf("root", "child"), reads)
         assertEquals(listOf(ActionDefinition.Step.Wait(1)), program.definitions.getValue("child").steps)
         saved["child"] = definition("if wifi\ncall root\nend")
-        assertThrows(IllegalArgumentException::class.java) { ActionProgram.load("root", saved::getValue) }
+        assertThrows(IllegalArgumentException::class.java) { ActionProgram.load("root", read = saved::getValue) }
         saved.remove("child")
-        assertThrows(NoSuchElementException::class.java) { ActionProgram.load("root", saved::getValue) }
+        assertThrows(NoSuchElementException::class.java) { ActionProgram.load("root", read = saved::getValue) }
     }
     @Test fun foregroundUseIncludesCalledMacrosAndBothBranches() {
         val saved = mutableMapOf("root" to definition("target org.example.outer\ncall child"),
             "child" to definition("if charging\nwait 0\nelse\nclick text=Next\nend"))
-        assertTrue(ActionProgram.load("root", saved::getValue).usesCurrentTarget)
+        assertTrue(ActionProgram.load("root", read = saved::getValue).usesCurrentTarget)
         saved["child"] = definition("target org.example.child\nclick text=Next")
-        assertFalse(ActionProgram.load("root", saved::getValue).usesCurrentTarget)
+        assertFalse(ActionProgram.load("root", read = saved::getValue).usesCurrentTarget)
         saved["child"] = definition("target current\nwait 0")
-        assertFalse(ActionProgram.load("root", saved::getValue).usesCurrentTarget)
+        assertFalse(ActionProgram.load("root", read = saved::getValue).usesCurrentTarget)
     }
     @Test fun sharedCallGraphsAreReadOnceAndCheckedOnEveryDepth() {
         val saved = (0..7).associate { index ->
@@ -34,16 +34,16 @@ class ActionProgramTest {
         ActionProgram.load("m0") { reads++; saved.getValue(it) }
         assertEquals(8, reads)
         saved["extra"] = definition("call m0")
-        assertThrows(IllegalArgumentException::class.java) { ActionProgram.load("extra", saved::getValue) }
+        assertThrows(IllegalArgumentException::class.java) { ActionProgram.load("extra", read = saved::getValue) }
         // A short path visits a shared node first; its later, deeper use must still fail.
         saved["root"] = definition("call m1\ncall extra")
-        assertThrows(IllegalArgumentException::class.java) { ActionProgram.load("root", saved::getValue) }
+        assertThrows(IllegalArgumentException::class.java) { ActionProgram.load("root", read = saved::getValue) }
     }
     @Test fun combinedBlockAndCallDepthIsBounded() {
         val open = "repeat 1\n".repeat(8)
         val close = "\n" + "end\n".repeat(8)
         val saved = mapOf("root" to definition(open + "call child" + close),
             "child" to definition(open + "wait 0" + close))
-        assertThrows(IllegalArgumentException::class.java) { ActionProgram.load("root", saved::getValue) }
+        assertThrows(IllegalArgumentException::class.java) { ActionProgram.load("root", read = saved::getValue) }
     }
 }

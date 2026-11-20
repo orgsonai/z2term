@@ -72,6 +72,8 @@
     <string name="action_state_idle">閒置</string>
     <string name="action_edit_call">呼叫已儲存的巨集</string>
     <string name="action_edit_macro_name">巨集名稱</string>
+    <string name="action_edit_call_args">傳遞的值（可省略）</string>
+    <string name="action_edit_call_args_hint">以空格分隔，最多 9 個。被呼叫的巨集以 $1 $2 …（$# 為個數）讀取。shell 步驟會作為其自身的 $1 $2 … 收到。</string>
     <string name="action_edit_pick_macro">選擇已儲存的巨集</string>
     <string name="action_edit_add_repeat">新增重複</string>
     <string name="action_edit_add_branch">新增條件分支</string>

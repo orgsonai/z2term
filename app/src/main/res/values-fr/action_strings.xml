@@ -72,6 +72,8 @@
     <string name="action_state_idle">Inactive</string>
     <string name="action_edit_call">Appeler une macro enregistrée</string>
     <string name="action_edit_macro_name">Nom de la macro</string>
+    <string name="action_edit_call_args">Valeurs (facultatif)</string>
+    <string name="action_edit_call_args_hint">Jusqu\'à 9 valeurs séparées par des espaces. La macro appelée les lit comme $1 $2 … ($# en donne le nombre). Les étapes shell les reçoivent comme leurs propres $1 $2 ….</string>
     <string name="action_edit_pick_macro">Choisir une macro enregistrée</string>
     <string name="action_edit_add_repeat">Ajouter une répétition</string>
     <string name="action_edit_add_branch">Ajouter une condition</string>

@@ -72,6 +72,8 @@
     <string name="action_state_idle">待機中</string>
     <string name="action_edit_call">保存済みマクロを呼ぶ</string>
     <string name="action_edit_macro_name">マクロ名</string>
+    <string name="action_edit_call_args">渡す値（省略可）</string>
+    <string name="action_edit_call_args_hint">空白で区切って9個まで。呼ばれたマクロでは $1 $2 …（$# は個数）として読めます。シェルの手順にはシェル自身の $1 $2 … として渡ります。</string>
     <string name="action_edit_pick_macro">保存済みマクロを選ぶ</string>
     <string name="action_edit_add_repeat">繰り返しを追加</string>
     <string name="action_edit_add_branch">条件分岐を追加</string>

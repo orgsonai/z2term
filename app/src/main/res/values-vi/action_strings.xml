@@ -72,6 +72,8 @@
     <string name="action_state_idle">Rảnh</string>
     <string name="action_edit_call">Gọi macro đã lưu</string>
     <string name="action_edit_macro_name">Tên macro</string>
+    <string name="action_edit_call_args">Giá trị (tùy chọn)</string>
+    <string name="action_edit_call_args_hint">Tối đa 9 giá trị, cách nhau bằng dấu cách. Macro được gọi đọc chúng là $1 $2 … ($# là số lượng). Bước shell nhận chúng làm $1 $2 … của chính nó.</string>
     <string name="action_edit_pick_macro">Chọn macro đã lưu</string>
     <string name="action_edit_add_repeat">Thêm lặp lại</string>
     <string name="action_edit_add_branch">Thêm điều kiện</string>

@@ -72,6 +72,8 @@
     <string name="action_state_idle">Простаивает</string>
     <string name="action_edit_call">Вызвать сохранённый макрос</string>
     <string name="action_edit_macro_name">Имя макроса</string>
+    <string name="action_edit_call_args">Значения (необязательно)</string>
+    <string name="action_edit_call_args_hint">До 9 значений через пробел. Вызванный макрос читает их как $1 $2 … ($# — их число). Шаги оболочки получают их как собственные $1 $2 ….</string>
     <string name="action_edit_pick_macro">Выбрать сохранённый макрос</string>
     <string name="action_edit_add_repeat">Добавить повтор</string>
     <string name="action_edit_add_branch">Добавить условие</string>

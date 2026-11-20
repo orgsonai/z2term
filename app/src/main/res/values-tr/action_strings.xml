@@ -72,6 +72,8 @@
     <string name="action_state_idle">Boşta</string>
     <string name="action_edit_call">Kayıtlı makroyu çağır</string>
     <string name="action_edit_macro_name">Makro adı</string>
+    <string name="action_edit_call_args">Değerler (isteğe bağlı)</string>
+    <string name="action_edit_call_args_hint">Boşlukla ayrılmış en fazla 9 değer. Çağrılan makro bunları $1 $2 … olarak okur ($# sayısıdır). Kabuk adımları bunları kendi $1 $2 … değerleri olarak alır.</string>
     <string name="action_edit_pick_macro">Kayıtlı makro seç</string>
     <string name="action_edit_add_repeat">Tekrar ekle</string>
     <string name="action_edit_add_branch">Koşul ekle</string>

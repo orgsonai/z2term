@@ -72,6 +72,8 @@
     <string name="action_state_idle">대기 중</string>
     <string name="action_edit_call">저장된 매크로 호출</string>
     <string name="action_edit_macro_name">매크로 이름</string>
+    <string name="action_edit_call_args">넘길 값(생략 가능)</string>
+    <string name="action_edit_call_args_hint">공백으로 구분해 9개까지. 호출된 매크로에서는 $1 $2 …($#는 개수)로 읽습니다. 셸 단계에는 셸 자신의 $1 $2 …로 전달됩니다.</string>
     <string name="action_edit_pick_macro">저장된 매크로 선택</string>
     <string name="action_edit_add_repeat">반복 추가</string>
     <string name="action_edit_add_branch">조건 분기 추가</string>

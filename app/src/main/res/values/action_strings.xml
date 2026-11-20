@@ -72,6 +72,8 @@
     <string name="action_state_idle">Idle</string>
     <string name="action_edit_call">Call saved macro</string>
     <string name="action_edit_macro_name">Macro name</string>
+    <string name="action_edit_call_args">Values (optional)</string>
+    <string name="action_edit_call_args_hint">Separate up to 9 values with spaces. The called macro reads them as $1 $2 … ($# is how many). Shell steps get them as their own $1 $2 ….</string>
     <string name="action_edit_pick_macro">Choose saved macro</string>
     <string name="action_edit_add_repeat">Add repeat</string>
     <string name="action_edit_add_branch">Add condition</string>

@@ -72,6 +72,8 @@
     <string name="action_state_idle">空闲</string>
     <string name="action_edit_call">调用已保存的宏</string>
     <string name="action_edit_macro_name">宏名称</string>
+    <string name="action_edit_call_args">传递的值（可省略）</string>
+    <string name="action_edit_call_args_hint">用空格分隔，最多 9 个。被调用的宏以 $1 $2 …（$# 为个数）读取。shell 步骤会作为其自身的 $1 $2 … 收到。</string>
     <string name="action_edit_pick_macro">选择已保存的宏</string>
     <string name="action_edit_add_repeat">添加重复</string>
     <string name="action_edit_add_branch">添加条件分支</string>

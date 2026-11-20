@@ -44,7 +44,7 @@ internal class ActionStore(private val root: File) {
         if (!file.isFile || Files.isSymbolicLink(file.toPath()) || file.length() > 64 * 1024) return emptyList()
         return runCatching { file.readLines() }.getOrDefault(emptyList()).map { it.trim() }.filter { it.isNotEmpty() }
     }
-    fun snapshot(name: String): ActionProgram = synchronized(lock) { ActionProgram.load(name, ::read) }
+    fun snapshot(name: String, args: List<String> = emptyList()): ActionProgram = synchronized(lock) { ActionProgram.load(name, args, ::read) }
 
     fun read(name: String): ActionDefinition = ActionDefinition.parse(readText(name))
 

@@ -72,6 +72,8 @@
     <string name="action_state_idle">Inattiva</string>
     <string name="action_edit_call">Chiama una macro salvata</string>
     <string name="action_edit_macro_name">Nome della macro</string>
+    <string name="action_edit_call_args">Valori (facoltativo)</string>
+    <string name="action_edit_call_args_hint">Fino a 9 valori separati da spazi. La macro chiamata li legge come $1 $2 … ($# è il numero). I passi shell li ricevono come propri $1 $2 ….</string>
     <string name="action_edit_pick_macro">Scegli una macro salvata</string>
     <string name="action_edit_add_repeat">Aggiungi ripetizione</string>
     <string name="action_edit_add_branch">Aggiungi condizione</string>

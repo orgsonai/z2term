@@ -72,6 +72,8 @@
     <string name="action_state_idle">Inaktiv</string>
     <string name="action_edit_call">Gespeichertes Makro aufrufen</string>
     <string name="action_edit_macro_name">Makroname</string>
+    <string name="action_edit_call_args">Werte (optional)</string>
+    <string name="action_edit_call_args_hint">Bis zu 9 Werte, durch Leerzeichen getrennt. Das aufgerufene Makro liest sie als $1 $2 … ($# ist die Anzahl). Shell-Schritte erhalten sie als eigene $1 $2 ….</string>
     <string name="action_edit_pick_macro">Gespeichertes Makro wählen</string>
     <string name="action_edit_add_repeat">Wiederholung hinzufügen</string>
     <string name="action_edit_add_branch">Bedingung hinzufügen</string>

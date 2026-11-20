@@ -21,7 +21,8 @@ internal object ActionCommands {
                 } }.toString()
             }
             "screen" -> { count(1); "screen=${ActionRuntime.screen(context)}" }
-            "start" -> { count(2); ActionRuntime.start(context, args[1]) }
+            // `start NAME VALUE…`: the values become the root macro's $1… (1.0.191).
+            "start" -> { require(args.size >= 2) { "start NAME [VALUE...]" }; ActionRuntime.start(context, args[1], args = args.drop(2)) }
             "pick" -> { count(1); ActionRuntime.pick(context) }
             "status", "stop", "pause", "resume" -> {
                 require(args.size in 1..2) { "status|stop|pause|resume [RUN_ID]" }

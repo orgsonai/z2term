@@ -25,7 +25,9 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         val until: String? = null, val untilTarget: String = ActionDefinition.CURRENT_TARGET,
         var checked: Boolean = false, var exit: Boolean = false,
         /** Non-null for the body of `try` (1.0.190): the steps that run when something inside fails. */
-        val recover: List<ActionDefinition.Step>? = null)
+        val recover: List<ActionDefinition.Step>? = null,
+        /** Values of the macro this frame belongs to (1.0.191); blocks inherit them from their macro. */
+        val args: List<String> = emptyList())
     private val frames = mutableListOf<Frame>()
     var running = false
         private set
@@ -49,6 +51,8 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         private set
     var paused = false
         private set
+    /** Values of the macro whose step is running (shell steps receive them as `$1`…). */
+    val args: List<String> get() = frames.lastOrNull()?.args.orEmpty()
     private var generation = 0
     /** Bumped whenever the step in flight is abandoned (pause), so its late completion is ignored. */
     private var attempt = 0
@@ -157,7 +161,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         limitSteps = !definition.unlimited
         macro = name; path = ""; iteration = 1; callDepth = 1
         loops = emptyList(); blockStep = 0; blockSize = 0
-        frames += Frame(definition.steps, name)
+        frames += Frame(definition.steps, name, args = definition.args)
         val token = ++generation
         deadline = if (definition.unlimited) null else
             Deadline(definition.timeoutMs) { if (token == generation) finish("timeout", "Macro timed out") }.also { it.start() }
@@ -187,7 +191,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
             if (!running || token != generation) return
             try {
                 val recover = owner.recover.orEmpty()
-                if (recover.isNotEmpty()) push(Frame(recover, owner.macro, owner.prefix.removeSuffix("try.") + "else."))
+                if (recover.isNotEmpty()) push(Frame(recover, owner.macro, owner.prefix.removeSuffix("try.") + "else.", args = owner.args))
             } catch (e: Exception) { finish("failed", e.message ?: error); return }
             // advance() is declared below; [proceed] points at it before the first step runs.
             cancelNext = schedule(CONTROL_DELAY_MS) { proceed?.invoke() }
@@ -202,7 +206,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                     check(frames.none { it.macro == fired.name }) { "Recursive macro call: " + fired.name }
                     check(1 + frames.count { it.call } < ActionProgram.MAX_CALL_DEPTH) { "Macro call depth exceeded" }
                     val called = resolve(fired.name)
-                    val child = Frame(called.steps, fired.name, call = true)
+                    val child = Frame(called.steps, fired.name, call = true, args = called.args)
                     push(child)
                     handling = child
                     child.timeout = if (called.unlimited) null else Deadline(called.timeoutMs) {
@@ -272,7 +276,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                 when (action) {
                     is ActionDefinition.Step.Repeat -> {
                         push(Frame(action.body, macro, "$path.", action.count, loop = true,
-                            until = action.until, untilTarget = action.target))
+                            until = action.until, untilTarget = action.target, args = frame.args))
                         cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
                     }
                     is ActionDefinition.Step.Branch -> {
@@ -282,7 +286,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                             branch(action.condition, matched)
                             if (!running || token != generation) return
                             val branchPath = "$here." + (if (matched) "yes." else "no.")
-                            push(Frame(if (matched) action.yes else action.no, macro, branchPath))
+                            push(Frame(if (matched) action.yes else action.no, macro, branchPath, args = frame.args))
                             cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
                         }
                         if (test == null) decide(condition(action.condition))
@@ -304,8 +308,8 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                     is ActionDefinition.Step.Call -> {
                         check(frames.none { it.macro == action.name }) { "Recursive macro call: " + action.name }
                         check(callDepth < ActionProgram.MAX_CALL_DEPTH) { "Macro call depth exceeded" }
-                        val called = resolve(action.name)
-                        val child = Frame(called.steps, action.name, call = true)
+                        val called = resolve(action.key)
+                        val child = Frame(called.steps, action.name, call = true, args = called.args)
                         push(child)
                         child.timeout = if (called.unlimited) null else Deadline(called.timeoutMs) {
                             if (token == generation) finish("timeout", "Called macro timed out: " + action.name)
@@ -313,7 +317,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                         cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
                     }
                     is ActionDefinition.Step.Try -> {
-                        push(Frame(action.body, macro, "$path.try.", recover = action.recover))
+                        push(Frame(action.body, macro, "$path.try.", recover = action.recover, args = frame.args))
                         cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
                     }
                     is ActionDefinition.Step.Break -> {
@@ -337,7 +341,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                             answered = true; cancelStep = null; stepInFlight = false; inFlight = null
                             if (error != null || steps == null) { fail(error ?: "run-output failed"); return@produced }
                             try {
-                                if (steps.isNotEmpty()) push(Frame(steps, macro, "$here."))
+                                if (steps.isNotEmpty()) push(Frame(steps, macro, "$here.", args = frame.args))
                                 cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
                             } catch (e: Exception) { fail(e.message ?: "run-output failed") }
                         }

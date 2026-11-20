@@ -6,8 +6,21 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
      * 人らしい操作の強さ (1.0.184、数字は 1.0.186)。0 はなし、1〜20 は大きいほど揺れる ([ActionHumanize])。
      * 見出しは `human=0..20`、`on` は [ActionHumanize.DEFAULT_LEVEL]、`off` は 0。
      */
-    val humanLevel: Int = 0) {
+    val humanLevel: Int = 0,
+    /**
+     * 呼び出しの値 (1.0.191)。シェルの手順にはシェル自身の位置引数 `$1`… として渡す。
+     * [templated] はシェル以外の行に `$1`…`$9` / `$#` があること。そういう定義は [bind] で値を入れてから使う。
+     */
+    val args: List<String> = emptyList(), val templated: Boolean = false) {
     val human get() = humanLevel > 0
+    /**
+     * [values] を入れた、この呼び出し用の定義。`$n` を含む行はここで初めて本当の値で検査する。
+     * 値の足りない `$n` は失敗。値を使わない定義でも [args] には入れる (シェルの位置引数)。
+     */
+    fun bind(values: List<String>): ActionDefinition {
+        checkArgs(values)
+        return if (!templated) copy(args = values) else parse(text, screen, values)
+    }
     /** `timeout=0`: no time limit. A root macro with it also has no limit on executed instructions. */
     val unlimited get() = timeoutMs == 0L
     data class Screen(val width: Int, val height: Int, val rotation: Int) {
@@ -40,7 +53,10 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             val target: String = CURRENT_TARGET) : Step
         /** `wait-until` ([until]) / `wait-while`: poll [condition] for up to [ms] (0 = until the macro's own limit). */
         data class WaitFor(val target: String, val condition: String, val until: Boolean, val ms: Long) : Step
-        data class Call(val name: String) : Step
+        /** `call 名前 値…` (値は 1.0.191)。[key] は値ごとに別の呼び出し先として固定するための名前。 */
+        data class Call(val name: String, val args: List<String> = emptyList()) : Step {
+            val key get() = callKey(name, args)
+        }
         /**
          * `watch 条件 call 名前`: 書いたブロックが終わるまで [condition] を見張り、成立したら [name] を割り込みで呼ぶ。
          * 条件に `command` は使えない (見張りは短い間隔で繰り返すため)。
@@ -97,6 +113,52 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         const val MAX_NESTING = 8
         /** `drag` の点の数の上限。z2-ui の drag と揃える。 */
         const val MAX_DRAG_POINTS = 256
+        /** `call` で渡せる値の数と 1 つの長さ。 */
+        const val MAX_ARGS = 9
+        const val MAX_ARG_CHARS = 256
+        /** シェル以外の行で置き換える `$1`…`$9` と `$#`。 */
+        private val placeholder = Regex("\\$([1-9#])")
+        fun callKey(name: String, args: List<String>) = if (args.isEmpty()) name else name + "\u0000" + args.joinToString("\u0000")
+        fun checkArgs(values: List<String>) {
+            require(values.size <= MAX_ARGS) { "At most $MAX_ARGS values" }
+            require(values.all { it.length <= MAX_ARG_CHARS && '\n' !in it && '\r' !in it && '\u0000' !in it }) {
+                "Values are one line of at most $MAX_ARG_CHARS characters"
+            }
+        }
+        /**
+         * [line] の中でシェルの文が始まる位置 (無ければ null)。`command` / `run-output` は命令の後ろ全部、
+         * 条件を取る行は `command` の項から後ろ。コメントの判定と `$1` の置き換えはここで止まる。
+         */
+        fun shellStart(line: String): Int? {
+            val code = line.trimStart()
+            val lead = line.length - code.length
+            val verb = code.split(Regex("\\s+"), limit = 2).first()
+            if (verb == "command" || verb == "run-output") return lead + verb.length
+            if (verb == "repeat") {
+                val until = Regex("\\suntil\\s").find(line) ?: return null
+                val from = until.range.last
+                return ActionCondition.shellStart(line.substring(from))?.plus(from)
+            }
+            if (verb !in CONDITION_VERBS) return null
+            var from = lead + verb.length
+            if (verb != "if") {
+                while (from < line.length && line[from].isWhitespace()) from++
+                while (from < line.length && !line[from].isWhitespace()) from++
+            }
+            return ActionCondition.shellStart(line.substring(from))?.plus(from)
+        }
+        /** [line] の `$n` を [values] で置き換える。[values] が null なら検査用の仮の値 (数字は 1、`$#` は 0)。 */
+        private fun substitute(line: String, values: List<String>?): String {
+            val end = shellStart(line) ?: line.length
+            return placeholder.replace(line.substring(0, end)) { match ->
+                val name = match.groupValues[1]
+                when {
+                    values == null -> if (name == "#") "0" else "1"
+                    name == "#" -> values.size.toString()
+                    else -> values.getOrNull(name.toInt() - 1) ?: throw IllegalArgumentException("Missing value for \$$name")
+                }
+            } + line.substring(end)
+        }
         /** 行頭に来る流れの語。編集画面でアクセント色にする対象。 */
         val FLOW_WORDS = setOf("repeat", "if", "try", "else", "end", "call", "watch", "break")
         private val trailingComment = Regex("(?<=\\s)#(?=\\s|$)")
@@ -112,24 +174,9 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             val verb = code.split(Regex("\\s+"), limit = 2).first()
             if (verb in SHELL_VERBS) return null
             val found = trailingComment.find(line)?.range?.first ?: return null
-            // 条件の `command` 項から後ろはシェルの文。`#` もシェルに渡す。
-            if (verb == "repeat") {
-                // `repeat … until 条件` の条件も、command の項から後ろはシェルの文。
-                val until = Regex("\\suntil\\s").find(line) ?: return found
-                val from = until.range.last
-                val shell = ActionCondition.shellStart(line.substring(from))?.plus(from)
-                return if (shell != null && found > shell) null else found
-            }
-            if (verb in CONDITION_VERBS) {
-                var from = line.length - code.length + verb.length
-                if (verb != "if") {
-                    while (from < line.length && line[from].isWhitespace()) from++
-                    while (from < line.length && !line[from].isWhitespace()) from++
-                }
-                val shell = ActionCondition.shellStart(line.substring(from))?.plus(from)
-                if (shell != null && found > shell) return null
-            }
-            return found
+            // 条件の `command` 項から後ろ (`repeat … until` の条件も) はシェルの文。`#` もシェルに渡す。
+            val shell = shellStart(line)
+            return if (shell != null && found > shell) null else found
         }
         val HEADERS = setOf("version", "timeout", "screen", "human")
         /** 後ろをそのままシェルに渡す命令。行末の `#` もシェルのもの。 */
@@ -160,10 +207,11 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
          * `call` / `run-output` / `watch` は断る (呼び出し先は実行前に検査・固定するため、出力から増やさない)。
          * 空の出力は「何もしない」。
          */
-        fun fragment(output: String, screen: Screen?, target: String): List<Step> {
+        fun fragment(output: String, screen: Screen?, target: String, args: List<String> = emptyList()): List<Step> {
             if (output.lines().all { code(it).isEmpty() }) return emptyList()
             val head = "version=2\ntimeout=0\n" + (screen?.let { "screen=$it\n" } ?: "") + "target $target\n"
-            val steps = try { parse(head + output, screen).steps } catch (e: IllegalArgumentException) {
+            // 出力に `$1` があれば、その場の値で置き換える (仮の値で通してしまわない)。
+            val steps = try { parse(head + output, screen, args).steps } catch (e: IllegalArgumentException) {
                 throw IllegalArgumentException("run-output: " + e.message, e)
             }
             require(allSteps(steps).none { it is Step.Call || it is Step.RunOutput || it is Step.Watch }) {
@@ -178,7 +226,11 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             require(value.matches(Regex("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+"))) { "Invalid application package ID" }
             return value
         }
-        fun parse(raw: String, current: Screen? = null): ActionDefinition {
+        /**
+         * [args] が null (保存・単独の検査) なら、`$n` を含む行は仮の値で検査し、通らなくても保存できる
+         * (呼ばれたときに本当の値で検査する)。null でなければ `$n` をその値で置き換えて厳密に検査する。
+         */
+        fun parse(raw: String, current: Screen? = null, args: List<String>? = null): ActionDefinition {
             require(raw.toByteArray(Charsets.UTF_8).size <= MAX_BYTES && '\u0000' !in raw) { "Definition exceeds 64 KiB or contains NUL" }
             val headers = linkedMapOf<String, String>()
             var steps = mutableListOf<Step>()
@@ -186,8 +238,10 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             var size = 0
             var target: String? = null
             var body = false
+            var templated = false
+            args?.let(::checkArgs)
             val lines = raw.replace("\r\n", "\n").lines().map { original ->
-                val line = code(original)
+                var line = code(original)
                 if (line.isEmpty()) return@map original
                 require('\r' !in original) { "Invalid line ending" }
                 // 見出しは値を書き換えて保存するので、行末のコメントは後ろに付け直す。
@@ -202,6 +256,10 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                     return@map "$key=$value$comment"
                 }
                 body = true
+                // `$1`… は見出しの後ろの行だけ。シェルの文はシェル自身の位置引数として読むので触らない。
+                val shell = shellStart(line) ?: line.length
+                val bound = placeholder.containsMatchIn(line.substring(0, shell))
+                if (bound) { templated = true; line = substitute(line, args) }
                 val words = line.split(Regex("\\s+"))
                 fun count(n: Int) { require(words.size == n) { "Wrong arguments: ${words[0]}" } }
                 fun number(i: Int, low: Float, high: Float): Float = words[i].toFloatOrNull()?.also {
@@ -263,7 +321,10 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                                 if (block.yes != null) steps.toList() else emptyList(), block.target ?: CURRENT_TARGET)
                             steps = block.parent; steps += closed; target = block.target
                         }
-                        "call" -> { count(2); steps += Step.Call(macroName(words[1])); size++ }
+                        "call" -> {
+                            require(words.size in 2..2 + MAX_ARGS) { "call takes a name and at most $MAX_ARGS values" }
+                            steps += Step.Call(macroName(words[1]), words.drop(2)); size++
+                        }
                         "break" -> {
                             count(1)
                             require(blocks.any { it.kind == "repeat" }) { "break must be inside repeat" }
@@ -274,6 +335,9 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                     return@map original
                 }
                 val before = steps.size
+                val targetBefore = target
+                // `$n` を仮の値で検査して通らない行は、呼ばれたときに本当の値で検査する (保存はできる)。
+                try {
                 // `tap ui 対象` は座標の tap と別の手順 (1.0.189)。
                 when (if (words[0] == "tap" && words.getOrNull(1) == "ui") "tap ui" else words[0]) {
                     "type", "enter" -> {
@@ -428,6 +492,12 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                     }
                     else -> throw IllegalArgumentException("Unknown step: ${words[0]}")
                 }
+                } catch (e: IllegalArgumentException) {
+                    if (!bound || args != null) throw e
+                    while (steps.size > before) steps.removeAt(steps.lastIndex)
+                    target = targetBefore
+                    steps += Step.Wait(0)
+                }
                 size += steps.size - before
                 require(size <= MAX_STEPS) { "At most $MAX_STEPS steps" }
                 original
@@ -458,7 +528,8 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 else -> value.toIntOrNull()?.takeIf { it in 0..ActionHumanize.MAX_LEVEL }
                     ?: throw IllegalArgumentException("human must be on, off or 0..${ActionHumanize.MAX_LEVEL}")
             }
-            return ActionDefinition(lines.joinToString("\n").trimEnd() + "\n", timeout * 1000, screen, steps.toList(), human)
+            return ActionDefinition(lines.joinToString("\n").trimEnd() + "\n", timeout * 1000, screen, steps.toList(), human,
+                args.orEmpty(), templated)
         }
     }
 }

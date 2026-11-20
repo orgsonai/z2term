@@ -72,6 +72,8 @@
     <string name="action_state_idle">Ociosa</string>
     <string name="action_edit_call">Chamar macro salva</string>
     <string name="action_edit_macro_name">Nome da macro</string>
+    <string name="action_edit_call_args">Valores (opcional)</string>
+    <string name="action_edit_call_args_hint">Até 9 valores separados por espaços. A macro chamada os lê como $1 $2 … ($# é a quantidade). Os passos de shell os recebem como seus próprios $1 $2 ….</string>
     <string name="action_edit_pick_macro">Escolher macro salva</string>
     <string name="action_edit_add_repeat">Adicionar repetição</string>
     <string name="action_edit_add_branch">Adicionar condição</string>

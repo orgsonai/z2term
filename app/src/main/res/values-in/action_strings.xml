@@ -72,6 +72,8 @@
     <string name="action_state_idle">Diam</string>
     <string name="action_edit_call">Panggil makro tersimpan</string>
     <string name="action_edit_macro_name">Nama makro</string>
+    <string name="action_edit_call_args">Nilai (opsional)</string>
+    <string name="action_edit_call_args_hint">Hingga 9 nilai dipisah spasi. Makro yang dipanggil membacanya sebagai $1 $2 … ($# jumlahnya). Langkah shell menerimanya sebagai $1 $2 … miliknya sendiri.</string>
     <string name="action_edit_pick_macro">Pilih makro tersimpan</string>
     <string name="action_edit_add_repeat">Tambah pengulangan</string>
     <string name="action_edit_add_branch">Tambah kondisi</string>

@@ -149,11 +149,36 @@ end
 - `break` (1.0.188) leaves the innermost `repeat` at once (also from inside an `if`). It cannot appear outside a `repeat`.
 - `if CONDITION ... else ... end` evaluates current state and runs only the selected branch. `else` is optional. Inside a loop the condition is evaluated each time. Empty blocks and explicitly empty else branches are rejected.
 - `call NAME` runs a saved macro and waits for it to return. Each invocation applies the child's own timeout alongside the remaining parent deadline. Failure, cancellation or timeout at any level ends the whole run (a failure can be caught with `try`, below).
+- `call NAME VALUE ...` (1.0.191) calls with values. See "Pass values to a call" below.
 - `try ... else ... end` (1.0.190): when a step inside fails, the rest is skipped, the `else` steps run, and the run continues after `end`. `else` is optional; without it the failure is dropped and the run continues after `end`. Without a failure the `else` steps do not run. See "A way out when something fails" below.
 
 Saving checks syntax and condition expressions. A helper may be created later: existence and cycle checks occur at start. Every referenced definition and its screen geometry is validated, including unused branches, before dispatching any action. Definitions are frozen for that run; subsequent edits or deletions affect future runs.
 
 A block inherits the outer `target` / `launch` target; `else` and `end` restore that outer target. Called macros do not inherit the caller target; unspecified targets use the foreground app at each step. Restoring the definition's target does not switch the foreground app. Add an explicit `launch` and `wait` after returning if needed.
+
+### Pass values to a call (1.0.191)
+
+One macro can serve steps that differ only in coordinates or text. Save this as `tap-at`:
+
+```text
+version=2
+screen=current
+tap px $1 $2          # tap the coordinates passed in
+wait-ui 3000 text=$3
+command z2-notify "$3 was tapped"   # the shell gets the values as its own $3
+```
+
+The caller writes the values after the name, separated by spaces: `call tap-at 540 1200 OK`.
+
+- Up to 9 values of at most 256 characters each. Values on a `call` line cannot contain spaces (values from `z2-action run` can).
+- In the called macro, `$1` to `$9` **outside shell text** become the values and `$#` their count. A `$n` without a value fails.
+- Shell text (`command` and `run-output` lines, `command` condition terms) is left alone; the values reach the shell as its own positional parameters `$1` `$2` …, so shell quoting applies as usual.
+- Received values can be passed on (`call outer $1`). A `$1` in `run-output` output is replaced with the current values.
+- Each call is a separate definition checked and frozen with its values **before the run starts** (a `tap px $1 $2` outside the screen is refused before the first action). Saving checks `$n` with stand-in values, so lines that only make sense with a value (such as `launch $1`) can still be saved.
+- `z2-action run NAME VALUE ...` / `z2-action start NAME VALUE ...` pass values to the first macro.
+- ⚠ From 1.0.191, `$` followed by a digit or `#` outside shell text is a value. To find text such as `$5`, use a partial match like `text~=` instead.
+- `watch` handlers take no values.
+- The form for "Call saved macro" has a Values field.
 
 ### A way out when something fails (try, 1.0.190)
 
@@ -347,8 +372,8 @@ API references: [AccessibilityNodeInfo](https://developer.android.com/reference/
 | `z2-action show NAME` | Print a saved definition |
 | `z2-action save NAME FILE` | Validate and save; FILE may be `-` for stdin |
 | `z2-action delete NAME` | Delete a definition |
-| `z2-action run NAME` | Wait for completion; exit 0 on success, nonzero on failure, cancellation or timeout |
-| `z2-action start NAME` | Request execution and return a run ID |
+| `z2-action run NAME [VALUE...]` | Wait for completion; exit 0 on success, nonzero on failure, cancellation or timeout |
+| `z2-action start NAME [VALUE...]` | Request execution and return a run ID |
 | `z2-action pick` | Show the bar for choosing a macro and running it over the foreground app (1.0.102) |
 | `z2-action wait RUN_ID` | Wait for that run |
 | `z2-action status [RUN_ID]` | Read JSON state, step index and result |

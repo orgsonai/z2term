@@ -72,6 +72,8 @@
     <string name="action_state_idle">Sin actividad</string>
     <string name="action_edit_call">Llamar a una macro guardada</string>
     <string name="action_edit_macro_name">Nombre de la macro</string>
+    <string name="action_edit_call_args">Valores (opcional)</string>
+    <string name="action_edit_call_args_hint">Hasta 9 valores separados por espacios. La macro llamada los lee como $1 $2 … ($# es la cantidad). Los pasos de shell los reciben como sus propios $1 $2 ….</string>
     <string name="action_edit_pick_macro">Elegir macro guardada</string>
     <string name="action_edit_add_repeat">Añadir repetición</string>
     <string name="action_edit_add_branch">Añadir condición</string>
