@@ -74,6 +74,12 @@
     <string name="action_edit_macro_name">Macro name</string>
     <string name="action_edit_call_args">Values (optional)</string>
     <string name="action_edit_call_args_hint">Separate up to 9 values with spaces. The called macro reads them as $1 $2 … ($# is how many). Shell steps get them as their own $1 $2 ….</string>
+    <string name="action_edit_set">Set variable</string>
+    <string name="action_edit_add_variable">Add to variable</string>
+    <string name="action_edit_variable">Variable name</string>
+    <string name="action_edit_variable_value">Value</string>
+    <string name="action_edit_variable_number">Number to add (negative subtracts)</string>
+    <string name="action_edit_variable_hint">Letters, digits and _, up to 32. Variables start empty on every run (an unset one counts as 0) and are shared with called macros. Conditions read them as var NAME&gt;3; shell steps as $Z2_VAR_NAME.</string>
     <string name="action_edit_pick_macro">Choose saved macro</string>
     <string name="action_edit_add_repeat">Add repeat</string>
     <string name="action_edit_add_branch">Add condition</string>

@@ -31,6 +31,8 @@ internal object ActionCondition {
         }
         /** The shell [text] exits with status 0. */
         data class Shell(override val negate: Boolean, val text: String) : Term
+        /** `var 名前=値` / `<` / `>` (1.0.192): a macro variable; one not set yet is 0. */
+        data class Var(override val negate: Boolean, val name: String, val operator: String, val value: String) : Term
     }
     /** OR of AND groups. */
     data class Expression(val groups: List<List<Term>>) {
@@ -103,6 +105,13 @@ internal object ActionCondition {
                 require(argument.isNotEmpty()) { "Empty shell condition" }
                 return Term.Shell(negate, argument)
             }
+            "var" -> {
+                val match = Regex("([A-Za-z_][A-Za-z0-9_]{0,31})\\s*([=<>])\\s*(.+)").matchEntire(argument)
+                    ?: throw IllegalArgumentException("Use var NAME=VALUE, var NAME<NUMBER or var NAME>NUMBER")
+                val (name, operator, value) = match.destructured
+                if (operator != "=") require(value.trim().toDoubleOrNull()?.isFinite() == true) { "var < and > compare numbers" }
+                return Term.Var(negate, name, operator, value.trim())
+            }
         }
         val match = Regex("(!?)([a-z_]+)\\s*(?:([=<>])\\s*(.+))?").matchEntire(trimmed)
             ?: throw IllegalArgumentException("Invalid condition: $raw")
@@ -124,6 +133,20 @@ internal object ActionCondition {
     }
 
     fun validate(spec: String) { parse(spec) }
+
+    /** Before negation. Numbers compare as numbers; `=` falls back to exact text. */
+    fun variableMatches(term: Term.Var, variables: Map<String, String>): Boolean {
+        val have = variables[term.name] ?: "0"
+        val actual = have.toDoubleOrNull()
+        val expected = term.value.toDoubleOrNull()
+        return when (term.operator) {
+            "=" -> if (actual != null && expected != null) actual == expected else have == term.value
+            else -> {
+                check(actual != null && actual.isFinite()) { "Variable ${term.name} is not a number: $have" }
+                if (term.operator == "<") actual < expected!! else actual > expected!!
+            }
+        }
+    }
 
     private fun stateMatches(term: Term.State, state: Map<String, String>): Boolean {
         val have = state[term.key] ?: error("Condition state unavailable: " + term.key)
@@ -151,7 +174,7 @@ internal object ActionCondition {
     /** Device-state conditions only; screen and shell terms need [evaluate]. */
     fun matches(spec: String, state: Map<String, String>): Boolean = parse(spec).groups.any { group ->
         group.all { term ->
-            check(term is Term.State) { "Screen and shell conditions are evaluated while the macro runs" }
+            check(term is Term.State) { "Screen, shell and variable conditions are evaluated while the macro runs" }
             stateMatches(term, state)
         }
     }
@@ -163,7 +186,8 @@ internal object ActionCondition {
      * (matched, null) or (null, error) once; the returned function cancels without calling it.
      */
     fun evaluate(expression: Expression, state: () -> Map<String, String>,
-        probe: (Term, (Boolean?, String?) -> Unit) -> (() -> Unit), done: (Boolean?, String?) -> Unit): () -> Unit {
+        probe: (Term, (Boolean?, String?) -> Unit) -> (() -> Unit), variables: () -> Map<String, String> = { emptyMap() },
+        done: (Boolean?, String?) -> Unit): () -> Unit {
         var active = true
         var cancel: (() -> Unit)? = null
         var snapshot: Map<String, String>? = null
@@ -183,6 +207,11 @@ internal object ActionCondition {
                     val result = try { stateMatches(term, snapshot ?: state().also { snapshot = it }) }
                         catch (e: Exception) { finish(null, e.message ?: "Condition state unavailable"); return }
                     next(result)
+                }
+                is Term.Var -> {
+                    val result = try { variableMatches(term, variables()) }
+                        catch (e: Exception) { finish(null, e.message ?: "Variable unavailable"); return }
+                    next(if (term.negate) !result else result)
                 }
                 else -> {
                     var answered = false

@@ -74,6 +74,12 @@
     <string name="action_edit_macro_name">Nome da macro</string>
     <string name="action_edit_call_args">Valores (opcional)</string>
     <string name="action_edit_call_args_hint">Até 9 valores separados por espaços. A macro chamada os lê como $1 $2 … ($# é a quantidade). Os passos de shell os recebem como seus próprios $1 $2 ….</string>
+    <string name="action_edit_set">Definir variável</string>
+    <string name="action_edit_add_variable">Somar à variável</string>
+    <string name="action_edit_variable">Nome da variável</string>
+    <string name="action_edit_variable_value">Valor</string>
+    <string name="action_edit_variable_number">Número a somar (negativo subtrai)</string>
+    <string name="action_edit_variable_hint">Letras, dígitos e _, até 32. As variáveis começam vazias a cada execução (uma não definida vale 0) e são compartilhadas com as macros chamadas. Condições as leem como var NOME&gt;3; passos de shell como $Z2_VAR_NOME.</string>
     <string name="action_edit_pick_macro">Escolher macro salva</string>
     <string name="action_edit_add_repeat">Adicionar repetição</string>
     <string name="action_edit_add_branch">Adicionar condição</string>

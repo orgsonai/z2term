@@ -74,6 +74,12 @@
     <string name="action_edit_macro_name">Имя макроса</string>
     <string name="action_edit_call_args">Значения (необязательно)</string>
     <string name="action_edit_call_args_hint">До 9 значений через пробел. Вызванный макрос читает их как $1 $2 … ($# — их число). Шаги оболочки получают их как собственные $1 $2 ….</string>
+    <string name="action_edit_set">Задать переменную</string>
+    <string name="action_edit_add_variable">Прибавить к переменной</string>
+    <string name="action_edit_variable">Имя переменной</string>
+    <string name="action_edit_variable_value">Значение</string>
+    <string name="action_edit_variable_number">Прибавляемое число (отрицательное вычитает)</string>
+    <string name="action_edit_variable_hint">Буквы, цифры и _, до 32. Переменные в каждом запуске начинаются пустыми (незаданная равна 0) и общие с вызванными макросами. Условия читают их как var ИМЯ&gt;3, шаги оболочки — как $Z2_VAR_ИМЯ.</string>
     <string name="action_edit_pick_macro">Выбрать сохранённый макрос</string>
     <string name="action_edit_add_repeat">Добавить повтор</string>
     <string name="action_edit_add_branch">Добавить условие</string>

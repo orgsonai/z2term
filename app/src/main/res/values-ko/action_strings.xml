@@ -74,6 +74,12 @@
     <string name="action_edit_macro_name">매크로 이름</string>
     <string name="action_edit_call_args">넘길 값(생략 가능)</string>
     <string name="action_edit_call_args_hint">공백으로 구분해 9개까지. 호출된 매크로에서는 $1 $2 …($#는 개수)로 읽습니다. 셸 단계에는 셸 자신의 $1 $2 …로 전달됩니다.</string>
+    <string name="action_edit_set">변수에 넣기</string>
+    <string name="action_edit_add_variable">변수에 더하기</string>
+    <string name="action_edit_variable">변수 이름</string>
+    <string name="action_edit_variable_value">값</string>
+    <string name="action_edit_variable_number">더할 수(음수면 뺌)</string>
+    <string name="action_edit_variable_hint">영숫자와 _로 32자까지. 변수는 실행할 때마다 비어 있는 상태로 시작하고(넣지 않은 변수는 0), 호출한 매크로와도 공유합니다. 조건에서는 var 이름&gt;3, 셸 단계에서는 $Z2_VAR_이름 으로 읽습니다.</string>
     <string name="action_edit_pick_macro">저장된 매크로 선택</string>
     <string name="action_edit_add_repeat">반복 추가</string>
     <string name="action_edit_add_branch">조건 분기 추가</string>

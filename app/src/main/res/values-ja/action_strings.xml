@@ -74,6 +74,12 @@
     <string name="action_edit_macro_name">マクロ名</string>
     <string name="action_edit_call_args">渡す値（省略可）</string>
     <string name="action_edit_call_args_hint">空白で区切って9個まで。呼ばれたマクロでは $1 $2 …（$# は個数）として読めます。シェルの手順にはシェル自身の $1 $2 … として渡ります。</string>
+    <string name="action_edit_set">変数に入れる</string>
+    <string name="action_edit_add_variable">変数に足す</string>
+    <string name="action_edit_variable">変数の名前</string>
+    <string name="action_edit_variable_value">値</string>
+    <string name="action_edit_variable_number">足す数（負の数なら引く）</string>
+    <string name="action_edit_variable_hint">英数字と _ で32文字まで。変数は実行のたびに空から始まり（入れていない変数は 0）、呼んだマクロとも共有します。条件では var 名前&gt;3、シェルの手順では $Z2_VAR_名前 で読めます。</string>
     <string name="action_edit_pick_macro">保存済みマクロを選ぶ</string>
     <string name="action_edit_add_repeat">繰り返しを追加</string>
     <string name="action_edit_add_branch">条件分岐を追加</string>

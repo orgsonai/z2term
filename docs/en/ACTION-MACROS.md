@@ -149,12 +149,41 @@ end
 - `break` (1.0.188) leaves the innermost `repeat` at once (also from inside an `if`). It cannot appear outside a `repeat`.
 - `if CONDITION ... else ... end` evaluates current state and runs only the selected branch. `else` is optional. Inside a loop the condition is evaluated each time. Empty blocks and explicitly empty else branches are rejected.
 - `call NAME` runs a saved macro and waits for it to return. Each invocation applies the child's own timeout alongside the remaining parent deadline. Failure, cancellation or timeout at any level ends the whole run (a failure can be caught with `try`, below).
+- `set NAME VALUE` / `add NAME NUMBER` (1.0.192) set or increase a variable. See "Count with variables" below.
 - `call NAME VALUE ...` (1.0.191) calls with values. See "Pass values to a call" below.
 - `try ... else ... end` (1.0.190): when a step inside fails, the rest is skipped, the `else` steps run, and the run continues after `end`. `else` is optional; without it the failure is dropped and the run continues after `end`. Without a failure the `else` steps do not run. See "A way out when something fails" below.
 
 Saving checks syntax and condition expressions. A helper may be created later: existence and cycle checks occur at start. Every referenced definition and its screen geometry is validated, including unused branches, before dispatching any action. Definitions are frozen for that run; subsequent edits or deletions affect future runs.
 
 A block inherits the outer `target` / `launch` target; `else` and `end` restore that outer target. Called macros do not inherit the caller target; unspecified targets use the foreground app at each step. Restoring the definition's target does not switch the foreground app. Add an explicit `launch` and `wait` after returning if needed.
+
+### Count with variables (1.0.192)
+
+Decisions such as "stop after 10 successes" or "tell me after 3 failures in a row" need no shell.
+
+```text
+version=2
+repeat until var ok>9          # until 10 successes
+  try
+    call one-round
+    add ok 1
+    set miss 0
+  else
+    add miss 1
+    if var miss>2
+      command z2-notify "3 failures in a row ($Z2_VAR_ok successes)"
+      break
+    end
+  end
+end
+```
+
+- `set NAME VALUE`: the value is the rest of the line (spaces allowed, up to 256 characters). `add NAME NUMBER` adds a whole number (negative subtracts); it fails when the current value is not a whole number (`try` can catch that).
+- Names use letters, digits and `_` (not starting with a digit), up to 32 characters; at most 32 variables per run.
+- Variables start **empty on every run** and are shared with called macros (`call` and `watch` handlers). An unset variable counts as `0`.
+- Condition terms `var NAME=VALUE` / `var NAME<NUMBER` / `var NAME>NUMBER` (`!` negates). `=` compares as numbers when both sides are numbers (`4` equals `4.0`), otherwise as exact, case-sensitive text. `<` and `>` fail when the variable is not a number. They work in `if`, `repeat until`, `wait-until` and `watch`.
+- Shell steps (`command`, `run-output`, `command` conditions) see them as environment variables `Z2_VAR_NAME`. `run-output` may print `set` / `add` to bring a program's result back into a variable.
+- `set` and `add` count as instructions.
 
 ### Pass values to a call (1.0.191)
 
@@ -214,6 +243,7 @@ Commas mean AND, `|` means OR and a leading `!` negates a term. AND binds tighte
 | Text | `ssid ringer plug foreground` | `ringer=silent`, `foreground=org.example.app`; operator = |
 | Screen element | `ui` | `ui text=OK`, `ui desc=Menu`, `ui id=…`, partial `ui text~=left`; same selectors as `click` / `wait-ui`; any number of matches counts as present |
 | Screen colour | `color` | `color 540,1200=green`, `color 540,1200=#33aa55`; screen px. Names are the 12 of z2-ui `colors` (black gray white red orange brown yellow green cyan blue purple pink); `#RRGGBB` matches when red, green and blue are each within 24. Needs `screen=` |
+| Variable | `var` | `var count>3`, `var name=OK`. A macro variable (1.0.192); unset counts as 0 |
 | Shell | `command` | `command test -f /root/flag`; true on exit status 0. It reads the rest as shell, so it is always the last term (`,` `|` `#` go to the shell) |
 
 State uses the existing `z2-state` snapshot. `foreground` is the focused window's package metadata. Text comparisons ignore case except for package names. An evaluated value that is missing, blank or the numeric unavailable sentinel `-1` fails the run instead of choosing else. Terms are evaluated left to right and skipped once the answer is known (a false term moves on to the next OR group; a true group ends it).

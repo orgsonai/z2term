@@ -184,6 +184,7 @@ internal object ActionRuntime {
                 is ActionDefinition.Step.Watch -> "watch"
                 is ActionDefinition.Step.Break -> "break"
                 is ActionDefinition.Step.Try -> "try"
+                is ActionDefinition.Step.Set -> if (step.add) "add" else "set"
                 is ActionDefinition.Step.Input -> if (step.text == null) "enter" else "type"
                 is ActionDefinition.Step.UiTap -> "tap-ui"
                 is ActionDefinition.Step.RunOutput -> "run-output"
@@ -221,7 +222,7 @@ internal object ActionRuntime {
         produced: (List<ActionDefinition.Step>?, String?) -> Unit): () -> Unit {
         checkDevice(run)
         val values = run.engine.args
-        val started = run.runner.run("macro:${run.id}", step.text, run.definition.timeoutMs / 1000, positional = values) { result ->
+        val started = run.runner.run("macro:${run.id}", shell(run, step.text), run.definition.timeoutMs / 1000, positional = values) { result ->
             if (result.error != null) produced(null, result.error)
             else {
                 val steps = try { ActionDefinition.fragment(result.output, run.screen, step.target, values) }
@@ -244,14 +245,14 @@ internal object ActionRuntime {
             val state = com.zerotoship.z2term.service.Z2ApiBridge.stateSnapshot(run.context).toMutableMap()
             AndroidActions.focusedPackage()?.let { state["foreground"] = it }
             state
-        }, probe = { term, done -> probe(run, term, target, done) }, done = answer)
+        }, probe = { term, done -> probe(run, term, target, done) }, done = answer, variables = { run.engine.variables })
     }
     private fun probe(run: Run, term: ActionCondition.Term, target: String, done: (Boolean?, String?) -> Unit): () -> Unit {
         val noWork: () -> Unit = {}
         val resolved = if (target == ActionDefinition.CURRENT_TARGET) AndroidActions.focusedPackage() else target
         fun shown() = resolved != null && AndroidActions.targetMatches(resolved)
         return when (term) {
-            is ActionCondition.Term.State -> error("State terms are evaluated directly")
+            is ActionCondition.Term.State, is ActionCondition.Term.Var -> error("State and variable terms are evaluated directly")
             is ActionCondition.Term.Ui -> {
                 if (!shown()) { done(false, null); return noWork }
                 AndroidActions.queryUi(ActionDefinition.Step.Ui(resolved!!, "if-ui", term.selector)) { found, error -> done(found, error) }
@@ -265,7 +266,7 @@ internal object ActionRuntime {
                 color(term, done)
             }
             is ActionCondition.Term.Shell -> {
-                val started = run.runner.run("macro:${run.id}", term.text, run.definition.timeoutMs / 1000,
+                val started = run.runner.run("macro:${run.id}", shell(run, term.text), run.definition.timeoutMs / 1000,
                     positional = run.engine.args) { result ->
                     if (result.exit != null) done(result.exit == 0, null) else done(null, result.error ?: "Shell condition failed")
                 }
@@ -274,6 +275,10 @@ internal object ActionRuntime {
             }
         }
     }
+    /** シェルの文の前に、今の変数を `Z2_VAR_名前` として書き出す (1.0.192)。 */
+    private fun shell(run: Run, text: String): String = run.engine.variables.entries.joinToString("") { (name, value) ->
+        "export Z2_VAR_$name=" + com.zerotoship.z2term.service.HeadlessRun.shSingleQuote(value) + "; "
+    } + text
     /** 1 点の色を 1 回読む。点は [COLOR_RADIUS] px 四方の中央値 (z2-ui colors と同じ読み方)。 */
     @androidx.annotation.RequiresApi(30)
     private fun color(term: ActionCondition.Term.Color, done: (Boolean?, String?) -> Unit): () -> Unit {
@@ -342,7 +347,7 @@ internal object ActionRuntime {
         when (step) {
             is ActionDefinition.Step.Repeat, is ActionDefinition.Step.Branch, is ActionDefinition.Step.Call,
             is ActionDefinition.Step.Watch, is ActionDefinition.Step.RunOutput, is ActionDefinition.Step.Break,
-            is ActionDefinition.Step.Try ->
+            is ActionDefinition.Step.Try, is ActionDefinition.Step.Set ->
                 error("Control flow must be handled by the execution engine")
             is ActionDefinition.Step.Ui -> {
                 val resolved = step.copy(target = target(step.target))
@@ -392,7 +397,7 @@ internal object ActionRuntime {
             }
             is ActionDefinition.Step.Key -> { AndroidActions.command(run.context, listOf(step.name)); done(null) }
             is ActionDefinition.Step.Command -> {
-                check(run.runner.run("macro:${run.id}", step.text, run.definition.timeoutMs / 1000,
+                check(run.runner.run("macro:${run.id}", shell(run, step.text), run.definition.timeoutMs / 1000,
                     positional = run.engine.args) { done(it.error) }) { "Cannot start shell command" }
                 return { run.runner.cancelAll() }
             }

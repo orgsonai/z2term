@@ -74,6 +74,12 @@
     <string name="action_edit_macro_name">Nama makro</string>
     <string name="action_edit_call_args">Nilai (opsional)</string>
     <string name="action_edit_call_args_hint">Hingga 9 nilai dipisah spasi. Makro yang dipanggil membacanya sebagai $1 $2 … ($# jumlahnya). Langkah shell menerimanya sebagai $1 $2 … miliknya sendiri.</string>
+    <string name="action_edit_set">Isi variabel</string>
+    <string name="action_edit_add_variable">Tambah ke variabel</string>
+    <string name="action_edit_variable">Nama variabel</string>
+    <string name="action_edit_variable_value">Nilai</string>
+    <string name="action_edit_variable_number">Angka yang ditambah (negatif mengurangi)</string>
+    <string name="action_edit_variable_hint">Huruf, angka, dan _, hingga 32. Variabel mulai kosong di setiap jalankan (yang belum diisi bernilai 0) dan dibagi dengan makro yang dipanggil. Kondisi membacanya sebagai var NAMA&gt;3; langkah shell sebagai $Z2_VAR_NAMA.</string>
     <string name="action_edit_pick_macro">Pilih makro tersimpan</string>
     <string name="action_edit_add_repeat">Tambah pengulangan</string>
     <string name="action_edit_add_branch">Tambah kondisi</string>

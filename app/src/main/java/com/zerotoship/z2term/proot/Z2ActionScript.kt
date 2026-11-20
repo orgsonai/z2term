@@ -32,6 +32,10 @@ fun z2ActionScript(lang: String): String {
         en = "call NAME VALUE ... passes up to 9 values (no spaces). In the called macro, ${d}1 to ${d}9 and ${d}# (how many) are replaced outside shell text; shell steps get the values as their own ${d}1 .... Each call is checked with its values before the run starts. z2-action run NAME VALUE ... passes values to the first macro.",
         ja = "call 名前 値 ... で値を9個まで（空白なし）渡せます。呼ばれたマクロではシェルの部分以外の ${d}1〜${d}9 と ${d}#（個数）を置き換え、シェルの手順にはシェル自身の ${d}1 ... として渡します。呼び出しごとに、その値で実行前に検査します。z2-action run 名前 値 ... で最初のマクロにも渡せます。"
     )
+    val varHelp = t("action.varHelp",
+        en = "set NAME VALUE / add NAME NUMBER set or increase a variable (letters, digits, _; up to 32). Variables start empty on every run (unset = 0) and are shared with called macros. Conditions: var NAME=VALUE, var NAME<NUMBER, var NAME>NUMBER. Shell steps see them as ${d}Z2_VAR_NAME.",
+        ja = "set 名前 値 / add 名前 数 で変数に入れる・足す（英数字と _、32文字まで）。変数は実行のたびに空から始まり（入れていなければ 0）、呼んだマクロとも共有します。条件は var 名前=値、var 名前<数、var 名前>数。シェルの手順では ${d}Z2_VAR_名前 で読めます。"
+    )
     val watchHelp = t("action.watchHelp",
         en = "watch CONDITION call NAME checks the condition every 300ms until its block ends (the whole macro at top level). When it holds, NAME runs and the macro then continues; a waiting step is cut short and sent again, other steps finish first. Watch conditions cannot use command.\nrun-output SHELL runs the command and executes the steps it prints (checked first; no headers, call, run-output or watch). A non-zero exit fails the run.",
         ja = "watch 条件 call 名前 は、書いたブロックが終わるまで（最上位ならマクロ全体）300ミリ秒ごとに条件を確かめ、成立したら 名前 を呼んでから続きへ戻ります。待ちの手順は打ち切って最初から送り直し、ほかの手順は終わるのを待ちます。watch の条件に command は使えません。\nrun-output シェル はコマンドを動かし、標準出力に書かれた手順を検査してから実行します（見出し・call・run-output・watch は不可）。終了コードが0以外なら失敗です。"
@@ -48,7 +52,7 @@ fun z2ActionScript(lang: String): String {
         en = "pause [RUN_ID] holds the run; the step in progress is sent again from its start. Opening the notification shade also pauses.\nresume [RUN_ID] continues once a screen other than z2term stays in front (up to 5 seconds; otherwise it stays paused). It answers after that: state running and exit 0, or paused and a non-zero exit. The time limit stops while paused.",
         ja = "pause [実行ID] で一時停止。途中の手順は再開時に最初から送ります。通知欄を下ろしても一時停止します。\nresume [実行ID] は z2term 以外の画面が前に出て落ち着いてから続けます（5秒まで。出なければ一時停止のまま）。結果が出てから返り、再開できれば state は running で終了コード 0、一時停止のままなら paused で 0 以外です。一時停止の間は制限時間が止まります。"
     )
-    val header = (description + "\n" + pauseHelp + "\n" + controlHelp + "\n" + conditionHelp + "\n" + loopHelp + "\n" + inputHelp + "\n" + tryHelp + "\n" + argsHelp + "\n" + watchHelp + "\n" + humanHelp + "\n" + uiHelp).lines().joinToString("\n") { "# $it" }
+    val header = (description + "\n" + pauseHelp + "\n" + controlHelp + "\n" + conditionHelp + "\n" + loopHelp + "\n" + inputHelp + "\n" + tryHelp + "\n" + argsHelp + "\n" + varHelp + "\n" + watchHelp + "\n" + humanHelp + "\n" + uiHelp).lines().joinToString("\n") { "# $it" }
     return "#!/bin/sh\n$header\n" + """
         |# z2-action list | show NAME | save NAME FILE|- | delete NAME
         |# z2-action run NAME [VALUE...] | start NAME [VALUE...] | wait RUN_ID | status [RUN_ID] | stop [RUN_ID] | pause [RUN_ID] | resume [RUN_ID]
@@ -70,6 +74,7 @@ fun z2ActionScript(lang: String): String {
         |# repeat [N|forever] until CONDITION ... end / break / text~=PART desc~=PART (version=2)
         |# try ... [else ...] end (version=2; else runs when a step inside fails)
         |# call NAME [VALUE...] / ${d}1..${d}9 ${d}# in the called macro (version=2)
+        |# set NAME VALUE / add NAME NUMBER / condition var NAME=|<|>VALUE (version=2)
         |# wait-until MILLISECONDS CONDITION / wait-while MILLISECONDS CONDITION (version=2; 0 = no own limit)
         |# watch CONDITION call NAME / run-output SHELL_TEXT (version=2)
         |case "${d}{1:-}" in

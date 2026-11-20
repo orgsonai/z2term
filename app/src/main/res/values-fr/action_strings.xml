@@ -74,6 +74,12 @@
     <string name="action_edit_macro_name">Nom de la macro</string>
     <string name="action_edit_call_args">Valeurs (facultatif)</string>
     <string name="action_edit_call_args_hint">Jusqu\'à 9 valeurs séparées par des espaces. La macro appelée les lit comme $1 $2 … ($# en donne le nombre). Les étapes shell les reçoivent comme leurs propres $1 $2 ….</string>
+    <string name="action_edit_set">Définir une variable</string>
+    <string name="action_edit_add_variable">Ajouter à une variable</string>
+    <string name="action_edit_variable">Nom de la variable</string>
+    <string name="action_edit_variable_value">Valeur</string>
+    <string name="action_edit_variable_number">Nombre à ajouter (négatif pour soustraire)</string>
+    <string name="action_edit_variable_hint">Lettres, chiffres et _, jusqu\'à 32. Les variables repartent à vide à chaque exécution (une variable non définie vaut 0) et sont partagées avec les macros appelées. Les conditions les lisent avec var NOM&gt;3, les étapes shell avec $Z2_VAR_NOM.</string>
     <string name="action_edit_pick_macro">Choisir une macro enregistrée</string>
     <string name="action_edit_add_repeat">Ajouter une répétition</string>
     <string name="action_edit_add_branch">Ajouter une condition</string>

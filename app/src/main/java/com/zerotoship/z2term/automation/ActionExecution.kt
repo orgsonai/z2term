@@ -51,6 +51,8 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         private set
     var paused = false
         private set
+    /** `set` / `add` variables of this run (1.0.192), shared with called macros; empty at every start. */
+    val variables = linkedMapOf<String, String>()
     /** Values of the macro whose step is running (shell steps receive them as `$1`…). */
     val args: List<String> get() = frames.lastOrNull()?.args.orEmpty()
     private var generation = 0
@@ -158,6 +160,7 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         caught: (String) -> Unit = {}) {
         check(!running) { "An action macro is already running" }
         running = true; step = 0; completed = done
+        variables.clear()
         limitSteps = !definition.unlimited
         macro = name; path = ""; iteration = 1; callDepth = 1
         loops = emptyList(); blockStep = 0; blockSize = 0
@@ -315,6 +318,18 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
                             if (token == generation) finish("timeout", "Called macro timed out: " + action.name)
                         }.also { it.start() }
                         cancelNext = schedule(CONTROL_DELAY_MS) { advance() }
+                    }
+                    is ActionDefinition.Step.Set -> {
+                        val value = if (!action.add) action.value else {
+                            val have = variables[action.name] ?: "0"
+                            val number = checkNotNull(have.toLongOrNull()) { "Variable ${action.name} is not a whole number: $have" }
+                            (number + action.value.toLong()).toString()
+                        }
+                        check(action.name in variables || variables.size < ActionDefinition.MAX_VARIABLES) {
+                            "At most ${ActionDefinition.MAX_VARIABLES} variables"
+                        }
+                        variables[action.name] = value
+                        cancelNext = schedule(0) { advance() }
                     }
                     is ActionDefinition.Step.Try -> {
                         push(Frame(action.body, macro, "$path.try.", recover = action.recover, args = frame.args))

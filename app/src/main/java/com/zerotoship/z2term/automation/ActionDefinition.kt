@@ -34,6 +34,11 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
          */
         data class Repeat(val count: Int?, val body: List<Step>, val until: String? = null,
             val target: String = CURRENT_TARGET) : Step
+        /**
+         * `set 名前 値` / `add 名前 数` (1.0.192): 実行ごとの変数 (呼び先とも共有)。[add] なら [value] は整数で、
+         * 今の値 (まだ無ければ 0) に足す。
+         */
+        data class Set(val name: String, val value: String, val add: Boolean = false) : Step
         /** `break` (1.0.188): leaves the innermost `repeat` at once. */
         data object Break : Step
         /**
@@ -114,6 +119,10 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         /** `drag` の点の数の上限。z2-ui の drag と揃える。 */
         const val MAX_DRAG_POINTS = 256
         /** `call` で渡せる値の数と 1 つの長さ。 */
+        /** 変数の名前・数・値の長さ (1.0.192)。 */
+        val VARIABLE_NAME = Regex("[A-Za-z_][A-Za-z0-9_]{0,31}")
+        const val MAX_VARIABLES = 32
+        const val MAX_VARIABLE_CHARS = 256
         const val MAX_ARGS = 9
         const val MAX_ARG_CHARS = 256
         /** シェル以外の行で置き換える `$1`…`$9` と `$#`。 */
@@ -348,6 +357,19 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                             require(text.length <= MAX_TYPE_CHARS) { "type takes at most $MAX_TYPE_CHARS characters" }
                             steps += Step.Input(destination(), text)
                         }
+                    }
+                    "set", "add" -> {
+                        require(headers["version"] == "2") { "${words[0]} requires version=2" }
+                        require(words.size >= 3 && words[1].matches(VARIABLE_NAME)) {
+                            "Use ${words[0]} NAME ${if (words[0] == "add") "NUMBER" else "VALUE"} (names: letters, digits, _; up to 32)"
+                        }
+                        val value = line.split(Regex("\\s+"), limit = 3).last()
+                        require(value.length <= MAX_VARIABLE_CHARS) { "Variable values take at most $MAX_VARIABLE_CHARS characters" }
+                        if (words[0] == "add") {
+                            count(3)
+                            require(value.toLongOrNull()?.let { it in -1_000_000_000L..1_000_000_000L } == true) { "add takes a whole number" }
+                        }
+                        steps += Step.Set(words[1], value, add = words[0] == "add")
                     }
                     "watch" -> {
                         require(headers["version"] == "2") { "watch requires version=2" }

@@ -25,6 +25,8 @@ internal object ActionStepEditor {
         Kind("wait-ui", R.string.action_ui_wait, listOf(R.string.action_edit_ms, R.string.action_ui_selector), listOf("5000", "text=")),
         Kind("wait-until", R.string.action_edit_wait_until, listOf(R.string.action_edit_ms, R.string.action_block_condition), listOf("5000", "ui text=")),
         Kind("wait-while", R.string.action_edit_wait_while, listOf(R.string.action_edit_ms, R.string.action_block_condition), listOf("5000", "ui text=")),
+        Kind("set", R.string.action_edit_set, listOf(R.string.action_edit_variable, R.string.action_edit_variable_value), listOf("count", "0")),
+        Kind("add", R.string.action_edit_add_variable, listOf(R.string.action_edit_variable, R.string.action_edit_variable_number), listOf("count", "1")),
         Kind("call", R.string.action_edit_call, listOf(R.string.action_edit_macro_name, R.string.action_edit_call_args), listOf("", "")),
         Kind("launch", R.string.action_edit_launch, listOf(R.string.action_edit_package), listOf("")),
         Kind("target", R.string.action_edit_target, listOf(R.string.action_edit_package), listOf("")),
@@ -58,7 +60,7 @@ internal object ActionStepEditor {
     fun supports(line: String): Boolean {
         val words = line.trim().split(Regex("\\s+"))
         val kind = kinds.firstOrNull { it.verb == verbOf(line) } ?: return false
-        return kind.verb in listOf("call", "command", "run-output", "type", "tap ui", "if", "repeat", "click", "long-click", "wait-ui", "wait-until", "wait-while", "touch", "swipe-path", "swipe-two-path", "drag") ||
+        return kind.verb in listOf("set", "call", "command", "run-output", "type", "tap ui", "if", "repeat", "click", "long-click", "wait-ui", "wait-until", "wait-while", "touch", "swipe-path", "swipe-two-path", "drag") ||
             words.size == kind.fields.size + 1 || (kind.fields.lastOrNull() == R.string.action_edit_easing && words.size == kind.fields.size)
     }
 
@@ -80,6 +82,7 @@ internal object ActionStepEditor {
             else if (kind.verb in listOf("wait-ui", "wait-until", "wait-while", "touch", "swipe-path", "swipe-two-path")) trimmed.split(Regex("\\s+"), limit = 3).drop(1)
             // drag は「単位・1 区間の時間・点の並び (空白区切り)」の 3 欄。点は 1 つの欄にまとめる。
             // call は「名前・値 (空白区切り、無くてもよい)」の 2 欄 (1.0.191)。
+            else if (kind.verb == "set") trimmed.split(Regex("\\s+"), limit = 3).drop(1)
             else if (kind.verb == "call") trimmed.split(Regex("\\s+"), limit = 3).drop(1).let { if (it.size == 1) it + "" else it }
             else if (kind.verb == "drag") trimmed.split(Regex("\\s+"), limit = 4).drop(1).let { if (it.size == 2) it + "" else it }
             else trimmed.split(Regex("\\s+")).drop(1)
@@ -165,6 +168,7 @@ internal object ActionStepEditor {
                         contentDescription = context.getString(label)
                         inputType = if (label in listOf(R.string.action_edit_package, R.string.action_edit_command, R.string.action_edit_macro_name,
                             R.string.action_edit_type_text, R.string.action_edit_call_args,
+                            R.string.action_edit_variable, R.string.action_edit_variable_value,
                             R.string.action_ui_selector, R.string.action_block_count, R.string.action_block_condition, R.string.action_edit_points))
                             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
                         else InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_FLAG_SIGNED
@@ -182,6 +186,7 @@ internal object ActionStepEditor {
                     if (label == R.string.action_block_count) hint(R.string.action_block_count_hint)
                     if (label == R.string.action_edit_type_text) hint(R.string.action_edit_type_hint)
                     if (label == R.string.action_edit_call_args) hint(R.string.action_edit_call_args_hint)
+                    if (label == R.string.action_edit_variable) hint(R.string.action_edit_variable_hint)
                     if (label == R.string.action_edit_points) {
                         hint(R.string.action_points_hint)
                         val count = values[index].trim().split(Regex("\\s+")).count { it.isNotEmpty() }
