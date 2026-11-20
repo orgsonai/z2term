@@ -59,6 +59,23 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         const val MAX_NESTING = 8
         /** `drag` の点の数の上限。z2-ui の drag と揃える。 */
         const val MAX_DRAG_POINTS = 256
+        /** 行頭に来る流れの語。編集画面でアクセント色にする対象。 */
+        val FLOW_WORDS = setOf("repeat", "if", "else", "end", "call")
+        private val trailingComment = Regex("(?<=\\s)#(?=\\s|$)")
+        /**
+         * [line] の中でコメントが始まる位置 (無ければ null)。
+         * 行頭 `#` はその行全体。行の途中は「空白 + `#` + 空白か行末」から。`text=#5` のように
+         * `#` の直後に文字が続くものは本文。`command` の行はシェルにそのまま渡すので扱わない
+         * (シェル自身が `#` をコメントとして読む)。
+         */
+        fun commentStart(line: String): Int? {
+            val code = line.trimStart()
+            if (code.startsWith('#')) return line.length - code.length
+            if (code.split(Regex("\\s+"), limit = 2).first() == "command") return null
+            return trailingComment.find(line)?.range?.first
+        }
+        /** コメントを除いた本文 (前後の空白も除く)。 */
+        fun code(line: String): String = (commentStart(line)?.let { line.substring(0, it) } ?: line).trim()
         fun macroName(value: String): String {
             require(value.matches(Regex("[A-Za-z0-9_-]{1,64}"))) { "Macro names use 1..64 letters, digits, _ or -" }
             return value
@@ -85,9 +102,11 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             var target: String? = null
             var body = false
             val lines = raw.replace("\r\n", "\n").lines().map { original ->
-                val line = original.trim()
-                if (line.isEmpty() || line.startsWith('#')) return@map original
+                val line = code(original)
+                if (line.isEmpty()) return@map original
                 require('\r' !in original) { "Invalid line ending" }
+                // 見出しは値を書き換えて保存するので、行末のコメントは後ろに付け直す。
+                val comment = original.trim().substring(line.length)
                 if (!body && '=' in line && line.substringBefore('=').matches(Regex("[a-z]+"))) {
                     val key = line.substringBefore('=')
                     require(key in setOf("version", "timeout", "screen") && key !in headers) { "Unknown or duplicate header: $key" }
@@ -95,7 +114,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                         if (key == "screen" && it == "current") (current ?: error("screen=current requires z2-action save")).toString() else it
                     }
                     headers[key] = value
-                    return@map "$key=$value"
+                    return@map "$key=$value$comment"
                 }
                 body = true
                 val words = line.split(Regex("\\s+"))

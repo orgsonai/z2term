@@ -75,6 +75,7 @@
     <string name="action_edit_pick_macro">Kayıtlı makro seç</string>
     <string name="action_edit_add_repeat">Tekrar ekle</string>
     <string name="action_edit_add_branch">Koşul ekle</string>
+    <string name="action_edit_toggle_comment"># Yorum</string>
     <string name="action_edit_blocks_hint">Her bloğun içine adım ekleyin. Tüm adımları ve blokları taşımak, çoğaltmak veya kaldırmak için ⋮ kullanın.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · talimat: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · tur %3$d</string>

@@ -75,6 +75,7 @@
     <string name="action_edit_pick_macro">Выбрать сохранённый макрос</string>
     <string name="action_edit_add_repeat">Добавить повтор</string>
     <string name="action_edit_add_branch">Добавить условие</string>
+    <string name="action_edit_toggle_comment"># Коммент.</string>
     <string name="action_edit_blocks_hint">Добавляйте шаги внутрь каждого блока. Через ⋮ можно перемещать, дублировать или удалять целые шаги и блоки.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · инструкций: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · проход %3$d</string>

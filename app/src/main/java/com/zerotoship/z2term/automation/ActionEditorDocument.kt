@@ -9,15 +9,15 @@ internal class ActionEditorDocument(val text: String) {
     val rows: List<Row> get() {
         var body = false
         return lines.mapIndexedNotNull { index, original ->
-            val line = original.trim()
-            if (line.isEmpty() || line.startsWith('#')) return@mapIndexedNotNull null
+            val line = ActionDefinition.code(original)
+            if (line.isEmpty()) return@mapIndexedNotNull null
             if (!body && Regex("[a-z]+=.*").matches(line)) return@mapIndexedNotNull null
             body = true
             Row(index, original)
         }
     }
 
-    val hasBlocks get() = rows.any { it.text.trim().split(Regex("\\s+")).first() in setOf("repeat", "if", "else", "end") }
+    val hasBlocks get() = rows.any { ActionDefinition.code(it.text).split(Regex("\\s+")).first() in setOf("repeat", "if", "else", "end") }
 
     fun appendControl(branch: Boolean): String {
         val block = if (branch) "if charging\n  wait 800\nelse\n  wait 300\nend\n"
@@ -27,7 +27,7 @@ internal class ActionEditorDocument(val text: String) {
     }
 
     fun header(name: String): String? = lines.take(rows.firstOrNull()?.line ?: lines.size)
-        .firstOrNull { it.trim().startsWith("$name=") }?.trim()?.substringAfter('=')
+        .firstOrNull { it.trim().startsWith("$name=") }?.let(ActionDefinition::code)?.substringAfter('=')
 
     fun withHeader(name: String, value: String): String {
         require(name in setOf("version", "timeout", "screen"))
@@ -36,7 +36,7 @@ internal class ActionEditorDocument(val text: String) {
         val indices = lines.indices.filter { it < end && lines[it].trim().startsWith("$name=") }
         require(indices.size <= 1) { "Duplicate header: $name" }
         val updated = lines.toMutableList()
-        if (indices.isEmpty()) updated.add(0, "$name=$value") else updated[indices.single()] = "$name=$value"
+        if (indices.isEmpty()) updated.add(0, "$name=$value") else updated[indices.single()] = "$name=$value" + comment(lines[indices.single()])
         return updated.joinToString(newline)
     }
 
@@ -48,7 +48,10 @@ internal class ActionEditorDocument(val text: String) {
     fun replace(line: Int, value: String): String {
         singleLine(value)
         require(rows.any { it.line == line }) { "Select an action line" }
-        return lines.toMutableList().apply { this[line] = lines[line].takeWhile { it.isWhitespace() } + value.trimStart() }.joinToString(newline)
+        // フォームで書き換えるのは本文だけ。行末のコメントは残す。
+        return lines.toMutableList().apply {
+            this[line] = lines[line].takeWhile { it.isWhitespace() } + value.trim() + comment(lines[line])
+        }.joinToString(newline)
     }
 
     fun append(value: String): String {
@@ -78,7 +81,7 @@ internal class ActionEditorDocument(val text: String) {
         var target: String? = null
         val scopes = mutableListOf<String?>()
         rows.filter { it.line < line }.forEach {
-            val words = it.text.trim().split(Regex("\\s+"))
+            val words = ActionDefinition.code(it.text).split(Regex("\\s+"))
             when (words[0]) {
                 "repeat", "if" -> scopes += target
                 "else" -> { if (scopes.isEmpty()) return null; target = scopes.last() }
@@ -89,7 +92,44 @@ internal class ActionEditorDocument(val text: String) {
         return target
     }
 
+    /**
+     * 選んだ範囲 [start]..[end] (文字位置) にかかる行を、まとめてコメントにする／戻す。
+     * 空行以外がすべてコメントなら先頭の `#` (と直後の空白 1 つ) を外し、そうでなければ字下げの後に `# ` を足す。
+     */
+    fun toggleComment(start: Int, end: Int): String {
+        fun lineAt(position: Int): Int {
+            var offset = 0
+            lines.forEachIndexed { index, line ->
+                if (position <= offset + line.length) return index
+                offset += line.length + newline.length
+            }
+            return lines.lastIndex
+        }
+        val low = minOf(start, end).coerceIn(0, text.length)
+        val high = maxOf(start, end).coerceIn(0, text.length)
+        val first = lineAt(low)
+        // 行の頭までを選んだときは、その行を含めない (行を下までなぞって選んだ形)。
+        val last = maxOf(first, lineAt(if (high > low && text.startsWith(newline, high - newline.length)) high - newline.length else high))
+        val range = first..last
+        val targets = range.filter { lines[it].isNotBlank() }
+        if (targets.isEmpty()) return text
+        val commented = targets.all { lines[it].trimStart().startsWith('#') }
+        return lines.mapIndexed { index, line ->
+            if (index !in targets) return@mapIndexed line
+            val indent = line.takeWhile { it.isWhitespace() }
+            val rest = line.substring(indent.length)
+            indent + if (commented) rest.removePrefix("#").removePrefix(" ") else "# $rest"
+        }.joinToString(newline)
+    }
+
     companion object {
+        /** 行末のコメント (前の空白ごと)。無ければ空。 */
+        fun comment(line: String): String {
+            val trimmed = line.trimEnd()
+            val start = ActionDefinition.commentStart(trimmed) ?: return ""
+            if (trimmed.substring(0, start).isBlank()) return ""
+            return trimmed.substring(trimmed.substring(0, start).trimEnd().length)
+        }
         const val EMPTY = "version=1\ntimeout=30\n"
         fun singleLine(value: String) {
             require('\n' !in value && '\r' !in value && '\u0000' !in value) { "Use one line per step" }

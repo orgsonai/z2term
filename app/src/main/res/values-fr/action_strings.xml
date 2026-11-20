@@ -75,6 +75,7 @@
     <string name="action_edit_pick_macro">Choisir une macro enregistrée</string>
     <string name="action_edit_add_repeat">Ajouter une répétition</string>
     <string name="action_edit_add_branch">Ajouter une condition</string>
+    <string name="action_edit_toggle_comment"># Commentaire</string>
     <string name="action_edit_blocks_hint">Ajoutez des étapes dans chaque bloc. Utilisez ⋮ pour déplacer, dupliquer ou retirer des étapes et des blocs entiers.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · instructions : %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · itération %3$d</string>

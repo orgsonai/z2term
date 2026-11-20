@@ -17,7 +17,7 @@ internal object ActionBlockEditor {
             val value = source[line].trim()
             if (value == "repeat 1" && source.getOrNull(line + 1)?.trim() == "# Recorded touch sequence")
                 return context.getString(R.string.action_record_group)
-            val words = value.split(Regex("\\s+"), limit = 3)
+            val words = ActionDefinition.code(value).split(Regex("\\s+"), limit = 3)
             if (words.firstOrNull() in listOf("touch", "swipe-path", "swipe-two-path") && words.size == 3) {
                 val tracks = runCatching { words[2].split('|').map { ActionGesture.parse(words[1], it, startsAtZero = false) } }.getOrNull()
                 if (tracks != null) return context.getString(R.string.action_record_step, tracks.size, tracks.maxOf { it.last().ms })
@@ -62,13 +62,15 @@ internal object ActionBlockEditor {
                     foreground = ActionUi.pressable(context, 8)
                     isClickable = true
                     contentDescription = item.path + ". " + line
-                    setOnClickListener { edit(item.line, source[item.line]) }
+                    // 手順の画面には本文だけを渡す。行末のコメントは書き戻すときに元の行から残す。
+                    setOnClickListener { edit(item.line, source[item.line].let { it.takeWhile(Char::isWhitespace) + ActionDefinition.code(it) }) }
                 }
                 row.addView(ActionUi.label(context, item.path, 11f, ActionUi.mutedColor).apply {
                     gravity = Gravity.END
                     setPadding(0, 0, dp(10), 0)
                 }, LinearLayout.LayoutParams(dp(34), -2))
                 row.addView(ActionUi.label(context, line, 12f).apply {
+                    text = ActionSyntaxColors.colored(line)
                     maxLines = 3
                     ellipsize = TextUtils.TruncateAt.END
                     setPadding(0, dp(8), 0, dp(8))

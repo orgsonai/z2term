@@ -75,6 +75,7 @@
     <string name="action_edit_pick_macro">Scegli una macro salvata</string>
     <string name="action_edit_add_repeat">Aggiungi ripetizione</string>
     <string name="action_edit_add_branch">Aggiungi condizione</string>
+    <string name="action_edit_toggle_comment"># Commento</string>
     <string name="action_edit_blocks_hint">Aggiungi passaggi dentro ogni blocco. Usa ⋮ per spostare, duplicare o eliminare passaggi e blocchi interi.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · istruzioni: %3$d</string>
     <string name="action_edit_location">%1$s / %2$s · iterazione %3$d</string>

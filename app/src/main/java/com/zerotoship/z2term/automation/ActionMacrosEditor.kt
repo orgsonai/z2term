@@ -416,6 +416,20 @@ internal class ActionMacrosEditor(
             raw = ActionEditorDocument(raw).appendControl(branch); textMode = true; render()
         } catch (e: Exception) { message(e.message ?: getString(R.string.action_state_failed)) }
     }
+    /** 選んだ行 (選んでいなければカーソルの行) をコメントにする／戻す。選んだ範囲は行ごとに付け直す。 */
+    private fun toggleComment(field: android.widget.EditText) {
+        val before = field.text.toString()
+        val updated = ActionEditorDocument(before).toggleComment(field.selectionStart, field.selectionEnd)
+        if (updated == before) return
+        // 変わった分だけ前後を残して差し替えるので、取り消しやカーソル位置が全文の置き換えより崩れにくい。
+        val head = before.commonPrefixWith(updated).length
+        val tail = minOf(before.length, updated.length) - head
+        val suffix = before.takeLast(tail).commonSuffixWith(updated.takeLast(tail)).length
+        val cursor = field.selectionEnd
+        field.text.replace(head, before.length - suffix, updated, head, updated.length - suffix)
+        val moved = if (cursor <= head) cursor else cursor + updated.length - before.length
+        field.setSelection(moved.coerceIn(0, field.text.length))
+    }
     private fun renderEditor() {
         val structure = runCatching { ActionBlockDocument(raw) }
         if (structure.isFailure) textMode = true
@@ -431,22 +445,25 @@ internal class ActionMacrosEditor(
                 getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(name, raw))
                 message(getString(R.string.action_edit_copied))
             })
-        if (textMode) pills(
+        val sourceField = if (!textMode) null else ActionUi.field(this, lines = 12).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            filters = arrayOf(InputFilter.LengthFilter(ActionDefinition.MAX_BYTES))
+            contentDescription = getString(R.string.action_edit_text)
+            setText(raw); doAfterTextChanged { raw = it.toString() }
+            ActionSyntaxColors.attach(this)
+        }
+        if (sourceField != null) pills(
             act(R.string.action_edit_add_repeat) { addControl(false) },
-            act(R.string.action_edit_add_branch) { addControl(true) })
+            act(R.string.action_edit_add_branch) { addControl(true) },
+            act(R.string.action_edit_toggle_comment) { toggleComment(sourceField) })
         if (!textMode && ActionEditorDocument(raw).hasBlocks) add(note(R.string.action_edit_blocks_hint))
         // A structure error stops the form from opening at all, so it is stated in the danger colour.
         structure.exceptionOrNull()?.let {
             add(ActionUi.note(this, getString(R.string.action_block_invalid, it.message.orEmpty()),
                 ActionUi.dangerColor, ActionUi.dangerColor))
         }
-        if (textMode) {
-            add(ActionUi.field(this, lines = 12).apply {
-                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-                filters = arrayOf(InputFilter.LengthFilter(ActionDefinition.MAX_BYTES))
-                contentDescription = getString(R.string.action_edit_text)
-                setText(raw); doAfterTextChanged { raw = it.toString() }
-            })
+        if (sourceField != null) {
+            add(sourceField)
         } else {
             val document = ActionEditorDocument(raw)
             add(setting(R.string.action_edit_timeout, document.header("timeout") ?: "30") {

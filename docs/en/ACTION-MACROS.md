@@ -34,6 +34,7 @@ Open Command list → Automation → Screen actions. The list and editor appear 
 2. To operate the foreground screen, add the desired actions directly. To use a specific app, add Launch app, choose the application and add a wait for its screen to become ready.
 3. Add taps, holds, swipes, timed scrolling or other steps. Tap a row to edit its numbers or command; use the ⋮ menu to reorder. Target directives appear as rows too: moving one changes which app subsequent actions address. Target directives do not count toward execution progress.
 4. Switch to Text to edit the complete definition. Comments, blank lines and untouched shell commands are preserved. Repair unsupported lines in text mode. More than 256 source rows open in text mode.
+   Text mode shows comments in grey and a leading `repeat` `if` `else` `end` `call` in the accent colour. **# Comment** comments out the selected lines (or the line with the cursor) and pressing it again restores them: if every selected line is already a comment the `#` is removed, otherwise `# ` is added after the indentation. Editing a step through the form keeps the comment at the end of its line (1.0.181).
 5. Save uses the same validation as the CLI. Changing the name saves a separate copy and leaves the original intact. Existing names and definitions changed or deleted through the CLI while editing are protected from accidental replacement. Reopen a conflicting definition or save under another name.
 
 Each row ends with ▶ to run, Duplicate, ✎ to edit and ✕ to delete (0.8.603). Reorder above the list turns each row into ↑ ↓; every press saves the order, and Done returns to the usual row (1.0.100). The order is kept in `/root/.z2term/actions/.order`, and `z2-action list` follows it; macros not yet arranged follow in name order. It shows execution state, step progress, a Stop button and up to 32 recent start/branch/end records. GUI runs that use the foreground screen move z2term to the background and wait for the other app before starting. Rotation retains the name, definition and current step draft.
@@ -243,6 +244,17 @@ Interrupting `run` with Ctrl+C requests cancellation of its own run ID. Interrup
 ## Definition syntax
 
 Headers precede the body. Use one step per line. Blank lines and lines starting with `#` are ignored.
+
+A comment can also follow a step (1.0.181). It starts at a `#` that **follows whitespace and is itself followed by whitespace or the end of the line**, and runs to the end of the line. A `#` followed directly by other characters, as in `text=#5`, is part of the step. `command` lines are left alone and reach the shell as written, `#` included (the shell reads its own comments). Headers may carry one too, and it is kept when `screen=current` is replaced by the saved geometry.
+
+```
+version=2   # needed for repeat
+timeout=60
+repeat 3    # three rounds
+  click text=#5   # the element whose text is "#5"
+  wait 800
+end
+```
 
 | Syntax | Meaning |
 |---|---|

@@ -75,6 +75,7 @@
     <string name="action_edit_pick_macro">저장된 매크로 선택</string>
     <string name="action_edit_add_repeat">반복 추가</string>
     <string name="action_edit_add_branch">조건 분기 추가</string>
+    <string name="action_edit_toggle_comment"># 주석</string>
     <string name="action_edit_blocks_hint">각 블록 안에 단계를 추가하세요. ⋮에서 단계와 블록 전체를 이동, 복제 또는 삭제할 수 있습니다.</string>
     <string name="action_edit_dynamic_status">%1$s · %2$s · %3$d단계</string>
     <string name="action_edit_location">%1$s / %2$s · %3$d회차</string>

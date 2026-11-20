@@ -78,4 +78,29 @@ class ActionDefinitionTest {
         val definition = ActionDefinition.parse("version=1\ncommand $command")
         assertEquals(command, (definition.steps.single() as ActionDefinition.Step.Command).text)
     }
+
+    @Test fun trailingCommentsNeedSpaceOnBothSidesAndKeepShellAndHeadersIntact() {
+        val definition = ActionDefinition.parse("version=2 # 見出しの説明\nscreen=current  # 画面\ntarget org.example.app\n" +
+            "wait 800 # 待つ\nrepeat 2   # 2 回\n  click text=#5\n  click text=No. #\nend # ここまで\nkey back #\n" +
+            "command echo a # シェルに渡す\nif charging # 充電中\n  wait 1\nelse # でなければ\n  wait 2\nend", screen)
+        val steps = definition.steps
+        assertEquals(ActionDefinition.Step.Wait(800), steps[0])
+        val body = (steps[1] as ActionDefinition.Step.Repeat).body.map { (it as ActionDefinition.Step.Ui).selector }
+        assertEquals(listOf(ActionSelector.parse("text=#5"), ActionSelector.parse("text=No.")), body)
+        assertEquals(ActionDefinition.Step.Key("back"), steps[2])
+        assertEquals("echo a # シェルに渡す", (steps[3] as ActionDefinition.Step.Command).text)
+        assertTrue(steps[4] is ActionDefinition.Step.Branch)
+        // screen=current は寸法に置き換わり、行末のコメントは残る。
+        assertTrue(definition.text.startsWith("version=2 # 見出しの説明\nscreen=1080x2400@0  # 画面\n"))
+        assertEquals(definition, ActionDefinition.parse(definition.text))
+    }
+    @Test fun commentPositionRule() {
+        assertEquals(2, ActionDefinition.commentStart("  # 全体"))
+        assertEquals(9, ActionDefinition.commentStart("wait 800 # x"))
+        assertEquals(9, ActionDefinition.commentStart("wait 800\t#"))
+        assertNull(ActionDefinition.commentStart("click text=#5"))
+        assertNull(ActionDefinition.commentStart("click text=a#b"))
+        assertNull(ActionDefinition.commentStart("  command echo # x"))
+        assertEquals("wait 800", ActionDefinition.code("  wait 800   # x"))
+    }
 }

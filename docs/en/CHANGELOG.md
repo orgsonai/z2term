@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.181 (versionCode 879)**: Screen-action macros can now carry a comment after a step (`wait 800  # until the screen opens`). It starts at a `#` that follows whitespace and is followed by whitespace or the end of the line, so text such as `text=#5` and the shell text of `command` lines are unchanged. Text editing shows comments in grey and `repeat` `if` `else` `end` `call` in the accent colour, and the **# Comment** button comments out the selected lines or restores them. Editing a step through the form keeps its trailing comment
+
 **1.0.180 (versionCode 878)**: Eight hours after the app started, SSH tabs dropped while the screen was off, and resident servers stopped answering from outside. What keeps the device from sleeping with the screen off ran out after 8 hours and was never taken again (the resident notification stayed up). It now renews itself before it runs out for as long as the app stays resident. With low-power mode on it is still not used
 
 **1.0.179 (versionCode 877)**: Connecting a PC's AI to z2term over SSH got no answer to any call. When SSH runs a single command, the search path (PATH) lacks the folder of the helper z2-ui uses to talk to the app, so it was not found. z2-ui now adds its own folder to the path
