@@ -21,8 +21,8 @@ fun z2ActionScript(lang: String): String {
         ja = "watch 条件 call 名前 は、書いたブロックが終わるまで（最上位ならマクロ全体）300ミリ秒ごとに条件を確かめ、成立したら 名前 を呼んでから続きへ戻ります。待ちの手順は打ち切って最初から送り直し、ほかの手順は終わるのを待ちます。watch の条件に command は使えません。\nrun-output シェル はコマンドを動かし、標準出力に書かれた手順を検査してから実行します（見出し・call・run-output・watch は不可）。終了コードが0以外なら失敗です。"
     )
     val humanHelp = t("action.humanHelp",
-        en = "human=on makes taps, swipes, drags and waits less mechanical: small position offsets, curved swipes that start and stop slowly, and slightly varied timing. The ~ button on the stop bar switches it while the macro runs.",
-        ja = "human=on で、タップ・スワイプ・なぞる操作と wait を人の指に近づけます（位置を少しずらす、線を少し曲げて動き出しと止まり際を遅く、時間を少しばらつかせる）。停止バーの ～ で実行中にも切り替えられます。"
+        en = "human=1..10 (on = 5, off or 0 = none; larger moves more) makes taps, swipes, drags and waits less mechanical: small position offsets, curved swipes that start and stop slowly, and slightly varied timing. The ~ button on the stop bar switches it while the macro runs.",
+        ja = "human=1〜10（on は 5、off と 0 はなし。大きいほど揺れる）で、タップ・スワイプ・なぞる操作と wait を人の指に近づけます（位置を少しずらす、線を少し曲げて動き出しと止まり際を遅く、時間を少しばらつかせる）。停止バーの ～ で実行中にも切り替えられます。"
     )
     val uiHelp = t("action.uiHelp",
         en = "version=2 also supports click SELECTOR, long-click SELECTOR and wait-ui MS SELECTOR.\nSelectors: text=Continue, desc=More options, id=org.example.app:id/next. Exact matches; no quoting around spaces.\nSet target or launch first. wait-ui searches every 250ms for up to 1–30000ms; multiple matches fail.\nActions are sent once; use wait-ui for the next screen. Input/password fields are excluded.\ninspect PACKAGE returns visible text, descriptions and IDs from the focused target app as JSON.",
@@ -38,7 +38,7 @@ fun z2ActionScript(lang: String): String {
         |# z2-action run NAME | start NAME | wait RUN_ID | status [RUN_ID] | stop [RUN_ID] | pause [RUN_ID] | resume [RUN_ID]
         |# z2-action screen | history | inspect PACKAGE
         |# z2-action pick   (a bar over the current app: choose a macro, run it with ▶; it then becomes the stop bar)
-        |# version=1|2 / timeout=30 / screen=current / human=on|off
+        |# version=1|2 / timeout=30 / screen=current / human=on|off|0..10
         |# target PACKAGE / launch PACKAGE / wait MILLISECONDS / key back|home|recents|shade|quicksettings|screenshot|split
         |# tap px|percent X Y / long-press px|percent X Y MILLISECONDS
         |# swipe px|percent X1 Y1 X2 Y2 MILLISECONDS [linear|accelerate|decelerate]

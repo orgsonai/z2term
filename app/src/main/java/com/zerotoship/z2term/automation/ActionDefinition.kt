@@ -2,8 +2,12 @@ package com.zerotoship.z2term.automation
 
 /** Text is authoritative; shell text is preserved and other steps use a strict grammar. */
 internal data class ActionDefinition(val text: String, val timeoutMs: Long, val screen: Screen?, val steps: List<Step>,
-    /** `human=on` (1.0.184): 指の操作と wait を人に近い揺らぎのあるものにする ([ActionHumanize])。 */
-    val human: Boolean = false) {
+    /**
+     * 人らしい操作の強さ (1.0.184、数字は 1.0.186)。0 はなし、1〜10 は大きいほど揺れる ([ActionHumanize])。
+     * 見出しは `human=0..10`、`on` は [ActionHumanize.DEFAULT_LEVEL]、`off` は 0。
+     */
+    val humanLevel: Int = 0) {
+    val human get() = humanLevel > 0
     /** `timeout=0`: no time limit. A root macro with it also has no limit on executed instructions. */
     val unlimited get() = timeoutMs == 0L
     data class Screen(val width: Int, val height: Int, val rotation: Int) {
@@ -379,8 +383,12 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 require(colors.all { it.x < screen.width && it.y < screen.height }) { "Colour points are outside the saved screen" }
             }
             flat.filterIsInstance<Step.Stroke>().forEach { it.tracks(screen!!) }
-            val human = when (headers["human"]) { null, "off" -> false; "on" -> true
-                else -> throw IllegalArgumentException("human must be on or off") }
+            val human = when (val value = headers["human"]) {
+                null, "off" -> 0
+                "on" -> ActionHumanize.DEFAULT_LEVEL
+                else -> value.toIntOrNull()?.takeIf { it in 0..ActionHumanize.MAX_LEVEL }
+                    ?: throw IllegalArgumentException("human must be on, off or 0..${ActionHumanize.MAX_LEVEL}")
+            }
             return ActionDefinition(lines.joinToString("\n").trimEnd() + "\n", timeout * 1000, screen, steps.toList(), human)
         }
     }

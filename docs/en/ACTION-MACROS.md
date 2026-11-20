@@ -214,16 +214,19 @@ end
 
 With `human=on` in the headers, finger operations and waits come closer to a person's finger. What each step means (where to press, from where to where) stays the same.
 
+**Strength (1.0.186)**: `human=1`..`human=10` chooses how much it varies. Larger numbers give larger offsets, more bending, rounder corners, more hand drift and more variation in speed and timing (proportional to the number). `human=on` is 5; `off` and `0` mean none. The figures below are for strength 2; at 10 they are about five times larger. At high strength a drag passes a little off its points (about 20 px at 10).
+
 - Taps, long presses and double taps: the point moves a little each time (up to 0.6% of the screen's short side, about 6 px at 1080 px wide). Taps last 60–110 ms, long presses vary by ±8% and the double-tap gap by ±15%.
 - Swipes: the line bows slightly (up to 5% of its length, 48 px at most), starts and stops slowly with a little variation on the way, and ends slightly off the exact point; the whole duration varies by ±8%. This takes precedence over accelerate/decelerate.
-- Drags (`drag`, 1.0.185): every given point is still passed through (for puzzles where the cells matter). Each segment bows slightly (4% of its length, 12 px at most), the finger slows near the points without stopping, and corners are rounded by at most 4 px. Segment times vary by ±20% with the same total.
+- Drags (`drag`, 1.0.185): the finger passes close to every given point. Each segment bows (6% of its length, 12 px at most), slows near the points without stopping and varies its speed within the segment. Corners are rounded by averaging 4 px of path on either side. Segment times vary by ±20% with the same total.
+- Swipes and drags also get slow hand drift (1 px) and fine tremor (0.5 px).
 - Recorded touches: the shape stays, the position moves slightly, and with one finger each segment's time varies by ±20% (same total). Two-finger gestures move together.
 - `wait`: ±10% (up to ±300 ms).
 - Moved points stay inside the foreground app's window. Scrolling (`scroll`) and element actions (`click` and so on) are unchanged.
 
 **Show the trail of operations (1.0.185)**: with "Show the trail of operations" on in the screen-actions tab, a running macro's presses and traced lines are drawn on screen in the same green as AI app control. The line grows along the path actually sent (human-like movement, two fingers and timing included) and fades one second after the finger lifts. The drawing cannot be touched, so it never gets in the way, and it is removed before a colour condition is read. Off by default.
 
-While running, **～** on the stop bar switches it (accent colour when on), from the next step. Whether it starts on is decided by the first macro's header; `human=` in called macros is not used. In the form editor, tapping the "Human-like input" row flips on / off.
+While running, **～** on the stop bar turns it off and on (accent colour when on; turning it back on restores the strength), from the next step. The strength comes from the first macro's header; `human=` in called macros is not used. In the form editor, tap the "Human-like input" row to enter a strength from 0 to 10.
 
 ### Run steps a program decides (run-output, 1.0.183)
 
@@ -339,7 +342,7 @@ end
 | `timeout=30` | Whole-run timeout, 0–300 seconds; default 30; `0` means no limit |
 | `screen=current` | Save display geometry; required for coordinates/scroll |
 | `screen=1080x2400@0` | Explicit display geometry |
-| `human=on` / `human=off` | Human-like input (default off); see "Human-like input" below |
+| `human=0`..`human=10` / `on` / `off` | Strength of human-like input (default off; `on` = 5); see "Human-like input" below |
 | `target PACKAGE` | Set the target app for subsequent coordinates, scrolling and UI elements without launching it |
 | `target current` | Use the foreground app at the start of each subsequent step; the default when no target is specified |
 | `launch PACKAGE` | Launch the app and wait until it is in front (up to 10 seconds, 1.0.111); also updates the target |

@@ -42,8 +42,11 @@ internal object ActionRuntime {
         /** Started from the macro chooser: show the stop bar even when its setting is off. */
         val bar: Boolean = false) {
         val definition get() = program.root
-        /** 人らしい操作。最初のマクロの `human=` で始まり、停止の帯の ～ で実行中に切り替えられる (1.0.184)。 */
-        var human: Boolean = program.root.human
+        /** 人らしい操作の強さ (0 はなし)。最初のマクロの `human=` で始まり、停止の帯の ～ で入り切りできる。 */
+        var humanLevel: Int = program.root.humanLevel
+        /** ～ で切ったあと入れ直すときの強さ。 */
+        var humanRestore: Int = program.root.humanLevel.takeIf { it > 0 } ?: ActionHumanize.DEFAULT_LEVEL
+        val human get() = humanLevel > 0
         val random = kotlin.random.Random(System.nanoTime())
     }
     private var current: Run? = null
@@ -144,7 +147,12 @@ internal object ActionRuntime {
         service.showRun(run.name)
         ActionRunOverlay.show(AndroidActions.overlayHost(), run.name, stop = { runCatching { stop(run.id) } },
             toggle = { runCatching { if (run.engine.paused) resume(run.id) else pause(run.id) } }, force = run.bar,
-            human = { if (current === run) run.human = !run.human; run.human }, humanOn = run.human)
+            human = {
+                if (current === run) {
+                    if (run.human) { run.humanRestore = run.humanLevel; run.humanLevel = 0 } else run.humanLevel = run.humanRestore
+                }
+                run.human
+            }, humanOn = run.human)
         if (run.awaitBackground) {
             run.cancelStart = ActionForegroundWait(::schedule).start(if (run.allowOwnForeground) "" else run.context.packageName, {
                 checkDevice(run)
@@ -340,7 +348,7 @@ internal object ActionRuntime {
                 checkDevice(run)
                 return AndroidActions.queryUi(resolved) { found, error -> done(error ?: if (found) null else "UI element not found") }
             }
-            is ActionDefinition.Step.Wait -> return schedule(if (run.human) ActionHumanize.waitMs(step.ms, run.random) else step.ms) { done(null) }
+            is ActionDefinition.Step.Wait -> return schedule(if (run.human) ActionHumanize.waitMs(step.ms, run.random, run.humanLevel) else step.ms) { done(null) }
             is ActionDefinition.Step.WaitFor -> {
                 val label = if (step.until) "wait-until" else "wait-while"
                 return ActionUiWait(::schedule).start(step.ms, { callback ->
@@ -377,7 +385,7 @@ internal object ActionRuntime {
                 return ActionRunOverlay.clear({ box -> points.any { box.contains(it.x.toInt(), it.y.toInt()) } }, ::schedule, ::done) { finished ->
                     check(current === run) { "Stopped" }
                     AndroidActions.stroke(resolved, run.screen, finished,
-                        human = if (run.human) { stroke, area -> ActionHumanize.stroke(stroke, run.screen, area, run.random) } else null,
+                        human = if (run.human) { stroke, area -> ActionHumanize.stroke(stroke, run.screen, area, run.random, run.humanLevel) } else null,
                         trail = ActionRunOverlay.trailEnabled(run.context))
                 }
             }
