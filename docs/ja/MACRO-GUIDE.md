@@ -63,8 +63,12 @@ B は「A で表現できないとき」の逃げ道です（5-5 のように、
 4. 便利ツール: `jq`（JSON 解析）を入れておくと楽。例: Alpine `apk add jq` / Debian系 `apt install jq`。
 5. **白紙から書きたくないとき**: `z2-macro list` で同梱サンプル 11 本を見て、`z2-macro install <名前>` で
    `~/.z2term/macros/` に置けます（`z2-macro install all` で全部）。中身は自由に書き換えて構いません。
-   ⚠ 書き換えを守るため **`install` は既存を上書きしません**。アプリの更新でサンプルが直っても
-   端末のコピーはそのままなので、`z2-macro list` に `差分あり` が出ていたら
+   ⚠ 書き換えを守るため **`install` は既存を上書きしません**。**1.0.198 から**、自分で書き換えていない
+   コピーに新しい同梱版があると、アプリの更新のあとに 1 回だけ通知でお知らせします。通知の「コピー」で
+   `z2-macro update` を端末のタブに貼って実行すると、**書き換えていないものだけ**が新しくなります
+   （`list` では `更新あり`。書き換えたものは `書き換え済` で、触りません）。残しておきたいものは
+   `z2-macro hold <名前>` で固定すると、お知らせにも更新にも出ません（やめるには `unhold`、一覧は
+   `~/.z2term/macros/.hold`）。1.0.197 までに入れて書き換えたかどうか分からないものは `差分あり` のままで、
    `z2-macro diff <名前>` で違いを見てください（左が自分の側）。同梱版で置き換えてよいと判断したら
    `z2-macro install -f <名前>` です。⚠ **`差分あり` は「古い」ではありません** — 端末側の方が
    進んでいる（アプリに取り込んでいない拡張がある）こともあるので、見ずに `-f` を打たないこと。
@@ -297,7 +301,7 @@ z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term
 | `z2-noti` | `z2-noti list` | **いま出ている通知**を読む（読むだけ・下記） | TSV |
 | `z2-session` | `z2-session list\|new\|send\|capture\|attach\|close` | **アプリ自身のタブ**を操る（下記） | TSV / 番号 |
 | `z2-server` | `z2-server list\|start\|stop\|status <サーバー>` | **登録済みの常駐サーバー**を起こす / 落とす（下記） | TSV |
-| `z2-macro` | `z2-macro list\|install\|remove\|diff\|show\|run\|dir` | 同梱サンプルの管理（`list` に `未導入` / `同じ` / `差分あり` が出ます） | — |
+| `z2-macro` | `z2-macro list\|install\|update\|hold\|unhold\|remove\|diff\|show\|run\|dir` | 同梱サンプルの管理（`list` に `未導入` / `同じ` / `更新あり` / `書き換え済` / `差分あり` / `固定` が出ます。`update` は書き換えていないものだけを新しくする・1.0.198） | — |
 
 ### `z2-notify -b`（返事を受け取る＝対話型マクロ）
 

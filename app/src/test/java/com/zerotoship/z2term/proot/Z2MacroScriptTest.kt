@@ -65,6 +65,11 @@ class Z2MacroScriptTest {
 
             // 端末のコピーだけ書き換える (同梱版が直った場合も、自分で足した場合も同じ見え方)。
             File(home, ".z2term/macros/demo.sh").writeText("#!/bin/sh\n# demo.sh — 見本\necho old\n")
+            // 入れたときの同梱版 (元) が残っているので、書き換えたと分かる (1.0.198)。
+            val (_, edited) = run(src, home, "list")
+            assertTrue("書き換え済と出ていない: $edited", edited.contains("書き換え済"))
+            // 元が無い (1.0.197 までに入れた) コピーは見分けられないので「差分あり」のまま。
+            File(home, ".z2term/macros/.bundled").deleteRecursively()
             val (_, differs) = run(src, home, "list")
             assertTrue("差分ありと出ていない: $differs", differs.contains("差分あり"))
             // ⚠ 「要更新」と書かない。どちらが新しいかは分からない (端末側の方が進んでいる例が実在する)。
@@ -180,6 +185,52 @@ class Z2MacroScriptTest {
             val (code, out) = run(src, home, "--help")
             assertEquals("--help が 0 で終わらない:\n$out", 0, code)
             assertTrue("使い方が出ていない:\n$out", out.contains("diff <名前>"))
+        } finally {
+            src.deleteRecursively(); home.deleteRecursively()
+        }
+    }
+
+    /**
+     * `update` は**自分で書き換えていないコピーだけ**を新しい同梱版にする (1.0.198)。書き換えたもの・
+     * 見分けられないもの・`hold` で固定したものには触らない。違うのが言語だけなら更新にしない。
+     */
+    @Test
+    fun updateReplacesOnlyCopiesYouDidNotEdit() {
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val src = File.createTempFile("z2macro-src", "").apply { delete(); mkdirs() }
+        val home = File.createTempFile("z2macro-home", "").apply { delete(); mkdirs() }
+        val macros = File(home, ".z2term/macros")
+        fun bundle(v: String, ids: String, d: String = "# d\necho v1\n") {
+            for (n in listOf("a", "b", "c")) File(src, "$n.sh").writeText("#!/bin/sh\n# $n\necho $v\n")
+            File(src, "d.sh").writeText("#!/bin/sh\n$d")
+            File(src, ".ids").writeText(listOf("a", "b", "c", "d").joinToString("") { "$it.sh ${if (it == "d") "d1" else ids}\n" })
+        }
+        try {
+            bundle("v1", "id1")
+            run(src, home, "install", "a", "b", "c", "d")
+            File(macros, "b.sh").appendText("# mine\n")
+            val (_, held) = run(src, home, "hold", "c")
+            assertTrue("固定したと言っていない: $held", held.contains("固定しました"))
+
+            bundle("v2", "id2", d = "# d (別の言語)\necho v1\n")
+            val (_, list) = run(src, home, "list")
+            assertTrue("更新ありと出ていない: $list", list.lines().any { it.startsWith("a.sh") && it.contains("更新あり") })
+            assertTrue("固定と出ていない: $list", list.lines().any { it.startsWith("c.sh") && it.contains("固定") })
+            assertTrue("言語だけの違いを更新扱いしている: $list", list.lines().any { it.startsWith("d.sh") && it.contains("同じ") })
+
+            val (_, out) = run(src, home, "update")
+            assertTrue("a が更新されていない: $out", File(macros, "a.sh").readText().contains("v2"))
+            assertTrue("書き換えた b を上書きした", File(macros, "b.sh").readText().contains("# mine"))
+            assertTrue("固定した c を上書きした", File(macros, "c.sh").readText().contains("v1"))
+            assertTrue("言語だけ違う d を書き換えた", File(macros, "d.sh").readText().contains("# d\n"))
+            assertTrue("書き換えた b の見方が出ていない: $out", out.contains("z2-macro diff b.sh"))
+
+            val (_, again) = run(src, home, "update", "a")
+            assertTrue("更新するものが無いと言っていない: $again", again.contains("更新するものはありません"))
+
+            run(src, home, "unhold", "c")
+            run(src, home, "update")
+            assertTrue("固定をやめた c が更新されていない", File(macros, "c.sh").readText().contains("v2"))
         } finally {
             src.deleteRecursively(); home.deleteRecursively()
         }

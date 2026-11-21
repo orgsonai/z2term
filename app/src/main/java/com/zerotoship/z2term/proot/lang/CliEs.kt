@@ -350,6 +350,19 @@ internal object CliEs : CliLanguage {
             "macro.stNew" to "nueva",
             "macro.stSame" to "igual",
             "macro.stDiff" to "distinta",
+            "macro.stUpdate" to "nueva ver",
+            "macro.stEdited" to "editada",
+            "macro.stHeld" to "fijada",
+            "macro.msgUpdated" to "actualizada:",
+            "macro.msgNothingToUpdate" to "no hay nada que actualizar.",
+            "macro.msgEditedSkip" to "la editaste tú, así que se dejó como está:",
+            "macro.msgUnknownSkip" to "no se puede saber si la editaste (instalada antes de 1.0.198), así que se dejó como está:",
+            "macro.msgHeldSkip" to "está fijada, así que se dejó como está (para soltarla: z2-macro unhold %s):",
+            "macro.msgHeld" to "fijada (no se actualiza ni se avisa):",
+            "macro.msgUnheld" to "ya no está fijada:",
+            "macro.msgNotHeld" to "no estaba fijada:",
+            "macro.noticeTitle" to "Hay actualizaciones de macros incluidas",
+            "macro.noticeBody" to "%s. Son copias que no editaste. Copia el comando y ejecútalo en una pestaña de terminal para actualizarlas (para dejar una como está: z2-macro hold <nombre>).",
             "macro.msgInstalled" to "instalada:",
             "macro.msgSame" to "ya está instalado lo mismo:",
             "macro.msgOutdated" to "la tuya difiere de la incluida:",
@@ -844,6 +857,11 @@ after_label() {
             "# p. ej.",
             "#example.org",
         ),
+            "macro.usageUpdate" to listOf(
+                "  update [nombre|all] cambia las copias que no editaste por la versión incluida más nueva",
+                "  hold <nombre>       dejarla como está (sin actualizar ni avisar)",
+                "  unhold <nombre>     dejar de mantenerla (lista: ~/.z2term/macros/.hold)",
+            ),
             "macro.usage" to listOf(
             "uso: z2-macro <subcomando>",
             "  list                  lista las muestras incluidas (marcadas nueva / igual / distinta)",
@@ -873,7 +891,7 @@ after_label() {
 
     override val values: Map<String, Any> by lazy {
         mapOf(
-            "macro.stCols" to 8,
+            "macro.stCols2" to 9,
         )
     }
 }

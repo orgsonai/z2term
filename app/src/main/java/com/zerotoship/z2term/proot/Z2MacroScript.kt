@@ -1706,6 +1706,18 @@ fun z2MacroScript(lang: String): String {
                 "  dir                 マクロの置き場所を表示",
                 "  actions ...         Android操作マクロ (z2-action --help)",
             )
+    ) + t.lines("macro.usageUpdate",
+        // 1.0.198。既存の usage の訳を崩さないよう別の名前で足す (訳の無い言語は英語が出る)。
+        en = listOf(
+            "  update [name|all]   replace copies you have not edited with the newer bundled one",
+            "  hold <name>         keep that one as it is (never updated or announced)",
+            "  unhold <name>       stop keeping it (list of held names: ~/.z2term/macros/.hold)",
+        ),
+        ja = listOf(
+            "  update [名前|all]   自分で書き換えていないコピーを新しい同梱版にする",
+            "  hold <名前>         そのままにする (更新もお知らせもしない)",
+            "  unhold <名前>       そのままにするのをやめる (一覧: ~/.z2term/macros/.hold)",
+        ),
     )
 
     // `list` の状態列。
@@ -1719,10 +1731,31 @@ fun z2MacroScript(lang: String): String {
     fun padVisual(s: String, cols: Int): String =
         s + " ".repeat((cols - s.sumOf { if (it.code < 0x80) 1 else 2 }).coerceAtLeast(0))
 
-    val stCols = t.of("macro.stCols", en = 7, ja = 8)
+    // 1.0.198 から、入れたときの同梱版 (元・`.bundled/`) と比べて「更新あり」「書き換え済」を
+    // 言い分ける ([MacroUpdates])。元の無いコピー (1.0.197 までに入れて書き換えたかもしれないもの)
+    // だけが「差分あり」のまま。⚠ 判定の規則は MacroUpdates と同じにする。
+    val stCols = t.of("macro.stCols2", en = 8, ja = 10)
     val stNew = padVisual(t("macro.stNew", en = "new", ja = "未導入"), stCols)
     val stSame = padVisual(t("macro.stSame", en = "same", ja = "同じ"), stCols)
     val stDiff = padVisual(t("macro.stDiff", en = "differs", ja = "差分あり"), stCols)
+    val stUpdate = padVisual(t("macro.stUpdate", en = "update", ja = "更新あり"), stCols)
+    val stEdited = padVisual(t("macro.stEdited", en = "edited", ja = "書き換え済"), stCols)
+    val stHeld = padVisual(t("macro.stHeld", en = "held", ja = "固定"), stCols)
+    val msgUpdated = t("macro.msgUpdated", en = "updated:", ja = "更新しました:")
+    val msgNothingToUpdate = t("macro.msgNothingToUpdate",
+        en = "nothing to update.", ja = "更新するものはありません。")
+    val msgEditedSkip = t("macro.msgEditedSkip",
+        en = "you have edited this one, so it was left as it is:",
+        ja = "自分で書き換えたものなので、そのままにしました:")
+    val msgUnknownSkip = t("macro.msgUnknownSkip",
+        en = "cannot tell whether you edited this one (installed before 1.0.198), so it was left as it is:",
+        ja = "書き換えたかどうか分からない (1.0.198 より前に入れた) ので、そのままにしました:")
+    val msgHeldSkip = t("macro.msgHeldSkip",
+        en = "held, so it was left as it is (z2-macro unhold %s to release):",
+        ja = "固定しているので、そのままにしました (やめるには z2-macro unhold %s):")
+    val msgHeld = t("macro.msgHeld", en = "held (not updated or announced):", ja = "固定しました (更新もお知らせもしません):")
+    val msgUnheld = t("macro.msgUnheld", en = "no longer held:", ja = "固定をやめました:")
+    val msgNotHeld = t("macro.msgNotHeld", en = "was not held:", ja = "固定していません:")
 
     val msgInstalled = t("macro.msgInstalled", en = "installed:", ja = "導入しました:")
     // 「既にある」を**同じ / 違う**で言い分ける (0.8.332)。一律「既にあります」だと、同梱版が
@@ -1791,6 +1824,36 @@ fun z2MacroScript(lang: String): String {
         |  a=${d}(cksum < "${d}1" 2>/dev/null); b=${d}(cksum < "${d}2" 2>/dev/null)
         |  [ -n "${d}a" ] && [ "${d}a" = "${d}b" ]
         |}
+        |# --- 更新の見分け (1.0.198・MacroUpdates と同じ規則) ---
+        |# 入れたときの同梱版を BASE/<名前> に、その中身の名札 (言語に依らない) を BASE/<名前>.id に残す。
+        |BASE=${d}DEST/.bundled
+        |HOLD=${d}DEST/.hold
+        |cur_id() { [ -f "${d}SRC/.ids" ] && sed -n "s/^${d}1 //p" "${d}SRC/.ids" | head -n 1; }
+        |remember() {
+        |  mkdir -p "${d}BASE" && cp "${d}SRC/${d}1" "${d}BASE/${d}1" && cur_id "${d}1" > "${d}BASE/${d}1.id"
+        |}
+        |forget() { rm -f "${d}BASE/${d}1" "${d}BASE/${d}1.id"; }
+        |# 除外の一覧は 1 行 1 名前 (voice でも voice.sh でもよい。# から後ろは書き添え)。
+        |held() {
+        |  [ -f "${d}HOLD" ] || return 1
+        |  sed -e 's/#.*//' -e 's/[[:space:]]//g' -e 's/\.sh${d}//' "${d}HOLD" | grep -qxF "${d}{1%.sh}"
+        |}
+        |# state <名前.sh> → new / same / update / edited / differs / lang
+        |#   lang = 書き換えていないが、違うのは言語だけ (中身の名札が同じ)。更新するものではない。
+        |state() {
+        |  if [ ! -f "${d}DEST/${d}1" ]; then echo new; return; fi
+        |  if same_as_bundled "${d}SRC/${d}1" "${d}DEST/${d}1"; then
+        |    # 元が無い・古いなら今の同梱版を元にする (1.0.197 までに入れて書き換えていないもの)。
+        |    same_as_bundled "${d}SRC/${d}1" "${d}BASE/${d}1" || remember "${d}1" 2>/dev/null
+        |    echo same; return
+        |  fi
+        |  if [ ! -f "${d}BASE/${d}1" ]; then echo differs; return; fi
+        |  if ! same_as_bundled "${d}BASE/${d}1" "${d}DEST/${d}1"; then echo edited; return; fi
+        |  id=${d}(cur_id "${d}1"); old=${d}(cat "${d}BASE/${d}1.id" 2>/dev/null)
+        |  if [ -n "${d}id" ] && [ "${d}id" = "${d}old" ]; then echo lang; else echo update; fi
+        |}
+        |# 同梱サンプルの名前か (.sh を補う)。
+        |sample_name() { case "${d}1" in *.sh) printf '%s' "${d}1" ;; *) printf '%s.sh' "${d}1" ;; esac; }
         |# Delegate before sample-name normalization so file paths retain spaces.
         |if [ "${d}{1:-}" = actions ]; then shift; exec z2-action "${d}@"; fi
         |# -f/--force はどこに書かれていてもよいよう、先に引数列から抜き出す
@@ -1816,9 +1879,15 @@ fun z2MacroScript(lang: String): String {
         |      desc=${d}(sed -n '2s/^# *//p' "${d}f")
         |      # 状態を出す (0.8.332)。install は既存を上書きしない = 一度入れたコピーは
         |      # **同梱版が直っても黙ってそのまま**になるので、一覧の時点で違いが分かるようにする。
-        |      if [ ! -f "${d}DEST/${d}name" ]; then st='$stNew'
-        |      elif same_as_bundled "${d}SRC/${d}name" "${d}DEST/${d}name"; then st='$stSame'
-        |      else st='$stDiff'
+        |      if [ -f "${d}DEST/${d}name" ] && held "${d}name"; then st='$stHeld'
+        |      else
+        |        case ${d}(state "${d}name") in
+        |          new) st='$stNew' ;;
+        |          same|lang) st='$stSame' ;;
+        |          update) st='$stUpdate' ;;
+        |          edited) st='$stEdited' ;;
+        |          *) st='$stDiff' ;;
+        |        esac
         |      fi
         |      printf '%-18s %s %s\n' "${d}name" "${d}st" "${d}desc"
         |    done ;;
@@ -1842,6 +1911,7 @@ fun z2MacroScript(lang: String): String {
         |        continue
         |      fi
         |      cp "${d}SRC/${d}name" "${d}DEST/${d}name" && chmod +x "${d}DEST/${d}name" || continue
+        |      remember "${d}name" 2>/dev/null
         |      echo "$msgInstalled ${d}DEST/${d}name"
         |      hint=${d}(sed -n 's/^# z2-run: //p' "${d}DEST/${d}name" 2>/dev/null | head -1)
         |      if [ -n "${d}hint" ]; then
@@ -1865,7 +1935,59 @@ fun z2MacroScript(lang: String): String {
         |        printf '  $msgHowRemove\n' "${d}name" "${d}name" >&2
         |        continue
         |      fi
-        |      rm -f "${d}DEST/${d}name" && echo "$msgRemoved ${d}DEST/${d}name"
+        |      rm -f "${d}DEST/${d}name" && forget "${d}name" && echo "$msgRemoved ${d}DEST/${d}name"
+        |    done ;;
+        |  update)
+        |    # 書き換えていないコピーだけを新しい同梱版にする (1.0.198)。入れていないものは入れない。
+        |    # ⚠ 書き換えたもの・見分けられないもの・固定したものには触らない (-f でも)。
+        |    #   それでも置き換えるなら名前を指定して install -f (diff を見てから)。
+        |    [ -d "${d}SRC" ] || { echo "no samples bundled" >&2; exit 1; }
+        |    shift
+        |    if [ ${d}# -eq 0 ] || [ "${d}1" = all ]; then set -- ${d}(cd "${d}SRC" && ls *.sh 2>/dev/null); fi
+        |    n=0
+        |    for name in "${d}@"; do
+        |      name=${d}(sample_name "${d}name")
+        |      if [ ! -f "${d}SRC/${d}name" ]; then echo "$msgNotFound ${d}name" >&2; continue; fi
+        |      [ -f "${d}DEST/${d}name" ] || continue
+        |      if held "${d}name"; then
+        |        same_as_bundled "${d}SRC/${d}name" "${d}DEST/${d}name" ||
+        |          { printf "$msgHeldSkip" "${d}{name%.sh}"; echo " ${d}DEST/${d}name"; } >&2
+        |        continue
+        |      fi
+        |      case ${d}(state "${d}name") in
+        |        update)
+        |          cp "${d}SRC/${d}name" "${d}DEST/${d}name" && chmod +x "${d}DEST/${d}name" || continue
+        |          remember "${d}name" 2>/dev/null
+        |          echo "$msgUpdated ${d}DEST/${d}name"; n=${d}((n + 1)) ;;
+        |        edited)
+        |          echo "$msgEditedSkip ${d}DEST/${d}name" >&2
+        |          printf '  $msgHowUpdate\n' "${d}name" "${d}name" >&2 ;;
+        |        differs)
+        |          echo "$msgUnknownSkip ${d}DEST/${d}name" >&2
+        |          printf '  $msgHowUpdate\n' "${d}name" "${d}name" >&2 ;;
+        |      esac
+        |    done
+        |    [ "${d}n" -gt 0 ] || echo "$msgNothingToUpdate" ;;
+        |  hold)
+        |    [ ${d}# -ge 2 ] || usage
+        |    shift
+        |    mkdir -p "${d}DEST" || exit 1
+        |    for name in "${d}@"; do
+        |      name=${d}(sample_name "${d}name")
+        |      if [ ! -f "${d}SRC/${d}name" ]; then echo "$msgNotFound ${d}name" >&2; continue; fi
+        |      held "${d}name" || echo "${d}{name%.sh}" >> "${d}HOLD"
+        |      echo "$msgHeld ${d}{name%.sh}"
+        |    done ;;
+        |  unhold)
+        |    [ ${d}# -ge 2 ] || usage
+        |    shift
+        |    for name in "${d}@"; do
+        |      name=${d}(sample_name "${d}name")
+        |      if ! held "${d}name"; then echo "$msgNotHeld ${d}{name%.sh}" >&2; continue; fi
+        |      # 書き添えの付いた行も消す (名前の部分だけで比べる)。
+        |      awk -v n="${d}{name%.sh}" '{ k = ${d}0; sub(/#.*/, "", k); gsub(/[[:space:]]/, "", k); sub(/\.sh${d}/, "", k); if (k != n) print }' \
+        |        "${d}HOLD" > "${d}HOLD.tmp" && mv "${d}HOLD.tmp" "${d}HOLD"
+        |      echo "$msgUnheld ${d}{name%.sh}"
         |    done ;;
         |  diff)
         |    # 左が端末のコピー・右が同梱版 (`-` が自分の側、`+` が同梱版で増えた行)。

@@ -358,6 +358,19 @@ internal object CliVi : CliLanguage {
             "macro.stNew" to "mới",
             "macro.stSame" to "giống",
             "macro.stDiff" to "khác",
+            "macro.stUpdate" to "có bản mới",
+            "macro.stEdited" to "đã sửa",
+            "macro.stHeld" to "giữ",
+            "macro.msgUpdated" to "đã cập nhật:",
+            "macro.msgNothingToUpdate" to "không có gì để cập nhật.",
+            "macro.msgEditedSkip" to "bạn đã sửa tệp này nên được giữ nguyên:",
+            "macro.msgUnknownSkip" to "không biết bạn đã sửa tệp này chưa (cài trước 1.0.198) nên được giữ nguyên:",
+            "macro.msgHeldSkip" to "đang giữ nguyên (bỏ giữ: z2-macro unhold %s):",
+            "macro.msgHeld" to "đã giữ nguyên (không cập nhật, không báo):",
+            "macro.msgUnheld" to "đã thôi giữ:",
+            "macro.msgNotHeld" to "chưa được giữ:",
+            "macro.noticeTitle" to "Macro đi kèm có bản cập nhật",
+            "macro.noticeBody" to "%s. Đây là các bản sao bạn chưa sửa. Sao chép lệnh và chạy trong một thẻ terminal để cập nhật (muốn giữ nguyên một tệp: z2-macro hold <tên>).",
             "macro.msgInstalled" to "đã cài:",
             "macro.msgSame" to "bản giống hệt đã được cài:",
             "macro.msgOutdated" to "bản của bạn khác bản đi kèm:",
@@ -846,6 +859,11 @@ after_label() {
                 "# Một phần URL hoặc một phần tiêu đề là đủ. Mỗi mục khớp có thông báo riêng.",
                 "# ví dụ", "#example.org",
             ),
+            "macro.usageUpdate" to listOf(
+                "  update [tên|all]    thay các bản sao bạn chưa sửa bằng bản đi kèm mới hơn",
+                "  hold <tên>          giữ nguyên (không cập nhật, không báo)",
+                "  unhold <tên>        thôi giữ nguyên (danh sách: ~/.z2term/macros/.hold)",
+            ),
             "macro.usage" to listOf(
                 "cách dùng: z2-macro <lệnh con>",
                 "  list                liệt kê ví dụ đi kèm (đánh dấu mới / giống / khác)",
@@ -875,7 +893,7 @@ after_label() {
 
     override val values: Map<String, Any> by lazy {
         mapOf(
-            "macro.stCols" to 7,
+            "macro.stCols2" to 13,
         )
     }
 }

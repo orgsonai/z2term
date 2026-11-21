@@ -66,8 +66,12 @@ minute). **Do not write in style B what style A can express.**
 4. Handy tool: install `jq` (JSON parsing). e.g. Alpine `apk add jq` / Debian-family `apt install jq`.
 5. **If you would rather not start from a blank file**: `z2-macro list` shows the 11 bundled samples and
    `z2-macro install <name>` copies one into `~/.z2term/macros/` (`z2-macro install all` for every one).
-   ⚠ To keep your edits, **`install` never overwrites**. An app update that fixes a sample therefore does
-   not reach a copy you already have: when `z2-macro list` marks one `differs`, read `z2-macro diff <name>`
+   ⚠ To keep your edits, **`install` never overwrites**. **Since 1.0.198**, when a copy you have not edited has
+   a newer bundled version, one notification after the app update says so. Paste `z2-macro update` from its Copy
+   button into a terminal tab and **only the unedited ones** are replaced (`list` shows `update`; ones you edited
+   show `edited` and are left alone). `z2-macro hold <name>` keeps one as it is, out of the notice and of
+   `update` (`unhold` to release; the list is `~/.z2term/macros/.hold`). A copy installed in 1.0.197 or earlier
+   that may have been edited stays `differs`: read `z2-macro diff <name>`
    (yours on the left) and then, if the bundled one really is the one you want, `z2-macro install -f <name>`.
    ⚠ **`differs` is not "out of date"** — your copy can be the one that is ahead, so never run `-f` unseen.
    ⚠ **The macro directory is on PATH** (since 0.8.287; appended, so it never shadows an OS command),
@@ -302,7 +306,7 @@ prerequisite → 3-A).
 | `z2-noti` | `z2-noti list` | Read **the notifications on screen right now** (read-only, see below) | TSV |
 | `z2-session` | `z2-session list\|new\|send\|capture\|attach\|close` | Drive **the app's own tabs** (see below) | TSV / index |
 | `z2-server` | `z2-server list\|start\|stop\|status <server>` | Start / stop **a registered resident server** (see below) | TSV |
-| `z2-macro` | `z2-macro list\|install\|remove\|diff\|show\|run\|dir` | Manage the bundled samples (`list` marks each `new` / `same` / `differs`) | — |
+| `z2-macro` | `z2-macro list\|install\|update\|hold\|unhold\|remove\|diff\|show\|run\|dir` | Manage the bundled samples (`list` marks each `new` / `same` / `update` / `edited` / `differs` / `held`; `update` replaces only unedited copies, 1.0.198) | — |
 
 ### `z2-notify -b` (get an answer back = interactive macros)
 

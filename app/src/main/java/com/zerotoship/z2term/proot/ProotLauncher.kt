@@ -1449,12 +1449,37 @@ class ProotLauncher(private val context: Context) {
                 setExecutable(true, false)
             }
             val samples = File(rootfs, "usr/local/share/z2term/macros").apply { mkdirs() }
-            z2MacroSamples(lang = lang).forEach { (name, body) ->
+            val bodies = z2MacroSamples(lang = lang)
+            // 書き出す前の同梱版 (= 前回の起動の版)。昔入れたコピーが書き換え前かを見分ける (1.0.198)。
+            val before = bodies.keys.mapNotNull { name ->
+                File(samples, name).takeIf { it.isFile }?.let { f -> runCatching { name to f.readText() }.getOrNull() }
+            }.toMap()
+            val beforeIds = MacroUpdates.parseIds(File(samples, MacroUpdates.IDS).takeIf { it.isFile }?.readText())
+            // 中身の名札は英語で組んだ中身から作る (言語を変えただけで「更新あり」にしない)。
+            val ids = MacroUpdates.contentIds(if (lang == "en") bodies else z2MacroSamples(lang = "en"))
+            bodies.forEach { (name, body) ->
                 File(samples, name).apply {
                     writeText(body)
                     setReadable(true, false)
                     setExecutable(true, false)
                 }
+            }
+            File(samples, MacroUpdates.IDS).apply { writeText(MacroUpdates.idsText(ids)); setReadable(true, false) }
+            val macros = File(sharedHomeDir, ".z2term/macros")
+            MacroUpdates.adoptLegacy(macros, bodies, ids, before, beforeIds)
+            val names = MacroUpdates.namesToAnnounce(macros, BuildConfig.VERSION_CODE, bodies, ids)
+            if (names.isNotEmpty()) {
+                val t = CliText(lang)
+                val list = names.joinToString(", ") { it.removeSuffix(".sh") }
+                Z2ApiBridge.notifyWithCopy(
+                    context,
+                    t("macro.noticeTitle", en = "Bundled macros have updates", ja = "同梱マクロに更新があります"),
+                    t("macro.noticeBody",
+                        en = "%s. These are copies you have not edited. Copy the command and run it in a terminal tab to update them (z2-macro hold <name> keeps one as it is).",
+                        ja = "%s。どれも自分では書き換えていないコピーです。コマンドをコピーして端末のタブで実行すると更新します (残したいものは z2-macro hold <名前>)。",
+                    ).format(list),
+                    "z2-macro update",
+                )
             }
         }.onFailure { Log.w(TAG, "z2-macro scripts 配置失敗", it) }
     }

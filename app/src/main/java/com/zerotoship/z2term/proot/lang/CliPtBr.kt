@@ -358,6 +358,19 @@ internal object CliPtBr : CliLanguage {
             "macro.stNew" to "nova",
             "macro.stSame" to "igual",
             "macro.stDiff" to "difere",
+            "macro.stUpdate" to "nova ver",
+            "macro.stEdited" to "editada",
+            "macro.stHeld" to "fixada",
+            "macro.msgUpdated" to "atualizada:",
+            "macro.msgNothingToUpdate" to "nada para atualizar.",
+            "macro.msgEditedSkip" to "você editou esta, então ficou como está:",
+            "macro.msgUnknownSkip" to "não dá para saber se você editou esta (instalada antes da 1.0.198), então ficou como está:",
+            "macro.msgHeldSkip" to "está fixada, então ficou como está (para soltar: z2-macro unhold %s):",
+            "macro.msgHeld" to "fixada (não é atualizada nem avisada):",
+            "macro.msgUnheld" to "não está mais fixada:",
+            "macro.msgNotHeld" to "não estava fixada:",
+            "macro.noticeTitle" to "Há atualizações de macros incluídas",
+            "macro.noticeBody" to "%s. São cópias que você não editou. Copie o comando e execute-o numa aba de terminal para atualizá-las (para manter uma como está: z2-macro hold <nome>).",
             "macro.msgInstalled" to "instalada:",
             "macro.msgSame" to "a mesma coisa já está instalada:",
             "macro.msgOutdated" to "a sua é diferente da incluída:",
@@ -846,6 +859,11 @@ after_label() {
                 "# Parte de uma URL ou parte de um título funciona. Cada correspondência ganha uma notificação própria.",
                 "# ex.:", "#example.org",
             ),
+            "macro.usageUpdate" to listOf(
+                "  update [nome|all]   troca as cópias que você não editou pela versão incluída mais nova",
+                "  hold <nome>         deixar como está (sem atualizar nem avisar)",
+                "  unhold <nome>       parar de manter (lista: ~/.z2term/macros/.hold)",
+            ),
             "macro.usage" to listOf(
                 "uso: z2-macro <subcomando>",
                 "  list                lista os exemplos incluídos (marcados nova / igual / difere)",
@@ -875,7 +893,7 @@ after_label() {
 
     override val values: Map<String, Any> by lazy {
         mapOf(
-            "macro.stCols" to 7,
+            "macro.stCols2" to 8,
         )
     }
 }

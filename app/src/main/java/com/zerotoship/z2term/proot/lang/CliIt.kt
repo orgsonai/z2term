@@ -358,6 +358,19 @@ internal object CliIt : CliLanguage {
             "macro.stNew" to "nuovo",
             "macro.stSame" to "uguale",
             "macro.stDiff" to "diverso",
+            "macro.stUpdate" to "nuova",
+            "macro.stEdited" to "modificata",
+            "macro.stHeld" to "bloccata",
+            "macro.msgUpdated" to "aggiornata:",
+            "macro.msgNothingToUpdate" to "niente da aggiornare.",
+            "macro.msgEditedSkip" to "l’hai modificata tu, quindi è rimasta com’è:",
+            "macro.msgUnknownSkip" to "non si può sapere se l’hai modificata (installata prima della 1.0.198), quindi è rimasta com’è:",
+            "macro.msgHeldSkip" to "è bloccata, quindi è rimasta com’è (per sbloccarla: z2-macro unhold %s):",
+            "macro.msgHeld" to "bloccata (niente aggiornamenti né avvisi):",
+            "macro.msgUnheld" to "non più bloccata:",
+            "macro.msgNotHeld" to "non era bloccata:",
+            "macro.noticeTitle" to "Le macro incluse hanno aggiornamenti",
+            "macro.noticeBody" to "%s. Sono copie che non hai modificato. Copia il comando ed eseguilo in una scheda del terminale per aggiornarle (per lasciarne una com’è: z2-macro hold <nome>).",
             "macro.msgInstalled" to "installato:",
             "macro.msgSame" to "lo stesso è già installato:",
             "macro.msgOutdated" to "il tuo è diverso da quello incluso:",
@@ -846,6 +859,11 @@ after_label() {
                 "# Va bene una parte dell’URL o una parte del titolo. Ogni corrispondenza ha la sua notifica.",
                 "# es.", "#example.org",
             ),
+            "macro.usageUpdate" to listOf(
+                "  update [nome|all]   sostituisce le copie non modificate con la versione inclusa più nuova",
+                "  hold <nome>         lasciarla com’è (niente aggiornamenti né avvisi)",
+                "  unhold <nome>       smettere di tenerla (elenco: ~/.z2term/macros/.hold)",
+            ),
             "macro.usage" to listOf(
                 "uso: z2-macro <sottocomando>",
                 "  list                elenca gli esempi inclusi (segnati nuovo / uguale / diverso)",
@@ -875,7 +893,7 @@ after_label() {
 
     override val values: Map<String, Any> by lazy {
         mapOf(
-            "macro.stCols" to 7,
+            "macro.stCols2" to 10,
         )
     }
 }

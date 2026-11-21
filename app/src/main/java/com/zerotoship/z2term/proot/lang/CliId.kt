@@ -358,6 +358,19 @@ internal object CliId : CliLanguage {
             "macro.stNew" to "baru",
             "macro.stSame" to "sama",
             "macro.stDiff" to "beda",
+            "macro.stUpdate" to "baru",
+            "macro.stEdited" to "diubah",
+            "macro.stHeld" to "tetap",
+            "macro.msgUpdated" to "diperbarui:",
+            "macro.msgNothingToUpdate" to "tidak ada yang perlu diperbarui.",
+            "macro.msgEditedSkip" to "kamu sudah mengubah ini, jadi dibiarkan apa adanya:",
+            "macro.msgUnknownSkip" to "tidak bisa diketahui apakah kamu mengubah ini (dipasang sebelum 1.0.198), jadi dibiarkan apa adanya:",
+            "macro.msgHeldSkip" to "ditetapkan, jadi dibiarkan apa adanya (lepaskan dengan z2-macro unhold %s):",
+            "macro.msgHeld" to "ditetapkan (tidak diperbarui atau diberitahukan):",
+            "macro.msgUnheld" to "tidak lagi ditetapkan:",
+            "macro.msgNotHeld" to "tidak ditetapkan:",
+            "macro.noticeTitle" to "Makro bawaan punya pembaruan",
+            "macro.noticeBody" to "%s. Ini salinan yang tidak kamu ubah. Salin perintahnya dan jalankan di tab terminal untuk memperbaruinya (untuk membiarkan salah satunya: z2-macro hold <nama>).",
             "macro.msgInstalled" to "terpasang:",
             "macro.msgSame" to "yang sama sudah terpasang:",
             "macro.msgOutdated" to "milik Anda berbeda dari yang bawaan:",
@@ -846,6 +859,11 @@ after_label() {
                 "# Bagian dari URL atau bagian dari judul bisa dipakai. Setiap kecocokan mendapat notifikasinya sendiri.",
                 "# mis.", "#example.org",
             ),
+            "macro.usageUpdate" to listOf(
+                "  update [nama|all]   ganti salinan yang tidak kamu ubah dengan versi bawaan yang lebih baru",
+                "  hold <nama>         biarkan apa adanya (tidak diperbarui atau diberitahukan)",
+                "  unhold <nama>       berhenti membiarkannya (daftar: ~/.z2term/macros/.hold)",
+            ),
             "macro.usage" to listOf(
                 "penggunaan: z2-macro <subperintah>",
                 "  list                daftar contoh bawaan (ditandai baru / sama / beda)",
@@ -875,7 +893,7 @@ after_label() {
 
     override val values: Map<String, Any> by lazy {
         mapOf(
-            "macro.stCols" to 4,
+            "macro.stCols2" to 6,
         )
     }
 }

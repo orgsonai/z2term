@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-11-21 / Target version: 1.0.197 (versionCode 895)
+Last updated: 2026-11-21 / Target version: 1.0.198 (versionCode 896)
 
 **1.0.5 (versionCode 703)**: Added "Z2 Mono" to the terminal fonts. It is a monospaced font made for this app and covers Latin letters, digits and symbols (Japanese and other scripts are drawn with the system font as before). Pick it under "Font family" in Settings. It ships in both the GitHub APK and the F-Droid build.
 
@@ -1418,6 +1418,12 @@ pop up", and the search went to Android's notification settings.
   second (the order is pinned by `Z2MacroScriptTest`), so nobody overwrites unseen.
 - **`diff <name>` is new** (left = your copy, right = the bundled one). `-f` also throws away your own edits,
   so whoever is told "these differ" needs a way to check whether overwriting is safe.
+- **Keep the bundled copy you installed, so "update" can be said (1.0.198, `MacroUpdates`, user request)**: "differs" alone could not tell an edit from a newer bundle, so fixed samples never reached existing users. Every `install` / `update` copies the bundled file to `~/.z2term/macros/.bundled/<name>` and writes its content tag to `<name>.id`. States: copy = current bundle → same; copy = base and bundle ≠ base → update; copy ≠ base → edited; no base → differs.
+  - ⚠ The tag is **the SHA-1 (first 12 digits) of the sample built in English**. A bundle's comments and messages follow the app language, so comparing the files alone would call a language switch an update. The same tag means only the language differs: counted as same, neither updated nor announced. `ProotLauncher` writes the tags to `.ids` next to the bundled samples.
+  - **Copies installed in 1.0.197 or earlier** have no base. `ProotLauncher` reads the bundle **before** overwriting it (the previous launch's version); a copy identical to it becomes its base (so it is known to be unedited). Anything else is left alone and stays "differs" (the safe side).
+  - **Notice**: on the first launch after the app version changes (`.bundled/.checked` holds the versionCode), one notification lists unedited copies with updates, with `z2-macro update` behind its Copy button (`Z2ApiBridge.notifyWithCopy`, the same shape as `z2-notify -c`). ⚠ Nothing is updated automatically (a running macro or a `z2-when` rule would change under the user, and some samples need `setup` again).
+  - **`update [name|all]`** replaces only the "update" ones. Edited, differs and held are untouched even with `-f` (to replace one anyway, `install -f` it by name). It never installs a sample you do not have.
+  - **Exclusion**: `hold <name>` / `unhold <name>`, kept in `~/.z2term/macros/.hold` (one name per line, `voice` or `voice.sh`, `#` starts a note). Held ones are left out of the notice and of `update`, and `list` shows "held".
 - `Z2MacroScriptTest` pins all three states, the `install` wording, which side `diff` puts you on, and the
   exit code of `--help`, by running the real `sh`.
 

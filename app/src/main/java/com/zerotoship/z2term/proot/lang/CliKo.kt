@@ -355,6 +355,19 @@ internal object CliKo : CliLanguage {
             "macro.stNew" to "새것",
             "macro.stSame" to "같음",
             "macro.stDiff" to "다름",
+            "macro.stUpdate" to "새 버전",
+            "macro.stEdited" to "고침",
+            "macro.stHeld" to "고정",
+            "macro.msgUpdated" to "업데이트했습니다:",
+            "macro.msgNothingToUpdate" to "업데이트할 것이 없습니다.",
+            "macro.msgEditedSkip" to "직접 고친 것이라 그대로 두었습니다:",
+            "macro.msgUnknownSkip" to "직접 고쳤는지 알 수 없어서 (1.0.198 전에 설치) 그대로 두었습니다:",
+            "macro.msgHeldSkip" to "고정되어 있어 그대로 두었습니다 (풀려면 z2-macro unhold %s):",
+            "macro.msgHeld" to "고정했습니다 (업데이트도 알림도 안 함):",
+            "macro.msgUnheld" to "고정을 풀었습니다:",
+            "macro.msgNotHeld" to "고정되어 있지 않습니다:",
+            "macro.noticeTitle" to "내장 매크로에 업데이트가 있습니다",
+            "macro.noticeBody" to "%s. 모두 직접 고치지 않은 사본입니다. 명령을 복사해 터미널 탭에서 실행하면 업데이트됩니다 (그대로 둘 것은 z2-macro hold <이름>).",
             "macro.msgInstalled" to "설치했습니다:",
             "macro.msgSame" to "이미 같은 것이 설치되어 있습니다:",
             "macro.msgOutdated" to "내 것이 함께 실은 것과 다릅니다:",
@@ -880,6 +893,11 @@ after_label() {
             "# 예:",
             "#example.org",
         ),
+            "macro.usageUpdate" to listOf(
+                "  update [이름|all]   직접 고치지 않은 사본을 새 내장판으로 바꿉니다",
+                "  hold <이름>         그대로 둡니다 (업데이트도 알림도 안 함)",
+                "  unhold <이름>       그대로 두기를 그만둡니다 (목록: ~/.z2term/macros/.hold)",
+            ),
             "macro.usage" to listOf(
             "사용법: z2-macro <하위 명령>",
             "  list               함께 실은 예제를 나열합니다 (new / same / differs로 표시)",
@@ -909,7 +927,7 @@ after_label() {
 
     override val values: Map<String, Any> by lazy {
         mapOf(
-            "macro.stCols" to 6,
+            "macro.stCols2" to 7,
         )
     }
 }

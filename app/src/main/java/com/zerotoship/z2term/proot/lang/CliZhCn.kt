@@ -352,6 +352,19 @@ internal object CliZhCn : CliLanguage {
             "macro.stNew" to "未安装",
             "macro.stSame" to "相同",
             "macro.stDiff" to "有差异",
+            "macro.stUpdate" to "有更新",
+            "macro.stEdited" to "已改过",
+            "macro.stHeld" to "固定",
+            "macro.msgUpdated" to "已更新:",
+            "macro.msgNothingToUpdate" to "没有需要更新的。",
+            "macro.msgEditedSkip" to "这是你改过的, 所以保持原样:",
+            "macro.msgUnknownSkip" to "无法判断你是否改过 (在 1.0.198 之前安装), 所以保持原样:",
+            "macro.msgHeldSkip" to "已固定, 所以保持原样 (解除: z2-macro unhold %s):",
+            "macro.msgHeld" to "已固定 (不更新, 也不提醒):",
+            "macro.msgUnheld" to "已解除固定:",
+            "macro.msgNotHeld" to "没有固定:",
+            "macro.noticeTitle" to "内置宏有更新",
+            "macro.noticeBody" to "%s。这些都是你没有改过的副本。复制命令并在终端标签页中运行即可更新 (想保留的用 z2-macro hold <名称>)。",
             "macro.msgInstalled" to "已安装:",
             "macro.msgSame" to "同样的内容已经装过了:",
             "macro.msgOutdated" to "和随附版的内容不一样:",
@@ -834,6 +847,11 @@ after_label() {
                 "# 写 URL 的一部分或标题的一部分都行。命中的文章会各自单独发一条通知。",
                 "# 例:", "#example.org",
             ),
+            "macro.usageUpdate" to listOf(
+                "  update [名称|all]   把没有改过的副本换成更新的内置版",
+                "  hold <名称>         保持原样 (不更新, 也不提醒)",
+                "  unhold <名称>       不再保持原样 (列表: ~/.z2term/macros/.hold)",
+            ),
             "macro.usage" to listOf(
                 "usage: z2-macro <子命令>",
                 "  list                列出随附的示例 (带 未安装 / 相同 / 有差异 标记)",
@@ -863,7 +881,7 @@ after_label() {
 
     override val values: Map<String, Any> by lazy {
         mapOf(
-            "macro.stCols" to 7,
+            "macro.stCols2" to 6,
         )
     }
 }

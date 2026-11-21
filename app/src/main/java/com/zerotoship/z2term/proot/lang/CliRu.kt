@@ -358,6 +358,19 @@ internal object CliRu : CliLanguage {
             "macro.stNew" to "новый",
             "macro.stSame" to "такой же",
             "macro.stDiff" to "другой",
+            "macro.stUpdate" to "новее",
+            "macro.stEdited" to "изменён",
+            "macro.stHeld" to "закреплён",
+            "macro.msgUpdated" to "обновлено:",
+            "macro.msgNothingToUpdate" to "обновлять нечего.",
+            "macro.msgEditedSkip" to "вы изменили этот файл, он оставлен как есть:",
+            "macro.msgUnknownSkip" to "нельзя понять, меняли ли вы этот файл (установлен до 1.0.198), он оставлен как есть:",
+            "macro.msgHeldSkip" to "закреплён, оставлен как есть (снять: z2-macro unhold %s):",
+            "macro.msgHeld" to "закреплён (не обновляется и не напоминает):",
+            "macro.msgUnheld" to "больше не закреплён:",
+            "macro.msgNotHeld" to "не был закреплён:",
+            "macro.noticeTitle" to "Для встроенных макросов есть обновления",
+            "macro.noticeBody" to "%s. Это копии, которые вы не меняли. Скопируйте команду и выполните её во вкладке терминала, чтобы обновить их (оставить как есть: z2-macro hold <имя>).",
             "macro.msgInstalled" to "установлено:",
             "macro.msgSame" to "такой же уже установлен:",
             "macro.msgOutdated" to "ваш отличается от встроенного:",
@@ -846,6 +859,11 @@ after_label() {
                 "# Подойдёт часть URL или часть заголовка. Каждое совпадение получает своё уведомление.",
                 "# например", "#example.org",
             ),
+            "macro.usageUpdate" to listOf(
+                "  update [имя|all]    заменить неизменённые копии более новой встроенной версией",
+                "  hold <имя>          оставить как есть (не обновлять и не напоминать)",
+                "  unhold <имя>        больше не удерживать (список: ~/.z2term/macros/.hold)",
+            ),
             "macro.usage" to listOf(
                 "использование: z2-macro <подкоманда>",
                 "  list                список встроенных примеров (с пометками новый / такой же / другой)",
@@ -875,7 +893,7 @@ after_label() {
 
     override val values: Map<String, Any> by lazy {
         mapOf(
-            "macro.stCols" to 9,
+            "macro.stCols2" to 18,
         )
     }
 }

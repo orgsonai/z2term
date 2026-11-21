@@ -358,6 +358,19 @@ internal object CliTr : CliLanguage {
             "macro.stNew" to "yeni",
             "macro.stSame" to "aynı",
             "macro.stDiff" to "farklı",
+            "macro.stUpdate" to "yeni sürüm",
+            "macro.stEdited" to "düzenlendi",
+            "macro.stHeld" to "sabit",
+            "macro.msgUpdated" to "güncellendi:",
+            "macro.msgNothingToUpdate" to "güncellenecek bir şey yok.",
+            "macro.msgEditedSkip" to "bunu sen düzenledin, olduğu gibi bırakıldı:",
+            "macro.msgUnknownSkip" to "bunu düzenleyip düzenlemediğin anlaşılamıyor (1.0.198 öncesi kuruldu), olduğu gibi bırakıldı:",
+            "macro.msgHeldSkip" to "sabitlenmiş, olduğu gibi bırakıldı (kaldırmak için: z2-macro unhold %s):",
+            "macro.msgHeld" to "sabitlendi (güncellenmez, bildirilmez):",
+            "macro.msgUnheld" to "artık sabit değil:",
+            "macro.msgNotHeld" to "sabit değildi:",
+            "macro.noticeTitle" to "Yerleşik makrolarda güncelleme var",
+            "macro.noticeBody" to "%s. Bunlar düzenlemediğin kopyalar. Komutu kopyalayıp bir terminal sekmesinde çalıştırarak güncelle (birini olduğu gibi bırakmak için: z2-macro hold <ad>).",
             "macro.msgInstalled" to "kuruldu:",
             "macro.msgSame" to "aynısı zaten kurulu:",
             "macro.msgOutdated" to "sizinki paketlenmiş olandan farklı:",
@@ -846,6 +859,11 @@ after_label() {
                 "# URL’nin veya başlığın bir parçası yeterli. Her eşleşme kendi bildirimini alır.",
                 "# örn.", "#example.org",
             ),
+            "macro.usageUpdate" to listOf(
+                "  update [ad|all]     düzenlemediğin kopyaları daha yeni yerleşik sürümle değiştir",
+                "  hold <ad>           olduğu gibi bırak (güncelleme ya da bildirim yok)",
+                "  unhold <ad>         olduğu gibi bırakmayı bırak (liste: ~/.z2term/macros/.hold)",
+            ),
             "macro.usage" to listOf(
                 "kullanım: z2-macro <alt komut>",
                 "  list                paketlenmiş örnekleri listeler (yeni / aynı / farklı olarak işaretli)",
@@ -875,7 +893,7 @@ after_label() {
 
     override val values: Map<String, Any> by lazy {
         mapOf(
-            "macro.stCols" to 7,
+            "macro.stCols2" to 12,
         )
     }
 }
