@@ -199,6 +199,20 @@
     if (el.classList.contains('z2p-trail') || el.closest('svg.z2p-trail')) return null;
     return el;
   }
+  /* 何が起きているか追えるように、指の印をそこまで動かしてから押す（ゆっくり見せる） */
+  var PACE = { move: 420, press: 260, gap: 650, typeChar: 130, launch: 900 };
+  async function fingerTo(p, r) {
+    var ms = r.human ? PACE.move * (1 + (Math.random() - 0.5) * 0.3) : PACE.move;
+    Z.phone.finger(p, ms);
+    await wait(ms + 40, r);
+  }
+  async function press(p, r, kind) {
+    await fingerTo(p, r);
+    Z.phone.fingerDown(true);
+    await wait(PACE.press, r);
+    tapAt(p, kind);
+    Z.phone.fingerDown(false);
+  }
   function tapAt(p, kind) {
     Z.phone.trail([p], kind);
     var el = hitAt(p);
@@ -215,6 +229,7 @@
     while (el && el !== document.body) {
       var cs = getComputedStyle(el);
       if (/(auto|scroll)/.test(cs.overflowY) && el.scrollHeight > el.clientHeight) return el;
+      if (/(auto|scroll)/.test(cs.overflowX) && el.scrollWidth > el.clientWidth) return el;
       el = el.parentElement;
     }
     return null;
@@ -262,6 +277,7 @@
       var p = [points[k][0] + (points[k + 1][0] - points[k][0]) * lf, points[k][1] + (points[k + 1][1] - points[k][1]) * lf];
       if (r.human && points.length === 2) { var bow = Math.sin(f * Math.PI) * r.human * 1.2; p[0] += bow; }
       path.push(p);
+      Z.phone.finger(p, 0);
       if (onStep) onStep(p, i / n);
       await wait(ms / n, r);
     }
@@ -270,8 +286,12 @@
   }
 
   async function swipe(a, b, ms, r) {
+    ms = Math.max(ms, 600);
+    await fingerTo(a, r);
+    Z.phone.fingerDown(true);
+    await wait(PACE.press, r);
     var el = hitAt(a);
-    if (!el) return;
+    if (!el) { Z.phone.fingerDown(false); return; }
     if (el.closest('.z2p-status') && b[1] > a[1]) { await animate([a, b], ms, r); Z.phone.shade(true); return; }
     if (Z.phone.shadeOpen() && b[1] < a[1]) { await animate([a, b], ms, r); Z.phone.shade(false); return; }
     var sc = scrollerAt(el);
@@ -282,6 +302,7 @@
       pev('pointermove', el, p);
     });
     pev('pointerup', el, b);
+    Z.phone.fingerDown(false);
   }
 
   function activeInput() {
@@ -299,7 +320,7 @@
       r.stepNo++;
       bar(r, s);
       await step(s, r);
-      if (s.op !== 'wait' && s.op !== 'repeat' && s.op !== 'if') await wait(r.human ? 160 + Math.random() * r.human * 20 : 140, r);
+      if (s.op !== 'wait' && s.op !== 'repeat' && s.op !== 'if') await wait(r.human ? PACE.gap + Math.random() * r.human * 40 : PACE.gap, r);
     }
   }
 
@@ -317,23 +338,27 @@
         if (!a) throw Stop(T('act.nopkg', s.pkg));
         Z.phone.open(a.id);
         r.target = s.pkg;
-        await wait(350, r);
+        await wait(PACE.launch, r);
         return;
       case 'target':
         if (s.pkg !== 'current' && !Z.appByPkg(s.pkg)) throw Stop(T('act.nopkg', s.pkg));
         r.target = s.pkg; return;
       case 'wait': await wait(s.ms, r); return;
-      case 'tap': checkTarget(r); tapAt(toPoint(s.unit, s.x, s.y, r.human)); return;
-      case 'dtap': checkTarget(r); p = toPoint(s.unit, s.x, s.y, r.human); tapAt(p); await wait(90, r); tapAt(p); return;
+      case 'tap': checkTarget(r); await press(toPoint(s.unit, s.x, s.y, r.human), r); return;
+      case 'dtap': checkTarget(r); p = toPoint(s.unit, s.x, s.y, r.human); await press(p, r); await wait(120, r); Z.phone.fingerDown(true); await wait(90, r); tapAt(p); Z.phone.fingerDown(false); return;
       case 'long':
         checkTarget(r);
         p = toPoint(s.unit, s.x, s.y, r.human);
         el = hitAt(p);
+        await fingerTo(p, r);
+        el = hitAt(p);
         Z.phone.trail([p], 'long');
-        if (!el) return;
+        Z.phone.fingerDown(true);
+        if (!el) { await wait(s.ms, r); Z.phone.fingerDown(false); return; }
         pev('pointerdown', el, p);
         await wait(s.ms, r);
         pev('pointerup', el, p);
+        Z.phone.fingerDown(false);
         return;
       case 'tapui': case 'click':
         checkTarget(r);
@@ -344,8 +369,9 @@
         if (s.op === 'tapui') {
           p = center(el);
           if (r.human) { p[0] += (Math.random() - 0.5) * r.human * 1.4; p[1] += (Math.random() - 0.5) * r.human * 1.4; }
-          tapAt(p);
+          await press(p, r);
         } else {
+          await fingerTo(center(el), r);
           Z.phone.trail([center(el)], 'tap');
           if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.focus(); else el.click();
         }
@@ -361,7 +387,11 @@
         return;
       case 'drag':
         checkTarget(r);
-        await animate(s.pts.map(function (q) { return toPoint('percent', q[0], q[1], r.human); }), s.ms * (s.pts.length - 1), r);
+        var dp = s.pts.map(function (q) { return toPoint('percent', q[0], q[1], r.human); });
+        await fingerTo(dp[0], r);
+        Z.phone.fingerDown(true);
+        await animate(dp, Math.max(s.ms, 250) * (dp.length - 1), r);
+        Z.phone.fingerDown(false);
         return;
       case 'type':
         var inp = activeInput();
@@ -373,10 +403,11 @@
         for (var k = 0; k < s.text.length; k++) {
           inp.value += s.text[k];
           inp.dispatchEvent(new Event('input', { bubbles: true }));
-          await wait(r.human ? 45 + Math.random() * r.human * 8 : 35, r);
+          await wait(r.human ? PACE.typeChar + Math.random() * r.human * 12 : PACE.typeChar, r);
         }
         return;
       case 'enter':
+        await wait(300, r);
         var inp2 = activeInput();
         if (inp2) {
           var kd = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
@@ -457,6 +488,7 @@
     }).then(function (res) {
       run = null;
       Z.phone.stopBar(null);
+      Z.phone.fingerHide();
       res.name = name;
       Z.bus.emit('action-done', res);
       return res;

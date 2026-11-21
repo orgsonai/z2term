@@ -55,7 +55,7 @@
       if (ev.name === 'torch_on' && gs.flags.tileRun) done(7);
     });
     Z.bus.on('tile-run', function () { gs.flags.tileRun = true; setTimeout(function () { gs.flags.tileRun = false; }, 3000); });
-    Z.bus.on('dial', function () { done(8); });
+    Z.bus.on('edge-run', function () { done(8); });
   }
 
   /* ---------------- フォルダ（アプリ） ---------------- */

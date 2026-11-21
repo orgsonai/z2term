@@ -18,9 +18,53 @@
   Z.appById = function (id) { return appById[id]; };
   Z.appByPkg = function (pkg) { return Z.APPS.filter(function (a) { return a.pkg === pkg; })[0]; };
 
+  Z.reduceMotion = function () { return !!(G.matchMedia && G.matchMedia('(prefers-reduced-motion: reduce)').matches); };
+
+  /* アプリのアイコン。z2term は本物（app/src/main/res/drawable/ic_launcher_foreground.xml）と同じ形:
+     黒地に緑の「>」と「_」。適応アイコンの安全域（108 のうち中央 72）を丸く切り抜いて描く。 */
+  Z.iconEl = function (id, small) {
+    var a = appById[id];
+    var el = h('span.z2p-icon' + (small ? '.sm' : ''), { 'data-app': id, 'aria-hidden': 'true' });
+    if (id === 'z2term') {
+      var ns = 'http://www.w3.org/2000/svg';
+      var svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('viewBox', '18 18 72 72');
+      var g = document.createElementNS(ns, 'g');
+      g.setAttribute('transform', 'translate(5.4 5.4) scale(0.9)');
+      g.setAttribute('fill', '#22c55e');
+      ['M30,36 L40,36 L60,54 L40,72 L30,72 L50,54 Z', 'M65,68 L80,68 L80,72 L65,72 Z'].forEach(function (d) {
+        var path = document.createElementNS(ns, 'path');
+        path.setAttribute('d', d);
+        g.appendChild(path);
+      });
+      svg.appendChild(g);
+      el.appendChild(svg);
+    } else if (a) el.textContent = a.icon;
+    return el;
+  };
+
+  /* 動きの共通部品（Android の標準に近い減速の曲線） */
+  var EASE = 'cubic-bezier(0.2, 0, 0, 1)';
+  var running = [];
+  function anim(el, frames, ms, done) {
+    if (Z.reduceMotion() || !el.animate) { if (done) done(); return; }
+    var a = el.animate(frames, { duration: ms, easing: EASE });
+    running.push(a);
+    a.onfinish = a.oncancel = function () {
+      running = running.filter(function (x) { return x !== a; });
+      if (done) done();
+    };
+  }
+  function finishAll() { running.slice().forEach(function (a) { try { a.finish(); } catch (e) { /* 無視 */ } }); }
+  function originIn(el, rect) {
+    var r = el.getBoundingClientRect();
+    if (!rect) return '50% 50%';
+    return (rect.left + rect.width / 2 - r.left) + 'px ' + (rect.top + rect.height / 2 - r.top) + 'px';
+  }
+
   var DEF = {
     airplane: false, wifi: true, torch: false, ringer: 'normal', volume: 7,
-    notifs: [], nid: 1, tiles: {}, widget: null, homeOrder: null,
+    notifs: [], nid: 1, tiles: {}, widget: null, homeOrder: null, dockOrder: null, edge: { on: false, panels: {} },
     clip: { cur: '', hist: [] }, dev: false, trail: true, alarms: [], recents: [],
     lowWarned: false, buildTaps: 0
   };
@@ -150,11 +194,13 @@
       els.apps.appendChild(a.el);
       a.build(a.el);
     });
+    if (Z.edge) Z.edge.build(els.screen);
     battery();
     render();
     tick();
     if (tickTimer) clearInterval(tickTimer);
     tickTimer = setInterval(tick, 1000);
+    els.screen.addEventListener('pointerdown', ripple);
     ['pointerdown', 'keydown', 'wheel'].forEach(function (ev) { root.addEventListener(ev, function () { if (P.state.dim) wake(); lastInput = Date.now(); }, true); });
     var start = 'home';
     if (st.recents.length && appById[st.recents[0]]) start = st.recents[0];
@@ -236,14 +282,14 @@
     var a = appById[id];
     if (!a) return false;
     P.shade(false);
-    els.recents.hidden = true;
-    if (current && current !== id) {
-      var prev = appById[current];
-      if (prev) { prev.el.hidden = true; if (prev.hide) prev.hide(); }
-    }
+    if (!(arg && arg.keepRecents)) els.recents.hidden = true;
+    finishAll();
+    var prev = current && current !== id ? appById[current] : null;
+    if (prev && prev.hide) prev.hide();
     var was = current;
     current = id;
     a.el.hidden = false;
+    if (prev) transition(prev, a, quiet);
     els.screen.setAttribute('data-current', id);
     if (id !== 'home') {
       st.recents = [id].concat(st.recents.filter(function (x) { return x !== id; })).slice(0, 8);
@@ -254,10 +300,53 @@
     return true;
   };
   P.home = function () { P.open('home'); };
+
+  /* アプリの切り替えの動き:
+     ホーム → アプリ: 押したアイコンの位置から広がる
+     アプリ → ホーム: アプリが自分のアイコンへ縮み、ホームが少し奥から戻る
+     アプリ → アプリ: 新しい画面が右から重なって入る */
+  function transition(prev, next, quiet) {
+    var pe = prev.el, ne = next.el;
+    function hidePrev() { pe.hidden = true; pe.style.zIndex = ''; ne.style.zIndex = ''; }
+    if (quiet || Z.reduceMotion()) { hidePrev(); return; }
+    var homeApp = appById.home;
+    if (prev.id === 'home') {
+      var r = homeApp.iconRect && homeApp.iconRect(next.id);
+      ne.style.zIndex = 2;
+      ne.style.transformOrigin = originIn(ne, r);
+      anim(ne, [{ transform: 'scale(0.12)', opacity: 0, borderRadius: '40px' }, { transform: 'scale(1)', opacity: 1, borderRadius: '0px' }], 320, function () { ne.style.transformOrigin = ''; });
+      anim(pe, [{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(0.94)', opacity: 0.4 }], 320, hidePrev);
+    } else if (next.id === 'home') {
+      var r2 = homeApp.iconRect && homeApp.iconRect(prev.id);
+      pe.style.zIndex = 2;
+      pe.style.transformOrigin = originIn(pe, r2);
+      anim(ne, [{ transform: 'scale(0.94)', opacity: 0.4 }, { transform: 'scale(1)', opacity: 1 }], 300);
+      anim(pe, [{ transform: 'scale(1)', opacity: 1, borderRadius: '0px' }, { transform: 'scale(0.12)', opacity: 0, borderRadius: '40px' }], 300, function () { pe.style.transformOrigin = ''; hidePrev(); });
+    } else {
+      ne.style.zIndex = 2;
+      anim(ne, [{ transform: 'translateX(22%)', opacity: 0 }, { transform: 'translateX(0)', opacity: 1 }], 280);
+      anim(pe, [{ transform: 'translateX(0)', opacity: 1 }, { transform: 'translateX(-12%)', opacity: 0.5 }], 280, hidePrev);
+    }
+  }
+
+  /* 押したところに波紋（ボタン・タイル・カード） */
+  function ripple(e) {
+    if (Z.reduceMotion()) return;
+    var t = e.target.closest && e.target.closest('button, .z2p-rec-card, .z2p-status');
+    if (!t || !els.screen.contains(t) || t.disabled) return;
+    if (t.classList.contains('z2p-appicon')) t = t.querySelector('.z2p-icon') || t;
+    var r = t.getBoundingClientRect();
+    var size = Math.max(r.width, r.height) * 2.2;
+    t.classList.add('z2p-rip-host');
+    var sp = h('span.z2p-ripple', { style: { width: size + 'px', height: size + 'px', left: (e.clientX - r.left - size / 2) + 'px', top: (e.clientY - r.top - size / 2) + 'px' } });
+    t.appendChild(sp);
+    setTimeout(function () { sp.remove(); }, 600);
+  }
   P.back = function () {
     if (!els.modal.hidden && P._modalBack) { P._modalBack(); return; }
     if (els.shade.classList.contains('open')) { P.shade(false); return; }
-    if (!els.recents.hidden) { els.recents.hidden = true; return; }
+    if (Z.edge && Z.edge.isOpen()) { Z.edge.close(); return; }
+    if (!els.recents.hidden) { closeRecents(); return; }
     var a = appById[current];
     if (a && a.back && a.back()) return;
     if (current !== 'home') P.home();
@@ -271,48 +360,100 @@
   };
 
   /* ---------------- 最近 ---------------- */
+  /* 最近: アプリの画面を縮めたカードを横に並べる。上へ払う（または ✕）で閉じる。 */
   P.recents = function () {
-    if (!els.recents.hidden) { els.recents.hidden = true; return; }
+    if (!els.recents.hidden) { closeRecents(); return; }
     P.shade(false);
     var box = els.recents;
     box.textContent = '';
-    var list = st.recents.filter(function (id) { return appById[id]; });
-    var head = h('div.z2p-rec-head', null, h('span', { text: T('ph.recents') }),
-      h('button.z2p-link', { type: 'button', text: T('ph.clearall'), on: { click: function () {
-        list.slice().forEach(function (id) { closeApp(id); });
+    var wrap = h('div.z2p-rec-list');
+    var foot = h('div.z2p-rec-foot', null,
+      h('button.z2p-rec-clear', { type: 'button', text: T('ph.clearall'), on: { click: function () {
+        st.recents.filter(function (id) { return appById[id]; }).forEach(function (id) { closeApp(id); });
         renderRecents();
       } } }));
-    box.appendChild(head);
-    var wrap = h('div.z2p-rec-list');
     box.appendChild(wrap);
+    box.appendChild(foot);
+    box.addEventListener('click', function (e) { if (e.target === box || e.target === wrap) closeRecents(); });
     function renderRecents() {
       wrap.textContent = '';
       var l = st.recents.filter(function (id) { return appById[id]; });
+      foot.hidden = !l.length;
       if (!l.length) wrap.appendChild(h('p.z2p-empty', { text: T('ph.norecent') }));
-      l.forEach(function (id) {
-        var a = appById[id];
-        var card = h('div.z2p-rec-card', { role: 'button', tabindex: '0', 'aria-label': a.name() },
-          h('span.z2p-icon.sm', { 'data-app': id, text: a.icon }),
-          h('span.z2p-rec-name', { text: a.name() }),
-          id === 'z2term' && Z.zt && Z.zt.persistent ? h('span.z2p-rec-pin', { text: '🔒' }) : null,
-          h('button.z2p-rec-x', { type: 'button', 'aria-label': T('ph.closeapp', a.name()), text: '✕', on: { click: function (e) { e.stopPropagation(); closeApp(id); renderRecents(); } } }));
-        card.addEventListener('click', function () { P.open(id); });
-        swipeAway(card, function () { closeApp(id); renderRecents(); });
-        wrap.appendChild(card);
-      });
+      l.forEach(function (id) { wrap.appendChild(card(id, renderRecents)); });
     }
     renderRecents();
     box.hidden = false;
+    anim(box, [{ opacity: 0 }, { opacity: 1 }], 200);
+    Array.prototype.forEach.call(wrap.children, function (c, i) {
+      anim(c, [{ transform: 'translateY(40px) scale(0.92)', opacity: 0 }, { transform: 'none', opacity: 1 }], 300 + i * 40);
+    });
   };
-  function swipeAway(el, fn) {
-    var x0 = null, dx = 0;
-    el.addEventListener('pointerdown', function (e) { x0 = e.clientX; dx = 0; });
-    el.addEventListener('pointermove', function (e) { if (x0 == null) return; dx = e.clientX - x0; if (Math.abs(dx) > 8) el.style.transform = 'translateX(' + dx + 'px)'; });
+  function closeRecents() {
+    var box = els.recents;
+    anim(box, [{ opacity: 1 }, { opacity: 0 }], 160, function () { box.hidden = true; box.textContent = ''; });
+    if (Z.reduceMotion()) { box.hidden = true; box.textContent = ''; }
+  }
+  function card(id, redraw) {
+    var a = appById[id];
+    var prevBox = h('div.z2p-rec-prev');
+    var c = h('div.z2p-rec-card', { role: 'button', tabindex: '0', 'aria-label': a.name(), 'data-id': 'recent_' + id },
+      h('div.z2p-rec-head', null,
+        Z.iconEl(id, true),
+        h('span.z2p-rec-name', { text: a.name() }),
+        id === 'z2term' && Z.zt && Z.zt.persistent ? h('span.z2p-rec-pin', { text: '🔒', title: T('zt.lock') }) : null,
+        h('button.z2p-rec-x', { type: 'button', 'aria-label': T('ph.closeapp', a.name()), text: '✕', on: { click: function (e) { e.stopPropagation(); flingUp(c, function () { closeApp(id); redraw(); }); } } })),
+      prevBox);
+    /* 画面の写し（操作はできない縮小表示） */
+    var cl = a.el.cloneNode(true);
+    cl.removeAttribute('hidden');
+    cl.setAttribute('inert', '');
+    cl.setAttribute('aria-hidden', 'true');
+    cl.classList.add('z2p-rec-clone');
+    Array.prototype.forEach.call(cl.querySelectorAll('[id]'), function (x) { x.removeAttribute('id'); });
+    var sr = els.apps.getBoundingClientRect();
+    cl.style.width = sr.width + 'px';
+    cl.style.height = sr.height + 'px';
+    prevBox.appendChild(cl);
+    requestAnimationFrame(function () {
+      /* カードの幅に合わせて縮め、高さも画面と同じ比率にする */
+      var k = prevBox.clientWidth / sr.width;
+      cl.style.transform = 'scale(' + k + ')';
+      var maxH = els.recents.clientHeight * 0.74;
+      prevBox.style.height = Math.min(sr.height * k, maxH) + 'px';
+      var src = a.el.querySelectorAll('*'), dst = cl.querySelectorAll('*');
+      for (var i = 0; i < src.length && i < dst.length; i++) if (src[i].scrollTop) dst[i].scrollTop = src[i].scrollTop;
+    });
+    c.addEventListener('click', function () { els.recents.hidden = true; els.recents.textContent = ''; P.open(id); });
+    c.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); c.click(); } if (e.key === 'Delete') flingUp(c, function () { closeApp(id); redraw(); }); });
+    swipeUp(c, function () { closeApp(id); redraw(); });
+    return c;
+  }
+  function flingUp(el, fn) {
+    if (Z.reduceMotion()) { fn(); return; }
+    anim(el, [{ transform: el.style.transform || 'none', opacity: 1 }, { transform: 'translateY(-120%)', opacity: 0 }], 220, fn);
+    el.style.transform = 'translateY(-120%)';
+  }
+  /* カードを上へ払うと閉じる（横の動きはカードの並びのスクロールに任せる） */
+  function swipeUp(el, fn) {
+    var y0 = null, x0 = 0, dy = 0, on = false;
+    el.addEventListener('pointerdown', function (e) { y0 = e.clientY; x0 = e.clientX; dy = 0; on = false; });
+    el.addEventListener('pointermove', function (e) {
+      if (y0 == null) return;
+      dy = e.clientY - y0;
+      if (!on && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(e.clientX - x0)) { on = true; try { el.setPointerCapture(e.pointerId); } catch (er) { /* 無視 */ } }
+      if (on) { el.style.transform = 'translateY(' + Math.min(0, dy) + 'px)'; el.style.opacity = String(Math.max(0.2, 1 + Math.min(0, dy) / 300)); }
+    });
     function end() {
-      if (x0 == null) return;
-      x0 = null;
+      if (y0 == null) return;
+      y0 = null;
+      if (!on) return;
+      el.addEventListener('click', function stop(ev) { ev.stopPropagation(); }, { capture: true, once: true });
+      el.style.opacity = '';
+      if (dy < -90) { flingUp(el, fn); return; }
+      var back = Math.min(0, dy);
       el.style.transform = '';
-      if (Math.abs(dx) > 90) { dx = 0; fn(); }
+      anim(el, [{ transform: 'translateY(' + back + 'px)' }, { transform: 'translateY(0)' }], 200);
     }
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
@@ -327,7 +468,7 @@
     if (a && a.reset) a.reset();
     st.recents = st.recents.filter(function (x) { return x !== id; });
     save();
-    if (current === id) P.home();
+    if (current === id) P.open('home', { keepRecents: !els.recents.hidden }, !els.recents.hidden);
   }
 
   /* ---------------- 通知欄・クイック設定 ---------------- */
@@ -639,7 +780,7 @@
       g.appendChild(e);
     }
     svg.appendChild(g);
-    setTimeout(function () { g.classList.add('out'); setTimeout(function () { g.remove(); }, 600); }, 700);
+    setTimeout(function () { g.classList.add('out'); setTimeout(function () { g.remove(); }, 700); }, 1600);
   };
   P.stopBar = function (info) {
     var b = els.stop;
@@ -653,6 +794,19 @@
     b.hidden = false;
   };
 
+  /* マクロの指の印。次に押す場所までなめらかに動き、押している間は小さく沈む */
+  P.finger = function (p, ms) {
+    if (!els.screen) return;
+    if (!els.finger) { els.finger = h('div.z2p-finger', { 'aria-hidden': 'true' }); els.screen.appendChild(els.finger); }
+    var r = els.screen.getBoundingClientRect();
+    var f = els.finger;
+    var first = !f.classList.contains('on');
+    f.style.transitionDuration = (first || !ms ? 0 : ms) + 'ms';
+    f.style.transform = 'translate(' + (p[0] - r.left) + 'px, ' + (p[1] - r.top) + 'px)';
+    f.classList.add('on');
+  };
+  P.fingerDown = function (down) { if (els.finger) els.finger.classList.toggle('down', !!down); };
+  P.fingerHide = function () { if (els.finger) { els.finger.classList.remove('on', 'down'); } };
   P.isTrail = function () { return !!st.trail; };
   P.setTrail = function (v) { st.trail = !!v; save(); };
 })(typeof window !== 'undefined' ? window : globalThis);

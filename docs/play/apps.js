@@ -9,7 +9,10 @@
   /* ======================= ホーム ======================= */
   var home = { id: 'home', pkg: 'z2.mock.home', icon: '⌂', name: function () { return T('app.home'); } };
   var hm = {};
-  var DOCK = ['z2term', 'browser', 'dialer', 'camera', 'settings', 'guide'];
+  /* 1 ページ目のアイコンと、画面下に固定のドック（どのページでも出る） */
+  var GRID = ['z2term', 'camera', 'guide'];
+  var DOCKAPPS = ['dialer', 'browser', 'settings'];
+  var PAGES = 3;
 
   function weekStart() {
     try {
@@ -25,8 +28,25 @@
     hm.cal = h('div.z2p-w-cal', { role: 'grid', 'aria-label': T('home.cal') });
     hm.tail = h('div.z2p-w-tail', { hidden: true });
     hm.grid = h('div.z2p-grid', { role: 'list' });
+    hm.dock = h('div.z2p-dock', { role: 'list', 'aria-label': T('home.dock') });
     hm.jiggle = h('p.z2p-jiggle-note', { hidden: true });
-    el.appendChild(h('div.z2p-home', null, hm.clock, hm.cal, hm.tail, h('div.z2p-home-gap'), hm.jiggle, hm.grid));
+    hm.pages = h('div.z2p-pages', { 'aria-label': T('home.pages') });
+    hm.pages.appendChild(h('div.z2p-page', { 'aria-label': T('home.page', 1, PAGES) }, hm.clock, hm.cal, hm.tail, h('div.z2p-home-gap'), hm.grid));
+    for (var i = 2; i <= PAGES; i++) hm.pages.appendChild(h('div.z2p-page.empty', { 'aria-label': T('home.page', i, PAGES) }));
+    hm.dots = h('div.z2p-dots');
+    for (var j = 0; j < PAGES; j++) {
+      (function (k) {
+        hm.dots.appendChild(h('button.z2p-dot', { type: 'button', 'aria-label': T('home.page', k + 1, PAGES), on: { click: function () { goPage(k); } } }));
+      })(j);
+    }
+    el.appendChild(h('div.z2p-home', null, hm.pages, hm.jiggle, hm.dots, hm.dock));
+    hm.page = 0;
+    hm.pages.addEventListener('scroll', function () {
+      var w = hm.pages.clientWidth || 1;
+      var p = Math.round(hm.pages.scrollLeft / w);
+      if (p !== hm.page) { hm.page = p; renderDots(); }
+    }, { passive: true });
+    mouseSwipe(hm.pages);
     Z.bus.on('tick', function (d) {
       if (el.hidden) return;
       var t = Z.fmtTime(d);
@@ -35,14 +55,59 @@
     });
     Z.bus.on('widget', renderTail);
     renderIcons();
+    renderDots();
   };
-  home.show = function () {
+  home.show = function (arg, was) {
     var d = new Date();
     hm.time.textContent = Z.fmtTime(d);
     renderCal();
     renderTail();
     stopJiggle();
+    if (was === 'home') goPage(0);
   };
+  home.page = function () { return hm.page; };
+  home.iconRect = function (id) {
+    var b = hm.dock.querySelector('[data-id="icon_' + id + '"] .z2p-icon');
+    if (!b && hm.page === 0) b = hm.grid.querySelector('[data-id="icon_' + id + '"] .z2p-icon');
+    return b ? b.getBoundingClientRect() : null;
+  };
+
+  function renderDots() {
+    Array.prototype.forEach.call(hm.dots.children, function (d, i) { d.setAttribute('aria-current', i === hm.page ? 'true' : 'false'); });
+  }
+  function goPage(k) {
+    k = Math.max(0, Math.min(PAGES - 1, k));
+    hm.pages.scrollTo({ left: k * hm.pages.clientWidth, behavior: Z.reduceMotion() ? 'auto' : 'smooth' });
+  }
+  home.goPage = goPage;
+
+  /* PC のマウスでも横に払ってページを変えられるように（指はブラウザのスクロールに任せる） */
+  function mouseSwipe(el) {
+    var d = null;
+    el.addEventListener('pointerdown', function (e) {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      d = { x: e.clientX, left: el.scrollLeft, moved: false, id: e.pointerId };
+    });
+    el.addEventListener('pointermove', function (e) {
+      if (!d) return;
+      var dx = e.clientX - d.x;
+      if (!d.moved && Math.abs(dx) < 6) return;
+      if (!d.moved) { d.moved = true; el.classList.add('dragging'); try { el.setPointerCapture(d.id); } catch (er) { /* 無視 */ } }
+      el.scrollLeft = d.left - dx;
+    });
+    function end(e) {
+      if (!d) return;
+      var dd = d; d = null;
+      el.classList.remove('dragging');
+      if (!dd.moved) return;
+      var dx = e.clientX - dd.x, w = el.clientWidth;
+      var base = Math.round(dd.left / w);
+      goPage(Math.abs(dx) > w * 0.18 ? base + (dx < 0 ? 1 : -1) : base);
+      el.addEventListener('click', function stop(ev) { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true });
+    }
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
   home.back = function () { if (hm.jiggling) { stopJiggle(); return true; } return true; };
 
   function renderCal() {
@@ -91,54 +156,60 @@
     hm.tail.appendChild(h('pre', { text: lines }));
   }
 
-  function order() {
-    var o = (Z.phone.st.homeOrder || []).filter(function (id) { return DOCK.indexOf(id) >= 0; });
-    DOCK.forEach(function (id) { if (o.indexOf(id) < 0) o.push(id); });
+  function order(list, key) {
+    var o = (Z.phone.st[key] || []).filter(function (id) { return list.indexOf(id) >= 0; });
+    list.forEach(function (id) { if (o.indexOf(id) < 0) o.push(id); });
     return o;
+  }
+  function iconBtn(id, inDock) {
+    var a = Z.appById(id);
+    if (!a) return null;
+    var b = h('button.z2p-appicon', { type: 'button', role: 'listitem', 'data-id': 'icon_' + id, 'aria-label': a.name() },
+      Z.iconEl(id),
+      inDock ? null : h('span.z2p-appicon-l', { text: a.name() }));
+    b.addEventListener('click', function () {
+      if (hm.jiggling) { pick(id, inDock); return; }
+      Z.phone.open(id);
+    });
+    Z.longPress(b, function () { startJiggle(); });
+    return b;
   }
   function renderIcons() {
     hm.grid.textContent = '';
-    order().forEach(function (id) {
-      var a = Z.appById(id);
-      if (!a) return;
-      var b = h('button.z2p-appicon', { type: 'button', role: 'listitem', 'data-id': 'icon_' + id },
-        h('span.z2p-icon', { 'data-app': id, text: a.icon, 'aria-hidden': 'true' }),
-        h('span.z2p-appicon-l', { text: a.name() }));
-      b.addEventListener('click', function () {
-        if (hm.jiggling) { pick(id); return; }
-        Z.phone.open(id);
-      });
-      Z.longPress(b, function () { startJiggle(); });
-      hm.grid.appendChild(b);
-    });
+    hm.dock.textContent = '';
+    order(GRID, 'homeOrder').forEach(function (id) { var b = iconBtn(id, false); if (b) hm.grid.appendChild(b); });
+    order(DOCKAPPS, 'dockOrder').forEach(function (id) { var b = iconBtn(id, true); if (b) hm.dock.appendChild(b); });
   }
   function startJiggle() {
     hm.jiggling = true; hm.picked = null;
-    hm.grid.classList.add('jiggle');
+    hm.grid.classList.add('jiggle'); hm.dock.classList.add('jiggle');
     hm.jiggle.hidden = false;
     hm.jiggle.textContent = T('home.jiggle');
   }
   function stopJiggle() {
     if (!hm.jiggling) return;
     hm.jiggling = false; hm.picked = null;
-    hm.grid.classList.remove('jiggle');
+    hm.grid.classList.remove('jiggle'); hm.dock.classList.remove('jiggle');
     hm.jiggle.hidden = true;
     renderIcons();
   }
-  function pick(id) {
-    if (!hm.picked) {
-      hm.picked = id;
+  function pick(id, inDock) {
+    if (!hm.picked || hm.pickedDock !== inDock) {
+      renderIcons();
+      hm.grid.classList.add('jiggle'); hm.dock.classList.add('jiggle');
+      hm.picked = id; hm.pickedDock = inDock;
       hm.jiggle.textContent = T('home.jiggle2', Z.appById(id).name());
-      var b = hm.grid.querySelector('[data-id="icon_' + id + '"]');
+      var b = (inDock ? hm.dock : hm.grid).querySelector('[data-id="icon_' + id + '"]');
       if (b) b.classList.add('picked');
       return;
     }
-    var o = order();
+    var key = inDock ? 'dockOrder' : 'homeOrder';
+    var o = order(inDock ? DOCKAPPS : GRID, key);
     var a = o.indexOf(hm.picked), b2 = o.indexOf(id);
-    if (a >= 0 && b2 >= 0 && a !== b2) { o[a] = id; o[b2] = hm.picked; Z.phone.st.homeOrder = o; Z.phone.save(); }
+    if (a >= 0 && b2 >= 0 && a !== b2) { o[a] = id; o[b2] = hm.picked; Z.phone.st[key] = o; Z.phone.save(); }
     hm.picked = null;
     renderIcons();
-    hm.grid.classList.add('jiggle');
+    hm.grid.classList.add('jiggle'); hm.dock.classList.add('jiggle');
     hm.jiggle.textContent = T('home.jiggle');
   }
   Z.registerApp(home);

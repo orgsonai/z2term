@@ -32,7 +32,7 @@
     'ph.reply': 'Reply', 'ph.send': 'Send', 'ph.said': 'Last spoken text', 'ph.human': 'Human-like moves',
     'ph.stop': 'Stop',
 
-    'home.cal': 'Calendar', 'home.nofile': '(no such file)',
+    'home.cal': 'Calendar', 'home.dock': 'Favorite apps', 'home.pages': 'Home pages (swipe sideways)', 'home.page': 'Page {0} of {1}', 'home.nofile': '(no such file)',
     'home.jiggle': 'Rearrange: tap the icon to move, then the one to swap with (◁ to finish)',
     'home.jiggle2': 'Tap where "{0}" should go',
 
@@ -102,6 +102,14 @@
     'z2.usb': 'No USB device found (this phone has no port)',
     'z2.edge': 'Edge panels are not in this mock-up',
     'z2.needos': '{0}: this needs an OS (Linux). In the real z2term, install one from ⚙ › Linux environment',
+    'z2.nopkg': 'no such app: {0} (z2-app list)',
+    'edge.handle': 'Open the {0} edge panel (swipe inward)', 'edge.swipehint': 'Swipe the bar inward to open',
+    'edge.settings': 'Panel definition', 'edge.settingsnote': 'Change it with z2-edge set / panel / handle.',
+    'edge.noitems': 'No items. Add one with z2-edge set {0}:NAME …', 'edge.norun': 'This item has no run=',
+    'edge.perm': 'Draw over other apps: allowed (granted from the start on this phone)',
+    'edge.nohandle': 'No handle yet. Show one with z2-edge handle ID bar …',
+    'edge.isoff': 'Edge panels are OFF. Start them with z2-edge on', 'edge.thenon': 'Run z2-edge on to show it',
+    'edge.notype': 'type={0} is not in this mock-up (run / text / toggle / note)', 'edge.notab': 'Tabs are not in this mock-up',
     'z2.attach': 'attach is not in this mock-up. Use z2-session send / key / capture',
     'doc.version': 'version {0}', 'doc.os': 'OS (distro)', 'doc.osfix': 'Cannot be installed here. In the real app: ⚙ › Linux environment',
     'doc.store': 'storage (localStorage) {0} used', 'doc.storefix': 'Allow site data for this site in your browser',
@@ -197,8 +205,9 @@
     'g.7.do': 'Put a command on a quick-settings tile and tap it in the shade.',
     'g.7.cmd': 'z2-tile set 1 -l Torch "z2-torch on"\nz2-tile list',
     'g.7.ck': '✓ when the tile turns the flashlight on (turn it off with z2-torch off)',
-    'g.8.t': 'Bonus: make a call',
-    'g.8.do': 'Open "Phone" on the home screen, dial a number and call.',
-    'g.8.ck': '✓ when you call'
+    'g.8.t': 'Make an edge panel',
+    'g.8.do': 'Put a thin bar on the right edge; swiping it inward slides out a panel. Add three items: open an app, show a clock, toggle the light.\nSwipe the bar from right to left (with a mouse, drag it left) to open; tap outside the panel to close.',
+    'g.8.cmd': 'z2-edge handle apps bar --side right --offset 35% --length 14%\nz2-edge set apps:web \'run=z2-intent -p z2.mock.browser\' label=Browser\nz2-edge set apps:clock type=text \'run=date +%H:%M:%S\' label=Clock every=5\nz2-edge set apps:light type=toggle \'run=z2-torch toggle\' \'state=z2-torch status\' label=Light\nz2-edge on',
+    'g.8.ck': '✓ when you open the panel from the bar and tap an item'
   };
 })(typeof window !== 'undefined' ? window : globalThis);

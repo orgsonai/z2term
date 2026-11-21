@@ -36,7 +36,7 @@
     'ph.stop': '停止',
 
     /* ホーム */
-    'home.cal': 'カレンダー', 'home.nofile': '（ファイルがありません）',
+    'home.cal': 'カレンダー', 'home.dock': 'よく使うアプリ', 'home.pages': 'ホームのページ（横に払って切り替え）', 'home.page': 'ページ {0} / {1}', 'home.nofile': '（ファイルがありません）',
     'home.jiggle': '並べ替え: 動かすアイコンと、入れ替える先を順に押します（◁ で終わり）',
     'home.jiggle2': '「{0}」と入れ替える先を押してください',
 
@@ -112,6 +112,14 @@
     'z2.usb': 'USB 機器は見つかりませんでした（このスマホに差し込み口はありません）',
     'z2.edge': 'エッジパネルはこのモックにはありません',
     'z2.needos': '{0}: この機能には OS（Linux）が要ります。本物の z2term で ⚙ › Linux 環境 から入れてください',
+    'z2.nopkg': 'そのアプリはありません: {0}（z2-app list）',
+    'edge.handle': '{0} のエッジパネルを開く（内側へ払う）', 'edge.swipehint': 'バーを内側へ払うと開きます',
+    'edge.settings': 'パネルの定義', 'edge.settingsnote': '変えるときは z2-edge set / panel / handle で。',
+    'edge.noitems': '項目がありません。z2-edge set {0}:名前 … で足します', 'edge.norun': 'この項目には run= がありません',
+    'edge.perm': '重ねて表示: 許可済み（このスマホでは最初から許可されています）',
+    'edge.nohandle': '取っ手がありません。z2-edge handle ID bar … で出します',
+    'edge.isoff': 'エッジパネルが OFF です。z2-edge on で始めます', 'edge.thenon': '表示するには z2-edge on',
+    'edge.notype': 'type={0} はこのモックにはありません（run / text / toggle / note）', 'edge.notab': 'タブはこのモックにはありません',
     'z2.attach': 'attach はこのモックにはありません。z2-session send / key / capture を使ってください',
     'doc.version': '版数 {0}', 'doc.os': 'OS（ディストロ）', 'doc.osfix': 'このモックには入れられません。本物では ⚙ › Linux 環境',
     'doc.store': '保存（localStorage）{0} 使用', 'doc.storefix': 'ブラウザの設定でこのサイトの保存を許可してください',
@@ -211,8 +219,9 @@
     'g.7.do': 'クイック設定のタイルにコマンドを置いて、通知欄から押します。',
     'g.7.cmd': 'z2-tile set 1 -l 懐中電灯 "z2-torch on"\nz2-tile list',
     'g.7.ck': 'タイルからライトが点くと ✓（消すのは z2-torch off）',
-    'g.8.t': 'おまけ: 電話をかけてみる',
-    'g.8.do': 'ホームの「電話」で番号を押して発信します。',
-    'g.8.ck': '発信すると ✓'
+    'g.8.t': 'エッジパネルを作る',
+    'g.8.do': '画面の右端に細いバーを出し、内側へ払うと板が出るパネルを作ります。アプリを開く・時計を出す・ライトの ON/OFF の 3 つを置きます。\nバーを右から左へ払う（マウスならつかんで左へ動かす）と開き、板の外を押すと閉じます。',
+    'g.8.cmd': 'z2-edge handle apps bar --side right --offset 35% --length 14%\nz2-edge set apps:web \'run=z2-intent -p z2.mock.browser\' label=ブラウザ\nz2-edge set apps:clock type=text \'run=date +%H:%M:%S\' label=時計 every=5\nz2-edge set apps:light type=toggle \'run=z2-torch toggle\' \'state=z2-torch status\' label=ライト\nz2-edge on',
+    'g.8.ck': 'バーから板を開いて、項目を押すと ✓'
   };
 })(typeof window !== 'undefined' ? window : globalThis);

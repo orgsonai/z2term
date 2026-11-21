@@ -7,12 +7,12 @@
 (function () {
   'use strict';
 
-  var VER = '1';
+  var VER = '2';
   var PARTS = [
     'strings.ja.js', 'strings.en.js', 'help.js',
     'core.js', 'fs.js', 'shell.js', 'cmds.js', 'z2cmds.js',
     'phone.js', 'apps.js', 'browser.js', 'term.js', 'z2term.js',
-    'when.js', 'action.js', 'guide.js', 'main.js'
+    'when.js', 'edge.js', 'action.js', 'guide.js', 'main.js'
   ];
 
   var me = document.currentScript;

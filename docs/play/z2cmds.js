@@ -273,7 +273,24 @@
   def('z2-listen', function (c) { c.err(T('z2.nomic') + '\n'); return 1; });
   def('z2-update', function (c) { c.out(T('z2.update', Z.VERSION) + '\n'); });
   def('z2-icon', function (c) { c.err(T('z2.icon') + '\n'); return 1; });
-  def('z2-intent', function (c) { c.err(T('z2.intent') + '\n'); return 1; });
+  /* z2-intent: このスマホのアプリを開く -p と、URL を開く -a …VIEW -d だけ受ける */
+  def('z2-intent', function (c) {
+    var a = c.args, pkg = null, data = null, action = null;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] === '-p') pkg = a[++i];
+      else if (a[i] === '-n') pkg = (a[++i] || '').split('/')[0];
+      else if (a[i] === '-d') data = a[++i];
+      else if (a[i] === '-a') action = a[++i];
+      else if (a[i] === '-c' || a[i] === '-e' || a[i] === '--es') i++;
+    }
+    if (data && /^https?:/.test(data)) { Z.phone.open('browser', { url: data }); return 0; }
+    if (pkg) {
+      var app = Z.appByPkg(pkg);
+      if (!app) { c.err('z2-intent: ' + T('z2.nopkg', pkg) + '\n'); return 1; }
+      Z.phone.open(app.id); return 0;
+    }
+    c.err(T('z2.intent') + '\n'); return 1;
+  });
   def('z2-shot', function (c) { c.err(T('z2.shot') + '\n'); return 1; });
   def('z2-usb', function (c) { c.out(T('z2.usb') + '\n'); });
   def('z2-edge', function (c) { c.err(T('z2.edge') + '\n'); return 1; });

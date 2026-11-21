@@ -386,6 +386,8 @@
     e.tools = h('div.z2t-tools', { role: 'toolbar', 'aria-label': T('zt.toolbar') });
     e.bar = h('div.z2t-bar', null, e.host, e.tools);
     e.tabs = h('div.z2t-tabs', { role: 'tablist', 'aria-label': T('zt.tabs') });
+    e.tabfix = h('div.z2t-tabfix');
+    e.tabbar = h('div.z2t-tabbar', null, e.tabs, e.tabfix);
     e.search = buildSearch();
     e.ghead = h('div.z2t-ghead', { hidden: true });
     e.work = h('div.z2t-work');
@@ -395,7 +397,7 @@
     e.sheet = h('div.z2t-sheet', { hidden: true });
     e.sink = h('textarea.z2t-sink', { 'aria-label': T('zt.input'), autocapitalize: 'off', autocomplete: 'off', autocorrect: 'off', spellcheck: false, rows: 1 });
     e.root.appendChild(e.bar);
-    e.root.appendChild(e.tabs);
+    e.root.appendChild(e.tabbar);
     e.root.appendChild(e.search);
     e.root.appendChild(e.ghead);
     e.root.appendChild(e.work);
@@ -406,6 +408,9 @@
     e.root.appendChild(e.sink);
     el.appendChild(e.root);
     bindSink();
+    /* 実行中の印（•）を、始まり・終わりのたびに付け直す */
+    Z.bus.on('command', function () { renderTabs(); });
+    Z.bus.on('command-done', function () { renderTabs(); });
     e.work.addEventListener('click', function () { focusSink(); });
 
     data = Z.store.get('term', null) || {};
@@ -569,8 +574,10 @@
       focusSink();
     });
     var gui = h('button.z2t-tab.icon', { type: 'button', 'aria-label': T('zt.gui'), text: '🖥', on: { click: function () { Z.phone.alert(T('zt.gui'), T('zt.guimsg')); } } });
-    box.appendChild(plus);
-    box.appendChild(gui);
+    /* ＋ と 🖥 はタブが増えても右端に固定（タブだけが横に流れる） */
+    e.tabfix.textContent = '';
+    e.tabfix.appendChild(plus);
+    e.tabfix.appendChild(gui);
     var selEl = box.querySelector('[aria-selected="true"]');
     if (selEl && selEl.scrollIntoView) selEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
