@@ -80,6 +80,9 @@
     <string name="action_edit_variable_value">Giá trị</string>
     <string name="action_edit_variable_number">Số cộng thêm (số âm là trừ)</string>
     <string name="action_edit_variable_hint">Chữ, số và _, tối đa 32. Biến bắt đầu trống mỗi lần chạy (biến chưa gán là 0) và dùng chung với macro được gọi. Điều kiện đọc bằng var TÊN&gt;3; bước shell đọc bằng $Z2_VAR_TÊN.</string>
+    <string name="action_edit_read_colors">Đọc màu vào biến</string>
+    <string name="action_edit_color_points">Các điểm (X,Y cách nhau bằng dấu cách)</string>
+    <string name="action_color_points_hint">Tối đa 32 điểm theo px, đọc từ một lần chụp. Biến nhận RRGGBB của từng điểm, cách nhau bằng dấu cách, theo thứ tự này; bước shell đọc nó qua $Z2_VAR_TÊN.</string>
     <string name="action_edit_pick_macro">Chọn macro đã lưu</string>
     <string name="action_edit_add_repeat">Thêm lặp lại</string>
     <string name="action_edit_add_branch">Thêm điều kiện</string>

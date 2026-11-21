@@ -39,6 +39,12 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
          * 今の値 (まだ無ければ 0) に足す。
          */
         data class Set(val name: String, val value: String, val add: Boolean = false) : Step
+        /**
+         * `read-colors 名前 X,Y ...` (1.0.200): 1 回の撮影で [points] の色を読み、`RRGGBB` を空白で区切って
+         * 変数 [name] に入れる。色の条件は 1 項ごとに 1 枚撮るので、盤面のように点が多いと 1 点 1 秒近くかかる。
+         * 読み方は色の条件と同じ (点のまわりの中央値)。[target] はその画面を読むアプリ。
+         */
+        data class ReadColors(val target: String, val name: String, val points: List<Pair<Int, Int>>) : Step
         /** `break` (1.0.188): leaves the innermost `repeat` at once. */
         data object Break : Step
         /**
@@ -122,6 +128,8 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
         /** 変数の名前・数・値の長さ (1.0.192)。 */
         val VARIABLE_NAME = Regex("[A-Za-z_][A-Za-z0-9_]{0,31}")
         const val MAX_VARIABLES = 32
+        /** `read-colors` で 1 回に読める点の数。値 (`RRGGBB` と空白) が [MAX_VARIABLE_CHARS] に収まる数。 */
+        const val MAX_READ_COLOR_POINTS = 32
         const val MAX_VARIABLE_CHARS = 256
         const val MAX_ARGS = 9
         const val MAX_ARG_CHARS = 256
@@ -371,6 +379,19 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                         }
                         steps += Step.Set(words[1], value, add = words[0] == "add")
                     }
+                    "read-colors" -> {
+                        require(headers["version"] == "2") { "read-colors requires version=2" }
+                        require(words.size >= 3 && words[1].matches(VARIABLE_NAME)) {
+                            "Use read-colors NAME X,Y ... (names: letters, digits, _; up to 32)"
+                        }
+                        val points = words.drop(2).map { point ->
+                            val match = Regex("([0-9]{1,5}),([0-9]{1,5})").matchEntire(point)
+                                ?: throw IllegalArgumentException("read-colors points are X,Y in px: $point")
+                            match.groupValues[1].toInt() to match.groupValues[2].toInt()
+                        }
+                        require(points.size <= MAX_READ_COLOR_POINTS) { "read-colors reads at most $MAX_READ_COLOR_POINTS points" }
+                        steps += Step.ReadColors(destination(), words[1], points)
+                    }
                     "watch" -> {
                         require(headers["version"] == "2") { "watch requires version=2" }
                         // 最後の 2 語が `call 名前`。条件はその前すべて。
@@ -542,6 +563,11 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             if (colors.isNotEmpty()) {
                 require(screen != null) { "Colour conditions require screen=current or saved geometry" }
                 require(colors.all { it.x < screen.width && it.y < screen.height }) { "Colour points are outside the saved screen" }
+            }
+            val reads = flat.filterIsInstance<Step.ReadColors>().flatMap { it.points }
+            if (reads.isNotEmpty()) {
+                require(screen != null) { "read-colors requires screen=current or saved geometry" }
+                require(reads.all { (x, y) -> x < screen.width && y < screen.height }) { "read-colors points are outside the saved screen" }
             }
             flat.filterIsInstance<Step.Stroke>().forEach { it.tracks(screen!!) }
             val human = when (val value = headers["human"]) {

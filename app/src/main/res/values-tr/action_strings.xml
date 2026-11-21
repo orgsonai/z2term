@@ -80,6 +80,9 @@
     <string name="action_edit_variable_value">Değer</string>
     <string name="action_edit_variable_number">Eklenecek sayı (negatif çıkarır)</string>
     <string name="action_edit_variable_hint">Harf, rakam ve _, en fazla 32. Değişkenler her çalıştırmada boş başlar (atanmamış olan 0 sayılır) ve çağrılan makrolarla paylaşılır. Koşullar bunları var AD&gt;3, kabuk adımları $Z2_VAR_AD olarak okur.</string>
+    <string name="action_edit_read_colors">Renkleri değişkene oku</string>
+    <string name="action_edit_color_points">Noktalar (boşlukla ayrılmış X,Y)</string>
+    <string name="action_color_points_hint">px cinsinden en çok 32 nokta, tek bir görüntüden okunur. Değişken her nokta için RRGGBB değerini bu sırayla, boşlukla ayrılmış olarak alır; kabuk adımları onu $Z2_VAR_AD olarak okur.</string>
     <string name="action_edit_pick_macro">Kayıtlı makro seç</string>
     <string name="action_edit_add_repeat">Tekrar ekle</string>
     <string name="action_edit_add_branch">Koşul ekle</string>

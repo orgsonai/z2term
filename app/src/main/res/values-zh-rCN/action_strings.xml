@@ -80,6 +80,9 @@
     <string name="action_edit_variable_value">值</string>
     <string name="action_edit_variable_number">要加的数（负数则减）</string>
     <string name="action_edit_variable_hint">字母、数字和 _，最多 32 个。变量每次运行都从空开始（未设置的视为 0），并与被调用的宏共享。条件中用 var 名称&gt;3 读取，shell 步骤中用 $Z2_VAR_名称 读取。</string>
+    <string name="action_edit_read_colors">把颜色读入变量</string>
+    <string name="action_edit_color_points">读取的点（X,Y 用空格分隔）</string>
+    <string name="action_color_points_hint">最多 32 个点(px), 从一次截屏读取。变量按此顺序存入每个点的 RRGGBB, 以空格分隔; shell 步骤用 $Z2_VAR_名称 读取。</string>
     <string name="action_edit_pick_macro">选择已保存的宏</string>
     <string name="action_edit_add_repeat">添加重复</string>
     <string name="action_edit_add_branch">添加条件分支</string>

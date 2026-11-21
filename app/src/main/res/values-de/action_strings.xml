@@ -80,6 +80,9 @@
     <string name="action_edit_variable_value">Wert</string>
     <string name="action_edit_variable_number">Zu addierende Zahl (negativ subtrahiert)</string>
     <string name="action_edit_variable_hint">Buchstaben, Ziffern und _, bis zu 32. Variablen beginnen bei jedem Lauf leer (eine nicht gesetzte zählt als 0) und werden mit aufgerufenen Makros geteilt. Bedingungen lesen sie als var NAME&gt;3, Shell-Schritte als $Z2_VAR_NAME.</string>
+    <string name="action_edit_read_colors">Farben in eine Variable lesen</string>
+    <string name="action_edit_color_points">Punkte (X,Y durch Leerzeichen getrennt)</string>
+    <string name="action_color_points_hint">Bis zu 32 Punkte in px, aus einer Aufnahme gelesen. Die Variable erhält je Punkt RRGGBB, durch Leerzeichen getrennt, in dieser Reihenfolge; Shell-Schritte lesen sie als $Z2_VAR_NAME.</string>
     <string name="action_edit_pick_macro">Gespeichertes Makro wählen</string>
     <string name="action_edit_add_repeat">Wiederholung hinzufügen</string>
     <string name="action_edit_add_branch">Bedingung hinzufügen</string>

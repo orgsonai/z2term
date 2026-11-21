@@ -94,6 +94,7 @@ internal object CliZhCn : CliLanguage {
             "action.tryHelp" to "try ... else ... end：其中的步骤失败时（找不到元素、wait-ui/wait-until 超时、shell 退出码不为 0、被调用的宏失败），跳过其余步骤并执行 else 的步骤；没有 else 时从 end 之后继续。停止、暂停、时间限制、指令数上限以及屏幕锁定或旋转不会被接住。version=2。",
             "action.argsHelp" to "call 名称 值 ... 可传递最多 9 个值（不含空格）。在被调用的宏中，shell 部分以外的 \$1～\$9 和 \$#（个数）会被替换；shell 步骤以其自身的 \$1 ... 收到这些值。每次调用都在开始前用其值检查。z2-action run 名称 值 ... 向第一个宏传值。",
             "action.varHelp" to "set 名称 值 / add 名称 数 设置或增加变量（字母、数字、_，最多 32 个）。变量每次运行都从空开始（未设置 = 0），并与被调用的宏共享。条件：var 名称=值、var 名称<数、var 名称>数。shell 步骤中为 \$Z2_VAR_名称。",
+            "action.readColorsHelp" to "read-colors 名称 X,Y ... 从一次截屏读取最多 32 个点(px, 需要 screen=)的颜色, 按书写顺序以空格分隔的 RRGGBB 存入变量 名称。颜色条件每一项截屏一次(每次约 1 秒), 点多时请用这个。shell 步骤用 \$Z2_VAR_名称 读取。",
             "action.controlHelp" to "version=2 支持 repeat 次数|forever ... end、if 条件 ... else ... end 和 call 名称。\n条件使用 z2-state 键或 foreground=包名；逗号表示AND，!表示否定。\n无法获取条件状态时运行失败。运行前验证并固定所有调用的宏。\n每个定义最多64条指令，每次运行最多执行10000条。父宏和子宏的超时均有效。",
             "action.pauseHelp" to "pause [运行ID] 暂停运行；进行中的步骤在继续时从头重新发送。下拉通知栏也会暂停。\nresume [运行ID] 在 z2term 以外的画面稳定在前台后继续（最多5秒，否则保持暂停）。有结果后才返回：继续则 state 为 running、退出码 0；仍暂停则为 paused、退出码非 0。暂停期间时间限制停止计时。",
             "action.uiHelp" to "version=2还支持click 选择器、long-click 选择器和wait-ui 毫秒 选择器。\n选择器示例：text=继续、desc=更多选项、id=org.example.app:id/next。精确匹配，空格不加引号。\n先设置target或launch。wait-ui每250毫秒查询，期限1–30000毫秒；多项匹配时失败。\n操作仅发送一次，下一画面使用wait-ui等待。输入框及密码框除外。\ninspect 包名以JSON返回前台目标应用的显示文本、说明和ID。",

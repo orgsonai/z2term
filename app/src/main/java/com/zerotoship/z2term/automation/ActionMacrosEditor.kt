@@ -581,7 +581,7 @@ internal class ActionMacrosEditor(
                 var updated = if (stepLine < 0) ActionBlockDocument(raw).insert(insertionGroup().start, source)
                     else ActionEditorDocument(raw).replace(stepLine, source)
                 val tapUi = sourceLine.split(Regex("\\s+")).getOrNull(1) == "ui" && verb == "tap"
-                if (tapUi || verb in listOf("call", "repeat", "if", "try", "set", "add", "click", "long-click", "wait-ui", "wait-until", "wait-while", "run-output", "type", "enter", "touch", "swipe-path", "swipe-two-path"))
+                if (tapUi || verb in listOf("call", "repeat", "if", "try", "set", "add", "read-colors", "click", "long-click", "wait-ui", "wait-until", "wait-while", "run-output", "type", "enter", "touch", "swipe-path", "swipe-two-path"))
                     updated = ActionEditorDocument(updated).withHeader("version", "2")
                 // 色の条件は画面の点を読むので、座標の手順と同じく画面の寸法が要る。
                 val colorCondition = runCatching {
@@ -593,7 +593,7 @@ internal class ActionMacrosEditor(
                     }
                     condition != null && ActionCondition.parse(condition).terms.any { it is ActionCondition.Term.Color }
                 }.getOrDefault(false)
-                if (colorCondition && ActionEditorDocument(updated).header("screen") == null)
+                if ((colorCondition || verb == "read-colors") && ActionEditorDocument(updated).header("screen") == null)
                     updated = ActionEditorDocument(updated).withHeader("screen", geometry.toString())
                 if (!tapUi && verb in listOf("tap", "long-press", "swipe", "scroll", "double-tap", "pinch-in", "pinch-out", "swipe-two", "touch", "swipe-path", "swipe-two-path", "drag") && ActionEditorDocument(updated).header("screen") == null)
                     updated = ActionEditorDocument(updated).withHeader("screen", geometry.toString())

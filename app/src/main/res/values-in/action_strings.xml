@@ -80,6 +80,9 @@
     <string name="action_edit_variable_value">Nilai</string>
     <string name="action_edit_variable_number">Angka yang ditambah (negatif mengurangi)</string>
     <string name="action_edit_variable_hint">Huruf, angka, dan _, hingga 32. Variabel mulai kosong di setiap jalankan (yang belum diisi bernilai 0) dan dibagi dengan makro yang dipanggil. Kondisi membacanya sebagai var NAMA&gt;3; langkah shell sebagai $Z2_VAR_NAMA.</string>
+    <string name="action_edit_read_colors">Baca warna ke variabel</string>
+    <string name="action_edit_color_points">Titik (X,Y dipisahkan spasi)</string>
+    <string name="action_color_points_hint">Hingga 32 titik dalam px, dibaca dari satu tangkapan. Variabel menerima RRGGBB untuk tiap titik, dipisahkan spasi, sesuai urutan ini; langkah shell membacanya sebagai $Z2_VAR_NAMA.</string>
     <string name="action_edit_pick_macro">Pilih makro tersimpan</string>
     <string name="action_edit_add_repeat">Tambah pengulangan</string>
     <string name="action_edit_add_branch">Tambah kondisi</string>

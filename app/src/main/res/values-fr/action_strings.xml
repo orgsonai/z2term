@@ -80,6 +80,9 @@
     <string name="action_edit_variable_value">Valeur</string>
     <string name="action_edit_variable_number">Nombre à ajouter (négatif pour soustraire)</string>
     <string name="action_edit_variable_hint">Lettres, chiffres et _, jusqu\'à 32. Les variables repartent à vide à chaque exécution (une variable non définie vaut 0) et sont partagées avec les macros appelées. Les conditions les lisent avec var NOM&gt;3, les étapes shell avec $Z2_VAR_NOM.</string>
+    <string name="action_edit_read_colors">Lire des couleurs dans une variable</string>
+    <string name="action_edit_color_points">Points (X,Y séparés par des espaces)</string>
+    <string name="action_color_points_hint">Jusqu’à 32 points en px, lus sur une seule capture. La variable reçoit RRGGBB pour chaque point, séparés par des espaces, dans cet ordre ; les étapes shell la lisent comme $Z2_VAR_NOM.</string>
     <string name="action_edit_pick_macro">Choisir une macro enregistrée</string>
     <string name="action_edit_add_repeat">Ajouter une répétition</string>
     <string name="action_edit_add_branch">Ajouter une condition</string>

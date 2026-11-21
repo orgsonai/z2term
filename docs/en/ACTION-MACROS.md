@@ -150,6 +150,7 @@ end
 - `if CONDITION ... else ... end` evaluates current state and runs only the selected branch. `else` is optional. Inside a loop the condition is evaluated each time. Empty blocks and explicitly empty else branches are rejected.
 - `call NAME` runs a saved macro and waits for it to return. Each invocation applies the child's own timeout alongside the remaining parent deadline. Failure, cancellation or timeout at any level ends the whole run (a failure can be caught with `try`, below).
 - `set NAME VALUE` / `add NAME NUMBER` (1.0.192) set or increase a variable. See "Count with variables" below.
+- `read-colors NAME X,Y ...` (1.0.200) reads the colours of many points from one capture into a variable. See "Read many screen colours at once" below.
 - `call NAME VALUE ...` (1.0.191) calls with values. See "Pass values to a call" below.
 - `try ... else ... end` (1.0.190): when a step inside fails, the rest is skipped, the `else` steps run, and the run continues after `end`. `else` is optional; without it the failure is dropped and the run continues after `end`. Without a failure the `else` steps do not run. See "A way out when something fails" below.
 
@@ -184,6 +185,22 @@ end
 - Condition terms `var NAME=VALUE` / `var NAME<NUMBER` / `var NAME>NUMBER` (`!` negates). `=` compares as numbers when both sides are numbers (`4` equals `4.0`), otherwise as exact, case-sensitive text. `<` and `>` fail when the variable is not a number. They work in `if`, `repeat until`, `wait-until` and `watch`.
 - Shell steps (`command`, `run-output`, `command` conditions) see them as environment variables `Z2_VAR_NAME`. `run-output` may print `set` / `add` to bring a program's result back into a variable.
 - `set` and `add` count as instructions.
+
+### Read many screen colours at once (1.0.200)
+
+When you need the colours of many points, such as a game board, read them from one capture with `read-colors` and decide in the shell.
+
+```text
+version=2
+screen=current
+read-colors row1 100,1516 277,1516 454,1516 631,1516 808,1516 985,1516
+run-output python3 ~/solve.py "$Z2_VAR_row1"     # prints the steps to run (drag …) from those colours
+```
+
+- `read-colors NAME X,Y ...` reads the colours of the points (px) from **one capture** and stores each point's `RRGGBB` (lower-case hex), in the order written and separated by spaces, in variable `NAME`. The example gives `ff744b 41a4ff …`.
+- Up to 32 points at a time (a 6×5 board fits in one). It needs `screen=`, and the points must be inside the saved screen. Points are read like colour conditions (the median around the point). It fails when the target app (`target` / `launch`, or the app in front) is not in front, or when a point is under the stop bar.
+- ⚠ A colour condition `color X,Y=…` takes **one capture per term**, close to a second each (Android's minimum capture interval). For many points, gather them into one `read-colors`.
+- It is a variable, so shell steps read it as `$Z2_VAR_NAME` (the limits on count and length are those in "Count with variables" above). A `var NAME=…` condition can also compare the whole value.
 
 ### Pass values to a call (1.0.191)
 

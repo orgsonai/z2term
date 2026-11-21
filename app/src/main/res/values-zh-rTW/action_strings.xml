@@ -80,6 +80,9 @@
     <string name="action_edit_variable_value">值</string>
     <string name="action_edit_variable_number">要加的數（負數則減）</string>
     <string name="action_edit_variable_hint">字母、數字和 _，最多 32 個。變數每次執行都從空開始（未設定的視為 0），並與被呼叫的巨集共享。條件中用 var 名稱&gt;3 讀取，shell 步驟中用 $Z2_VAR_名稱 讀取。</string>
+    <string name="action_edit_read_colors">把顏色讀入變數</string>
+    <string name="action_edit_color_points">讀取的點（X,Y 用空格分隔）</string>
+    <string name="action_color_points_hint">最多 32 個點(px), 從一次截圖讀取。變數依此順序存入每個點的 RRGGBB, 以空格分隔; shell 步驟用 $Z2_VAR_名稱 讀取。</string>
     <string name="action_edit_pick_macro">選擇已儲存的巨集</string>
     <string name="action_edit_add_repeat">新增重複</string>
     <string name="action_edit_add_branch">新增條件分支</string>

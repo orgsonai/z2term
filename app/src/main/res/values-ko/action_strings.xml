@@ -80,6 +80,9 @@
     <string name="action_edit_variable_value">값</string>
     <string name="action_edit_variable_number">더할 수(음수면 뺌)</string>
     <string name="action_edit_variable_hint">영숫자와 _로 32자까지. 변수는 실행할 때마다 비어 있는 상태로 시작하고(넣지 않은 변수는 0), 호출한 매크로와도 공유합니다. 조건에서는 var 이름&gt;3, 셸 단계에서는 $Z2_VAR_이름 으로 읽습니다.</string>
+    <string name="action_edit_read_colors">색을 변수로 읽기</string>
+    <string name="action_edit_color_points">읽을 점 (X,Y를 공백으로 구분)</string>
+    <string name="action_color_points_hint">px로 32개까지, 한 번의 캡처에서 읽습니다. 변수에는 점마다 RRGGBB가 이 순서대로 공백으로 구분되어 들어갑니다. 셸 단계에서는 $Z2_VAR_이름 으로 읽습니다.</string>
     <string name="action_edit_pick_macro">저장된 매크로 선택</string>
     <string name="action_edit_add_repeat">반복 추가</string>
     <string name="action_edit_add_branch">조건 분기 추가</string>

@@ -80,6 +80,9 @@
     <string name="action_edit_variable_value">Значение</string>
     <string name="action_edit_variable_number">Прибавляемое число (отрицательное вычитает)</string>
     <string name="action_edit_variable_hint">Буквы, цифры и _, до 32. Переменные в каждом запуске начинаются пустыми (незаданная равна 0) и общие с вызванными макросами. Условия читают их как var ИМЯ&gt;3, шаги оболочки — как $Z2_VAR_ИМЯ.</string>
+    <string name="action_edit_read_colors">Прочитать цвета в переменную</string>
+    <string name="action_edit_color_points">Точки (X,Y через пробел)</string>
+    <string name="action_color_points_hint">До 32 точек в px, читаются с одного снимка. Переменная получает RRGGBB каждой точки через пробел, в этом порядке; шаги оболочки читают её как $Z2_VAR_ИМЯ.</string>
     <string name="action_edit_pick_macro">Выбрать сохранённый макрос</string>
     <string name="action_edit_add_repeat">Добавить повтор</string>
     <string name="action_edit_add_branch">Добавить условие</string>

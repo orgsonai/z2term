@@ -190,6 +190,7 @@ internal object ActionRuntime {
                 is ActionDefinition.Step.Break -> "break"
                 is ActionDefinition.Step.Try -> "try"
                 is ActionDefinition.Step.Set -> if (step.add) "add" else "set"
+                is ActionDefinition.Step.ReadColors -> "read-colors"
                 is ActionDefinition.Step.Input -> if (step.text == null) "enter" else "type"
                 is ActionDefinition.Step.UiTap -> "tap-ui"
                 is ActionDefinition.Step.RunOutput -> "run-output"
@@ -284,6 +285,22 @@ internal object ActionRuntime {
     private fun shell(run: Run, text: String): String = run.engine.variables.entries.joinToString("") { (name, value) ->
         "export Z2_VAR_$name=" + com.zerotoship.z2term.service.HeadlessRun.shSingleQuote(value) + "; "
     } + text
+    /** `read-colors`: 全部の点を 1 枚の撮影から読む (1.0.200)。読み方は [color] と同じ。 */
+    @androidx.annotation.RequiresApi(30)
+    private fun readColors(step: ActionDefinition.Step.ReadColors, store: (String) -> Unit, done: (String?) -> Unit): () -> Unit {
+        val job = CoroutineScope(Dispatchers.Main.immediate).launch {
+            val error = try {
+                val sample = com.zerotoship.z2term.edge.AndroidUiLook.sample(
+                    com.zerotoship.z2term.edge.AndroidUiLook.Points(step.points, COLOR_RADIUS), gate = {}, stableMs = 0)
+                store(sample.rgb.joinToString(" ") { "%06x".format(it and 0xFFFFFF) })
+                null
+            } catch (e: CancellationException) { throw e } catch (e: Exception) {
+                e.message ?: "Cannot read the screen colour"
+            }
+            done(error)
+        }
+        return { job.cancel() }
+    }
     /** 1 点の色を 1 回読む。点は [COLOR_RADIUS] px 四方の中央値 (z2-ui colors と同じ読み方)。 */
     @androidx.annotation.RequiresApi(30)
     private fun color(term: ActionCondition.Term.Color, done: (Boolean?, String?) -> Unit): () -> Unit {
@@ -401,6 +418,21 @@ internal object ActionRuntime {
                     (LAUNCH_WAIT_MS / 1000).toInt()))
             }
             is ActionDefinition.Step.Key -> { AndroidActions.command(run.context, listOf(step.name)); done(null) }
+            is ActionDefinition.Step.ReadColors -> {
+                check(android.os.Build.VERSION.SDK_INT >= 30) { "read-colors requires Android 11 or later" }
+                val resolved = target(step.target)
+                run.target = resolved
+                checkDevice(run)
+                check(AndroidActions.targetMatches(resolved)) { "read-colors: $resolved is not in front" }
+                step.points.firstOrNull { (x, y) -> ActionRunOverlay.covers(x, y) }?.let { (x, y) ->
+                    error("The colour point $x,$y is under the stop bar; move the bar away from it")
+                }
+                val variables = run.engine.variables
+                check(step.name in variables || variables.size < ActionDefinition.MAX_VARIABLES) {
+                    "At most ${ActionDefinition.MAX_VARIABLES} variables"
+                }
+                return readColors(step, { variables[step.name] = it }, ::done)
+            }
             is ActionDefinition.Step.Command -> {
                 check(run.runner.run("macro:${run.id}", shell(run, step.text), run.definition.timeoutMs / 1000,
                     positional = run.engine.args) { done(it.error) }) { "Cannot start shell command" }
