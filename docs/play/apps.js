@@ -10,8 +10,8 @@
   var home = { id: 'home', pkg: 'z2.mock.home', icon: '⌂', name: function () { return T('app.home'); } };
   var hm = {};
   /* 1 ページ目のアイコンと、画面下に固定のドック（どのページでも出る） */
-  var GRID = ['z2term', 'camera', 'guide'];
-  var DOCKAPPS = ['dialer', 'browser', 'settings'];
+  var GRID = ['camera', 'guide'];
+  var DOCKAPPS = ['z2term', 'dialer', 'browser', 'settings'];   /* z2term はいちばん左 */
   var PAGES = 10;   /* 最後のページにだけ「hack」がいる（おまけ） */
 
   function weekStart() {
@@ -175,6 +175,8 @@
 
   function order(list, key) {
     var o = (Z.phone.st[key] || []).filter(function (id) { return list.indexOf(id) >= 0; });
+    /* 前の版で保存した並び（z2term がドックに無かった）でも、z2term は左端に入れる */
+    if (key === 'dockOrder' && o.length && o.indexOf('z2term') < 0) o.unshift('z2term');
     list.forEach(function (id) { if (o.indexOf(id) < 0) o.push(id); });
     return o;
   }
