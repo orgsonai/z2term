@@ -1,6 +1,7 @@
 /* z2term play — おまけ: hack と matrix。
    ホームの最後のページの「hack」を押すと、マクロが z2term を開いて `hack` と打って実行する。
-   hack は配布する gift/hack（bash）と同じ画面を canvas で描く: 上は文字の雨、下はそれらしいログ（ずっと流れる）
+   hack は配布する gift/hack（bash）の既定と同じ流れを canvas で描く:
+     文字の雨とログ → 10 秒でパスワード「z2term」が見つかる → 雨の中に 1 文字ずつ固定 → << H A C K E D !! >> → 終わる
    30 秒見る、または q / Ctrl+C で抜けると、おまけ（gift/hack と gift/matrix.sh）をダウンロードできる。
    どちらも見た目だけの演出で、何にも接続しない。 */
 (function (G) {
@@ -72,11 +73,15 @@
   };
 
   /* ---------------- hack（gift/hack と同じ: 上は文字の雨、下はそれらしいログ。ずっと流れる） ---------------- */
+  var PASSWORD = 'z2term', FIND_AFTER = 10;
   function Hack(scr) {
     this.s = scr;
     this.frame = 0;
     this.logs = [];
     this.t0 = Date.now() / 1000;
+    this.state = 'running';
+    this.revealed = [];
+    this.revealedCount = 0;
     this.layout();
     this.log(46, '[BOOT] matrix renderer online; differential output enabled');
     this.log(51, '[CLUSTER] discovery mesh initialized; dynamic nodes enabled');
@@ -89,7 +94,7 @@
     this.spacing = s.cols <= 100 ? 3 : 4;
     this.streams = [];
     for (var c = 1; c <= s.cols; c++) {
-      this.streams[c] = { y: 1 - rnd(this.topLast * 2), sp: rnd(3) + 1, len: rnd(8) + 8, on: c % this.spacing === 0 };
+      this.streams[c] = { y: 1 - rnd(this.topLast * 2), sp: rnd(3) + 1, len: rnd(8) + 8, on: c % this.spacing === 0, target: 0 };
     }
   };
   Hack.prototype.log = function (color, text) {
@@ -99,25 +104,58 @@
   };
   Hack.prototype.demoLog = function () {
     var node = ip(), a = ip(), tk = token(rnd(6) + 7), pr = rnd(10000), sp = rnd(31) + 10;
+    if (this.state !== 'running') {
+      var m = [[46, '[SUCCESS] node=' + node + ' candidate=' + tk + ' signature verified'], [46, '[SUCCESS] remote worker ' + node + ' returned matching digest'],
+        [118, '[SYNC] result quorum 3/3; committing recovered blocks'], [46, '[SUCCESS] ' + a + ':22 credential handshake accepted'],
+        [51, '[CLUSTER] node=' + node + ' rate=' + sp + 'w/s progress=' + pr + '/10000']][rnd(5)];
+      this.log(m[0], m[1]);
+      return;
+    }
     var n = [[196, '[FAILED] ' + a + ':22 user=root pass=' + tk], [196, '[FAILED] node=' + node + ' digest mismatch candidate=' + tk],
       [51, '[CLUSTER] dispatch range=' + pr + '-' + (pr + rnd(900) + 100) + ' node=' + node], [244, '[TRY] node=' + node + ' algo=yescrypt candidate=' + tk],
       [33, '[SCAN] ' + a + ' ports=22,80,443 latency=' + (rnd(70) + 4) + 'ms'], [196, '[FAILED] ' + a + ':8022 authentication rejected'],
       [51, '[QUEUE] worker=' + node + ' lease=' + rnd(32768) + ' queue=' + (rnd(90) + 10)], [244, '[TRY] rate=' + sp + 'w/s salt=' + token(6) + ' block=' + pr]][rnd(8)];
     this.log(n[0], n[1]);
   };
-  Hack.prototype.step = function () {
+  Hack.prototype.prepareReveal = function () {
     var s = this.s;
+    this.pw = PASSWORD.slice(0, s.cols - 6);
+    this.row = Math.floor(this.topLast / 2) + 1;
+    this.col0 = Math.floor((s.cols - this.pw.length) / 2) + 1;
+    for (var i = 1; i <= this.pw.length; i++) {
+      var c = this.col0 + i - 1, st = this.streams[c];
+      for (var y = st.y - st.len; y <= st.y; y++) s.set(y, c, 0, ' ');
+      st.target = i; st.on = true; st.y = 1 - rnd(Math.max(4, this.topLast * 2)); st.sp = rnd(3) + 1; st.len = rnd(8) + 8;
+      this.revealed[i] = false;
+    }
+    this.state = 'revealing';
+    this.log(118, '[DECRYPT] collision reveal armed across ' + this.pw.length + ' independent streams');
+  };
+  Hack.prototype.step = function () {
+    var s = this.s, now = Date.now() / 1000;
     this.frame++;
+    /* 移り変わり（gift/hack の既定と同じ時間） */
+    if (this.state === 'running' && now - this.t0 >= FIND_AFTER) { this.state = 'success'; this.at = now; this.log(46, '[MATCH] candidate digest accepted; distributed verification started'); }
+    else if (this.state === 'success' && now - this.at >= 4) this.prepareReveal();
+    else if (this.state === 'revealing' && this.revealedCount === this.pw.length) { this.state = 'hold'; this.at = now; this.log(46, '[DECRYPT] all blocks visible; holding before access transition'); }
+    else if (this.state === 'hold' && now - this.at >= 3) { this.state = 'hacked'; this.at = now; }
+    else if (this.state === 'hacked' && now - this.at >= 6) { this.finished = true; }
+    if (this.state === 'hacked') return;
     for (var c = 1; c <= s.cols; c++) {
       var st = this.streams[c];
       if (!st.on || this.frame % st.sp) continue;
-      var y = st.y + 1;
+      var oy = st.y, y = oy + 1;
       st.y = y;
       s.set(y - st.len, c, 0, ' ');
       s.set(y - 7, c, 22, ch());
       s.set(y - 3, c, 28, ch());
       s.set(y - 1, c, 40, ch());
       if (y <= this.topLast) s.set(y, c, 255, ch());
+      if (this.state === 'revealing' && st.target && !this.revealed[st.target] && oy < this.row && y >= this.row) {
+        this.revealed[st.target] = true;
+        this.revealedCount++;
+        this.log(46, '[SUCCESS] block ' + Z.pad(st.target) + '/' + this.pw.length + ' decrypted and locked');
+      }
       if (y - st.len > this.topLast) { st.y = 1 - rnd(this.topLast + 8); st.sp = rnd(3) + 1; st.len = rnd(8) + 8; }
     }
     if (this.frame % 3 === 0) this.demoLog();
@@ -126,14 +164,33 @@
     var s = this.s, ctx = s.ctx;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, s.w, s.h);
+    if (this.state === 'hacked') { this.drawHacked(); return; }
     s.paintGrid(this.topLast);
-    var label = ' MATRIX // DISTRIBUTED ANALYSIS ';
+    if (this.state === 'revealing' || this.state === 'hold') {
+      for (var i = 1; i <= this.pw.length; i++) if (this.revealed[i]) s.text(this.row, this.col0 + i - 1, 46, this.pw[i - 1], true);
+    }
+    var label = ' MATRIX // DISTRIBUTED CRYPTO ANALYSIS ';
     var left = Math.max(0, Math.floor((s.cols - label.length) / 2));
     var line = new Array(left + 1).join('-') + label;
     line += new Array(Math.max(0, s.cols - line.length) + 1).join('-');
     s.text(this.border, 1, 46, line.slice(0, s.cols), true);
     var show = this.logs.slice(-this.logRows);
     for (var k = 0; k < show.length; k++) s.text(this.border + 1 + k, 1, show[k][0], show[k][1].slice(0, s.cols - 1));
+  };
+  Hack.prototype.drawHacked = function () {
+    var s = this.s, age = Date.now() / 1000 - this.at;
+    var color = [255, 46, 40, 118][this.frame % 4];
+    var banner = '<< H A C K E D !! >>', pl = 'PASSWORD: ' + this.pw;
+    var row = Math.floor(s.rows / 2) - 1;
+    var wipe = this.frame % (s.rows + 1);
+    s.ctx.fillStyle = '#001a00';
+    s.ctx.fillRect(0, (wipe - 1) * s.ch, s.w, s.ch);
+    if (this.frame % 8 < 6) s.text(row, Math.max(1, Math.floor((s.cols - banner.length) / 2) + 1), color, banner, true);
+    s.text(row + 2, Math.max(1, Math.floor((s.cols - pl.length) / 2) + 1), 46, pl.slice(0, s.cols), true);
+    if (age >= 1) {
+      var hint = 'ACCESS GRANTED // press any key';
+      s.text(row + 4, Math.max(1, Math.floor((s.cols - hint.length) / 2) + 1), 250, hint.slice(0, s.cols));
+    }
   };
 
   /* ---------------- matrix（gift/matrix.sh と同じ雨だけ） ---------------- */
@@ -184,6 +241,7 @@
     var started = Date.now(), unlocked = false;
     var p = pane.canvasMode(function (k) {
       if (k.key === 'q' || k.key === 'Q') return 'quit';
+      if (anim && anim.state === 'hacked') return 'quit';
       return null;
     }, c.sig);
     var cv = pane.altReady;
@@ -195,6 +253,7 @@
       if (Math.abs(r.width - scr.w) > 2 || Math.abs(r.height - scr.h) > 2) { scr.resize(); anim = new Kind(scr); }
       anim.step();
       anim.draw();
+      if (anim.finished) { pane.altQuit(); return; }
       if (giftable && !unlocked && Date.now() - started >= UNLOCK_AFTER) {
         unlocked = true;
         GIFT.unlock();

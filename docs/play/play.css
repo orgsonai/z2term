@@ -658,3 +658,6 @@ button.z2p-set-row:hover { background: var(--p-card2); }
 .z2p-gift-desc { font-size: 12px; color: var(--p-dim); }
 .z2p-gift-how { font-size: 12.5px; color: var(--p-dim); }
 .z2p-gift-code { display: block; white-space: pre; font-family: var(--p-mono); font-size: 12.5px; background: #0A0F0E; color: #D7E3DF; border: 1px solid var(--p-line); border-radius: 6px; padding: 6px 8px; }
+
+/* ブラウザの検索先の切り替え */
+.z2p-br-engbar { flex: none; display: flex; justify-content: center; padding: 6px 8px; border-bottom: 1px solid var(--p-line); }

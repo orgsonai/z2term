@@ -1,14 +1,30 @@
 #!/usr/bin/env bash
-# hack — 映画っぽい「解析中」の画面をずっと流し続けるだけの見せ物です。
+# ==================== ここを書き換えて遊べます ====================
+#
+#   PASSWORD    最後に「見つかる」パスワード。
+#               入れておくと → FIND_AFTER 秒で見つかり、雨の中に 1 文字ずつ固定されて
+#                              << H A C K E D !! >> を見せて終わります。
+#               空にすると  → PASSWORD="" のように空にすると、見つからずにずっと流れ続けます
+#                              （終わるのは q か Ctrl+C）。
+#   FIND_AFTER  パスワードが見つかるまでの秒数。
+#
+PASSWORD="z2term"
+FIND_AFTER=10
+#
+# =================================================================
+#
+# hack — 映画っぽい「解析中」の画面を流すだけの見せ物です。
 #        何にも接続しませんし、何も解析しません。出てくる IP や文字はすべてその場で作った作り物です。
 #
-# 使い方:  bash hack        （終わるのは q か Ctrl+C）
+# 使い方:  bash hack        （途中で終わるのは q か Ctrl+C）
 # 必要:    bash 4 以上、tput、256 色の端末（24 桁 × 12 行以上）
 #
-# 画面:    上は文字の雨、下はそれらしいログ。止めるまで無限に流れます。
-#
-# 環境変数で調整できます:
+# 環境変数でも上書きできます（ファイルを書き換えずに試したいとき）:
+#   HACK_PASSWORD      PASSWORD の代わり（HACK_PASSWORD= のように空にすると流れ続ける）
+#   HACK_FIND_AFTER    FIND_AFTER の代わり
 #   HACK_FRAME_DELAY   1 コマの間隔（秒、既定 0.04）
+#   HACK_REVEAL_HOLD   全部そろってから HACKED までの秒数（既定 3）
+#   HACK_FINAL_HOLD    HACKED を見せる秒数（既定 6）
 #   HACK_MAX_FRAMES    この数のコマで終わる（確認用。既定 0 = 終わらない）
 
 if [[ -z "${BASH_VERSION:-}" ]] || (( BASH_VERSINFO[0] < 4 )); then
@@ -18,14 +34,22 @@ fi
 
 set -uo pipefail
 
-VERSION="1.0.0"
+PASSWORD="${HACK_PASSWORD-$PASSWORD}"
+FIND_AFTER="${HACK_FIND_AFTER:-$FIND_AFTER}"
+[[ "$FIND_AFTER" =~ ^[0-9]+$ ]] || FIND_AFTER=10
+PASSWORD="${PASSWORD//[[:cntrl:]]/}"   # 制御文字は描けないので除く
+
+VERSION="1.1.0"
 FRAME_DELAY="${HACK_FRAME_DELAY:-0.04}"
 MAX_FRAMES="${HACK_MAX_FRAMES:-0}"
+SUCCESS_LOG_DELAY=4
+REVEAL_HOLD_SECONDS="${HACK_REVEAL_HOLD:-3}"
+FINAL_HOLD_SECONDS="${HACK_FINAL_HOLD:-6}"
 MATRIX_CHARS="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%&*"
 
 case "${1:-}" in
     --help|-h)
-        sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
         exit 0
         ;;
     --version)
@@ -44,14 +68,23 @@ if [[ ! -t 1 || ! -r /dev/tty ]]; then
     exit 1
 fi
 
-declare -a DROP SPEED TRAIL ACTIVE
+declare -a DROP SPEED TRAIL ACTIVE TARGET_INDEX REVEALED
 declare -a LOG_TEXT LOG_COLOR
 LOG_HEAD=0
 LOG_TAIL=0
 FRAME=0
+STATE="running"
+STATE_STARTED=0
+SUCCESS_AT=-1
+REVEAL_DONE_AT=-1
 REQUEST_EXIT=0
 STTY_SAVED=""
 FRAME_BUF=""
+TARGET_PASSWORD=""
+TARGET_LENGTH=0
+TARGET_ROW=0
+TARGET_START_COL=0
+REVEALED_COUNT=0
 RESIZE_NEEDED=0
 
 cleanup() {
@@ -93,6 +126,15 @@ queue_log() {
     LOG_TAIL=$((LOG_TAIL + 1))
 }
 
+set_success() {
+    [[ "$STATE" == "running" ]] || return
+    TARGET_PASSWORD="$1"
+    SUCCESS_AT=$SECONDS
+    STATE="success-logs"
+    STATE_STARTED=$SECONDS
+    queue_log 46 "[MATCH] candidate digest accepted; distributed verification started"
+}
+
 setup_layout() {
     LINES=$(tput lines 2>/dev/null || printf '24')
     COLS=$(tput cols 2>/dev/null || printf '80')
@@ -112,18 +154,19 @@ setup_layout() {
 
 initialize_streams() {
     local c
-    DROP=(); SPEED=(); TRAIL=(); ACTIVE=()
+    DROP=(); SPEED=(); TRAIL=(); ACTIVE=(); TARGET_INDEX=()
     for ((c=1; c<=COLS; c++)); do
         DROP[$c]=$((1 - RANDOM % (TOP_LAST * 2)))
         SPEED[$c]=$((RANDOM % 3 + 1))
         # いちばん遠い色付きのマスは y-7。消す位置は y-8 以上にしないと 1 文字残る。
         TRAIL[$c]=$((RANDOM % 8 + 8))
         if (( c % STREAM_SPACING == 0 )); then ACTIVE[$c]=1; else ACTIVE[$c]=0; fi
+        TARGET_INDEX[$c]=0
     done
 }
 
 draw_chrome() {
-    local label=" MATRIX // DISTRIBUTED ANALYSIS " left right border="" i
+    local label=" MATRIX // DISTRIBUTED CRYPTO ANALYSIS " left right border="" i
     left=$(( (COLS - ${#label}) / 2 ))
     (( left < 0 )) && left=0
     right=$((COLS - left - ${#label}))
@@ -143,12 +186,13 @@ append_cell() {
 }
 
 update_matrix() {
-    local c y len ch
+    local c y old_y len ch idx block
     FRAME_BUF=""
     for ((c=1; c<=COLS; c++)); do
         (( ${ACTIVE[$c]:-0} == 1 )) || continue
         (( FRAME % ${SPEED[$c]} == 0 )) || continue
-        y=$((DROP[$c] + 1))
+        old_y=${DROP[$c]}
+        y=$((old_y + 1))
         DROP[$c]=$y
         len=${TRAIL[$c]}
         ch="${MATRIX_CHARS:RANDOM%${#MATRIX_CHARS}:1}"
@@ -157,19 +201,42 @@ update_matrix() {
         append_cell "$((y - 3))" "$c" 28 "${MATRIX_CHARS:RANDOM%${#MATRIX_CHARS}:1}"
         append_cell "$((y - 1))" "$c" 40 "${MATRIX_CHARS:RANDOM%${#MATRIX_CHARS}:1}"
         append_cell "$y" "$c" 255 "$ch"
+
+        idx=${TARGET_INDEX[$c]:-0}
+        if [[ "$STATE" == "revealing" ]] && (( idx > 0 && ${REVEALED[$idx]:-0} == 0 && old_y < TARGET_ROW && y >= TARGET_ROW )); then
+            REVEALED[$idx]=1
+            REVEALED_COUNT=$((REVEALED_COUNT + 1))
+            printf -v block '%02d' "$idx"
+            queue_log 46 "[SUCCESS] block $block/$TARGET_LENGTH decrypted and locked"
+        fi
+
         if (( y - len > TOP_LAST )); then
             DROP[$c]=$((1 - RANDOM % (TOP_LAST + 8)))
             SPEED[$c]=$((RANDOM % 3 + 1))
             TRAIL[$c]=$((RANDOM % 8 + 8))
         fi
     done
+
+    if [[ "$STATE" == "revealing" || "$STATE" == "revealed-hold" ]]; then
+        for ((idx=1; idx<=TARGET_LENGTH; idx++)); do
+            if (( ${REVEALED[$idx]:-0} == 1 )); then
+                c=$((TARGET_START_COL + idx - 1))
+                append_cell "$TARGET_ROW" "$c" 46 "${TARGET_PASSWORD:idx-1:1}"
+            fi
+        done
+    fi
     FRAME_BUF+=$'\033[0m'
     printf '%b' "$FRAME_BUF"
 }
 
 flush_logs() {
-    local count=0 text color elapsed min sec stamp
-    while (( LOG_HEAD < LOG_TAIL && count < 2 )); do
+    local count=0 limit=2 text color elapsed min sec stamp
+    # 下のログ欄のスクロールはスマホの端末には重いので、パスワードを固定している間は 2 コマに 1 行まで。
+    if [[ "$STATE" == "revealing" || "$STATE" == "revealed-hold" ]]; then
+        (( FRAME % 2 == 0 )) || return 0
+        limit=1
+    fi
+    while (( LOG_HEAD < LOG_TAIL && count < limit )); do
         text="${LOG_TEXT[$LOG_HEAD]}"
         color="${LOG_COLOR[$LOG_HEAD]}"
         unset 'LOG_TEXT[$LOG_HEAD]' 'LOG_COLOR[$LOG_HEAD]'
@@ -191,22 +258,123 @@ generate_demo_log() {
     make_random_token "$((RANDOM % 6 + 7))"; token="$RANDOM_TOKEN"
     progress=$((RANDOM % 10000))
     speed=$((RANDOM % 31 + 10))
-    case $((RANDOM % 8)) in
-        0) queue_log 196 "[FAILED] $ip:22 user=root pass=$token" ;;
-        1) queue_log 196 "[FAILED] node=$node digest mismatch candidate=$token" ;;
-        2) queue_log 51 "[CLUSTER] dispatch range=$progress-$((progress + RANDOM % 900 + 100)) node=$node" ;;
-        3) queue_log 244 "[TRY] node=$node algo=yescrypt candidate=$token" ;;
-        4) queue_log 33 "[SCAN] $ip ports=22,80,443 latency=$((RANDOM % 70 + 4))ms" ;;
-        5) queue_log 196 "[FAILED] $ip:8022 authentication rejected" ;;
-        6) queue_log 51 "[QUEUE] worker=$node lease=${RANDOM} queue=$((RANDOM % 90 + 10))" ;;
-        *) make_random_token 6; queue_log 244 "[TRY] rate=${speed}w/s salt=$RANDOM_TOKEN block=$progress" ;;
+
+    if [[ "$STATE" == "success-logs" || "$STATE" == "revealing" || "$STATE" == "revealed-hold" ]]; then
+        case $((RANDOM % 5)) in
+            0) queue_log 46 "[SUCCESS] node=$node candidate=$token signature verified" ;;
+            1) queue_log 46 "[SUCCESS] remote worker $node returned matching digest" ;;
+            2) queue_log 118 "[SYNC] result quorum 3/3; committing recovered blocks" ;;
+            3) queue_log 46 "[SUCCESS] $ip:22 credential handshake accepted" ;;
+            *) queue_log 51 "[CLUSTER] node=$node rate=${speed}w/s progress=$progress/10000" ;;
+        esac
+    else
+        case $((RANDOM % 8)) in
+            0) queue_log 196 "[FAILED] $ip:22 user=root pass=$token" ;;
+            1) queue_log 196 "[FAILED] node=$node digest mismatch candidate=$token" ;;
+            2) queue_log 51 "[CLUSTER] dispatch range=$progress-$((progress + RANDOM % 900 + 100)) node=$node" ;;
+            3) queue_log 244 "[TRY] node=$node algo=yescrypt candidate=$token" ;;
+            4) queue_log 33 "[SCAN] $ip ports=22,80,443 latency=$((RANDOM % 70 + 4))ms" ;;
+            5) queue_log 196 "[FAILED] $ip:8022 authentication rejected" ;;
+            6) queue_log 51 "[QUEUE] worker=$node lease=${RANDOM} queue=$((RANDOM % 90 + 10))" ;;
+            *) make_random_token 6; queue_log 244 "[TRY] rate=${speed}w/s salt=$RANDOM_TOKEN block=$progress" ;;
+        esac
+    fi
+}
+
+prepare_reveal() {
+    local max_len i c spread old_y old_len row residue_buf=""
+    [[ "$STATE" == "success-logs" ]] || return
+    (( SECONDS - SUCCESS_AT >= SUCCESS_LOG_DELAY )) || return
+
+    max_len=$((COLS - 6))
+    (( ${#TARGET_PASSWORD} > max_len )) && TARGET_PASSWORD="${TARGET_PASSWORD:0:max_len}"
+    TARGET_LENGTH=${#TARGET_PASSWORD}
+    TARGET_ROW=$((TOP_LAST / 2 + 1))
+    TARGET_START_COL=$(( (COLS - TARGET_LENGTH) / 2 + 1 ))
+    REVEALED=()
+    REVEALED_COUNT=0
+    spread=$((TOP_LAST * 2))
+    (( spread < 4 )) && spread=4
+    for ((i=1; i<=TARGET_LENGTH; i++)); do
+        c=$((TARGET_START_COL + i - 1))
+        # 動いている列を付け替えるときは、古い軌跡を先に消す（残らないように）。
+        if (( ${ACTIVE[$c]:-0} == 1 )); then
+            old_y=${DROP[$c]:-0}
+            old_len=${TRAIL[$c]:-8}
+            for ((row=old_y-old_len; row<=old_y; row++)); do
+                if (( row >= 1 && row <= TOP_LAST )); then
+                    residue_buf+=$'\033['"${row};${c}H"$'\033[0m '
+                fi
+            done
+        fi
+        TARGET_INDEX[$c]=$i
+        REVEALED[$i]=0
+        ACTIVE[$c]=1
+        DROP[$c]=$((1 - RANDOM % spread))
+        SPEED[$c]=$((RANDOM % 3 + 1))
+        TRAIL[$c]=$((RANDOM % 8 + 8))
+    done
+    [[ -n "$residue_buf" ]] && printf '%b' "$residue_buf"
+    STATE="revealing"
+    STATE_STARTED=$SECONDS
+    queue_log 118 "[DECRYPT] collision reveal armed across $TARGET_LENGTH independent streams"
+}
+
+draw_hacked() {
+    local age=$((SECONDS - STATE_STARTED)) color=46 banner password_line row col wipe hint
+    case $((FRAME % 4)) in
+        0) color=255 ;;
+        1) color=46 ;;
+        2) color=40 ;;
+        *) color=118 ;;
     esac
+    banner="<< H A C K E D !! >>"
+    password_line="PASSWORD: $TARGET_PASSWORD"
+    row=$((LINES / 2 - 1))
+    col=$(( (COLS - ${#banner}) / 2 + 1 )); (( col < 1 )) && col=1
+    wipe=$((FRAME % (LINES + 1)))
+    if (( wipe >= 1 && wipe <= LINES )); then
+        printf '\033[%d;1H\033[2K' "$wipe"
+    fi
+    printf '\033[%d;%dH\033[1;5;38;5;%sm%s\033[0m' "$row" "$col" "$color" "$banner"
+    col=$(( (COLS - ${#password_line}) / 2 + 1 )); (( col < 1 )) && col=1
+    printf '\033[%d;%dH\033[1;38;5;46m%s\033[0m' "$((row + 2))" "$col" "${password_line:0:COLS}"
+    if (( age >= 1 )); then
+        hint="ACCESS GRANTED // press any key"
+        col=$(( (COLS - ${#hint}) / 2 + 1 )); (( col < 1 )) && col=1
+        printf '\033[%d;%dH\033[38;5;250m%s\033[0m' "$((row + 4))" "$col" "${hint:0:COLS}"
+    fi
+}
+
+handle_states() {
+    # PASSWORD が空なら見つからない（ずっと流れ続ける）
+    if [[ "$STATE" == "running" && -n "$PASSWORD" ]] && (( SECONDS >= FIND_AFTER )); then
+        set_success "$PASSWORD"
+    fi
+
+    prepare_reveal
+
+    if [[ "$STATE" == "revealing" ]] && (( REVEALED_COUNT == TARGET_LENGTH )); then
+        STATE="revealed-hold"
+        STATE_STARTED=$SECONDS
+        REVEAL_DONE_AT=$SECONDS
+        queue_log 46 "[DECRYPT] all blocks visible; holding before access transition"
+    elif [[ "$STATE" == "revealed-hold" ]] && (( SECONDS - REVEAL_DONE_AT >= REVEAL_HOLD_SECONDS )); then
+        STATE="hacked"
+        STATE_STARTED=$SECONDS
+        printf '\033[r\033[2J\033[H'
+    elif [[ "$STATE" == "hacked" ]] && (( SECONDS - STATE_STARTED >= FINAL_HOLD_SECONDS )); then
+        REQUEST_EXIT=1
+    fi
 }
 
 pace_and_read_key() {
     local key=""
     if IFS= read -r -s -n 1 -t "$FRAME_DELAY" -u 9 key; then
-        if [[ "$key" == "q" || "$key" == "Q" ]]; then REQUEST_EXIT=1; fi
+        # q で終わる。HACKED を見せている間は、どのキーでも終わる。
+        if [[ "$STATE" == "hacked" || "$key" == "q" || "$key" == "Q" ]]; then
+            REQUEST_EXIT=1
+        fi
     fi
 }
 
@@ -228,10 +396,21 @@ while (( REQUEST_EXIT == 0 )); do
         setup_layout
         initialize_streams
         draw_chrome
+        if [[ "$STATE" == "revealing" ]]; then
+            STATE="success-logs"
+            SUCCESS_AT=$((SECONDS - SUCCESS_LOG_DELAY))
+        fi
     fi
-    update_matrix
-    if (( FRAME % 3 == 0 )); then generate_demo_log; fi
-    flush_logs
+
+    if [[ "$STATE" == "hacked" ]]; then
+        draw_hacked
+    else
+        update_matrix
+        if (( FRAME % 3 == 0 )); then generate_demo_log; fi
+        flush_logs
+    fi
+    handle_states
+
     if (( MAX_FRAMES > 0 && FRAME >= MAX_FRAMES )); then
         REQUEST_EXIT=1
     fi

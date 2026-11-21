@@ -1,5 +1,7 @@
 /* z2term play — モックのブラウザ。
-   検索: 言葉を Wikipedia の検索 API へ送る（origin=* で読める）。z2term の手引きの見出しも先頭に混ぜる。
+   検索: 2 つから選べる（最後に選んだ方を覚える。最初は Bing）。
+     Bing … 検索結果のページをそのまま iframe で表示する（主な検索エンジンで埋め込みを断らないのは Bing だけだった）
+     Wikipedia ＋ z2term … 言葉を Wikipedia の検索 API へ送り、z2term の手引きの見出しと並べる
    表示: 埋め込みを許している相手（許可リスト）だけ iframe で本当に表示する。
          それ以外は iframe に入れず「新しいタブで開く」を出す（中継サーバーは使わない）。
    サイトの外へ通信するのはここだけ。 */
@@ -11,7 +13,7 @@
 
   var SITE = 'https://orgsonai.github.io/z2term/';
   var ALLOW = {
-    'ja.m.wikipedia.org': 1, 'en.m.wikipedia.org': 1, 'orgsonai.github.io': '/z2term/'
+    'ja.m.wikipedia.org': 1, 'en.m.wikipedia.org': 1, 'orgsonai.github.io': '/z2term/', 'www.bing.com': 1
   };
 
   /* 手引きの見出し（サイトと HANDBOOK）。検索結果の先頭に混ぜる。 */
@@ -144,7 +146,26 @@
       snippet ? h('p.z2p-br-rs', { text: snippet }) : null);
   }
 
+  function engine() { return (Z.phone.st && Z.phone.st.engine) || 'bing'; }
+  function engineTabs(q) {
+    var seg = h('div.z2p-seg.small.z2p-br-eng', { role: 'tablist', 'aria-label': T('br.engine') });
+    [['bing', 'Bing'], ['wiki', T('br.wiki')]].forEach(function (o) {
+      seg.appendChild(h('button', { type: 'button', role: 'tab', 'aria-selected': engine() === o[0] ? 'true' : 'false', 'data-id': 'engine_' + o[0], text: o[1],
+        on: { click: function () { Z.phone.st.engine = o[0]; Z.phone.save(); render(); } } }));
+    });
+    return seg;
+  }
+  function bingUrl(q) {
+    return 'https://www.bing.com/search?q=' + encodeURIComponent(q) + '&setlang=' + (Z.lang === 'ja' ? 'ja' : 'en') + '&cc=' + (Z.lang === 'ja' ? 'JP' : 'US');
+  }
   function renderSearch(q) {
+    b.view.appendChild(h('div.z2p-br-engbar', null, engineTabs(q)));
+    if (engine() === 'bing') {
+      if (!online()) { b.view.appendChild(offline()); return; }
+      b.view.appendChild(h('iframe.z2p-br-frame', { src: bingUrl(q), title: 'Bing: ' + q, referrerpolicy: 'no-referrer',
+        sandbox: 'allow-scripts allow-same-origin allow-popups allow-forms' }));
+      return;
+    }
     var box = h('div.z2p-br-results');
     box.appendChild(searchBox(q));
     box.appendChild(result(T('br.here'), 'z2term://play', T('br.heresub'), function () { Z.phone.open('z2term'); Z.phone.toast(T('br.already')); }, '★'));

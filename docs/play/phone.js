@@ -64,7 +64,7 @@
 
   var DEF = {
     airplane: false, wifi: true, torch: false, ringer: 'normal', volume: 7,
-    notifs: [], nid: 1, tiles: {}, widget: null, homeOrder: null, dockOrder: null, lastPick: null, gift: false, edge: { on: false, panels: {} },
+    notifs: [], nid: 1, tiles: {}, widget: null, homeOrder: null, dockOrder: null, lastPick: null, gift: false, engine: 'bing', edge: { on: false, panels: {} },
     clip: { cur: '', hist: [] }, dev: false, trail: true, alarms: [], recents: [],
     lowWarned: false, buildTaps: 0
   };
