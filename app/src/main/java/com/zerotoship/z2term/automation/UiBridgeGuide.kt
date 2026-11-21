@@ -329,9 +329,10 @@ notification. You learn about it as the reply to your next call:
 
 - `z2-ui mark` starts a recording. Then operate. `z2-ui save <name>` saves the successful operations since mark as a
   z2-action macro (`/root/.z2term/actions/<name>.actions`) that the user can run from tiles and panels without you.
-- `#N` targets are rewritten as id, then text, then desc, then coordinates. A tap on an input becomes `tap ui id=...`
-  (coordinates without an id, for a long press and for password fields), because the macro step "click" skips inputs. Waits between steps keep the real
+- `#N` targets are rewritten as id, then text, then desc, then coordinates. Waits between steps keep the real
   intervals (up to 2 s).
+- A tap on an input (by #N, or by id=/text=/desc= when the last look showed it as an input) becomes `tap ui`
+  (coordinates without an id, for a long press and for password fields), because the macro step "click" skips inputs.
 - `drag` is saved as the macro step "drag" and replays at the same speed.
 - `type` and `enter` are saved as two lines: a tap on the input (by id, otherwise by its position), then the macro step
   "type" or "enter", which acts on the focused input. When the input was just tapped, or gets a second type or enter, the tap is not repeated.

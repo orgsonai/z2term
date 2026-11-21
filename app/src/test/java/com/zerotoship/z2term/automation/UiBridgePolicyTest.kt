@@ -174,7 +174,7 @@ class UiBridgePolicyTest {
             3 to UiBridgeReplay.Named(null, "とても長い文…", null, 50, 60),
             4 to UiBridgeReplay.Named("org.example.app:id/query", null, null, 70, 80, input = true),
             5 to UiBridgeReplay.Named(null, "名前", null, 90, 100, input = true))
-        fun step(verb: String, vararg args: String) = UiBridgeReplay.step(verb, args.toList()) { named[it] }
+        fun step(verb: String, vararg args: String) = UiBridgeReplay.step(verb, args.toList(), { named[it] })
         assertEquals("click id=org.example.app:id/next", step("tap", "#1").line)
         assertEquals("long-click text=送信", step("long", "#2").line)
         // 切り詰めた文字は元の表示と一致しないので座標にする。
@@ -209,6 +209,17 @@ class UiBridgePolicyTest {
         assertEquals("tap ui id=org.example.app:id/query", step("tap", "#4").line)
         assertEquals("tap px 90 100", step("tap", "#5").line)
         assertEquals("long-press px 70 80 600", step("long", "#4").line)
+        // `id=` / `text=` で直接指した先も、直前の look で入力欄なら tap ui にする (1.0.195)。
+        val query = named.getValue(4)
+        val secret = UiBridgeReplay.Named(null, null, null, 11, 12, input = true, password = true)
+        fun direct(verb: String, target: String) = UiBridgeReplay.step(verb, listOf(target), { null }) { selector ->
+            when (selector.toString()) { "id=org.example.app:id/query", "text=検索語" -> query; "id=org.example.app:id/pin" -> secret; else -> null }
+        }
+        assertEquals("tap ui id=org.example.app:id/query", direct("tap", "id=org.example.app:id/query").line)
+        assertEquals("tap ui text=検索語", direct("tap", "text=検索語").line)
+        assertEquals("tap px 11 12", direct("tap", "id=org.example.app:id/pin").line)
+        assertEquals("long-press px 70 80 600", direct("long", "text=検索語").line)
+        assertEquals("click text=送信", direct("tap", "text=送信").line)
     }
 
     @Test fun typingIntoTheSameFieldTapsItOnce() {

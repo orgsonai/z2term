@@ -226,6 +226,14 @@ internal object AndroidUiLook {
     /** 直前の look の要素。承認の通知に「何を押すか」を書くためだけに使う。 */
     fun lastElement(n: Int): Element? = last?.elements?.getOrNull(n - 1)
 
+    /**
+     * 直前の look で [selector] に当たる入力欄がちょうど 1 つならそれ (z2-ui と同じく入力欄の `text=` はヒント)。
+     * 記録した手順を保存するとき、入力欄を押した操作を click にしないためだけに使う。
+     */
+    fun lastInput(selector: com.zerotoship.z2term.automation.ActionSelector): Element? =
+        last?.elements?.filter { it.role == "input" || it.role == "password" }
+            ?.filter { selector.matches(it.id, it.hint, it.desc) }?.singleOrNull()
+
     /** 相手の要素と、その祖先から操作を引き受けるものを探す。 */
     private class Located(val node: AccessibilityNodeInfo, val element: Element, val retained: MutableList<AccessibilityNodeInfo>)
 
