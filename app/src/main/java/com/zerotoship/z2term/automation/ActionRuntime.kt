@@ -88,17 +88,20 @@ internal object ActionRuntime {
         val host = AndroidActions.overlayHost() ?: error("Enable z2term Android actions using z2-key permission")
         val names = store(context).names()
         check(names.isNotEmpty()) { context.getString(com.zerotoship.z2term.R.string.action_chooser_empty) }
-        val app = context.applicationContext
-        ActionRunOverlay.showPicker(host, names) { name ->
-            try { start(app, name, waitForForeground = true, bar = true); true } catch (e: Exception) {
+        showPicker(context.applicationContext, host, names, null)
+        ""
+    }
+    /** 選んで実行する帯。～ の初めの状態は、選んだマクロの見出しの `human=` (読めなければ切り)。 */
+    private fun showPicker(app: Context, host: android.accessibilityservice.AccessibilityService, names: List<String>, first: String?) {
+        ActionRunOverlay.showPicker(host, names, first, human = { name -> runCatching { store(app).read(name).humanLevel > 0 }.getOrDefault(false) }) { name, human ->
+            try { start(app, name, waitForForeground = true, bar = true, human = human); true } catch (e: Exception) {
                 android.widget.Toast.makeText(app, e.message, android.widget.Toast.LENGTH_LONG).show()
                 false
             }
         }
-        ""
     }
     fun start(context: Context, name: String, background: (() -> Unit)? = null, waitForForeground: Boolean = false,
-        bar: Boolean = false, args: List<String> = emptyList()): String {
+        bar: Boolean = false, args: List<String> = emptyList(), human: Boolean? = null): String {
         val program = store(context).snapshot(name, args)
         return EdgeRuntime.onMain {
             check(!ActionCoordinatePicker.active) { context.getString(com.zerotoship.z2term.R.string.action_pick_busy) }
@@ -117,6 +120,8 @@ internal object ActionRuntime {
             val run = Run(UUID.randomUUID().toString(), name, program, app, geometry, ActionExecution(::schedule), EdgeRunner(app),
                 awaitBackground = waitForForeground || (program.usesCurrentTarget && background != null), allowOwnForeground = waitForForeground,
                 bar = bar)
+            // 選ぶ帯の ～ (1.0.196): 入れるならマクロの強さ (書いていなければ既定)、切るなら 0。この実行だけ。
+            human?.let { run.humanLevel = if (it) run.humanRestore else 0 }
             checkDevice(run)
             current = run
             try {
@@ -600,7 +605,13 @@ internal object ActionRuntime {
         current = null
         run.cancelStart?.invoke(); run.cancelStart = null
         run.watchdog?.let(main::removeCallbacks)
+        // 終わったあとも帯を残す設定 (1.0.196、既定は閉じる) なら、帯を「選んで実行」に替えてこのマクロを選んでおく。
+        val keep = ActionRunOverlay.owner == ActionRunOverlay.Owner.MACRO && ActionRunOverlay.keepEnabled(run.context)
         ActionRunOverlay.dismiss(ActionRunOverlay.Owner.MACRO)
+        if (keep) runCatching {
+            val host = AndroidActions.overlayHost() ?: return@runCatching
+            store(run.context).names().takeIf { it.isNotEmpty() }?.let { showPicker(run.context, host, it, run.name) }
+        }
         run.runner.cancelAll()
         AndroidActions.stopAutoScroll()
         val response = json(run, result.state).put("step", result.step).put("error", result.error ?: JSONObject.NULL)

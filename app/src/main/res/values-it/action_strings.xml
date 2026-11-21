@@ -198,7 +198,9 @@
     <string name="action_pick_undo">Annulla</string>
     <string name="action_pick_points_full">Al massimo %1$d punti</string>
     <string name="action_overlay_setting">Mostra un pulsante di arresto sopra le altre app</string>
-    <string name="action_overlay_setting_desc">Mentre una macro è in esecuzione, una piccola barra con ■ e l’avanzamento resta sopra l’app controllata. Puoi trascinarla; quando la macro tocca sotto, la barra diventa tenue e lascia passare il tocco.</string>
+    <string name="action_overlay_setting_desc">Mentre una macro è in esecuzione, una piccola barra con ■ e l’avanzamento resta sopra l’app controllata. Puoi trascinarla; quando la macro tocca sotto, la barra diventa tenue e lascia passare il tocco. ‖ mette in pausa e riprende. ～ attiva o disattiva l’input naturale (colore d’accento se attivo); ～ è anche sulla barra per scegliere una macro, prima dell’avvio.</string>
+    <string name="action_overlay_keep_setting">Tieni la barra dopo la macro</string>
+    <string name="action_overlay_keep_setting_desc">Se attivo, al termine la barra diventa quella per scegliere ed eseguire una macro, con quella appena finita selezionata; chiudila con ×. Se disattivo, si chiude.</string>
     <string name="action_overlay_loop">ripetizione %1$d/%2$d</string>
     <string name="action_overlay_loop_endless">ripetizione %1$d</string>
     <string name="action_overlay_step">passo %1$d/%2$d</string>

@@ -198,7 +198,9 @@
     <string name="action_pick_undo">Desfazer</string>
     <string name="action_pick_points_full">No máximo %1$d pontos</string>
     <string name="action_overlay_setting">Mostrar um botão de parar sobre outros apps</string>
-    <string name="action_overlay_setting_desc">Enquanto uma macro roda, uma pequena barra com ■ e o progresso fica sobre o app que ela controla. Arraste-a para onde quiser; quando a macro toca embaixo dela, a barra fica esmaecida e deixa o toque passar.</string>
+    <string name="action_overlay_setting_desc">Enquanto uma macro roda, uma pequena barra com ■ e o progresso fica sobre o app que ela controla. Arraste-a para onde quiser; quando a macro toca embaixo dela, a barra fica esmaecida e deixa o toque passar. ‖ pausa e retoma. ～ liga ou desliga a entrada natural (cor de destaque quando ligada); também aparece na barra de escolher uma macro, antes de começar.</string>
+    <string name="action_overlay_keep_setting">Manter a barra quando a macro terminar</string>
+    <string name="action_overlay_keep_setting_desc">Quando ligado, a barra vira a de escolher e executar uma macro, com a que acabou de terminar selecionada; feche com ×. Quando desligado, ela fecha.</string>
     <string name="action_overlay_loop">repetição %1$d/%2$d</string>
     <string name="action_overlay_loop_endless">repetição %1$d</string>
     <string name="action_overlay_step">passo %1$d/%2$d</string>

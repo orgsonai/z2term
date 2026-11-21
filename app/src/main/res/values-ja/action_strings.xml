@@ -199,7 +199,9 @@
     <string name="action_pick_undo">1 つ戻す</string>
     <string name="action_pick_points_full">点は %1$d 個までです</string>
     <string name="action_overlay_setting">ほかのアプリの上に停止ボタンを出す</string>
-    <string name="action_overlay_setting_desc">実行中、操作先のアプリの上に ■ と進み具合の小さな帯を出します。指で好きな場所へ動かせます。マクロがその下を押すときは、帯が薄くなって押した指を下のアプリへ通します。</string>
+    <string name="action_overlay_setting_desc">実行中、操作先のアプリの上に ■ と進み具合の小さな帯を出します。指で好きな場所へ動かせます。マクロがその下を押すときは、帯が薄くなって押した指を下のアプリへ通します。‖ で一時停止と再開、～ で人らしい操作の入り切り（入りはアクセント色）。～ はマクロを選んで実行する帯にもあり、始める前に選べます。</string>
+    <string name="action_overlay_keep_setting">終わったあとも帯を残す</string>
+    <string name="action_overlay_keep_setting_desc">オンにすると、マクロが終わったあと帯を「選んで実行」の帯に替えて残し、終わったマクロを選んでおきます。× で閉じます。オフなら閉じます。</string>
     <string name="action_overlay_loop">%1$d/%2$d回目</string>
     <string name="action_overlay_loop_endless">%1$d回目</string>
     <string name="action_overlay_step">手順 %1$d/%2$d</string>

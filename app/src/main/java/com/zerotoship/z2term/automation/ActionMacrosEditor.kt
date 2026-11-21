@@ -348,6 +348,23 @@ internal class ActionMacrosEditor(
             }, LinearLayout.LayoutParams(0, -2, 1f))
             addView(overlaySwitch, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8) })
         })
+        // 終わったあとも帯を残すか (1.0.196、既定は閉じる)。残すと「選んで実行」の帯に替わる。
+        val keepSwitch = com.zerotoship.z2term.edge.EdgeSettingsUi.switchOf(this, ActionRunOverlay.keepEnabled(this)).apply {
+            contentDescription = getString(R.string.action_overlay_keep_setting)
+            setOnCheckedChangeListener { _, value -> ActionRunOverlay.setKeepEnabled(this@ActionMacrosEditor, value) }
+        }
+        add(ActionUi.card(this, vertical = false).apply {
+            foreground = ActionUi.pressable(this@ActionMacrosEditor, 8)
+            isClickable = true
+            setOnClickListener { keepSwitch.toggle() }
+            addView(column().apply {
+                addView(ActionUi.label(this@ActionMacrosEditor, getString(R.string.action_overlay_keep_setting), 13f))
+                addView(ActionUi.caption(this@ActionMacrosEditor, getString(R.string.action_overlay_keep_setting_desc)).apply {
+                    setPadding(0, dp(2), 0, 0)
+                })
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(keepSwitch, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8) })
+        })
         // AI 操作の「操作の軌跡を表示」と同じ描き方で、マクロの指を見せる (1.0.185)。
         val trailSwitch = com.zerotoship.z2term.edge.EdgeSettingsUi.switchOf(this, ActionRunOverlay.trailEnabled(this)).apply {
             contentDescription = getString(R.string.action_trail_setting)

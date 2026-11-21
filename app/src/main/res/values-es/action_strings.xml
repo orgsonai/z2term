@@ -199,7 +199,9 @@
     <string name="action_pick_undo">Deshacer</string>
     <string name="action_pick_points_full">Como máximo %1$d puntos</string>
     <string name="action_overlay_setting">Mostrar un botón de parada sobre otras apps</string>
-    <string name="action_overlay_setting_desc">Mientras se ejecuta una macro, una pequeña barra con ■ y su progreso queda encima de la app que controla. Arrástrala a donde quieras; cuando la macro toca debajo, la barra se atenúa y deja pasar el toque.</string>
+    <string name="action_overlay_setting_desc">Mientras se ejecuta una macro, una pequeña barra con ■ y su progreso queda encima de la app que controla. Arrástrala a donde quieras; cuando la macro toca debajo, la barra se atenúa y deja pasar el toque. ‖ pausa y reanuda. ～ activa o desactiva la entrada humana (color de acento si está activada); también aparece en la barra para elegir una macro, antes de empezar.</string>
+    <string name="action_overlay_keep_setting">Mantener la barra al terminar la macro</string>
+    <string name="action_overlay_keep_setting_desc">Si está activado, la barra pasa a ser la de elegir y ejecutar una macro, con la que acaba de terminar seleccionada; ciérrala con ×. Si no, se cierra.</string>
     <string name="action_overlay_loop">repetición %1$d/%2$d</string>
     <string name="action_overlay_loop_endless">repetición %1$d</string>
     <string name="action_overlay_step">paso %1$d/%2$d</string>

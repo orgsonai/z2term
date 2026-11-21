@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.196 (versionCode 894)**: The bar for choosing and running a macro gains ～ (human-like input on/off), so it can be chosen before the run starts. It starts from the chosen macro's `human=`, and the choice applies to that one run. The Screen actions tab gains "Keep the bar after the macro ends" (off by default, so the bar still closes). When on, the bar returns as the choose-and-run bar after the macro ends, so the same macro can be run again right away. The description of "Show a stop button over other apps" now says what ‖ and ～ do
+
 **1.0.195 (versionCode 893)**: In AI app control, a press on an input field addressed directly by `id=…` or `text=…` instead of a number is now also saved as `tap ui`. It used to be saved as `click` and stopped the replay. The last screen read tells whether the target was an input
 
 **1.0.194 (versionCode 892)**: In steps recorded from AI app control, a press on an input field stopped the replay with "UI element not found", because the macro step `click` cannot find input fields. Such a press is now saved as `tap ui`, which finds the field by ID and taps it with a finger (coordinates for a field without an ID). The "saving" section of the guide for AI now matches the current behaviour, where typing can be saved

@@ -199,7 +199,9 @@
     <string name="action_pick_undo">Undo</string>
     <string name="action_pick_points_full">At most %1$d points</string>
     <string name="action_overlay_setting">Show a stop button over other apps</string>
-    <string name="action_overlay_setting_desc">While a macro runs, a small bar with ■ and its progress stays on top of the app it operates. Drag it anywhere; when the macro touches under it, the bar turns faint and lets the touch through.</string>
+    <string name="action_overlay_setting_desc">While a macro runs, a small bar with ■ and its progress stays on top of the app it operates. Drag it anywhere; when the macro touches under it, the bar turns faint and lets the touch through. ‖ pauses and resumes. ～ turns human-like input on or off (accent colour when on); it also appears on the bar that picks a macro, before it starts.</string>
+    <string name="action_overlay_keep_setting">Keep the bar after the macro ends</string>
+    <string name="action_overlay_keep_setting_desc">When on, the bar turns into the one that picks and runs a macro, with the macro that just ended selected; close it with ×. When off, it closes.</string>
     <string name="action_overlay_loop">pass %1$d/%2$d</string>
     <string name="action_overlay_loop_endless">pass %1$d</string>
     <string name="action_overlay_step">step %1$d/%2$d</string>

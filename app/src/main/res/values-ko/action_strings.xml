@@ -199,7 +199,9 @@
     <string name="action_pick_undo">하나 되돌리기</string>
     <string name="action_pick_points_full">점은 %1$d개까지입니다</string>
     <string name="action_overlay_setting">다른 앱 위에 정지 버튼 표시</string>
-    <string name="action_overlay_setting_desc">매크로가 실행되는 동안 조작 대상 앱 위에 ■와 진행 상황이 있는 작은 막대가 표시됩니다. 원하는 곳으로 끌어 옮길 수 있으며, 매크로가 그 아래를 누를 때는 막대가 흐려지고 터치를 아래 앱으로 통과시킵니다.</string>
+    <string name="action_overlay_setting_desc">매크로가 실행되는 동안 조작 대상 앱 위에 ■와 진행 상황이 있는 작은 막대가 표시됩니다. 원하는 곳으로 끌어 옮길 수 있으며, 매크로가 그 아래를 누를 때는 막대가 흐려지고 터치를 아래 앱으로 통과시킵니다. ‖는 일시 정지와 재개, ～는 사람다운 조작 켜기/끄기입니다(켜면 강조색). ～는 매크로를 골라 실행하는 막대에도 있어 시작 전에 고를 수 있습니다.</string>
+    <string name="action_overlay_keep_setting">매크로가 끝난 뒤에도 막대 유지</string>
+    <string name="action_overlay_keep_setting_desc">켜면 매크로가 끝난 뒤 막대가 ‘골라서 실행’ 막대로 바뀌고 방금 끝난 매크로가 선택됩니다. ×로 닫습니다. 끄면 닫힙니다.</string>
     <string name="action_overlay_loop">%1$d/%2$d회차</string>
     <string name="action_overlay_loop_endless">%1$d회차</string>
     <string name="action_overlay_step">단계 %1$d/%2$d</string>

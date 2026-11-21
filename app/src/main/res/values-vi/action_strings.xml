@@ -199,7 +199,9 @@
     <string name="action_pick_undo">Hoàn tác</string>
     <string name="action_pick_points_full">Tối đa %1$d điểm</string>
     <string name="action_overlay_setting">Hiện nút dừng trên ứng dụng khác</string>
-    <string name="action_overlay_setting_desc">Khi macro chạy, một thanh nhỏ có ■ và tiến độ nằm trên ứng dụng nó thao tác. Kéo đến đâu cũng được; khi macro chạm bên dưới, thanh mờ đi và để lần chạm đi qua.</string>
+    <string name="action_overlay_setting_desc">Khi macro chạy, một thanh nhỏ có ■ và tiến độ nằm trên ứng dụng nó thao tác. Kéo đến đâu cũng được; khi macro chạm bên dưới, thanh mờ đi và để lần chạm đi qua. ‖ tạm dừng và tiếp tục. ～ bật hoặc tắt thao tác tự nhiên (màu nhấn khi bật); ～ cũng có trên thanh chọn macro, để chọn trước khi bắt đầu.</string>
+    <string name="action_overlay_keep_setting">Giữ thanh sau khi macro kết thúc</string>
+    <string name="action_overlay_keep_setting_desc">Khi bật, sau khi macro kết thúc thanh chuyển thành thanh chọn và chạy macro, với macro vừa kết thúc được chọn sẵn; đóng bằng ×. Khi tắt, thanh đóng lại.</string>
     <string name="action_overlay_loop">lượt %1$d/%2$d</string>
     <string name="action_overlay_loop_endless">lượt %1$d</string>
     <string name="action_overlay_step">bước %1$d/%2$d</string>

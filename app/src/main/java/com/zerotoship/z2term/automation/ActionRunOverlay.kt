@@ -61,6 +61,7 @@ internal object ActionRunOverlay {
     private const val KEY_X = "x"
     private const val KEY_Y = "y"
     private const val KEY_PICKED = "picked"
+    private const val KEY_KEEP = "keep"
     /** 触れない窓へ変えてから入力に反映されるまで (60 Hz で数フレーム分)。 */
     const val SETTLE_MS = 100L
     /** 帯を隠した操作が終わってから戻すまで。 */
@@ -81,6 +82,9 @@ internal object ActionRunOverlay {
     /** マクロの指の軌跡を画面に描くか (1.0.185、既定 OFF)。描くのは [com.zerotoship.z2term.edge.UiTrail]。 */
     fun trailEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_TRAIL, false)
     fun setTrailEnabled(context: Context, value: Boolean) { prefs(context).edit().putBoolean(KEY_TRAIL, value).apply() }
+    /** 終わったあとも帯を残すか (1.0.196、既定 OFF = 閉じる)。残すときは「選んで実行」の帯に替える。 */
+    fun keepEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_KEEP, false)
+    fun setKeepEnabled(context: Context, value: Boolean) { prefs(context).edit().putBoolean(KEY_KEEP, value).apply() }
 
     private var service: AccessibilityService? = null
     private var root: View? = null
@@ -161,13 +165,17 @@ internal object ActionRunOverlay {
 
     /**
      * マクロを選んで実行する帯 (`z2-action pick`、メインスレッド)。「名前 ▾」で一覧を開いて選び、▶ で実行、
-     * × で閉じる。最後に選んだマクロを覚えておく。[run] が true を返したら (実行が始まったら) 閉じる。
+     * × で閉じる。最後に選んだマクロを覚えておく ([first] があればそれを選んだ状態で出す)。
+     * ～ (1.0.196) は人らしい操作の入り切り。選んだマクロの `human=` ([human]) から始まり、その 1 回の実行にだけ効く。
+     * [run] が true を返したら (実行が始まったら) 閉じる。
      */
-    fun showPicker(host: AccessibilityService, names: List<String>, run: (String) -> Boolean) {
+    fun showPicker(host: AccessibilityService, names: List<String>, first: String? = null, human: (String) -> Boolean = { false },
+        run: (String, Boolean) -> Boolean) {
         dismiss()
         require(names.isNotEmpty())
         fun dp(value: Int) = ActionUi.dp(host, value)
-        var picked = prefs(host).getString(KEY_PICKED, null)?.takeIf { it in names } ?: names.first()
+        var picked = first?.takeIf { it in names } ?: prefs(host).getString(KEY_PICKED, null)?.takeIf { it in names } ?: names.first()
+        var humanOn = human(picked)
         val title = ActionUi.label(host, "", 11f, ActionUi.mutedColor).apply {
             text = host.getString(R.string.action_chooser_title)
         }
@@ -186,8 +194,15 @@ internal object ActionRunOverlay {
                 row.isSelected = selected
             }
         }
+        lateinit var humanText: TextView
+        fun paintHuman() = humanText.apply {
+            setTextColor(if (humanOn) ActionUi.accentColor else ActionUi.faintColor)
+            contentDescription = host.getString(if (humanOn) R.string.action_macro_human_on else R.string.action_macro_human_off)
+        }
+        humanText = control(host, "～", ActionUi.faintColor, "") { humanOn = !humanOn; paintHuman() }
+        paintHuman()
         val runText = control(host, "▶", ActionUi.accentColor, host.getString(R.string.action_chooser_run)) {
-            if (run(picked)) dismiss()
+            if (run(picked, humanOn)) dismiss()
         }
         val closeText = control(host, "×", ActionUi.mutedColor, host.getString(R.string.action_chooser_close)) { dismiss() }
         val header = handle(host).apply {
@@ -196,7 +211,8 @@ internal object ActionRunOverlay {
                 orientation = LinearLayout.VERTICAL
                 addView(title); addView(choice)
             }, LinearLayout.LayoutParams(-2, -2))
-            addView(runText, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(4) })
+            addView(humanText, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(4) })
+            addView(runText, LinearLayout.LayoutParams(-2, -2))
             addView(closeText, LinearLayout.LayoutParams(-2, -2))
         }
         val window = LinearLayout(host).apply {
@@ -224,6 +240,7 @@ internal object ActionRunOverlay {
                 setOnClickListener {
                     picked = name
                     prefs(host).edit().putString(KEY_PICKED, name).apply()
+                    humanOn = human(name); paintHuman()
                     render()
                     toggleList()
                 }
@@ -233,7 +250,8 @@ internal object ActionRunOverlay {
         render()
         attach(host, window, header, Owner.PICKER, choice) { x ->
             if (x >= closeText.left) closeText.performClick()
-            else if (x >= runText.left - dp(4)) runText.performClick()
+            else if (x >= runText.left) runText.performClick()
+            else if (x >= humanText.left - dp(4)) humanText.performClick()
             else choice.performClick()
         }
     }

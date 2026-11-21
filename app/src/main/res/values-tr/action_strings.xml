@@ -199,7 +199,9 @@
     <string name="action_pick_undo">Geri al</string>
     <string name="action_pick_points_full">En fazla %1$d nokta</string>
     <string name="action_overlay_setting">Diğer uygulamaların üzerinde durdurma düğmesi göster</string>
-    <string name="action_overlay_setting_desc">Bir makro çalışırken, kullandığı uygulamanın üzerinde ■ ve ilerlemeyi gösteren küçük bir çubuk kalır. İstediğiniz yere sürükleyin; makro altına dokunduğunda çubuk soluklaşır ve dokunuşu geçirir.</string>
+    <string name="action_overlay_setting_desc">Bir makro çalışırken, kullandığı uygulamanın üzerinde ■ ve ilerlemeyi gösteren küçük bir çubuk kalır. İstediğiniz yere sürükleyin; makro altına dokunduğunda çubuk soluklaşır ve dokunuşu geçirir. ‖ duraklatır ve sürdürür. ～ insan gibi girişi açar veya kapatır (açıkken vurgu rengi); ～ makro seçme çubuğunda da vardır, başlamadan önce seçilir.</string>
+    <string name="action_overlay_keep_setting">Makro bitince çubuğu tut</string>
+    <string name="action_overlay_keep_setting_desc">Açıksa makro bitince çubuk, az önce biten makro seçili olarak makro seçip çalıştırma çubuğuna dönüşür; × ile kapatın. Kapalıysa çubuk kapanır.</string>
     <string name="action_overlay_loop">tur %1$d/%2$d</string>
     <string name="action_overlay_loop_endless">tur %1$d</string>
     <string name="action_overlay_step">adım %1$d/%2$d</string>
