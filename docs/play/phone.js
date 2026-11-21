@@ -64,7 +64,7 @@
 
   var DEF = {
     airplane: false, wifi: true, torch: false, ringer: 'normal', volume: 7,
-    notifs: [], nid: 1, tiles: {}, widget: null, homeOrder: null, dockOrder: null, lastPick: null, edge: { on: false, panels: {} },
+    notifs: [], nid: 1, tiles: {}, widget: null, homeOrder: null, dockOrder: null, lastPick: null, gift: false, edge: { on: false, panels: {} },
     clip: { cur: '', hist: [] }, dev: false, trail: true, alarms: [], recents: [],
     lowWarned: false, buildTaps: 0
   };
@@ -374,6 +374,7 @@
       } } }));
     box.appendChild(wrap);
     box.appendChild(foot);
+    dragScrollX(wrap);
     box.addEventListener('click', function (e) { if (e.target === box || e.target === wrap) closeRecents(); });
     function renderRecents() {
       wrap.textContent = '';
@@ -389,6 +390,43 @@
       anim(c, [{ transform: 'translateY(40px) scale(0.92)', opacity: 0 }, { transform: 'none', opacity: 1 }], 300 + i * 40);
     });
   };
+  /* マウスでも横に払って並びを送れるように（指はブラウザのスクロールに任せる） */
+  function dragScrollX(el) {
+    var d = null;
+    el.addEventListener('pointerdown', function (e) {
+      if (e.pointerType !== 'mouse' || e.button !== 0 || e.target.closest('button')) return;
+      d = { x: e.clientX, y: e.clientY, left: el.scrollLeft, moved: false, id: e.pointerId };
+    });
+    el.addEventListener('pointermove', function (e) {
+      if (!d) return;
+      var dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (!d.moved) {
+        if (Math.abs(dx) < 6 || Math.abs(dx) < Math.abs(dy)) return;
+        d.moved = true;
+        el.classList.add('dragging');
+        try { el.setPointerCapture(d.id); } catch (er) { /* 無視 */ }
+      }
+      el.scrollLeft = d.left - dx;
+    });
+    function end(e) {
+      if (!d) return;
+      var moved = d.moved, dx = e.clientX - d.x;
+      d = null;
+      if (!moved) return;
+      Z.eatClick(el);
+      el.classList.remove('dragging');
+      /* いちばん近いカードへ寄せる（少しでも払った向きへ 1 枚送る） */
+      var cards = Array.prototype.slice.call(el.querySelectorAll('.z2p-rec-card'));
+      if (!cards.length) return;
+      var mid = el.scrollLeft + el.clientWidth / 2, best = 0, bd = Infinity;
+      cards.forEach(function (c, i) { var cc = c.offsetLeft + c.offsetWidth / 2, dd = Math.abs(cc - mid); if (dd < bd) { bd = dd; best = i; } });
+      if (bd < cards[0].offsetWidth * 0.3 && Math.abs(dx) > 30) best = Math.max(0, Math.min(cards.length - 1, best + (dx < 0 ? 1 : -1)));
+      var t = cards[best];
+      el.scrollTo({ left: t.offsetLeft + t.offsetWidth / 2 - el.clientWidth / 2, behavior: Z.reduceMotion() ? 'auto' : 'smooth' });
+    }
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  }
   function closeRecents() {
     var box = els.recents;
     anim(box, [{ opacity: 1 }, { opacity: 0 }], 160, function () { box.hidden = true; box.textContent = ''; });
@@ -683,6 +721,7 @@
   }
   function closeModal() { els.modal.hidden = true; els.modal.textContent = ''; P._modalBack = null; Z.bus.emit('modal-closed'); }
   P.closeModal = closeModal;
+  P.modal = function (node) { openModal(node, closeModal); };
   P.modalOpen = function () { return els.modal && !els.modal.hidden; };
 
   P.confirm = function (text, okLabel) {

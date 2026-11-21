@@ -12,7 +12,7 @@
   /* 1 ページ目のアイコンと、画面下に固定のドック（どのページでも出る） */
   var GRID = ['z2term', 'camera', 'guide'];
   var DOCKAPPS = ['dialer', 'browser', 'settings'];
-  var PAGES = 3;
+  var PAGES = 10;   /* 最後のページにだけ「hack」がいる（おまけ） */
 
   function weekStart() {
     try {
@@ -32,7 +32,11 @@
     hm.jiggle = h('p.z2p-jiggle-note', { hidden: true });
     hm.pages = h('div.z2p-pages', { 'aria-label': T('home.pages') });
     hm.pages.appendChild(h('div.z2p-page', { 'aria-label': T('home.page', 1, PAGES) }, hm.clock, hm.cal, hm.tail, h('div.z2p-home-gap'), hm.grid));
-    for (var i = 2; i <= PAGES; i++) hm.pages.appendChild(h('div.z2p-page.empty', { 'aria-label': T('home.page', i, PAGES) }));
+    for (var i = 2; i < PAGES; i++) hm.pages.appendChild(h('div.z2p-page.empty', { 'aria-label': T('home.page', i, PAGES) }));
+    hm.hackPage = h('div.z2p-page.z2p-hackpage', { 'aria-label': T('home.page', PAGES, PAGES) });
+    hm.pages.appendChild(hm.hackPage);
+    renderHackPage();
+    Z.bus.on('gift', renderHackPage);
     hm.dots = h('div.z2p-dots');
     for (var j = 0; j < PAGES; j++) {
       (function (k) {
@@ -72,6 +76,19 @@
     return b ? b.getBoundingClientRect() : null;
   };
 
+  function renderHackPage() {
+    var pg = hm.hackPage;
+    pg.textContent = '';
+    var b = h('button.z2p-appicon', { type: 'button', 'data-id': 'icon_hack', 'aria-label': 'hack' },
+      h('span.z2p-icon.z2p-hack-icon', { 'aria-hidden': 'true', text: '#!' }),
+      h('span.z2p-appicon-l', { text: 'hack' }));
+    b.addEventListener('click', function () { Z.gift.launch(); });
+    var wrap = h('div.z2p-hack-wrap', null, h('p.z2p-hack-whisper', { text: T('home.hackwhisper') }), b);
+    if (Z.gift.unlocked()) {
+      wrap.appendChild(h('button.z2p-gift-btn', { type: 'button', 'data-id': 'gift_open', text: T('gift.open'), on: { click: Z.gift.open } }));
+    }
+    pg.appendChild(wrap);
+  }
   function renderDots() {
     Array.prototype.forEach.call(hm.dots.children, function (d, i) { d.setAttribute('aria-current', i === hm.page ? 'true' : 'false'); });
   }

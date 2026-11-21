@@ -488,9 +488,11 @@
     try { return { prog: A.parse(txt) }; } catch (e2) { return { error: name + ':' + (e2.line || '?') + ': ' + e2.message }; }
   }
 
-  A.start = function (name, sig, out, from) {
+  A.start = function (name, sig, out, from, text) {
     if (run) return Promise.resolve({ ok: false, error: T('act.busy', run.name) });
-    var l = load(name);
+    var l;
+    if (text != null) { try { l = { prog: A.parse(text) }; } catch (e) { l = { error: name + ':' + (e.line || '?') + ': ' + e.message }; } }
+    else l = load(name);
     if (l.error) return Promise.resolve({ ok: false, error: l.error });
     var r = run = {
       name: name, sig: sig || { aborted: false }, deadline: Date.now() + l.prog.head.timeout * 1000,

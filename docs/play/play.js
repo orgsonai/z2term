@@ -7,17 +7,19 @@
 (function () {
   'use strict';
 
-  var VER = '4';
+  var VER = '5';
   var PARTS = [
     'strings.ja.js', 'strings.en.js', 'help.js',
     'core.js', 'fs.js', 'shell.js', 'cmds.js', 'z2cmds.js',
     'phone.js', 'apps.js', 'browser.js', 'term.js', 'z2term.js',
-    'when.js', 'edge.js', 'action.js', 'guide.js', 'main.js'
+    'when.js', 'edge.js', 'action.js', 'guide.js', 'gift.js', 'main.js'
   ];
 
   var me = document.currentScript;
   var base = me ? me.src.replace(/[^/]*(\?.*)?$/, '') : 'play/';
   var loading = null;
+  window.Z2P = window.Z2P || {};
+  window.Z2P.base = base;   /* おまけ（gift/）のダウンロードに使う */
 
   function addCss() {
     if (document.getElementById('z2p-css')) return;

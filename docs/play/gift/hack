@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+# hack — 映画っぽい「解析中」の画面をずっと流し続けるだけの見せ物です。
+#        何にも接続しませんし、何も解析しません。出てくる IP や文字はすべてその場で作った作り物です。
+#
+# 使い方:  bash hack        （終わるのは q か Ctrl+C）
+# 必要:    bash 4 以上、tput、256 色の端末（24 桁 × 12 行以上）
+#
+# 画面:    上は文字の雨、下はそれらしいログ。止めるまで無限に流れます。
+#
+# 環境変数で調整できます:
+#   HACK_FRAME_DELAY   1 コマの間隔（秒、既定 0.04）
+#   HACK_MAX_FRAMES    この数のコマで終わる（確認用。既定 0 = 終わらない）
+
+if [[ -z "${BASH_VERSION:-}" ]] || (( BASH_VERSINFO[0] < 4 )); then
+    echo "hack: bash 4.0 以上が必要です。 (bash 4.0 or newer is required)" >&2
+    exit 1
+fi
+
+set -uo pipefail
+
+VERSION="1.0.0"
+FRAME_DELAY="${HACK_FRAME_DELAY:-0.04}"
+MAX_FRAMES="${HACK_MAX_FRAMES:-0}"
+MATRIX_CHARS="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%&*"
+
+case "${1:-}" in
+    --help|-h)
+        sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
+        exit 0
+        ;;
+    --version)
+        printf 'hack %s\n' "$VERSION"
+        exit 0
+        ;;
+    "") ;;
+    *)
+        echo "hack: unknown option: $1 (try --help)" >&2
+        exit 2
+        ;;
+esac
+
+if [[ ! -t 1 || ! -r /dev/tty ]]; then
+    echo "hack: 端末の中で実行してください。 (run it in an interactive terminal)" >&2
+    exit 1
+fi
+
+declare -a DROP SPEED TRAIL ACTIVE
+declare -a LOG_TEXT LOG_COLOR
+LOG_HEAD=0
+LOG_TAIL=0
+FRAME=0
+REQUEST_EXIT=0
+STTY_SAVED=""
+FRAME_BUF=""
+RESIZE_NEEDED=0
+
+cleanup() {
+    trap - EXIT INT TERM
+    printf '\033[r\033[0m\033[?25h\033[?7h' 2>/dev/null || true
+    if [[ -n "$STTY_SAVED" ]]; then
+        stty "$STTY_SAVED" < /dev/tty 2>/dev/null || true
+    fi
+    printf '\033[2J\033[H' 2>/dev/null || true
+}
+trap cleanup EXIT
+trap 'REQUEST_EXIT=1' INT TERM
+trap 'RESIZE_NEEDED=1' WINCH
+
+make_random_ip() {
+    # 飾りの IP。実在の相手とは関係ありません（その場で数字を並べるだけ）。
+    printf -v RANDOM_IP '%d.%d.%d.%d' \
+        "$((RANDOM % 126 + 1))" "$((RANDOM % 254 + 1))" \
+        "$((RANDOM % 254 + 1))" "$((RANDOM % 254 + 1))"
+}
+
+make_random_token() {
+    local wanted="${1:-10}" alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    local token="" i
+    for ((i=0; i<wanted; i++)); do
+        token+="${alphabet:RANDOM%${#alphabet}:1}"
+    done
+    RANDOM_TOKEN="$token"
+}
+
+queue_log() {
+    local color="$1" text="$2"
+    if (( LOG_TAIL - LOG_HEAD >= 240 )); then
+        unset 'LOG_TEXT[$LOG_HEAD]' 'LOG_COLOR[$LOG_HEAD]'
+        LOG_HEAD=$((LOG_HEAD + 1))
+    fi
+    LOG_COLOR[$LOG_TAIL]="$color"
+    LOG_TEXT[$LOG_TAIL]="$text"
+    LOG_TAIL=$((LOG_TAIL + 1))
+}
+
+setup_layout() {
+    LINES=$(tput lines 2>/dev/null || printf '24')
+    COLS=$(tput cols 2>/dev/null || printf '80')
+    if (( LINES < 12 || COLS < 24 )); then
+        printf '\033[r\033[2J\033[Hhack needs at least 24 columns x 12 rows.\n'
+        REQUEST_EXIT=1
+        return
+    fi
+    BORDER_ROW=$((LINES * 58 / 100))
+    (( BORDER_ROW < 7 )) && BORDER_ROW=7
+    (( BORDER_ROW > LINES - 4 )) && BORDER_ROW=$((LINES - 4))
+    TOP_LAST=$((BORDER_ROW - 1))
+    LOG_TOP=$((BORDER_ROW + 1))
+    LOG_BOTTOM=$LINES
+    if (( COLS <= 100 )); then STREAM_SPACING=3; else STREAM_SPACING=4; fi
+}
+
+initialize_streams() {
+    local c
+    DROP=(); SPEED=(); TRAIL=(); ACTIVE=()
+    for ((c=1; c<=COLS; c++)); do
+        DROP[$c]=$((1 - RANDOM % (TOP_LAST * 2)))
+        SPEED[$c]=$((RANDOM % 3 + 1))
+        # いちばん遠い色付きのマスは y-7。消す位置は y-8 以上にしないと 1 文字残る。
+        TRAIL[$c]=$((RANDOM % 8 + 8))
+        if (( c % STREAM_SPACING == 0 )); then ACTIVE[$c]=1; else ACTIVE[$c]=0; fi
+    done
+}
+
+draw_chrome() {
+    local label=" MATRIX // DISTRIBUTED ANALYSIS " left right border="" i
+    left=$(( (COLS - ${#label}) / 2 ))
+    (( left < 0 )) && left=0
+    right=$((COLS - left - ${#label}))
+    (( right < 0 )) && right=0
+    for ((i=0; i<left; i++)); do border+="-"; done
+    border+="$label"
+    for ((i=0; i<right; i++)); do border+="-"; done
+    printf '\033[r\033[2J\033[H\033[?25l\033[?7l'
+    printf '\033[%d;1H\033[38;5;46m\033[1m%s\033[0m' "$BORDER_ROW" "${border:0:COLS}"
+    printf '\033[%d;%dr' "$LOG_TOP" "$LOG_BOTTOM"
+}
+
+append_cell() {
+    local row="$1" col="$2" color="$3" char="$4"
+    (( row >= 1 && row <= TOP_LAST && col >= 1 && col <= COLS )) || return
+    FRAME_BUF+=$'\033['"${row};${col}H"$'\033[38;5;'"${color}m${char}"
+}
+
+update_matrix() {
+    local c y len ch
+    FRAME_BUF=""
+    for ((c=1; c<=COLS; c++)); do
+        (( ${ACTIVE[$c]:-0} == 1 )) || continue
+        (( FRAME % ${SPEED[$c]} == 0 )) || continue
+        y=$((DROP[$c] + 1))
+        DROP[$c]=$y
+        len=${TRAIL[$c]}
+        ch="${MATRIX_CHARS:RANDOM%${#MATRIX_CHARS}:1}"
+        append_cell "$((y - len))" "$c" 0 " "
+        append_cell "$((y - 7))" "$c" 22 "${MATRIX_CHARS:RANDOM%${#MATRIX_CHARS}:1}"
+        append_cell "$((y - 3))" "$c" 28 "${MATRIX_CHARS:RANDOM%${#MATRIX_CHARS}:1}"
+        append_cell "$((y - 1))" "$c" 40 "${MATRIX_CHARS:RANDOM%${#MATRIX_CHARS}:1}"
+        append_cell "$y" "$c" 255 "$ch"
+        if (( y - len > TOP_LAST )); then
+            DROP[$c]=$((1 - RANDOM % (TOP_LAST + 8)))
+            SPEED[$c]=$((RANDOM % 3 + 1))
+            TRAIL[$c]=$((RANDOM % 8 + 8))
+        fi
+    done
+    FRAME_BUF+=$'\033[0m'
+    printf '%b' "$FRAME_BUF"
+}
+
+flush_logs() {
+    local count=0 text color elapsed min sec stamp
+    while (( LOG_HEAD < LOG_TAIL && count < 2 )); do
+        text="${LOG_TEXT[$LOG_HEAD]}"
+        color="${LOG_COLOR[$LOG_HEAD]}"
+        unset 'LOG_TEXT[$LOG_HEAD]' 'LOG_COLOR[$LOG_HEAD]'
+        LOG_HEAD=$((LOG_HEAD + 1))
+        elapsed=$SECONDS
+        min=$((elapsed / 60)); sec=$((elapsed % 60))
+        printf -v stamp '[%02d:%02d]' "$min" "$sec"
+        text="$stamp $text"
+        printf '\033[%d;1H\n\033[2K\033[38;5;%sm%s\033[0m' \
+            "$LOG_BOTTOM" "$color" "${text:0:COLS-1}"
+        count=$((count + 1))
+    done
+}
+
+generate_demo_log() {
+    local node ip token progress speed
+    make_random_ip; node="$RANDOM_IP"
+    make_random_ip; ip="$RANDOM_IP"
+    make_random_token "$((RANDOM % 6 + 7))"; token="$RANDOM_TOKEN"
+    progress=$((RANDOM % 10000))
+    speed=$((RANDOM % 31 + 10))
+    case $((RANDOM % 8)) in
+        0) queue_log 196 "[FAILED] $ip:22 user=root pass=$token" ;;
+        1) queue_log 196 "[FAILED] node=$node digest mismatch candidate=$token" ;;
+        2) queue_log 51 "[CLUSTER] dispatch range=$progress-$((progress + RANDOM % 900 + 100)) node=$node" ;;
+        3) queue_log 244 "[TRY] node=$node algo=yescrypt candidate=$token" ;;
+        4) queue_log 33 "[SCAN] $ip ports=22,80,443 latency=$((RANDOM % 70 + 4))ms" ;;
+        5) queue_log 196 "[FAILED] $ip:8022 authentication rejected" ;;
+        6) queue_log 51 "[QUEUE] worker=$node lease=${RANDOM} queue=$((RANDOM % 90 + 10))" ;;
+        *) make_random_token 6; queue_log 244 "[TRY] rate=${speed}w/s salt=$RANDOM_TOKEN block=$progress" ;;
+    esac
+}
+
+pace_and_read_key() {
+    local key=""
+    if IFS= read -r -s -n 1 -t "$FRAME_DELAY" -u 9 key; then
+        if [[ "$key" == "q" || "$key" == "Q" ]]; then REQUEST_EXIT=1; fi
+    fi
+}
+
+STTY_SAVED=$(stty -g < /dev/tty 2>/dev/null || true)
+exec 9</dev/tty
+stty -echo -icanon min 0 time 0 < /dev/tty 2>/dev/null || true
+setup_layout
+if (( REQUEST_EXIT == 0 )); then
+    initialize_streams
+    draw_chrome
+    queue_log 46 "[BOOT] matrix renderer online; differential output enabled"
+    queue_log 51 "[CLUSTER] discovery mesh initialized; dynamic nodes enabled"
+fi
+
+while (( REQUEST_EXIT == 0 )); do
+    FRAME=$((FRAME + 1))
+    if (( RESIZE_NEEDED == 1 )); then
+        RESIZE_NEEDED=0
+        setup_layout
+        initialize_streams
+        draw_chrome
+    fi
+    update_matrix
+    if (( FRAME % 3 == 0 )); then generate_demo_log; fi
+    flush_logs
+    if (( MAX_FRAMES > 0 && FRAME >= MAX_FRAMES )); then
+        REQUEST_EXIT=1
+    fi
+    pace_and_read_key
+done
+
+exit 0

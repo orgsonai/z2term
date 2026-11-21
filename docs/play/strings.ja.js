@@ -36,6 +36,14 @@
     'ph.stop': '停止',
 
     /* ホーム */
+    'home.hackwhisper': 'ここまで来ましたね。',
+    'gift.noterm': '端末の中で実行してください', 'gift.ready': '🎁 おまけが届きました', 'gift.readysub': 'q か Ctrl+C で抜けると受け取れます',
+    'gift.thanks': '見てくれてありがとう。おまけをどうぞ 🎁', 'gift.title': '🎁 おまけ', 'gift.open': '🎁 おまけ',
+    'gift.lead': 'ここで見た画面を、本物の端末でも流せるスクリプトです。',
+    'gift.hackdesc': '文字の雨とそれらしいログが、止めるまで流れ続ける（いまの画面）',
+    'gift.matrixdesc': '文字の雨だけ。色や長さ・速さを先頭の設定で変えられる',
+    'gift.how': 'z2term や Linux / macOS の端末で（bash 4 以上）:', 'gift.note': 'どちらも見た目だけの演出で、何にも接続しません。終わるのは q か Ctrl+C です。',
+    'gift.hackhelp': 'usage: hack\n文字の雨とそれらしいログを流し続ける見せ物（何にも接続しない）。q か Ctrl+C で終わる。',
     'home.cal': 'カレンダー', 'home.dock': 'よく使うアプリ', 'home.pages': 'ホームのページ（横に払って切り替え）', 'home.page': 'ページ {0} / {1}', 'home.nofile': '（ファイルがありません）',
     'home.jiggle': '並べ替え: 動かすアイコンと、入れ替える先を順に押します（◁ で終わり）',
     'home.jiggle2': '「{0}」と入れ替える先を押してください',

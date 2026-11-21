@@ -36,7 +36,7 @@
     this.el.appendChild(this.altEl);
     var self = this;
     this.el.addEventListener('wheel', function (e) {
-      if (!self.alt) return;
+      if (!self.alt || self.alt.kind === 'canvas') return;
       e.preventDefault();
       self.altScroll(e.deltaY > 0 ? 3 : -3);
     }, { passive: false });
@@ -364,7 +364,28 @@
     a.top = Math.max(0, Math.min(max, a.top + d));
     this.altRender();
   };
+  /* 全画面の絵（hack / matrix 用）。キーは onKey へ。閉じると Promise が終わる */
+  Pane.prototype.canvasMode = function (onKey, sig) {
+    var self = this;
+    return new Promise(function (ok) {
+      var cv = document.createElement('canvas');
+      cv.className = 'z2p-canvas';
+      self.alt = { kind: 'canvas', onKey: onKey, done: ok, sig: sig, canvas: cv };
+      self.linesEl.hidden = true; self.inEl.hidden = true; self.altEl.hidden = false;
+      self.altEl.textContent = '';
+      self.altEl.classList.add('canvas');
+      self.altEl.appendChild(cv);
+      self._altIv = setInterval(function () { if (sig && sig.aborted) self.altQuit(); }, 100);
+      self.altReady = cv;
+    });
+  };
+
   Pane.prototype.altKey = function (k) {
+    if (this.alt && this.alt.kind === 'canvas') {
+      if (k.ctrl && (k.key === 'c' || k.key === 'C')) { this.alt.byCtrlC = true; this.altQuit(); return; }
+      if (this.alt.onKey && this.alt.onKey(k) === 'quit') this.altQuit();
+      return;
+    }
     var r = this.altRows();
     var key = k.key;
     if (k.ctrl && (key === 'c' || key === 'C')) { this.altQuit(); return; }
@@ -382,9 +403,10 @@
     clearInterval(this._altIv);
     this.alt = null;
     this.altEl.hidden = true; this.altEl.textContent = '';
+    this.altEl.classList.remove('canvas');
     this.linesEl.hidden = false; this.inEl.hidden = false;
     this.scrollBottom();
-    a.done();
+    a.done(a.byCtrlC ? 'ctrlc' : 'quit');
   };
 
   /* ---------------- 検索の印 ---------------- */

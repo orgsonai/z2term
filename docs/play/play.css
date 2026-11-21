@@ -639,3 +639,22 @@ button.z2p-set-row:hover { background: var(--p-card2); }
 .z2p-pick-go:disabled { opacity: .4; cursor: default; }
 .z2p-pick-x { flex: none; width: 30px; height: 32px; background: none; border: 1px solid var(--p-line); border-radius: 6px; cursor: pointer; }
 .z2p-ep-ic.pick { font-family: var(--p-mono); font-size: 14px; color: var(--p-acc); }
+
+.z2p-rec-list.dragging { scroll-snap-type: none; cursor: grabbing; user-select: none; }
+/* hack / matrix の全画面（canvas） */
+.z2p-alt.canvas { inset: 0; background: #000; }
+.z2p-canvas { display: block; }
+/* ホームの最後のページ（おまけ） */
+.z2p-hackpage { justify-content: center; align-items: center; }
+.z2p-hack-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.z2p-hack-whisper { margin: 0; font-family: var(--p-mono); font-size: 12px; color: var(--p-faint); }
+.z2p-hack-icon { background: #000 !important; border-color: #00ff00 !important; color: #00ff00; font-family: var(--p-mono); font-weight: 700; font-size: 18px; }
+.z2p-gift-btn { background: none; border: 1px solid var(--p-warn); color: var(--p-warn) !important; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 13px; }
+.z2p-gift { display: flex; flex-direction: column; gap: 8px; }
+.z2p-gift p { margin: 0; }
+.z2p-gift-dl { display: flex; flex-direction: column; gap: 2px; padding: 9px 10px; border: 1px solid var(--p-acc); border-radius: 8px; text-decoration: none !important; }
+.z2p-gift-dl:hover { background: var(--p-acc-soft); }
+.z2p-gift-name { font-family: var(--p-mono); font-weight: 700; color: var(--p-acc); }
+.z2p-gift-desc { font-size: 12px; color: var(--p-dim); }
+.z2p-gift-how { font-size: 12.5px; color: var(--p-dim); }
+.z2p-gift-code { display: block; white-space: pre; font-family: var(--p-mono); font-size: 12.5px; background: #0A0F0E; color: #D7E3DF; border: 1px solid var(--p-line); border-radius: 6px; padding: 6px 8px; }
