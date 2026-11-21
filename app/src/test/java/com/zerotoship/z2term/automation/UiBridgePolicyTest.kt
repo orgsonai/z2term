@@ -171,7 +171,9 @@ class UiBridgePolicyTest {
     @Test fun replayPrefersIdsThenTextThenCoordinates() {
         val named = mapOf(1 to UiBridgeReplay.Named("org.example.app:id/next", "次へ", null, 10, 20),
             2 to UiBridgeReplay.Named(null, "送信", null, 30, 40),
-            3 to UiBridgeReplay.Named(null, "とても長い文…", null, 50, 60))
+            3 to UiBridgeReplay.Named(null, "とても長い文…", null, 50, 60),
+            4 to UiBridgeReplay.Named("org.example.app:id/query", null, null, 70, 80, input = true),
+            5 to UiBridgeReplay.Named(null, "名前", null, 90, 100, input = true))
         fun step(verb: String, vararg args: String) = UiBridgeReplay.step(verb, args.toList()) { named[it] }
         assertEquals("click id=org.example.app:id/next", step("tap", "#1").line)
         assertEquals("long-click text=送信", step("long", "#2").line)
@@ -203,15 +205,21 @@ class UiBridgePolicyTest {
         assertNull(step("look").line)
         assertNull(step("look").unsupported)
         assertEquals("tap #9", step("tap", "#9").unsupported)
+        // 入力欄を押す操作は click にしない (z2-action の click は入力欄を探さない)。
+        assertEquals("tap ui id=org.example.app:id/query", step("tap", "#4").line)
+        assertEquals("tap px 90 100", step("tap", "#5").line)
+        assertEquals("long-press px 70 80 600", step("long", "#4").line)
     }
 
     @Test fun typingIntoTheSameFieldTapsItOnce() {
         val steps = listOf(UiBridgeReplay.Step("tap ui text=検索\ntype abc", null) to 0L,
             UiBridgeReplay.Step("tap ui text=検索\nenter", null) to 100L,
             UiBridgeReplay.Step("tap ui text=検索\ntype def", null) to 900L,
-            UiBridgeReplay.Step("tap ui text=名前\ntype g", null) to 1000L)
+            UiBridgeReplay.Step("tap ui text=名前\ntype g", null) to 1000L,
+            UiBridgeReplay.Step("tap ui id=org.example.app:id/q", null) to 1100L,
+            UiBridgeReplay.Step("tap ui id=org.example.app:id/q\ntype h", null) to 1200L)
         val text = UiBridgeReplay.definition(steps)
-        assertEquals(listOf("tap ui text=検索", "type abc", "enter", "wait 800", "type def", "tap ui text=名前", "type g"),
+        assertEquals(listOf("tap ui text=検索", "type abc", "enter", "wait 800", "type def", "tap ui text=名前", "type g", "tap ui id=org.example.app:id/q", "type h"),
             text.lines().drop(2).filter { it.isNotEmpty() })
         ActionDefinition.parse(text)
     }

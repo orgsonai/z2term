@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.194 (versionCode 892)**: In steps recorded from AI app control, a press on an input field stopped the replay with "UI element not found", because the macro step `click` cannot find input fields. Such a press is now saved as `tap ui`, which finds the field by ID and taps it with a finger (coordinates for a field without an ID). The "saving" section of the guide for AI now matches the current behaviour, where typing can be saved
+
 **1.0.193 (versionCode 891)**: With `human=`, screen-action macros now `type` one character at a time with gaps (a little longer after a space or punctuation). Saving steps recorded through AI app control now keeps typing and Enter: they become a finger tap on the field followed by `type` / `enter` (appending text is still refused)
 
 **1.0.192 (versionCode 890)**: Screen-action macros gain variables. `set NAME VALUE` stores, `add NAME NUMBER` adds, and the conditions `var NAME>3` / `var NAME=VALUE` compare. "Stop after 10 successes" or "tell me after 3 failures in a row" no longer need a shell. Variables start empty on every run and are shared with called macros; shell steps read them as `$Z2_VAR_NAME`

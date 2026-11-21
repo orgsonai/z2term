@@ -329,11 +329,15 @@ notification. You learn about it as the reply to your next call:
 
 - `z2-ui mark` starts a recording. Then operate. `z2-ui save <name>` saves the successful operations since mark as a
   z2-action macro (`/root/.z2term/actions/<name>.actions`) that the user can run from tiles and panels without you.
-- `#N` targets are rewritten as id, then text, then desc, then coordinates. Waits between steps keep the real
+- `#N` targets are rewritten as id, then text, then desc, then coordinates. A tap on an input becomes `tap ui id=...`
+  (coordinates without an id, for a long press and for password fields), because the macro step "click" skips inputs. Waits between steps keep the real
   intervals (up to 2 s).
 - `drag` is saved as the macro step "drag" and replays at the same speed.
-- Refused with `unsupported_step` if the range includes type, enter, scroll, wait-change, open with a URI or noti press,
-  because z2-action cannot replay them. Mark again and record a range without them.
+- `type` and `enter` are saved as two lines: a tap on the input (by id, otherwise by its position), then the macro step
+  "type" or "enter", which acts on the focused input. When the input was just tapped, or gets a second type or enter, the tap is not repeated.
+- Refused with `unsupported_step` if the range includes `type --append`, a text z2-action cannot type as it is
+  (several lines, leading or trailing spaces, a dollar sign followed by a digit or #, or over its length limit), scroll, wait-change,
+  open with a URI or noti press, because z2-action cannot replay them. Mark again and record a range without them.
 - `exists`: a macro with that name already exists. Choose another name; never ask to overwrite the user's macros.
 - `nothing_recorded`: nothing succeeded since mark. Names: 1 to 64 letters, digits, `_` or `-`. At most 64 steps (`too_long`).
 - Only save when the user wants a reusable routine.

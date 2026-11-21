@@ -262,10 +262,10 @@ The AI can start without a manual, just as a person using an app for the first t
 
 **Rules for saving steps (`save`):**
 
-- Element numbers mean nothing at replay time, so an element pressed by `#N` is replaced by its resource ID, then its label, then its description, then its coordinates. Truncated labels (ending in "…") do not match the real label and are not used.
+- Element numbers mean nothing at replay time, so an element pressed by `#N` is replaced by its resource ID, then its label, then its description, then its coordinates. Truncated labels (ending in "…") do not match the real label and are not used. A press on an input field becomes a finger tap found by ID, `tap ui id=…` (coordinates for a field without an ID, a long press or a password field), because z2-action's `click` does not look at input fields (1.0.194).
 - Between operations, `wait` waits the interval that actually passed (up to 2 seconds).
 - `drag` is saved as the screen-action step Drag through points (`drag px`) and replays at the same speed (1.0.35).
-- Typing (`type`) and Enter (`enter`) become two lines: a finger tap on the field (`tap ui SELECTOR`, or a coordinate `tap` for a `#N` without an ID) and `type TEXT` / `enter` (1.0.193), because z2-action types into the focused field. Typing into the same field again does not tap it again. Appending (`--append`) and text with line breaks, leading or trailing spaces or `$1` and the like are refused. On replay, `tap ui` fails when the field is not unique.
+- Typing (`type`) and Enter (`enter`) become two lines: a finger tap on the field (`tap ui SELECTOR`, or a coordinate `tap` for a `#N` without an ID) and `type TEXT` / `enter` (1.0.193), because z2-action types into the focused field. When the field was just tapped, or is typed into again, it is not tapped again. Appending (`--append`) and text with line breaks, leading or trailing spaces or `$1` and the like are refused. On replay, `tap ui` fails when the field is not unique.
 - **A range that includes an operation z2-action cannot do (appending text, scrolling, waiting for a change, opening a URI, notification buttons) is refused** (`unsupported_step`). Dropping it silently would save a different sequence with a step missing. Run `mark` again and record without it.
 - An existing macro with the same name is never overwritten (`exists`), so the AI cannot replace macros you wrote.
 - The record lives in memory only; it is cleared when z2term stops or by the notification's Stop. Read-only calls (`look` and so on) are not recorded.

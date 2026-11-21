@@ -28,7 +28,11 @@ internal object UiBridgeRecorder {
     @Synchronized fun record(verb: String, args: List<String>) {
         val step = runCatching {
             UiBridgeReplay.step(verb, args) { n ->
-                AndroidUiLook.lastElement(n)?.let { UiBridgeReplay.Named(it.id, it.text, it.desc, it.box.centerX(), it.box.centerY()) }
+                // パスワード欄は tap ui でも探さないので、座標で押す (ID を渡さない)。
+                AndroidUiLook.lastElement(n)?.let { element ->
+                    UiBridgeReplay.Named(element.id.takeIf { element.role != "password" }, element.text, element.desc,
+                        element.box.centerX(), element.box.centerY(), input = element.role == "input" || element.role == "password")
+                }
             }
         }.getOrNull() ?: return
         if (step.line == null && step.unsupported == null) return

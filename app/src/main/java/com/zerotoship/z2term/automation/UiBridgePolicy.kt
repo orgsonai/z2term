@@ -314,7 +314,7 @@ internal object UiBridgePolicy {
  */
 internal object UiBridgeReplay {
     /** `#N` で押した要素の呼び名と中心。番号は再生時には通じないので、ID → 文字 → 説明 → 座標の順に置き換える。 */
-    data class Named(val id: String?, val text: String?, val desc: String?, val x: Int, val y: Int)
+    data class Named(val id: String?, val text: String?, val desc: String?, val x: Int, val y: Int, val input: Boolean = false)
 
     /** [line] が z2-action の 1 行。書き直せないときは [unsupported] に操作名。読むだけの操作は両方 null。 */
     data class Step(val line: String?, val unsupported: String?, val coordinates: Boolean = false)
@@ -382,6 +382,13 @@ internal object UiBridgeReplay {
                     is UiBridgePolicy.Target.Point -> at(target.x, target.y)
                     is UiBridgePolicy.Target.Ref -> {
                         val element = named(target.n) ?: return Step(null, "$verb #${target.n}")
+                        // z2-action の click / long-click は入力欄を相手にしない (中身を読まないため)。
+                        // 入力欄は指で押す tap ui (ID で探す) にし、ID が無い・長押しなら座標で押す。
+                        if (element.input) return when {
+                            verb == "tap" -> element.id?.let { "id=$it" }?.takeIf { runCatching { ActionSelector.parse(it) }.isSuccess }
+                                ?.let { Step("tap ui $it", null) } ?: at(element.x, element.y)
+                            else -> at(element.x, element.y)
+                        }
                         selector(element)?.let { Step("$press $it", null) } ?: at(element.x, element.y)
                     }
                 }
@@ -402,8 +409,9 @@ internal object UiBridgeReplay {
             // 同じ欄へ続けて type / enter するなら、欄を押し直さない (フォーカスはそのまま)。
             val focus = parts.size == 2 && (parts[1] == "enter" || parts[1].startsWith("type"))
             val last = lines.lastOrNull { !it.startsWith("wait ") }
-            val sameField = focus && last != null && (last == "enter" || last.startsWith("type")) &&
-                lines.lastOrNull { it.startsWith("tap ") } == parts[0]
+            // 直前に同じ欄を押していれば (tap → type)、それも押し直さない。
+            val sameField = focus && last != null && (last == parts[0] || (last == "enter" || last.startsWith("type")) &&
+                lines.lastOrNull { it.startsWith("tap ") } == parts[0])
             lines += if (sameField) parts.drop(1) else parts
             previous = at
         }
