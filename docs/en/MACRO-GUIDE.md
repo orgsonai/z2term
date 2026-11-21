@@ -280,7 +280,7 @@ prerequisite → 3-A).
 
 | Command | Usage | What it does | Returns |
 |---|---|---|---|
-| `z2-notify` | `z2-notify [-h] [-n name] [-c text] [-b label]... "title" "text"` | Post a notification (`-h` shows a banner, `-b` adds a **reply button**, `-c` adds a **"Copy" button**) | — |
+| `z2-notify` | `z2-notify [-h\|-l] [-n name] [-c text] [-b label]... "title" "text"` | Post a notification (`-h` shows a banner, `-l` posts it quietly with no sound, vibration or banner, `-b` adds a **reply button**, `-c` adds a **"Copy" button**) | — |
 | `z2-ask` | `z2-ask [-t sec] [-H hint] [-d default] "question"` | **Ask via a notification reply field** (answerable without opening the app). Dismissing or timing out exits non-zero | the answer |
 | `z2-listen` | `z2-listen [-w word,word] [-l lang]` | **Speech to text** (on-device recognition only; Android 12+; z2term on screen). `-w` accepts only the listed words. 1 = nothing heard or none of the words / 2 = unavailable | The text / the matched word |
 | `z2-toast` | `z2-toast "message"` | Short on-screen message | — |

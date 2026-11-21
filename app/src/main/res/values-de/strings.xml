@@ -742,6 +742,8 @@
     <string name="speech_history_clear_confirm">Alle vorgelesenen Antworten löschen?</string>
     <string name="api_channel_high_name">Terminal-API (Banner)</string>
     <string name="api_channel_high_desc">Heads-up-Benachrichtigungen von z2-notify -h (erscheinen oben auf dem Bildschirm).</string>
+    <string name="api_channel_low_name">Terminal-API (leise)</string>
+    <string name="api_channel_low_desc">Leise Benachrichtigungen von z2-notify -l (ohne Ton und Vibration).</string>
     <string name="search_hint">Ausgabe durchsuchen</string>
     <string name="search_count">%1$d/%2$d</string>
     <string name="search_prev">↑</string>

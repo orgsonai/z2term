@@ -734,6 +734,8 @@
     <string name="speech_history_clear_confirm">Hapus semua balasan yang diucapkan?</string>
     <string name="api_channel_high_name">API terminal (banner)</string>
     <string name="api_channel_high_desc">Notifikasi pop-up dari z2-notify -h (muncul di bagian atas layar).</string>
+    <string name="api_channel_low_name">API terminal (senyap)</string>
+    <string name="api_channel_low_desc">Notifikasi senyap dari z2-notify -l (tanpa suara atau getar).</string>
     <string name="search_hint">Cari keluaran</string>
     <string name="search_count">%1$d/%2$d</string>
     <string name="search_prev">↑</string>

@@ -917,8 +917,9 @@ private class ApiMsgZhCn(d: String) : Z2ApiMsg("zh-CN", d) {
     override val usbStateNeedsAllow: String get() = "需要允许"
 
     override val notifyHelp: String get() = """
-        |# z2-notify [-h] [-n 名称] [-c 文本] [-b 标签]... "标题" "正文"  /  z2-notify [-h] "正文"
+        |# z2-notify [-h|-l] [-n 名称] [-c 文本] [-b 标签]... "标题" "正文"  /  z2-notify [-h|-l] "正文"
         |#   -h / --high / --banner : 以横幅(浮动通知)的形式显示在屏幕顶部
+        |#   -l / --low / --quiet   : 静默显示(无声音、振动和横幅)
         |#   -b <标签>              : 加一个回复按钮 (最多 3 个)。按下后
         |#                            ~/.z2term/events.jsonl 里会多出一行 notify_action
         |#                            ({"event":"notify_action","name":名称,"action":标签})
@@ -929,7 +930,7 @@ private class ApiMsgZhCn(d: String) : Z2ApiMsg("zh-CN", d) {
         |#                            没人看着时的 z2-clip set 会被默默丢掉。
     """.trimMargin()
 
-    override val notifyUsage: String get() = "usage: z2-notify [-h] [-n 名称] [-c 文本] [-b 标签]... <标题> [正文]"
+    override val notifyUsage: String get() = "usage: z2-notify [-h|-l] [-n 名称] [-c 文本] [-b 标签]... <标题> [正文]"
 
     override val toastHelp: String get() = """
         |# z2-toast <消息> … 在屏幕下方显示一条短消息 (吐司)。

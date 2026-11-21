@@ -733,6 +733,8 @@
     <string name="speech_history_clear_confirm">Xoá toàn bộ các câu trả lời đã đọc?</string>
     <string name="api_channel_high_name">API terminal (biểu ngữ)</string>
     <string name="api_channel_high_desc">Thông báo nổi từ z2-notify -h (hiện ở đầu màn hình).</string>
+    <string name="api_channel_low_name">API terminal (im lặng)</string>
+    <string name="api_channel_low_desc">Thông báo im lặng từ z2-notify -l (không âm thanh, không rung).</string>
     <string name="search_hint">Tìm trong kết quả</string>
     <string name="search_count">%1$d/%2$d</string>
     <string name="search_prev">↑</string>

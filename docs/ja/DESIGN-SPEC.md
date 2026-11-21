@@ -2640,6 +2640,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   | `z2-server` | **登録済みの常駐サーバーを起こす / 落とす** (0.8.310・F) |
 
   - **`z2-notify` のバナー表示 (0.8.163)**: `-h`/`--high`/`--banner` フラグ付きのとき `IMPORTANCE_HIGH` の別チャンネル (`z2term_api_high`) + `PRIORITY_HIGH` で**画面上部にバナー (ヘッドアップ) 表示**する。既定チャンネル (`z2term_api`) は `IMPORTANCE_DEFAULT` で作成済みのため後から重要度を上げられず (Android 仕様)、バナー用に別 ID のチャンネルを分けている
+  - **`z2-notify` の静かな通知 (1.0.199)**: `-l`/`--low`/`--quiet` 付きのとき `IMPORTANCE_LOW` の別チャンネル (`z2term_api_low`) + `PRIORITY_LOW` で、**音・振動・バナーなし**で出す (通知欄とステータスバーには出る)。既定チャンネルの重要度は後から下げられないため、バナーと同じ理由で別 ID。`-h` と `-l` を両方書いたら後に書いたほうが効く。長く動かすマクロが「止めるコマンド」を置いておくような、気付かせなくてよい通知向け
   - **裏で走るマクロはクリップボードに書けない → `z2-notify -c` の「コピー」ボタン (0.8.335)**: Android 10 以降、**フォーカスを持つアプリ（と選択中の入力方法）以外は `setPrimaryClip` を拒否される**。拒否は例外にならず `E ClipboardService: Denying clipboard access to …, application is not in focus` が出るだけなので、**端末側からは成功したように見える**。着信・SMS・通知をきっかけに走るマクロは性質上いつも裏にいるため、`z2-clip set` は静かに落ち、`unknown-call` は「番号が入らない」状態だった（実機報告 2026-08-13）。
     - 直し方は**当てになる道を 1 本用意する**こと: `z2-notify -c <文字列>` が通知に「コピー」ボタンを足し、押すと `service/ClipCopyActivity`（透明・`noHistory`・`excludeFromRecents`）が起きて**その瞬間だけフォーカスを取り**、書いて閉じる。通知アクションからの Activity 起動は人の操作なのでバックグラウンド起動制限にも当たらない。
     - ⚠ **書くのは `onWindowFocusChanged(true)` で**。`onCreate` / `onResume` の時点ではまだウィンドウがフォーカスを取っておらず、同じ拒否に遭う。

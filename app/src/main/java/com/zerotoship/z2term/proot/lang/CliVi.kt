@@ -929,8 +929,9 @@ private class ApiMsgVi(d: String) : Z2ApiMsg("vi", d) {
     override val usbStateNeedsAllow: String get() = "cần cho phép"
 
     override val notifyHelp: String get() = """
-        |# z2-notify [-h] [-n NAME] [-c TEXT] [-b LABEL]... "tiêu đề" "nội dung"  /  z2-notify [-h] "nội dung"
+        |# z2-notify [-h|-l] [-n NAME] [-c TEXT] [-b LABEL]... "tiêu đề" "nội dung"  /  z2-notify [-h|-l] "nội dung"
         |#   -h / --high / --banner : hiện dạng biểu ngữ (nổi) ở đầu màn hình
+        |#   -l / --low / --quiet   : hiện lặng lẽ (không âm thanh, rung hay biểu ngữ)
         |#   -b <nhãn>              : thêm nút trả lời (tối đa 3). Nhấn một nút sẽ thêm
         |#                            notify_action vào ~/.z2term/events.jsonl
         |#                            ({"event":"notify_action","name":NAME,"action":LABEL})
@@ -941,7 +942,7 @@ private class ApiMsgVi(d: String) : Z2ApiMsg("vi", d) {
         |#                            nên z2-clip set khi không ai xem sẽ bị bỏ qua.
     """.trimMargin()
 
-    override val notifyUsage: String get() = "cách dùng: z2-notify [-h] [-n tên] [-c văn bản] [-b nhãn]... <tiêu đề> [nội dung]"
+    override val notifyUsage: String get() = "cách dùng: z2-notify [-h|-l] [-n tên] [-c văn bản] [-b nhãn]... <tiêu đề> [nội dung]"
 
     override val toastHelp: String get() = """
         |# z2-toast <thông điệp> … một thông điệp ngắn ở cuối màn hình (toast).

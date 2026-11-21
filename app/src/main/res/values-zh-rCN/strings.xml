@@ -736,6 +736,8 @@
     <string name="speech_history_clear_confirm">要清除所有朗读过的回答吗？</string>
     <string name="api_channel_high_name">终端 API（横幅）</string>
     <string name="api_channel_high_desc">用 z2-notify -h 发出的浮动通知（在屏幕顶部弹出）。</string>
+    <string name="api_channel_low_name">终端 API（静默）</string>
+    <string name="api_channel_low_desc">用 z2-notify -l 发出的静默通知（无声音和振动）。</string>
     <string name="search_hint">搜索输出</string>
     <string name="search_count">%1$d/%2$d</string>
     <string name="search_prev">↑</string>

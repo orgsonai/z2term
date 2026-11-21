@@ -929,8 +929,9 @@ private class ApiMsgTr(d: String) : Z2ApiMsg("tr", d) {
     override val usbStateNeedsAllow: String get() = "izin gerekiyor"
 
     override val notifyHelp: String get() = """
-        |# z2-notify [-h] [-n NAME] [-c TEXT] [-b LABEL]... "başlık" "metin"  /  z2-notify [-h] "metin"
+        |# z2-notify [-h|-l] [-n NAME] [-c TEXT] [-b LABEL]... "başlık" "metin"  /  z2-notify [-h|-l] "metin"
         |#   -h / --high / --banner : ekranın üstünde bir afiş (açılır) olarak gösterir
+        |#   -l / --low / --quiet   : sessizce gösterir (ses, titreşim ve afiş olmadan)
         |#   -b <etiket>            : bir yanıt düğmesi ekler (en fazla 3). Birine basmak
         |#                            ~/.z2term/events.jsonl’e notify_action ekler
         |#                            ({"event":"notify_action","name":NAME,"action":LABEL})
@@ -941,7 +942,7 @@ private class ApiMsgTr(d: String) : Z2ApiMsg("tr", d) {
         |#                            bu yüzden kimse bakmıyorken z2-clip set yok sayılır.
     """.trimMargin()
 
-    override val notifyUsage: String get() = "kullanım: z2-notify [-h] [-n ad] [-c metin] [-b etiket]... <başlık> [metin]"
+    override val notifyUsage: String get() = "kullanım: z2-notify [-h|-l] [-n ad] [-c metin] [-b etiket]... <başlık> [metin]"
 
     override val toastHelp: String get() = """
         |# z2-toast <mesaj> … ekranın altında kısa bir mesaj (toast).

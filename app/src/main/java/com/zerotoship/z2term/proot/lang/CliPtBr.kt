@@ -929,8 +929,9 @@ private class ApiMsgPtBr(d: String) : Z2ApiMsg("pt-BR", d) {
     override val usbStateNeedsAllow: String get() = "falta permitir"
 
     override val notifyHelp: String get() = """
-        |# z2-notify [-h] [-n NAME] [-c TEXT] [-b LABEL]... "título" "texto"  /  z2-notify [-h] "texto"
+        |# z2-notify [-h|-l] [-n NAME] [-c TEXT] [-b LABEL]... "título" "texto"  /  z2-notify [-h|-l] "texto"
         |#   -h / --high / --banner : mostra em destaque (heads-up) no topo da tela
+        |#   -l / --low / --quiet   : mostra em silêncio (sem som, vibração nem destaque)
         |#   -b <rótulo>            : adiciona um botão de resposta (até 3). Apertar um acrescenta
         |#                            notify_action a ~/.z2term/events.jsonl
         |#                            ({"event":"notify_action","name":NAME,"action":LABEL})
@@ -941,7 +942,7 @@ private class ApiMsgPtBr(d: String) : Z2ApiMsg("pt-BR", d) {
         |#                            área de transferência, então um z2-clip set sem ninguém olhando é descartado.
     """.trimMargin()
 
-    override val notifyUsage: String get() = "uso: z2-notify [-h] [-n nome] [-c texto] [-b rótulo]... <título> [texto]"
+    override val notifyUsage: String get() = "uso: z2-notify [-h|-l] [-n nome] [-c texto] [-b rótulo]... <título> [texto]"
 
     override val toastHelp: String get() = """
         |# z2-toast <mensagem> … uma mensagem curta embaixo da tela (um toast).

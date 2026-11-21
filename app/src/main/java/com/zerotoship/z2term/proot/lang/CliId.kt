@@ -929,8 +929,9 @@ private class ApiMsgId(d: String) : Z2ApiMsg("id", d) {
     override val usbStateNeedsAllow: String get() = "perlu izin"
 
     override val notifyHelp: String get() = """
-        |# z2-notify [-h] [-n NAME] [-c TEXT] [-b LABEL]... "judul" "teks"  /  z2-notify [-h] "teks"
+        |# z2-notify [-h|-l] [-n NAME] [-c TEXT] [-b LABEL]... "judul" "teks"  /  z2-notify [-h|-l] "teks"
         |#   -h / --high / --banner : menampilkannya sebagai banner (prioritas tinggi) di atas layar
+        |#   -l / --low / --quiet   : menampilkannya diam-diam (tanpa suara, getar, atau banner)
         |#   -b <label>             : menambah tombol balasan (hingga 3). Menekannya menambahkan
         |#                            notify_action ke ~/.z2term/events.jsonl
         |#                            ({"event":"notify_action","name":NAME,"action":LABEL})
@@ -941,7 +942,7 @@ private class ApiMsgId(d: String) : Z2ApiMsg("id", d) {
         |#                            papan klip, jadi z2-clip set tanpa ada orang di depan layar diabaikan.
     """.trimMargin()
 
-    override val notifyUsage: String get() = "penggunaan: z2-notify [-h] [-n nama] [-c teks] [-b label]... <judul> [teks]"
+    override val notifyUsage: String get() = "penggunaan: z2-notify [-h|-l] [-n nama] [-c teks] [-b label]... <judul> [teks]"
 
     override val toastHelp: String get() = """
         |# z2-toast <pesan> … pesan singkat di bagian bawah layar (toast).

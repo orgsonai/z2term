@@ -757,6 +757,8 @@
     <string name="speech_history_clear_confirm">Удалить все озвученные ответы?</string>
     <string name="api_channel_high_name">API терминала (баннер)</string>
     <string name="api_channel_high_desc">Всплывающие уведомления от z2-notify -h (появляются вверху экрана).</string>
+    <string name="api_channel_low_name">API терминала (тихие)</string>
+    <string name="api_channel_low_desc">Тихие уведомления от z2-notify -l (без звука и вибрации).</string>
     <string name="search_hint">Поиск по выводу</string>
     <string name="search_count">%1$d/%2$d</string>
     <string name="search_prev">↑</string>

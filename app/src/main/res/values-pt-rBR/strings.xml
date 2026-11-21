@@ -750,6 +750,8 @@
     <string name="speech_history_clear_confirm">Apagar todas as respostas lidas?</string>
     <string name="api_channel_high_name">API do terminal (banner)</string>
     <string name="api_channel_high_desc">Notificações em destaque do z2-notify -h (aparecem no topo da tela).</string>
+    <string name="api_channel_low_name">API do terminal (silenciosa)</string>
+    <string name="api_channel_low_desc">Notificações silenciosas do z2-notify -l (sem som nem vibração).</string>
     <string name="search_hint">Buscar na saída</string>
     <string name="search_count">%1$d/%2$d</string>
     <string name="search_prev">↑</string>

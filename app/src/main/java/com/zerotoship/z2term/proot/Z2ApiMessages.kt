@@ -119,8 +119,9 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
 
     open val notifyHelp: String get() = t(
         en = """
-        |# z2-notify [-h] [-n NAME] [-c TEXT] [-b LABEL]... "title" "text"  /  z2-notify [-h] "text"
+        |# z2-notify [-h|-l] [-n NAME] [-c TEXT] [-b LABEL]... "title" "text"  /  z2-notify [-h|-l] "text"
         |#   -h / --high / --banner : show it as a banner (heads-up) at the top of the screen
+        |#   -l / --low / --quiet   : post it quietly (no sound, vibration or banner)
         |#   -b <label>             : add a reply button (up to 3). Pressing one appends
         |#                            notify_action to ~/.z2term/events.jsonl
         |#                            ({"event":"notify_action","name":NAME,"action":LABEL})
@@ -131,8 +132,9 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
         |#                            the clipboard, so an unattended z2-clip set is dropped.
     """.trimMargin(),
         ja = """
-        |# z2-notify [-h] [-n 名前] [-c 文字列] [-b ラベル]... "タイトル" "本文"  /  z2-notify [-h] "本文"
+        |# z2-notify [-h|-l] [-n 名前] [-c 文字列] [-b ラベル]... "タイトル" "本文"  /  z2-notify [-h|-l] "本文"
         |#   -h / --high / --banner : 画面上部にバナー(ヘッドアップ)表示する
+        |#   -l / --low / --quiet   : 静かに出す (音・振動・バナーなし)
         |#   -b <ラベル>            : 返事のボタンを付ける (最大 3 つ)。押すと
         |#                            ~/.z2term/events.jsonl に notify_action が 1 行増える
         |#                            ({"event":"notify_action","name":名前,"action":ラベル})
@@ -145,8 +147,8 @@ internal open class Z2ApiMsg(lang: String, protected val d: String) {
     )
 
     open val notifyUsage: String get() = t(
-            en = "usage: z2-notify [-h] [-n name] [-c text] [-b label]... <title> [text]",
-            ja = "usage: z2-notify [-h] [-n 名前] [-c 文字列] [-b ラベル]... <タイトル> [本文]"
+            en = "usage: z2-notify [-h|-l] [-n name] [-c text] [-b label]... <title> [text]",
+            ja = "usage: z2-notify [-h|-l] [-n 名前] [-c 文字列] [-b ラベル]... <タイトル> [本文]"
         )
 
     // --- 単機能のもの (ヘルプ 1〜2 行) ---

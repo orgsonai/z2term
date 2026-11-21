@@ -963,8 +963,9 @@ private class ApiMsgKo(d: String) : Z2ApiMsg("ko", d) {
     override val usbStateNeedsAllow: String get() = "허용 필요"
 
     override val notifyHelp: String get() = """
-        |# z2-notify [-h] [-n 이름] [-c 텍스트] [-b 라벨]... "제목" "본문"  /  z2-notify [-h] "본문"
+        |# z2-notify [-h|-l] [-n 이름] [-c 텍스트] [-b 라벨]... "제목" "본문"  /  z2-notify [-h|-l] "본문"
         |#   -h / --high / --banner : 화면 위쪽에 배너(헤드업)로 띄웁니다
+        |#   -l / --low / --quiet   : 조용히 띄웁니다(소리·진동·배너 없음)
         |#   -b <라벨>             : 응답 버튼을 답니다 (최대 3개). 누르면 ~/.z2term/events.jsonl에
         |#                            notify_action이 한 줄 늘어납니다
         |#                            ({"event":"notify_action","name":이름,"action":라벨})
@@ -975,7 +976,7 @@ private class ApiMsgKo(d: String) : Z2ApiMsg("ko", d) {
         |#                            앞에 아무도 없을 때의 z2-clip set은 조용히 버려집니다.
     """.trimMargin()
 
-    override val notifyUsage: String get() = "사용법: z2-notify [-h] [-n 이름] [-c 텍스트] [-b 라벨]... <제목> [본문]"
+    override val notifyUsage: String get() = "사용법: z2-notify [-h|-l] [-n 이름] [-c 텍스트] [-b 라벨]... <제목> [본문]"
 
     override val toastHelp: String get() = """
         |# z2-toast <메시지> … 화면 아래쪽에 잠깐 뜨는 짧은 메시지(토스트)입니다.
