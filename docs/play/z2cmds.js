@@ -396,13 +396,34 @@
       return;
     }
     if (sub === 'broadcast') {
-      var g6 = g(a[1]); if (!g6) return 1;
-      var op = a[2] || 'status';
-      if (op === 'on' || op === 'off') zt.setBroadcast(g6, op === 'on');
-      else if (op === 'add' || op === 'remove') { var t7 = zt.find(a[3]); if (!t7) { c.err('z2-session: no such tab: ' + a[3] + '\n'); return 1; } zt.setTarget(g6, t7, op === 'add'); }
-      else if (op !== 'status') { c.err('usage: z2-session group broadcast <NAME> on|off|add <tab>|remove <tab>\n'); return 2; }
-      c.out('broadcast ' + (g6.bc && g6.bc.on ? 'on' : 'off') + ' → ' + ((g6.bc && g6.bc.targets) || []).map(function (id) { var t = zt.byId(id); return t ? t.name : id; }).join(', ') + '\n');
-      return;
+      /* 本物（1.0.175）の書き方: start <グループ> [--on] / on / off / stop / status / tab <先>... on|off */
+      var op = a[1] || 'status';
+      var bg = zt.bcGroup();
+      if (op === 'start') {
+        var g6 = g(a[2]); if (!g6) return 1;
+        if (g6.tabs.length < 2) { c.err('z2-session: ' + T('zt.bcneedtabs') + '\n'); return 1; }
+        zt.startBroadcast(g6, a.indexOf('--on') >= 0);
+        c.out('broadcast ' + (g6.bc.on ? 'on' : 'off') + ' (' + g6.name + ')\n');
+        return 0;
+      }
+      if (op === 'status') { c.out((bg ? (bg.bc.on ? 'on' : 'off') + '\t' + bg.name + '\t' + bg.bc.targets.map(function (id) { var t = zt.byId(id); return t ? t.name : id; }).join(', ') : 'stop') + '\n'); return 0; }
+      if (op === 'stop') { zt.stopBroadcast(); return 0; }
+      if (op === 'on' || op === 'off') {
+        if (!bg) { c.err('z2-session: ' + T('zt.bcnotstarted') + '\n'); return 1; }
+        zt.setBroadcast(bg, op === 'on'); return 0;
+      }
+      if (op === 'tab') {
+        if (!bg) { c.err('z2-session: ' + T('zt.bcnotstarted') + '\n'); return 1; }
+        var onoff = a[a.length - 1];
+        if (onoff !== 'on' && onoff !== 'off') { c.err('usage: z2-session group broadcast tab <tab>... on|off\n'); return 2; }
+        var ts3 = tabsOf(a.slice(2, -1)); if (!ts3) return 1;
+        ts3.forEach(function (t) { zt.setTarget(bg, t, onoff === 'on'); });
+        return 0;
+      }
+      /* 前の書き方（broadcast <グループ> on|off）も受ける */
+      var g7 = zt.findGroup(op);
+      if (g7 && (a[2] === 'on' || a[2] === 'off')) { zt.setBroadcast(g7, a[2] === 'on'); return 0; }
+      c.err('usage: z2-session group broadcast start <NAME> [--on] | on | off | stop | status | tab <tab>... on|off\n'); return 2;
     }
     c.err(helpText('z2-session') + '\n'); return 2;
   }

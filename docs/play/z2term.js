@@ -183,7 +183,7 @@
     name = String(name || '').trim() || T('zt.group') + ' ' + (groups.length + 1);
     if (zt.findGroup(name)) return { error: 'group exists: ' + name };
     if (ts.length > cfg.maxGroup) return { error: T('zt.maxgroup', cfg.maxGroup) };
-    var g = { id: 'g' + Z.uid(), name: name, tabs: [], layout: null, bc: { on: false, targets: [] } };
+    var g = { id: 'g' + Z.uid(), name: name, tabs: [], layout: null, bc: { started: false, on: false, targets: [] } };
     groups.push(g);
     ts.forEach(function (t) { zt.addToGroup(g, t, true); });
     zt.showGroup(g);
@@ -197,7 +197,7 @@
     t.groupId = g.id;
     g.tabs.push(t.id);
     g.layout = appendLeaf(g.layout, t.id);
-    if (g.bc.on && g.bc.targets.indexOf(t.id) < 0) g.bc.targets.push(t.id);
+    if (g.bc.started && g.bc.targets.indexOf(t.id) < 0) g.bc.targets.push(t.id);
     render(); persistSoon();
     Z.bus.emit('groups');
     return null;
@@ -231,9 +231,27 @@
     focusId = (focusTab && focusTab.id) || (g.tabs.indexOf(focusId) >= 0 ? focusId : g.tabs[0]);
     render(); persistSoon();
   };
+  /* 📡 ブロードキャスト（本物 1.0.147 / 1.0.175 と同じ流れ）:
+     start で 1 つのグループに始める（チェックは全タブ・最初は OFF）→ on/off で送るか → stop で解除。
+     同時に始められるのは 1 グループだけ。 */
+  zt.bcGroup = function () { return groups.filter(function (g) { return g.bc && g.bc.started; })[0] || null; };
+  zt.startBroadcast = function (g, on) {
+    groups.forEach(function (x) { if (x !== g) x.bc = { started: false, on: false, targets: [] }; });
+    g.bc = { started: true, on: !!on, targets: g.tabs.slice() };
+    zt.showGroup(g);
+    Z.bus.emit('broadcast', { group: g, on: g.bc.on });
+  };
+  zt.stopBroadcast = function () {
+    var g = zt.bcGroup();
+    if (!g) return false;
+    g.bc = { started: false, on: false, targets: [] };
+    render(); persistSoon();
+    Z.bus.emit('broadcast', { group: g, on: false });
+    return true;
+  };
   zt.setBroadcast = function (g, on) {
+    if (!g.bc.started) { zt.startBroadcast(g, on); return; }
     g.bc.on = !!on;
-    if (on && !g.bc.targets.length) g.bc.targets = g.tabs.slice();
     render(); persistSoon();
     Z.bus.emit('broadcast', { group: g, on: g.bc.on });
   };
@@ -248,7 +266,8 @@
   function targetsFor(t) {
     var out = [t];
     var g = t && zt.group(t.groupId);
-    if (g && g.bc.on && view && view.kind === 'group' && view.id === g.id) {
+    /* チェックの入ったタブで打ったときだけ、ほかのチェックの入ったタブへも送る */
+    if (g && g.bc.started && g.bc.on && view && view.kind === 'group' && view.id === g.id && g.bc.targets.indexOf(t.id) >= 0) {
       g.bc.targets.forEach(function (id) { var x = zt.byId(id); if (x && x !== t) out.push(x); });
     }
     return out;
@@ -388,6 +407,7 @@
     e.tabs = h('div.z2t-tabs', { role: 'tablist', 'aria-label': T('zt.tabs') });
     e.tabfix = h('div.z2t-tabfix');
     e.tabbar = h('div.z2t-tabbar', null, e.tabs, e.tabfix);
+    bindReveal(e.tabfix);
     e.search = buildSearch();
     e.ghead = h('div.z2t-ghead', { hidden: true });
     e.work = h('div.z2t-work');
@@ -416,7 +436,7 @@
     data = Z.store.get('term', null) || {};
     data.aliases = data.aliases || { ll: 'ls -l', la: 'ls -a', l: 'ls -CF' };
     tabs = (data.tabs || []).map(function (o) { return makeTab(o); });
-    groups = (data.groups || []).map(function (g) { g.bc = g.bc || { on: false, targets: [] }; return g; })
+    groups = (data.groups || []).map(function (g) { g.bc = g.bc || { started: false, on: false, targets: [] }; if (g.bc.on && g.bc.started === undefined) g.bc.started = true; return g; })
       .filter(function (g) { g.tabs = g.tabs.filter(function (id) { return zt.byId(id); }); return g.tabs.length; });
     tabs.forEach(function (t) { if (t.groupId && !zt.group(t.groupId)) t.groupId = null; });
     view = data.view || null;
@@ -545,7 +565,7 @@
         var g = zt.group(t.groupId);
         var gsel = view && view.kind === 'group' && view.id === g.id;
         var gb = h('button.z2t-tab.grp', { type: 'button', role: 'tab', 'aria-selected': gsel ? 'true' : 'false', 'data-id': 'group_' + g.name },
-          h('span.z2t-tab-dots', { text: '⋮ ' }), h('span', { text: g.name }), g.bc.on ? h('span.z2t-tab-bc', { text: ' 📡' }) : null,
+          h('span.z2t-tab-dots', { text: '⋮ ' }), h('span', { text: g.name }), g.bc.started ? h('span.z2t-tab-bc', { text: ' 📡' }) : null,
           h('span.z2t-tab-n', { text: ' ' + g.tabs.length }));
         gb.addEventListener('click', function () { zt.showGroup(g); });
         Z.longPress(gb, function () { groupMenu(g); });
@@ -573,15 +593,104 @@
       zt.newTab({});
       focusSink();
     });
-    var gui = h('button.z2t-tab.icon', { type: 'button', 'aria-label': T('zt.gui'), text: '🖥', on: { click: function () { Z.phone.alert(T('zt.gui'), T('zt.guimsg')); } } });
-    /* ＋ と 🖥 はタブが増えても右端に固定（タブだけが横に流れる） */
+    var gui = h('button.z2t-tab.icon', { type: 'button', 'aria-label': T('zt.gui'), 'data-id': 'tab_gui', text: '🖥', on: { click: function () { Z.phone.alert(T('zt.gui'), T('zt.guimsg')); } } });
+    Z.longPress(gui, function () {
+      var bg = zt.bcGroup();
+      Z.phone.menu('🖥', [bg ? { label: T('zt.bcstop'), act: zt.stopBroadcast } : { label: T('zt.bcstartl'), act: bcSheet }]);
+    });
+    /* ＋ と 🖥 はタブが増えても右端に固定（タブだけが横に流れる）。
+       その上を左へ滑らせると 📡 が出る（押すか 4 秒で引っ込む）。始めたあとは 📡 の切り替えが残る */
     e.tabfix.textContent = '';
+    var bg = zt.bcGroup();
+    if (bg) {
+      var n = bg.bc.targets.length;
+      var tog = h('button.z2t-tab.bc', { type: 'button', 'aria-pressed': bg.bc.on ? 'true' : 'false', 'data-id': 'bc_toggle', 'aria-label': T('zt.bctoggle', bg.name),
+        text: '📡 ' + (bg.bc.on ? T('zt.bcstate.on') + ' ' + n : T('zt.bcstate.off')) });
+      tog.addEventListener('click', function () { zt.setBroadcast(bg, !bg.bc.on); focusSink(); });
+      Z.longPress(tog, function () {
+        Z.phone.menu('📡 ' + bg.name, [
+          { label: T('zt.bcregroup'), act: bcSheet },
+          { label: T('zt.bcstop'), act: zt.stopBroadcast }
+        ]);
+      });
+      e.tabfix.appendChild(tog);
+    }
+    if (reveal) {
+      var rv = h('button.z2t-tab.bc.z2t-bcpop', { type: 'button', 'data-id': 'bc_reveal', text: bg ? '📡 ' + T('zt.bcstopshort') : '📡' , 'aria-label': bg ? T('zt.bcstop') : T('zt.bcstartl') });
+      rv.addEventListener('click', function () { hideReveal(); if (bg) zt.stopBroadcast(); else bcSheet(); });
+      e.tabfix.appendChild(rv);
+    }
     e.tabfix.appendChild(plus);
     e.tabfix.appendChild(gui);
     var selEl = box.querySelector('[aria-selected="true"]');
     if (selEl && selEl.scrollIntoView) selEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
   function markTabs() { renderTabs(); }
+
+  /* ＋ / 🖥 の上を左へ滑らせて 📡 を出す */
+  var reveal = false, revealT = null;
+  function showReveal() {
+    reveal = true;
+    clearTimeout(revealT);
+    revealT = setTimeout(hideReveal, 4000);
+    renderTabs();
+    var rv = e.tabfix.querySelector('.z2t-bcpop');
+    if (rv && rv.animate && !Z.reduceMotion()) rv.animate([{ transform: 'translateX(40px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 220, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
+  }
+  function hideReveal() { if (!reveal) return; reveal = false; clearTimeout(revealT); renderTabs(); }
+  function bindReveal(el) {
+    var d = null;
+    el.addEventListener('pointerdown', function (ev) { d = { x: ev.clientX, y: ev.clientY, done: false }; });
+    el.addEventListener('pointermove', function (ev) {
+      if (!d || d.done) return;
+      var dx = ev.clientX - d.x;
+      if (dx < -24 && Math.abs(ev.clientY - d.y) < 30) {
+        d.done = true;
+        showReveal();
+      }
+    });
+    el.addEventListener('pointerup', function () { if (d && d.done) Z.eatClick(el); d = null; });
+    el.addEventListener('pointercancel', function () { d = null; });
+  }
+
+  /* 📡 を始める板: グループを選んで「この内容で開始」 */
+  function bcSheet() {
+    var box = h('div.z2t-form');
+    var cur = view && view.kind === 'group' ? view.id : (zt.bcGroup() ? zt.bcGroup().id : (groups[0] && groups[0].id));
+    var choice = cur || (groups.length ? groups[0].id : 'new');
+    var list = h('div.z2t-list', { role: 'radiogroup', 'aria-label': T('zt.bcpick') });
+    function opt(val, label, sub, disabled) {
+      var r = h('input', { type: 'radio', name: 'z2t-bc', value: val, checked: choice === val, disabled: !!disabled });
+      r.addEventListener('change', function () { choice = val; });
+      list.appendChild(h('label.z2t-row', null, h('span', null, label, sub ? h('small.z2p-dim-note', { text: '  ' + sub }) : null), r));
+    }
+    groups.forEach(function (g) {
+      opt(g.id, '⋮ ' + g.name, g.tabs.map(function (id) { var t = zt.byId(id); return t ? t.name : id; }).join(', '), g.tabs.length < 2);
+    });
+    var t0 = focusedTab();
+    var idx = tabs.indexOf(t0);
+    var pick = tabs.slice(idx, idx + cfg.maxGroup).filter(function (t) { return !t.groupId; });
+    if (pick.length < 2) pick = tabs.filter(function (t) { return !t.groupId; }).slice(0, cfg.maxGroup);
+    opt('new', T('zt.bcnew'), pick.map(function (t) { return t.name; }).join(', ') || T('zt.bcneedtabs'), pick.length < 2);
+    if (!groups.length && pick.length < 2) choice = null;
+    box.appendChild(h('p.z2p-dim-note', { text: T('zt.bcabout') }));
+    box.appendChild(list);
+    box.appendChild(h('button.z2p-btn', { type: 'button', 'data-id': 'bc_start', text: T('zt.bcgo'), on: { click: function () {
+      var g = null;
+      if (choice === 'new') {
+        if (pick.length < 2) { Z.phone.toast(T('zt.bcneedtabs')); return; }
+        var r = zt.newGroup(T('zt.group') + ' ' + (groups.length + 1), pick);
+        if (r && r.error) { Z.phone.toast(r.error); return; }
+        g = r;
+      } else g = zt.group(choice);
+      if (!g || g.tabs.length < 2) { Z.phone.toast(T('zt.bcneedtabs')); return; }
+      closeSheet();
+      zt.startBroadcast(g, false);
+      Z.phone.toast(T('zt.bcstarted'));
+    } } }));
+    openSheet(T('zt.bcstartl'), box);
+  }
+  zt.bcSheet = bcSheet;
 
   function tabMenu(t) {
     var items = [
@@ -605,7 +714,7 @@
   function groupMenu(g) {
     Z.phone.menu('⋮ ' + g.name, [
       { label: T('zt.rename'), act: function () { Z.phone.prompt(T('zt.rename'), g.name).then(function (v) { if (v && !zt.findGroup(v)) { g.name = v; render(); persistSoon(); } }); } },
-      { label: g.bc.on ? T('zt.bcoff') : T('zt.bcon'), act: function () { zt.showGroup(g); zt.setBroadcast(g, !g.bc.on); } },
+      g.bc.started ? { label: T('zt.bcstop'), act: zt.stopBroadcast } : { label: T('zt.bcstartl'), act: function () { if (g.tabs.length < 2) { Z.phone.toast(T('zt.bcneedtabs')); return; } zt.startBroadcast(g, false); } },
       { label: T('zt.ungroup'), act: function () { zt.deleteGroup(g); } }
     ]);
   }
@@ -638,10 +747,12 @@
     gh.hidden = false;
     gh.textContent = '';
     gh.appendChild(h('span.z2t-gname', { text: '⋮ ' + g.name }));
-    var bcb = h('button.z2t-bc', { type: 'button', 'aria-pressed': g.bc.on ? 'true' : 'false', 'data-id': 'broadcast', text: '📡 ' + (g.bc.on ? T('zt.bcstate.on') : T('zt.bcstate.off')) });
-    bcb.addEventListener('click', function () { zt.setBroadcast(g, !g.bc.on); focusSink(); });
-    gh.appendChild(bcb);
-    gh.appendChild(h('span.z2t-ghint', { text: g.bc.on ? T('zt.bchint') : T('zt.draghint') }));
+    if (g.bc.started) {
+      var bcb = h('button.z2t-bc', { type: 'button', 'aria-pressed': g.bc.on ? 'true' : 'false', 'data-id': 'broadcast', text: '📡 ' + (g.bc.on ? T('zt.bcstate.on') : T('zt.bcstate.off')) });
+      bcb.addEventListener('click', function () { zt.setBroadcast(g, !g.bc.on); focusSink(); });
+      gh.appendChild(bcb);
+    }
+    gh.appendChild(h('span.z2t-ghint', { text: g.bc.started ? (g.bc.on ? T('zt.bchint') : T('zt.bcoffhint')) : T('zt.draghint') }));
   }
 
   function renderNode(g, n) {
@@ -660,7 +771,7 @@
     var grip = h('span.z2t-grip', { text: '⠿ ' + t.name, title: T('zt.drag') });
     head.appendChild(grip);
     head.appendChild(h('span.z2t-ph-gap'));
-    if (g.bc.on) {
+    if (g.bc.started) {
       var cb = h('input', { type: 'checkbox', checked: g.bc.targets.indexOf(t.id) >= 0, 'aria-label': T('zt.bctarget', t.name) });
       cb.addEventListener('change', function () { zt.setTarget(g, t, cb.checked); });
       head.appendChild(h('label.z2t-ph-bc', null, cb, h('span', { text: '📡' })));
@@ -678,7 +789,7 @@
     Array.prototype.forEach.call(e.work.querySelectorAll('.z2t-cell'), function (c) {
       var id = c.getAttribute('data-tab');
       c.classList.toggle('focused', id === focusId);
-      c.classList.toggle('bc-target', !!(g && g.bc.on && g.bc.targets.indexOf(id) >= 0 && id !== focusId));
+      c.classList.toggle('bc-target', !!(g && g.bc.started && g.bc.on && g.bc.targets.indexOf(id) >= 0 && id !== focusId));
     });
   }
 

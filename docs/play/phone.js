@@ -448,7 +448,7 @@
       if (y0 == null) return;
       y0 = null;
       if (!on) return;
-      el.addEventListener('click', function stop(ev) { ev.stopPropagation(); }, { capture: true, once: true });
+      Z.eatClick(el);
       el.style.opacity = '';
       if (dy < -90) { flingUp(el, fn); return; }
       var back = Math.min(0, dy);
@@ -583,18 +583,48 @@
     if (st.notifs.length > 50) st.notifs.length = 50;
     save();
     render();
-    if (o.heads) heads(n);
-    else if (P.state.ringer === 'normal') pulse();
+    /* 通知は毎回、画面上部にしばらくポップアップで出す（-h はバナーとして長めに残す） */
+    if (!P.shadeOpen()) heads(n, o.heads ? 8000 : 4000);
+    pulse();
     Z.bus.emit('notify', n);
     return n.id;
   };
   P.notifs = function () { return st.notifs; };
   P.dismiss = function (id) { st.notifs = st.notifs.filter(function (x) { return x.id !== id; }); save(); render(); };
-  function heads(n) {
+  function heads(n, ms) {
     var el = notifEl(n, true);
     el.classList.add('heads');
+    /* 一度に出すのは 3 件まで（古いものから下げる） */
+    while (els.heads.querySelectorAll('.z2p-notif.heads:not(.ask)').length >= 3) {
+      var old = els.heads.querySelector('.z2p-notif.heads:not(.ask)');
+      if (!old) break;
+      old.remove();
+    }
     els.heads.appendChild(el);
-    setTimeout(function () { el.classList.add('out'); setTimeout(function () { el.remove(); }, 300); }, 5000);
+    var gone = false;
+    function hide() {
+      if (gone) return;
+      gone = true;
+      el.classList.add('out');
+      setTimeout(function () { el.remove(); }, 300);
+    }
+    setTimeout(hide, ms || 4000);
+    /* 上へ払うとすぐ消える（通知欄には残る）。押すと通知欄を開く */
+    var y0 = null, moved = false;
+    el.addEventListener('pointerdown', function (e) { if (e.target.closest('button')) return; y0 = e.clientY; moved = false; });
+    el.addEventListener('pointermove', function (e) {
+      if (y0 == null) return;
+      var dy = e.clientY - y0;
+      if (dy < -6) { moved = true; el.style.transform = 'translateY(' + dy + 'px)'; el.style.opacity = String(Math.max(0.2, 1 + dy / 120)); }
+    });
+    el.addEventListener('pointerup', function (e) {
+      if (y0 == null) return;
+      var dy = e.clientY - y0;
+      y0 = null;
+      if (moved && dy < -40) { hide(); return; }
+      el.style.transform = ''; el.style.opacity = '';
+      if (!moved) { hide(); P.shade(true); }
+    });
   }
   function pulse() { els.stNotif.classList.remove('pulse'); void els.stNotif.offsetWidth; els.stNotif.classList.add('pulse'); }
 

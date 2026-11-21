@@ -201,6 +201,14 @@
     el.addEventListener('click', function (e) { if (fired) { e.stopImmediatePropagation(); e.preventDefault(); fired = false; } }, true);
   };
 
+  /* 指を滑らせ終えた直後のクリックを 1 回だけ捨てる。
+     クリックが起きなかったときに次の本物のクリックを捨てないよう、すぐ外す。 */
+  Z.eatClick = function (el) {
+    function stop(ev) { ev.stopImmediatePropagation(); ev.preventDefault(); }
+    el.addEventListener('click', stop, true);
+    setTimeout(function () { el.removeEventListener('click', stop, true); }, 0);
+  };
+
   /* シングルとダブルを分ける（ダブルのときはシングルを呼ばない）。 */
   Z.clicks = function (el, single, dbl) {
     var t = null;

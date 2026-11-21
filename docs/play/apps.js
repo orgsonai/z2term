@@ -103,7 +103,7 @@
       var dx = e.clientX - dd.x, w = el.clientWidth;
       var base = Math.round(dd.left / w);
       goPage(Math.abs(dx) > w * 0.18 ? base + (dx < 0 ? 1 : -1) : base);
-      el.addEventListener('click', function stop(ev) { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true });
+      Z.eatClick(el);
     }
     el.addEventListener('pointerup', end);
     el.addEventListener('pointercancel', end);
@@ -372,7 +372,7 @@
       return p[1] + ' ' + Z.bytes(v ? JSON.stringify(v).length : 0);
     }).join(' · ');
     b.appendChild(h('p.z2p-set-note', { text: detail }));
-    if (!Z.store.available) b.appendChild(h('p.z2p-set-note.warn', { text: T('set.nostore') }));
+    if (!Z.store.available) b.appendChild(h('p.z2p-set-note.z2p-warn', { text: T('set.nostore') }));
     b.appendChild(row(T('set.wipe'), T('set.wipesub'), null, function () {
       Z.phone.confirm(T('set.wipeq'), T('set.wipeok')).then(function (ok) { if (ok) Z.wipe(); });
     }, 'set_wipe'));

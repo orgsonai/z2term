@@ -93,7 +93,7 @@
       el.style.top = 'calc(' + hd.at[1] + '% - ' + size / 2 + 'px)';
     });
     el.addEventListener('pointerup', function () {
-      if (d && d.moved) { Z.phone.save(); el.addEventListener('click', function s(ev) { ev.stopImmediatePropagation(); }, { capture: true, once: true }); }
+      if (d && d.moved) { Z.phone.save(); Z.eatClick(el); }
       d = null;
     });
     el.addEventListener('click', function () {
