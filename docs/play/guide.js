@@ -8,7 +8,7 @@
   var h = function () { return Z.h.apply(null, arguments); };
   var T = function () { return Z.t.apply(null, arguments); };
 
-  var N = 8;
+  var N = 18;
   var gs;          /* 保存する状態 */
   var g = {};      /* DOM */
   var app = { id: 'guide', pkg: 'z2.mock.guide', icon: '☰', name: function () { return T('app.guide'); } };
@@ -56,6 +56,21 @@
     });
     Z.bus.on('tile-run', function () { gs.flags.tileRun = true; setTimeout(function () { gs.flags.tileRun = false; }, 3000); });
     Z.bus.on('edge-run', function () { done(8); });
+    Z.bus.on('complete', function () { done(9); });
+    Z.bus.on('command-done', function (ev) {
+      var l = ev.line;
+      if (ev.status === 0 && /\|/.test(l.replace(/\|\|/g, ''))) done(10);
+      if (ev.status === 0 && /^\s*z2-(state|battery)\b/.test(l)) done(12);
+    });
+    Z.bus.on('edit-saved', function () { done(11); });
+    Z.bus.on('ask-answered', function () { done(13); });
+    Z.bus.on('phone-event', function (ev) {
+      if (ev.name === 'notify_action') done(14);
+      if (ev.name === 'alarm') done(15);
+    });
+    Z.bus.on('widget', function () { if (Z.phone.widget()) done(16); });
+    Z.bus.on('term-search', function () { done(17); });
+    Z.bus.on('zt-look', function () { done(18); });
   }
 
   /* ---------------- フォルダ（アプリ） ---------------- */

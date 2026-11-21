@@ -24,6 +24,8 @@
   var app = { id: 'z2term', pkg: 'com.zerotoship.z2term', icon: 'z2', name: function () { return 'z2term'; } };
   var zt = Z.zt = {};
   var cfg, data, tabs = [], groups = [], view = null, focusId = null;
+  /* 📡 ブロードキャストはアプリ全体で 1 つ（本物 1.0.156: 送り先はすべてのグループにまたがる） */
+  var bc = { mode: false, on: false, targets: [] };
   var e = {};   /* DOM */
 
   /* ======================= 状態 ======================= */
@@ -43,7 +45,8 @@
     data.tabs = tabs.map(function (t) {
       return { id: t.id, name: t.name, lines: t.pane.toJSON().lines, env: t.sh.env, hist: t.sh.history.slice(-200), log: t.log, groupId: t.groupId || null };
     });
-    data.groups = groups.map(function (g) { return { id: g.id, name: g.name, tabs: g.tabs, layout: g.layout, bc: g.bc }; });
+    data.groups = groups.map(function (g) { return { id: g.id, name: g.name, tabs: g.tabs, layout: g.layout, horizontal: !!g.horizontal }; });
+    data.bc = bc;
     data.view = view;
     data.focus = focusId;
     Z.store.set('term', data);
@@ -174,17 +177,41 @@
     return { d: n.d, a: replaceLeaf(n.a, id, rep), b: replaceLeaf(n.b, id, rep), r: n.r };
   }
   function countLeaves(n) { return !n ? 0 : n.t ? 1 : countLeaves(n.a) + countLeaves(n.b); }
-  function appendLeaf(n, id) {
+  /* 並べる向き（本物 1.0.160）: 既定は上下。同じ向きの分割は 1 列に並べて描く */
+  function appendLeaf(n, id, horizontal) {
     if (!n) return leaf(id);
-    return { d: countLeaves(n) % 2 ? 'h' : 'v', a: n, b: leaf(id) };
+    return { d: horizontal ? 'h' : 'v', a: n, b: leaf(id) };
   }
-
+  function linear(g) {
+    var n = null;
+    g.tabs.forEach(function (id) { n = appendLeaf(n, id, g.horizontal); });
+    return n;
+  }
+  function groupName() {
+    for (var i = groups.length + 1; ; i++) { var n = T('zt.groupn', i); if (!zt.findGroup(n)) return n; }
+  }
+  /* 空のグループを作るだけ（表示はしない）。グループの編集画面の「＋ 新しいグループ」 */
+  zt.createGroup = function (name) {
+    var g = { id: 'g' + Z.uid(), name: name || groupName(), tabs: [], layout: null, horizontal: false };
+    groups.push(g);
+    persistSoon();
+    return g;
+  };
+  zt.setHorizontal = function (g, horizontal) {
+    g.horizontal = !!horizontal;
+    g.layout = linear(g);
+    render(); persistSoon();
+  };
+  zt.moveInGroup = function (g, order) {
+    g.tabs = order.filter(function (id) { return g.tabs.indexOf(id) >= 0; });
+    g.layout = linear(g);
+    render(); persistSoon();
+  };
   zt.newGroup = function (name, ts) {
-    name = String(name || '').trim() || T('zt.group') + ' ' + (groups.length + 1);
+    name = String(name || '').trim() || groupName();
     if (zt.findGroup(name)) return { error: 'group exists: ' + name };
     if (ts.length > cfg.maxGroup) return { error: T('zt.maxgroup', cfg.maxGroup) };
-    var g = { id: 'g' + Z.uid(), name: name, tabs: [], layout: null, bc: { started: false, on: false, targets: [] } };
-    groups.push(g);
+    var g = zt.createGroup(name);
     ts.forEach(function (t) { zt.addToGroup(g, t, true); });
     zt.showGroup(g);
     Z.bus.emit('groups');
@@ -196,8 +223,8 @@
     if (t.groupId) zt.removeFromGroup(t, true);
     t.groupId = g.id;
     g.tabs.push(t.id);
-    g.layout = appendLeaf(g.layout, t.id);
-    if (g.bc.started && g.bc.targets.indexOf(t.id) < 0) g.bc.targets.push(t.id);
+    g.layout = appendLeaf(g.layout, t.id, g.horizontal);
+    if (bc.mode && bc.targets.indexOf(t.id) < 0) bc.targets.push(t.id);
     render(); persistSoon();
     Z.bus.emit('groups');
     return null;
@@ -207,12 +234,10 @@
     t.groupId = null;
     if (!g) return null;
     g.tabs = g.tabs.filter(function (id) { return id !== t.id; });
-    g.bc.targets = g.bc.targets.filter(function (id) { return id !== t.id; });
+    bc.targets = bc.targets.filter(function (id) { return id !== t.id; });
     g.layout = removeLeaf(g.layout, t.id);
-    if (!g.tabs.length) {
-      groups = groups.filter(function (x) { return x !== g; });
-      if (view && view.kind === 'group' && view.id === g.id) view = { kind: 'tab', id: t.id };
-    }
+    /* 空になったグループは残す（編集画面でまた入れられる）。表示中なら外したタブへ */
+    if (!g.tabs.length && view && view.kind === 'group' && view.id === g.id) view = { kind: 'tab', id: t.id };
     if (!quiet) render();
     persistSoon();
     Z.bus.emit('groups');
@@ -220,55 +245,57 @@
   };
   zt.deleteGroup = function (g) {
     g.tabs.forEach(function (id) { var t = zt.byId(id); if (t) t.groupId = null; });
+    bc.targets = bc.targets.filter(function (id) { return g.tabs.indexOf(id) < 0; });
     groups = groups.filter(function (x) { return x !== g; });
     if (view && view.kind === 'group' && view.id === g.id) view = { kind: 'tab', id: g.tabs[0] || (tabs[0] && tabs[0].id) };
     render(); persistSoon();
     Z.bus.emit('groups');
   };
   zt.showGroup = function (g, focusTab) {
-    if (!g) return;
+    if (!g || !g.tabs.length) return;
     view = { kind: 'group', id: g.id };
     focusId = (focusTab && focusTab.id) || (g.tabs.indexOf(focusId) >= 0 ? focusId : g.tabs[0]);
     render(); persistSoon();
   };
-  /* 📡 ブロードキャスト（本物 1.0.147 / 1.0.175 と同じ流れ）:
-     start で 1 つのグループに始める（チェックは全タブ・最初は OFF）→ on/off で送るか → stop で解除。
-     同時に始められるのは 1 グループだけ。 */
-  zt.bcGroup = function () { return groups.filter(function (g) { return g.bc && g.bc.started; })[0] || null; };
+  /* 📡 ブロードキャスト（本物 1.0.147 / 1.0.156 / 1.0.175 と同じ）:
+     開始すると、すべてのグループの端末タブにチェックが入る（最初は OFF）。
+     ON のとき、チェックの入ったタブで打った内容は、どのグループにあってもチェックの入ったタブすべてへ届く。 */
+  zt.bc = function () { return bc; };
   zt.startBroadcast = function (g, on) {
-    groups.forEach(function (x) { if (x !== g) x.bc = { started: false, on: false, targets: [] }; });
-    g.bc = { started: true, on: !!on, targets: g.tabs.slice() };
-    zt.showGroup(g);
-    Z.bus.emit('broadcast', { group: g, on: g.bc.on });
+    var ids = [];
+    groups.forEach(function (x) { x.tabs.forEach(function (id) { if (zt.byId(id)) ids.push(id); }); });
+    bc = { mode: true, on: !!on, targets: ids };
+    if (g && g.tabs.length) zt.showGroup(g); else { render(); persistSoon(); }
+    Z.bus.emit('broadcast', { on: bc.on });
   };
   zt.stopBroadcast = function () {
-    var g = zt.bcGroup();
-    if (!g) return false;
-    g.bc = { started: false, on: false, targets: [] };
+    if (!bc.mode) return false;
+    bc = { mode: false, on: false, targets: [] };
     render(); persistSoon();
-    Z.bus.emit('broadcast', { group: g, on: false });
+    Z.bus.emit('broadcast', { on: false });
     return true;
   };
-  zt.setBroadcast = function (g, on) {
-    if (!g.bc.started) { zt.startBroadcast(g, on); return; }
-    g.bc.on = !!on;
+  zt.setBroadcastOn = function (on) {
+    if (!bc.mode) return false;
+    bc.on = !!on;
     render(); persistSoon();
-    Z.bus.emit('broadcast', { group: g, on: g.bc.on });
+    Z.bus.emit('broadcast', { on: bc.on });
+    return true;
   };
-  zt.setTarget = function (g, t, on) {
-    g.bc.targets = g.bc.targets.filter(function (id) { return id !== t.id; });
-    if (on) g.bc.targets.push(t.id);
+  zt.setTarget = function (t, on) {
+    bc.targets = bc.targets.filter(function (id) { return id !== t.id; });
+    if (on) bc.targets.push(t.id);
     render(); persistSoon();
   };
+  function groupedTerminals() { var n = 0; groups.forEach(function (g) { n += g.tabs.length; }); return n; }
 
   /* ======================= 入力の配達（ブロードキャスト込み） ======================= */
   function focusedTab() { return zt.byId(focusId) || tabs[0]; }
   function targetsFor(t) {
     var out = [t];
-    var g = t && zt.group(t.groupId);
-    /* チェックの入ったタブで打ったときだけ、ほかのチェックの入ったタブへも送る */
-    if (g && g.bc.started && g.bc.on && view && view.kind === 'group' && view.id === g.id && g.bc.targets.indexOf(t.id) >= 0) {
-      g.bc.targets.forEach(function (id) { var x = zt.byId(id); if (x && x !== t) out.push(x); });
+    /* チェックの入ったタブで打ったときだけ、ほかのチェックの入ったタブへも送る（グループをまたぐ） */
+    if (t && bc.mode && bc.on && bc.targets.indexOf(t.id) >= 0) {
+      bc.targets.forEach(function (id) { var x = zt.byId(id); if (x && x !== t) out.push(x); });
     }
     return out;
   }
@@ -435,8 +462,10 @@
     data = Z.store.get('term', null) || {};
     data.aliases = data.aliases || { ll: 'ls -l', la: 'ls -a', l: 'ls -CF' };
     tabs = (data.tabs || []).map(function (o) { return makeTab(o); });
-    groups = (data.groups || []).map(function (g) { g.bc = g.bc || { started: false, on: false, targets: [] }; if (g.bc.on && g.bc.started === undefined) g.bc.started = true; return g; })
+    groups = (data.groups || []).map(function (g) { g.horizontal = !!g.horizontal; delete g.bc; return g; })
       .filter(function (g) { g.tabs = g.tabs.filter(function (id) { return zt.byId(id); }); return g.tabs.length; });
+    bc = data.bc && data.bc.mode ? data.bc : { mode: false, on: false, targets: [] };
+    bc.targets = (bc.targets || []).filter(function (id) { return zt.byId(id); });
     tabs.forEach(function (t) { if (t.groupId && !zt.group(t.groupId)) t.groupId = null; });
     view = data.view || null;
     focusId = data.focus || null;
@@ -564,7 +593,7 @@
         var g = zt.group(t.groupId);
         var gsel = view && view.kind === 'group' && view.id === g.id;
         var gb = h('button.z2t-tab.grp', { type: 'button', role: 'tab', 'aria-selected': gsel ? 'true' : 'false', 'data-id': 'group_' + g.name },
-          h('span.z2t-tab-dots', { text: '⋮ ' }), h('span', { text: g.name }), g.bc.started ? h('span.z2t-tab-bc', { text: ' 📡' }) : null,
+          h('span.z2t-tab-dots', { text: '⋮ ' }), h('span', { text: g.name }), bc.mode && g.tabs.some(function (id) { return bc.targets.indexOf(id) >= 0; }) ? h('span.z2t-tab-bc', { text: ' 📡' }) : null,
           h('span.z2t-tab-n', { text: ' ' + g.tabs.length }));
         gb.addEventListener('click', function () { zt.showGroup(g); });
         Z.longPress(gb, function () { groupMenu(g); });
@@ -599,9 +628,12 @@
       focusSink();
     });
     var gui = h('button.z2t-tab.icon', { type: 'button', 'aria-label': T('zt.gui'), 'data-id': 'tab_gui', text: '🖥', on: { click: function () { Z.phone.alert(T('zt.gui'), T('zt.guimsg')); } } });
+    /* 🖥 の長押し: グループの編集。📡 を知らなくても止められるよう、ここにも解除を置く（本物 1.0.162） */
     Z.longPress(gui, function () {
-      var bg = zt.bcGroup();
-      Z.phone.menu('🖥', [bg ? { label: T('zt.bcstop'), act: zt.stopBroadcast } : { label: T('zt.bcstartl'), act: bcSheet }]);
+      Z.phone.menu('🖥', [
+        { label: T('zt.ed.open'), act: groupEditor },
+        bc.mode ? { label: T('zt.bcstop'), act: zt.stopBroadcast } : null
+      ]);
     });
     /* ＋ と 🖥 はタブが増えても右端に固定（タブだけが横に流れる）。
        📡 は本物（1.0.151）と同じく ＋ / 🖥 の右に隠れて並び、＋ / 🖥 の上で左へ滑らせると
@@ -609,22 +641,17 @@
        それ未満なら戻る。開いたら押すか 4 秒で引っ込む。右へ滑らせても閉じる。
        ブロードキャスト中は ON/OFF の切り替えを ＋ / 🖥 の左にいつも出す。 */
     e.tabfix.textContent = '';
-    var bg = zt.bcGroup();
-    if (bg) {
-      var n = bg.bc.targets.length;
-      var tog = h('button.z2t-tab.bc', { type: 'button', 'aria-pressed': bg.bc.on ? 'true' : 'false', 'data-id': 'bc_toggle', 'aria-label': T('zt.bctoggle', bg.name),
-        text: '📡 ' + (bg.bc.on ? T('zt.bcstate.on') + ' ' + n : T('zt.bcstate.off')) });
-      tog.addEventListener('click', function () { zt.setBroadcast(bg, !bg.bc.on); focusSink(); });
-      Z.longPress(tog, function () {
-        Z.phone.menu('📡 ' + bg.name, [
-          { label: T('zt.bcregroup'), act: bcSheet },
-          { label: T('zt.bcstop'), act: zt.stopBroadcast }
-        ]);
-      });
+    if (bc.mode) {
+      /* 📡 の切り替え。ON は今打つと届くタブの数。タップで ON / OFF だけ（本物 1.0.162） */
+      var cur = focusedTab();
+      var n = cur && bc.targets.indexOf(cur.id) >= 0 ? bc.targets.length : 1;
+      var tog = h('button.z2t-tab.bc.sw', { type: 'button', 'aria-pressed': bc.on ? 'true' : 'false', 'data-id': 'bc_toggle', 'aria-label': T('zt.bctoggle'),
+        text: bc.on ? T('zt.bcon', n) : T('zt.bcoff') });
+      tog.addEventListener('click', function () { zt.setBroadcastOn(!bc.on); focusSink(); });
       e.tabfix.appendChild(tog);
     }
-    var entry = h('button.z2t-tab.bc.z2t-bcpop', { type: 'button', 'data-id': 'bc_reveal', tabindex: '-1', text: bg ? '📡 ' + T('zt.bcstopshort') : '📡', 'aria-label': bg ? T('zt.bcstop') : T('zt.bcstartl') });
-    entry.addEventListener('click', function () { closeReveal(); if (bg) zt.stopBroadcast(); else bcSheet(); });
+    var entry = h('button.z2t-tab.bc.z2t-bcpop', { type: 'button', 'data-id': 'bc_reveal', tabindex: '-1', text: bc.mode ? T('zt.bcstop') : T('zt.bcentry') });
+    entry.addEventListener('click', function () { closeReveal(); if (bc.mode) zt.stopBroadcast(); else groupEditor(); });
     var row = h('div.z2t-fixrow', null, plus, gui, entry);
     var clip = h('div.z2t-fixclip', null, row);
     e.tabfix.appendChild(clip);
@@ -690,44 +717,143 @@
     el.addEventListener('pointercancel', end);
   }
 
-  /* 📡 を始める板: グループを選んで「この内容で開始」 */
-  function bcSheet() {
-    var box = h('div.z2t-form');
-    var cur = view && view.kind === 'group' ? view.id : (zt.bcGroup() ? zt.bcGroup().id : (groups[0] && groups[0].id));
-    var choice = cur || (groups.length ? groups[0].id : 'new');
-    var list = h('div.z2t-list', { role: 'radiogroup', 'aria-label': T('zt.bcpick') });
-    function opt(val, label, sub, disabled) {
-      var r = h('input', { type: 'radio', name: 'z2t-bc', value: val, checked: choice === val, disabled: !!disabled });
-      r.addEventListener('change', function () { choice = val; });
-      list.appendChild(h('label.z2t-row', null, h('span', null, label, sub ? h('small.z2p-dim-note', { text: '  ' + sub }) : null), r));
-    }
-    groups.forEach(function (g) {
-      opt(g.id, '⋮ ' + g.name, g.tabs.map(function (id) { var t = zt.byId(id); return t ? t.name : id; }).join(', '), g.tabs.length < 2);
-    });
-    var t0 = focusedTab();
-    var idx = tabs.indexOf(t0);
-    var pick = tabs.slice(idx, idx + cfg.maxGroup).filter(function (t) { return !t.groupId; });
-    if (pick.length < 2) pick = tabs.filter(function (t) { return !t.groupId; }).slice(0, cfg.maxGroup);
-    opt('new', T('zt.bcnew'), pick.map(function (t) { return t.name; }).join(', ') || T('zt.bcneedtabs'), pick.length < 2);
-    if (!groups.length && pick.length < 2) choice = null;
-    box.appendChild(h('p.z2p-dim-note', { text: T('zt.bcabout') }));
-    box.appendChild(list);
-    box.appendChild(h('button.z2p-btn', { type: 'button', 'data-id': 'bc_start', text: T('zt.bcgo'), on: { click: function () {
-      var g = null;
-      if (choice === 'new') {
-        if (pick.length < 2) { Z.phone.toast(T('zt.bcneedtabs')); return; }
-        var r = zt.newGroup(T('zt.group') + ' ' + (groups.length + 1), pick);
-        if (r && r.error) { Z.phone.toast(r.error); return; }
-        g = r;
-      } else g = zt.group(choice);
-      if (!g || g.tabs.length < 2) { Z.phone.toast(T('zt.bcneedtabs')); return; }
-      closeSheet();
-      zt.startBroadcast(g, false);
-      Z.phone.toast(T('zt.bcstarted'));
-    } } }));
-    openSheet(T('zt.bcstartl'), box);
+  /* ======================= グループの編集（本物 GroupEditorDialog と同じ作り） =======================
+     左: グループ（＋ 新しいグループ / 緑の枠が選択中 / 上下・左右 / 中のタブ）
+     右: タブ（＋ 新しいタブ / まだどのグループにも入っていないタブ）
+     右のタブを押すと緑の枠のグループに入る。グループ内のタブを押すと右へ戻る。
+     長押ししてドラッグで並べ替え、動かさずに離すと名前の変更。 */
+  var edSel = null;
+  function groupEditor() {
+    var cur = focusedTab();
+    edSel = (cur && cur.groupId) || (view && view.kind === 'group' ? view.id : null) || (groups[0] && groups[0].id) || null;
+    renderEditor();
   }
-  zt.bcSheet = bcSheet;
+  zt.groupEditor = groupEditor;
+  zt.bcSheet = groupEditor;
+  function renderEditor() {
+    var sel = zt.group(edSel);
+    var body = h('div.z2t-ed');
+    if (!bc.mode) body.appendChild(h('p.z2t-ed-warn', { text: T('zt.ed.bchint') }));
+    body.appendChild(h('p.z2p-dim-note', { text: T('zt.ed.hint') }));
+    var left = h('div.z2t-ed-col', null, h('p.z2t-ed-h', { text: T('zt.ed.groups') }),
+      h('button.z2t-ed-act', { type: 'button', 'data-id': 'ed_newgroup', text: T('zt.ed.newgroup'), on: { click: function () { edSel = zt.createGroup().id; renderEditor(); } } }));
+    var gl = h('div.z2t-ed-scroll');
+    groups.forEach(function (g) { gl.appendChild(groupBox(g, g.id === edSel)); });
+    left.appendChild(gl);
+    var canAdd = !sel || sel.tabs.length < cfg.maxGroup;
+    var right = h('div.z2t-ed-col', null, h('p.z2t-ed-h', { text: T('zt.ed.tabs') }),
+      h('button.z2t-ed-act', { type: 'button', 'data-id': 'ed_newtab', text: T('zt.ed.newtab'), on: { click: function () {
+        var keep = focusId;
+        zt.newTab({ show: false });
+        focusId = keep;
+        renderEditor();
+      } } }));
+    var tl = h('div.z2t-ed-scroll');
+    var free = tabs.filter(function (t) { return !t.groupId; });
+    free.forEach(function (t) {
+      var b = h('button.z2t-ed-tab', { type: 'button', 'data-id': 'ed_tab_' + t.name, 'aria-disabled': canAdd ? 'false' : 'true', text: t.name });
+      b.addEventListener('click', function () {
+        if (!canAdd) return;
+        var g = zt.group(edSel);
+        if (!g) { g = zt.createGroup(); edSel = g.id; }
+        zt.addToGroup(g, t, true);
+        renderEditor();
+      });
+      Z.longPress(b, function () { renameTabPrompt(t); });
+      tl.appendChild(b);
+    });
+    if (!free.length) tl.appendChild(h('p.z2p-dim-note', { text: T('zt.ed.allgrouped') }));
+    if (!canAdd) tl.appendChild(h('p.z2p-dim-note', { text: T('zt.ed.full', cfg.maxGroup) }));
+    right.appendChild(tl);
+    body.appendChild(h('div.z2t-ed-cols', null, left, right));
+    var canShow = !!(sel && sel.tabs.length);
+    var foot = h('div.z2t-ed-foot', null,
+      h('button.z2p-btn.ghost', { type: 'button', text: T('zt.ed.close'), on: { click: closeSheet } }));
+    if (!bc.mode) {
+      foot.appendChild(h('button.z2p-btn.ghost.z2t-ed-start', { type: 'button', 'data-id': 'bc_start', disabled: groupedTerminals() < 2, text: T('zt.bcstartl'), on: { click: function () {
+        closeSheet();
+        zt.startBroadcast(zt.group(edSel), false);
+      } } }));
+    }
+    foot.appendChild(h('button.z2p-btn', { type: 'button', 'data-id': 'ed_show', disabled: !canShow, text: T('zt.ed.show'), on: { click: function () {
+      closeSheet();
+      zt.showGroup(zt.group(edSel));
+    } } }));
+    body.appendChild(foot);
+    openSheet(T('zt.ed.title'), body);
+  }
+  function renameTabPrompt(t) {
+    Z.phone.prompt(T('zt.ed.tabname'), t.name).then(function (v) { if (v) { zt.renameTab(t, v); if (!e.sheet.hidden) renderEditor(); } });
+  }
+  function groupBox(g, selected) {
+    var box = h('div.z2t-gbox' + (selected ? '.sel' : ''), { 'data-id': 'ed_group_' + g.name });
+    box.addEventListener('click', function (ev) { if (ev.target.closest('.z2t-gbox-m, .z2t-gbox-dir button')) return; edSel = g.id; renderEditor(); });
+    var title = h('div.z2t-gbox-t', { text: g.name + '  ' + g.tabs.length + '/' + cfg.maxGroup });
+    Z.longPress(title, function () {
+      Z.phone.menu(g.name, [
+        { label: T('zt.ed.renamegroup'), act: function () { Z.phone.prompt(T('zt.groupname'), g.name).then(function (v) { if (v && !zt.findGroup(v)) { g.name = v; persistSoon(); render(); renderEditor(); } }); } },
+        { label: T('zt.ed.deletegroup'), act: function () { zt.deleteGroup(g); if (edSel === g.id) edSel = groups[0] ? groups[0].id : null; renderEditor(); } }
+      ]);
+    });
+    box.appendChild(title);
+    var dir = h('div.z2t-gbox-dir', { role: 'radiogroup', 'aria-label': T('zt.ed.dir') });
+    [[false, T('zt.ed.vertical')], [true, T('zt.ed.horizontal')]].forEach(function (o) {
+      dir.appendChild(h('button', { type: 'button', role: 'radio', 'aria-checked': !!g.horizontal === o[0] ? 'true' : 'false', text: o[1],
+        on: { click: function () { zt.setHorizontal(g, o[0]); edSel = g.id; renderEditor(); } } }));
+    });
+    box.appendChild(dir);
+    if (!g.tabs.length) box.appendChild(h('p.z2p-dim-note', { text: T('zt.ed.empty') }));
+    var list = h('div.z2t-gbox-list');
+    g.tabs.forEach(function (id, i) {
+      var t = zt.byId(id);
+      if (!t) return;
+      var m = h('div.z2t-gbox-m', { role: 'button', tabindex: '0', 'data-tab': id, text: (i + 1) + '  ' + t.name });
+      memberGestures(g, t, m, list);
+      list.appendChild(m);
+    });
+    box.appendChild(list);
+    return box;
+  }
+  /* グループ内のタブ: 押すと右へ戻す。長押しでつかんで上下に並べ替え、動かさずに離すと名前の変更 */
+  function memberGestures(g, t, m, list) {
+    var timer = null, drag = null, y0 = 0;
+    m.addEventListener('pointerdown', function (ev) {
+      y0 = ev.clientY;
+      timer = setTimeout(function () {
+        timer = null;
+        drag = { off: 0, moved: 0, id: ev.pointerId };
+        m.classList.add('drag');
+        try { m.setPointerCapture(ev.pointerId); } catch (er) { /* 無視 */ }
+      }, 450);
+    });
+    m.addEventListener('pointermove', function (ev) {
+      if (timer && Math.abs(ev.clientY - y0) > 8) { clearTimeout(timer); timer = null; }
+      if (!drag) return;
+      var dy = ev.clientY - y0;
+      drag.moved = Math.max(drag.moved, Math.abs(dy));
+      drag.off = dy;
+      var next = m.nextElementSibling, prev = m.previousElementSibling;
+      if (next && drag.off > next.offsetHeight / 2) { list.insertBefore(next, m); y0 += next.offsetHeight; drag.off -= next.offsetHeight; }
+      else if (prev && drag.off < -prev.offsetHeight / 2) { list.insertBefore(m, prev); y0 -= prev.offsetHeight; drag.off += prev.offsetHeight; }
+      m.style.transform = 'translateY(' + drag.off + 'px)';
+    });
+    function end() {
+      if (timer) { clearTimeout(timer); timer = null; return; }
+      if (!drag) return;
+      var moved = drag.moved;
+      drag = null;
+      m.classList.remove('drag');
+      m.style.transform = '';
+      Z.eatClick(m);
+      if (moved < 8) { renameTabPrompt(t); return; }
+      var order = Array.prototype.map.call(list.children, function (x) { return x.getAttribute('data-tab'); });
+      zt.moveInGroup(g, order);
+      renderEditor();
+    }
+    m.addEventListener('pointerup', end);
+    m.addEventListener('pointercancel', end);
+    m.addEventListener('click', function () { zt.removeFromGroup(t, true); render(); renderEditor(); });
+  }
 
   function tabMenu(t) {
     var items = [
@@ -751,7 +877,8 @@
   function groupMenu(g) {
     Z.phone.menu('⋮ ' + g.name, [
       { label: T('zt.rename'), act: function () { Z.phone.prompt(T('zt.rename'), g.name).then(function (v) { if (v && !zt.findGroup(v)) { g.name = v; render(); persistSoon(); } }); } },
-      g.bc.started ? { label: T('zt.bcstop'), act: zt.stopBroadcast } : { label: T('zt.bcstartl'), act: function () { if (g.tabs.length < 2) { Z.phone.toast(T('zt.bcneedtabs')); return; } zt.startBroadcast(g, false); } },
+      { label: T('zt.ed.open'), act: function () { edSel = g.id; renderEditor(); } },
+      bc.mode ? { label: T('zt.bcstop'), act: zt.stopBroadcast } : null,
       { label: T('zt.ungroup'), act: function () { zt.deleteGroup(g); } }
     ]);
   }
@@ -784,21 +911,18 @@
     gh.hidden = false;
     gh.textContent = '';
     gh.appendChild(h('span.z2t-gname', { text: '⋮ ' + g.name }));
-    if (g.bc.started) {
-      var bcb = h('button.z2t-bc', { type: 'button', 'aria-pressed': g.bc.on ? 'true' : 'false', 'data-id': 'broadcast', text: '📡 ' + (g.bc.on ? T('zt.bcstate.on') : T('zt.bcstate.off')) });
-      bcb.addEventListener('click', function () { zt.setBroadcast(g, !g.bc.on); focusSink(); });
-      gh.appendChild(bcb);
-    }
-    gh.appendChild(h('span.z2t-ghint', { text: g.bc.started ? (g.bc.on ? T('zt.bchint') : T('zt.bcoffhint')) : T('zt.draghint') }));
+    gh.appendChild(h('span.z2t-ghint', { text: bc.mode ? (bc.on ? T('zt.bchint') : T('zt.bcoffhint')) : T('zt.draghint') }));
   }
 
   function renderNode(g, n) {
     if (!n) return h('div');
     if (n.t) return cell(g, zt.byId(n.t));
-    var s = h('div.z2t-split', { 'data-d': n.d });
-    s.appendChild(renderNode(g, n.a));
-    s.appendChild(renderNode(g, n.b));
-    return s;
+    /* 同じ向きの分割は 1 列に平らにして、枠を同じ大きさで並べる */
+    var kids = [];
+    (function flat(x) { if (!x.t && x.d === n.d) { flat(x.a); flat(x.b); } else kids.push(x); })(n);
+    var s2 = h('div.z2t-split', { 'data-d': n.d });
+    kids.forEach(function (k) { s2.appendChild(renderNode(g, k)); });
+    return s2;
   }
 
   function cell(g, t) {
@@ -808,9 +932,9 @@
     var grip = h('span.z2t-grip', { text: '⠿ ' + t.name, title: T('zt.drag') });
     head.appendChild(grip);
     head.appendChild(h('span.z2t-ph-gap'));
-    if (g.bc.started) {
-      var cb = h('input', { type: 'checkbox', checked: g.bc.targets.indexOf(t.id) >= 0, 'aria-label': T('zt.bctarget', t.name) });
-      cb.addEventListener('change', function () { zt.setTarget(g, t, cb.checked); });
+    if (bc.mode) {
+      var cb = h('input', { type: 'checkbox', checked: bc.targets.indexOf(t.id) >= 0, 'aria-label': T('zt.bctarget', t.name) });
+      cb.addEventListener('change', function () { zt.setTarget(t, cb.checked); });
       head.appendChild(h('label.z2t-ph-bc', null, cb, h('span', { text: '📡' })));
     }
     head.appendChild(h('button.z2t-ph-b', { type: 'button', 'aria-label': T('zt.log'), text: t.log.on ? '🔴' : '⚪', on: { click: function (ev) { ev.stopPropagation(); setLog(t, !t.log.on); } } }));
@@ -826,7 +950,7 @@
     Array.prototype.forEach.call(e.work.querySelectorAll('.z2t-cell'), function (c) {
       var id = c.getAttribute('data-tab');
       c.classList.toggle('focused', id === focusId);
-      c.classList.toggle('bc-target', !!(g && g.bc.started && g.bc.on && g.bc.targets.indexOf(id) >= 0 && id !== focusId));
+      c.classList.toggle('bc-target', !!(bc.mode && bc.on && bc.targets.indexOf(id) >= 0 && id !== focusId));
     });
   }
 
@@ -916,6 +1040,7 @@
     var n = 0;
     shownTabs().forEach(function (t) { n += t.pane.highlight(re); });
     e.sCnt.textContent = q ? T('zt.hits', n) : '';
+    if (q && n) Z.bus.emit('term-search', n);
     sIdx = -1;
     if (n) jump(1, true);
   }
@@ -1097,14 +1222,14 @@
     var f = h('div.z2t-form');
     var fs = h('input', { type: 'range', min: '10', max: '20', value: String(cfg.font), 'aria-label': T('zt.font') });
     var fsv = h('output', { text: cfg.font + 'px' });
-    fs.addEventListener('input', function () { cfg.font = parseInt(fs.value, 10); fsv.textContent = cfg.font + 'px'; saveCfg(); applyCfg(); });
+    fs.addEventListener('input', function () { cfg.font = parseInt(fs.value, 10); fsv.textContent = cfg.font + 'px'; saveCfg(); applyCfg(); Z.bus.emit('zt-look'); });
     f.appendChild(h('h3.z2t-fh', { text: T('zt.display') }));
     f.appendChild(h('label.z2t-row', null, h('span', { text: T('zt.font') }), fs, fsv));
     var pal = h('select', { 'aria-label': T('zt.palette') });
     [['green', T('zt.pal.green')], ['amber', T('zt.pal.amber')], ['mono', T('zt.pal.mono')], ['paper', T('zt.pal.paper')]].forEach(function (p) {
       pal.appendChild(h('option', { value: p[0], text: p[1], selected: cfg.pal === p[0] }));
     });
-    pal.addEventListener('change', function () { cfg.pal = pal.value; saveCfg(); applyCfg(); });
+    pal.addEventListener('change', function () { cfg.pal = pal.value; saveCfg(); applyCfg(); Z.bus.emit('zt-look'); });
     f.appendChild(h('label.z2t-row', null, h('span', { text: T('zt.palette') }), pal));
     var nw = h('input', { type: 'checkbox', checked: cfg.nowrap });
     nw.addEventListener('change', function () { cfg.nowrap = nw.checked; saveCfg(); applyCfg(); });
@@ -1136,6 +1261,11 @@
       h('button', { type: 'button', 'aria-checked': Z.lang === 'en' ? 'true' : 'false', role: 'radio', text: 'English', on: { click: function () { if (Z.lang !== 'en') Z.setLang('en'); } } }))));
     f.appendChild(h('button.z2t-li', { type: 'button', text: T('zt.linux'), on: { click: function () { Z.phone.alert(T('zt.linux'), T('cmd.noos', 'apk')); } } }));
     f.appendChild(h('button.z2t-li', { type: 'button', text: T('zt.servers'), on: { click: function () { Z.phone.alert(T('zt.servers'), T('zt.nonet')); } } }));
+    /* モックそのものの初期化（スマホの設定 › 保存 と同じ）。もう一度はじめから楽しめるように */
+    f.appendChild(h('h3.z2t-fh', { text: T('set.wipe') }));
+    f.appendChild(h('button.z2t-li.z2t-danger', { type: 'button', 'data-id': 'zt_wipe', text: T('set.wipe') + ' — ' + T('set.wipesub'), on: { click: function () {
+      Z.phone.confirm(T('set.wipeq'), T('set.wipeok')).then(function (ok) { if (ok) Z.wipe(); });
+    } } }));
     openSheet('⚙ ' + T('zt.gear'), f);
   }
 

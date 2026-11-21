@@ -317,11 +317,12 @@
     if (cands.length === 1) {
       var c = cands[0];
       this.insert(c.v.slice(word.length) + (c.dir ? '/' : ' '));
+      Z.bus.emit('complete', c.v);
       return;
     }
     var pre = cands[0].v;
     cands.forEach(function (x) { while (x.v.indexOf(pre) !== 0) pre = pre.slice(0, -1); });
-    if (pre.length > word.length) { this.insert(pre.slice(word.length)); return; }
+    if (pre.length > word.length) { this.insert(pre.slice(word.length)); Z.bus.emit('complete', pre); return; }
     this.commit([['❯ ', 'p'], [this.buf, 'c']]);
     var names2 = cands.map(function (x) { return x.v.split('/').pop() + (x.dir ? '/' : ''); });
     this.commit([[names2.join('  '), '']]);

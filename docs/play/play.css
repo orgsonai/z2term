@@ -597,3 +597,35 @@ button.z2p-set-row:hover { background: var(--p-card2); }
 .z2p-float-li:hover { background: var(--p-card2); }
 .z2p-float-li[aria-current="true"] .z2p-g-tt { color: var(--p-acc); font-weight: 600; }
 .z2p-float-b[aria-expanded="true"] { border-color: var(--p-acc); color: var(--p-acc); }
+
+/* グループの編集（本物の GroupEditorDialog と同じ 2 列） */
+.z2t-ed { display: flex; flex-direction: column; gap: 6px; min-height: calc(100% - 40px); }
+.z2t-ed-warn { margin: 0; font-size: 12px; line-height: 1.45; color: var(--t-warn, #E0A030); }
+.z2p[data-theme="light"] .z2t-ed-warn { color: #B45309; }
+.z2t-ed-cols { flex: 1; display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--p-line); border-bottom: 1px solid var(--p-line); min-height: 220px; }
+.z2t-ed-col { display: flex; flex-direction: column; gap: 6px; padding: 8px 6px; min-width: 0; }
+.z2t-ed-col + .z2t-ed-col { border-left: 1px solid var(--p-line); }
+.z2t-ed-h { margin: 0; font-size: 12px; color: var(--p-dim); }
+.z2t-ed-act, .z2t-ed-tab { text-align: left; background: none; border: 1px solid var(--p-line); border-radius: 4px; padding: 9px 8px; cursor: pointer; font-size: 13px; }
+.z2t-ed-act { color: var(--p-acc) !important; }
+.z2t-ed-tab { font-family: var(--p-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.z2t-ed-tab[aria-disabled="true"] { color: var(--p-faint) !important; cursor: default; }
+.z2t-ed-scroll { display: flex; flex-direction: column; gap: 6px; overflow: auto; }
+.z2t-gbox { border: 1px solid var(--p-line); border-radius: 4px; padding: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.z2t-gbox.sel { border: 2px solid var(--p-acc); }
+.z2t-gbox-t { font-size: 13px; color: var(--p-dim); padding: 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.z2t-gbox.sel .z2t-gbox-t { color: var(--p-acc); }
+.z2t-gbox-dir { display: flex; gap: 6px; }
+.z2t-gbox-dir button { background: none; border: 1px solid var(--p-line); border-radius: 4px; padding: 5px 9px; font-size: 12px; cursor: pointer; color: var(--p-dim) !important; }
+.z2t-gbox-dir button[aria-checked="true"] { border: 2px solid var(--p-acc); color: var(--p-acc) !important; }
+.z2t-gbox-list { display: flex; flex-direction: column; gap: 2px; }
+.z2t-gbox-m { font-family: var(--p-mono); font-size: 13px; padding: 8px 6px; border: 1px solid transparent; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; touch-action: none; user-select: none; background: var(--p-bg); }
+.z2t-gbox-m:hover { border-color: var(--p-line); }
+.z2t-gbox-m.drag { border-color: var(--p-acc); position: relative; z-index: 1; }
+.z2t-ed-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+.z2t-ed-foot .z2p-btn:disabled { opacity: .45; cursor: default; }
+.z2t-ed-start { color: var(--p-warn) !important; border-color: var(--p-warn) !important; }
+/* 📡 の切り替え（ON は黄色で塗る） */
+.z2t-tab.bc.sw { color: var(--t-warn); border-color: var(--t-warn); font-size: 11.5px; font-family: var(--p-mono); }
+.z2t-tab.bc.sw[aria-pressed="true"] { background: var(--t-warn); color: var(--t-bg); }
+.z2t-danger { color: var(--p-red) !important; }

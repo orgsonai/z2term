@@ -366,7 +366,7 @@
     }
     if (sub === 'list') {
       zt.groups().forEach(function (x) {
-        c.out(x.name + '\t' + x.tabs.map(function (id) { var t = zt.byId(id); return t ? t.name : id; }).join(', ') + (x.bc && x.bc.on ? '\t📡 on' : '') + '\n');
+        c.out(x.name + '\t' + x.tabs.map(function (id) { var t = zt.byId(id); return t ? t.name : id; }).join(', ') + (zt.bc().mode && x.tabs.some(function (id) { return zt.bc().targets.indexOf(id) >= 0; }) ? '\t📡' : '') + '\n');
       });
       return;
     }
@@ -396,34 +396,36 @@
       return;
     }
     if (sub === 'broadcast') {
-      /* 本物（1.0.175）の書き方: start <グループ> [--on] / on / off / stop / status / tab <先>... on|off */
+      /* 本物（1.0.175）の書き方: start <グループ> [--on|--off] / on / off / stop / status / tab <先>... on|off
+         送り先はすべてのグループにまたがる（1.0.156） */
       var op = a[1] || 'status';
-      var bg = zt.bcGroup();
+      var st = zt.bc();
       if (op === 'start') {
         var g6 = g(a[2]); if (!g6) return 1;
-        if (g6.tabs.length < 2) { c.err('z2-session: ' + T('zt.bcneedtabs') + '\n'); return 1; }
+        var n = 0; zt.groups().forEach(function (x) { n += x.tabs.length; });
+        if (n < 2) { c.err('z2-session: ' + T('zt.bcneedtabs') + '\n'); return 1; }
         zt.startBroadcast(g6, a.indexOf('--on') >= 0);
-        c.out('broadcast ' + (g6.bc.on ? 'on' : 'off') + ' (' + g6.name + ')\n');
+        c.out('broadcast ' + (zt.bc().on ? 'on' : 'off') + '\n');
         return 0;
       }
-      if (op === 'status') { c.out((bg ? (bg.bc.on ? 'on' : 'off') + '\t' + bg.name + '\t' + bg.bc.targets.map(function (id) { var t = zt.byId(id); return t ? t.name : id; }).join(', ') : 'stop') + '\n'); return 0; }
+      if (op === 'status') {
+        c.out((st.mode ? (st.on ? 'on' : 'off') + '\t' + st.targets.map(function (id) { var t = zt.byId(id); return t ? t.name : id; }).join(', ') : 'stop') + '\n');
+        return 0;
+      }
       if (op === 'stop') { zt.stopBroadcast(); return 0; }
       if (op === 'on' || op === 'off') {
-        if (!bg) { c.err('z2-session: ' + T('zt.bcnotstarted') + '\n'); return 1; }
-        zt.setBroadcast(bg, op === 'on'); return 0;
+        if (!st.mode) { c.err('z2-session: ' + T('zt.bcnotstarted') + '\n'); return 1; }
+        zt.setBroadcastOn(op === 'on'); return 0;
       }
       if (op === 'tab') {
-        if (!bg) { c.err('z2-session: ' + T('zt.bcnotstarted') + '\n'); return 1; }
+        if (!st.mode) { c.err('z2-session: ' + T('zt.bcnotstarted') + '\n'); return 1; }
         var onoff = a[a.length - 1];
         if (onoff !== 'on' && onoff !== 'off') { c.err('usage: z2-session group broadcast tab <tab>... on|off\n'); return 2; }
         var ts3 = tabsOf(a.slice(2, -1)); if (!ts3) return 1;
-        ts3.forEach(function (t) { zt.setTarget(bg, t, onoff === 'on'); });
+        ts3.forEach(function (t) { zt.setTarget(t, onoff === 'on'); });
         return 0;
       }
-      /* 前の書き方（broadcast <グループ> on|off）も受ける */
-      var g7 = zt.findGroup(op);
-      if (g7 && (a[2] === 'on' || a[2] === 'off')) { zt.setBroadcast(g7, a[2] === 'on'); return 0; }
-      c.err('usage: z2-session group broadcast start <NAME> [--on] | on | off | stop | status | tab <tab>... on|off\n'); return 2;
+      c.err('usage: z2-session group broadcast start <NAME> [--on|--off] | on | off | stop | status | tab <tab>... on|off\n'); return 2;
     }
     c.err(helpText('z2-session') + '\n'); return 2;
   }

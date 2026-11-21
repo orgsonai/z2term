@@ -745,7 +745,7 @@
       var inp = h('input.z2p-input', { type: 'text', value: def || '', 'aria-label': q, placeholder: T('ph.reply') });
       var el;
       var iv = setInterval(function () { if (sig && sig.aborted) finish(null); }, 100);
-      function finish(v) { clearInterval(iv); if (el) el.remove(); ok(v); }
+      function finish(v) { clearInterval(iv); if (el) el.remove(); if (v != null) Z.bus.emit('ask-answered', v); ok(v); }
       el = h('div.z2p-notif.heads.ask', null,
         h('div.z2p-notif-h', null, h('span.z2p-notif-app', { text: 'z2term · z2-ask' }),
           h('button.z2p-notif-x', { type: 'button', 'aria-label': T('ph.dismiss'), text: '✕', on: { click: function () { finish(null); } } })),
@@ -769,7 +769,7 @@
       var stateEl = h('span.z2p-edit-st');
       var iv = setInterval(function () { if (sig && sig.aborted) close(); }, 150);
       function doSave() {
-        try { Z.fs.writeFile(path, ta.value); saved = true; stateEl.textContent = T('ph.savedok'); }
+        try { Z.fs.writeFile(path, ta.value); saved = true; stateEl.textContent = T('ph.savedok'); Z.bus.emit('edit-saved', path); }
         catch (e) { stateEl.textContent = Z.fsErr('z2-edit', e, path); }
       }
       function close() { clearInterval(iv); closeModal(); ok(saved); }

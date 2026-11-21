@@ -580,19 +580,28 @@ ol.steps>li b{color:var(--fg)}
   header.site nav a:hover{background:var(--accent-soft)}
 }
 
-/* ===== 入口: ブラウザで触れる z2term（本体は play/ を押したときに読む） ===== */
+/* ===== 入口: ブラウザで触れる z2term（本体は play/ を押したときに読む） =====
+   ボタンの中に、実際のモックの画面（images/play-mock.*.webp）と何ができるかの一文を入れる。 */
 .z2p-enter { margin: 22px 0 6px; }
 .z2p-enter-btn {
-  display: block; width: 100%; cursor: pointer;
-  font-family: var(--mono, ui-monospace, monospace); font-size: clamp(20px, 4.6vw, 34px); font-weight: 700;
-  letter-spacing: .01em; text-align: left;
+  display: flex; align-items: center; gap: 20px; width: 100%; cursor: pointer; text-align: left;
   color: var(--accent, #22C55E); background: transparent;
-  border: 2px solid var(--accent, #22C55E); border-radius: 10px; padding: 18px 22px;
+  border: 2px solid var(--accent, #22C55E); border-radius: 10px; padding: 14px 16px 14px 22px;
+  font-family: var(--mono, ui-monospace, monospace);
 }
-.z2p-enter-btn::before { content: "$ "; color: var(--accent-dim, #15803D); }
-.z2p-enter-btn::after { content: " ▸"; }
-.z2p-enter-btn:hover, .z2p-enter-btn:focus-visible { background: var(--accent, #22C55E); color: #04130A; outline: none; }
-.z2p-enter-btn:hover::before, .z2p-enter-btn:focus-visible::before { color: #04130A; }
+.z2p-enter-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.z2p-enter-t { font-size: clamp(20px, 4.6vw, 34px); font-weight: 700; letter-spacing: .01em; line-height: 1.25; }
+.z2p-enter-t::before { content: "$ "; color: var(--accent-dim, #15803D); }
+.z2p-enter-t::after { content: " ▸"; }
+.z2p-enter-desc { font-family: var(--sans, system-ui, sans-serif); font-size: 14px; line-height: 1.7; color: var(--dim, #93A4A0); }
+.z2p-enter-img { flex: none; display: block; height: 220px; width: auto; border-radius: 16px; border: 1px solid var(--line2, #2C3A37); }
+.z2p-enter-btn:hover, .z2p-enter-btn:focus-visible { background: var(--accent-soft, rgba(34,197,94,.13)); outline: none; }
+.z2p-enter-btn:hover .z2p-enter-desc, .z2p-enter-btn:focus-visible .z2p-enter-desc { color: var(--fg, #E6EDEB); }
 .z2p-enter-btn[aria-busy="true"] { opacity: .6; cursor: progress; }
-.z2p-enter-sub { margin: 8px 2px 0; font-family: var(--mono, monospace); font-size: 13px; color: var(--dim, #93A4A0); }
+.z2p-enter-sub { margin: 8px 2px 0; font-family: var(--mono, monospace); font-size: 12.5px; color: var(--faint, #6B7C78); }
 .z2p-enter[hidden], .z2p-enter-btn[hidden] { display: none; }
+@media (max-width: 520px) {
+  .z2p-enter-btn { gap: 12px; padding: 12px 12px 12px 14px; }
+  .z2p-enter-img { height: 160px; border-radius: 12px; }
+  .z2p-enter-desc { font-size: 13px; }
+}

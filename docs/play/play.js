@@ -7,7 +7,7 @@
 (function () {
   'use strict';
 
-  var VER = '2';
+  var VER = '3';
   var PARTS = [
     'strings.ja.js', 'strings.en.js', 'help.js',
     'core.js', 'fs.js', 'shell.js', 'cmds.js', 'z2cmds.js',
@@ -49,7 +49,6 @@
   }
 
   function enter(btn) {
-    var label = btn.textContent;
     btn.setAttribute('aria-busy', 'true');
     btn.disabled = true;
     loadAll().then(function () {
@@ -59,7 +58,6 @@
     }, function (e) {
       btn.disabled = false;
       btn.removeAttribute('aria-busy');
-      btn.textContent = label;
       var note = document.getElementById('z2p-enter-note');
       if (note) note.textContent = (document.documentElement.lang === 'ja'
         ? '読み込めませんでした: ' : 'Could not load: ') + e.message;
