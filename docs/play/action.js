@@ -295,6 +295,15 @@
     if (el.closest('.z2p-status') && b[1] > a[1]) { await animate([a, b], ms, r); Z.phone.shade(true); return; }
     if (Z.phone.shadeOpen() && b[1] < a[1]) { await animate([a, b], ms, r); Z.phone.shade(false); return; }
     var sc = scrollerAt(el);
+    /* ホームのページ（ぴたっと止まる横スクロール）は、指を動かしてからページを送る */
+    if (sc && sc.classList.contains('z2p-pages') && Math.abs(b[0] - a[0]) > Math.abs(b[1] - a[1])) {
+      await animate([a, b], ms, r);
+      Z.phone.fingerDown(false);
+      var home = Z.appById('home');
+      home.goPage(home.page() + (b[0] < a[0] ? 1 : -1));
+      await wait(450, r);
+      return;
+    }
     var top0 = sc ? sc.scrollTop : 0, left0 = sc ? sc.scrollLeft : 0;
     pev('pointerdown', el, a);
     await animate([a, b], ms, r, function (p) {
@@ -396,7 +405,14 @@
       case 'type':
         var inp = activeInput();
         if (!inp) {
-          if (Z.phone.current() === 'z2term') { Z.zt.deliver({ text: s.text }); return; }
+          if (Z.phone.current() === 'z2term') {
+            /* 端末にも 1 字ずつ打つ（何を打っているか見えるように） */
+            for (var q = 0; q < s.text.length; q++) {
+              Z.zt.deliver({ text: s.text[q] });
+              await wait(r.human ? PACE.typeChar * 0.6 + Math.random() * r.human * 10 : PACE.typeChar * 0.6, r);
+            }
+            return;
+          }
           throw Stop(T('act.noinput'));
         }
         inp.value = '';
@@ -472,7 +488,7 @@
     try { return { prog: A.parse(txt) }; } catch (e2) { return { error: name + ':' + (e2.line || '?') + ': ' + e2.message }; }
   }
 
-  A.start = function (name, sig, out) {
+  A.start = function (name, sig, out, from) {
     if (run) return Promise.resolve({ ok: false, error: T('act.busy', run.name) });
     var l = load(name);
     if (l.error) return Promise.resolve({ ok: false, error: l.error });
@@ -480,7 +496,7 @@
       name: name, sig: sig || { aborted: false }, deadline: Date.now() + l.prog.head.timeout * 1000,
       human: l.prog.head.human, human0: l.prog.head.human, count: 0, stepNo: 0, depth: 0, target: null, out: out
     };
-    Z.bus.emit('action-start', { name: name });
+    Z.bus.emit('action-start', { name: name, from: from || null });
     return exec(l.prog.steps, r).then(function () {
       return { ok: true };
     }, function (e) {
@@ -490,11 +506,75 @@
       Z.phone.stopBar(null);
       Z.phone.fingerHide();
       res.name = name;
+      res.from = from || null;
       Z.bus.emit('action-done', res);
       return res;
     });
   };
   A.running = function () { return run; };
+
+  /* ======================= 選んで実行する帯（z2-action pick・本物 1.0.102） =======================
+     いま前面にあるアプリの上に「名前 ▾」「▶」「×」の帯を出す。最後に選んだマクロを覚えておく。
+     ▶ で実行すると帯は停止ボタンの帯に替わる。 */
+  var pickEl = null;
+  A.pick = function () {
+    A.closePick();
+    var ns = names();
+    var scr = Z.phone.screen();
+    if (!scr) return false;
+    var sel = Z.h('select.z2p-pick-sel', { 'aria-label': T('act.pickname'), 'data-id': 'pick_select' });
+    if (!ns.length) sel.appendChild(Z.h('option', { value: '', text: T('act.none') }));
+    var last = Z.phone.st.lastPick;
+    ns.forEach(function (n) { sel.appendChild(Z.h('option', { value: n, text: n, selected: n === last })); });
+    var go = Z.h('button.z2p-pick-go', { type: 'button', 'aria-label': T('act.pickrun'), 'data-id': 'pick_run', text: '▶', disabled: !ns.length });
+    go.addEventListener('click', function () {
+      var name = sel.value;
+      if (!name) return;
+      Z.phone.st.lastPick = name; Z.phone.save();
+      A.closePick();
+      A.start(name, { aborted: false }, null, 'pick').then(function (res) { if (!res.ok && !res.stopped) Z.phone.toast('z2-action: ' + res.error); });
+    });
+    var x = Z.h('button.z2p-pick-x', { type: 'button', 'aria-label': T('ph.close'), 'data-id': 'pick_close', text: '×', on: { click: A.closePick } });
+    pickEl = Z.h('div.z2p-pick', { role: 'toolbar', 'aria-label': T('act.pickbar') },
+      Z.h('span.z2p-pick-i', { text: '▶≡', 'aria-hidden': 'true' }), sel, go, x);
+    sel.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Enter') go.click(); if (e.key === 'Escape') A.closePick(); });
+    scr.appendChild(pickEl);
+    if (pickEl.animate && !Z.reduceMotion()) pickEl.animate([{ transform: 'translateY(20px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 220, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
+    Z.bus.emit('pick-open');
+    return true;
+  };
+  A.closePick = function () { if (pickEl) { pickEl.remove(); pickEl = null; } };
+
+  /* ======================= 最初から入れておくマクロ =======================
+     見て分かるものだけ。部品は文言に左右されない id=（data-id）で指す。
+     初期化すると入れ直す（自分で消したものは、初期化するまで戻さない）。 */
+  var SAMPLES = {
+    'torch-party': { ja: 'ライトを 3 回点けたり消したりする', en: 'Flash the light three times', body: [
+      'key notifications', 'wait 700', 'repeat 3', '  tap ui id=tile_torch', '  wait 400', '  tap ui id=tile_torch', '  wait 300', 'end', 'wait 300', 'key back'] },
+    'airplane-flip': { ja: '機内モードを入れて、また切る（z2-when のルールも動く）', en: 'Turn airplane mode on and off again (z2-when rules fire too)', body: [
+      'key notifications', 'wait 700', 'tap ui id=tile_airplane', 'wait 1500', 'tap ui id=tile_airplane', 'wait 500', 'key back'] },
+    'call-test': { ja: '電話を開いて番号を押し、発信してみる', en: 'Open the phone, dial and call', body: [
+      'launch z2.mock.dialer', 'wait 700', 'tap ui id=dial_0', 'tap ui id=dial_9', 'tap ui id=dial_0', 'tap ui id=dial_1', 'tap ui id=dial_2', 'tap ui id=dial_3', 'tap ui id=dial_call', 'wait 3000', 'key home'] },
+    'web-search': { ja: 'ブラウザで z2term を検索して、結果を下へ送る', en: 'Search for z2term in the browser and scroll the results', body: [
+      'human=on', 'launch z2.mock.browser', 'wait 700', 'tap ui id=browser_search', 'type z2term', 'enter', 'wait 1800', 'swipe percent 50 75 50 35 800', 'wait 600', 'swipe percent 50 35 50 75 800'] },
+    'home-swipe': { ja: 'ホームのページを右へ左へ払う', en: 'Swipe the home pages right and left', body: [
+      'key home', 'wait 600', 'swipe percent 85 45 15 45 500', 'wait 500', 'swipe percent 85 45 15 45 500', 'wait 500', 'swipe percent 15 45 85 45 500', 'wait 500', 'swipe percent 15 45 85 45 500'] },
+    'term-type': { ja: 'z2term を開いて、コマンドを打って実行する', en: 'Open z2term, type a command and run it', body: [
+      'launch com.zerotoship.z2term', 'wait 800', { ja: 'type z2-notify "マクロが打ちました"', en: 'type z2-notify "A macro typed this"' }, 'enter'] },
+    'camera-3': { ja: 'カメラを開いてシャッターを 3 回押す', en: 'Open the camera and press the shutter three times', body: [
+      'launch z2.mock.camera', 'wait 700', 'repeat 3', '  tap ui id=cam_shutter', '  wait 600', 'end', 'wait 600', 'key home'] }
+  };
+  A.installSamples = function () {
+    var lang = Z.lang === 'ja' ? 'ja' : 'en';
+    try { Z.fs.mkdir(DIR, true, true); } catch (e) { return; }
+    Object.keys(SAMPLES).forEach(function (n) {
+      var sm = SAMPLES[n];
+      var head = sm.body[0] === 'human=on' ? ['version=2', 'human=on'] : ['version=2'];
+      var lines = ['# ' + sm[lang]].concat(head).concat(sm.body.filter(function (l) { return l !== 'human=on'; }).map(function (l) { return typeof l === 'string' ? l : l[lang]; }));
+      var p = DIR + '/' + n + '.actions';
+      if (!Z.fs.stat(p)) Z.fs.writeFile(p, lines.join('\n') + '\n');
+    });
+  };
 
   /* ======================= コマンド ======================= */
   function names() {
@@ -553,7 +633,7 @@
       c.err('z2-action: ' + res.error + '\n');
       return res.stopped ? 130 : 1;
     }
-    if (sub === 'pick') { c.err(T('act.pick') + '\n'); return 1; }
+    if (sub === 'pick') { A.pick(); return 0; }
     c.err(Z.helpText('z2-action') + '\n');
     return 2;
   };

@@ -39,6 +39,8 @@
     Z.lang = Z.cfg.lang || (document.documentElement.lang === 'ja' ? 'ja' : 'en');
     Z.fs = new Z.FS(Z.store.get('fs', null), function () { Z.store.set('fs', Z.fs.root); Z.bus.emit('fs'); });
     Z.store.set('fs', Z.fs.root);
+    /* 見て分かるマクロを最初から入れておく（初期化したらまた入る） */
+    if (!Z.cfg.samples) { Z.action.installSamples(); Z.cfg.samples = 1; Z.saveCfg(); }
     Z.phone.load();
     Z.when.load();
     Z.guide.init();

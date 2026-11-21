@@ -162,6 +162,7 @@
 
   function iconOf(it) {
     var ic = it.icon || '';
+    if (!ic && /^\s*z2-action\s+pick\b/.test(it.run || '')) return h('span.z2p-ep-ic.pick', { text: '▶≡' });
     var m = /^@app:([\w.]+)/.exec(ic) || (!ic && /^z2-intent\b.*\s-p\s+([\w.]+)/.exec(it.run || ''));
     if (m) { var a = Z.appByPkg(m[1]); if (a) return Z.iconEl(a.id, true); }
     if (ic && ic[0] !== '@') return h('span.z2p-ep-ic', { text: ic });

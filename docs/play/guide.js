@@ -8,7 +8,7 @@
   var h = function () { return Z.h.apply(null, arguments); };
   var T = function () { return Z.t.apply(null, arguments); };
 
-  var N = 18;
+  var N = 19;
   var gs;          /* 保存する状態 */
   var g = {};      /* DOM */
   var app = { id: 'guide', pkg: 'z2.mock.guide', icon: '☰', name: function () { return T('app.guide'); } };
@@ -71,6 +71,7 @@
     Z.bus.on('widget', function () { if (Z.phone.widget()) done(16); });
     Z.bus.on('term-search', function () { done(17); });
     Z.bus.on('zt-look', function () { done(18); });
+    Z.bus.on('action-done', function (r) { if (r.ok && r.from === 'pick') done(19); });
   }
 
   /* ---------------- フォルダ（アプリ） ---------------- */

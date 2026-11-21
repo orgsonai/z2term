@@ -198,7 +198,7 @@
     'act.notfront': '対象のアプリ {0} が前面にありません', 'act.noui': '見つかりません: {0}', 'act.manyui': '{0} が {1} 個あります（1 つに絞ってください）',
     'act.noinput': '文字を入れる欄が選ばれていません（先に tap ui で入力欄を押します）',
     'act.untilfail': 'wait-until: 時間内に条件がそろいませんでした', 'act.deep': 'call が深すぎます',
-    'act.step': '手順 {0} · {1}', 'act.pick': '選ぶ帯はこのモックにはありません。z2-action run NAME を使ってください',
+    'act.step': '手順 {0} · {1}', 'act.pickname': '実行するマクロ', 'act.pickrun': '選んだマクロを実行', 'act.pickbar': 'マクロを選んで実行する帯',
 
     /* 手順 */
     'g.intro': '打ちながら試せる案内です。カードの「浮かべる」で、z2term の上に出したまま進められます。うまくいくと自動で ✓ が付きます。',
@@ -273,9 +273,13 @@
     'g.18.t': 'ターミナルの見た目を変える',
     'g.18.do': 'ツールバーの ⚙ で、文字の大きさと配色（緑・琥珀・白黒・紙）を変えられます。ツールバーの並びもここで入れ替えられます。',
     'g.18.ck': '文字の大きさか配色を変えると ✓',
+    'g.19.t': 'マクロを選んで実行する（z2-action pick）',
+    'g.19.do': '見て分かるマクロが最初から入っています（z2-action list で一覧）。z2-action pick で前面のアプリの上に帯が出るので、「名前 ▾」で選んで ▶ で実行します。\n手順 8 のエッジパネルに置けば、どのアプリの上からでもバーを払って選べます。指の印と停止の帯が出るので、何をしているかを見ながら止められます。',
+    'g.19.cmd': 'z2-action list\nz2-action show torch-party\nz2-action pick',
+    'g.19.ck': '帯から選んだマクロが最後まで動くと ✓',
     'g.8.t': 'エッジパネルを作る',
     'g.8.do': '画面の右端に細いバーを出し、内側へ払うと板が出るパネルを作ります。アプリを開く・時計を出す・ライトの ON/OFF の 3 つを置きます。\nバーを右から左へ払う（マウスならつかんで左へ動かす）と開き、板の外を押すと閉じます。',
-    'g.8.cmd': 'z2-edge handle apps bar --side right --offset 35% --length 14%\nz2-edge set apps:web \'run=z2-intent -p z2.mock.browser\' label=ブラウザ\nz2-edge set apps:clock type=text \'run=date +%H:%M:%S\' label=時計 every=5\nz2-edge set apps:light type=toggle \'run=z2-torch toggle\' \'state=z2-torch status\' label=ライト\nz2-edge on',
+    'g.8.cmd': 'z2-edge handle apps bar --side right --offset 35% --length 14%\nz2-edge set apps:web \'run=z2-intent -p z2.mock.browser\' label=ブラウザ\nz2-edge set apps:clock type=text \'run=date +%H:%M:%S\' label=時計 every=5\nz2-edge set apps:light type=toggle \'run=z2-torch toggle\' \'state=z2-torch status\' label=ライト\nz2-edge set apps:pick \'run=z2-action pick\' label=マクロ\nz2-edge on',
     'g.8.ck': 'バーから板を開いて、項目を押すと ✓'
   };
 })(typeof window !== 'undefined' ? window : globalThis);

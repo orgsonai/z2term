@@ -185,7 +185,7 @@
     'act.notfront': 'the target app {0} is not in front', 'act.noui': 'not found: {0}', 'act.manyui': '{1} elements match {0} (narrow it to one)',
     'act.noinput': 'no text field is selected (tap the field with tap ui first)',
     'act.untilfail': 'wait-until: the condition was not met in time', 'act.deep': 'call nests too deep',
-    'act.step': 'step {0} · {1}', 'act.pick': 'The pick bar is not in this mock-up. Use z2-action run NAME',
+    'act.step': 'step {0} · {1}', 'act.pickname': 'Macro to run', 'act.pickrun': 'Run the chosen macro', 'act.pickbar': 'Pick-and-run bar',
 
     'g.intro': 'Hands-on steps. "Float" keeps a card over z2term while you type. A ✓ appears by itself when it works.',
     'g.prog': '{0} / {1} done', 'g.ok': '✓ Step {0} "{1}" done', 'g.do': 'What to do', 'g.type': 'What to type', 'g.check': 'Did it work?',
@@ -259,9 +259,13 @@
     'g.18.t': 'Change how the terminal looks',
     'g.18.do': '⚙ on the toolbar changes the font size and colors (green, amber, mono, paper). The toolbar order can be changed there too.',
     'g.18.ck': '✓ when you change the font size or colors',
+    'g.19.t': 'Pick a macro and run it (z2-action pick)',
+    'g.19.do': 'Some macros you can watch are built in (see z2-action list). z2-action pick shows a bar over the front app: choose with "name ▾" and run with ▶.\nPut it on the edge panel from step 8 and you can open it over any app. A finger mark and a stop bar show what it is doing, so you can stop it at any time.',
+    'g.19.cmd': 'z2-action list\nz2-action show torch-party\nz2-action pick',
+    'g.19.ck': '✓ when a macro picked from the bar runs to the end',
     'g.8.t': 'Make an edge panel',
     'g.8.do': 'Put a thin bar on the right edge; swiping it inward slides out a panel. Add three items: open an app, show a clock, toggle the light.\nSwipe the bar from right to left (with a mouse, drag it left) to open; tap outside the panel to close.',
-    'g.8.cmd': 'z2-edge handle apps bar --side right --offset 35% --length 14%\nz2-edge set apps:web \'run=z2-intent -p z2.mock.browser\' label=Browser\nz2-edge set apps:clock type=text \'run=date +%H:%M:%S\' label=Clock every=5\nz2-edge set apps:light type=toggle \'run=z2-torch toggle\' \'state=z2-torch status\' label=Light\nz2-edge on',
+    'g.8.cmd': 'z2-edge handle apps bar --side right --offset 35% --length 14%\nz2-edge set apps:web \'run=z2-intent -p z2.mock.browser\' label=Browser\nz2-edge set apps:clock type=text \'run=date +%H:%M:%S\' label=Clock every=5\nz2-edge set apps:light type=toggle \'run=z2-torch toggle\' \'state=z2-torch status\' label=Light\nz2-edge set apps:pick \'run=z2-action pick\' label=Macros\nz2-edge on',
     'g.8.ck': '✓ when you open the panel from the bar and tap an item'
   };
 })(typeof window !== 'undefined' ? window : globalThis);

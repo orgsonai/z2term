@@ -7,7 +7,7 @@
 (function () {
   'use strict';
 
-  var VER = '3';
+  var VER = '4';
   var PARTS = [
     'strings.ja.js', 'strings.en.js', 'help.js',
     'core.js', 'fs.js', 'shell.js', 'cmds.js', 'z2cmds.js',
