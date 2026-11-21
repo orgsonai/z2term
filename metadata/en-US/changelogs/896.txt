@@ -1,0 +1,10 @@
+1.0.198
+
+- Screen macros can check the screen: elements, colours, waits and watches.
+- Macros gain typing, try, loops that stop on a condition, variables and arguments.
+- Human-like input (human=) moves taps and drags like a finger.
+- Voice command can search the web ("search for …").
+- Bundled macro updates are announced; z2-macro update replaces unedited copies.
+- Split view can mix rows and columns.
+- Teach an AI how to use z2term.
+- Fixes SSH tabs dropping when idle or after 8 hours.
