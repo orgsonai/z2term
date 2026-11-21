@@ -579,3 +579,20 @@ ol.steps>li b{color:var(--fg)}
   header.site nav a::before{content:"› ";color:var(--accent-dim)}
   header.site nav a:hover{background:var(--accent-soft)}
 }
+
+/* ===== 入口: ブラウザで触れる z2term（本体は play/ を押したときに読む） ===== */
+.z2p-enter { margin: 22px 0 6px; }
+.z2p-enter-btn {
+  display: block; width: 100%; cursor: pointer;
+  font-family: var(--mono, ui-monospace, monospace); font-size: clamp(20px, 4.6vw, 34px); font-weight: 700;
+  letter-spacing: .01em; text-align: left;
+  color: var(--accent, #22C55E); background: transparent;
+  border: 2px solid var(--accent, #22C55E); border-radius: 10px; padding: 18px 22px;
+}
+.z2p-enter-btn::before { content: "$ "; color: var(--accent-dim, #15803D); }
+.z2p-enter-btn::after { content: " ▸"; }
+.z2p-enter-btn:hover, .z2p-enter-btn:focus-visible { background: var(--accent, #22C55E); color: #04130A; outline: none; }
+.z2p-enter-btn:hover::before, .z2p-enter-btn:focus-visible::before { color: #04130A; }
+.z2p-enter-btn[aria-busy="true"] { opacity: .6; cursor: progress; }
+.z2p-enter-sub { margin: 8px 2px 0; font-family: var(--mono, monospace); font-size: 13px; color: var(--dim, #93A4A0); }
+.z2p-enter[hidden], .z2p-enter-btn[hidden] { display: none; }
