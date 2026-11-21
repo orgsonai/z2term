@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.197 (versionCode 895)**: Voice command gains web search. Say "search for Tokyo Tower", "look up …" or "google …" and the phone's default browser opens the results in a new tab. The site is Google by default and can be changed with `search_url=` in `~/.z2term/voice/config`. "phone number of …" still opens the map. Added to the word tables of all 14 languages and to "what can I say". If voice.sh is already installed, reinstall it with `z2-macro install -f voice` (`z2-macro diff voice` shows the difference first)
+
 **1.0.196 (versionCode 894)**: The bar for choosing and running a macro gains ～ (human-like input on/off), so it can be chosen before the run starts. It starts from the chosen macro's `human=`, and the choice applies to that one run. The Screen actions tab gains "Keep the bar after the macro ends" (off by default, so the bar still closes). When on, the bar returns as the choose-and-run bar after the macro ends, so the same macro can be run again right away. The description of "Show a stop button over other apps" now says what ‖ and ～ do
 
 **1.0.195 (versionCode 893)**: In AI app control, a press on an input field addressed directly by `id=…` or `text=…` instead of a number is now also saved as `tap ui`. It used to be saved as `click` and stopped the replay. The last screen read tells whether the target was an input

@@ -144,6 +144,26 @@ class VoiceScriptTest {
     }
 
     /**
+     * Web 検索 (1.0.197)。既定のブラウザに新しいタブを頼んで検索サイトを開く。サイトは config の
+     * search_url= で変えられる。「◯◯の電話番号を調べて」は今までどおり地図 (place_phone が先)。
+     */
+    @Test
+    fun webSearchOpensTheBrowser() {
+        val open = "z2-intent -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -d "
+        val tail = " --ez create_new_tab true"
+        val tower = "%E6%9D%B1%E4%BA%AC%E3%82%BF%E3%83%AF%E3%83%BC"
+        assertHeard("ja", "東京タワーを調べて", "${open}https://www.google.com/search?q=$tower$tail")
+        assertHeard("ja", "東京タワー 調べて", "${open}https://www.google.com/search?q=$tower$tail")
+        assertHeard("ja", "東京タワーで検索", "${open}https://www.google.com/search?q=$tower$tail")
+        assertHeard("en", "search for Tokyo Tower", "${open}https://www.google.com/search?q=tokyo%20tower$tail")
+        val duck = run("ja", "try", "東京タワーを調べて",
+            files = mapOf(".z2term/voice/config" to "search_url=https://duckduckgo.com/?q=\n")).second
+        assertTrue(duck, duck.lines().contains("${open}https://duckduckgo.com/?q=$tower$tail"))
+        assertHeard("ja", "東京駅の電話番号を調べて",
+            "z2-intent -a android.intent.action.VIEW -d geo:0,0?q=%E6%9D%B1%E4%BA%AC%E9%A7%85")
+    }
+
+    /**
      * 認識結果が A–Z 以外の大文字で始まっても、表の ’ と聞こえた ' が違っても外さない (1.0.91)。
      * 0.9 系までは `tr 'A-Z' 'a-z'` だけで、É・Ü やキリル文字の大文字が小文字にならず、
      * 表の l’ora (活字の ’) は聞こえた l'ora (norm() で ’ も ' になる) と一致しなかった。

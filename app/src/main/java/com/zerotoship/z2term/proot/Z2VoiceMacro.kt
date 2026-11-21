@@ -592,9 +592,18 @@ map_search() {
   z2-intent -a android.intent.action.VIEW -d "geo:0,0?q=${d}q" >/dev/null 2>&1
 }
 
+# web_search WORDS — the search site (search_url= in ~/.z2term/voice/config; the words go on the end,
+# Google by default) opens in the phone's default browser. create_new_tab asks for a new tab, so the
+# page the browser had open stays as it was (browsers that ignore it open it their own way).
+web_search() {
+  q=${d}(printf '%s' "${d}1" | python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read().strip()))')
+  u=${d}(conf_get search_url); u=${d}{u:-https://www.google.com/search?q=}
+  z2-intent -a android.intent.action.VIEW -c android.intent.category.BROWSABLE -d "${d}u${d}q" --ez create_new_tab true >/dev/null 2>&1
+}
+
 # --- Locked: run only what is safe to do for anyone holding the phone ---
 # Music, volume, time, battery, steps, flashlight, news, weather, timers and "what can I say" run as
-# they are. Anything else (calls, apps, maps, notes, reminders, AI, your own words) waits for the phone
+# they are. Anything else (calls, apps, maps, web search, notes, reminders, AI, your own words) waits for the phone
 # to be unlocked and then runs, within 2 minutes; the notification asks for the unlock.
 if [ -n "${d}LOCKED" ]; then
   ok=
@@ -854,6 +863,8 @@ fi
 # --- Navigation (◯◯までナビ) and a place's phone number (◯◯の電話番号): the map app opens the place ---
 if match navi; then map_search "${d}ARG"; log "navi: ${d}ARG"; exit 0; fi
 if match place_phone; then map_search "${d}ARG"; log "place phone: ${d}ARG"; exit 0; fi
+# --- Web search (◯◯を調べて / search for ...). After place_phone, so "◯◯の電話番号を調べて" stays on the map ---
+if match web_search; then web_search "${d}ARG"; log "web search: ${d}ARG"; exit 0; fi
 # "navi" alone: open the listening screen again for the place. When nothing comes within 20 seconds
 # (not heard, or the screen could not open), ask in a notification's reply box instead.
 if match navi_ask; then
@@ -1071,6 +1082,7 @@ timer = *のタイマーをセットして|*のタイマー|*タイマー|タイ
 navi = *までナビして|*までナビ|*へナビ|*にナビ|ナビで*|*までの行き方|*への行き方|*に行きたい|*へ行きたい|*までの道|*まで案内して
 navi_ask = ナビ|ナビして|ナビを始めて|道案内|道案内して
 place_phone = *の電話番号を調べて|*の電話番号|*の番号を調べて
+web_search = *を調べて|*を検索して|*で検索して|*を検索|*で検索|*をググって|*ググって|*調べて|*検索して|*検索
 call = *さんに電話して|*さんに電話|*に電話して|*に電話|*へ電話
 play = *を再生して|*を再生|*をかけて|*を流して
 open = *を開いて|*開いて|*を起動して|*を起動|*起動
@@ -1184,7 +1196,7 @@ msg_call_missing = 「{who}」が {file} にありません。1 行に「名前 
 say_open_missing = {name}というアプリが見つかりませんでした
 say_help = 言えることを通知に出しました
 say_locked = ロックを解除してください
-msg_help = 時刻・日付・電池・歩数 / 音量3段階下げて・音量50% / 次の曲・止めて / 3分のタイマー・7時に起こして / 明日の朝7時にゴミ出しをリマインド・予定は / ニュース・天気・明日の天気 / メモ牛乳を買う・メモを読んで / ライトをつけて・スクショ / ◯◯を開いて / ◯◯に電話 / ◯◯までナビ・◯◯の電話番号 / AI 〜 (使うには voice.sh ai) / 言葉を変える: voice.sh words
+msg_help = 時刻・日付・電池・歩数 / 音量3段階下げて・音量50% / 次の曲・止めて / 3分のタイマー・7時に起こして / 明日の朝7時にゴミ出しをリマインド・予定は / ニュース・天気・明日の天気 / メモ牛乳を買う・メモを読んで / ライトをつけて・スクショ / ◯◯を開いて / ◯◯に電話 / ◯◯までナビ・◯◯の電話番号 / ◯◯を調べて / AI 〜 (使うには voice.sh ai) / 言葉を変える: voice.sh words
 msg_unknown = わからない言葉でした: {text}
 msg_locked = 「{text}」はロックを解除すると続けます
 msg_navi_where = 行き先を話してください
@@ -1246,6 +1258,7 @@ timer = set a timer for *|set timer for *|start a timer for *|timer for *|set a 
 navi = navigate to *|directions to *|take me to *|how do i get to *|i want to go to *|navigate *
 navi_ask = navigate|navigation|directions|start navigation
 place_phone = what is the phone number of *|the phone number of *|phone number of *|look up the number of *|* phone number
+web_search = search the web for *|search for *|search *|look up *|google *
 call = call *|phone *|dial *
 play = play *|put on *
 open = open *|launch *|start *
@@ -1359,7 +1372,7 @@ msg_call_missing = "{who}" is not in {file}. Write one "name number" per line.
 say_open_missing = I could not find an app called {name}
 say_help = What you can say is in a notification
 say_locked = Please unlock the phone
-msg_help = time, date, battery, steps / volume down 3, volume 50 percent / next song, pause / 3 minute timer, wake me up at 7 / remind me to take out the bins tomorrow at 7 am, reminders / news, weather, weather tomorrow / note buy milk, read my notes / flashlight on, screenshot / open … / call … / navigate to …, phone number of … / AI … (turn on with voice.sh ai) / change the words: voice.sh words
+msg_help = time, date, battery, steps / volume down 3, volume 50 percent / next song, pause / 3 minute timer, wake me up at 7 / remind me to take out the bins tomorrow at 7 am, reminders / news, weather, weather tomorrow / note buy milk, read my notes / flashlight on, screenshot / open … / call … / navigate to …, phone number of … / search for … / AI … (turn on with voice.sh ai) / change the words: voice.sh words
 msg_unknown = I did not understand: {text}
 msg_locked = "{text}" will go on once you unlock the phone
 msg_navi_where = Say where you want to go
