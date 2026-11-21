@@ -144,12 +144,26 @@
     var w = h('div.z2p-float', { role: 'dialog', 'aria-label': T('g.floataria', k) });
     var head = h('div.z2p-float-h', null,
       h('span.z2p-float-t', { text: (gs.done[k] ? '✓ ' : '') + k + '. ' + T('g.' + k + '.t') }),
+      h('button.z2p-float-b', { type: 'button', 'aria-label': T('g.menu'), 'aria-expanded': gs.float.menu ? 'true' : 'false', 'data-id': 'float_menu', text: '☰', on: { click: function () { gs.float.menu = !gs.float.menu; gs.float.small = false; save(); renderFloat(); } } }),
       h('button.z2p-float-b', { type: 'button', 'aria-label': gs.float.small ? T('g.expand') : T('g.shrink'), text: gs.float.small ? '▴' : '▾', on: { click: function () { gs.float.small = !gs.float.small; save(); renderFloat(); } } }),
       k > 1 ? h('button.z2p-float-b', { type: 'button', 'aria-label': T('g.prev'), text: '‹', on: { click: function () { gs.float.id = k - 1; save(); renderFloat(); } } }) : null,
       k < N ? h('button.z2p-float-b', { type: 'button', 'aria-label': T('g.next'), text: '›', on: { click: function () { gs.float.id = k + 1; save(); renderFloat(); } } }) : null,
       h('button.z2p-float-b', { type: 'button', 'aria-label': T('ph.close'), text: '✕', on: { click: function () { gs.float = null; save(); renderFloat(); } } }));
     w.appendChild(head);
-    if (!gs.float.small) w.appendChild(h('div.z2p-float-body', null, cardBody(k, true)));
+    if (gs.float.menu) {
+      /* 手順の一覧から選んで切り替える */
+      var list = h('div.z2p-float-list', { role: 'list' });
+      for (var i = 1; i <= N; i++) {
+        (function (j) {
+          list.appendChild(h('button.z2p-float-li', { type: 'button', role: 'listitem', 'aria-current': j === k ? 'true' : 'false', 'data-id': 'float_item_' + j,
+            on: { click: function () { gs.float.id = j; gs.float.menu = false; save(); renderFloat(); } } },
+            h('span.z2p-g-no', { text: String(j) }),
+            h('span.z2p-g-tt', { text: T('g.' + j + '.t') }),
+            h('span.z2p-g-ck', { text: gs.done[j] ? '✓' : '' })));
+        })(i);
+      }
+      w.appendChild(h('div.z2p-float-body', null, list));
+    } else if (!gs.float.small) w.appendChild(h('div.z2p-float-body', null, cardBody(k, true)));
     root.appendChild(w);
     g.float = w;
     place(w);

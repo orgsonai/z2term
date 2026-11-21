@@ -196,7 +196,7 @@
     'g.prog': '{0} / {1} できた', 'g.ok': '✓ 手順 {0}「{1}」ができました', 'g.do': 'やること', 'g.type': '打つこと', 'g.check': 'うまくいったか',
     'g.done': 'できました', 'g.notyet': 'まだ —', 'g.donearia': 'できた', 'g.todoaria': 'まだ', 'g.copied': 'コピーしました。z2term の 📋 で貼れます',
     'g.copyaria': '{0} をコピー', 'g.float': '浮かべる', 'g.openz2': 'z2term を開く', 'g.list': '一覧', 'g.next': '次', 'g.prev': '前',
-    'g.reset': '進み具合を消す', 'g.floataria': '手順 {0}（浮かべた窓）', 'g.expand': '広げる', 'g.shrink': '畳む',
+    'g.reset': '進み具合を消す', 'g.floataria': '手順 {0}（浮かべた窓）', 'g.expand': '広げる', 'g.menu': '手順の一覧', 'g.shrink': '畳む',
     'g.1.t': 'はじめての通知',
     'g.1.do': 'z2term で通知を出します。出たら上の状態バーを押して通知欄でも見てみます。',
     'g.1.cmd': 'z2-notify "こんにちは"\nz2-notify -h -c "コピーされる文字" "バナーで出す" "コピーのボタン付き"',

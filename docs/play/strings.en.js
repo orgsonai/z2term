@@ -182,7 +182,7 @@
     'g.prog': '{0} / {1} done', 'g.ok': '✓ Step {0} "{1}" done', 'g.do': 'What to do', 'g.type': 'What to type', 'g.check': 'Did it work?',
     'g.done': 'Done', 'g.notyet': 'Not yet —', 'g.donearia': 'done', 'g.todoaria': 'not yet', 'g.copied': 'Copied. Paste it with 📋 in z2term',
     'g.copyaria': 'Copy {0}', 'g.float': 'Float', 'g.openz2': 'Open z2term', 'g.list': 'List', 'g.next': 'Next', 'g.prev': 'Previous',
-    'g.reset': 'Reset progress', 'g.floataria': 'Step {0} (floating)', 'g.expand': 'Expand', 'g.shrink': 'Collapse',
+    'g.reset': 'Reset progress', 'g.floataria': 'Step {0} (floating)', 'g.expand': 'Expand', 'g.menu': 'List of steps', 'g.shrink': 'Collapse',
     'g.1.t': 'Your first notification',
     'g.1.do': 'Post a notification from z2term. Then tap the status bar and see it in the shade too.',
     'g.1.cmd': 'z2-notify "Hello"\nz2-notify -h -c "text to copy" "As a banner" "With a copy button"',

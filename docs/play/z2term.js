@@ -407,7 +407,6 @@
     e.tabs = h('div.z2t-tabs', { role: 'tablist', 'aria-label': T('zt.tabs') });
     e.tabfix = h('div.z2t-tabfix');
     e.tabbar = h('div.z2t-tabbar', null, e.tabs, e.tabfix);
-    bindReveal(e.tabfix);
     e.search = buildSearch();
     e.ghead = h('div.z2t-ghead', { hidden: true });
     e.work = h('div.z2t-work');
@@ -576,7 +575,13 @@
       var b = h('button.z2t-tab', { type: 'button', role: 'tab', 'aria-selected': sel ? 'true' : 'false', 'data-id': 'tab_' + t.name },
         h('span', { text: t.name }), t.log.on ? h('span.z2t-tab-rec', { text: ' ●', 'aria-label': T('zt.logging') }) : null,
         h('span.z2t-tab-act', { text: t.pane.running ? ' •' : '' }));
-      Z.clicks(b, function () { zt.showTab(t); focusSink(); }, function () { zt.closeTab(t); });
+      /* 押したらすぐ切り替える。続けてもう一度押す（ダブルタップ）と閉じる */
+      b.addEventListener('click', function () {
+        var now = Date.now();
+        if (lastTap.id === t.id && now - lastTap.at < 320) { lastTap = { id: null, at: 0 }; zt.closeTab(t); return; }
+        lastTap = { id: t.id, at: now };
+        zt.showTab(t); focusSink();
+      });
       Z.longPress(b, function () { tabMenu(t); });
       box.appendChild(b);
     });
@@ -599,7 +604,10 @@
       Z.phone.menu('🖥', [bg ? { label: T('zt.bcstop'), act: zt.stopBroadcast } : { label: T('zt.bcstartl'), act: bcSheet }]);
     });
     /* ＋ と 🖥 はタブが増えても右端に固定（タブだけが横に流れる）。
-       その上を左へ滑らせると 📡 が出る（押すか 4 秒で引っ込む）。始めたあとは 📡 の切り替えが残る */
+       📡 は本物（1.0.151）と同じく ＋ / 🖥 の右に隠れて並び、＋ / 🖥 の上で左へ滑らせると
+       指に付いて右端から出てくる（＋ / 🖥 はその分だけ左へ寄る）。半分より出ていれば開ききり、
+       それ未満なら戻る。開いたら押すか 4 秒で引っ込む。右へ滑らせても閉じる。
+       ブロードキャスト中は ON/OFF の切り替えを ＋ / 🖥 の左にいつも出す。 */
     e.tabfix.textContent = '';
     var bg = zt.bcGroup();
     if (bg) {
@@ -615,42 +623,71 @@
       });
       e.tabfix.appendChild(tog);
     }
-    if (reveal) {
-      var rv = h('button.z2t-tab.bc.z2t-bcpop', { type: 'button', 'data-id': 'bc_reveal', text: bg ? '📡 ' + T('zt.bcstopshort') : '📡' , 'aria-label': bg ? T('zt.bcstop') : T('zt.bcstartl') });
-      rv.addEventListener('click', function () { hideReveal(); if (bg) zt.stopBroadcast(); else bcSheet(); });
-      e.tabfix.appendChild(rv);
-    }
-    e.tabfix.appendChild(plus);
-    e.tabfix.appendChild(gui);
+    var entry = h('button.z2t-tab.bc.z2t-bcpop', { type: 'button', 'data-id': 'bc_reveal', tabindex: '-1', text: bg ? '📡 ' + T('zt.bcstopshort') : '📡', 'aria-label': bg ? T('zt.bcstop') : T('zt.bcstartl') });
+    entry.addEventListener('click', function () { closeReveal(); if (bg) zt.stopBroadcast(); else bcSheet(); });
+    var row = h('div.z2t-fixrow', null, plus, gui, entry);
+    var clip = h('div.z2t-fixclip', null, row);
+    e.tabfix.appendChild(clip);
+    e.fixclip = clip; e.fixrow = row; e.entry = entry;
+    applyReveal(false);
+    bindReveal(clip);
     var selEl = box.querySelector('[aria-selected="true"]');
     if (selEl && selEl.scrollIntoView) selEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
   function markTabs() { renderTabs(); }
 
-  /* ＋ / 🖥 の上を左へ滑らせて 📡 を出す */
-  var reveal = false, revealT = null;
-  function showReveal() {
-    reveal = true;
-    clearTimeout(revealT);
-    revealT = setTimeout(hideReveal, 4000);
-    renderTabs();
-    var rv = e.tabfix.querySelector('.z2t-bcpop');
-    if (rv && rv.animate && !Z.reduceMotion()) rv.animate([{ transform: 'translateX(40px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 220, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
+  var lastTap = { id: null, at: 0 };
+
+  /* ＋ / 🖥 の上を左へ滑らせて 📡 を出す（出ている幅 revealPx を、描き直しても保つ） */
+  var revealPx = 0, revealT = null;
+  function entryW() { return e.entry ? e.entry.offsetWidth + 5 : 0; }
+  function applyReveal(animate) {
+    if (!e.fixclip) return;
+    /* 隠れていて測れないときは触らない（表示したときの描き直しで測る） */
+    if (!e.fixclip.offsetParent) { e.fixclip.style.width = ''; return; }
+    var w = entryW();
+    revealPx = Math.max(0, Math.min(w, revealPx));
+    e.fixclip.classList.toggle('anim', !!animate && !Z.reduceMotion());
+    e.fixclip.style.width = (e.fixrow.scrollWidth - (w - revealPx)) + 'px';
+    e.entry.tabIndex = revealPx >= w && w > 0 ? 0 : -1;
   }
-  function hideReveal() { if (!reveal) return; reveal = false; clearTimeout(revealT); renderTabs(); }
+  function openReveal() {
+    revealPx = entryW();
+    applyReveal(true);
+    clearTimeout(revealT);
+    revealT = setTimeout(closeReveal, 4000);
+  }
+  function closeReveal() {
+    clearTimeout(revealT);
+    revealPx = 0;
+    applyReveal(true);
+  }
+  zt.openReveal = openReveal;
   function bindReveal(el) {
     var d = null;
-    el.addEventListener('pointerdown', function (ev) { d = { x: ev.clientX, y: ev.clientY, done: false }; });
+    el.addEventListener('pointerdown', function (ev) { d = { x: ev.clientX, y: ev.clientY, r0: revealPx, moved: false, id: ev.pointerId }; });
     el.addEventListener('pointermove', function (ev) {
-      if (!d || d.done) return;
-      var dx = ev.clientX - d.x;
-      if (dx < -24 && Math.abs(ev.clientY - d.y) < 30) {
-        d.done = true;
-        showReveal();
+      if (!d) return;
+      var dx = ev.clientX - d.x, dy = ev.clientY - d.y;
+      if (!d.moved) {
+        if (Math.abs(dx) < 6 || Math.abs(dx) < Math.abs(dy)) return;
+        d.moved = true;
+        clearTimeout(revealT);
+        try { el.setPointerCapture(d.id); } catch (er) { /* 無視 */ }
       }
+      revealPx = d.r0 - dx;
+      applyReveal(false);
     });
-    el.addEventListener('pointerup', function () { if (d && d.done) Z.eatClick(el); d = null; });
-    el.addEventListener('pointercancel', function () { d = null; });
+    function end() {
+      if (!d) return;
+      var moved = d.moved;
+      d = null;
+      if (!moved) return;
+      Z.eatClick(el);
+      if (revealPx > entryW() / 2) openReveal(); else closeReveal();
+    }
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
   }
 
   /* 📡 を始める板: グループを選んで「この内容で開始」 */

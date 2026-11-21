@@ -408,6 +408,9 @@ button.z2p-set-row:hover { background: var(--p-card2); }
 .z2t-tab.bc { color: var(--t-dim); }
 .z2t-tab.bc[aria-pressed="true"] { color: var(--t-warn); border-color: var(--t-warn); }
 .z2t-tab.bc.z2t-bcpop { color: var(--t-warn); border-color: var(--t-warn); background: var(--t-btn); }
+.z2t-fixclip { overflow: hidden; flex: none; touch-action: pan-y; }
+.z2t-fixclip.anim { transition: width .22s cubic-bezier(0.2, 0, 0, 1); }
+.z2t-fixrow { display: flex; gap: 5px; width: max-content; }
 .z2t-tabs::-webkit-scrollbar { display: none; }
 .z2t-tab {
   flex: none; cursor: pointer; white-space: nowrap; font-size: 13px; color: var(--t-dim);
@@ -587,3 +590,10 @@ button.z2p-set-row:hover { background: var(--p-card2); }
 .z2p-ep-v { font-family: var(--p-mono); font-size: 13px; color: var(--p-acc); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .z2p-ep-v.res { font-size: 10.5px; color: var(--p-dim); }
 .z2p-notif.heads { touch-action: none; cursor: pointer; }
+
+/* 浮かべた手順の一覧 */
+.z2p-float-list { display: flex; flex-direction: column; padding-top: 4px; }
+.z2p-float-li { display: flex; align-items: center; gap: 8px; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--p-line); padding: 7px 2px; cursor: pointer; font-size: 13px; }
+.z2p-float-li:hover { background: var(--p-card2); }
+.z2p-float-li[aria-current="true"] .z2p-g-tt { color: var(--p-acc); font-weight: 600; }
+.z2p-float-b[aria-expanded="true"] { border-color: var(--p-acc); color: var(--p-acc); }
