@@ -236,4 +236,6 @@
     <string name="action_edit_cleanup">Executar ao parar</string>
     <string name="action_edit_cleanup_hint">Comando de shell executado quando a macro é parada, falha ou esgota o tempo, mesmo com a tela apagada (não quando termina). Recebe Z2_ACTION_STATE (cancelled, failed ou timeout) e as variáveis da macro. Vazio: nada.</string>
     <string name="action_edit_cleanup_example">Exemplo: z2-server stop web</string>
+    <string name="action_edit_callees">Rotinas que chama</string>
+    <string name="action_routines_unused">Rotinas sem uso (%1$d)</string>
 </resources>

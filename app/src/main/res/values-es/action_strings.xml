@@ -237,4 +237,6 @@
     <string name="action_edit_cleanup">Ejecutar al detenerse</string>
     <string name="action_edit_cleanup_hint">Orden de shell que se ejecuta cuando la macro se detiene, falla o agota el tiempo, también con la pantalla apagada (no cuando termina). Recibe Z2_ACTION_STATE (cancelled, failed o timeout) y las variables de la macro. Vacío: no hace nada.</string>
     <string name="action_edit_cleanup_example">Ejemplo: z2-server stop web</string>
+    <string name="action_edit_callees">Rutinas que llama</string>
+    <string name="action_routines_unused">Rutinas sin usar (%1$d)</string>
 </resources>

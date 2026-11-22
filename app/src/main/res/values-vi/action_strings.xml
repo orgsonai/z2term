@@ -237,4 +237,6 @@
     <string name="action_edit_cleanup">Chạy khi dừng</string>
     <string name="action_edit_cleanup_hint">Lệnh shell chạy khi macro bị dừng, lỗi hoặc hết giờ, kể cả khi màn hình tắt (không chạy khi chạy xong). Nhận Z2_ACTION_STATE (cancelled, failed hoặc timeout) và các biến của macro. Để trống: không làm gì.</string>
     <string name="action_edit_cleanup_example">Ví dụ: z2-server stop web</string>
+    <string name="action_edit_callees">Thủ tục được gọi</string>
+    <string name="action_routines_unused">Thủ tục không dùng (%1$d)</string>
 </resources>

@@ -237,4 +237,6 @@
     <string name="action_edit_cleanup">Выполнить при остановке</string>
     <string name="action_edit_cleanup_hint">Команда оболочки, которая выполняется, когда макрос остановлен, завершился с ошибкой или по тайм-ауту, даже при выключенном экране (но не при обычном завершении). Получает Z2_ACTION_STATE (cancelled, failed или timeout) и переменные макроса. Пусто — ничего.</string>
     <string name="action_edit_cleanup_example">Пример: z2-server stop web</string>
+    <string name="action_edit_callees">Вызываемые подпрограммы</string>
+    <string name="action_routines_unused">Неиспользуемые подпрограммы (%1$d)</string>
 </resources>

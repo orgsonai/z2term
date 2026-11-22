@@ -53,6 +53,12 @@ internal class ActionExecution(private val schedule: (Long, () -> Unit) -> (() -
         private set
     /** `set` / `add` variables of this run (1.0.192), shared with called macros; empty at every start. */
     val variables = linkedMapOf<String, String>()
+    /**
+     * 呼び出しの道筋 (1.0.206): いま手順を進めているマクロまで、外側から順に呼んだマクロの名前。最初のマクロは
+     * 含めない (帯と通知はそれを別に出している)。repeat などのブロックは同じ名前が続くので 1 つにまとめる。
+     */
+    val calls: List<String> get() = frames.map { it.macro }
+        .fold(mutableListOf<String>()) { list, name -> if (list.lastOrNull() != name) list += name; list }.drop(1)
     /** Values of the macro whose step is running (shell steps receive them as `$1`…). */
     val args: List<String> get() = frames.lastOrNull()?.args.orEmpty()
     private var generation = 0

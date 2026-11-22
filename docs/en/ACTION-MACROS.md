@@ -338,11 +338,13 @@ List them with commas, as in `jitter=speed,path`. **Whatever is chosen, a move s
 
 **Keep one step exact (1.0.203)**: add `exact` to the end of a coordinate step (`tap`, `long-press`, `double-tap`, `swipe`, `drag`, `pinch-in` / `pinch-out`, `swipe-two`, `touch`, `swipe-path`) and only that step's landing points stay exact (speed and line still vary). Example: `tap px 540 1200 exact`. Use it for places that must not be missed, such as a confirm button. In the form it is "Exact landing points" in the step editor.
 
+**See which macro is running (1.0.206)**: while `call` has entered another macro, the stop bar and the notification put the path to the macro whose step is running in front of the progress, as in "› pad-round › pad-battle" (the first macro's name is on the bar's upper line).
+
 While running, **～** on the stop bar turns it off and on (accent colour when on; turning it back on restores the strength), from the next step. The strength and what varies come from the first macro's header; `human=` and `jitter=` in called macros are not used. In the form editor, tap the "Human-like input" row to enter a strength from 0 to 20.
 
 ### Routines (call only, 1.0.203)
 
-For a macro that is only run from other macros with `call`, write `routine=on` in its headers. Routines are left out of the bar that picks and runs a macro and out of the edge panel and tile item pickers, so macros you never pick directly do not crowd those lists. In the screen-actions tab they sit folded under "**Routines (count)**" at the bottom of the list; tap it to open. `call` runs them as before, and ▶ in the list or `z2-action start` still runs one alone for testing. In the form editor, the "Routine (call only)" switch sets it.
+For a macro that is only run from other macros with `call`, write `routine=on` in its headers. Routines are left out of the bar that picks and runs a macro and out of the edge panel and tile item pickers, so macros you never pick directly do not crowd those lists. In the screen-actions tab, **routines sit as a tree under the macros that `call` them** (1.0.206). Tap ▸ at the left of a macro to open the routines it calls, and open theirs the same way. A routine called from several places appears under each. Only routines no macro calls are folded under "**Unused routines (count)**" at the bottom. While arranging, the list is flat and routines are grouped together. Calls whose name comes from `$1` and the like are not followed. `call` runs them as before, and ▶ in the list or `z2-action start` still runs one alone for testing. In the form editor, the "Routine (call only)" switch sets it.
 
 ### Clean up when stopped (cleanup=, 1.0.205)
 

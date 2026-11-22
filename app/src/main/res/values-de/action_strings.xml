@@ -236,4 +236,6 @@
     <string name="action_edit_cleanup">Bei Abbruch ausführen</string>
     <string name="action_edit_cleanup_hint">Ein Shell-Befehl, der läuft, wenn das Makro gestoppt wird, fehlschlägt oder die Zeit überschreitet, auch bei ausgeschaltetem Bildschirm (nicht, wenn es fertig wird). Er erhält Z2_ACTION_STATE (cancelled, failed oder timeout) und die Variablen des Makros. Leer bedeutet: nichts.</string>
     <string name="action_edit_cleanup_example">Beispiel: z2-server stop web</string>
+    <string name="action_edit_callees">Aufgerufene Routinen</string>
+    <string name="action_routines_unused">Unbenutzte Routinen (%1$d)</string>
 </resources>

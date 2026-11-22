@@ -237,4 +237,6 @@
     <string name="action_edit_cleanup">停止時執行的指令</string>
     <string name="action_edit_cleanup_hint">巨集被停止、失敗或逾時時執行的 shell 指令，螢幕關閉時也會執行（正常結束時不執行）。可讀取 Z2_ACTION_STATE（cancelled、failed、timeout）與巨集的變數。留空則不執行。</string>
     <string name="action_edit_cleanup_example">例：z2-server stop web</string>
+    <string name="action_edit_callees">呼叫的常式</string>
+    <string name="action_routines_unused">未使用的常式（%1$d）</string>
 </resources>

@@ -69,6 +69,10 @@ internal class ActionMacrosEditor(
     /** 呼び出し専用 (`routine=on`、1.0.203)。一覧では下の「ルーチン」に畳む。 */
     private var routines = emptySet<String>()
     private var routinesOpen = false
+    /** 各マクロが呼ぶマクロ (1.0.206)。ルーチンは呼ぶマクロの下に木の形で並べる。 */
+    private var calls = emptyMap<String, List<String>>()
+    /** 開いている木の枝。同じルーチンが別の所から呼ばれても別々に開くよう、道筋 (`a/b/c`) で覚える。 */
+    private val expanded = mutableSetOf<String>()
     /** The list shows ↑ ↓ in place of each row's actions while the user arranges it. */
     private var arranging = false
     private var apps = emptyList<AppCatalog.LaunchableApp>()
@@ -308,7 +312,9 @@ internal class ActionMacrosEditor(
         if (!embedded || editing) action(pill(R.string.action_edit_close) { leave() })
         add(row)
     }
-    private fun refresh() = io({ store.names() to store.routines() }) { (n, r) -> names = n; routines = r; if (!editing) render() }
+    private fun refresh() = io({ Triple(store.names(), store.routines(), store.calls()) }) { (n, r, c) ->
+        names = n; routines = r; calls = c; if (!editing) render()
+    }
     private fun renderList() {
         // What is running now, and the only way to stop it: one block, never mixed into the list.
         val running = ActionUi.card(this)
@@ -400,9 +406,21 @@ internal class ActionMacrosEditor(
                 arranging = !arranging; render()
             } else null).toTypedArray())
         if (names.isEmpty()) add(note(R.string.action_edit_empty))
-        fun macroRow(savedName: String, section: List<String>) {
+        // このマクロが呼ぶルーチン。木の上で自分の祖先に戻るもの (呼び合い) は出さない。
+        fun children(savedName: String, path: String): List<String> {
+            val ancestors = path.split('/').toSet()
+            return calls[savedName].orEmpty().filter { it in routines && it in names && it !in ancestors }
+        }
+        fun macroRow(savedName: String, section: List<String>, depth: Int = 0, path: String = savedName) {
+            val kids = if (arranging) emptyList() else children(savedName, path)
+            val open = path in expanded
             // One bordered row per macro; the actions are glyphs at its right edge, as in the rules tab.
-            val row = ActionUi.card(this, vertical = false).apply { setPadding(dp(10), dp(2), dp(2), dp(2)) }
+            val row = ActionUi.card(this, vertical = false).apply { setPadding(dp(if (kids.isEmpty()) 10 else 2), dp(2), dp(2), dp(2)) }
+            // 呼んでいるルーチンがあるときだけ、左端に開閉の印を出す。
+            if (kids.isNotEmpty()) row.addView(ActionUi.iconCell(this, if (open) "▾" else "▸", getString(R.string.action_edit_callees)) {
+                if (!expanded.remove(path)) expanded += path
+                render()
+            })
             // A saved name is an identifier, so it is set like one.
             row.addView(ActionUi.label(this, savedName, 13f, ActionUi.textColor, ActionUi.medium).apply {
                 maxLines = 1; ellipsize = TextUtils.TruncateAt.END
@@ -437,21 +455,29 @@ internal class ActionMacrosEditor(
             }
             icon("✕", R.string.action_edit_delete, danger = true) { deleteSaved(savedName) }
             add(row)
+            if (depth > 0) (row.layoutParams as? android.view.ViewGroup.MarginLayoutParams)?.leftMargin = dp(16 * minOf(depth, 4))
+            if (open) kids.forEach { macroRow(it, section, depth + 1, "$path/$it") }
         }
         val plain = names.filter { it !in routines }
         val routineNames = names.filter { it in routines }
         plain.forEach { macroRow(it, plain) }
-        if (routineNames.isNotEmpty()) {
-            // 呼び出し専用のマクロは見出しの下に畳む (既定は閉じる。並べ替えの間は開く)。
+        // 並べ替えの間は木にせず、ルーチンをまとめて並べる (区切りの中だけで動かす)。
+        // ふだんは、普通のマクロからたどれないルーチンだけを下にまとめる (1.0.206)。
+        val reachable = mutableSetOf<String>()
+        val queue = ArrayDeque(plain)
+        while (queue.isNotEmpty()) calls[queue.removeFirst()].orEmpty().filter { it in routines && reachable.add(it) }.forEach(queue::add)
+        val loose = if (arranging) routineNames else routineNames.filter { it !in reachable }
+        if (loose.isNotEmpty()) {
             val open = routinesOpen || arranging
-            add(ActionUi.label(this, (if (open) "▾ " else "▸ ") + getString(R.string.action_routines, routineNames.size),
+            add(ActionUi.label(this, (if (open) "▾ " else "▸ ") +
+                getString(if (arranging) R.string.action_routines else R.string.action_routines_unused, loose.size),
                 13f, ActionUi.mutedColor, ActionUi.medium).apply {
                 setPadding(dp(4), dp(10), dp(4), dp(6))
                 foreground = ActionUi.pressable(this@ActionMacrosEditor, 8)
                 isClickable = true
                 setOnClickListener { routinesOpen = !routinesOpen; render() }
             })
-            if (open) routineNames.forEach { macroRow(it, routineNames) }
+            if (open) loose.forEach { macroRow(it, loose) }
         }
         add(note(R.string.action_edit_intro))
     }

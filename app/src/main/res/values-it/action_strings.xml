@@ -236,4 +236,6 @@
     <string name="action_edit_cleanup">Esegui all’arresto</string>
     <string name="action_edit_cleanup_hint">Comando shell eseguito quando la macro viene fermata, fallisce o va in timeout, anche a schermo spento (non quando finisce). Riceve Z2_ACTION_STATE (cancelled, failed o timeout) e le variabili della macro. Vuoto: niente.</string>
     <string name="action_edit_cleanup_example">Esempio: z2-server stop web</string>
+    <string name="action_edit_callees">Routine chiamate</string>
+    <string name="action_routines_unused">Routine non usate (%1$d)</string>
 </resources>

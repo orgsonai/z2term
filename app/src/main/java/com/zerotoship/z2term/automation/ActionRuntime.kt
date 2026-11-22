@@ -185,8 +185,9 @@ internal object ActionRuntime {
         if (current !== run) return
         run.engine.start(run.definition, { step, done -> execute(run, step, done) }, { index, step ->
             run.step = index
-            ActionRunOverlay.update(run.engine.loops, run.engine.blockStep, run.engine.blockSize)
-            run.service?.showProgress(ActionRunOverlay.describe(run.context, run.engine.loops, run.engine.blockStep, run.engine.blockSize))
+            ActionRunOverlay.update(run.engine.loops, run.engine.blockStep, run.engine.blockSize, run.engine.calls)
+            run.service?.showProgress(ActionRunOverlay.describe(run.context, run.engine.loops, run.engine.blockStep, run.engine.blockSize,
+                run.engine.calls))
             log(run, "step", when (step) {
                 is ActionDefinition.Step.Repeat -> "repeat"
                 is ActionDefinition.Step.Branch -> "if"

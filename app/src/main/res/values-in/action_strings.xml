@@ -236,4 +236,6 @@
     <string name="action_edit_cleanup">Jalankan saat berhenti</string>
     <string name="action_edit_cleanup_hint">Perintah shell yang dijalankan saat makro dihentikan, gagal, atau habis waktu, juga saat layar mati (tidak saat selesai). Menerima Z2_ACTION_STATE (cancelled, failed, atau timeout) dan variabel makro. Kosong berarti tidak ada.</string>
     <string name="action_edit_cleanup_example">Contoh: z2-server stop web</string>
+    <string name="action_edit_callees">Rutin yang dipanggil</string>
+    <string name="action_routines_unused">Rutin tak terpakai (%1$d)</string>
 </resources>

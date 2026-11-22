@@ -238,4 +238,6 @@
     <string name="action_edit_cleanup">Run when stopped</string>
     <string name="action_edit_cleanup_hint">A shell command run when the macro is stopped, fails or times out, also with the screen off (not when it finishes). It gets Z2_ACTION_STATE (cancelled, failed or timeout) and the macro\'s variables. Empty means nothing runs.</string>
     <string name="action_edit_cleanup_example">Example: z2-server stop web</string>
+    <string name="action_edit_callees">Routines it calls</string>
+    <string name="action_routines_unused">Unused routines (%1$d)</string>
 </resources>

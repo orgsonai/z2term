@@ -237,4 +237,6 @@
     <string name="action_edit_cleanup">멈췄을 때 실행할 명령</string>
     <string name="action_edit_cleanup_hint">매크로를 멈췄거나 실패했거나 시간이 초과됐을 때 실행하는 셸 명령입니다. 화면이 꺼져 있어도 실행됩니다(끝까지 마쳤을 때는 실행하지 않음). Z2_ACTION_STATE(cancelled·failed·timeout)와 매크로 변수를 받습니다. 비우면 아무것도 하지 않습니다.</string>
     <string name="action_edit_cleanup_example">예: z2-server stop web</string>
+    <string name="action_edit_callees">호출하는 루틴</string>
+    <string name="action_routines_unused">사용하지 않는 루틴(%1$d)</string>
 </resources>

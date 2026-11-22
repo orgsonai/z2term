@@ -374,20 +374,25 @@ internal object ActionRunOverlay {
     }
 
     /** 進み具合を書き換える。[loops] は外側から順に (何回目, 回数 または 無限なら null)。 */
-    fun update(loops: List<Pair<Int, Int?>>, step: Int, size: Int) {
+    fun update(loops: List<Pair<Int, Int?>>, step: Int, size: Int, calls: List<String> = emptyList()) {
         val view = progress ?: return
-        view.text = describe(view.context, loops, step, size)
+        view.text = describe(view.context, loops, step, size, calls)
     }
 
     /** 2 行目をそのまま書き換える (AI の帯では操作先のアプリ名)。 */
     fun setDetail(text: String) { progress?.text = text }
 
-    /** 「2/5回目 · 3/10回目 · 手順 2/4」。帯と通知の本文で同じ書き方にする。 */
-    fun describe(context: Context, loops: List<Pair<Int, Int?>>, step: Int, size: Int): String {
-        val parts = loops.map { (pass, count) ->
+    /**
+     * 「› pad-round › pad-battle · 2/5回目 · 3/10回目 · 手順 2/4」。帯と通知の本文で同じ書き方にする。
+     * [calls] は `call` で呼んだ先の道筋 (1.0.206)。いまどのマクロの手順なのかを、最初のマクロの名前の後ろに続けて見せる。
+     */
+    fun describe(context: Context, loops: List<Pair<Int, Int?>>, step: Int, size: Int, calls: List<String> = emptyList()): String {
+        val parts = mutableListOf<String>()
+        if (calls.isNotEmpty()) parts += calls.joinToString(" › ", prefix = "› ")
+        parts += loops.map { (pass, count) ->
             if (count == null) context.getString(R.string.action_overlay_loop_endless, pass)
             else context.getString(R.string.action_overlay_loop, pass, count)
-        }.toMutableList()
+        }
         if (size > 0) parts += context.getString(R.string.action_overlay_step, step, size)
         return parts.joinToString(" · ")
     }

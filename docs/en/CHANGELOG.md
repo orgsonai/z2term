@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.206 (versionCode 904)**: While `call` has entered another macro, the stop bar and the notification show which macro's step is running, as in "› pad-round › pad-battle". Before, only the first macro's name was shown, so you could not tell where it was. In the screen-actions tab list, routines now sit as a tree under the macros that call them (open with ▸), so even many routines stay grouped by the macro you start. Only routines nothing calls are listed under "Unused routines" at the bottom
+
 **1.0.205 (versionCode 903)**: Action macros can clean up when stopped. The shell command in the `cleanup=` header runs when the macro is stopped (stop button, notification or screen off), when a step fails and on a timeout; not when it finishes. It runs with the screen off too, so a server the macro started is reliably stopped. The command gets `Z2_ACTION_STATE` (cancelled, failed or timeout) and the macro's variables. In the form it is "Run when stopped". The list in the screen-actions tab no longer jumps back to the top each time routines are opened or closed or rows are moved
 
 **1.0.204 (versionCode 902)**: Resident servers (sshd and so on) now start again on their own after an app update. Before, the update stopped them and they stayed stopped until you pressed Start. They come back only if they were running before the update; servers you stopped yourself stay stopped. When updating from 1.0.203 or earlier, start them by hand that one time

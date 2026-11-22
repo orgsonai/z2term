@@ -54,6 +54,23 @@ internal class ActionStore(private val root: File) {
     fun routines(): Set<String> = synchronized(lock) {
         names().filter { runCatching { ActionEditorDocument(readText(it)).header("routine") == "on" }.getOrDefault(false) }.toSet()
     }
+    /**
+     * 各マクロが `call` / `watch … call` で呼ぶマクロの名前 (書いた順、重複なし。1.0.206)。一覧でルーチンを
+     * 呼ぶマクロの下に並べるために使う。本文を行ごとに読むだけなので、検査に通らない定義でも拾える。
+     * `$1` などで名前を決める呼び出しは拾わない。
+     */
+    fun calls(): Map<String, List<String>> = synchronized(lock) {
+        val call = Regex("^call\\s+([A-Za-z0-9_-]{1,64})(\\s|$)")
+        val watch = Regex("^watch\\s.*\\scall\\s+([A-Za-z0-9_-]{1,64})$")
+        names().associateWith { name ->
+            runCatching {
+                readText(name).lines().mapNotNull { line ->
+                    val code = ActionDefinition.code(line)
+                    (call.find(code) ?: watch.find(code))?.groupValues?.get(1)
+                }.distinct()
+            }.getOrDefault(emptyList())
+        }
+    }
     /** 実行の帯・エッジパネル・タイルの選択肢に出すもの (ルーチンを除く)。 */
     fun runnableNames(): List<String> = synchronized(lock) { routines().let { r -> names().filter { it !in r } } }
 

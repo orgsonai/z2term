@@ -237,4 +237,6 @@
     <string name="action_edit_cleanup">停止时运行的命令</string>
     <string name="action_edit_cleanup_hint">宏被停止、失败或超时时运行的 shell 命令，屏幕关闭时也会运行（正常结束时不运行）。可读取 Z2_ACTION_STATE（cancelled、failed、timeout）和宏的变量。留空则不运行。</string>
     <string name="action_edit_cleanup_example">例：z2-server stop web</string>
+    <string name="action_edit_callees">调用的例程</string>
+    <string name="action_routines_unused">未使用的例程（%1$d）</string>
 </resources>
