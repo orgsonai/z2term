@@ -416,15 +416,19 @@ internal class ActionMacrosEditor(
             val open = path in expanded
             // One bordered row per macro; the actions are glyphs at its right edge, as in the rules tab.
             val row = ActionUi.card(this, vertical = false).apply { setPadding(dp(if (kids.isEmpty()) 10 else 2), dp(2), dp(2), dp(2)) }
-            // 呼んでいるルーチンがあるときだけ、左端に開閉の印を出す。
-            if (kids.isNotEmpty()) row.addView(ActionUi.iconCell(this, if (open) "▾" else "▸", getString(R.string.action_edit_callees)) {
-                if (!expanded.remove(path)) expanded += path
-                render()
-            })
+            // 呼んでいるルーチンがあるときだけ、左端に開閉の印を出す。名前を押しても開閉する (1.0.207。印だけでは小さくて押しにくい)。
+            fun toggle() { if (!expanded.remove(path)) expanded += path; render() }
+            if (kids.isNotEmpty()) row.addView(ActionUi.iconCell(this, if (open) "▾" else "▸", getString(R.string.action_edit_callees)) { toggle() })
             // A saved name is an identifier, so it is set like one.
             row.addView(ActionUi.label(this, savedName, 13f, ActionUi.textColor, ActionUi.medium).apply {
                 maxLines = 1; ellipsize = TextUtils.TruncateAt.END
                 setPadding(0, dp(8), 0, dp(8))
+                if (kids.isNotEmpty()) {
+                    foreground = ActionUi.pressable(this@ActionMacrosEditor, 8)
+                    isClickable = true
+                    contentDescription = savedName + ": " + getString(R.string.action_edit_callees)
+                    setOnClickListener { toggle() }
+                }
             }, LinearLayout.LayoutParams(0, -2, 1f))
             fun icon(glyph: String, label: Int, danger: Boolean = false, size: Float = 15f, action: () -> Unit) =
                 row.addView(ActionUi.iconCell(this, glyph, getString(label), danger, size, action))

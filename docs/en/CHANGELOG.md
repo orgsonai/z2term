@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.207 (versionCode 905)**: In the screen-actions tab list, tapping the name of a macro that calls routines now opens and closes its tree too; the ▸ at its left alone was small and hard to hit
+
 **1.0.206 (versionCode 904)**: While `call` has entered another macro, the stop bar and the notification show which macro's step is running, as in "› pad-round › pad-battle". Before, only the first macro's name was shown, so you could not tell where it was. In the screen-actions tab list, routines now sit as a tree under the macros that call them (open with ▸), so even many routines stay grouped by the macro you start. Only routines nothing calls are listed under "Unused routines" at the bottom
 
 **1.0.205 (versionCode 903)**: Action macros can clean up when stopped. The shell command in the `cleanup=` header runs when the macro is stopped (stop button, notification or screen off), when a step fails and on a timeout; not when it finishes. It runs with the screen off too, so a server the macro started is reliably stopped. The command gets `Z2_ACTION_STATE` (cancelled, failed or timeout) and the macro's variables. In the form it is "Run when stopped". The list in the screen-actions tab no longer jumps back to the top each time routines are opened or closed or rows are moved
