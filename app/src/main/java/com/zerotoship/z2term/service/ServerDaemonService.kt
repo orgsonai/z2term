@@ -49,6 +49,8 @@ class ServerDaemonService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 Log.i(TAG, "Stop servers action")
+                // 止めたのは利用者 (または z2-server)。アプリを入れ替えても起こし直さない。
+                setWanted(this, false)
                 stopNotificationRefresher()
                 ServerDaemonManager.stop()
                 // 常駐トンネル (A2) も同じ枠にぶら下がっているので一緒に畳む。
@@ -66,6 +68,8 @@ class ServerDaemonService : Service() {
                     val started = ServerDaemonManager.start(this)
                     // 常駐トンネル (A2) を張る。サーバーが 1 つも無くてもトンネルだけで常駐する。
                     runCatching { TunnelManager.reload(this) }
+                    // 動いている間は「入れ替えたら起こし直す」印を立てておく (1.0.204)。
+                    setWanted(this, started || TunnelManager.isRunning)
                     if (!started && !TunnelManager.isRunning) {
                         Log.i(TAG, "No servers to run; stopping service")
                         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -249,6 +253,19 @@ class ServerDaemonService : Service() {
         private const val STEADY_POLL_MILLIS = 30_000L
         const val ACTION_START = "com.zerotoship.z2term.SERVERS_START"
         const val ACTION_STOP = "com.zerotoship.z2term.SERVERS_STOP"
+
+        /**
+         * 常駐が動いていたか (1.0.204)。アプリを入れ替えると Android がプロセスごと終わらせるので、
+         * [ACTION_STOP] を通らずに止まったときだけ true が残る。[BootReceiver] が
+         * `MY_PACKAGE_REPLACED` で見て、入れ替える前に動いていたなら起こし直す。
+         */
+        private const val PREFS = "server_daemon"
+        private const val KEY_WANTED = "running_when_stopped"
+        fun wasRunning(context: Context): Boolean =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_WANTED, false)
+        private fun setWanted(context: Context, value: Boolean) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_WANTED, value).apply()
+        }
 
         fun start(context: Context) {
             val intent = Intent(context, ServerDaemonService::class.java).setAction(ACTION_START)

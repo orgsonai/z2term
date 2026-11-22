@@ -21,6 +21,17 @@ import kotlinx.coroutines.runBlocking
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action
+        // アプリを入れ替えた直後 (1.0.204)。入れ替えで止まった常駐サーバーを、入れ替える前に
+        // 動いていたときだけ起こし直す (利用者が止めていたものは起こさない)。端末の起動とは別なので、
+        // 下の予約の貼り直しや boot の規則は走らせない。
+        if (action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            if (ServerDaemonService.wasRunning(context)) {
+                Log.i("BootReceiver", "Restarting server daemon after app update")
+                runCatching { ServerDaemonService.start(context) }
+                    .onFailure { Log.w("BootReceiver", "server restart after update failed", it) }
+            }
+            return
+        }
         if (action != Intent.ACTION_BOOT_COMPLETED &&
             action != Intent.ACTION_LOCKED_BOOT_COMPLETED &&
             action != "android.intent.action.QUICKBOOT_POWERON"

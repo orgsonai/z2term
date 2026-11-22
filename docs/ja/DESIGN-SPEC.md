@@ -468,6 +468,7 @@ supervisor は**エンジン（proot/z2root）の中**で動く。エンジン�
 - 前面維持（プロセス被 kill 防止）と LAN 到達性（WakeLock + WifiLock）は専用フォアグラウンドサービス `ServerDaemonService` が担う。⚠ **`WifiLock` は到達性を保証しない**（Wi-Fi 再接続直後に ARP で落ちる実測あり。上の「フォアグラウンド常駐とロック」を参照）
 - WakeLock は `TerminalService` と同じ `RenewingWakeLock`（1 時間の期限を 30 分ごとに取り直す、1.0.180）。1.0.179 までは 8 時間で切れたまま取り直さなかった
 - `BootReceiver`（`RECEIVE_BOOT_COMPLETED`）で端末起動直後にアプリを開かず自動常駐（設定「起動時に自動で常駐」ON かつ enabled サーバーがある時のみ）
+- アプリの入れ替え（1.0.204）: `BootReceiver` は `MY_PACKAGE_REPLACED` も受け、`ServerDaemonService.wasRunning` が true なら `ServerDaemonService.start` で起こし直す（「起動時に自動で常駐」とは独立。予約の貼り直しや `boot` の規則は走らせない）。印は SharedPreferences `server_daemon` の `running_when_stopped`: `ACTION_START` で起動できたら true、`ACTION_STOP`（利用者・`z2-server` の停止）で false。入れ替えはプロセスごと終わるので `ACTION_STOP` を通らず true が残る。`MY_PACKAGE_REPLACED` はバックグラウンドからの FGS 起動が許される例外
 - 停止は通知「サーバー停止」または設定から、**supervisor エンジンを kill = 全サーバー一括停止**（子プロセスがまとめて終了）
 - 1024 未満ポートは非 root エンジンで bind 不可
 

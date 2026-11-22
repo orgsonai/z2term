@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.204 (versionCode 902)**: Resident servers (sshd and so on) now start again on their own after an app update. Before, the update stopped them and they stayed stopped until you pressed Start. They come back only if they were running before the update; servers you stopped yourself stay stopped. When updating from 1.0.203 or earlier, start them by hand that one time
+
 **1.0.203 (versionCode 901)**: Human-like input in action macros has been reworked. A drag (`drag`) now moves each given point separately. Before, the whole shape moved by one offset, so every point was still reached exactly. How far points move grows with the strength (about 8 px at 5, 32 px at 20). Drags also start and stop like a finger now: they used to start and stop at full speed, and now speed up from rest and slow to a stop at the end, easing a little at each point without stopping. The `jitter=speed,path,aim` header picks whether speed, line and landing points vary (all three by default; "What to vary" in the form). The speed-up and slow-down apply whatever is chosen. Add `exact` to the end of a coordinate step to keep that step's landing points exact ("Exact landing points" in the form). The `routine=on` header marks a macro that is only run from other macros with `call` (a routine). Routines are left out of the run bar and the edge panel pickers, and sit folded under "Routines" at the bottom of the list
 
 **1.0.202 (versionCode 900)**: A terminal connected with `z2-session attach` now also gets the notice lines a tab prints (serial "cable unplugged" and "waiting for permission", SSH disconnects and so on). They used to show only on the phone, so from a PC attached to a serial tab you could not tell when the cable was pulled

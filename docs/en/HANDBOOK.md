@@ -1478,7 +1478,7 @@ are not supported.
 → Long-press first, then drag with your finger. **If one word is all you need, double-tap is quicker** (0.8.420). To reach the edge, move your finger toward the top/bottom edge of the screen and it auto-scrolls. Drag near the end of the selection to change its range.
 
 **Q. My resident servers (sshd, …) were stopped after updating the app**
-→ **That is expected.** Replacing the app makes Android shut it down once, which takes the resident servers with it. "Auto-start on boot" applies when the **phone** boots, so it does not bring them back after an app update. After updating, open ⚙ Settings → "Permissions and notifications" → "Resident servers" → "Manage servers" → **Start** again.
+→ **Since 1.0.204 they come back on their own.** Replacing the app makes Android shut it down once, which takes the resident servers with it. If they were running before the update, they are started again as soon as the update finishes (whatever "Auto-start on boot" says). If you had stopped them yourself, they stay stopped. When updating from 1.0.203 or earlier, start them once by hand: ⚙ Settings → "Permissions and notifications" → "Resident servers" → "Manage servers" → **Start**.
 
 **Q. The terminal stops when I close the app**
 → Turn ON the **🔒 (background keep-alive)** button on the toolbar (🔒 = ON).
