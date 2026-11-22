@@ -452,6 +452,37 @@ In the SFTP / FTP / SMB / WebDAV file screen, both Android Back and the top-left
 - ⚠ **The cable decides what you can connect to.** Board pins need a **USB-TTL adapter** (3.3 V or 5 V, matching the board), an RS-232 port on a router needs a **USB-RS232 adapter** or its console cable, and a microcontroller board needs **one USB cable**. The app cannot change this.
 - 💡 With no device at hand, **join TX and RX of a USB-TTL adapter with one jumper wire**. If what you type comes straight back, it works.
 
+### Use the phone as a PC keyboard (Raspberry Pi Pico)
+
+**What you type in a serial tab is typed into the PC the Pico is plugged into, as a keyboard.** The PC sees an ordinary USB keyboard, so nothing is installed on it. It works on PCs where you cannot install software, on the login screen and in the BIOS. You can also paste a long password or command on the phone and have it typed.
+
+```
+phone (z2term) ─USB─ USB-TTL adapter ─3 wires─ Pico ─USB─ PC
+```
+
+You need: a Raspberry Pi Pico (Pico / Pico W / Pico 2 / Pico 2 W), a USB-TTL adapter (CH340, CP2102 …), and 3 jumper wires (female on both ends if the Pico and the adapter both have pins). The Pico's program is [examples/pico-keyboard/main.py](../../examples/pico-keyboard/main.py).
+
+1. **Put MicroPython on the Pico.** Plug it into a PC while holding BOOTSEL and drop MicroPython's (1.25 or later) `.uf2` for your Pico onto the drive that appears.
+2. **Write it from the PC.** With MicroPython's own `mpremote`, install the USB keyboard part and copy `main.py`:
+   ```sh
+   mpremote mip install usb-device-hid
+   mpremote cp main.py :main.py
+   ```
+   If the PC's keyboard layout is US, first change `LAYOUT = "jis"` in `main.py` to `"us"` (otherwise symbols come out as other keys).
+3. **Wire it.** Set the adapter to **3.3 V** (the Pico's pins do not take 5 V). Leave VCC unconnected (the Pico is powered from the PC's USB).
+   | USB-TTL adapter | Pico |
+   |---|---|
+   | TXD | GP1 (UART0 RX) |
+   | RXD | GP0 (UART0 TX). Sends what you type back to the phone's screen; typing works without it |
+   | GND | GND |
+4. Plug the Pico into the PC and the adapter into the phone. Open a serial connection in z2term (speed **115200**) and `z2term keyboard ready (jis)` appears. Then just type.
+
+- It types letters, digits, symbols, Enter, Tab, Backspace, Esc, arrows, Home/End, PgUp/PgDn, Insert/Delete, F1–F12, Ctrl+letter (Ctrl+C …) and Alt+character. Ctrl / Shift / Alt can be combined with arrows and the like.
+- ⚠ **Characters outside ASCII cannot be sent as such** (a USB keyboard sends key numbers, not characters). Turn on the PC's input method and type in romaji for Japanese.
+- ⚠ A very large paste can overflow the Pico's receive buffer (4 KB) and drop part of it; paste long text in pieces. Typing runs at a few dozen characters a second.
+- ⚠ If the PC misses keys, raise `KEY_GAP_MS` in `main.py`.
+- Ctrl+H, Ctrl+I and Ctrl+M are the same characters as Backspace, Tab and Enter in a terminal, so they are typed as those.
+
 ### Open a remote machine's screen (VNC, 0.8.418)
 
 Every SSH host in 📜 → **Connections** has a **[VNC]** button. It opens **that server's desktop in a new

@@ -445,6 +445,37 @@ SFTP / FTP / SMB / WebDAV のファイル画面では、Android の戻るボタ�
 - ⚠ **ケーブルによって、つなげる相手が違います。** 基板のピンには **USB-TTL 変換**（3.3V か 5V。相手に合わせる）、ルーターなどの RS-232 の口には **USB-RS232 変換**か専用のコンソールケーブル、マイコンボードは **USB ケーブル 1 本**です。アプリ側では変えられません。
 - 💡 機器が無くても、USB-TTL 変換の **TX と RX をジャンパー線 1 本でつなぐ**と、打った文字がそのまま返ってくるかで動作を確かめられます。
 
+### スマホを PC のキーボードにする（Raspberry Pi Pico）
+
+**シリアルのタブで打った文字を、Pico を挿した PC へキーボードとして打ち込めます。** PC からはふつうの USB キーボードに見えるので、PC 側には何も入れません。ソフトを入れられない PC、ログイン前の画面、BIOS の画面にも打てます。長いパスワードやコマンドをスマホから貼り付けて打たせることもできます。
+
+```
+スマホ (z2term) ─USB─ USB-TTL 変換 ─線 3 本─ Pico ─USB─ PC
+```
+
+使うもの: Raspberry Pi Pico（Pico / Pico W / Pico 2 / Pico 2 W）、USB-TTL 変換（CH340・CP2102 など）、ジャンパー線 3 本（Pico と変換がどちらもピンなら両端メス）。Pico の中身は [examples/pico-keyboard/main.py](../../examples/pico-keyboard/main.py) です。
+
+1. **Pico に MicroPython を入れる。** BOOTSEL ボタンを押しながら PC に挿し、現れたドライブへ MicroPython（1.25 以降）の Pico 用 `.uf2` を置きます。
+2. **PC から書き込む。** MicroPython 公式の `mpremote` で、USB キーボードの部品を入れて `main.py` を置きます。
+   ```sh
+   mpremote mip install usb-device-hid
+   mpremote cp main.py :main.py
+   ```
+   PC のキーボードが英語配列なら、先に `main.py` の `LAYOUT = "jis"` を `"us"` に変えます（記号が違うキーに化けるのを防ぐため）。
+3. **配線する。** 変換は **3.3V** にします（Pico のピンは 5V に耐えません）。VCC はつなぎません（Pico は PC の USB から電気をもらいます）。
+   | USB-TTL 変換 | Pico |
+   |---|---|
+   | TXD | GP1（UART0 RX） |
+   | RXD | GP0（UART0 TX）。打った文字をスマホの画面へ返す線で、無くても打てます |
+   | GND | GND |
+4. Pico を PC に挿し、変換をスマホに挿します。z2term でシリアルの接続先（速さ **115200**）を開くと `z2term keyboard ready (jis)` と出ます。あとは打つだけです。
+
+- 打てるのは英数字・記号・Enter・Tab・Backspace・Esc・矢印・Home/End・PgUp/PgDn・Insert/Delete・F1〜F12、Ctrl+英字（Ctrl+C など）、Alt+文字です。矢印などにも Ctrl / Shift / Alt を重ねられます。
+- ⚠ **日本語の文字そのものは送れません**（USB キーボードは文字ではなくキーの番号を送るため）。PC 側の日本語入力を ON にしてローマ字で打てば日本語になります。
+- ⚠ 一度に大量に貼り付けると、Pico の受け取りの箱（4 KB）があふれて途中が抜けることがあります。長い文は何回かに分けます。打ち込みは 1 秒に数十文字です。
+- ⚠ PC が取りこぼすときは `main.py` の `KEY_GAP_MS` を大きくします。
+- Ctrl+H・Ctrl+I・Ctrl+M は端末では Backspace・Tab・Enter と同じ文字なので、そちらとして打ちます。
+
 ### リモートのサーバーの画面を開く（VNC・0.8.418）
 
 📜 → **「接続先」**のSSH接続先に **[VNC]** ボタンがあります。押すと、**そのサーバーのデスクトップが
