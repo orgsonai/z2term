@@ -233,4 +233,7 @@
     <string name="action_edit_routine">Rutin (hanya dipanggil)</string>
     <string name="action_edit_routine_desc">Tidak ditawarkan di bilah jalankan atau panel tepi. Makro lain menjalankannya dengan call.</string>
     <string name="action_routines">Rutin (%1$d)</string>
+    <string name="action_edit_cleanup">Jalankan saat berhenti</string>
+    <string name="action_edit_cleanup_hint">Perintah shell yang dijalankan saat makro dihentikan, gagal, atau habis waktu, juga saat layar mati (tidak saat selesai). Menerima Z2_ACTION_STATE (cancelled, failed, atau timeout) dan variabel makro. Kosong berarti tidak ada.</string>
+    <string name="action_edit_cleanup_example">Contoh: z2-server stop web</string>
 </resources>

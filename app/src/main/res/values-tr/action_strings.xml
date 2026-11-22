@@ -234,4 +234,7 @@
     <string name="action_edit_routine">Rutin (yalnızca çağrı)</string>
     <string name="action_edit_routine_desc">Çalıştırma çubuğunda ve kenar panelinde sunulmaz. Diğer makrolar onu call ile çalıştırır.</string>
     <string name="action_routines">Rutinler (%1$d)</string>
+    <string name="action_edit_cleanup">Durunca çalıştır</string>
+    <string name="action_edit_cleanup_hint">Makro durdurulduğunda, başarısız olduğunda veya süresi dolduğunda, ekran kapalıyken de çalışan kabuk komutu (bittiğinde çalışmaz). Z2_ACTION_STATE (cancelled, failed veya timeout) ve makronun değişkenlerini alır. Boş: hiçbir şey.</string>
+    <string name="action_edit_cleanup_example">Örnek: z2-server stop web</string>
 </resources>

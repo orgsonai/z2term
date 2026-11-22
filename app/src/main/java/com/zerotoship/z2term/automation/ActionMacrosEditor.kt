@@ -251,6 +251,9 @@ internal class ActionMacrosEditor(
     })
     private fun render() {
         if (renderedEditing && scrollView?.isLaidOut == true) editorScrollY = scrollView?.scrollY ?: editorScrollY
+        // 一覧のまま描き直すとき (ルーチンの開閉・並べ替え・更新) は、見ていた位置を残す。
+        // ⚠ 残さないと、押すたびに一覧の先頭へ戻ってしまう (1.0.205)。
+        val listY = if (!renderedEditing && !editing && scrollView?.isLaidOut == true) scrollView?.scrollY ?: 0 else -1
         // A lock screen has no editor scroll position to save over the retained draft.
         renderedEditing = editing && AppLock.state.value == AppLock.State.UNLOCKED
         // The body of every command-sheet tab: 16dp sides, 10dp above, 24dp below, 10dp between items.
@@ -290,6 +293,7 @@ internal class ActionMacrosEditor(
             if (AppLock.state.value == AppLock.State.LOCKED) add(pill(R.string.lock_prompt_title, accent = true) { promptUnlock() })
         } else if (editing) renderEditor() else renderList()
         if (renderedEditing) scrollView?.post { scrollView?.scrollTo(0, editorScrollY) }
+        else if (listY > 0 && !editing) scrollView?.post { scrollView?.scrollTo(0, listY) }
     }
     /** Title on the left, its actions on the right: the heading row of the other tabs. */
     private fun header(unlocked: Boolean) {
@@ -557,6 +561,11 @@ internal class ActionMacrosEditor(
                 }, LinearLayout.LayoutParams(0, -2, 1f))
                 addView(routineSwitch, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8) })
             })
+            // 止めた・失敗した・時間切れのときに流すシェルの命令 (1.0.205)。
+            val cleanup = document.header("cleanup")
+            add(setting(R.string.action_edit_cleanup, cleanup?.takeIf { it.isNotBlank() } ?: "—") {
+                editHeader("cleanup", R.string.action_edit_cleanup, cleanup.orEmpty())
+            })
             ActionBlockEditor.render(this, body, structure.getOrThrow(),
                 edit = { line, source -> stepLine = line; stepGroup = -1; stepDraft = source; pickedScreen = null; showStep() },
                 add = { group, source -> stepLine = -1; stepGroup = group; stepDraft = source; pickedScreen = null; showStep() },
@@ -627,14 +636,25 @@ internal class ActionMacrosEditor(
             setText(initial)
             contentDescription = getString(title)
             if (key == "screen") hint = getString(R.string.action_edit_screen_hint)
+            if (key == "cleanup") {
+                hint = getString(R.string.action_edit_cleanup_example)
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            }
             if (key == "human") {
                 hint = getString(R.string.action_edit_human_hint)
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
             }
         }
-        showManaged(ActionUi.modal(this, getString(title), content = field, confirm = getString(R.string.action_edit_apply)) { dialog ->
+        // 後片付けの命令は、何を流すのかの説明を欄の下に添える。
+        val content = if (key != "cleanup") field else column().apply {
+            addView(field, LinearLayout.LayoutParams(-1, -2))
+            addView(ActionUi.note(this@ActionMacrosEditor, getString(R.string.action_edit_cleanup_hint)),
+                LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        }
+        showManaged(ActionUi.modal(this, getString(title), content = content, confirm = getString(R.string.action_edit_apply)) { dialog ->
             try {
-                raw = if (key == "screen" && field.text.isBlank()) ActionEditorDocument(raw).withoutScreen()
+                raw = if (key == "cleanup" && field.text.isBlank()) ActionEditorDocument(raw).withoutHeader("cleanup")
+                    else if (key == "screen" && field.text.isBlank()) ActionEditorDocument(raw).withoutScreen()
                     else ActionEditorDocument(raw).withHeader(key, field.text.toString())
                 render(); dialog.dismiss()
             } catch (e: Exception) { failure(e) }

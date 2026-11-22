@@ -344,6 +344,25 @@ While running, **～** on the stop bar turns it off and on (accent colour when o
 
 For a macro that is only run from other macros with `call`, write `routine=on` in its headers. Routines are left out of the bar that picks and runs a macro and out of the edge panel and tile item pickers, so macros you never pick directly do not crowd those lists. In the screen-actions tab they sit folded under "**Routines (count)**" at the bottom of the list; tap it to open. `call` runs them as before, and ▶ in the list or `z2-action start` still runs one alone for testing. In the form editor, the "Routine (call only)" switch sets it.
 
+### Clean up when stopped (cleanup=, 1.0.205)
+
+The `cleanup=` header holds a shell command run when the macro stops before its end. Use it to make sure, for example, that a server the macro started is stopped when you stop the macro.
+
+```
+version=2
+timeout=0
+cleanup=z2-server stop web
+command z2-server start web
+call main-loop
+```
+
+- It runs when the macro is stopped (the stop bar, "Stop macro" in the notification, `z2-action stop`, or turning the screen off), when a step fails, and on a timeout. **It does not run when the macro finishes** (put what should follow a finished run at the end of the macro).
+- It is a shell command, not steps, so **it runs with the screen off too**. To run another macro's steps, call `z2-action start NAME` from the command, but steps need the screen on.
+- The command gets the macro's variables (`Z2_VAR_NAME`) and call values (`$1`…), plus `Z2_ACTION_NAME` (the macro), `Z2_ACTION_STATE` (`cancelled` / `failed` / `timeout`) and `Z2_ACTION_ERROR` (why it stopped).
+- Only the first macro's `cleanup=` counts (called macros' are not used). It is limited to 60 seconds and its result goes into the history as `cleanup`. The next macro can start while it runs.
+- ⚠ It does not run when the app itself crashes or is replaced by an update.
+- In the form editor, set it with the "Run when stopped" row; leaving it empty removes the header.
+
 ### Run steps a program decides (run-output, 1.0.183)
 
 ```text
@@ -481,6 +500,7 @@ end
 | `human=0`..`human=20` / `on` / `off` | Strength of human-like input (default off; `on` = 5); see "Human-like input" below |
 | `jitter=speed,path,aim` / `none` | What human-like input varies (default all three; 1.0.203) |
 | `routine=on` / `off` | A macro only run with `call` (left out of the run bar and edge panel pickers; 1.0.203) |
+| `cleanup=SHELL` | Shell command run when the macro is stopped, fails or times out (1.0.205); see "Clean up when stopped" below |
 | `target PACKAGE` | Set the target app for subsequent coordinates, scrolling and UI elements without launching it |
 | `target current` | Use the foreground app at the start of each subsequent step; the default when no target is specified |
 | `launch PACKAGE` | Launch the app and wait until it is in front (up to 10 seconds, 1.0.111); also updates the target |

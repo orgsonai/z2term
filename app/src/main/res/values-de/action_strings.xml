@@ -233,4 +233,7 @@
     <string name="action_edit_routine">Routine (nur Aufruf)</string>
     <string name="action_edit_routine_desc">Erscheint nicht in der Ausführungsleiste oder im Randpanel. Andere Makros starten sie mit call.</string>
     <string name="action_routines">Routinen (%1$d)</string>
+    <string name="action_edit_cleanup">Bei Abbruch ausführen</string>
+    <string name="action_edit_cleanup_hint">Ein Shell-Befehl, der läuft, wenn das Makro gestoppt wird, fehlschlägt oder die Zeit überschreitet, auch bei ausgeschaltetem Bildschirm (nicht, wenn es fertig wird). Er erhält Z2_ACTION_STATE (cancelled, failed oder timeout) und die Variablen des Makros. Leer bedeutet: nichts.</string>
+    <string name="action_edit_cleanup_example">Beispiel: z2-server stop web</string>
 </resources>

@@ -234,4 +234,7 @@
     <string name="action_edit_routine">例程（仅供调用）</string>
     <string name="action_edit_routine_desc">不会出现在运行栏和边缘面板的选项中。其他宏用 call 运行它。</string>
     <string name="action_routines">例程（%1$d）</string>
+    <string name="action_edit_cleanup">停止时运行的命令</string>
+    <string name="action_edit_cleanup_hint">宏被停止、失败或超时时运行的 shell 命令，屏幕关闭时也会运行（正常结束时不运行）。可读取 Z2_ACTION_STATE（cancelled、failed、timeout）和宏的变量。留空则不运行。</string>
+    <string name="action_edit_cleanup_example">例：z2-server stop web</string>
 </resources>

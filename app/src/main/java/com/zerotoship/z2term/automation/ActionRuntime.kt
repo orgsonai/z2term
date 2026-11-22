@@ -60,6 +60,8 @@ internal object ActionRuntime {
     val resuming get() = current?.let { it.engine.paused && it.cancelStart != null } == true
     /** A gesture cancelled by a real touch fails before the shade that touch opens takes focus. */
     private const val SHADE_GRACE_MS = 400L
+    /** 後片付けの命令の上限 (秒)。サーバーを止める程度を想定し、詰まっても残り続けないようにする。 */
+    private const val CLEANUP_TIMEOUT_S = 60L
     private const val SHADE_REASON = "Notification shade opened"
     /** How long a launch step waits for the launched app to come to the front. */
     private const val LAUNCH_WAIT_MS = 10_000L
@@ -661,6 +663,24 @@ internal object ActionRuntime {
         runCatching { EdgeRuntime.suspendForActions(false) }
         run.listeners.toList().forEach { listener -> runCatching { listener(response) } }
         run.listeners.clear()
+        if (result.state != "completed") run.definition.cleanup?.let { cleanup(run, result, it) }
+    }
+    /**
+     * 後片付け (`cleanup=`、1.0.205)。止めた・失敗した・時間切れのとき、最初のマクロの見出しの命令をシェルで流す。
+     * 画面が消えていても走る。マクロの変数 (`Z2_VAR_…`) と呼び出しの値 (`$1`…) に加えて、
+     * `Z2_ACTION_NAME` / `Z2_ACTION_STATE` (cancelled / failed / timeout) / `Z2_ACTION_ERROR` を渡す。
+     * 結果は履歴に `cleanup` として残す。⚠ 実行の枠 ([current]) は使わないので、次のマクロはすぐ始められる。
+     */
+    private fun cleanup(run: Run, result: ActionExecution.Result, command: String) {
+        fun quote(value: String) = com.zerotoship.z2term.service.HeadlessRun.shSingleQuote(value)
+        val script = "export Z2_ACTION_NAME=" + quote(run.name) + "; export Z2_ACTION_STATE=" + quote(result.state) +
+            "; export Z2_ACTION_ERROR=" + quote(result.error.orEmpty()) + "; " + shell(run, command)
+        val started = runCatching {
+            EdgeRunner(run.context).run("cleanup:${run.id}", script, CLEANUP_TIMEOUT_S, positional = run.definition.args) { done ->
+                runCatching { log(run, "cleanup", done.error ?: "exit 0") }
+            }
+        }.getOrDefault(false)
+        if (!started) runCatching { log(run, "cleanup", "Cannot start shell command") }
     }
     fun waitFor(id: String, completed: (JSONObject) -> Unit) = EdgeRuntime.onMain {
         results[id]?.let { completed(it); return@onMain }

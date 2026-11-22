@@ -233,4 +233,7 @@
     <string name="action_edit_routine">Routine (solo chiamata)</string>
     <string name="action_edit_routine_desc">Non compare nella barra di esecuzione né nel pannello laterale. Le altre macro la eseguono con call.</string>
     <string name="action_routines">Routine (%1$d)</string>
+    <string name="action_edit_cleanup">Esegui all’arresto</string>
+    <string name="action_edit_cleanup_hint">Comando shell eseguito quando la macro viene fermata, fallisce o va in timeout, anche a schermo spento (non quando finisce). Riceve Z2_ACTION_STATE (cancelled, failed o timeout) e le variabili della macro. Vuoto: niente.</string>
+    <string name="action_edit_cleanup_example">Esempio: z2-server stop web</string>
 </resources>

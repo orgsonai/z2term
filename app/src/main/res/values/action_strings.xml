@@ -235,4 +235,7 @@
     <string name="action_edit_routine">Routine (call only)</string>
     <string name="action_edit_routine_desc">Not offered in the run bar or the edge panel. Other macros run it with call.</string>
     <string name="action_routines">Routines (%1$d)</string>
+    <string name="action_edit_cleanup">Run when stopped</string>
+    <string name="action_edit_cleanup_hint">A shell command run when the macro is stopped, fails or times out, also with the screen off (not when it finishes). It gets Z2_ACTION_STATE (cancelled, failed or timeout) and the macro\'s variables. Empty means nothing runs.</string>
+    <string name="action_edit_cleanup_example">Example: z2-server stop web</string>
 </resources>

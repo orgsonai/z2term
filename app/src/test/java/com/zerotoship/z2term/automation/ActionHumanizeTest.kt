@@ -168,6 +168,10 @@ class ActionHumanizeTest {
         assertTrue(ActionDefinition.parse("version=1\nroutine=on\nwait 1").routine)
         assertFalse(ActionDefinition.parse("version=1\nwait 1").routine)
         assertThrows(IllegalArgumentException::class.java) { ActionDefinition.parse("version=1\nroutine=yes\nwait 1") }
+        assertEquals("z2-server stop web; echo \"\$Z2_ACTION_STATE\"",
+            ActionDefinition.parse("version=1\ncleanup=z2-server stop web; echo \"\$Z2_ACTION_STATE\"\nwait 1").cleanup)
+        assertNull(ActionDefinition.parse("version=1\ncleanup=\nwait 1").cleanup)
+        assertNull(ActionDefinition.parse("version=1\nwait 1").cleanup)
         val marked = steps("tap percent 50 50 exact\ndrag px 100 10,10 20,20 exact\nswipe px 1 2 3 4 100 linear exact\ntap percent 50 50")
         assertEquals(listOf(true, true, true, false), marked.map { it.exact })
         assertEquals(20f, marked[1].path.last().x)

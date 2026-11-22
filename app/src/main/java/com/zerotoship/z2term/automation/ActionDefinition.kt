@@ -15,7 +15,12 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
     /** 人らしい操作で揺らすもの (`jitter=`、1.0.203)。見出しが無ければ 3 つとも。 */
     val jitter: ActionHumanize.Parts = ActionHumanize.Parts.ALL,
     /** 呼び出し専用 (`routine=on`、1.0.203)。実行の帯やエッジパネルの選択肢に出さない。`call` からは普通に呼べる。 */
-    val routine: Boolean = false) {
+    val routine: Boolean = false,
+    /**
+     * `cleanup=シェル` (1.0.205): 止めた・失敗した・時間切れのときに流すシェルの命令 (最後まで終わったときは流さない)。
+     * 手順ではなくシェルなのは、画面が消えて止まったときにも動くようにするため (手順は画面が点いていないと動けない)。
+     */
+    val cleanup: String? = null) {
     val human get() = humanLevel > 0
     /**
      * [values] を入れた、この呼び出し用の定義。`$n` を含む行はここで初めて本当の値で検査する。
@@ -201,7 +206,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             val shell = shellStart(line)
             return if (shell != null && found > shell) null else found
         }
-        val HEADERS = setOf("version", "timeout", "screen", "human", "jitter", "routine")
+        val HEADERS = setOf("version", "timeout", "screen", "human", "jitter", "routine", "cleanup")
         /** 行末に `exact` を付けられる座標の手順 (1.0.203)。 */
         val EXACT_VERBS = setOf("tap", "long-press", "swipe", "double-tap", "pinch-in", "pinch-out", "swipe-two", "drag",
             "touch", "swipe-path", "swipe-two-path")
@@ -597,8 +602,9 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 "on" -> true
                 else -> throw IllegalArgumentException("routine must be on or off")
             }
+            val cleanup = headers["cleanup"]?.trim()?.takeIf { it.isNotEmpty() }
             return ActionDefinition(lines.joinToString("\n").trimEnd() + "\n", timeout * 1000, screen, steps.toList(), human,
-                args.orEmpty(), templated, jitter, routine)
+                args.orEmpty(), templated, jitter, routine, cleanup)
         }
     }
 }

@@ -234,4 +234,7 @@
     <string name="action_edit_routine">常式（僅供呼叫）</string>
     <string name="action_edit_routine_desc">不會出現在執行列與邊緣面板的選項中。其他巨集用 call 執行它。</string>
     <string name="action_routines">常式（%1$d）</string>
+    <string name="action_edit_cleanup">停止時執行的指令</string>
+    <string name="action_edit_cleanup_hint">巨集被停止、失敗或逾時時執行的 shell 指令，螢幕關閉時也會執行（正常結束時不執行）。可讀取 Z2_ACTION_STATE（cancelled、failed、timeout）與巨集的變數。留空則不執行。</string>
+    <string name="action_edit_cleanup_example">例：z2-server stop web</string>
 </resources>

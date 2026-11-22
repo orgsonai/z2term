@@ -234,4 +234,7 @@
     <string name="action_edit_routine">Thủ tục (chỉ gọi)</string>
     <string name="action_edit_routine_desc">Không có trong thanh chạy hay bảng cạnh. Macro khác chạy nó bằng call.</string>
     <string name="action_routines">Thủ tục (%1$d)</string>
+    <string name="action_edit_cleanup">Chạy khi dừng</string>
+    <string name="action_edit_cleanup_hint">Lệnh shell chạy khi macro bị dừng, lỗi hoặc hết giờ, kể cả khi màn hình tắt (không chạy khi chạy xong). Nhận Z2_ACTION_STATE (cancelled, failed hoặc timeout) và các biến của macro. Để trống: không làm gì.</string>
+    <string name="action_edit_cleanup_example">Ví dụ: z2-server stop web</string>
 </resources>

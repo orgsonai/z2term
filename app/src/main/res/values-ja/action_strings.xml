@@ -234,4 +234,7 @@
     <string name="action_edit_routine">ルーチン（呼び出し専用）</string>
     <string name="action_edit_routine_desc">実行の帯やエッジパネルの選択肢に出しません。ほかのマクロから call で呼びます。</string>
     <string name="action_routines">ルーチン（%1$d）</string>
+    <string name="action_edit_cleanup">止まったときに流す命令</string>
+    <string name="action_edit_cleanup_hint">止めた・失敗した・時間切れのときに流すシェルの命令です。画面が消えていても流れます（最後まで終わったときは流しません）。Z2_ACTION_STATE（cancelled・failed・timeout）とマクロの変数を受け取れます。空ならなにもしません。</string>
+    <string name="action_edit_cleanup_example">例: z2-server stop web</string>
 </resources>

@@ -64,6 +64,8 @@ fun z2ActionScript(lang: String): String {
         |# z2-action pick   (a bar over the current app: choose a macro, run it with ▶; it then becomes the stop bar)
         |# version=1|2 / timeout=30 / screen=current / human=on|off|0..20 / jitter=speed,path,aim|none / routine=on|off
         |# Coordinate steps (tap … drag … touch) take a trailing exact: no landing-point jitter for that step
+        |# cleanup=SHELL runs when the macro is stopped, fails or times out (also with the screen off; not when it finishes).
+        |#   It gets Z2_ACTION_NAME, Z2_ACTION_STATE (cancelled|failed|timeout), Z2_ACTION_ERROR and the Z2_VAR_ variables
         |# target PACKAGE / launch PACKAGE / wait MILLISECONDS / key back|home|recents|shade|quicksettings|screenshot|split
         |# tap px|percent X Y / long-press px|percent X Y MILLISECONDS
         |# swipe px|percent X1 Y1 X2 Y2 MILLISECONDS [linear|accelerate|decelerate]
