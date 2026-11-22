@@ -1408,5 +1408,13 @@ Schriften: %14$d</string>
     <string name="serial_device_remembered">Gerät: %1$s</string>
     <string name="serial_device_none">Gerät: noch nicht gemerkt (das erste verbundene wird gemerkt)</string>
     <string name="serial_device_forget">Vergessen</string>
+    <string name="serial_transport_tcp">Netzwerk (TCP)</string>
+    <string name="serial_field_tcp_host">Adresse</string>
+    <string name="serial_field_tcp_port">Port</string>
+    <string name="serial_tcp_hint">Verbindet mit einem Relais, das einen UART unverändert über TCP weiterreicht (ein WLAN-Mikrocontroller oder ser2net im Raw-Modus). Geschwindigkeit und Parität werden am Relais eingestellt. Nur in vertrauenswürdigen Netzen nutzen: Die Leitung ist nicht verschlüsselt.</string>
+    <string name="banner_serial_tcp_connecting">🔌 Seriell: Verbindung zu %1$s wird hergestellt…</string>
+    <string name="banner_serial_tcp_connected">✓ Seriell verbunden: %1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ Seriell: Die Verbindung ist abgebrochen. Neuer Versuch alle 3 Sekunden.</string>
+    <string name="banner_serial_tcp_failed">✗ Seriell: Verbindung nicht möglich: %1$s (neuer Versuch alle 3 Sekunden)</string>
     <string name="oss_purpose_usb_serial">Serielle USB-Verbindungen (USB-Seriell-Chips und CDC-ACM-Boards)</string>
 </resources>

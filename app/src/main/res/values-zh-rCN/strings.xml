@@ -1409,5 +1409,13 @@ SSH 连接目标 %3$d 个
     <string name="serial_device_remembered">设备：%1$s</string>
     <string name="serial_device_none">设备：尚未记住（会记住第一次连接的设备）</string>
     <string name="serial_device_forget">忘记</string>
+    <string name="serial_transport_tcp">网络 (TCP)</string>
+    <string name="serial_field_tcp_host">地址</string>
+    <string name="serial_field_tcp_port">端口</string>
+    <string name="serial_tcp_hint">连接到把 UART 原样转发到 TCP 的中继器（带 Wi-Fi 的单片机，或 raw 模式的 ser2net）。速率和校验在中继器一侧设置。通信不加密，请只在可信的网络中使用。</string>
+    <string name="banner_serial_tcp_connecting">🔌 串口：正在连接 %1$s…</string>
+    <string name="banner_serial_tcp_connected">✓ 串口已连接：%1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ 串口：连接已断开。每 3 秒重新连接。</string>
+    <string name="banner_serial_tcp_failed">✗ 串口：无法连接：%1$s（每 3 秒重试）</string>
     <string name="oss_purpose_usb_serial">USB 串口连接（USB 转串口芯片和 CDC-ACM 开发板）</string>
 </resources>

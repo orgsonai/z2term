@@ -157,7 +157,7 @@ Most of the time goes into the AI reading an image and thinking between calls (5
 
 ### 4.4 Serial tabs (1.0.208)
 
-An AI connected over MCP can use the **serial tabs** the user opened (a microcontroller or a router console at the end of a USB cable). The AI never opens a port itself; it borrows an open tab. What it sends and what comes back both appear in that tab, so the user sees exactly what the AI does.
+An AI connected over MCP can use the **serial tabs** the user opened (a microcontroller or a router console at the end of a USB cable or a network relay; the network relay since 1.0.209). The AI never opens a port itself; it borrows an open tab. What it sends and what comes back both appear in that tab, so the user sees exactly what the AI does.
 
 | MCP tool | What it does |
 |---|---|
@@ -168,7 +168,7 @@ An AI connected over MCP can use the **serial tabs** the user opened (a microcon
 - `tab` is the number from `serial_list` (= `z2-session list`) or the tab name. It may be left out when only one serial tab is open. Leaving it out with two or more gives `ambiguous_tab`, so nothing goes to the wrong device.
 - The reply is cut from the tab's record of received bytes (the last 64 KiB), not from the screen: the screen changes shape with wrapping and overwriting, so the current reply cannot be taken from it. A reply too long for the record is `truncated: true`. At most 16000 characters are returned; beyond that the newest part is kept.
 - **The permission is separate from app control.** Under "AI and serial" in 📜 › Automation › AI, choose Off (default), Read only, or Read and send. While Off the tools are not listed; while Read only, `serial_send` is not listed. Each call checks again and refuses with `serial_off` / `read_only`. Choose Read only when you do not want an AI to change a router's configuration. After changing it, reconnect the AI to refresh the list.
-- Sending to a tab whose cable is unplugged gives `not_connected`.
+- Sending to a tab that is not connected (cable unplugged, relay unreachable) gives `not_connected`.
 - Log: one line per `serial_send` in `~/.z2term/ui/log.jsonl` (tab name, bytes sent, result, time taken). The text itself is not kept (it may be a login password).
 - `status` reports the current permission in `serial` (`off` / `read` / `send`).
 

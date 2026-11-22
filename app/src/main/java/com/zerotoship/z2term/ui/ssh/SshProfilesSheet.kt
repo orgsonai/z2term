@@ -59,6 +59,7 @@ import com.zerotoship.z2term.channel.SerialConfig
 import com.zerotoship.z2term.channel.SerialFlow
 import com.zerotoship.z2term.channel.SerialParity
 import com.zerotoship.z2term.channel.SerialStopBits
+import com.zerotoship.z2term.channel.SerialTransport
 import com.zerotoship.z2term.usb.SerialDevices
 import android.hardware.usb.UsbManager
 import com.zerotoship.z2term.channel.SshHop
@@ -118,7 +119,7 @@ fun SshProfilesBody(
     // 1 本ならそのまま繋ぎ、繋がった機器をタブが覚える ([SerialChannel])。
     var serialPick by remember { mutableStateOf<Pair<SshProfile, List<SerialDevices.Candidate>>?>(null) }
     val connect: (SshProfile) -> Unit = { p ->
-        val candidates = if (p.isSerial && !p.serial.hasDevice) {
+        val candidates = if (p.isSerial && !p.serial.isTcp && !p.serial.hasDevice) {
             SerialDevices.candidates(context.getSystemService(UsbManager::class.java))
         } else emptyList()
         if (candidates.size > 1) serialPick = p to candidates else onConnect(p)
@@ -731,6 +732,7 @@ private fun EditForm(
                                 serial = serialCfg.copy(
                                     baudRate = baudText.toIntOrNull()?.takeIf { it > 0 }
                                         ?: SerialConfig.DEFAULT_BAUD,
+                                    tcpHost = HostAddress.normalize(serialCfg.tcpHost),
                                 ),
                             )
                         )
@@ -1891,6 +1893,46 @@ private fun SerialSection(
     val customized = config.dataBits != 8 || config.parity != SerialParity.NONE ||
         config.stopBits != SerialStopBits.ONE || config.flow != SerialFlow.NONE
     var detailsOpen by remember { mutableStateOf(customized) }
+
+    // つなぎ方 (1.0.209)。ネットワーク越しでは速さ・機器の欄を出さない (中継器の側で決まる)。
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        AuthChip(
+            label = "USB",
+            selected = !config.isTcp,
+            onSelect = { onChange(config.copy(transport = SerialTransport.USB)) },
+        )
+        AuthChip(
+            label = stringResource(R.string.serial_transport_tcp),
+            selected = config.isTcp,
+            onSelect = { onChange(config.copy(transport = SerialTransport.TCP)) },
+        )
+    }
+    if (config.isTcp) {
+        var portText by remember { mutableStateOf(config.tcpPort.toString()) }
+        Field(
+            label = stringResource(R.string.serial_field_tcp_host),
+            value = config.tcpHost,
+            onChange = { onChange(config.copy(tcpHost = it)) },
+            placeholder = "192.168.1.50",
+        )
+        Field(
+            label = stringResource(R.string.serial_field_tcp_port),
+            value = portText,
+            onChange = { text ->
+                portText = text.filter { it.isDigit() }.take(5)
+                onChange(config.copy(tcpPort = portText.toIntOrNull()?.takeIf { it in 1..65535 }
+                    ?: SerialConfig.DEFAULT_TCP_PORT))
+            },
+            placeholder = SerialConfig.DEFAULT_TCP_PORT.toString(),
+        )
+        Text(
+            text = stringResource(R.string.serial_tcp_hint),
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+        )
+        return
+    }
 
     Field(
         label = stringResource(R.string.serial_field_baud),

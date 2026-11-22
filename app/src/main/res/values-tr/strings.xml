@@ -1407,5 +1407,13 @@ Yazı tipleri: %14$d</string>
     <string name="serial_device_remembered">Aygıt: %1$s</string>
     <string name="serial_device_none">Aygıt: henüz hatırlanmadı (ilk bağlanan hatırlanır)</string>
     <string name="serial_device_forget">Unut</string>
+    <string name="serial_transport_tcp">Ağ (TCP)</string>
+    <string name="serial_field_tcp_host">Adres</string>
+    <string name="serial_field_tcp_port">Bağlantı noktası</string>
+    <string name="serial_tcp_hint">Bir UART’ı TCP üzerinden olduğu gibi aktaran bir aktarıcıya bağlanır (Wi-Fi’lı bir mikrodenetleyici veya raw kipte ser2net). Hız ve eşlik aktarıcıda ayarlanır. Yalnızca güvendiğiniz bir ağda kullanın: hat şifrelenmez.</string>
+    <string name="banner_serial_tcp_connecting">🔌 Seri: %1$s adresine bağlanılıyor…</string>
+    <string name="banner_serial_tcp_connected">✓ Seri bağlandı: %1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ Seri: bağlantı koptu. 3 saniyede bir yeniden bağlanılıyor.</string>
+    <string name="banner_serial_tcp_failed">✗ Seri: bağlanılamıyor: %1$s (3 saniyede bir yeniden deneniyor)</string>
     <string name="oss_purpose_usb_serial">USB seri bağlantılar (USB-seri çipleri ve CDC-ACM kartları)</string>
 </resources>

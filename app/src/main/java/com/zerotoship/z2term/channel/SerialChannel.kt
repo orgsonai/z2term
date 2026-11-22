@@ -38,7 +38,7 @@ class SerialChannel(
     private val onEvent: (Event) -> Unit,
     /** 機器を覚えた・個体番号が読めたとき。接続先へ保存する。 */
     private val onLearned: (SerialConfig) -> Unit,
-) : ProcessChannel {
+) : SerialLink {
 
     sealed class Event {
         /** 当たる機器が挿されていない。挿されるのを待つ。 */
@@ -62,13 +62,13 @@ class SerialChannel(
     @Volatile private var closed = false
 
     /** 受け取った分の控え。AI の `serial_send` / `serial_read` が読む (1.0.208)。 */
-    val transcript = SerialTranscript()
+    override val transcript = SerialTranscript()
 
     /** 口が開いているか。AI へ「つながっていない」を返すために、ほかのスレッドからも読む。 */
-    val connected: Boolean get() = port != null
+    override val connected: Boolean get() = port != null
 
     /** つながっている機器の名前 (つながっていなければ null)。 */
-    @Volatile var deviceLabel: String? = null
+    @Volatile override var deviceLabel: String? = null
         private set
 
     // ↓ 書くのは ctl スレッドだけ (port は connected のために @Volatile)

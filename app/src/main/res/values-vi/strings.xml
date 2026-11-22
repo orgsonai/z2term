@@ -1397,5 +1397,13 @@ Phông chữ: %14$d</string>
     <string name="serial_device_remembered">Thiết bị: %1$s</string>
     <string name="serial_device_none">Thiết bị: chưa ghi nhớ (thiết bị kết nối đầu tiên sẽ được ghi nhớ)</string>
     <string name="serial_device_forget">Quên</string>
+    <string name="serial_transport_tcp">Mạng (TCP)</string>
+    <string name="serial_field_tcp_host">Địa chỉ</string>
+    <string name="serial_field_tcp_port">Cổng</string>
+    <string name="serial_tcp_hint">Kết nối tới bộ chuyển tiếp truyền nguyên UART qua TCP (vi điều khiển có Wi-Fi, hoặc ser2net ở chế độ raw). Tốc độ và chẵn lẻ đặt ở bộ chuyển tiếp. Chỉ dùng trên mạng bạn tin cậy: đường truyền không được mã hóa.</string>
+    <string name="banner_serial_tcp_connecting">🔌 Nối tiếp: đang kết nối tới %1$s…</string>
+    <string name="banner_serial_tcp_connected">✓ Nối tiếp đã kết nối: %1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ Nối tiếp: kết nối bị ngắt. Đang kết nối lại mỗi 3 giây.</string>
+    <string name="banner_serial_tcp_failed">✗ Nối tiếp: không kết nối được: %1$s (thử lại mỗi 3 giây)</string>
     <string name="oss_purpose_usb_serial">Kết nối nối tiếp qua USB (chip USB-nối tiếp và bo mạch CDC-ACM)</string>
 </resources>

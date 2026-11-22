@@ -1507,5 +1507,13 @@ Fonts: %14$d</string>
     <string name="serial_device_remembered">Device: %1$s</string>
     <string name="serial_device_none">Device: not remembered yet (the first one you connect is remembered)</string>
     <string name="serial_device_forget">Forget</string>
+    <string name="serial_transport_tcp">Network (TCP)</string>
+    <string name="serial_field_tcp_host">Address</string>
+    <string name="serial_field_tcp_port">Port</string>
+    <string name="serial_tcp_hint">Connects to a relay that passes a UART straight through over TCP (a Wi-Fi microcontroller, or ser2net in raw mode). Speed and parity are set on the relay. Only use it on a network you trust: the line is not encrypted.</string>
+    <string name="banner_serial_tcp_connecting">🔌 Serial: connecting to %1$s…</string>
+    <string name="banner_serial_tcp_connected">✓ Serial connected: %1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ Serial: the connection dropped. Reconnecting every 3 seconds.</string>
+    <string name="banner_serial_tcp_failed">✗ Serial: cannot connect: %1$s (trying again every 3 seconds)</string>
     <string name="oss_purpose_usb_serial">USB serial connections (USB-to-serial chips and CDC-ACM boards)</string>
 </resources>

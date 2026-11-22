@@ -13,6 +13,8 @@ import com.zerotoship.z2term.channel.ProcessChannel
 import com.zerotoship.z2term.backup.AutoBackup
 import com.zerotoship.z2term.channel.SerialChannel
 import com.zerotoship.z2term.channel.SerialFlow
+import com.zerotoship.z2term.channel.SerialLink
+import com.zerotoship.z2term.channel.TcpSerialChannel
 import com.zerotoship.z2term.channel.SshChannel
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.SshProfileStore
@@ -406,8 +408,8 @@ class TerminalSession(
 
     private var channel: ProcessChannel? = null
 
-    /** シリアルのタブなら、その口 (1.0.208、AI の `serial_*` 道具が使う)。それ以外のタブは null。 */
-    val serialChannel: SerialChannel? get() = channel as? SerialChannel
+    /** シリアルのタブなら、その口 (1.0.208、AI の `serial_*` 道具が使う)。USB でもネットワーク越しでも。それ以外のタブは null。 */
+    val serialChannel: SerialLink? get() = channel as? SerialLink
     private var readJob: Job? = null
     private var distroRemovalPaused = false
 
@@ -1057,6 +1059,7 @@ class TerminalSession(
      */
     private fun startSerial(profile: SshProfile) {
         if (_uiState.value.state != TerminalState.IDLE) return
+        if (profile.serial.isTcp) return startTcpSerial(profile)
         val store = SshProfileStore(appContext)
         val ch = SerialChannel(
             context = appContext,
@@ -1079,6 +1082,26 @@ class TerminalSession(
         if (!labelPinned) _label.value = "serial:${profile.name.ifEmpty { profile.serial.describe() }}"
         startReadLoop(ch)
         ch.start()
+    }
+
+    /**
+     * ネットワーク越しのシリアル (1.0.209)。USB と同じく、切れてもタブは残り、つなぎ直す ([TcpSerialChannel])。
+     */
+    private fun startTcpSerial(profile: SshProfile) {
+        val cfg = profile.serial
+        val ch = TcpSerialChannel(cfg.tcpHost, cfg.tcpPort) { event -> writeBanner(tcpSerialBanner(event)) }
+        channel = ch
+        _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "serial") }
+        if (!labelPinned) _label.value = "serial:${profile.name.ifEmpty { cfg.tcpHost }}"
+        startReadLoop(ch)
+        ch.start()
+    }
+
+    private fun tcpSerialBanner(event: TcpSerialChannel.Event): String = when (event) {
+        is TcpSerialChannel.Event.Connecting -> appContext.getString(R.string.banner_serial_tcp_connecting, event.target)
+        is TcpSerialChannel.Event.Connected -> appContext.getString(R.string.banner_serial_tcp_connected, event.target)
+        TcpSerialChannel.Event.Lost -> appContext.getString(R.string.banner_serial_tcp_lost)
+        is TcpSerialChannel.Event.Failed -> appContext.getString(R.string.banner_serial_tcp_failed, event.message)
     }
 
     private fun serialBanner(event: SerialChannel.Event): String = when (event) {

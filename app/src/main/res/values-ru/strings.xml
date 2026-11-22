@@ -1427,5 +1427,13 @@
     <string name="serial_device_remembered">Устройство: %1$s</string>
     <string name="serial_device_none">Устройство: ещё не запомнено (запоминается первое подключённое)</string>
     <string name="serial_device_forget">Забыть</string>
+    <string name="serial_transport_tcp">Сеть (TCP)</string>
+    <string name="serial_field_tcp_host">Адрес</string>
+    <string name="serial_field_tcp_port">Порт</string>
+    <string name="serial_tcp_hint">Подключается к ретранслятору, который передаёт UART через TCP без изменений (микроконтроллер с Wi-Fi или ser2net в режиме raw). Скорость и чётность задаются на ретрансляторе. Используйте только в доверенной сети: канал не шифруется.</string>
+    <string name="banner_serial_tcp_connecting">🔌 Серийный порт: подключение к %1$s…</string>
+    <string name="banner_serial_tcp_connected">✓ Серийный порт подключён: %1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ Серийный порт: соединение прервалось. Повтор каждые 3 секунды.</string>
+    <string name="banner_serial_tcp_failed">✗ Серийный порт: не удаётся подключиться: %1$s (повтор каждые 3 секунды)</string>
     <string name="oss_purpose_usb_serial">Подключения по USB к последовательному порту (USB-UART чипы и платы CDC-ACM)</string>
 </resources>

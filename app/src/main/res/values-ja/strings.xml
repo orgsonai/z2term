@@ -1487,5 +1487,13 @@ SSH 接続先 %3$d 件
     <string name="serial_device_remembered">機器: %1$s</string>
     <string name="serial_device_none">機器: まだ覚えていません (最初につないだ機器を覚えます)</string>
     <string name="serial_device_forget">忘れる</string>
+    <string name="serial_transport_tcp">ネットワーク (TCP)</string>
+    <string name="serial_field_tcp_host">アドレス</string>
+    <string name="serial_field_tcp_port">ポート</string>
+    <string name="serial_tcp_hint">UART を TCP へ素通しにしている中継器 (Wi-Fi のマイコン、ser2net の raw など) へつなぎます。速さやパリティは中継器の側で決めます。通信は暗号化されないので、信頼できるネットワークでだけ使ってください。</string>
+    <string name="banner_serial_tcp_connecting">🔌 シリアル: %1$s へつないでいます…</string>
+    <string name="banner_serial_tcp_connected">✓ シリアル接続: %1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ シリアル: 接続が切れました。3 秒ごとにつなぎ直します。</string>
+    <string name="banner_serial_tcp_failed">✗ シリアル: つなげません: %1$s (3 秒ごとにもう一度試します)</string>
     <string name="oss_purpose_usb_serial">USB シリアル接続 (USB シリアル変換チップと CDC-ACM のボード)</string>
 </resources>

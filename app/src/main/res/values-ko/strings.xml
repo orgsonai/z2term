@@ -1402,5 +1402,13 @@ SSH 연결: %3$d
     <string name="serial_device_remembered">기기: %1$s</string>
     <string name="serial_device_none">기기: 아직 기억하지 않음 (처음 연결한 기기를 기억합니다)</string>
     <string name="serial_device_forget">잊기</string>
+    <string name="serial_transport_tcp">네트워크 (TCP)</string>
+    <string name="serial_field_tcp_host">주소</string>
+    <string name="serial_field_tcp_port">포트</string>
+    <string name="serial_tcp_hint">UART를 TCP로 그대로 넘겨주는 중계기(Wi-Fi 마이컴, raw 모드의 ser2net 등)에 연결합니다. 속도와 패리티는 중계기 쪽에서 정합니다. 통신이 암호화되지 않으므로 신뢰할 수 있는 네트워크에서만 쓰세요.</string>
+    <string name="banner_serial_tcp_connecting">🔌 시리얼: %1$s에 연결하는 중…</string>
+    <string name="banner_serial_tcp_connected">✓ 시리얼 연결됨: %1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ 시리얼: 연결이 끊겼습니다. 3초마다 다시 연결합니다.</string>
+    <string name="banner_serial_tcp_failed">✗ 시리얼: 연결할 수 없습니다: %1$s (3초마다 다시 시도)</string>
     <string name="oss_purpose_usb_serial">USB 시리얼 연결 (USB 시리얼 변환 칩과 CDC-ACM 보드)</string>
 </resources>

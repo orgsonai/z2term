@@ -1398,5 +1398,13 @@ Font: %14$d</string>
     <string name="serial_device_remembered">Perangkat: %1$s</string>
     <string name="serial_device_none">Perangkat: belum diingat (yang pertama disambungkan akan diingat)</string>
     <string name="serial_device_forget">Lupakan</string>
+    <string name="serial_transport_tcp">Jaringan (TCP)</string>
+    <string name="serial_field_tcp_host">Alamat</string>
+    <string name="serial_field_tcp_port">Port</string>
+    <string name="serial_tcp_hint">Menghubungkan ke relai yang meneruskan UART apa adanya lewat TCP (mikrokontroler Wi-Fi, atau ser2net mode raw). Kecepatan dan paritas diatur di relai. Gunakan hanya di jaringan tepercaya: jalurnya tidak dienkripsi.</string>
+    <string name="banner_serial_tcp_connecting">🔌 Serial: menghubungkan ke %1$s…</string>
+    <string name="banner_serial_tcp_connected">✓ Serial terhubung: %1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ Serial: koneksi terputus. Menyambung ulang setiap 3 detik.</string>
+    <string name="banner_serial_tcp_failed">✗ Serial: tidak bisa terhubung: %1$s (dicoba lagi setiap 3 detik)</string>
     <string name="oss_purpose_usb_serial">Koneksi serial USB (chip USB-ke-serial dan papan CDC-ACM)</string>
 </resources>

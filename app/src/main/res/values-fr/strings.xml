@@ -1418,5 +1418,13 @@ Polices : %14$d</string>
     <string name="serial_device_remembered">Périphérique : %1$s</string>
     <string name="serial_device_none">Périphérique : pas encore mémorisé (le premier connecté sera mémorisé)</string>
     <string name="serial_device_forget">Oublier</string>
+    <string name="serial_transport_tcp">Réseau (TCP)</string>
+    <string name="serial_field_tcp_host">Adresse</string>
+    <string name="serial_field_tcp_port">Port</string>
+    <string name="serial_tcp_hint">Se connecte à un relais qui transmet un UART tel quel en TCP (un microcontrôleur Wi-Fi, ou ser2net en mode raw). La vitesse et la parité se règlent sur le relais. À utiliser seulement sur un réseau de confiance : la liaison n’est pas chiffrée.</string>
+    <string name="banner_serial_tcp_connecting">🔌 Série : connexion à %1$s…</string>
+    <string name="banner_serial_tcp_connected">✓ Série connectée : %1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ Série : la connexion a été coupée. Nouvelle tentative toutes les 3 secondes.</string>
+    <string name="banner_serial_tcp_failed">✗ Série : connexion impossible : %1$s (nouvelle tentative toutes les 3 secondes)</string>
     <string name="oss_purpose_usb_serial">Connexions série USB (puces USB-série et cartes CDC-ACM)</string>
 </resources>

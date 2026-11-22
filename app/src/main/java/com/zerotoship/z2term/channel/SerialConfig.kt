@@ -33,6 +33,15 @@ enum class SerialFlow {
 }
 
 /**
+ * シリアルのつなぎ方 (1.0.209)。[USB] はケーブル、[TCP] は相手の UART を TCP へ素通しにしている
+ * 中継器 (Wi-Fi のマイコン、ser2net の raw の口など) へネットワーク越しに。
+ */
+enum class SerialTransport {
+    USB,
+    TCP,
+}
+
+/**
  * 接続先の種類「シリアル」([ConnectionProtocol.SERIAL]) の設定。
  *
  * **機器の覚え方**: 最初に繋いだ機器の VID / PID と個体番号 (シリアル番号) を保存し、
@@ -54,7 +63,17 @@ data class SerialConfig(
     val serialNumber: String = "",
     /** 1 つの機器に口が複数ある変換チップ (FT2232H など) の何番目か。0 始まり。 */
     val portIndex: Int = 0,
+    /**
+     * つなぎ方 (1.0.209)。[SerialTransport.TCP] のときは [tcpHost] / [tcpPort] だけを使い、
+     * 速さ・機器の欄は使わない (中継器の側で決まる)。
+     * ⚠ 1.0.208 以前はこの項目を読まず USB として開く (ネットワークへは何も送らない)。
+     */
+    val transport: SerialTransport = SerialTransport.USB,
+    val tcpHost: String = "",
+    val tcpPort: Int = DEFAULT_TCP_PORT,
 ) {
+    val isTcp: Boolean get() = transport == SerialTransport.TCP
+
     val hasDevice: Boolean get() = vendorId != 0 || productId != 0
 
     /** 一覧に出す 1 行 (`115200 8N1` のような定番の書き方)。 */
@@ -83,10 +102,18 @@ data class SerialConfig(
         put("productId", productId)
         put("serialNumber", serialNumber)
         put("portIndex", portIndex)
+        put("transport", transport.name)
+        if (isTcp) {
+            put("tcpHost", tcpHost)
+            put("tcpPort", tcpPort)
+        }
     }
 
     companion object {
         const val DEFAULT_BAUD = 115_200
+
+        /** 中継器の既定のポート。ser2net の raw の口でよく使う番号に合わせる。 */
+        const val DEFAULT_TCP_PORT = 2000
 
         /** 画面に並べる定番の速さ。これ以外も数字で入れられる。 */
         val COMMON_BAUDS = listOf(9_600, 19_200, 38_400, 57_600, 115_200, 230_400, 460_800, 921_600)
@@ -106,6 +133,10 @@ data class SerialConfig(
                 productId = o.optInt("productId", 0),
                 serialNumber = o.optString("serialNumber"),
                 portIndex = o.optInt("portIndex", 0).coerceAtLeast(0),
+                transport = runCatching { SerialTransport.valueOf(o.optString("transport")) }
+                    .getOrDefault(SerialTransport.USB),
+                tcpHost = o.optString("tcpHost"),
+                tcpPort = o.optInt("tcpPort", DEFAULT_TCP_PORT).takeIf { it in 1..65535 } ?: DEFAULT_TCP_PORT,
             )
         }
     }

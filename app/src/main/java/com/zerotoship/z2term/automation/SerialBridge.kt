@@ -72,7 +72,7 @@ internal object SerialBridge {
         if (payload.isEmpty()) throw Refusal("bad_args", "Nothing to send (empty text and enter: false)")
         val (index, session) = serialTab(tab)
         val ch = session.serialChannel!!
-        if (!ch.connected) throw Refusal("not_connected", "The serial tab $index is open but its cable is not connected (or not allowed yet)")
+        if (!ch.connected) throw Refusal("not_connected", "The serial tab $index is open but not connected (cable unplugged, USB not allowed yet, or the network relay is unreachable)")
         val started = SystemClock.elapsedRealtime()
         // ⚠ 控えを取ってから送る。逆にすると、速い相手の返事の頭が「送る前」に数えられて欠ける。
         val mark = ch.transcript.total

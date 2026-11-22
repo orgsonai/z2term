@@ -177,8 +177,8 @@ internal object UiBridgeMcp {
         "they are in docs/en/DESIGN-SPEC.md of https://github.com/orgsonai/z2term.\n" +
         "- Tools that operate other Android apps (look, tap, shot ...) appear only while the user has turned on AI operation " +
         "in z2term (reconnect after they do). Read guide before operating.\n" +
-        "- serial_list / serial_read / serial_send use the serial tabs the user opened (USB cable to a microcontroller, " +
-        "a router console ...). They appear only while the user allows AI serial access (reading only, or reading and sending)."
+        "- serial_list / serial_read / serial_send use the serial tabs the user opened (a microcontroller or a router console " +
+        "over a USB cable or a network relay). They appear only while the user allows AI serial access (reading only, or reading and sending)."
 
     fun handle(app: Context, line: String): String {
         val request = try { JSONObject(line) } catch (_: Exception) { return error(JSONObject.NULL, -32700, "Parse error") }
@@ -409,7 +409,7 @@ internal object UiBridgeMcp {
         val tab = prop("string", "Tab number from serial_list (or the tab name). May be omitted when only one serial tab is open")
         val serialTools = buildList {
             if (serial == SerialAccess.OFF) return@buildList
-            add(tool("serial_list", "Serial tabs the user opened: tab number, name, whether the cable is connected, the device. " +
+            add(tool("serial_list", "Serial tabs the user opened: tab number, name, whether it is connected (USB cable or network relay), the device. " +
                 "access tells whether you may only read (read) or also send (send)."))
             add(tool("serial_read", "Read what the serial tab received recently, as text (colour and cursor codes removed). " +
                 "Use it to see output that arrived while you were not sending.",

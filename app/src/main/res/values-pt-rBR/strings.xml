@@ -1418,5 +1418,13 @@ Fontes: %14$d</string>
     <string name="serial_device_remembered">Dispositivo: %1$s</string>
     <string name="serial_device_none">Dispositivo: ainda não lembrado (o primeiro conectado será lembrado)</string>
     <string name="serial_device_forget">Esquecer</string>
+    <string name="serial_transport_tcp">Rede (TCP)</string>
+    <string name="serial_field_tcp_host">Endereço</string>
+    <string name="serial_field_tcp_port">Porta</string>
+    <string name="serial_tcp_hint">Conecta a um relé que repassa um UART sem alterações por TCP (um microcontrolador Wi-Fi ou ser2net no modo raw). Velocidade e paridade são definidas no relé. Use só em uma rede confiável: a linha não é criptografada.</string>
+    <string name="banner_serial_tcp_connecting">🔌 Serial: conectando a %1$s…</string>
+    <string name="banner_serial_tcp_connected">✓ Serial conectada: %1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ Serial: a conexão caiu. Reconectando a cada 3 segundos.</string>
+    <string name="banner_serial_tcp_failed">✗ Serial: não foi possível conectar: %1$s (tentando de novo a cada 3 segundos)</string>
     <string name="oss_purpose_usb_serial">Conexões seriais USB (chips USB-serial e placas CDC-ACM)</string>
 </resources>

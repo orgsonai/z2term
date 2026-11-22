@@ -351,7 +351,7 @@ data class SshProfile(
             append("//").append(HostAddress.hostPort(host, port))
             if (remotePath.isNotBlank()) append('/').append(remotePath.trim('/'))
         }
-        ConnectionProtocol.SERIAL -> buildString {
+        ConnectionProtocol.SERIAL -> if (serial.isTcp) "TCP " + HostAddress.hostPort(serial.tcpHost, serial.tcpPort) else buildString {
             append("USB ").append(serial.describe())
             serial.deviceLabel().takeIf { it.isNotEmpty() }?.let { append(" · ").append(it) }
         }

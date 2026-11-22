@@ -1409,5 +1409,13 @@ SSH 連線目標 %3$d 個
     <string name="serial_device_remembered">裝置：%1$s</string>
     <string name="serial_device_none">裝置：尚未記住（會記住第一次連線的裝置）</string>
     <string name="serial_device_forget">忘記</string>
+    <string name="serial_transport_tcp">網路 (TCP)</string>
+    <string name="serial_field_tcp_host">位址</string>
+    <string name="serial_field_tcp_port">連接埠</string>
+    <string name="serial_tcp_hint">連線到把 UART 原樣轉送到 TCP 的中繼器（具 Wi-Fi 的微控制器，或 raw 模式的 ser2net）。速率和同位檢查在中繼器一側設定。通訊未加密，請只在可信任的網路中使用。</string>
+    <string name="banner_serial_tcp_connecting">🔌 序列埠：正在連線 %1$s…</string>
+    <string name="banner_serial_tcp_connected">✓ 序列埠已連線：%1$s</string>
+    <string name="banner_serial_tcp_lost">⚠ 序列埠：連線已中斷。每 3 秒重新連線。</string>
+    <string name="banner_serial_tcp_failed">✗ 序列埠：無法連線：%1$s（每 3 秒重試）</string>
     <string name="oss_purpose_usb_serial">USB 序列埠連線（USB 轉序列晶片與 CDC-ACM 開發板）</string>
 </resources>

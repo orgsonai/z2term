@@ -445,12 +445,36 @@ In the SFTP / FTP / SMB / WebDAV file screen, both Android Back and the top-left
 - **The connection remembers the device.** The first device you connect (its chip type and serial number) is saved, so with two or more cables plugged in you are not asked again. You are asked which one to use only when the connection has not remembered a device yet and two or more are plugged in. **Forget** in the editor clears it.
 - **Unplugging the cable keeps the tab open.** What is on screen stays, and the tab says the cable was unplugged. Plug the same device back in and Android asks for permission again; allow it and the tab reconnects (Android revokes USB permission on unplug, so it asks every time). What you type while it is unplugged is not sent.
 - **You can open the tab before plugging in.** It says it is waiting for the USB device and connects once you plug it in.
+- **It also connects over the network (1.0.209).** In the connection editor, choose **Network (TCP)** next to USB and enter the address and port (default 2000). The other end is a relay that passes a UART straight through over TCP (the Pico 2 W example below, ser2net in raw mode, …). No cable is needed, so you can reach the console of a device somewhere else. If the connection drops the tab stays and reconnects every 3 seconds. Speed and parity are set on the relay. ⚠ The line is not encrypted; use it only on a network you trust.
 - **An AI can use it too (1.0.208).** Under 📜 › Automation › AI, set "AI and serial" to Read only or Read and send, and an AI connected over MCP can read and write the serial tabs (for example "read this switch's configuration and tell me what looks wrong"). What the AI sends and what comes back appear in the tab. The default is Off. See [AI-BRIDGE.md](AI-BRIDGE.md) §4.4.
 - **You can use it from a PC too.** SSH into the phone and run `z2-session attach <tab>` on the serial tab to type from the PC keyboard. Notices such as the cable being unplugged show on the PC as well (1.0.202).
 - ⚠ Serial has no way to pass the screen size. If the other side wraps at the wrong width, set it there, for example `stty cols 100 rows 30`.
 - ⚠ While the same device is handed to Linux with `z2-usb allow`, the serial tab may fail to open it.
 - ⚠ **The cable decides what you can connect to.** Board pins need a **USB-TTL adapter** (3.3 V or 5 V, matching the board), an RS-232 port on a router needs a **USB-RS232 adapter** or its console cable, and a microcontroller board needs **one USB cable**. The app cannot change this.
 - 💡 With no device at hand, **join TX and RX of a USB-TTL adapter with one jumper wire**. If what you type comes straight back, it works.
+
+### Reach a serial port over Wi-Fi (Raspberry Pi Pico 2 W, 1.0.209)
+
+**Put a Pico 2 W (or Pico W) next to a device and reach its UART over Wi-Fi.** It is for devices you cannot walk up to with a cable, such as a router's console. The Pico's program is [examples/pico-wifi-serial/main.py](../../examples/pico-wifi-serial/main.py).
+
+```
+phone (z2term) ─Wi-Fi─ Pico 2 W ─3 wires─ the device's UART
+```
+
+1. Put MicroPython (1.25 or later) on the Pico (step 1 of [the keyboard section](#use-the-phone-as-a-pc-keyboard-raspberry-pi-pico)).
+2. In `main.py`, set `SSID` and `PASSWORD` to your Wi-Fi and `BAUD` to the device's speed, then copy it with `mpremote cp main.py :main.py`.
+3. Wire it. Connect directly only to a **3.3 V UART** (put a converter in between for 5 V devices or an RS-232 port).
+   | Pico | Device |
+   |---|---|
+   | GP0 (UART0 TX) | RX |
+   | GP1 (UART0 RX) | TX |
+   | GND | GND |
+4. Power the Pico and it joins Wi-Fi (the board LED blinks until it does). Find its address in your router's list of connected devices, or in the `wifi-serial: 192.168.…` line shown in a serial tab with the Pico on USB. Put a fixed address in `STATIC` if you want one.
+5. In z2term choose New → Serial → **Network (TCP)**, enter the Pico's address and port **2000**, and connect. The Pico's LED stays on while connected.
+
+- One connection at a time. A new connection closes the previous one (so you can reconnect even if the phone's side dropped silently).
+- ⚠ The line is not encrypted. Use it only on a network you trust, such as at home; listing the phone's address in `ALLOW` keeps other machines out.
+- Output from the device while nobody is connected is dropped (so old output does not flood in the moment you connect).
 
 ### Use the phone as a PC keyboard (Raspberry Pi Pico)
 
