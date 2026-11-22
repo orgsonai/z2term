@@ -59,4 +59,9 @@
     <string name="ui_bridge_mcp_no_ip">Ditampilkan saat ponsel punya alamat IP (sambungkan ke Wi-Fi)</string>
     <string name="ui_bridge_mcp_last">Koneksi AI terakhir: %1$s</string>
     <string name="ui_bridge_mcp_never">Belum ada AI yang terhubung</string>
+    <string name="ui_bridge_serial_title">AI dan serial</string>
+    <string name="ui_bridge_serial_desc">Izinkan AI yang terhubung lewat MCP memakai tab serial yang Anda buka. Semua yang dikirim dan diterima muncul di tab. Terpisah dari kontrol aplikasi di atas.</string>
+    <string name="ui_bridge_serial_off">Mati</string>
+    <string name="ui_bridge_serial_read">Hanya baca</string>
+    <string name="ui_bridge_serial_send">Baca dan kirim</string>
 </resources>

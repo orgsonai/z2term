@@ -60,4 +60,9 @@
     <string name="ui_bridge_mcp_no_ip">Shown when the phone has an IP address (connect to Wi-Fi)</string>
     <string name="ui_bridge_mcp_last">Last AI connection: %1$s</string>
     <string name="ui_bridge_mcp_never">No AI has connected yet</string>
+    <string name="ui_bridge_serial_title">AI and serial</string>
+    <string name="ui_bridge_serial_desc">Let an AI connected over MCP use the serial tabs you opened. Everything it sends and receives appears in the tab. Separate from app control above.</string>
+    <string name="ui_bridge_serial_off">Off</string>
+    <string name="ui_bridge_serial_read">Read only</string>
+    <string name="ui_bridge_serial_send">Read and send</string>
 </resources>

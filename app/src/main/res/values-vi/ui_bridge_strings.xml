@@ -60,4 +60,9 @@
     <string name="ui_bridge_mcp_no_ip">Hiển thị khi điện thoại có địa chỉ IP (hãy kết nối Wi-Fi)</string>
     <string name="ui_bridge_mcp_last">Lần AI kết nối gần nhất: %1$s</string>
     <string name="ui_bridge_mcp_never">Chưa có AI nào kết nối</string>
+    <string name="ui_bridge_serial_title">AI và cổng nối tiếp</string>
+    <string name="ui_bridge_serial_desc">Cho AI kết nối qua MCP dùng các tab nối tiếp bạn đã mở. Mọi thứ nó gửi và nhận đều hiện trong tab. Tách biệt với quyền điều khiển ứng dụng ở trên.</string>
+    <string name="ui_bridge_serial_off">Tắt</string>
+    <string name="ui_bridge_serial_read">Chỉ đọc</string>
+    <string name="ui_bridge_serial_send">Đọc và gửi</string>
 </resources>

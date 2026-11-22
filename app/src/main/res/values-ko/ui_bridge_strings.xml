@@ -60,4 +60,9 @@
     <string name="ui_bridge_mcp_no_ip">휴대폰 IP를 알면 표시합니다 (Wi-Fi에 연결하세요)</string>
     <string name="ui_bridge_mcp_last">마지막 AI 연결: %1$s</string>
     <string name="ui_bridge_mcp_never">아직 연결한 AI가 없습니다</string>
+    <string name="ui_bridge_serial_title">AI와 시리얼</string>
+    <string name="ui_bridge_serial_desc">MCP로 연결한 AI가 열어 둔 시리얼 탭을 쓰게 합니다. 보낸 글자와 받은 글자는 모두 탭에 나옵니다. 위의 앱 조작과는 별도의 허용입니다.</string>
+    <string name="ui_bridge_serial_off">끄기</string>
+    <string name="ui_bridge_serial_read">읽기만</string>
+    <string name="ui_bridge_serial_send">읽기·보내기</string>
 </resources>

@@ -60,4 +60,9 @@
     <string name="ui_bridge_mcp_no_ip">手機有 IP 位址時顯示（請連線 Wi-Fi）</string>
     <string name="ui_bridge_mcp_last">AI 上次連線：%1$s</string>
     <string name="ui_bridge_mcp_never">還沒有 AI 連線過</string>
+    <string name="ui_bridge_serial_title">AI 與序列埠</string>
+    <string name="ui_bridge_serial_desc">允許透過 MCP 連線的 AI 使用你開啟的序列埠分頁。它傳送和收到的內容都會顯示在分頁中。與上方的應用程式操作分開設定。</string>
+    <string name="ui_bridge_serial_off">關閉</string>
+    <string name="ui_bridge_serial_read">唯讀</string>
+    <string name="ui_bridge_serial_send">讀取和傳送</string>
 </resources>

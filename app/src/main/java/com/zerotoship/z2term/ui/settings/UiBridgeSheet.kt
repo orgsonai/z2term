@@ -40,6 +40,7 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.automation.UiBridge
 import com.zerotoship.z2term.automation.UiBridgePolicy
 import com.zerotoship.z2term.automation.UiBridgePolicy.Level
+import com.zerotoship.z2term.automation.SerialAccess
 import com.zerotoship.z2term.automation.UiBridgeSettings
 import com.zerotoship.z2term.edge.AndroidActions
 import com.zerotoship.z2term.edge.AppPickerActivity
@@ -82,6 +83,7 @@ fun UiBridgeBody() {
     val showTrail = remember(tick) { settings.showTrail }
     val showBar = remember(tick) { settings.showBar }
     val lastConnect = remember(tick) { settings.mcpLastConnect }
+    val serialAccess = remember(tick) { settings.serialAccess }
     var editingGrant by remember { mutableStateOf(false) }
     var paused by remember { mutableStateOf(UiBridge.isPaused) }
 
@@ -199,6 +201,21 @@ fun UiBridgeBody() {
     HintBox(stringResource(R.string.ui_bridge_grant_desc, minutes))
     HintBox(stringResource(R.string.ui_bridge_protected_note) + "\n" + stringResource(R.string.ui_bridge_log_note))
 
+    // AI とシリアル (1.0.208)。アプリ操作の ON/OFF とは別に決める。変わったら AI が繋ぎ直すと道具の一覧も変わる。
+    Text(stringResource(R.string.ui_bridge_serial_title), color = ZtsGreen, fontSize = 18.sp,
+        fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(top = 14.dp))
+    Text(stringResource(R.string.ui_bridge_serial_desc), color = ZtsTextSecondary, fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace)
+    Choice(
+        options = listOf(
+            SerialAccess.OFF to stringResource(R.string.ui_bridge_serial_off),
+            SerialAccess.READ to stringResource(R.string.ui_bridge_serial_read),
+            SerialAccess.SEND to stringResource(R.string.ui_bridge_serial_send),
+        ),
+        selected = serialAccess,
+        onSelect = { settings.serialAccess = it },
+    )
+
     if (editingGrant) {
         var text by remember { mutableStateOf(minutes.toString()) }
         val value = text.toIntOrNull()?.takeIf { it in 1..UiBridgePolicy.GRANT_MAX_MINUTES }
@@ -300,11 +317,17 @@ private fun SectionTitle(text: String) {
 @Composable
 private fun LevelChoice(selected: Level, onSelect: (Level) -> Unit) {
     val context = LocalContext.current
+    Choice(Level.entries.map { it to UiBridge.levelName(context, it) }, selected, onSelect)
+}
+
+/** 並んだ選択肢から 1 つ選ぶ。選んでいるものだけ緑の枠。 */
+@Composable
+private fun <T> Choice(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(end = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Level.entries.forEach { level ->
+        options.forEach { (level, name) ->
             val on = level == selected
             Text(
-                UiBridge.levelName(context, level),
+                name,
                 color = if (on) ZtsGreen else ZtsTextPrimary, fontSize = 11.sp, fontFamily = FontFamily.Monospace,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).clip(RoundedCornerShape(6.dp))

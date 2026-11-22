@@ -59,4 +59,9 @@
     <string name="ui_bridge_mcp_no_ip">Wird angezeigt, sobald das Telefon eine IP-Adresse hat (mit WLAN verbinden)</string>
     <string name="ui_bridge_mcp_last">Letzte KI-Verbindung: %1$s</string>
     <string name="ui_bridge_mcp_never">Noch keine KI verbunden</string>
+    <string name="ui_bridge_serial_title">KI und serielle Verbindung</string>
+    <string name="ui_bridge_serial_desc">Eine über MCP verbundene KI darf die geöffneten seriellen Tabs nutzen. Alles, was sie sendet und empfängt, erscheint im Tab. Unabhängig von der App-Steuerung oben.</string>
+    <string name="ui_bridge_serial_off">Aus</string>
+    <string name="ui_bridge_serial_read">Nur lesen</string>
+    <string name="ui_bridge_serial_send">Lesen und senden</string>
 </resources>

@@ -61,8 +61,18 @@ class SerialChannel(
     @Volatile private var config = initial
     @Volatile private var closed = false
 
-    // ↓ ctl スレッドだけが触る
-    private var port: UsbSerialPort? = null
+    /** 受け取った分の控え。AI の `serial_send` / `serial_read` が読む (1.0.208)。 */
+    val transcript = SerialTranscript()
+
+    /** 口が開いているか。AI へ「つながっていない」を返すために、ほかのスレッドからも読む。 */
+    val connected: Boolean get() = port != null
+
+    /** つながっている機器の名前 (つながっていなければ null)。 */
+    @Volatile var deviceLabel: String? = null
+        private set
+
+    // ↓ 書くのは ctl スレッドだけ (port は connected のために @Volatile)
+    @Volatile private var port: UsbSerialPort? = null
     private var device: UsbDevice? = null
     private var io: SerialInputOutputManager? = null
     /** 許可画面を出して答えを待っている機器 (同じ機器へ 2 回出さない)。 */
@@ -210,7 +220,10 @@ class SerialChannel(
             device = dev
             io = SerialInputOutputManager(p, object : SerialInputOutputManager.Listener {
                 override fun onNewData(data: ByteArray) {
-                    if (data.isNotEmpty()) incoming.offer(data)
+                    if (data.isNotEmpty()) {
+                        transcript.append(data)
+                        incoming.offer(data)
+                    }
                 }
 
                 override fun onRunError(e: Exception) {
@@ -218,6 +231,7 @@ class SerialChannel(
                     post { if (port === p) lose() }
                 }
             }).also { it.start() }
+            deviceLabel = candidate.label()
             emit(Event.Connected(candidate.label(), config.describe()))
             if (!flowOk) emit(Event.FlowUnsupported(config.flow))
             learn(candidate)
@@ -253,6 +267,7 @@ class SerialChannel(
         runCatching { port?.close() }
         port = null
         device = null
+        deviceLabel = null
     }
 
     private fun applyFlow(p: UsbSerialPort, flow: SerialFlow): Boolean {

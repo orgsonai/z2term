@@ -60,4 +60,9 @@
     <string name="ui_bridge_mcp_no_ip">Telefonun IP adresi olduğunda gösterilir (Wi-Fi\'ye bağlanın)</string>
     <string name="ui_bridge_mcp_last">Son yapay zekâ bağlantısı: %1$s</string>
     <string name="ui_bridge_mcp_never">Henüz bağlanan yapay zekâ yok</string>
+    <string name="ui_bridge_serial_title">YZ ve seri bağlantı</string>
+    <string name="ui_bridge_serial_desc">MCP ile bağlanan YZ’nin açtığınız seri sekmeleri kullanmasına izin verir. Gönderdiği ve aldığı her şey sekmede görünür. Yukarıdaki uygulama denetiminden ayrıdır.</string>
+    <string name="ui_bridge_serial_off">Kapalı</string>
+    <string name="ui_bridge_serial_read">Yalnızca oku</string>
+    <string name="ui_bridge_serial_send">Oku ve gönder</string>
 </resources>

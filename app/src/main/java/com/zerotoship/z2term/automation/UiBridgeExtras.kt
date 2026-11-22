@@ -176,7 +176,9 @@ internal object UiBridgeMcp {
         "the user handbook and guides, so you do not need to read whole files. Internals (how it is built) are not there; " +
         "they are in docs/en/DESIGN-SPEC.md of https://github.com/orgsonai/z2term.\n" +
         "- Tools that operate other Android apps (look, tap, shot ...) appear only while the user has turned on AI operation " +
-        "in z2term (reconnect after they do). Read guide before operating."
+        "in z2term (reconnect after they do). Read guide before operating.\n" +
+        "- serial_list / serial_read / serial_send use the serial tabs the user opened (USB cable to a microcontroller, " +
+        "a router console ...). They appear only while the user allows AI serial access (reading only, or reading and sending)."
 
     fun handle(app: Context, line: String): String {
         val request = try { JSONObject(line) } catch (_: Exception) { return error(JSONObject.NULL, -32700, "Parse error") }
@@ -191,7 +193,7 @@ internal object UiBridgeMcp {
                 .put("serverInfo", JSONObject().put("name", "z2term").put("version", BuildConfig.VERSION_NAME))
                 .put("instructions", INSTRUCTIONS))
             "ping" -> result(id, JSONObject())
-            "tools/list" -> result(id, JSONObject().put("tools", tools(UiBridgeSettings(app).enabled)))
+            "tools/list" -> result(id, JSONObject().put("tools", UiBridgeSettings(app).let { tools(it.enabled, it.serialAccess) }))
             "tools/call" -> result(id, call(app, params.optString("name"), params.optJSONObject("arguments") ?: JSONObject()))
             else -> error(id, -32601, "Method not found: $method")
         }
@@ -216,6 +218,21 @@ internal object UiBridgeMcp {
         fun text(key: String) = a.optString(key).takeIf { a.has(key) && it.isNotEmpty() }
             ?: throw Refusal("bad_args", "$name needs $key")
         fun optional(key: String) = if (a.has(key) && !a.isNull(key)) a.get(key).toString() else null
+        // シリアルは z2-ui の操作 (画面のアプリ) とは別の許可で、CLI の動詞も持たない (1.0.208)。
+        if (name.startsWith("serial_")) {
+            val result = try {
+                when (name) {
+                    "serial_list" -> SerialBridge.list(app)
+                    "serial_read" -> SerialBridge.read(app, optional("tab"), optional("bytes")?.toIntOrNull())
+                    "serial_send" -> SerialBridge.send(app, optional("tab"), a.optString("text"),
+                        enter = a.optBoolean("enter", true), raw = a.optBoolean("raw"), until = optional("until"),
+                        waitMs = optional("wait_ms")?.toLongOrNull(), quietMs = optional("quiet_ms")?.toLongOrNull())
+                    else -> throw Refusal("bad_args", "Unknown tool: $name")
+                }
+            } catch (e: Refusal) { UiBridge.failure(e.code, e.message.orEmpty()) }
+            return JSONObject().put("isError", !result.optBoolean("ok"))
+                .put("content", JSONArray().put(JSONObject().put("type", "text").put("text", result.toString())))
+        }
         // 撮る範囲を絞る・変わっていなければ画像を返さない (shot と、操作の shot / peek_ms に共通)。
         // 色の格子 ({origin, step, cols, rows}) と、その読み方。colors と、shot / 操作の shot で共通。
         val grid = buildList {
@@ -345,8 +362,9 @@ internal object UiBridgeMcp {
     /**
      * [operate] が false (AI からのアプリ操作が OFF) の間は、docs と status だけを見せる (1.0.176)。
      * 道具の説明も会話のたびに AI の文脈に載るので、使えない道具を並べない。
+     * シリアルの道具は [serial] で別に決める (1.0.208)。読むだけなら serial_send を出さない。
      */
-    private fun tools(operate: Boolean): JSONArray {
+    private fun tools(operate: Boolean, serial: SerialAccess): JSONArray {
         fun prop(type: String, description: String, values: List<String>? = null) = JSONObject().put("type", type)
             .put("description", description).apply { values?.let { put("enum", JSONArray(it)) } }
         val target = prop("string", "Element: \"#N\" from the last look, \"text=…\", \"desc=…\", \"id=PACKAGE:id/NAME\", \"@X,Y\" (pixels) " +
@@ -387,8 +405,28 @@ internal object UiBridgeMcp {
             mapOf("query" to prop("string", "English keywords, e.g. \"broadcast group\" or \"z2-when battery\""),
                 "section" to prop("string", "Read one section by the id a search returned, instead of searching"),
                 "part" to prop("integer", "With section: which part of a long section, default 1")))
-        val status = tool("status", "Permission state: enabled, paused, levels, approval grants.")
-        if (!operate) return JSONArray(listOf(docs, status))
+        val status = tool("status", "Permission state: enabled, paused, levels, approval grants, serial access.")
+        val tab = prop("string", "Tab number from serial_list (or the tab name). May be omitted when only one serial tab is open")
+        val serialTools = buildList {
+            if (serial == SerialAccess.OFF) return@buildList
+            add(tool("serial_list", "Serial tabs the user opened: tab number, name, whether the cable is connected, the device. " +
+                "access tells whether you may only read (read) or also send (send)."))
+            add(tool("serial_read", "Read what the serial tab received recently, as text (colour and cursor codes removed). " +
+                "Use it to see output that arrived while you were not sending.",
+                mapOf("tab" to tab, "bytes" to prop("integer", "How many of the last received bytes, 1..65536, default 4000"))))
+            if (serial == SerialAccess.SEND) add(tool("serial_send", "Send text to the serial tab and return only what arrives after it. " +
+                "Without until it returns once something arrived and nothing more came for quiet_ms; with until it waits for that " +
+                "pattern (e.g. a prompt). The device echoes what you type, so the reply usually starts with your text. " +
+                "The user sees everything in the tab. Do not change a device's configuration unless the user asked for it.",
+                mapOf("tab" to tab, "text" to prop("string", "Text to send, up to 4096 characters"),
+                    "enter" to prop("boolean", "Send Enter (CR) after the text, default true. Use false for keys alone"),
+                    "raw" to prop("boolean", "Read \\xHH \\e \\r \\n \\t \\0 \\\\ in text as bytes (e.g. \\x03 for Ctrl+C), default false"),
+                    "until" to prop("string", "Regular expression to wait for in the reply, e.g. \"[#>$] ?$\" or \">>> $\""),
+                    "wait_ms" to prop("integer", "Wait at most this long, 1..30000, default 3000. timed_out tells whether it ran out"),
+                    "quiet_ms" to prop("integer", "Without until: return after this long with nothing new, 50..5000, default 500")),
+                listOf("text")))
+        }
+        if (!operate) return JSONArray(listOf(docs, status) + serialTools)
         return JSONArray(listOf(
             docs,
             tool("front", "Foreground app: package, name, permission level, screen size, whether locked."),
@@ -456,6 +494,6 @@ internal object UiBridgeMcp {
                     "reply" to prop("string", "Reply text")), listOf("key", "label")),
             status,
             tool("guide", "The full z2-ui guide for AI agents: rules, commands, error codes. Read it before operating."),
-        ))
+        ) + serialTools)
     }
 }

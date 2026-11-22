@@ -60,6 +60,14 @@ internal class UiBridgeSettings(context: Context) {
         get() = prefs.getLong(KEY_MCP_LAST_CONNECT, 0L)
         set(value) { prefs.edit().putLong(KEY_MCP_LAST_CONNECT, value).apply() }
 
+    /**
+     * AI にシリアルのタブを使わせるか (1.0.208)。既定は OFF。アプリ操作 ([enabled]) とは別に決める。
+     * ルーターの設定を AI が書き換える事故を避けるため、「読むだけ」の段階を置く。
+     */
+    var serialAccess: SerialAccess
+        get() = SerialAccess.parse(prefs.getString(KEY_SERIAL, null))
+        set(value) { prefs.edit().putString(KEY_SERIAL, value.key).apply() }
+
     var grantMinutes: Int
         get() = UiBridgePolicy.grantMinutes(prefs.getInt(KEY_GRANT, UiBridgePolicy.GRANT_DEFAULT_MINUTES))
         set(value) { prefs.edit().putInt(KEY_GRANT, UiBridgePolicy.grantMinutes(value)).apply() }
@@ -88,5 +96,15 @@ internal class UiBridgeSettings(context: Context) {
         private const val KEY_SHOW_TRAIL = "show_trail"
         private const val KEY_SHOW_BAR = "show_bar"
         private const val KEY_MCP_LAST_CONNECT = "mcp_last_connect"
+        private const val KEY_SERIAL = "serial_access"
+    }
+}
+
+/** AI とシリアル (1.0.208)。OFF = 道具を見せない / READ = 読むだけ / SEND = 送るのも可。 */
+internal enum class SerialAccess(val key: String) {
+    OFF("off"), READ("read"), SEND("send");
+
+    companion object {
+        fun parse(key: String?): SerialAccess = entries.firstOrNull { it.key == key } ?: OFF
     }
 }

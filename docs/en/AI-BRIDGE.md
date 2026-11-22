@@ -155,6 +155,23 @@ Most of the time goes into the AI reading an image and thinking between calls (5
 - `type` never targets password fields (`error:"password"`). A person enters credentials.
 - On screens that forbid capture (banking apps and so on, Android `FLAG_SECURE`), Android returns the image blacked out. `shot` needs Android 11 or later (`error:"unsupported"` before that).
 
+### 4.4 Serial tabs (1.0.208)
+
+An AI connected over MCP can use the **serial tabs** the user opened (a microcontroller or a router console at the end of a USB cable). The AI never opens a port itself; it borrows an open tab. What it sends and what comes back both appear in that tab, so the user sees exactly what the AI does.
+
+| MCP tool | What it does |
+|---|---|
+| `serial_list` | Serial tabs: number, name, whether the cable is connected, the device. `access` is `read` (read only) or `send` (may also send) |
+| `serial_read` | What the tab received recently, as text (colour and cursor codes removed, line ends made `\n`). `bytes` is how many of the last bytes (1..65536, default 4000) |
+| `serial_send` | Sends text and returns **only what arrived after it**. Adds Enter (CR) at the end by default (`enter: false` to leave it out). With `until` (a regular expression) it waits until that appears; without, until something arrived and nothing more came for `quiet_ms` (default 500). At most `wait_ms` (1..30000, default 3000). `raw: true` sends `\xHH` `\e` `\r` `\n` `\t` `\0` `\\` as bytes (Ctrl+C is `\x03`). `timed_out` tells whether it ran out, `matched` whether `until` was found |
+
+- `tab` is the number from `serial_list` (= `z2-session list`) or the tab name. It may be left out when only one serial tab is open. Leaving it out with two or more gives `ambiguous_tab`, so nothing goes to the wrong device.
+- The reply is cut from the tab's record of received bytes (the last 64 KiB), not from the screen: the screen changes shape with wrapping and overwriting, so the current reply cannot be taken from it. A reply too long for the record is `truncated: true`. At most 16000 characters are returned; beyond that the newest part is kept.
+- **The permission is separate from app control.** Under "AI and serial" in 📜 › Automation › AI, choose Off (default), Read only, or Read and send. While Off the tools are not listed; while Read only, `serial_send` is not listed. Each call checks again and refuses with `serial_off` / `read_only`. Choose Read only when you do not want an AI to change a router's configuration. After changing it, reconnect the AI to refresh the list.
+- Sending to a tab whose cable is unplugged gives `not_connected`.
+- Log: one line per `serial_send` in `~/.z2term/ui/log.jsonl` (tab name, bytes sent, result, time taken). The text itself is not kept (it may be a login password).
+- `status` reports the current permission in `serial` (`off` / `read` / `send`).
+
 ## 5. Safety
 
 Because the AI can tap any app, every `z2-ui` decision is made at the desk (§3), in one place. No form of `z2-ui` skips it.

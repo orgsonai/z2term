@@ -889,6 +889,7 @@ internal object UiBridge {
             .put("grant_minutes", settings.grantMinutes)
             .put("grants", JSONObject(grants.filterValues { it > now }.mapValues { (it.value - now) / 1000 }))
             .put("protected", JSONArray(protectedPackages(app).sorted()))
+            .put("serial", settings.serialAccess.key)
     }
 
     private fun front(app: Context, settings: UiBridgeSettings): JSONObject {

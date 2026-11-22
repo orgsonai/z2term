@@ -405,6 +405,9 @@ class TerminalSession(
     }.stateIn(scope = scope, started = SharingStarted.Eagerly, initialValue = AppSettings.Snapshot())
 
     private var channel: ProcessChannel? = null
+
+    /** シリアルのタブなら、その口 (1.0.208、AI の `serial_*` 道具が使う)。それ以外のタブは null。 */
+    val serialChannel: SerialChannel? get() = channel as? SerialChannel
     private var readJob: Job? = null
     private var distroRemovalPaused = false
 

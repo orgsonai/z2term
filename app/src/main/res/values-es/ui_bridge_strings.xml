@@ -60,4 +60,9 @@
     <string name="ui_bridge_mcp_no_ip">Se muestra cuando el teléfono tiene una IP (conéctate a Wi-Fi)</string>
     <string name="ui_bridge_mcp_last">Última conexión de IA: %1$s</string>
     <string name="ui_bridge_mcp_never">Ninguna IA se ha conectado aún</string>
+    <string name="ui_bridge_serial_title">IA y serie</string>
+    <string name="ui_bridge_serial_desc">Permite que una IA conectada por MCP use las pestañas serie que abriste. Todo lo que envía y recibe aparece en la pestaña. Es independiente del control de apps de arriba.</string>
+    <string name="ui_bridge_serial_off">No</string>
+    <string name="ui_bridge_serial_read">Solo leer</string>
+    <string name="ui_bridge_serial_send">Leer y enviar</string>
 </resources>

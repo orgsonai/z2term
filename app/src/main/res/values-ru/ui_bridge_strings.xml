@@ -60,4 +60,9 @@
     <string name="ui_bridge_mcp_no_ip">Показывается, когда у телефона есть IP-адрес (подключитесь к Wi-Fi)</string>
     <string name="ui_bridge_mcp_last">Последнее подключение ИИ: %1$s</string>
     <string name="ui_bridge_mcp_never">ИИ ещё не подключался</string>
+    <string name="ui_bridge_serial_title">ИИ и последовательный порт</string>
+    <string name="ui_bridge_serial_desc">Разрешает ИИ, подключённому по MCP, пользоваться открытыми последовательными вкладками. Всё, что он отправляет и получает, видно во вкладке. Отдельно от управления приложениями выше.</string>
+    <string name="ui_bridge_serial_off">Нет</string>
+    <string name="ui_bridge_serial_read">Только чтение</string>
+    <string name="ui_bridge_serial_send">Читать и отправлять</string>
 </resources>

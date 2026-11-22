@@ -60,4 +60,9 @@
     <string name="ui_bridge_mcp_no_ip">スマホの IP が分かると表示します（Wi-Fi に接続してください）</string>
     <string name="ui_bridge_mcp_last">最後に AI が繋いだ: %1$s</string>
     <string name="ui_bridge_mcp_never">まだ AI は繋いでいません</string>
+    <string name="ui_bridge_serial_title">AI とシリアル</string>
+    <string name="ui_bridge_serial_desc">MCP で繋いだ AI に、開いているシリアルのタブを使わせます。送った文字も返ってきた文字もタブに出ます。上のアプリ操作とは別の許可です。</string>
+    <string name="ui_bridge_serial_off">使わせない</string>
+    <string name="ui_bridge_serial_read">読むだけ</string>
+    <string name="ui_bridge_serial_send">読む・送る</string>
 </resources>

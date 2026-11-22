@@ -60,4 +60,9 @@
     <string name="ui_bridge_mcp_no_ip">手机有 IP 地址时显示（请连接 Wi-Fi）</string>
     <string name="ui_bridge_mcp_last">AI 上次连接：%1$s</string>
     <string name="ui_bridge_mcp_never">还没有 AI 连接过</string>
+    <string name="ui_bridge_serial_title">AI 与串口</string>
+    <string name="ui_bridge_serial_desc">允许通过 MCP 连接的 AI 使用你打开的串口标签页。它发送和收到的内容都会显示在标签页中。与上面的应用操作分开设置。</string>
+    <string name="ui_bridge_serial_off">关闭</string>
+    <string name="ui_bridge_serial_read">只读</string>
+    <string name="ui_bridge_serial_send">读取和发送</string>
 </resources>
