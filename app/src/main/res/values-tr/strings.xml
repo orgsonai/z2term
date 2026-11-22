@@ -1379,4 +1379,33 @@ Yazı tipleri: %14$d</string>
     <string name="ui_bridge_end">YZ’nin görevini bitir</string>
     <string name="settings_ime_next_word">Tahminli giriş</string>
     <string name="settings_ime_next_word_desc">Yazarken daha uzun kelimeleri ve kalıp ifadeleri gösterir; Dönüştür ardından yalnızca tam eşleşmeleri gösterir. Onayladıktan sonra sonraki kelimeyi veya kalıp ifadeleri gösterir. Japonca klavye açıkken aday çubuğunun yeri boş tutulur, böylece terminal kaymaz. Kapalı: adaylar yalnızca yazarken görünür.</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 Seri: USB aygıtı bekleniyor. Bağlanmak için takın.</string>
+    <string name="banner_serial_ambiguous">⚠ Seri: %1$d aygıt eşleşiyor, z2term hangisini kullanacağını bilemiyor. Diğerlerini çıkarın.</string>
+    <string name="banner_serial_permission">🔌 Seri: Android isteminde USB erişimine izin verin.</string>
+    <string name="banner_serial_denied">⚠ Seri: USB erişimine izin verilmedi. Yeniden sorulması için kabloyu çıkarıp takın.</string>
+    <string name="banner_serial_connected">✓ Seri bağlandı: %1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ Seri: bu çip %1$s akış denetimini desteklemiyor. Akış denetimi olmadan devam ediliyor.</string>
+    <string name="banner_serial_lost">⚠ Seri: kablo çıkarıldı. Yeniden bağlanmak için aynı aygıtı tekrar takın.</string>
+    <string name="banner_serial_failed">✗ Seri: aygıt açılamadı: %1$s</string>
+    <string name="serial_pick_title">Hangi aygıt?</string>
+    <string name="serial_kind">Seri</string>
+    <string name="serial_field_baud">Hız (baud)</string>
+    <string name="serial_details_show">Ayrıntılar</string>
+    <string name="serial_details_hide">Ayrıntıları gizle</string>
+    <string name="serial_field_data_bits">Veri bitleri</string>
+    <string name="serial_field_parity">Eşlik</string>
+    <string name="serial_parity_none">Yok</string>
+    <string name="serial_parity_odd">Tek</string>
+    <string name="serial_parity_even">Çift</string>
+    <string name="serial_parity_mark">Mark</string>
+    <string name="serial_parity_space">Space</string>
+    <string name="serial_field_stop_bits">Durdurma bitleri</string>
+    <string name="serial_field_flow">Akış denetimi</string>
+    <string name="serial_flow_none">Yok</string>
+    <string name="serial_device_remembered">Aygıt: %1$s</string>
+    <string name="serial_device_none">Aygıt: henüz hatırlanmadı (ilk bağlanan hatırlanır)</string>
+    <string name="serial_device_forget">Unut</string>
+    <string name="oss_purpose_usb_serial">USB seri bağlantılar (USB-seri çipleri ve CDC-ACM kartları)</string>
 </resources>

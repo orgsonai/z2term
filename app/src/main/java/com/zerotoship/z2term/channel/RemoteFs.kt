@@ -51,6 +51,8 @@ object RemoteFsFactory {
             ConnectionProtocol.SSH -> SftpClient.connect(profile, context)
             ConnectionProtocol.WEBDAV -> WebDavClient.connect(profile)
             ConnectionProtocol.SMB -> SmbClient.connect(profile)
+            // 一覧にファイルのボタンを出さないので来ない。来たら呼び出し側の分岐の取りこぼし。
+            ConnectionProtocol.SERIAL -> error("serial profile has no file access")
         }
 
         // 画面を開くサービス (VNC / RDP) はここへ来ない。来たら呼び出し側の分岐の取りこぼし。

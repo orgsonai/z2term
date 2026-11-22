@@ -46,17 +46,26 @@ object UsbHostAccess {
         val info = selected.toInfo(raw.indexOf(selected) + 1, manager)
         if (manager.hasPermission(selected)) return AllowResult.AlreadyAllowed(info)
 
+        requestPermission(context, selected)
+        return AllowResult.Requested(info)
+    }
+
+    /**
+     * Android の USB 許可画面を出す。結果は [UsbPermissionReceiver] に届く
+     * (待つ側は [UsbPermissionReceiver.listeners] に登録する)。`z2-usb allow` とシリアルのタブで共有。
+     */
+    fun requestPermission(context: Context, device: UsbDevice) {
+        val manager = context.getSystemService(UsbManager::class.java)
         val reply = PendingIntent.getBroadcast(
             context,
-            selected.deviceId,
+            device.deviceId,
             Intent(context, UsbPermissionReceiver::class.java)
                 .setAction("${context.packageName}.USB_PERMISSION")
                 .setPackage(context.packageName),
             // UsbManager が結果 extras を埋めるため mutable。宛先は自アプリの非公開receiverに固定。
             PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        manager.requestPermission(selected, reply)
-        return AllowResult.Requested(info)
+        manager.requestPermission(device, reply)
     }
 
     private fun UsbDevice.toInfo(index: Int, manager: UsbManager): Device = Device(

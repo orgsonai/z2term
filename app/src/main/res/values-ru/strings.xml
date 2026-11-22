@@ -1399,4 +1399,33 @@
     <string name="ui_bridge_end">Завершить задачу ИИ</string>
     <string name="settings_ime_next_word">Предиктивный ввод</string>
     <string name="settings_ime_next_word_desc">Во время набора показывает более длинные слова и готовые фразы; «Преобразовать» затем показывает только точные совпадения. После подтверждения показывает следующее слово или готовые фразы. Пока открыта японская клавиатура, место панели кандидатов остаётся свободным, и терминал не сдвигается. Выкл.: кандидаты только во время набора.</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 Последовательный порт: ожидание USB-устройства. Подключите его.</string>
+    <string name="banner_serial_ambiguous">⚠ Последовательный порт: подходит устройств: %1$d, z2term не может выбрать. Отключите остальные.</string>
+    <string name="banner_serial_permission">🔌 Последовательный порт: разрешите доступ к USB в запросе Android.</string>
+    <string name="banner_serial_denied">⚠ Последовательный порт: доступ к USB не разрешён. Переподключите кабель, чтобы запрос появился снова.</string>
+    <string name="banner_serial_connected">✓ Последовательный порт подключён: %1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ Последовательный порт: этот чип не поддерживает управление потоком %1$s. Продолжаем без него.</string>
+    <string name="banner_serial_lost">⚠ Последовательный порт: кабель отключён. Подключите то же устройство снова для переподключения.</string>
+    <string name="banner_serial_failed">✗ Последовательный порт: не удалось открыть устройство: %1$s</string>
+    <string name="serial_pick_title">Какое устройство?</string>
+    <string name="serial_kind">Последовательный порт</string>
+    <string name="serial_field_baud">Скорость (бод)</string>
+    <string name="serial_details_show">Подробнее</string>
+    <string name="serial_details_hide">Скрыть подробности</string>
+    <string name="serial_field_data_bits">Биты данных</string>
+    <string name="serial_field_parity">Чётность</string>
+    <string name="serial_parity_none">Нет</string>
+    <string name="serial_parity_odd">Нечёт</string>
+    <string name="serial_parity_even">Чёт</string>
+    <string name="serial_parity_mark">Маркер</string>
+    <string name="serial_parity_space">Пробел</string>
+    <string name="serial_field_stop_bits">Стоп-биты</string>
+    <string name="serial_field_flow">Управление потоком</string>
+    <string name="serial_flow_none">Нет</string>
+    <string name="serial_device_remembered">Устройство: %1$s</string>
+    <string name="serial_device_none">Устройство: ещё не запомнено (запоминается первое подключённое)</string>
+    <string name="serial_device_forget">Забыть</string>
+    <string name="oss_purpose_usb_serial">Подключения по USB к последовательному порту (USB-UART чипы и платы CDC-ACM)</string>
 </resources>

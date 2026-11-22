@@ -28,6 +28,7 @@
 | `SLF4J-MIT.txt` | SLF4J 2.0.18 公式 LICENSE.txt |
 | `JZlib-BSD-3-Clause.txt` | JSch 同梱 `META-INF/LICENSE.JZlib.txt` |
 | `jBCrypt-ISC.txt` | JSch 同梱 `META-INF/LICENSE.jBCrypt.txt` |
+| `usb-serial-for-android-MIT.txt` | usb-serial-for-android 3.12.0 の `LICENSE.txt`（https://raw.githubusercontent.com/mik3y/usb-serial-for-android/3.12.0/LICENSE.txt） |
 
 ## 一括取得スクリプト (リポジトリルートで実行)
 

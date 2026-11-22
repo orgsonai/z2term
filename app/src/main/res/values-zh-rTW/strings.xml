@@ -1381,4 +1381,33 @@ SSH 連線目標 %3$d 個
     <string name="ui_bridge_end">結束 AI 的工作</string>
     <string name="settings_ime_next_word">預測輸入</string>
     <string name="settings_ime_next_word_desc">輸入時顯示更長的詞和常用語；按「轉換」後只顯示與讀音完全相符的詞。確定後顯示下一個詞或常用語。日文鍵盤開啟期間會一直留出候選列的位置，終端畫面不會上下移動。關閉時，候選只在輸入時出現。</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 序列埠：正在等待 USB 裝置。插入即可連線。</string>
+    <string name="banner_serial_ambiguous">⚠ 序列埠：有 %1$d 個裝置符合條件，無法決定使用哪一個。請拔除其他裝置。</string>
+    <string name="banner_serial_permission">🔌 序列埠：請在 Android 提示中允許使用 USB。</string>
+    <string name="banner_serial_denied">⚠ 序列埠：未允許使用 USB。重新插入線材後會再次詢問。</string>
+    <string name="banner_serial_connected">✓ 序列埠已連線：%1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ 序列埠：此晶片不支援 %1$s 流量控制。將在無流量控制的情況下繼續。</string>
+    <string name="banner_serial_lost">⚠ 序列埠：線材已拔除。重新插入同一裝置即可重新連線。</string>
+    <string name="banner_serial_failed">✗ 序列埠：無法開啟裝置：%1$s</string>
+    <string name="serial_pick_title">使用哪個裝置？</string>
+    <string name="serial_kind">序列埠</string>
+    <string name="serial_field_baud">速率 (鮑)</string>
+    <string name="serial_details_show">詳細</string>
+    <string name="serial_details_hide">收起詳細</string>
+    <string name="serial_field_data_bits">資料位元</string>
+    <string name="serial_field_parity">同位元</string>
+    <string name="serial_parity_none">無</string>
+    <string name="serial_parity_odd">奇同位</string>
+    <string name="serial_parity_even">偶同位</string>
+    <string name="serial_parity_mark">標記</string>
+    <string name="serial_parity_space">空白</string>
+    <string name="serial_field_stop_bits">停止位元</string>
+    <string name="serial_field_flow">流量控制</string>
+    <string name="serial_flow_none">無</string>
+    <string name="serial_device_remembered">裝置：%1$s</string>
+    <string name="serial_device_none">裝置：尚未記住（會記住第一次連線的裝置）</string>
+    <string name="serial_device_forget">忘記</string>
+    <string name="oss_purpose_usb_serial">USB 序列埠連線（USB 轉序列晶片與 CDC-ACM 開發板）</string>
 </resources>

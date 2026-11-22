@@ -1370,4 +1370,33 @@ Font: %14$d</string>
     <string name="ui_bridge_end">Akhiri tugas AI</string>
     <string name="settings_ime_next_word">Teks prediktif</string>
     <string name="settings_ime_next_word_desc">Menampilkan kata yang lebih panjang dan frasa baku saat mengetik; Konversi lalu hanya menampilkan yang cocok persis. Setelah dikonfirmasi, menampilkan kata berikutnya atau frasa baku. Selama keyboard Jepang terbuka, ruang bilah kandidat tetap disediakan agar terminal tidak bergeser. Mati: kandidat hanya muncul saat mengetik.</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 Serial: menunggu perangkat USB. Colokkan untuk menyambung.</string>
+    <string name="banner_serial_ambiguous">⚠ Serial: %1$d perangkat cocok, z2term tidak bisa memilih yang mana. Cabut yang lain.</string>
+    <string name="banner_serial_permission">🔌 Serial: izinkan akses USB pada permintaan Android.</string>
+    <string name="banner_serial_denied">⚠ Serial: akses USB tidak diizinkan. Colok ulang kabel untuk ditanya lagi.</string>
+    <string name="banner_serial_connected">✓ Serial tersambung: %1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ Serial: chip ini tidak mendukung kontrol aliran %1$s. Dilanjutkan tanpa kontrol aliran.</string>
+    <string name="banner_serial_lost">⚠ Serial: kabel dicabut. Colokkan lagi perangkat yang sama untuk menyambung ulang.</string>
+    <string name="banner_serial_failed">✗ Serial: tidak dapat membuka perangkat: %1$s</string>
+    <string name="serial_pick_title">Perangkat yang mana?</string>
+    <string name="serial_kind">Serial</string>
+    <string name="serial_field_baud">Kecepatan (baud)</string>
+    <string name="serial_details_show">Detail</string>
+    <string name="serial_details_hide">Sembunyikan detail</string>
+    <string name="serial_field_data_bits">Bit data</string>
+    <string name="serial_field_parity">Paritas</string>
+    <string name="serial_parity_none">Tidak ada</string>
+    <string name="serial_parity_odd">Ganjil</string>
+    <string name="serial_parity_even">Genap</string>
+    <string name="serial_parity_mark">Mark</string>
+    <string name="serial_parity_space">Space</string>
+    <string name="serial_field_stop_bits">Bit stop</string>
+    <string name="serial_field_flow">Kontrol aliran</string>
+    <string name="serial_flow_none">Tidak ada</string>
+    <string name="serial_device_remembered">Perangkat: %1$s</string>
+    <string name="serial_device_none">Perangkat: belum diingat (yang pertama disambungkan akan diingat)</string>
+    <string name="serial_device_forget">Lupakan</string>
+    <string name="oss_purpose_usb_serial">Koneksi serial USB (chip USB-ke-serial dan papan CDC-ACM)</string>
 </resources>

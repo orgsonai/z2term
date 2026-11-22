@@ -11,8 +11,11 @@ import com.zerotoship.z2term.channel.LocalPtyChannel
 import com.zerotoship.z2term.service.TerminalAudioOutputs
 import com.zerotoship.z2term.channel.ProcessChannel
 import com.zerotoship.z2term.backup.AutoBackup
+import com.zerotoship.z2term.channel.SerialChannel
+import com.zerotoship.z2term.channel.SerialFlow
 import com.zerotoship.z2term.channel.SshChannel
 import com.zerotoship.z2term.channel.SshProfile
+import com.zerotoship.z2term.channel.SshProfileStore
 import com.zerotoship.z2term.service.ExitReasons
 import com.zerotoship.z2term.service.NetGuard
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
@@ -1039,7 +1042,60 @@ class TerminalSession(
         }
         _uiState.update { UiState() }
         _scrollOffset.value = 0
-        startSsh(profile)
+        if (profile.isSerial) startSerial(profile) else startSsh(profile)
+    }
+
+    /**
+     * USB シリアルのタブを開く (1.0.201)。
+     *
+     * ⚠ SSH と違い**繋がっていなくても RUNNING にする**。機器が挿されていない・許可待ち・抜けた
+     * の間もタブは生きていて、挿されたら繋がる ([SerialChannel])。状態は 1 行ずつ画面に出す。
+     * 初期化コマンドは送らない — 繋がる時刻が決まらず、相手が何かも分からないため。
+     */
+    private fun startSerial(profile: SshProfile) {
+        if (_uiState.value.state != TerminalState.IDLE) return
+        val store = SshProfileStore(appContext)
+        val ch = SerialChannel(
+            context = appContext,
+            initial = profile.serial,
+            onEvent = { event -> writeBanner(serialBanner(event)) },
+            onLearned = { learned ->
+                // 覚えた機器を接続先へ書き戻す。⚠ 読み直してから書く — タブを開いた後に
+                // 接続先が編集されていたら、その変更を古い写しで消さない。
+                scope.launch(Dispatchers.IO) {
+                    runCatching {
+                        val current = store.profiles.first().firstOrNull { it.id == profile.id }
+                            ?: return@runCatching
+                        store.upsert(current.copy(serial = learned))
+                    }
+                }
+            },
+        )
+        channel = ch
+        _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "serial") }
+        if (!labelPinned) _label.value = "serial:${profile.name.ifEmpty { profile.serial.describe() }}"
+        startReadLoop(ch)
+        ch.start()
+    }
+
+    private fun serialBanner(event: SerialChannel.Event): String = when (event) {
+        SerialChannel.Event.Waiting -> appContext.getString(R.string.banner_serial_waiting)
+        is SerialChannel.Event.Ambiguous -> appContext.getString(R.string.banner_serial_ambiguous, event.count)
+        SerialChannel.Event.PermissionAsked -> appContext.getString(R.string.banner_serial_permission)
+        SerialChannel.Event.PermissionDenied -> appContext.getString(R.string.banner_serial_denied)
+        is SerialChannel.Event.Connected ->
+            appContext.getString(R.string.banner_serial_connected, event.device, event.settings)
+        is SerialChannel.Event.FlowUnsupported -> appContext.getString(
+            R.string.banner_serial_flow_unsupported,
+            when (event.flow) {
+                SerialFlow.NONE -> "-"
+                SerialFlow.RTS_CTS -> "RTS/CTS"
+                SerialFlow.DTR_DSR -> "DTR/DSR"
+                SerialFlow.XON_XOFF -> "XON/XOFF"
+            },
+        )
+        SerialChannel.Event.Lost -> appContext.getString(R.string.banner_serial_lost)
+        is SerialChannel.Event.OpenFailed -> appContext.getString(R.string.banner_serial_failed, event.message)
     }
 
     private fun startReadLoop(ch: ProcessChannel) {

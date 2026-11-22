@@ -1479,4 +1479,33 @@ Fonts: %14$d</string>
     <string name="ui_bridge_end">End the AI\'s task</string>
     <string name="settings_ime_next_word">Predictive input</string>
     <string name="settings_ime_next_word_desc">Shows longer words and set phrases while you type; Convert then shows only exact matches. After you confirm, shows the next word or set phrases. While the Japanese keyboard is open, the candidate bar keeps its space so the terminal does not move. Off: candidates appear only while typing.</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 Serial: waiting for the USB device. Plug it in to connect.</string>
+    <string name="banner_serial_ambiguous">⚠ Serial: %1$d devices match, so z2term cannot tell which one to use. Unplug the others.</string>
+    <string name="banner_serial_permission">🔌 Serial: allow USB access on the Android prompt.</string>
+    <string name="banner_serial_denied">⚠ Serial: USB access was not allowed. Replug the cable to be asked again.</string>
+    <string name="banner_serial_connected">✓ Serial connected: %1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ Serial: this chip does not support %1$s flow control. Continuing without flow control.</string>
+    <string name="banner_serial_lost">⚠ Serial: the cable was unplugged. Plug the same device back in to reconnect.</string>
+    <string name="banner_serial_failed">✗ Serial: could not open the device: %1$s</string>
+    <string name="serial_pick_title">Which device?</string>
+    <string name="serial_kind">Serial</string>
+    <string name="serial_field_baud">Speed (baud)</string>
+    <string name="serial_details_show">Details</string>
+    <string name="serial_details_hide">Hide details</string>
+    <string name="serial_field_data_bits">Data bits</string>
+    <string name="serial_field_parity">Parity</string>
+    <string name="serial_parity_none">None</string>
+    <string name="serial_parity_odd">Odd</string>
+    <string name="serial_parity_even">Even</string>
+    <string name="serial_parity_mark">Mark</string>
+    <string name="serial_parity_space">Space</string>
+    <string name="serial_field_stop_bits">Stop bits</string>
+    <string name="serial_field_flow">Flow control</string>
+    <string name="serial_flow_none">None</string>
+    <string name="serial_device_remembered">Device: %1$s</string>
+    <string name="serial_device_none">Device: not remembered yet (the first one you connect is remembered)</string>
+    <string name="serial_device_forget">Forget</string>
+    <string name="oss_purpose_usb_serial">USB serial connections (USB-to-serial chips and CDC-ACM boards)</string>
 </resources>

@@ -14,6 +14,8 @@ class UsbPermissionReceiver : BroadcastReceiver() {
         val device = intent.usbDeviceExtra()
         val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
         Log.i(TAG, "permission ${if (granted) "granted" else "denied"}: ${device?.deviceName}")
+        // シリアルのタブは「許可が出たら繋ぐ・断られたら知らせる」ので、結果を待っている。
+        listeners.forEach { runCatching { it(device, granted) } }
     }
 
     @Suppress("DEPRECATION")
@@ -26,5 +28,8 @@ class UsbPermissionReceiver : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "UsbPermission"
+
+        /** 許可画面の結果を待つもの (シリアルのタブ)。待つ側が閉じるときに外す。 */
+        val listeners = java.util.concurrent.CopyOnWriteArraySet<(UsbDevice?, Boolean) -> Unit>()
     }
 }

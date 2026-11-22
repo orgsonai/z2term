@@ -301,6 +301,7 @@ z2root をソースからビルドし、rootfs は APK に同梱せず実行時�
 | ネイティブ | C++ (forkpty JNI) | NDK r27c (27.2.12479018、1.0.81 で固定)、CMake 3.22.1、`c++_shared`、android-29 |
 | 永続化 | DataStore Preferences | 1.1.2 (設定 / SSH プロファイル) |
 | SSH クライアント | JSch (mwiede fork) | 0.2.26 (+ BouncyCastle 1.84 で ed25519/curve25519 を有効化) |
+| USB シリアル | usb-serial-for-android (mik3y・JitPack) | 3.12.0 |
 | 解凍 | org.tukaani:xz | 1.10 (DL distro の `.tar.xz`)。gzip は JDK 標準 |
 | Linux 実行 | z2root | `app/src/main/cpp/z2root`から全flavorでビルド |
 | Linux OS | Alpine / Ubuntu / Arch / Kali | APK非同梱。公式配布物を実行時取得 |
@@ -2310,6 +2311,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - `ProcessChannel` (interface): `reader`/`writer`/`isAlive`/`exitCode`/`resize`/`close`。
 - `LocalPtyChannel`: PtyProcess をラップ (ローカル proot)。
 - `SshChannel`: JSch でリモート接続。`shell` チャネル + ポート転送、host key 検証 (`KnownHosts`/`HostKeyVerificationDialog`)、鍵は Keystore で暗号化 (`KeystoreCrypt`)。**繋ぐ前に keepalive を入れる**（15 秒ごと・3 回応答が無ければ切断、1.0.174）。それまで SSH タブには無く、モバイル回線の共有出口 (CGNAT) や途中のルーターが黙っている接続を捨て、放置したタブが切れていた。
+- `SerialChannel`（1.0.201）: USB シリアル。usb-serial-for-android 3.12.0（MIT・JitPack 配布。`settings.gradle.kts` で取得先を `com.github.mik3y` に限定）で口を開き、`SerialInputOutputManager` で読む。接続先の種類 `ConnectionProtocol.SERIAL` で、設定は `SshProfile.serial`（`SerialConfig`: 速さ・データビット・パリティ・ストップビット・フロー制御・覚えた機器の VID/PID/個体番号/口の番号）。**タブの寿命とケーブルの寿命を分ける**: 抜いてもチャネルは生き（`isAlive` は `close()` まで true）、`ACTION_USB_DEVICE_DETACHED` で口だけ閉じる。`ACTION_USB_DEVICE_ATTACHED` で同じ機器が戻ったら `UsbHostAccess.requestPermission` で許可画面を出し、`UsbPermissionReceiver.listeners` で結果を受けて開き直す（Android は抜いた時点で許可を取り消すため毎回出る）。抜き差し・許可・読み取り失敗は別スレッドから来るので、状態の変化は 1 本の `serial-ctl` スレッドで順に処理する。状態は `Event` で `TerminalSession` へ渡し、1 行のバナーにする。抜けている間の入力は捨てる（挿し直したときに古い入力を流さない）。機器の選び方は `SerialDevices.pick`: 覚えていなければ挿してある口が 1 つのときだけそれを使い、2 つ以上なら接続先の一覧で選ばせる。覚えていれば VID/PID/口の番号で絞り、同じものが複数なら許可済みの機器の個体番号で見分ける（個体番号は許可が出るまで読めない）。初めて繋いだ機器と、後から読めた個体番号は接続先へ書き戻す（書く前に読み直し、タブを開いた後の編集を消さない）。`resize` は何もしない（シリアルに画面の大きさを伝える仕組みは無い）。初期化コマンドは送らない。⚠ 1.0.200 以前は `SERIAL` を読めず SSH として読む
 - `SshSessionFactory` / `SshLink`: 認証・known_hosts・踏み台をまとめて 1 本の経路にする入口。**シェル・SFTP・サービス経路・常駐トンネルはすべてここを通る**（通信量の上限もこの 1 か所で見る）。`SshLink` は経路まるごとを持ち、`close()` で**奥から順に**畳む（手前を先に切ると奥のセッションが宙に浮く）。
 - `SshHop` / `JumpProxy`: 踏み台（`ssh -J`）。詳細は §6.3 の「踏み台」。
 - `PortForwarding`: `-L` / `-R` / `-D` を実際に張る 1 か所。`SshChannel` と `TunnelManager` が共有する。`-D` の待ち受けは `SocksProxy` が持ち、`SshLink` に預けて経路と一緒に畳む。

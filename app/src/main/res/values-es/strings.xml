@@ -1393,4 +1393,33 @@ Fuentes: %14$d</string>
     <string name="ui_bridge_end">Terminar la tarea de la IA</string>
     <string name="settings_ime_next_word">Texto predictivo</string>
     <string name="settings_ime_next_word_desc">Muestra palabras más largas y frases hechas mientras escribes; Convertir muestra solo coincidencias exactas. Tras confirmar, muestra la siguiente palabra o frases hechas. Con el teclado japonés abierto, la barra de candidatos conserva su espacio para que el terminal no se mueva. Desactivado: los candidatos solo aparecen al escribir.</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 Serie: esperando el dispositivo USB. Conéctalo para enlazar.</string>
+    <string name="banner_serial_ambiguous">⚠ Serie: coinciden %1$d dispositivos y z2term no sabe cuál usar. Desconecta los demás.</string>
+    <string name="banner_serial_permission">🔌 Serie: permite el acceso USB en el aviso de Android.</string>
+    <string name="banner_serial_denied">⚠ Serie: no se permitió el acceso USB. Vuelve a conectar el cable para que se pregunte otra vez.</string>
+    <string name="banner_serial_connected">✓ Serie conectado: %1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ Serie: este chip no admite el control de flujo %1$s. Se continúa sin control de flujo.</string>
+    <string name="banner_serial_lost">⚠ Serie: se desconectó el cable. Vuelve a conectar el mismo dispositivo para reconectar.</string>
+    <string name="banner_serial_failed">✗ Serie: no se pudo abrir el dispositivo: %1$s</string>
+    <string name="serial_pick_title">¿Qué dispositivo?</string>
+    <string name="serial_kind">Serie</string>
+    <string name="serial_field_baud">Velocidad (baudios)</string>
+    <string name="serial_details_show">Detalles</string>
+    <string name="serial_details_hide">Ocultar detalles</string>
+    <string name="serial_field_data_bits">Bits de datos</string>
+    <string name="serial_field_parity">Paridad</string>
+    <string name="serial_parity_none">Ninguna</string>
+    <string name="serial_parity_odd">Impar</string>
+    <string name="serial_parity_even">Par</string>
+    <string name="serial_parity_mark">Marca</string>
+    <string name="serial_parity_space">Espacio</string>
+    <string name="serial_field_stop_bits">Bits de parada</string>
+    <string name="serial_field_flow">Control de flujo</string>
+    <string name="serial_flow_none">Ninguno</string>
+    <string name="serial_device_remembered">Dispositivo: %1$s</string>
+    <string name="serial_device_none">Dispositivo: aún no recordado (se recuerda el primero que conectes)</string>
+    <string name="serial_device_forget">Olvidar</string>
+    <string name="oss_purpose_usb_serial">Conexiones serie USB (chips USB-serie y placas CDC-ACM)</string>
 </resources>

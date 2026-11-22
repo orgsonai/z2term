@@ -1459,4 +1459,33 @@ SSH 接続先 %3$d 件
     <string name="ui_bridge_end">AI の作業を終える</string>
     <string name="settings_ime_next_word">予測変換</string>
     <string name="settings_ime_next_word_desc">打っている途中に、続きの長い語や定型文を出します。「変換」を押すと、読みにぴったり合う語だけになります。確定した後は、次の言葉や定型文を出します。日本語の面を開いている間は候補バーの場所を空けておくので、端末の表示が上下しません。オフなら、候補は打っている間だけ出ます。</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 シリアル: USB 機器を待っています。挿すとつながります。</string>
+    <string name="banner_serial_ambiguous">⚠ シリアル: 当てはまる機器が %1$d 台あり、どれを使うか決められません。ほかの機器を抜いてください。</string>
+    <string name="banner_serial_permission">🔌 シリアル: Android の画面で USB の使用を許可してください。</string>
+    <string name="banner_serial_denied">⚠ シリアル: USB の使用が許可されませんでした。挿し直すともう一度聞きます。</string>
+    <string name="banner_serial_connected">✓ シリアル接続: %1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ シリアル: このチップは %1$s のフロー制御に対応していません。フロー制御なしで続けます。</string>
+    <string name="banner_serial_lost">⚠ シリアル: ケーブルが抜かれました。同じ機器を挿し直すとつなぎ直します。</string>
+    <string name="banner_serial_failed">✗ シリアル: 機器を開けませんでした: %1$s</string>
+    <string name="serial_pick_title">どの機器を使いますか？</string>
+    <string name="serial_kind">シリアル</string>
+    <string name="serial_field_baud">速さ (bps)</string>
+    <string name="serial_details_show">詳細</string>
+    <string name="serial_details_hide">詳細を閉じる</string>
+    <string name="serial_field_data_bits">データビット</string>
+    <string name="serial_field_parity">パリティ</string>
+    <string name="serial_parity_none">なし</string>
+    <string name="serial_parity_odd">奇数</string>
+    <string name="serial_parity_even">偶数</string>
+    <string name="serial_parity_mark">マーク</string>
+    <string name="serial_parity_space">スペース</string>
+    <string name="serial_field_stop_bits">ストップビット</string>
+    <string name="serial_field_flow">フロー制御</string>
+    <string name="serial_flow_none">なし</string>
+    <string name="serial_device_remembered">機器: %1$s</string>
+    <string name="serial_device_none">機器: まだ覚えていません (最初につないだ機器を覚えます)</string>
+    <string name="serial_device_forget">忘れる</string>
+    <string name="oss_purpose_usb_serial">USB シリアル接続 (USB シリアル変換チップと CDC-ACM のボード)</string>
 </resources>

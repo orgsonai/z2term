@@ -432,6 +432,24 @@ In the SFTP / FTP / SMB / WebDAV file screen, both Android Back and the top-left
 
 **The same screen can also show the files on this device** (0.8.474). The tabs at the top switch between "Server" and "This device". Start by picking one folder on the device with "Choose a folder". **That choice is remembered, so uploads no longer send you out to the system file picker every time.** You can send a single file or a whole folder. Tap a name to look inside text files and images right there (files that are too large, and other kinds of files, do not open).
 
+### Connect over USB serial (1.0.201, experimental)
+
+**Talk to a microcontroller board, the management port of a router or switch, or a board's UART over a USB cable.** No Linux distro is needed.
+
+1. Tap **New** in the connection list and choose **Serial** at the top.
+2. Enter a name and a speed, then save. The default speed is **115200**. Common speeds such as 9600 have buttons, and you can type any other number.
+3. Plug in the cable and tap **Connect**. A new tab opens and Android asks whether to allow USB access. Allow it.
+
+- **Supported chips**: CDC-ACM (some Arduino boards, Raspberry Pi Pico, CH343, CH9102, …), FTDI, CP210x, CH340 / CH341, PL2303.
+- **The other settings are under Details** (data bits, parity, stop bits, flow control). The default is **8N1, no flow control**, which most devices accept as is. If the chip does not support the flow control you chose, the tab says so and carries on without flow control.
+- **The connection remembers the device.** The first device you connect (its chip type and serial number) is saved, so with two or more cables plugged in you are not asked again. You are asked which one to use only when the connection has not remembered a device yet and two or more are plugged in. **Forget** in the editor clears it.
+- **Unplugging the cable keeps the tab open.** What is on screen stays, and the tab says the cable was unplugged. Plug the same device back in and Android asks for permission again; allow it and the tab reconnects (Android revokes USB permission on unplug, so it asks every time). What you type while it is unplugged is not sent.
+- **You can open the tab before plugging in.** It says it is waiting for the USB device and connects once you plug it in.
+- ⚠ Serial has no way to pass the screen size. If the other side wraps at the wrong width, set it there, for example `stty cols 100 rows 30`.
+- ⚠ While the same device is handed to Linux with `z2-usb allow`, the serial tab may fail to open it.
+- ⚠ **The cable decides what you can connect to.** Board pins need a **USB-TTL adapter** (3.3 V or 5 V, matching the board), an RS-232 port on a router needs a **USB-RS232 adapter** or its console cable, and a microcontroller board needs **one USB cable**. The app cannot change this.
+- 💡 With no device at hand, **join TX and RX of a USB-TTL adapter with one jumper wire**. If what you type comes straight back, it works.
+
 ### Open a remote machine's screen (VNC, 0.8.418)
 
 Every SSH host in 📜 → **Connections** has a **[VNC]** button. It opens **that server's desktop in a new

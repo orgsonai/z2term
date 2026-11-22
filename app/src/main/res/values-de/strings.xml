@@ -1380,4 +1380,33 @@ Schriften: %14$d</string>
     <string name="ui_bridge_end">KI-Aufgabe beenden</string>
     <string name="settings_ime_next_word">Wortvorhersage</string>
     <string name="settings_ime_next_word_desc">Zeigt beim Tippen längere Wörter und feste Wendungen; „Umwandeln“ zeigt dann nur genaue Treffer. Nach dem Bestätigen erscheinen das nächste Wort oder feste Wendungen. Solange die japanische Tastatur offen ist, bleibt der Platz der Kandidatenleiste frei, damit sich das Terminal nicht verschiebt. Aus: Kandidaten nur beim Tippen.</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 Seriell: Warte auf das USB-Gerät. Zum Verbinden einstecken.</string>
+    <string name="banner_serial_ambiguous">⚠ Seriell: %1$d Geräte passen, z2term kann nicht entscheiden, welches verwendet wird. Ziehe die anderen ab.</string>
+    <string name="banner_serial_permission">🔌 Seriell: Erlaube den USB-Zugriff in der Android-Abfrage.</string>
+    <string name="banner_serial_denied">⚠ Seriell: USB-Zugriff wurde nicht erlaubt. Kabel neu einstecken, um erneut gefragt zu werden.</string>
+    <string name="banner_serial_connected">✓ Seriell verbunden: %1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ Seriell: Dieser Chip unterstützt keine %1$s-Flusssteuerung. Weiter ohne Flusssteuerung.</string>
+    <string name="banner_serial_lost">⚠ Seriell: Das Kabel wurde abgezogen. Dasselbe Gerät wieder einstecken, um neu zu verbinden.</string>
+    <string name="banner_serial_failed">✗ Seriell: Gerät konnte nicht geöffnet werden: %1$s</string>
+    <string name="serial_pick_title">Welches Gerät?</string>
+    <string name="serial_kind">Seriell</string>
+    <string name="serial_field_baud">Geschwindigkeit (Baud)</string>
+    <string name="serial_details_show">Details</string>
+    <string name="serial_details_hide">Details ausblenden</string>
+    <string name="serial_field_data_bits">Datenbits</string>
+    <string name="serial_field_parity">Parität</string>
+    <string name="serial_parity_none">Keine</string>
+    <string name="serial_parity_odd">Ungerade</string>
+    <string name="serial_parity_even">Gerade</string>
+    <string name="serial_parity_mark">Mark</string>
+    <string name="serial_parity_space">Space</string>
+    <string name="serial_field_stop_bits">Stoppbits</string>
+    <string name="serial_field_flow">Flusssteuerung</string>
+    <string name="serial_flow_none">Keine</string>
+    <string name="serial_device_remembered">Gerät: %1$s</string>
+    <string name="serial_device_none">Gerät: noch nicht gemerkt (das erste verbundene wird gemerkt)</string>
+    <string name="serial_device_forget">Vergessen</string>
+    <string name="oss_purpose_usb_serial">Serielle USB-Verbindungen (USB-Seriell-Chips und CDC-ACM-Boards)</string>
 </resources>

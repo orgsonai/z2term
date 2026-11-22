@@ -55,6 +55,12 @@ import com.zerotoship.z2term.channel.ForwardKind
 import com.zerotoship.z2term.channel.PortForward
 import com.zerotoship.z2term.channel.RemoteService
 import com.zerotoship.z2term.channel.RemoteServiceProtocol
+import com.zerotoship.z2term.channel.SerialConfig
+import com.zerotoship.z2term.channel.SerialFlow
+import com.zerotoship.z2term.channel.SerialParity
+import com.zerotoship.z2term.channel.SerialStopBits
+import com.zerotoship.z2term.usb.SerialDevices
+import android.hardware.usb.UsbManager
 import com.zerotoship.z2term.channel.SshHop
 import com.zerotoship.z2term.channel.SshKeyGen
 import com.zerotoship.z2term.channel.SshProfile
@@ -108,6 +114,15 @@ fun SshProfilesBody(
     // 「削除」は「編集」の隣にあり、押し間違えると接続先が鍵ごと消える (0.8.452)。
     // ⚠ **CLI (z2-ssh) からの削除には確認を挟まない** — 打った時点で明示的なので。
     var pendingDelete by remember { mutableStateOf<SshProfile?>(null) }
+    // シリアル: 機器をまだ覚えていない接続先で 2 本以上挿してあるときだけ、どれを使うか聞く。
+    // 1 本ならそのまま繋ぎ、繋がった機器をタブが覚える ([SerialChannel])。
+    var serialPick by remember { mutableStateOf<Pair<SshProfile, List<SerialDevices.Candidate>>?>(null) }
+    val connect: (SshProfile) -> Unit = { p ->
+        val candidates = if (p.isSerial && !p.serial.hasDevice) {
+            SerialDevices.candidates(context.getSystemService(UsbManager::class.java))
+        } else emptyList()
+        if (candidates.size > 1) serialPick = p to candidates else onConnect(p)
+    }
 
     // 常駐トンネル (A2) が張れているかは、ここに出さないと**どこにも出ない**。⏻ の印だけでは
     // 「設定が ON」しか分からず、0.8.367 で LAN 到達性の担保になった以上それでは足りない。
@@ -139,7 +154,7 @@ fun SshProfilesBody(
                     ProfileRow(
                         profile = p,
                         tunnel = tunnelStatuses.firstOrNull { it.profileId == p.id },
-                        onConnect = { onConnect(p) },
+                        onConnect = { connect(p) },
                         onSftp = { onSftp(p) },
                         onService = { service -> onService(p, service) },
                         onEdit = { editing = p },
@@ -171,6 +186,47 @@ fun SshProfilesBody(
                 onCancel = { editing = null }
             )
         }
+    }
+
+    serialPick?.let { (profile, candidates) ->
+        AlertDialog(
+            onDismissRequest = { serialPick = null },
+            title = { Text(stringResource(R.string.serial_pick_title)) },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    candidates.forEach { candidate ->
+                        Text(
+                            text = candidate.label(),
+                            color = ZtsTextPrimary,
+                            fontSize = 13.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
+                                .clickable {
+                                    serialPick = null
+                                    val chosen = profile.copy(serial = candidate.remember(profile.serial))
+                                    scope.launch {
+                                        store.upsert(chosen)
+                                        onConnect(chosen)
+                                    }
+                                }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { serialPick = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
     }
 
     pendingDelete?.let { target ->
@@ -319,6 +375,9 @@ private fun ProfileRow(
                 profile.services.forEach { service ->
                     SmallButton(label = service.label, onClick = { onService(service) })
                 }
+            } else if (profile.isSerial) {
+                // シリアルにはファイルの口もサービスも無い。接続だけ。
+                SmallButton(label = stringResource(R.string.ssh_action_connect), accent = true, onClick = onConnect)
             } else {
                 SmallButton(label = profile.fileProtocolLabel, accent = true, onClick = onSftp)
             }
@@ -393,6 +452,10 @@ private fun EditForm(
     var forwards by remember(initial.id) { mutableStateOf(initial.forwards) }
     var jumpHosts by remember(initial.id) { mutableStateOf(initial.jumpHosts) }
     var resident by remember(initial.id) { mutableStateOf(initial.residentTunnel) }
+    var serialCfg by remember(initial.id) { mutableStateOf(initial.serial) }
+    var baudText by remember(initial.id) { mutableStateOf(initial.serial.baudRate.toString()) }
+    // 種類を選べるのは新規作成のときだけ (保存済みの SSH をシリアルへ変えると、鍵や転送が消える)。
+    val isNew = initial.name.isEmpty() && initial.host.isEmpty() && !initial.serial.hasDevice
 
     Text(
         text = if (initial.name.isEmpty() && initial.host.isEmpty())
@@ -406,8 +469,22 @@ private fun EditForm(
     )
 
     Field(label = stringResource(R.string.ssh_field_name), value = name, onChange = { name = it }, placeholder = "my-server")
-    // 新規登録は SSH だけ。0.8.438 で作成済みの直接 WebDAV/SMB は編集互換のため残す。
-    if (protocol != ConnectionProtocol.SSH) {
+    if (isNew && (protocol == ConnectionProtocol.SSH || protocol == ConnectionProtocol.SERIAL)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            AuthChip(
+                label = "SSH",
+                selected = protocol == ConnectionProtocol.SSH,
+                onSelect = { protocol = ConnectionProtocol.SSH },
+            )
+            AuthChip(
+                label = stringResource(R.string.serial_kind),
+                selected = protocol == ConnectionProtocol.SERIAL,
+                onSelect = { protocol = ConnectionProtocol.SERIAL },
+            )
+        }
+    }
+    // 新規登録は SSH とシリアルだけ。0.8.438 で作成済みの直接 WebDAV/SMB は編集互換のため残す。
+    if (protocol == ConnectionProtocol.WEBDAV || protocol == ConnectionProtocol.SMB) {
         Text(
             text = stringResource(R.string.connection_legacy_direct),
             color = ZtsTextSecondary,
@@ -613,6 +690,15 @@ private fun EditForm(
                 visibilityKey = "${initial.id}:smb-password",
             )
         }
+
+        ConnectionProtocol.SERIAL -> {
+            SerialSection(
+                config = serialCfg,
+                baudText = baudText,
+                onBaudText = { baudText = it.filter { ch -> ch.isDigit() }.take(8) },
+                onChange = { serialCfg = it },
+            )
+        }
     }
 
     // やめる / 保存はシート下端に固定する (1.0.79)。
@@ -631,6 +717,24 @@ private fun EditForm(
                         ConnectionProtocol.SSH -> 22
                         ConnectionProtocol.WEBDAV -> 443
                         ConnectionProtocol.SMB -> 445
+                        ConnectionProtocol.SERIAL -> 22
+                    }
+                    if (protocol == ConnectionProtocol.SERIAL) {
+                        // シリアルは名前と通信設定だけ。ネットワークの欄は持ち越さない。
+                        onSave(
+                            SshProfile(
+                                id = initial.id,
+                                name = name,
+                                protocol = ConnectionProtocol.SERIAL,
+                                host = "",
+                                user = "",
+                                serial = serialCfg.copy(
+                                    baudRate = baudText.toIntOrNull()?.takeIf { it > 0 }
+                                        ?: SerialConfig.DEFAULT_BAUD,
+                                ),
+                            )
+                        )
+                        return@SmallButton
                     }
                     val portNum = port.toIntOrNull()?.coerceIn(1, 65535) ?: defaultPort
                     val ssh = protocol == ConnectionProtocol.SSH
@@ -1768,6 +1872,143 @@ private fun Field(
                     onClick = { secretVisible = !secretVisible },
                 )
             }
+        }
+    }
+}
+
+/**
+ * シリアルの設定欄。見せるのは速さだけで、データビット・パリティ・ストップビット・フロー制御は
+ * 「詳細」に畳む (既定の 8N1・フロー制御なしで足りる機器がほとんどのため)。
+ */
+@Composable
+private fun SerialSection(
+    config: SerialConfig,
+    baudText: String,
+    onBaudText: (String) -> Unit,
+    onChange: (SerialConfig) -> Unit,
+) {
+    // 既定から変えている項目があれば、最初から開いておく (畳んだ中に変更が隠れないように)。
+    val customized = config.dataBits != 8 || config.parity != SerialParity.NONE ||
+        config.stopBits != SerialStopBits.ONE || config.flow != SerialFlow.NONE
+    var detailsOpen by remember { mutableStateOf(customized) }
+
+    Field(
+        label = stringResource(R.string.serial_field_baud),
+        value = baudText,
+        onChange = onBaudText,
+        placeholder = SerialConfig.DEFAULT_BAUD.toString(),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        SerialConfig.COMMON_BAUDS.forEach { baud ->
+            AuthChip(
+                label = baud.toString(),
+                selected = baudText == baud.toString(),
+                onSelect = { onBaudText(baud.toString()) },
+            )
+        }
+    }
+
+    SmallButton(
+        label = stringResource(if (detailsOpen) R.string.serial_details_hide else R.string.serial_details_show),
+        onClick = { detailsOpen = !detailsOpen },
+    )
+    if (detailsOpen) {
+        SerialChoiceRow(
+            title = stringResource(R.string.serial_field_data_bits),
+            options = SerialConfig.DATA_BITS,
+            selected = config.dataBits,
+            label = { it.toString() },
+            onSelect = { onChange(config.copy(dataBits = it)) },
+        )
+        SerialChoiceRow(
+            title = stringResource(R.string.serial_field_parity),
+            options = SerialParity.entries,
+            selected = config.parity,
+            label = {
+                when (it) {
+                    SerialParity.NONE -> stringResource(R.string.serial_parity_none)
+                    SerialParity.ODD -> stringResource(R.string.serial_parity_odd)
+                    SerialParity.EVEN -> stringResource(R.string.serial_parity_even)
+                    SerialParity.MARK -> stringResource(R.string.serial_parity_mark)
+                    SerialParity.SPACE -> stringResource(R.string.serial_parity_space)
+                }
+            },
+            onSelect = { onChange(config.copy(parity = it)) },
+        )
+        SerialChoiceRow(
+            title = stringResource(R.string.serial_field_stop_bits),
+            options = SerialStopBits.entries,
+            selected = config.stopBits,
+            label = { it.label },
+            onSelect = { onChange(config.copy(stopBits = it)) },
+        )
+        SerialChoiceRow(
+            title = stringResource(R.string.serial_field_flow),
+            options = SerialFlow.entries,
+            selected = config.flow,
+            label = {
+                when (it) {
+                    SerialFlow.NONE -> stringResource(R.string.serial_flow_none)
+                    SerialFlow.RTS_CTS -> "RTS/CTS"
+                    SerialFlow.DTR_DSR -> "DTR/DSR"
+                    SerialFlow.XON_XOFF -> "XON/XOFF"
+                }
+            },
+            onSelect = { onChange(config.copy(flow = it)) },
+        )
+    }
+
+    // 覚えている機器。忘れると、次に繋いだときに挿してある機器を覚え直す。
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = if (config.hasDevice) {
+                stringResource(R.string.serial_device_remembered, config.deviceLabel())
+            } else {
+                stringResource(R.string.serial_device_none)
+            },
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.weight(1f),
+        )
+        if (config.hasDevice) {
+            SmallButton(
+                label = stringResource(R.string.serial_device_forget),
+                onClick = {
+                    onChange(config.copy(vendorId = 0, productId = 0, serialNumber = "", portIndex = 0))
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun <T> SerialChoiceRow(
+    title: String,
+    options: List<T>,
+    selected: T,
+    label: @Composable (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    Text(
+        text = title,
+        color = ZtsTextSecondary,
+        fontSize = 12.sp,
+        fontFamily = FontFamily.Monospace,
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        options.forEach { option ->
+            AuthChip(label = label(option), selected = option == selected, onSelect = { onSelect(option) })
         }
     }
 }

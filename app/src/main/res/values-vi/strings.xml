@@ -1369,4 +1369,33 @@ Phông chữ: %14$d</string>
     <string name="ui_bridge_end">Kết thúc tác vụ của AI</string>
     <string name="settings_ime_next_word">Nhập dự đoán</string>
     <string name="settings_ime_next_word_desc">Hiển thị từ dài hơn và cụm từ cố định khi gõ; nhấn Chuyển đổi thì chỉ còn từ khớp chính xác. Sau khi xác nhận, hiển thị từ tiếp theo hoặc cụm từ cố định. Khi bàn phím tiếng Nhật đang mở, chỗ của thanh gợi ý luôn được giữ để terminal không bị dịch lên xuống. Tắt: gợi ý chỉ hiện khi đang gõ.</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 Nối tiếp: đang chờ thiết bị USB. Cắm vào để kết nối.</string>
+    <string name="banner_serial_ambiguous">⚠ Nối tiếp: có %1$d thiết bị khớp nên z2term không biết dùng cái nào. Hãy rút các thiết bị khác.</string>
+    <string name="banner_serial_permission">🔌 Nối tiếp: hãy cho phép truy cập USB trong hộp thoại của Android.</string>
+    <string name="banner_serial_denied">⚠ Nối tiếp: truy cập USB không được cho phép. Cắm lại cáp để được hỏi lại.</string>
+    <string name="banner_serial_connected">✓ Đã kết nối nối tiếp: %1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ Nối tiếp: chip này không hỗ trợ điều khiển luồng %1$s. Tiếp tục mà không điều khiển luồng.</string>
+    <string name="banner_serial_lost">⚠ Nối tiếp: cáp đã bị rút. Cắm lại đúng thiết bị đó để kết nối lại.</string>
+    <string name="banner_serial_failed">✗ Nối tiếp: không mở được thiết bị: %1$s</string>
+    <string name="serial_pick_title">Dùng thiết bị nào?</string>
+    <string name="serial_kind">Nối tiếp</string>
+    <string name="serial_field_baud">Tốc độ (baud)</string>
+    <string name="serial_details_show">Chi tiết</string>
+    <string name="serial_details_hide">Ẩn chi tiết</string>
+    <string name="serial_field_data_bits">Bit dữ liệu</string>
+    <string name="serial_field_parity">Chẵn lẻ</string>
+    <string name="serial_parity_none">Không</string>
+    <string name="serial_parity_odd">Lẻ</string>
+    <string name="serial_parity_even">Chẵn</string>
+    <string name="serial_parity_mark">Mark</string>
+    <string name="serial_parity_space">Space</string>
+    <string name="serial_field_stop_bits">Bit dừng</string>
+    <string name="serial_field_flow">Điều khiển luồng</string>
+    <string name="serial_flow_none">Không</string>
+    <string name="serial_device_remembered">Thiết bị: %1$s</string>
+    <string name="serial_device_none">Thiết bị: chưa ghi nhớ (thiết bị kết nối đầu tiên sẽ được ghi nhớ)</string>
+    <string name="serial_device_forget">Quên</string>
+    <string name="oss_purpose_usb_serial">Kết nối nối tiếp qua USB (chip USB-nối tiếp và bo mạch CDC-ACM)</string>
 </resources>

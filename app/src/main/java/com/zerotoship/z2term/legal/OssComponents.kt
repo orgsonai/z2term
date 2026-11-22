@@ -113,6 +113,14 @@ object OssComponents {
             licenseAsset = "jBCrypt-ISC",
         ),
         OssComponent(
+            name = "usb-serial-for-android 3.12.0",
+            licenseId = "MIT",
+            copyright = "Copyright (c) 2011-2013 Google Inc.; Copyright (c) 2013 Mike Wakerly",
+            sourceUrl = "https://github.com/mik3y/usb-serial-for-android/tree/3.12.0",
+            purposeRes = R.string.oss_purpose_usb_serial,
+            licenseAsset = "usb-serial-for-android-MIT",
+        ),
+        OssComponent(
             name = "OkHttp 5.3.0",
             licenseId = "Apache-2.0",
             copyright = "Copyright (c) Square, Inc. and contributors",

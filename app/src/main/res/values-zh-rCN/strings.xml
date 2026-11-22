@@ -1381,4 +1381,33 @@ SSH 连接目标 %3$d 个
     <string name="ui_bridge_end">结束 AI 的任务</string>
     <string name="settings_ime_next_word">预测输入</string>
     <string name="settings_ime_next_word_desc">输入时显示更长的词和常用语；按“转换”后只显示与读音完全一致的词。确定后显示下一个词或常用语。日文键盘打开期间会一直留出候选栏的位置，终端画面不会上下移动。关闭时，候选只在输入时出现。</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 串口：正在等待 USB 设备。插入即可连接。</string>
+    <string name="banner_serial_ambiguous">⚠ 串口：有 %1$d 个设备符合条件，无法确定使用哪一个。请拔下其他设备。</string>
+    <string name="banner_serial_permission">🔌 串口：请在 Android 提示中允许使用 USB。</string>
+    <string name="banner_serial_denied">⚠ 串口：未允许使用 USB。重新插入线缆后会再次询问。</string>
+    <string name="banner_serial_connected">✓ 串口已连接：%1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ 串口：此芯片不支持 %1$s 流控。将在无流控的情况下继续。</string>
+    <string name="banner_serial_lost">⚠ 串口：线缆已拔出。重新插入同一设备即可重新连接。</string>
+    <string name="banner_serial_failed">✗ 串口：无法打开设备：%1$s</string>
+    <string name="serial_pick_title">使用哪个设备？</string>
+    <string name="serial_kind">串口</string>
+    <string name="serial_field_baud">速率 (波特)</string>
+    <string name="serial_details_show">详细</string>
+    <string name="serial_details_hide">收起详细</string>
+    <string name="serial_field_data_bits">数据位</string>
+    <string name="serial_field_parity">校验位</string>
+    <string name="serial_parity_none">无</string>
+    <string name="serial_parity_odd">奇校验</string>
+    <string name="serial_parity_even">偶校验</string>
+    <string name="serial_parity_mark">标记</string>
+    <string name="serial_parity_space">空格</string>
+    <string name="serial_field_stop_bits">停止位</string>
+    <string name="serial_field_flow">流控</string>
+    <string name="serial_flow_none">无</string>
+    <string name="serial_device_remembered">设备：%1$s</string>
+    <string name="serial_device_none">设备：尚未记住（会记住第一次连接的设备）</string>
+    <string name="serial_device_forget">忘记</string>
+    <string name="oss_purpose_usb_serial">USB 串口连接（USB 转串口芯片和 CDC-ACM 开发板）</string>
 </resources>

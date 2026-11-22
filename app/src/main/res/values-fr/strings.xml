@@ -1390,4 +1390,33 @@ Polices : %14$d</string>
     <string name="ui_bridge_end">Terminer la tâche de l’IA</string>
     <string name="settings_ime_next_word">Saisie prédictive</string>
     <string name="settings_ime_next_word_desc">Affiche des mots plus longs et des formules toutes faites pendant la saisie ; Convertir n’affiche alors que les correspondances exactes. Après validation, affiche le mot suivant ou des formules. Tant que le clavier japonais est ouvert, la barre de candidats garde sa place pour que le terminal ne bouge pas. Désactivé : candidats uniquement pendant la saisie.</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 Série : en attente du périphérique USB. Branchez-le pour vous connecter.</string>
+    <string name="banner_serial_ambiguous">⚠ Série : %1$d périphériques correspondent, z2term ne sait pas lequel utiliser. Débranchez les autres.</string>
+    <string name="banner_serial_permission">🔌 Série : autorisez l\'accès USB dans la demande d\'Android.</string>
+    <string name="banner_serial_denied">⚠ Série : l\'accès USB n\'a pas été autorisé. Rebranchez le câble pour être de nouveau sollicité.</string>
+    <string name="banner_serial_connected">✓ Série connectée : %1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ Série : cette puce ne prend pas en charge le contrôle de flux %1$s. On continue sans contrôle de flux.</string>
+    <string name="banner_serial_lost">⚠ Série : le câble a été débranché. Rebranchez le même périphérique pour vous reconnecter.</string>
+    <string name="banner_serial_failed">✗ Série : impossible d\'ouvrir le périphérique : %1$s</string>
+    <string name="serial_pick_title">Quel périphérique ?</string>
+    <string name="serial_kind">Série</string>
+    <string name="serial_field_baud">Vitesse (bauds)</string>
+    <string name="serial_details_show">Détails</string>
+    <string name="serial_details_hide">Masquer les détails</string>
+    <string name="serial_field_data_bits">Bits de données</string>
+    <string name="serial_field_parity">Parité</string>
+    <string name="serial_parity_none">Aucune</string>
+    <string name="serial_parity_odd">Impaire</string>
+    <string name="serial_parity_even">Paire</string>
+    <string name="serial_parity_mark">Marque</string>
+    <string name="serial_parity_space">Espace</string>
+    <string name="serial_field_stop_bits">Bits d\'arrêt</string>
+    <string name="serial_field_flow">Contrôle de flux</string>
+    <string name="serial_flow_none">Aucun</string>
+    <string name="serial_device_remembered">Périphérique : %1$s</string>
+    <string name="serial_device_none">Périphérique : pas encore mémorisé (le premier connecté sera mémorisé)</string>
+    <string name="serial_device_forget">Oublier</string>
+    <string name="oss_purpose_usb_serial">Connexions série USB (puces USB-série et cartes CDC-ACM)</string>
 </resources>

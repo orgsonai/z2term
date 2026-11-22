@@ -1374,4 +1374,33 @@ SSH 연결: %3$d
     <string name="ui_bridge_end">AI 작업 끝내기</string>
     <string name="settings_ime_next_word">예측 입력</string>
     <string name="settings_ime_next_word_desc">입력하는 도중에 이어지는 긴 단어와 정해진 문구를 보여 줍니다. 「변환」을 누르면 읽기에 딱 맞는 단어만 나옵니다. 확정한 뒤에는 다음 단어나 정해진 문구를 보여 줍니다. 일본어 키보드를 연 동안에는 후보 막대 자리를 비워 두어 터미널 화면이 위아래로 움직이지 않습니다. 끄면 후보는 입력하는 동안에만 나옵니다.</string>
+
+    <!-- USB シリアル (1.0.201) -->
+    <string name="banner_serial_waiting">🔌 시리얼: USB 기기를 기다리는 중입니다. 꽂으면 연결됩니다.</string>
+    <string name="banner_serial_ambiguous">⚠ 시리얼: 해당하는 기기가 %1$d대라서 어느 것을 쓸지 정할 수 없습니다. 다른 기기를 뽑아 주세요.</string>
+    <string name="banner_serial_permission">🔌 시리얼: Android 화면에서 USB 사용을 허용해 주세요.</string>
+    <string name="banner_serial_denied">⚠ 시리얼: USB 사용이 허용되지 않았습니다. 다시 꽂으면 다시 묻습니다.</string>
+    <string name="banner_serial_connected">✓ 시리얼 연결됨: %1$s (%2$s)</string>
+    <string name="banner_serial_flow_unsupported">⚠ 시리얼: 이 칩은 %1$s 흐름 제어를 지원하지 않습니다. 흐름 제어 없이 계속합니다.</string>
+    <string name="banner_serial_lost">⚠ 시리얼: 케이블이 뽑혔습니다. 같은 기기를 다시 꽂으면 다시 연결합니다.</string>
+    <string name="banner_serial_failed">✗ 시리얼: 기기를 열 수 없습니다: %1$s</string>
+    <string name="serial_pick_title">어느 기기를 사용할까요?</string>
+    <string name="serial_kind">시리얼</string>
+    <string name="serial_field_baud">속도 (bps)</string>
+    <string name="serial_details_show">상세</string>
+    <string name="serial_details_hide">상세 닫기</string>
+    <string name="serial_field_data_bits">데이터 비트</string>
+    <string name="serial_field_parity">패리티</string>
+    <string name="serial_parity_none">없음</string>
+    <string name="serial_parity_odd">홀수</string>
+    <string name="serial_parity_even">짝수</string>
+    <string name="serial_parity_mark">마크</string>
+    <string name="serial_parity_space">스페이스</string>
+    <string name="serial_field_stop_bits">정지 비트</string>
+    <string name="serial_field_flow">흐름 제어</string>
+    <string name="serial_flow_none">없음</string>
+    <string name="serial_device_remembered">기기: %1$s</string>
+    <string name="serial_device_none">기기: 아직 기억하지 않음 (처음 연결한 기기를 기억합니다)</string>
+    <string name="serial_device_forget">잊기</string>
+    <string name="oss_purpose_usb_serial">USB 시리얼 연결 (USB 시리얼 변환 칩과 CDC-ACM 보드)</string>
 </resources>

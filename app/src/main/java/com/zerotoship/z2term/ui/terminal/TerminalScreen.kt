@@ -344,7 +344,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     val terminalState by active.uiState.collectAsState()
     LaunchedEffect(active.id, terminalState.state, terminalState.mode) {
         val installed = active.hasAnyDistro()
-        if (installed || terminalState.mode == "ssh") noOsNotice = false
+        if (installed || terminalState.mode == "ssh" || terminalState.mode == "serial") noOsNotice = false
         else if (terminalState.mode == "android-sh") noOsNotice = true
     }
     // OS が 1 つでも入っているか (0.8.339)。**null = まだ判定していない**。

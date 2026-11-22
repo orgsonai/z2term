@@ -110,7 +110,12 @@ data class PortForward(
 enum class ConnectionProtocol {
     SSH,
     WEBDAV,
-    SMB
+    SMB,
+    /**
+     * USB シリアル (1.0.201)。ネットワークを通らず、設定は [SshProfile.serial] に持つ。
+     * ⚠ 1.0.200 までの版はこの値を読めず SSH として読む (ホストが空の SSH 接続先に見える)。
+     */
+    SERIAL,
 }
 
 /**
@@ -313,8 +318,12 @@ data class SshProfile(
     val domain: String = "",
     /** SSH を踏み台にして開く FTP / SMB / WebDAV / VNC。 */
     val services: List<RemoteService> = emptyList(),
+    /** [ConnectionProtocol.SERIAL] のときだけ使う。ほかの種類では既定値のまま。 */
+    val serial: SerialConfig = SerialConfig(),
 ) {
     val hasSsh: Boolean get() = protocol == ConnectionProtocol.SSH
+
+    val isSerial: Boolean get() = protocol == ConnectionProtocol.SERIAL
 
     /** 認証に使う分だけ取り出す ([SshHop.credentials] と同じ形にして経路を 1 本道にする)。 */
     fun credentials(): SshCredentials = SshCredentials(
@@ -332,6 +341,7 @@ data class SshProfile(
         ConnectionProtocol.SSH -> "SFTP"
         ConnectionProtocol.WEBDAV -> "WebDAV"
         ConnectionProtocol.SMB -> "SMB"
+        ConnectionProtocol.SERIAL -> "Serial"
     }
 
     fun endpointDescription(): String = when (protocol) {
@@ -340,6 +350,10 @@ data class SshProfile(
         ConnectionProtocol.SMB -> buildString {
             append("//").append(HostAddress.hostPort(host, port))
             if (remotePath.isNotBlank()) append('/').append(remotePath.trim('/'))
+        }
+        ConnectionProtocol.SERIAL -> buildString {
+            append("USB ").append(serial.describe())
+            serial.deviceLabel().takeIf { it.isNotEmpty() }?.let { append(" · ").append(it) }
         }
     }
 
@@ -382,6 +396,7 @@ data class SshProfile(
         put("services", JSONArray().also { arr ->
             services.forEach { arr.put(it.toJson(encryptSecrets = true)) }
         })
+        if (isSerial) put("serial", serial.toJson())
     }
 
     /**
@@ -418,6 +433,7 @@ data class SshProfile(
         put("jumpHosts", JSONArray().also { arr ->
             jumpHosts.forEach { arr.put(it.toJson(encryptSecrets = false)) }
         })
+        if (isSerial) put("serial", serial.toJson())
     }
 
     companion object {
@@ -451,6 +467,7 @@ data class SshProfile(
             jumpHosts = jumpHostsFromJson(o, encryptedSecrets = false),
             lanHost = o.optString("lanHost"),
             lanPort = o.optInt("lanPort", 0),
+            serial = SerialConfig.fromJson(o.optJSONObject("serial")),
         )
 
         fun fromJson(o: JSONObject): SshProfile = SshProfile(
@@ -482,6 +499,7 @@ data class SshProfile(
             jumpHosts = jumpHostsFromJson(o, encryptedSecrets = true),
             lanHost = o.optString("lanHost"),
             lanPort = o.optInt("lanPort", 0),
+            serial = SerialConfig.fromJson(o.optJSONObject("serial")),
         )
 
         /** 踏み台の配列。旧データには無いので、無ければ「踏み台なし」。 */

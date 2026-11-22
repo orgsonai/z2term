@@ -24,6 +24,10 @@ jsch = "0.2.26"
 # BouncyCastle が無いと「ssh-ed25519 is not available」で公開鍵認証が失敗する。
 bouncycastle = "1.85.2"
 
+# USB シリアル (CDC-ACM / FTDI / CP210x / CH34x / PL2303)。MIT。
+# ⚠ Maven Central には無く JitPack 配布 (settings.gradle.kts で取得先を group 限定で足している)。
+usbSerial = "3.12.0"
+
 # XZ 解凍 (DL distro の .tar.xz 用、pure-Java 軽量)
 xz = "1.10"
 
@@ -62,6 +66,9 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 jsch = { group = "com.github.mwiede", name = "jsch", version.ref = "jsch" }
 # BouncyCastle — JSch の ed25519/curve25519/mlkem を Android で有効化
 bouncycastle = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
+
+# USB シリアル (mik3y)
+usb-serial = { group = "com.github.mik3y", name = "usb-serial-for-android", version.ref = "usbSerial" }
 
 # XZ 解凍 (org.tukaani:xz)
 xz = { group = "org.tukaani", name = "xz", version.ref = "xz" }

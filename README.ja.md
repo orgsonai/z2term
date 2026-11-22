@@ -104,6 +104,7 @@ F-Droid がこのリポジトリのソースからビルドし、F-Droid の鍵�
 - **root 不要の Linux ディストロ** — ユーザ空間エンジン（既定は z2root。下の「実行エンジン」参照）で Alpine / Ubuntu / Arch / Kali を動かし、`apk` / `apt` / `pacman` で何でも導入。
 - **実行エンジン** — 非 root は z2root に完全移行。root 端末では裏機能の chroot も選択可能。
 - **USB Host ブリッジ** — スマホに挿した USB 機器を、通常の動的リンクされた Linux プログラムから利用できます。`z2-usb list` → `z2-usb allow [番号]` の順に実行して Android の機器許可を押すと、libusb や `/dev/bus/usb/...` を使うプログラムを修正せずに開けます。スマホが USB Host/OTG 対応で、充電専用ではない通常の USB-A → USB-C 変換アダプタやハブなら使えます。
+- **USB シリアル** — 接続先の一覧に SSH と並べて「シリアル」を登録すると、USB ケーブルでマイコンボード・ルーター・基板の UART とやりとりできます。Linux の OS を入れなくても使えます。CDC-ACM・FTDI・CP210x・CH340/CH341・PL2303 のチップに対応しています。速さの既定は 115200（8N1・フロー制御なし。ほかの設定は「詳細」の中）です。ケーブルを抜いてもタブは残り、同じ機器を挿し直すと Android の許可画面のあとにつなぎ直します。⚠ 試験的な機能です。
 - **マルチタブ** — CUI / GUI タブ、ドラッグで並べ替え、タブ長押しで実行エンジンを確認。**見ていないタブで何か動いていれば小さな点**、**見ていない間に終わっていれば ✓** が付く。
 - **Linux GUI** — Xvnc + openbox と内蔵 RFB クライアント。`z2gui` でデスクトップを起動し、`z2run <アプリ>` で GUI アプリを起動（GUI タブも自動で開く）。音声・動画つき。**同じビューアでリモートの VNC / RDP サーバにも繋がります** — 保存した接続先に **[VNC]** / **[RDP]** ボタンが付き、そのサーバのデスクトップをタブで開けます（VNC は RFB 3.3〜3.8 / None・VNC パスワード認証、RDP はネットワークレベル認証 (NLA) と証明書の初回確認つき。RDP もマウス・キーボード操作とテキストのコピー共有に対応）。
 - **SSH / SFTP・FTP・WebDAV・SMB2/3** — SSH 接続先へ FTP / SMB / WebDAV / VNC / RDP をサービスとして追加でき、各ボタンは一覧で SSH / SFTP の外に並びます。サービス接続は既定で同じ SSH を踏み台にした一時ポートフォワード（ローカルポート空欄なら空き番号を自動選択）。チェックを外すとサービス個別ホストではなく SSH 接続先ホストへ直通し、SSH 暗号化が無くなる旨を確認してから切り替えます。FTP は受動データポートも接続ごとに自動転送します。SSH では公開鍵認証（**アプリ内で ed25519 鍵を作れて、公開鍵はその場でコピー/共有/この端末の sshd に登録**。秘匿フィールドは Android Keystore で暗号化）、known_hosts 確認、**両方向の手動ポート転送 (`-L` / `-R`) と、接続先タブを閉じても生き続ける常駐トンネル**、既定で localhost のみ bind する内蔵 `sshd`（dropbear）も利用できます。
@@ -306,6 +307,7 @@ Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://gith
 | AndroidX / Jetpack Compose | Apache-2.0 | [Android Open Source Project](https://android.googlesource.com/) |
 | Kotlin Standard Library / Coroutines 1.7.3 | Apache-2.0 | [JetBrains/kotlin](https://github.com/JetBrains/kotlin) / [kotlinx.coroutines 1.7.3](https://github.com/Kotlin/kotlinx.coroutines/tree/1.7.3) |
 | JSch / JZlib / jBCrypt | BSD-3-Clause / ISC | [mwiede/jsch](https://github.com/mwiede/jsch) / [ymnk/jzlib](https://github.com/ymnk/jzlib) / [jBCrypt](https://www.mindrot.org/projects/jBCrypt/) |
+| usb-serial-for-android 3.12.0 | MIT | [mik3y/usb-serial-for-android 3.12.0](https://github.com/mik3y/usb-serial-for-android/tree/3.12.0) |
 | OkHttp 5.3.0 | Apache-2.0 | [square/okhttp](https://github.com/square/okhttp) |
 | Okio 3.16.2 | Apache-2.0 | [square/okio 3.16.2](https://github.com/square/okio/tree/3.16.2) |
 | SMBJ 0.15.0 | Apache-2.0 | [hierynomus/smbj v0.15.0](https://github.com/hierynomus/smbj/tree/v0.15.0) |
