@@ -1665,6 +1665,9 @@ class TerminalSession(
         val bytes = line.toByteArray(Charsets.UTF_8)
         scope.launch(emulatorDispatcher) {
             emulator.processBytes(bytes, bytes.size)
+            // 繋いでいる側 (z2-session attach) にも同じ行を流す。⚠ 流さないと、シリアルの
+            // 「抜かれた」「許可待ち」のように**繋いだ後に出る知らせ**が PC 側では見えない。
+            if (attachSinks.isNotEmpty()) attachSinks.forEach { sink -> runCatching { sink(bytes) } }
             bumpRedraw()
         }
     }

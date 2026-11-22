@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.202 (versionCode 900)**: A terminal connected with `z2-session attach` now also gets the notice lines a tab prints (serial "cable unplugged" and "waiting for permission", SSH disconnects and so on). They used to show only on the phone, so from a PC attached to a serial tab you could not tell when the cable was pulled
+
 **1.0.201 (versionCode 899)**: USB serial connections (experimental). Choose "Serial" under New in the connection list to talk to a microcontroller board, a router's management port, or a board's UART over a USB cable, with no Linux distro needed. CDC-ACM, FTDI, CP210x, CH340/CH341 and PL2303 are supported. The default speed is 115200, and data bits, parity, stop bits and flow control are under Details (8N1, no flow control by default). The connection remembers the first device you connect, so you are not asked again with two or more cables plugged in. Unplugging keeps the tab open, and plugging the same device back in reconnects it after Android's permission prompt. usb-serial-for-android 3.12.0 (MIT) is bundled for this and added to the OSS licence list
 
 **1.0.200 (versionCode 898)**: Action macros gain `read-colors NAME X,Y …`. It reads up to 32 points from one capture and stores each point's `RRGGBB`, separated by spaces, in a variable. Colour conditions take a capture per term, close to a second each, so reading 30 points such as a game board took tens of seconds. Now the whole board is read at once and a shell step (`$Z2_VAR_NAME`) or `run-output` can decide what to do. The step editor's "Add step" gains "Read colours into a variable"
