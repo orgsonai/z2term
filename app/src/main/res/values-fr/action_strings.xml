@@ -220,4 +220,17 @@
     <string name="action_chooser_empty">Aucune macro d’actions enregistrée</string>
     <string name="action_chooser_entry">Macro d’actions : choisir et lancer</string>
     <string name="action_launch_timeout">%1$s n’est pas passée au premier plan dans les %2$d secondes après son lancement</string>
+    <string name="action_edit_jitter">Ce qui varie</string>
+    <string name="action_jitter_speed">Vitesse</string>
+    <string name="action_jitter_speed_desc">Durée d’appui, attentes, intervalles de frappe et vitesse du tracé</string>
+    <string name="action_jitter_path">Trait</string>
+    <string name="action_jitter_path_desc">Courbure et tremblement des balayages et glissés</string>
+    <string name="action_jitter_aim">Point d’arrivée</string>
+    <string name="action_jitter_aim_desc">Où tombent chaque appui, début, fin et point de glissé (plus large à forte intensité)</string>
+    <string name="action_jitter_none">Rien (accélère et ralentit quand même)</string>
+    <string name="action_jitter_hint">Quel que soit le choix, un geste accélère toujours depuis l’arrêt et ralentit jusqu’à s’arrêter. Ajoutez exact en fin d’étape pour garder exacts les points de cette étape seulement.</string>
+    <string name="action_edit_exact">Points d’arrivée exacts</string>
+    <string name="action_edit_routine">Routine (appel seulement)</string>
+    <string name="action_edit_routine_desc">N’apparaît ni dans la barre d’exécution ni dans le panneau latéral. Les autres macros la lancent avec call.</string>
+    <string name="action_routines">Routines (%1$d)</string>
 </resources>

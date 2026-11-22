@@ -11,7 +11,11 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
      * 呼び出しの値 (1.0.191)。シェルの手順にはシェル自身の位置引数 `$1`… として渡す。
      * [templated] はシェル以外の行に `$1`…`$9` / `$#` があること。そういう定義は [bind] で値を入れてから使う。
      */
-    val args: List<String> = emptyList(), val templated: Boolean = false) {
+    val args: List<String> = emptyList(), val templated: Boolean = false,
+    /** 人らしい操作で揺らすもの (`jitter=`、1.0.203)。見出しが無ければ 3 つとも。 */
+    val jitter: ActionHumanize.Parts = ActionHumanize.Parts.ALL,
+    /** 呼び出し専用 (`routine=on`、1.0.203)。実行の帯やエッジパネルの選択肢に出さない。`call` からは普通に呼べる。 */
+    val routine: Boolean = false) {
     val human get() = humanLevel > 0
     /**
      * [values] を入れた、この呼び出し用の定義。`$n` を含む行はここで初めて本当の値で検査する。
@@ -85,7 +89,9 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             val easing: String = "linear", val secondPath: List<ActionGesture.Point> = emptyList(),
             val taps: Int = 1, val gapMs: Long = 100,
             /** `drag`: [path] is points the finger must pass through (not a recorded trace). */
-            val waypoints: Boolean = false) : Step {
+            val waypoints: Boolean = false,
+            /** 行末の `exact` (1.0.203): 人らしい操作でも到達点を揺らさない (速さと線は揺らす)。 */
+            val exact: Boolean = false) : Step {
             val durationMs get() = ms * taps + gapMs * (taps - 1)
             fun tracks(screen: Screen): List<List<ActionGesture.Point>> {
                 val tracks = listOf(timedPoints(screen)) + if (secondPath.isEmpty()) emptyList()
@@ -195,7 +201,15 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
             val shell = shellStart(line)
             return if (shell != null && found > shell) null else found
         }
-        val HEADERS = setOf("version", "timeout", "screen", "human")
+        val HEADERS = setOf("version", "timeout", "screen", "human", "jitter", "routine")
+        /** 行末に `exact` を付けられる座標の手順 (1.0.203)。 */
+        val EXACT_VERBS = setOf("tap", "long-press", "swipe", "double-tap", "pinch-in", "pinch-out", "swipe-two", "drag",
+            "touch", "swipe-path", "swipe-two-path")
+        /** 行末の `exact` を除いた語の並びと、付いていたか。`tap ui` は座標ではないので対象外。 */
+        fun splitExact(words: List<String>): Pair<List<String>, Boolean> {
+            val exact = words.size > 2 && words.last() == "exact" && words[0] in EXACT_VERBS && !(words[0] == "tap" && words[1] == "ui")
+            return (if (exact) words.dropLast(1) else words) to exact
+        }
         /** 後ろをそのままシェルに渡す命令。行末の `#` もシェルのもの。 */
         /** `type` の文字もそのまま入れる (1.0.189)。 */
         val SHELL_VERBS = setOf("command", "run-output", "type")
@@ -277,7 +291,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 val shell = shellStart(line) ?: line.length
                 val bound = placeholder.containsMatchIn(line.substring(0, shell))
                 if (bound) { templated = true; line = substitute(line, args) }
-                val words = line.split(Regex("\\s+"))
+                val (words, exact) = splitExact(line.split(Regex("\\s+")))
                 fun count(n: Int) { require(words.size == n) { "Wrong arguments: ${words[0]}" } }
                 fun number(i: Int, low: Float, high: Float): Float = words[i].toFloatOrNull()?.also {
                     require(it.isFinite() && it in low..high) { "Invalid number: ${words[i]}" }
@@ -535,6 +549,7 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                     }
                     else -> throw IllegalArgumentException("Unknown step: ${words[0]}")
                 }
+                if (exact) steps[steps.lastIndex] = (steps.last() as Step.Stroke).copy(exact = true)
                 } catch (e: IllegalArgumentException) {
                     if (!bound || args != null) throw e
                     while (steps.size > before) steps.removeAt(steps.lastIndex)
@@ -576,8 +591,14 @@ internal data class ActionDefinition(val text: String, val timeoutMs: Long, val 
                 else -> value.toIntOrNull()?.takeIf { it in 0..ActionHumanize.MAX_LEVEL }
                     ?: throw IllegalArgumentException("human must be on, off or 0..${ActionHumanize.MAX_LEVEL}")
             }
+            val jitter = ActionHumanize.Parts.parse(headers["jitter"])
+            val routine = when (headers["routine"]) {
+                null, "off" -> false
+                "on" -> true
+                else -> throw IllegalArgumentException("routine must be on or off")
+            }
             return ActionDefinition(lines.joinToString("\n").trimEnd() + "\n", timeout * 1000, screen, steps.toList(), human,
-                args.orEmpty(), templated)
+                args.orEmpty(), templated, jitter, routine)
         }
     }
 }

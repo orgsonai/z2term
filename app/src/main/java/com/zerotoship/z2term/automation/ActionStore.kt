@@ -47,6 +47,15 @@ internal class ActionStore(private val root: File) {
     fun snapshot(name: String, args: List<String> = emptyList()): ActionProgram = synchronized(lock) { ActionProgram.load(name, args, ::read) }
 
     fun read(name: String): ActionDefinition = ActionDefinition.parse(readText(name))
+    /**
+     * 呼び出し専用のマクロ (見出し `routine=on`、1.0.203)。見出しだけを読むので、本文が壊れていても
+     * 一覧から消えない (読めないものは普通のマクロとして扱う)。
+     */
+    fun routines(): Set<String> = synchronized(lock) {
+        names().filter { runCatching { ActionEditorDocument(readText(it)).header("routine") == "on" }.getOrDefault(false) }.toSet()
+    }
+    /** 実行の帯・エッジパネル・タイルの選択肢に出すもの (ルーチンを除く)。 */
+    fun runnableNames(): List<String> = synchronized(lock) { routines().let { r -> names().filter { it !in r } } }
 
     /** The editor must also be able to repair a definition that no longer parses. */
     fun readText(name: String): String = synchronized(lock) {

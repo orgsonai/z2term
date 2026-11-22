@@ -221,4 +221,17 @@
     <string name="action_chooser_empty">還沒有儲存的操作巨集</string>
     <string name="action_chooser_entry">操作巨集：選擇後執行</string>
     <string name="action_launch_timeout">開啟 %1$s 後 %2$d 秒內未切換到前景</string>
+    <string name="action_edit_jitter">要晃動的項目</string>
+    <string name="action_jitter_speed">速度</string>
+    <string name="action_jitter_speed_desc">按住長度、等待、打字間隔與畫線速度</string>
+    <string name="action_jitter_path">線條</string>
+    <string name="action_jitter_path_desc">滑動與拖曳的彎曲與晃動</string>
+    <string name="action_jitter_aim">落點</string>
+    <string name="action_jitter_aim_desc">點按、起點、終點與拖曳途經點的位置（強度越大範圍越廣）</string>
+    <string name="action_jitter_none">無（仍會加速與減速）</string>
+    <string name="action_jitter_hint">無論這裡怎麼選，動作一定從靜止加速、減速到停止。在步驟行尾加上 exact，只讓該步驟的落點保持精確。</string>
+    <string name="action_edit_exact">落點不晃動</string>
+    <string name="action_edit_routine">常式（僅供呼叫）</string>
+    <string name="action_edit_routine_desc">不會出現在執行列與邊緣面板的選項中。其他巨集用 call 執行它。</string>
+    <string name="action_routines">常式（%1$d）</string>
 </resources>

@@ -221,4 +221,17 @@
     <string name="action_chooser_empty">Aún no hay macros de acciones guardadas</string>
     <string name="action_chooser_entry">Macro de acciones: elegir y ejecutar</string>
     <string name="action_launch_timeout">%1$s no pasó al primer plano en %2$d segundos tras abrirla</string>
+    <string name="action_edit_jitter">Qué variar</string>
+    <string name="action_jitter_speed">Velocidad</string>
+    <string name="action_jitter_speed_desc">Duración de pulsación, esperas, pausas al escribir y velocidad del trazo</string>
+    <string name="action_jitter_path">Línea</string>
+    <string name="action_jitter_path_desc">Curva y temblor de deslizamientos y arrastres</string>
+    <string name="action_jitter_aim">Punto de llegada</string>
+    <string name="action_jitter_aim_desc">Dónde caen cada toque, inicio, final y punto de arrastre (más amplio con más intensidad)</string>
+    <string name="action_jitter_none">Nada (igual acelera y frena)</string>
+    <string name="action_jitter_hint">Elijas lo que elijas, el movimiento siempre acelera desde el reposo y frena hasta detenerse. Añade exact al final de un paso para mantener exactos solo sus puntos.</string>
+    <string name="action_edit_exact">Puntos de llegada exactos</string>
+    <string name="action_edit_routine">Rutina (solo llamada)</string>
+    <string name="action_edit_routine_desc">No aparece en la barra de ejecución ni en el panel lateral. Otras macros la ejecutan con call.</string>
+    <string name="action_routines">Rutinas (%1$d)</string>
 </resources>

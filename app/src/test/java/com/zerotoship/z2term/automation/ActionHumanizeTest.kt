@@ -158,6 +158,65 @@ class ActionHumanizeTest {
         assertTrue((1..100).all { ActionHumanize.waitMs(1000, Random(it), level = 20) >= 0 })
     }
 
+    @Test fun jitterRoutineAndExactAreRead() {
+        assertEquals(ActionHumanize.Parts.ALL, ActionDefinition.parse("version=1\nwait 1").jitter)
+        assertEquals(ActionHumanize.Parts(speed = true, path = false, aim = true),
+            ActionDefinition.parse("version=1\njitter=speed,aim\nwait 1").jitter)
+        assertEquals("none", ActionDefinition.parse("version=1\njitter=none\nwait 1").jitter.toString())
+        assertThrows(IllegalArgumentException::class.java) { ActionDefinition.parse("version=1\njitter=fast\nwait 1") }
+        assertThrows(IllegalArgumentException::class.java) { ActionDefinition.parse("version=1\njitter=aim,aim\nwait 1") }
+        assertTrue(ActionDefinition.parse("version=1\nroutine=on\nwait 1").routine)
+        assertFalse(ActionDefinition.parse("version=1\nwait 1").routine)
+        assertThrows(IllegalArgumentException::class.java) { ActionDefinition.parse("version=1\nroutine=yes\nwait 1") }
+        val marked = steps("tap percent 50 50 exact\ndrag px 100 10,10 20,20 exact\nswipe px 1 2 3 4 100 linear exact\ntap percent 50 50")
+        assertEquals(listOf(true, true, true, false), marked.map { it.exact })
+        assertEquals(20f, marked[1].path.last().x)
+    }
+
+    @Test fun dragsAccelerateFromRestAndStopAtTheEndWhateverIsJittered() {
+        val drag = steps("drag px 300 200,800 500,500 800,800").single()
+        for (parts in listOf(ActionHumanize.Parts.ALL, ActionHumanize.Parts(false, false, false))) for (seed in 1..20) {
+            val path = ActionHumanize.stroke(drag, screen, area, Random(seed), level = 5, parts = parts).path
+            fun speed(i: Int) = hypot(path[i + 1].x - path[i].x, path[i + 1].y - path[i].y) / (path[i + 1].ms - path[i].ms)
+            val peak = (0 until path.lastIndex).maxOf { speed(it) }
+            assertTrue("start $parts $seed", speed(0) < peak / 4)
+            assertTrue("end $parts $seed", speed(path.lastIndex - 1) < peak / 4)
+            // 角 (500,500) の近くでも止まらない
+            val corner = (0 until path.lastIndex).minBy { hypot(path[it].x - 500, path[it].y - 500) }
+            val mean = (0 until path.lastIndex).sumOf { hypot(path[it + 1].x - path[it].x, path[it + 1].y - path[it].y).toDouble() } / 600
+            assertTrue("corner $parts $seed", speed(corner) > mean / 3)
+            assertEquals(600L, path.last().ms)
+        }
+    }
+
+    @Test fun aimOffAndExactReachEveryPointExactly() {
+        val none = ActionHumanize.Parts(speed = true, path = false, aim = false)
+        val drag = steps("drag px 300 200,800 500,500 800,800").single()
+        val path = ActionHumanize.stroke(drag, screen, area, Random(1), level = 20, parts = none).path
+        assertEquals(200f to 800f, path.first().x to path.first().y)
+        assertEquals(800f to 800f, path.last().x to path.last().y)
+        assertTrue(path.minOf { hypot(it.x - 500, it.y - 500) } < 12f)
+        val tap = steps("tap px 540 1200 exact").single()
+        assertTrue((1..50).all { ActionHumanize.stroke(tap, screen, area, Random(it), level = 20).let { t -> t.x1 == 540f && t.y1 == 1200f } })
+        val fixed = ActionHumanize.Parts(speed = false, path = true, aim = true)
+        assertEquals(80L, ActionHumanize.stroke(steps("tap px 540 1200").single(), screen, area, Random(2), level = 10, parts = fixed).ms)
+        assertEquals(1000L, ActionHumanize.waitMs(1000, Random(1), level = 10, parts = fixed))
+    }
+
+    @Test fun eachDragPointIsAimedSeparatelyWithinTheLevelRadius() {
+        val drag = steps("drag px 300 200,800 500,500 800,800").single()
+        val aimOnly = ActionHumanize.Parts(speed = false, path = false, aim = true)
+        val r20 = 1080 * 0.003f * 10
+        val gaps = (1..40).map { seed ->
+            val p = ActionHumanize.stroke(drag, screen, area, Random(seed), level = 20, parts = aimOnly).path
+            assertTrue(hypot(p.first().x - 200, p.first().y - 800) <= r20 + 0.01f)
+            assertTrue(hypot(p.last().x - 800, p.last().y - 800) <= r20 + 0.01f)
+            // 始点と終点の差が毎回 (600, 0) ではない = 点ごとに別々にずれている
+            hypot(p.last().x - p.first().x - 600, p.last().y - p.first().y)
+        }
+        assertTrue(gaps.count { it > 3f } > 30)
+    }
+
     @Test fun typingGoesOneCharacterAtATimeWithVariedGaps() {
         assertEquals(listOf("a", "a😀", "a😀b"), ActionHumanize.prefixes("a😀b"))
         val random = kotlin.random.Random(1)

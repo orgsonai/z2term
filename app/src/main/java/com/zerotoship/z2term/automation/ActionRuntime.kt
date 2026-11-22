@@ -47,6 +47,8 @@ internal object ActionRuntime {
         /** ～ で切ったあと入れ直すときの強さ。 */
         var humanRestore: Int = program.root.humanLevel.takeIf { it > 0 } ?: ActionHumanize.DEFAULT_LEVEL
         val human get() = humanLevel > 0
+        /** 揺らすもの (`jitter=`、1.0.203)。最初のマクロの見出しで決まる (呼び先の見出しは見ない。強さと同じ)。 */
+        val jitter: ActionHumanize.Parts = program.root.jitter
         val random = kotlin.random.Random(System.nanoTime())
     }
     private var current: Run? = null
@@ -86,7 +88,8 @@ internal object ActionRuntime {
     fun pick(context: Context): String = EdgeRuntime.onMain {
         check(current == null) { "An action macro is already running; use z2-action status or stop" }
         val host = AndroidActions.overlayHost() ?: error("Enable z2term Android actions using z2-key permission")
-        val names = store(context).names()
+        // ルーチン (呼び出し専用、1.0.203) は選択肢に出さない。
+        val names = store(context).runnableNames()
         check(names.isNotEmpty()) { context.getString(com.zerotoship.z2term.R.string.action_chooser_empty) }
         showPicker(context.applicationContext, host, names, null)
         ""
@@ -393,7 +396,7 @@ internal object ActionRuntime {
                 checkDevice(run)
                 return AndroidActions.queryUi(resolved) { found, error -> done(error ?: if (found) null else "UI element not found") }
             }
-            is ActionDefinition.Step.Wait -> return schedule(if (run.human) ActionHumanize.waitMs(step.ms, run.random, run.humanLevel) else step.ms) { done(null) }
+            is ActionDefinition.Step.Wait -> return schedule(if (run.human) ActionHumanize.waitMs(step.ms, run.random, run.humanLevel, run.jitter) else step.ms) { done(null) }
             is ActionDefinition.Step.WaitFor -> {
                 val label = if (step.until) "wait-until" else "wait-while"
                 return ActionUiWait(::schedule).start(step.ms, { callback ->
@@ -481,7 +484,7 @@ internal object ActionRuntime {
                         index++
                         if (index == typed.size) { done(null); return }
                         val last = typed[index - 1].codePointBefore(typed[index - 1].length)
-                        cancel = schedule(ActionHumanize.keyMs(last, run.random, run.humanLevel)) { next() }
+                        cancel = schedule(ActionHumanize.keyMs(last, run.random, run.humanLevel, run.jitter)) { next() }
                     }
                     next()
                     return { cancel?.invoke(); cancel = null }
@@ -502,7 +505,7 @@ internal object ActionRuntime {
         return ActionRunOverlay.clear({ box -> points.any { box.contains(it.x.toInt(), it.y.toInt()) } }, ::schedule, done) { finished ->
             check(current === run) { "Stopped" }
             AndroidActions.stroke(stroke, run.screen, finished,
-                human = if (run.human) { s, area -> ActionHumanize.stroke(s, run.screen, area, run.random, run.humanLevel) } else null,
+                human = if (run.human) { s, area -> ActionHumanize.stroke(s, run.screen, area, run.random, run.humanLevel, run.jitter) } else null,
                 trail = ActionRunOverlay.trailEnabled(run.context))
         }
     }
@@ -642,7 +645,7 @@ internal object ActionRuntime {
         ActionRunOverlay.dismiss(ActionRunOverlay.Owner.MACRO)
         if (keep) runCatching {
             val host = AndroidActions.overlayHost() ?: return@runCatching
-            store(run.context).names().takeIf { it.isNotEmpty() }?.let { showPicker(run.context, host, it, run.name) }
+            store(run.context).runnableNames().takeIf { it.isNotEmpty() }?.let { showPicker(run.context, host, it, run.name) }
         }
         run.runner.cancelAll()
         AndroidActions.stopAutoScroll()

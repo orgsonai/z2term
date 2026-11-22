@@ -15,14 +15,14 @@ import kotlin.random.Random
  * (下の数値は強さ 2 のときのもの。強さ 10 ならその 5 倍、20 なら 10 倍)。強さ 11 以上は動きが崩れてもよい前提で、
  * 割合の揺れの頭打ちも広げてある (区間の時間が 0 に近づくなど、操作として成り立つ範囲だけは守る)。
  *
- * - タップ・長押し・ダブルタップ: 押す位置を画面の短辺の 0.6% までずらし、押す長さと間隔をばらつかせる。
- * - スワイプ (直線): 長さの 5% まで弓なりにし、動き出しと止まり際を遅く、途中の速さも揺らす。終点も少しずらす。
- * - なぞる (`drag`): 区間ごとに長さの 6% まで弓なりにし、通過点の近くで速さを落とし (止まらない)、区間の中でも
- *   速さを揺らす (1〜3 回の波)。角は道のりに
- *   沿って 8 px ほどの幅でならして丸める。通過点からの外れは強さ×2 px 程度 (強さ 10 で 20 px)。
- * - スワイプとなぞるには、ゆっくりしたふらつき (1 px) と細かい震え (0.5 px) を足す。始点と終点では 0。
- * - 記録した軌跡: 形はそのまま位置だけずらし、1 本指なら区間ごとの時間を ±20% 揺らす (全体の長さは同じ)。
- * - wait: ±10% (最大 ±300 ms) ばらつかせる。
+ * 揺らすものは 3 つに分かれ、見出し `jitter=` で選ぶ ([Parts]、1.0.203。既定は 3 つとも):
+ * - **速さ** (`speed`): 押す長さ・間隔、スワイプとなぞる時間と途中の速さの揺れ、wait (±10%、最大 ±300 ms)、打鍵の間隔。
+ * - **線** (`path`): スワイプとなぞるの弓なり (長さの 5〜6%)・角の丸め・ふらつきと震え、記録した軌跡の震え。
+ * - **到達点** (`aim`): 押す点・始点・終点・なぞるの通過点を 1 つずつ、画面の短辺の 0.3% (強さ 2) の円の中でずらす。
+ *   記録した軌跡は形を保ったまま全体をずらす。手順の行末の `exact` はその手順だけ到達点を揺らさない。
+ *
+ * ⛔ **揺らすものを全部切っても、動き出しは止まった状態から加速し、終点では止まるまで減速する** (1.0.203)。
+ * 人の指は一定の速さで動き出したり止まったりしない。なぞるの通過点では止まらず、少しだけ速さを落とす。
  *
  * 点は [area] (前面の窓の中) に収める。座標は px の手順にして返す。
  */
@@ -30,10 +30,30 @@ internal object ActionHumanize {
     /** 窓の範囲 (px、right / bottom は含まない)。 */
     data class Area(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
+    /** 何を揺らすか (`jitter=speed,path,aim` / `none`、1.0.203)。見出しが無ければ 3 つとも。 */
+    data class Parts(val speed: Boolean = true, val path: Boolean = true, val aim: Boolean = true) {
+        override fun toString() = listOfNotNull("speed".takeIf { speed }, "path".takeIf { path }, "aim".takeIf { aim })
+            .joinToString(",").ifEmpty { "none" }
+        companion object {
+            val ALL = Parts()
+            fun parse(value: String?): Parts {
+                if (value == null) return ALL
+                if (value == "none") return Parts(false, false, false)
+                val words = value.split(',').map { it.trim() }
+                require(words.isNotEmpty() && words.all { it in setOf("speed", "path", "aim") } && words.size == words.distinct().size) {
+                    "jitter must be none or a comma list of speed, path, aim"
+                }
+                return Parts("speed" in words, "path" in words, "aim" in words)
+            }
+        }
+    }
+
     const val MAX_LEVEL = 20
     /** `human=on` の強さ。 */
     const val DEFAULT_LEVEL = 5
     private const val MANUAL_MAX_MS = 3000L
+    /** 動き出しの加速と止まり際の減速にかける時間の上限 (ms)。短いなぞりでは全体の 1/4 まで。 */
+    private const val RAMP_MS = 160.0
 
     /** 強さ 2 を 1 とした倍率。 */
     private fun scale(level: Int) = level.coerceIn(0, MAX_LEVEL) / 2.0
@@ -43,11 +63,12 @@ internal object ActionHumanize {
 
     /**
      * 次の文字を打つまでの間 (1.0.193)。[previous] は打ったばかりの文字。空白や句読点の後は少し長く止まり、
-     * 強さが大きいほど間がばらつく。
+     * 強さが大きいほど間がばらつく (速さを揺らさないなら一定)。
      */
-    fun keyMs(previous: Int, random: Random, level: Int = DEFAULT_LEVEL): Long {
+    fun keyMs(previous: Int, random: Random, level: Int = DEFAULT_LEVEL, parts: Parts = Parts.ALL): Long {
         val pause = Character.isWhitespace(previous) || previous.toChar() in ".,!?、。！？・"
         val base = if (pause) 220.0 else 110.0
+        if (!parts.speed) return base.roundToLong()
         val ratio = (0.15 * scale(level)).coerceAtMost(0.9)
         return (base * (1 + (random.nextDouble() * 2 - 1) * ratio)).roundToLong().coerceAtLeast(20)
     }
@@ -60,69 +81,79 @@ internal object ActionHumanize {
         return ends.map { text.substring(0, it) }
     }
 
-    fun waitMs(ms: Long, random: Random, level: Int = DEFAULT_LEVEL): Long {
+    fun waitMs(ms: Long, random: Random, level: Int = DEFAULT_LEVEL, parts: Parts = Parts.ALL): Long {
         val f = scale(level)
-        if (ms <= 0 || f <= 0) return ms
+        if (ms <= 0 || f <= 0 || !parts.speed) return ms
         val spread = minOf(ms * minOf(0.1 * f, 0.9), 300.0 * f)
         return (ms + (random.nextDouble() * 2 - 1) * spread).roundToLong().coerceAtLeast(0)
     }
 
     fun stroke(step: ActionDefinition.Step.Stroke, screen: ActionDefinition.Screen, area: Area, random: Random,
-        level: Int = DEFAULT_LEVEL): ActionDefinition.Step.Stroke {
+        level: Int = DEFAULT_LEVEL, parts: Parts = Parts.ALL): ActionDefinition.Step.Stroke {
         val f = scale(level)
         if (f <= 0) return step
+        // 到達点の揺れの半径。強さに比例する (強さ 5 で短辺の 0.75%、20 で 3%)。
         val radius = maxOf(2f, (minOf(screen.width, screen.height) * 0.003 * f).toFloat())
+        val aim = parts.aim && !step.exact
         fun offset(): Pair<Float, Float> {
+            if (!aim) return 0f to 0f
             val angle = random.nextDouble() * 2 * PI
             val r = radius * sqrt(random.nextDouble()).toFloat()
             return (cos(angle) * r).toFloat() to (sin(angle) * r).toFloat()
         }
         fun clampX(x: Float) = x.coerceIn(area.left.toFloat(), (area.right - 1).toFloat())
         fun clampY(y: Float) = y.coerceIn(area.top.toFloat(), (area.bottom - 1).toFloat())
-        fun spread(value: Long, ratio: Double) = (value * (1 + (random.nextDouble() * 2 - 1) * ratio)).roundToLong()
-        val (dx, dy) = offset()
+        fun spread(value: Long, ratio: Double) = if (!parts.speed) value
+            else (value * (1 + (random.nextDouble() * 2 - 1) * ratio)).roundToLong()
         if (step.path.isEmpty()) {
             val (x1, y1, x2, y2) = step.points(screen)
+            val (dx, dy) = offset()
             if (x1 == x2 && y1 == y2) {
                 // タップ (80 ms) は 60〜(110 + 強さに応じて) ms、長押しは ±8%×倍率、ダブルタップの間隔は ±15%×倍率。
                 val tapMax = 110 + (15 * (f - 1)).coerceAtLeast(0.0)
-                val ms = if (step.ms < 500) 60 + (random.nextDouble() * (tapMax - 60)).roundToLong()
+                val ms = if (step.ms < 500) (if (parts.speed) 60 + (random.nextDouble() * (tapMax - 60)).roundToLong() else step.ms)
                     else spread(step.ms, minOf(0.08 * f, 0.6)).coerceIn(500, MANUAL_MAX_MS)
                 val x = clampX(x1 + dx); val y = clampY(y1 + dy)
                 return step.copy(unit = "px", x1 = x, y1 = y, x2 = x, y2 = y, ms = ms, easing = "linear",
                     gapMs = if (step.taps > 1) spread(step.gapMs, minOf(0.15 * f, 0.9)).coerceIn(40, 300) else step.gapMs)
             }
-            val path = swipe(x1 + dx, y1 + dy, x2, y2, step.ms, radius, f, random).map { it.copy(x = clampX(it.x), y = clampY(it.y)) }
+            val (ex, ey) = offset()
+            val path = swipe(x1 + dx, y1 + dy, x2 + ex, y2 + ey, step.ms, f, parts, random)
+                .map { it.copy(x = clampX(it.x), y = clampY(it.y)) }
             return step.copy(unit = "px", path = path, easing = "linear", x1 = path.first().x, y1 = path.first().y,
                 x2 = path.last().x, y2 = path.last().y, ms = path.last().ms)
         }
-        val tracks = step.tracks(screen).map { track -> track.map { it.copy(x = clampX(it.x + dx), y = clampY(it.y + dy)) } }
-        val first = when {
-            tracks.size != 1 -> tracks[0]
-            step.waypoints -> waypoints(tracks[0], f, random)
-            else -> retime(tracks[0], radius, f, random)
-        }.map { it.copy(x = clampX(it.x), y = clampY(it.y)) }
+        val tracks = step.tracks(screen)
+        if (tracks.size == 1 && step.waypoints) {
+            // なぞるの通過点は 1 つずつ別々にずらす (形ごとずらすと、各点へはぴったり届いてしまう)。
+            val aimed = tracks[0].map { val (dx, dy) = offset(); it.copy(x = clampX(it.x + dx), y = clampY(it.y + dy)) }
+            val line = waypoints(aimed, f, parts, random).map { it.copy(x = clampX(it.x), y = clampY(it.y)) }
+            return step.copy(unit = "px", x1 = line.first().x, y1 = line.first().y, x2 = line.last().x, y2 = line.last().y,
+                path = line, secondPath = emptyList())
+        }
+        // 記録した軌跡と 2 本指は、形を保ったまま全体をずらす。
+        val (dx, dy) = offset()
+        val moved = tracks.map { track -> track.map { it.copy(x = clampX(it.x + dx), y = clampY(it.y + dy)) } }
+        val first = if (moved.size != 1) moved[0]
+            else retime(moved[0], radius, f, parts, random).map { it.copy(x = clampX(it.x), y = clampY(it.y)) }
         return step.copy(unit = "px", x1 = first.first().x, y1 = first.first().y, x2 = first.last().x, y2 = first.last().y,
-            path = first, secondPath = tracks.getOrNull(1).orEmpty())
+            path = first, secondPath = moved.getOrNull(1).orEmpty())
     }
 
     /**
-     * 直線のスワイプを人の線にする。終点を少しずらし、横へ弓なりに曲げ、進み方は動き出しと止まり際が遅い形
-     * (余弦) に小さな揺れを足す (後戻りはしない)。長さは ±8%×倍率 (手動の上限 3 秒は超えない)。
+     * 直線のスワイプを人の線にする。横へ弓なりに曲げ (線)、進み方は動き出しと止まり際が遅い形 (余弦。いつも) に
+     * 小さな揺れを足す (速さ。後戻りはしない)。長さは ±8%×倍率 (速さ。手動の上限 3 秒は超えない)。
      */
-    private fun swipe(x1: Float, y1: Float, endX: Float, endY: Float, ms: Long, radius: Float, f: Double,
+    private fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, ms: Long, f: Double, parts: Parts,
         random: Random): List<ActionGesture.Point> {
-        val end = random.nextDouble() * 2 * PI
-        val x2 = endX + (cos(end) * radius * 0.6).toFloat()
-        val y2 = endY + (sin(end) * radius * 0.6).toFloat()
-        val duration = (ms * (1 + (random.nextDouble() * 2 - 1) * minOf(0.08 * f, 0.6))).roundToLong()
+        val duration = if (!parts.speed) ms else (ms * (1 + (random.nextDouble() * 2 - 1) * minOf(0.08 * f, 0.6))).roundToLong()
             .coerceIn(1, maxOf(ms, MANUAL_MAX_MS))
         val length = hypot(x2 - x1, y2 - y1)
-        val bow = ((random.nextDouble() * 2 - 1) * minOf(0.05 * f, 0.6) * length).toFloat()
+        val bow = if (!parts.path) 0f else ((random.nextDouble() * 2 - 1) * minOf(0.05 * f, 0.6) * length).toFloat()
             .coerceIn((-48 * f).toFloat(), (48 * f).toFloat())
         val nx = if (length > 0) -(y2 - y1) / length else 0f
         val ny = if (length > 0) (x2 - x1) / length else 0f
-        val wobble = random.nextDouble() * minOf(0.04 * f, 0.3)
+        val wobble = if (!parts.speed) 0.0 else random.nextDouble() * minOf(0.04 * f, 0.3)
         val phase = random.nextDouble() * 2 * PI
         val times = ((0L until duration step ActionGesture.SAMPLE_MS).toList() + duration).distinct()
         var reached = 0.0
@@ -134,19 +165,21 @@ internal object ActionHumanize {
             val side = bow * sin(PI * s).toFloat()
             ActionGesture.Point(x1 + (x2 - x1) * s + nx * side, y1 + (y2 - y1) * s + ny * side, time)
         }
-        return shake(line, f, random)
+        return if (parts.path) shake(line, f, random) else line
     }
 
     /**
-     * `drag` の通過点を人の線にする。区間ごとに長さの 6%×倍率 (最大 12 px×倍率) まで弓なりにし、進み方は
-     * `u - k·sin(2πu)/2π` (k = 0.5〜0.8) で点の近くを遅く・区間の中ほどを速くする (k < 1 なので止まらず
-     * 後戻りもしない)。区間の時間は ±20%×倍率 (合計は同じ)。角は道のりで前後 4 px×倍率の範囲をならして丸める。
+     * `drag` の通過点を人の線にする。区間ごとに長さの 6%×倍率 (最大 12 px×倍率) まで弓なりにし (線)、進み方は
+     * `u - k·sin(2πu)/2π` で点の近くを少し遅く・区間の中ほどを少し速くする (k = 0.25〜0.45 で、点では
+     * 区間の平均の 55〜75% の速さ。止まらず後戻りもしない。速さを揺らさないなら k = 0.35)。区間の時間は
+     * ±20%×倍率 (速さ。合計は同じ)。角は道のりで前後 4 px×倍率の範囲をならして丸める (線)。
+     * 最後に [ramp] で、動き出しを止まった状態からの加速に、終点を止まるまでの減速にする。
      */
-    private fun waypoints(track: List<ActionGesture.Point>, f: Double, random: Random): List<ActionGesture.Point> {
+    private fun waypoints(track: List<ActionGesture.Point>, f: Double, parts: Parts, random: Random): List<ActionGesture.Point> {
         if (track.size < 2) return track
         val start = track.first().ms
         val total = track.last().ms - start
-        val jitter = minOf(0.2 * f, 0.9)
+        val jitter = if (parts.speed) minOf(0.2 * f, 0.9) else 0.0
         val weights = track.zipWithNext { a, b -> (b.ms - a.ms).toDouble() * (1 + (random.nextDouble() * 2 - 1) * jitter) }
         val sum = weights.sum().takeIf { it > 0 } ?: return track
         // 点は 16 ms ごと。長いなぞりでも点の数が上限 (2048) を超えないよう間隔を広げる。
@@ -161,10 +194,11 @@ internal object ActionHumanize {
             val length = hypot(b.x - a.x, b.y - a.y)
             val nx = if (length > 0) -(b.y - a.y) / length else 0f
             val ny = if (length > 0) (b.x - a.x) / length else 0f
-            val bow = ((random.nextDouble() * 2 - 1) * minOf(0.06 * f, 0.6) * length).toFloat().coerceIn(-bowCap, bowCap)
-            val k = 0.5 + random.nextDouble() * 0.3
+            val bow = if (!parts.path) 0f
+                else ((random.nextDouble() * 2 - 1) * minOf(0.06 * f, 0.6) * length).toFloat().coerceIn(-bowCap, bowCap)
+            val k = if (parts.speed) 0.25 + random.nextDouble() * 0.2 else 0.35
             // 区間の中の速さの揺れ (強さに比例)。進み具合は後戻りさせない。
-            val wobble = random.nextDouble() * minOf(0.015 * f, 0.25)
+            val wobble = if (parts.speed) random.nextDouble() * minOf(0.015 * f, 0.25) else 0.0
             val cycles = 1 + random.nextInt(3)
             val phase = random.nextDouble() * 2 * PI
             var reached = 0.0
@@ -185,7 +219,49 @@ internal object ActionHumanize {
         val timed = out.dropLast(1).filter { it.ms < track.last().ms }
             .fold(mutableListOf<ActionGesture.Point>()) { list, p -> if (list.isEmpty() || p.ms > list.last().ms) list += p; list }
         timed += out.last()
-        return shake(round(timed, (4 * f).toFloat()), f, random)
+        val shaped = if (parts.path) shake(round(timed, (4 * f).toFloat()), f, random) else timed
+        return ramp(shaped, sample, if (parts.speed) 0.8 + random.nextDouble() * 0.4 else 1.0)
+    }
+
+    /**
+     * 動き出しと止まり際 (1.0.203)。時間の流れを付け替えて、始点では速さ 0 から sin² で加速し、終点では
+     * sin² で速さ 0 まで減速する (幅は [RAMP_MS]×[stretch]、全体の 1/4 まで)。間は一定の割合で速める
+     * ので、全体の長さと通る道筋は変わらない。[points] の時刻は「仮の時間」として読み、実際の時刻ごとに
+     * 道筋の上を線形に補間する。
+     */
+    internal fun ramp(points: List<ActionGesture.Point>, sample: Long, stretch: Double = 1.0): List<ActionGesture.Point> {
+        if (points.size < 2) return points
+        val start = points.first().ms
+        val total = (points.last().ms - start).toDouble()
+        if (total <= 2) return points
+        val r = minOf(RAMP_MS * stretch, total / 4)
+        // 速さ v(t) を積んだもの。両端の sin² は面積 r/2 ずつ。
+        val area = total - r
+        fun integral(t: Double): Double = when {
+            t <= r -> t / 2 - r / (2 * PI) * sin(PI * t / r)
+            t >= total - r -> area - integral(total - t)
+            else -> r / 2 + (t - r)
+        }
+        var j = 0
+        fun at(virtual: Double): Pair<Float, Float> {
+            val ms = start + virtual
+            while (j < points.lastIndex - 1 && points[j + 1].ms < ms) j++
+            val a = points[j]; val b = points[j + 1]
+            val span = (b.ms - a.ms).toDouble()
+            val u = if (span <= 0) 1.0 else ((ms - a.ms) / span).coerceIn(0.0, 1.0)
+            return (a.x + (b.x - a.x) * u).toFloat() to (a.y + (b.y - a.y) * u).toFloat()
+        }
+        val times = ((0L until total.toLong() step sample).toList() + total.toLong()).distinct()
+        return times.mapIndexed { i, t ->
+            when (i) {
+                0 -> points.first()
+                times.lastIndex -> points.last()
+                else -> {
+                    val (x, y) = at(integral(t.toDouble()) / area * total)
+                    ActionGesture.Point(x, y, start + t)
+                }
+            }
+        }
     }
 
     /**
@@ -231,14 +307,14 @@ internal object ActionHumanize {
         }
     }
 
-    /** 1 本指の記録した軌跡の区間ごとの時間を ±20%×倍率 揺らす。始まりと終わりの時刻は同じ。途中の点を少し震わせる。 */
-    private fun retime(track: List<ActionGesture.Point>, radius: Float, f: Double, random: Random): List<ActionGesture.Point> {
-        if (track.size < 3) return track
+    /** 1 本指の記録した軌跡の区間ごとの時間を ±20%×倍率 揺らす (速さ)。始まりと終わりの時刻は同じ。途中の点を少し震わせる (線)。 */
+    private fun retime(track: List<ActionGesture.Point>, radius: Float, f: Double, parts: Parts, random: Random): List<ActionGesture.Point> {
+        if (track.size < 3 || (!parts.speed && !parts.path)) return track
         val total = track.last().ms - track.first().ms
-        val jitter = minOf(0.2 * f, 0.9)
+        val jitter = if (parts.speed) minOf(0.2 * f, 0.9) else 0.0
         val gaps = track.zipWithNext { a, b -> (b.ms - a.ms).toDouble() * (1 + (random.nextDouble() * 2 - 1) * jitter) }
         val sum = gaps.sum().takeIf { it > 0 } ?: return track
-        val tremor = minOf((1.5 * f).toFloat(), radius / 4)
+        val tremor = if (parts.path) minOf((1.5 * f).toFloat(), radius / 4) else 0f
         var elapsed = 0.0
         var previous = track.first().ms
         return track.mapIndexed { i, point ->

@@ -221,4 +221,17 @@
     <string name="action_chooser_empty">还没有保存的操作宏</string>
     <string name="action_chooser_entry">操作宏：选择后运行</string>
     <string name="action_launch_timeout">打开 %1$s 后 %2$d 秒内未切换到前台</string>
+    <string name="action_edit_jitter">抖动的内容</string>
+    <string name="action_jitter_speed">速度</string>
+    <string name="action_jitter_speed_desc">按住时长、等待、打字间隔和划线速度</string>
+    <string name="action_jitter_path">线条</string>
+    <string name="action_jitter_path_desc">滑动和拖动的弯曲与抖动</string>
+    <string name="action_jitter_aim">落点</string>
+    <string name="action_jitter_aim_desc">点击、起点、终点和拖动途经点的位置（强度越大范围越广）</string>
+    <string name="action_jitter_none">无（仍会加速和减速）</string>
+    <string name="action_jitter_hint">无论这里怎么选，动作总是从静止加速、减速到停止。在步骤行末加上 exact，只让该步骤的落点保持精确。</string>
+    <string name="action_edit_exact">落点不抖动</string>
+    <string name="action_edit_routine">例程（仅供调用）</string>
+    <string name="action_edit_routine_desc">不会出现在运行栏和边缘面板的选项中。其他宏用 call 运行它。</string>
+    <string name="action_routines">例程（%1$d）</string>
 </resources>

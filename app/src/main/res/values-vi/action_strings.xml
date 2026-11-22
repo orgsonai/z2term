@@ -221,4 +221,17 @@
     <string name="action_chooser_empty">Chưa có macro thao tác nào được lưu</string>
     <string name="action_chooser_entry">Macro thao tác: chọn và chạy</string>
     <string name="action_launch_timeout">%1$s không ra phía trước trong %2$d giây sau khi mở</string>
+    <string name="action_edit_jitter">Thứ được làm dao động</string>
+    <string name="action_jitter_speed">Tốc độ</string>
+    <string name="action_jitter_speed_desc">Thời gian nhấn, thời gian chờ, khoảng gõ phím và tốc độ vẽ</string>
+    <string name="action_jitter_path">Đường</string>
+    <string name="action_jitter_path_desc">Độ cong và rung của vuốt và kéo</string>
+    <string name="action_jitter_aim">Điểm đến</string>
+    <string name="action_jitter_aim_desc">Vị trí chạm, điểm đầu, điểm cuối và điểm kéo (rộng hơn khi mức cao)</string>
+    <string name="action_jitter_none">Không (vẫn tăng tốc và giảm tốc)</string>
+    <string name="action_jitter_hint">Dù chọn gì, chuyển động luôn tăng tốc từ lúc đứng yên và giảm tốc đến khi dừng. Thêm exact vào cuối một bước để giữ chính xác chỉ các điểm của bước đó.</string>
+    <string name="action_edit_exact">Điểm đến chính xác</string>
+    <string name="action_edit_routine">Thủ tục (chỉ gọi)</string>
+    <string name="action_edit_routine_desc">Không có trong thanh chạy hay bảng cạnh. Macro khác chạy nó bằng call.</string>
+    <string name="action_routines">Thủ tục (%1$d)</string>
 </resources>

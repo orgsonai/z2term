@@ -59,7 +59,7 @@ internal object ActionStepEditor {
     }
 
     fun supports(line: String): Boolean {
-        val words = line.trim().split(Regex("\\s+"))
+        val words = ActionDefinition.splitExact(line.trim().split(Regex("\\s+"))).first
         val kind = kinds.firstOrNull { it.verb == verbOf(line) } ?: return false
         return kind.verb in listOf("set", "read-colors", "call", "command", "run-output", "type", "tap ui", "if", "repeat", "click", "long-click", "wait-ui", "wait-until", "wait-while", "touch", "swipe-path", "swipe-two-path", "drag") ||
             words.size == kind.fields.size + 1 || (kind.fields.lastOrNull() == R.string.action_edit_easing && words.size == kind.fields.size)
@@ -72,7 +72,9 @@ internal object ActionStepEditor {
         val body = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         val fields = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         val error = ActionUi.label(context, "", 11f, ActionUi.dangerColor)
-        val trimmed = initial.trim()
+        // 行末の `exact` (1.0.203) は欄ではなく下の切り替えで持つ。
+        var exact = ActionDefinition.splitExact(initial.trim().split(Regex("\\s+"))).second
+        val trimmed = initial.trim().let { if (exact) it.removeSuffix("exact").trimEnd() else it }
         val initialVerb = verbOf(trimmed)
         val available = if (initialVerb in listOf("repeat", "if", "try")) kinds.filter { it.verb == initialVerb }
             else kinds.filterNot { it.verb in listOf("repeat", "if", "try", "touch", "swipe-path", "swipe-two-path") && it.verb != initialVerb }
@@ -104,7 +106,8 @@ internal object ActionStepEditor {
         var appDialog: Dialog? = null
         fun publish() {
             if (rendering) return
-            current = (kind.verb + " " + values.joinToString(" ")).trimEnd()
+            current = (kind.verb + " " + values.joinToString(" ")).trimEnd() +
+                if (exact && kind.verb in ActionDefinition.EXACT_VERBS) " exact" else ""
             draft(current); error.text = ""
         }
         fun render() {
@@ -258,6 +261,10 @@ internal object ActionStepEditor {
                     catch (e: Exception) { error.text = e.message }
                 })
             }
+            if (kind.verb in ActionDefinition.EXACT_VERBS) ActionUi.add(fields,
+                com.zerotoship.z2term.edge.EdgeSettingsUi.toggleRow(context, context.getString(R.string.action_edit_exact), exact) {
+                    exact = it; publish()
+                })
             if (R.string.action_edit_easing in kind.fields)
                 ActionUi.add(fields, ActionUi.note(context, context.getString(R.string.action_easing_hint)), gap = 6)
             if (kind.verb in listOf("pinch-in", "pinch-out", "swipe-two"))

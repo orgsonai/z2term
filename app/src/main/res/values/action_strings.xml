@@ -222,4 +222,17 @@
     <string name="action_chooser_empty">No action macros are saved yet</string>
     <string name="action_chooser_entry">Action macro: choose and run</string>
     <string name="action_launch_timeout">%1$s did not come to the front within %2$d seconds after launch</string>
+    <string name="action_edit_jitter">What to vary</string>
+    <string name="action_jitter_speed">Speed</string>
+    <string name="action_jitter_speed_desc">Press length, waits, typing gaps and how fast lines are drawn</string>
+    <string name="action_jitter_path">Line</string>
+    <string name="action_jitter_path_desc">Curve and wobble of swipes and drags</string>
+    <string name="action_jitter_aim">Landing point</string>
+    <string name="action_jitter_aim_desc">Where each tap, start, end and drag point lands (wider at higher strengths)</string>
+    <string name="action_jitter_none">None (still speeds up and slows down)</string>
+    <string name="action_jitter_hint">Whatever you choose here, a move always speeds up from rest and slows to a stop. Add exact to the end of a step to keep only that step\'s points exact.</string>
+    <string name="action_edit_exact">Exact landing points</string>
+    <string name="action_edit_routine">Routine (call only)</string>
+    <string name="action_edit_routine_desc">Not offered in the run bar or the edge panel. Other macros run it with call.</string>
+    <string name="action_routines">Routines (%1$d)</string>
 </resources>

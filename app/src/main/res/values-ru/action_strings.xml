@@ -221,4 +221,17 @@
     <string name="action_chooser_empty">Сохранённых макросов действий пока нет</string>
     <string name="action_chooser_entry">Макрос действий: выбрать и запустить</string>
     <string name="action_launch_timeout">%1$s не вышло на передний план за %2$d с после запуска</string>
+    <string name="action_edit_jitter">Что менять</string>
+    <string name="action_jitter_speed">Скорость</string>
+    <string name="action_jitter_speed_desc">Длительность нажатия, ожидания, паузы при наборе и скорость линии</string>
+    <string name="action_jitter_path">Линия</string>
+    <string name="action_jitter_path_desc">Изгиб и дрожание свайпов и перетаскиваний</string>
+    <string name="action_jitter_aim">Точка попадания</string>
+    <string name="action_jitter_aim_desc">Куда попадают касания, начало, конец и точки перетаскивания (шире при большей силе)</string>
+    <string name="action_jitter_none">Ничего (разгон и торможение остаются)</string>
+    <string name="action_jitter_hint">Что бы ни было выбрано, движение всегда разгоняется с места и тормозит до остановки. Добавьте exact в конец шага, чтобы только его точки были точными.</string>
+    <string name="action_edit_exact">Точные точки попадания</string>
+    <string name="action_edit_routine">Подпрограмма (только вызов)</string>
+    <string name="action_edit_routine_desc">Не показывается в панели запуска и на боковой панели. Другие макросы запускают её через call.</string>
+    <string name="action_routines">Подпрограммы (%1$d)</string>
 </resources>

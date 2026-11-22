@@ -220,4 +220,17 @@
     <string name="action_chooser_empty">Noch keine Aktionsmakros gespeichert</string>
     <string name="action_chooser_entry">Aktionsmakro: wählen und ausführen</string>
     <string name="action_launch_timeout">%1$s kam nach dem Start nicht innerhalb von %2$d Sekunden in den Vordergrund</string>
+    <string name="action_edit_jitter">Was variiert wird</string>
+    <string name="action_jitter_speed">Tempo</string>
+    <string name="action_jitter_speed_desc">Drückdauer, Wartezeiten, Tippabstände und Zeichentempo</string>
+    <string name="action_jitter_path">Linie</string>
+    <string name="action_jitter_path_desc">Krümmung und Zittern von Wischen und Ziehen</string>
+    <string name="action_jitter_aim">Zielpunkt</string>
+    <string name="action_jitter_aim_desc">Wo Tippen, Start, Ende und Ziehpunkte landen (bei höherer Stärke weiter)</string>
+    <string name="action_jitter_none">Nichts (beschleunigt und bremst trotzdem)</string>
+    <string name="action_jitter_hint">Egal was hier gewählt ist: Eine Bewegung beschleunigt immer aus dem Stand und bremst bis zum Halt. Hänge exact an das Ende eines Schritts, um nur dessen Punkte genau zu halten.</string>
+    <string name="action_edit_exact">Genaue Zielpunkte</string>
+    <string name="action_edit_routine">Routine (nur Aufruf)</string>
+    <string name="action_edit_routine_desc">Erscheint nicht in der Ausführungsleiste oder im Randpanel. Andere Makros starten sie mit call.</string>
+    <string name="action_routines">Routinen (%1$d)</string>
 </resources>

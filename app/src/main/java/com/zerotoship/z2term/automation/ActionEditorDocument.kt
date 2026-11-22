@@ -40,9 +40,11 @@ internal class ActionEditorDocument(val text: String) {
         return updated.joinToString(newline)
     }
 
-    fun withoutScreen(): String {
+    fun withoutScreen(): String = withoutHeader("screen")
+
+    fun withoutHeader(name: String): String {
         val end = rows.firstOrNull()?.line ?: lines.size
-        return lines.filterIndexed { index, line -> index >= end || !line.trim().startsWith("screen=") }.joinToString(newline)
+        return lines.filterIndexed { index, line -> index >= end || !line.trim().startsWith("$name=") }.joinToString(newline)
     }
 
     fun replace(line: Int, value: String): String {

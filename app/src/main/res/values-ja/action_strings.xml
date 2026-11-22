@@ -221,4 +221,17 @@
     <string name="action_chooser_empty">保存した操作マクロがありません</string>
     <string name="action_chooser_entry">操作マクロ: 選んで実行</string>
     <string name="action_launch_timeout">%1$s を開いてから %2$d 秒たっても前面に出ませんでした</string>
+    <string name="action_edit_jitter">揺らすもの</string>
+    <string name="action_jitter_speed">速さ</string>
+    <string name="action_jitter_speed_desc">押す長さ・待ち時間・打鍵の間隔・線を引く速さ</string>
+    <string name="action_jitter_path">線</string>
+    <string name="action_jitter_path_desc">スワイプとなぞるの曲がりとふらつき</string>
+    <string name="action_jitter_aim">到達点</string>
+    <string name="action_jitter_aim_desc">押す点・始点・終点・なぞるの通過点の位置（強さが大きいほど広く）</string>
+    <string name="action_jitter_none">なし（加速と減速だけ）</string>
+    <string name="action_jitter_hint">ここで何を選んでも、動き出しは止まった状態から加速し、止まり際は減速します。手順の行末に exact を付けると、その手順だけ到達点を揺らしません。</string>
+    <string name="action_edit_exact">到達点を揺らさない</string>
+    <string name="action_edit_routine">ルーチン（呼び出し専用）</string>
+    <string name="action_edit_routine_desc">実行の帯やエッジパネルの選択肢に出しません。ほかのマクロから call で呼びます。</string>
+    <string name="action_routines">ルーチン（%1$d）</string>
 </resources>

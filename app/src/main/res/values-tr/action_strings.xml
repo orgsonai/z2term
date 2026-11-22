@@ -221,4 +221,17 @@
     <string name="action_chooser_empty">Henüz kayıtlı işlem makrosu yok</string>
     <string name="action_chooser_entry">İşlem makrosu: seç ve çalıştır</string>
     <string name="action_launch_timeout">%1$s, başlatıldıktan sonra %2$d saniye içinde öne gelmedi</string>
+    <string name="action_edit_jitter">Neler değişsin</string>
+    <string name="action_jitter_speed">Hız</string>
+    <string name="action_jitter_speed_desc">Basma süresi, beklemeler, yazma aralıkları ve çizgi hızı</string>
+    <string name="action_jitter_path">Çizgi</string>
+    <string name="action_jitter_path_desc">Kaydırma ve sürüklemelerin eğriliği ve titremesi</string>
+    <string name="action_jitter_aim">Varış noktası</string>
+    <string name="action_jitter_aim_desc">Dokunma, başlangıç, bitiş ve sürükleme noktalarının düştüğü yer (güç arttıkça geniş)</string>
+    <string name="action_jitter_none">Hiçbiri (yine hızlanır ve yavaşlar)</string>
+    <string name="action_jitter_hint">Ne seçilirse seçilsin hareket her zaman duruştan hızlanır ve durana kadar yavaşlar. Yalnızca o adımın noktalarını tam tutmak için adımın sonuna exact ekleyin.</string>
+    <string name="action_edit_exact">Tam varış noktaları</string>
+    <string name="action_edit_routine">Rutin (yalnızca çağrı)</string>
+    <string name="action_edit_routine_desc">Çalıştırma çubuğunda ve kenar panelinde sunulmaz. Diğer makrolar onu call ile çalıştırır.</string>
+    <string name="action_routines">Rutinler (%1$d)</string>
 </resources>

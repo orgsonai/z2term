@@ -314,9 +314,9 @@ With `human=on` in the headers, finger operations and waits come closer to a per
 
 **Strength (1.0.186; up to 20 since 1.0.187)**: `human=1`..`human=20` chooses how much it varies. Larger numbers give larger offsets, more bending, rounder corners, more hand drift and more variation in speed and timing (proportional to the number). `human=on` is 5; `off` and `0` mean none. The figures below are for strength 2; at 10 they are about five times larger, at 20 ten times. At high strength a drag passes off its points (about 20 px at 10, 40 px at 20). Strength 11 and above is large movement that may miss its targets (time order and staying on screen are still kept).
 
-- Taps, long presses and double taps: the point moves a little each time (up to 0.6% of the screen's short side, about 6 px at 1080 px wide). Taps last 60–110 ms, long presses vary by ±8% and the double-tap gap by ±15%.
-- Swipes: the line bows slightly (up to 5% of its length, 48 px at most), starts and stops slowly with a little variation on the way, and ends slightly off the exact point; the whole duration varies by ±8%. This takes precedence over accelerate/decelerate.
-- Drags (`drag`, 1.0.185): the finger passes close to every given point. Each segment bows (6% of its length, 12 px at most), slows near the points without stopping and varies its speed within the segment. Corners are rounded by averaging 4 px of path on either side. Segment times vary by ±20% with the same total.
+- Taps, long presses and double taps: the point moves a little each time (within 0.3% of the screen's short side, about 3 px at 1080 px wide; about 8 px at strength 5 and 32 px at 20). Taps last 60–110 ms, long presses vary by ±8% and the double-tap gap by ±15%.
+- Swipes: the line bows slightly (up to 5% of its length, 48 px at most), starts and stops slowly with a little variation on the way. The start and the end each move separately, within the same radius as taps; the whole duration varies by ±8%. This takes precedence over accelerate/decelerate.
+- Drags (`drag`, 1.0.185): the finger passes close to every given point. Each point moves separately, within the same radius as taps (1.0.203; before, the whole shape moved together, so every point was reached exactly). **The finger speeds up from rest and slows to a stop at the end** (1.0.203). Each segment bows (6% of its length, 12 px at most), eases a little near the points (55–75% of the segment's average speed, never stopping) and varies its speed within the segment. Corners are rounded by averaging 4 px of path on either side. Segment times vary by ±20% with the same total.
 - Swipes and drags also get slow hand drift (1 px) and fine tremor (0.5 px).
 - Recorded touches: the shape stays, the position moves slightly, and with one finger each segment's time varies by ±20% (same total). Two-finger gestures move together.
 - `type` (1.0.193): the text grows one character at a time with a gap between characters (about 110 ms, about 220 ms after a space or punctuation; ±37% at strength 5, growing with strength up to ±90%). Text longer than 256 characters goes in at once. After a pause it is typed again from the start (it replaces the content, so nothing doubles).
@@ -325,7 +325,24 @@ With `human=on` in the headers, finger operations and waits come closer to a per
 
 **Show the trail of operations (1.0.185)**: with "Show the trail of operations" on in the screen-actions tab, a running macro's presses and traced lines are drawn on screen in the same green as AI app control. The line grows along the path actually sent (human-like movement, two fingers and timing included) and fades one second after the finger lifts. The drawing cannot be touched, so it never gets in the way, and it is removed before a colour condition is read. Off by default.
 
-While running, **～** on the stop bar turns it off and on (accent colour when on; turning it back on restores the strength), from the next step. The strength comes from the first macro's header; `human=` in called macros is not used. In the form editor, tap the "Human-like input" row to enter a strength from 0 to 20.
+**Choose what varies (1.0.203)**: the `jitter=` header picks what is varied. All three are the default, the same as leaving the header out.
+
+| Value | What varies |
+|---|---|
+| `speed` | Speed: press length, double-tap gap, `wait`, typing gaps, and the duration and pace of swipes and drags |
+| `path` | Line: the bow of swipes and drags, rounded corners, hand drift and tremor |
+| `aim` | Landing point: where each tap, start, end and drag point lands (the radius grows with the strength above) |
+| `none` | Nothing varies |
+
+List them with commas, as in `jitter=speed,path`. **Whatever is chosen, a move speeds up from rest and slows to a stop** (a finger never starts or stops at full speed). In the form editor a "What to vary" row appears while human-like input is on, with a switch for each of the three.
+
+**Keep one step exact (1.0.203)**: add `exact` to the end of a coordinate step (`tap`, `long-press`, `double-tap`, `swipe`, `drag`, `pinch-in` / `pinch-out`, `swipe-two`, `touch`, `swipe-path`) and only that step's landing points stay exact (speed and line still vary). Example: `tap px 540 1200 exact`. Use it for places that must not be missed, such as a confirm button. In the form it is "Exact landing points" in the step editor.
+
+While running, **～** on the stop bar turns it off and on (accent colour when on; turning it back on restores the strength), from the next step. The strength and what varies come from the first macro's header; `human=` and `jitter=` in called macros are not used. In the form editor, tap the "Human-like input" row to enter a strength from 0 to 20.
+
+### Routines (call only, 1.0.203)
+
+For a macro that is only run from other macros with `call`, write `routine=on` in its headers. Routines are left out of the bar that picks and runs a macro and out of the edge panel and tile item pickers, so macros you never pick directly do not crowd those lists. In the screen-actions tab they sit folded under "**Routines (count)**" at the bottom of the list; tap it to open. `call` runs them as before, and ▶ in the list or `z2-action start` still runs one alone for testing. In the form editor, the "Routine (call only)" switch sets it.
 
 ### Run steps a program decides (run-output, 1.0.183)
 
@@ -462,6 +479,8 @@ end
 | `screen=current` | Save display geometry; required for coordinates/scroll |
 | `screen=1080x2400@0` | Explicit display geometry |
 | `human=0`..`human=20` / `on` / `off` | Strength of human-like input (default off; `on` = 5); see "Human-like input" below |
+| `jitter=speed,path,aim` / `none` | What human-like input varies (default all three; 1.0.203) |
+| `routine=on` / `off` | A macro only run with `call` (left out of the run bar and edge panel pickers; 1.0.203) |
 | `target PACKAGE` | Set the target app for subsequent coordinates, scrolling and UI elements without launching it |
 | `target current` | Use the foreground app at the start of each subsequent step; the default when no target is specified |
 | `launch PACKAGE` | Launch the app and wait until it is in front (up to 10 seconds, 1.0.111); also updates the target |

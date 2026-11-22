@@ -220,4 +220,17 @@
     <string name="action_chooser_empty">Nessuna macro di azioni salvata</string>
     <string name="action_chooser_entry">Macro di azioni: scegli ed esegui</string>
     <string name="action_launch_timeout">%1$s non è passata in primo piano entro %2$d secondi dall’avvio</string>
+    <string name="action_edit_jitter">Cosa variare</string>
+    <string name="action_jitter_speed">Velocità</string>
+    <string name="action_jitter_speed_desc">Durata della pressione, attese, pause di digitazione e velocità del tratto</string>
+    <string name="action_jitter_path">Linea</string>
+    <string name="action_jitter_path_desc">Curvatura e tremolio di scorrimenti e trascinamenti</string>
+    <string name="action_jitter_aim">Punto di arrivo</string>
+    <string name="action_jitter_aim_desc">Dove cadono tocchi, inizio, fine e punti di trascinamento (più ampio a intensità alta)</string>
+    <string name="action_jitter_none">Niente (accelera e frena comunque)</string>
+    <string name="action_jitter_hint">Qualunque scelta, il movimento accelera sempre da fermo e rallenta fino a fermarsi. Aggiungi exact alla fine di un passo per tenere esatti solo i suoi punti.</string>
+    <string name="action_edit_exact">Punti di arrivo esatti</string>
+    <string name="action_edit_routine">Routine (solo chiamata)</string>
+    <string name="action_edit_routine_desc">Non compare nella barra di esecuzione né nel pannello laterale. Le altre macro la eseguono con call.</string>
+    <string name="action_routines">Routine (%1$d)</string>
 </resources>

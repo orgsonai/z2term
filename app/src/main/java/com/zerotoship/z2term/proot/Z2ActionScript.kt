@@ -45,8 +45,8 @@ fun z2ActionScript(lang: String): String {
         ja = "watch 条件 call 名前 は、書いたブロックが終わるまで（最上位ならマクロ全体）300ミリ秒ごとに条件を確かめ、成立したら 名前 を呼んでから続きへ戻ります。待ちの手順は打ち切って最初から送り直し、ほかの手順は終わるのを待ちます。watch の条件に command は使えません。\nrun-output シェル はコマンドを動かし、標準出力に書かれた手順を検査してから実行します（見出し・call・run-output・watch は不可）。終了コードが0以外なら失敗です。"
     )
     val humanHelp = t("action.humanHelp",
-        en = "human=1..20 (on = 5, off or 0 = none; larger moves more) makes taps, swipes, drags and waits less mechanical: small position offsets, curved swipes that start and stop slowly, and slightly varied timing. The ~ button on the stop bar switches it while the macro runs.",
-        ja = "human=1〜20（on は 5、off と 0 はなし。大きいほど揺れる）で、タップ・スワイプ・なぞる操作と wait を人の指に近づけます（位置を少しずらす、線を少し曲げて動き出しと止まり際を遅く、時間を少しばらつかせる）。停止バーの ～ で実行中にも切り替えられます。"
+        en = "human=1..20 (on = 5, off or 0 = none; larger moves more) makes taps, swipes, drags and waits less mechanical. jitter=speed,path,aim (default all; none = only the smooth start and stop) picks what varies: speed = press length, waits, typing gaps and drawing speed; path = curve and wobble of lines; aim = where each tap, start, end and drag point lands, within a radius that grows with the strength. Moves always speed up from rest and slow to a stop, and drags ease a little at each point. Add exact to the end of a coordinate step to keep its points exact. routine=on marks a macro that is only run with call: it is left out of the run bar and the edge panel. The ~ button on the stop bar switches human-like input while the macro runs.",
+        ja = "human=1〜20（on は 5、off と 0 はなし。大きいほど揺れる）で、タップ・スワイプ・なぞる操作と wait を人の指に近づけます。jitter=speed,path,aim（既定は 3 つとも。none は加速と減速だけ）で揺らすものを選びます: speed は押す長さ・待ち時間・打鍵の間隔・線を引く速さ、path は線の曲がりとふらつき、aim は押す点・始点・終点・なぞるの通過点の位置（半径は強さに比例）。動き出しは必ず止まった状態から加速して止まり際は減速し、なぞるは通過点で少しだけ速さを落とします。座標の手順の行末に exact を付けると、その手順の到達点を揺らしません。routine=on は call から呼ぶだけのマクロの印で、実行の帯とエッジパネルの選択肢に出ません。停止バーの ～ で実行中にも人らしい操作を切り替えられます。"
     )
     val uiHelp = t("action.uiHelp",
         en = "version=2 also supports click SELECTOR, long-click SELECTOR and wait-ui MS SELECTOR.\nSelectors: text=Continue, desc=More options, id=org.example.app:id/next. Exact matches; no quoting around spaces.\nSet target or launch first. wait-ui searches every 250ms for up to 1–30000ms; multiple matches fail.\nActions are sent once; use wait-ui for the next screen. Input/password fields are excluded.\ninspect PACKAGE returns visible text, descriptions and IDs from the focused target app as JSON.",
@@ -62,7 +62,8 @@ fun z2ActionScript(lang: String): String {
         |# z2-action run NAME [VALUE...] | start NAME [VALUE...] | wait RUN_ID | status [RUN_ID] | stop [RUN_ID] | pause [RUN_ID] | resume [RUN_ID]
         |# z2-action screen | history | inspect PACKAGE
         |# z2-action pick   (a bar over the current app: choose a macro, run it with ▶; it then becomes the stop bar)
-        |# version=1|2 / timeout=30 / screen=current / human=on|off|0..20
+        |# version=1|2 / timeout=30 / screen=current / human=on|off|0..20 / jitter=speed,path,aim|none / routine=on|off
+        |# Coordinate steps (tap … drag … touch) take a trailing exact: no landing-point jitter for that step
         |# target PACKAGE / launch PACKAGE / wait MILLISECONDS / key back|home|recents|shade|quicksettings|screenshot|split
         |# tap px|percent X Y / long-press px|percent X Y MILLISECONDS
         |# swipe px|percent X1 Y1 X2 Y2 MILLISECONDS [linear|accelerate|decelerate]

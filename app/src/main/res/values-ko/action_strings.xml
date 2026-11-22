@@ -221,4 +221,17 @@
     <string name="action_chooser_empty">저장된 동작 매크로가 없습니다</string>
     <string name="action_chooser_entry">동작 매크로: 선택해서 실행</string>
     <string name="action_launch_timeout">%1$s을(를) 연 뒤 %2$d초가 지나도 앞에 나오지 않았습니다</string>
+    <string name="action_edit_jitter">흔들 항목</string>
+    <string name="action_jitter_speed">속도</string>
+    <string name="action_jitter_speed_desc">누르는 길이, 대기 시간, 타자 간격, 선 긋는 속도</string>
+    <string name="action_jitter_path">선</string>
+    <string name="action_jitter_path_desc">스와이프와 드래그의 휘어짐과 떨림</string>
+    <string name="action_jitter_aim">도착점</string>
+    <string name="action_jitter_aim_desc">탭·시작점·끝점·드래그 통과점의 위치(강도가 클수록 넓게)</string>
+    <string name="action_jitter_none">없음(가속과 감속만)</string>
+    <string name="action_jitter_hint">무엇을 골라도 움직임은 멈춘 상태에서 가속하고 멈출 때 감속합니다. 단계 끝에 exact를 붙이면 그 단계만 도착점을 흔들지 않습니다.</string>
+    <string name="action_edit_exact">도착점 흔들지 않기</string>
+    <string name="action_edit_routine">루틴(호출 전용)</string>
+    <string name="action_edit_routine_desc">실행 바와 엣지 패널의 선택지에 나오지 않습니다. 다른 매크로에서 call로 실행합니다.</string>
+    <string name="action_routines">루틴(%1$d)</string>
 </resources>

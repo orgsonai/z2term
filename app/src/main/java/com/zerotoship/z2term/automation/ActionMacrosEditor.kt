@@ -66,6 +66,9 @@ internal class ActionMacrosEditor(
     private var pickedScreen: String? = null
     private var stepDialog: Dialog? = null
     private var names = emptyList<String>()
+    /** 呼び出し専用 (`routine=on`、1.0.203)。一覧では下の「ルーチン」に畳む。 */
+    private var routines = emptySet<String>()
+    private var routinesOpen = false
     /** The list shows ↑ ↓ in place of each row's actions while the user arranges it. */
     private var arranging = false
     private var apps = emptyList<AppCatalog.LaunchableApp>()
@@ -301,7 +304,7 @@ internal class ActionMacrosEditor(
         if (!embedded || editing) action(pill(R.string.action_edit_close) { leave() })
         add(row)
     }
-    private fun refresh() = io({ store.names() }) { names = it; if (!editing) render() }
+    private fun refresh() = io({ store.names() to store.routines() }) { (n, r) -> names = n; routines = r; if (!editing) render() }
     private fun renderList() {
         // What is running now, and the only way to stop it: one block, never mixed into the list.
         val running = ActionUi.card(this)
@@ -393,7 +396,7 @@ internal class ActionMacrosEditor(
                 arranging = !arranging; render()
             } else null).toTypedArray())
         if (names.isEmpty()) add(note(R.string.action_edit_empty))
-        names.forEach { savedName ->
+        fun macroRow(savedName: String, section: List<String>) {
             // One bordered row per macro; the actions are glyphs at its right edge, as in the rules tab.
             val row = ActionUi.card(this, vertical = false).apply { setPadding(dp(10), dp(2), dp(2), dp(2)) }
             // A saved name is an identifier, so it is set like one.
@@ -404,16 +407,17 @@ internal class ActionMacrosEditor(
             fun icon(glyph: String, label: Int, danger: Boolean = false, size: Float = 15f, action: () -> Unit) =
                 row.addView(ActionUi.iconCell(this, glyph, getString(label), danger, size, action))
             if (arranging) {
-                val at = names.indexOf(savedName)
+                // 並べ替えは同じ区切り (普通のマクロ / ルーチン) の中だけ。
+                val at = section.indexOf(savedName)
                 // The end rows keep the cell so the arrows stay in one column.
-                fun move(glyph: String, label: Int, to: Int) = row.addView(
-                    ActionUi.iconCell(this, glyph, getString(label)) { moveSaved(savedName, to) }.apply {
-                        if (to !in names.indices) { isEnabled = false; alpha = 0.3f }
+                fun move(glyph: String, label: Int, neighbour: String?) = row.addView(
+                    ActionUi.iconCell(this, glyph, getString(label)) { if (neighbour != null) moveSaved(savedName, neighbour) }.apply {
+                        if (neighbour == null) { isEnabled = false; alpha = 0.3f }
                     })
-                move("↑", R.string.action_edit_up, at - 1)
-                move("↓", R.string.action_edit_down, at + 1)
+                move("↑", R.string.action_edit_up, section.getOrNull(at - 1))
+                move("↓", R.string.action_edit_down, section.getOrNull(at + 1))
                 add(row)
-                return@forEach
+                return
             }
             icon("▶", R.string.action_edit_run) { runSaved(savedName) }
             // No glyph for duplicate reads reliably in every font, so it keeps its word.
@@ -423,19 +427,36 @@ internal class ActionMacrosEditor(
             icon("✎", R.string.action_edit_title) {
                 io({ store.readText(savedName) }) { if (!editing) openEditor(savedName, it) }
             }
-            icon(getString(R.string.action_place), R.string.action_place, size = 12f) {
+            // ルーチンは直接置かないので、置き場所を選ぶ印も出さない。
+            if (savedName !in routines) icon(getString(R.string.action_place), R.string.action_place, size = 12f) {
                 ActionMacroPlacement.show(this, savedName, ::showManaged)
             }
             icon("✕", R.string.action_edit_delete, danger = true) { deleteSaved(savedName) }
             add(row)
         }
+        val plain = names.filter { it !in routines }
+        val routineNames = names.filter { it in routines }
+        plain.forEach { macroRow(it, plain) }
+        if (routineNames.isNotEmpty()) {
+            // 呼び出し専用のマクロは見出しの下に畳む (既定は閉じる。並べ替えの間は開く)。
+            val open = routinesOpen || arranging
+            add(ActionUi.label(this, (if (open) "▾ " else "▸ ") + getString(R.string.action_routines, routineNames.size),
+                13f, ActionUi.mutedColor, ActionUi.medium).apply {
+                setPadding(dp(4), dp(10), dp(4), dp(6))
+                foreground = ActionUi.pressable(this@ActionMacrosEditor, 8)
+                isClickable = true
+                setOnClickListener { routinesOpen = !routinesOpen; render() }
+            })
+            if (open) routineNames.forEach { macroRow(it, routineNames) }
+        }
         add(note(R.string.action_edit_intro))
     }
     /** Saves at once, so leaving the tab mid-arrangement loses nothing. */
-    private fun moveSaved(savedName: String, to: Int) {
+    private fun moveSaved(savedName: String, neighbour: String) {
         val order = names.toMutableList()
-        if (to !in order.indices || !order.remove(savedName)) return
-        order.add(to, savedName)
+        val from = order.indexOf(savedName); val to = order.indexOf(neighbour)
+        if (from < 0 || to < 0) return
+        order[from] = neighbour; order[to] = savedName
         names = order; render()
         io({ store.reorder(order); store.names() }) { names = it; if (!editing) render() }
     }
@@ -511,6 +532,31 @@ internal class ActionMacrosEditor(
             add(setting(R.string.action_edit_human, human) {
                 editHeader("human", R.string.action_edit_human, human.takeUnless { it == "off" } ?: "0")
             })
+            // 何を揺らすか (1.0.203)。人らしい操作が入っているときだけ意味があるので、そのときだけ出す。
+            if (human != "off" && human != "0") {
+                val parts = runCatching { ActionHumanize.Parts.parse(document.header("jitter")) }.getOrDefault(ActionHumanize.Parts.ALL)
+                add(setting(R.string.action_edit_jitter, jitterLabel(parts)) { editJitter(parts) })
+            }
+            // 呼び出し専用 (1.0.203)。実行の帯やエッジパネルの選択肢に出さない。
+            val routineSwitch = com.zerotoship.z2term.edge.EdgeSettingsUi.switchOf(this, document.header("routine") == "on").apply {
+                contentDescription = getString(R.string.action_edit_routine)
+                setOnCheckedChangeListener { _, value ->
+                    try { raw = ActionEditorDocument(raw).withHeader("routine", if (value) "on" else "off"); render() }
+                    catch (e: Exception) { failure(e) }
+                }
+            }
+            add(ActionUi.card(this, vertical = false).apply {
+                foreground = ActionUi.pressable(this@ActionMacrosEditor, 8)
+                isClickable = true
+                setOnClickListener { routineSwitch.toggle() }
+                addView(column().apply {
+                    addView(ActionUi.label(this@ActionMacrosEditor, getString(R.string.action_edit_routine), 13f))
+                    addView(ActionUi.caption(this@ActionMacrosEditor, getString(R.string.action_edit_routine_desc)).apply {
+                        setPadding(0, dp(2), 0, 0)
+                    })
+                }, LinearLayout.LayoutParams(0, -2, 1f))
+                addView(routineSwitch, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8) })
+            })
             ActionBlockEditor.render(this, body, structure.getOrThrow(),
                 edit = { line, source -> stepLine = line; stepGroup = -1; stepDraft = source; pickedScreen = null; showStep() },
                 add = { group, source -> stepLine = -1; stepGroup = group; stepDraft = source; pickedScreen = null; showStep() },
@@ -538,6 +584,43 @@ internal class ActionMacrosEditor(
         }, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(ActionUi.label(this, "✎", 15f, ActionUi.mutedColor).apply { setPadding(dp(8), 0, dp(8), 0) })
         return row
+    }
+    private fun jitterLabel(parts: ActionHumanize.Parts): String =
+        listOfNotNull(getString(R.string.action_jitter_speed).takeIf { parts.speed }, getString(R.string.action_jitter_path).takeIf { parts.path },
+            getString(R.string.action_jitter_aim).takeIf { parts.aim }).joinToString(" · ").ifEmpty { getString(R.string.action_jitter_none) }
+    /** 速さ・線・到達点を 1 つずつ入り切りする。3 つとも入りなら見出しを書かない (既定と同じ)。 */
+    private fun editJitter(initial: ActionHumanize.Parts) {
+        var parts = initial
+        val content = column()
+        fun row(label: Int, detail: Int, checked: Boolean, changed: (Boolean) -> Unit) {
+            val switch = com.zerotoship.z2term.edge.EdgeSettingsUi.switchOf(this, checked).apply {
+                contentDescription = getString(label)
+                setOnCheckedChangeListener { _, value -> changed(value) }
+            }
+            content.addView(LinearLayout(this).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(6), 0, dp(6))
+                foreground = ActionUi.pressable(this@ActionMacrosEditor, 8)
+                isClickable = true
+                setOnClickListener { switch.toggle() }
+                addView(column().apply {
+                    addView(ActionUi.label(this@ActionMacrosEditor, getString(label), 13f))
+                    addView(ActionUi.caption(this@ActionMacrosEditor, getString(detail)).apply { setPadding(0, dp(2), 0, 0) })
+                }, LinearLayout.LayoutParams(0, -2, 1f))
+                addView(switch, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8) })
+            }, LinearLayout.LayoutParams(-1, -2))
+        }
+        row(R.string.action_jitter_speed, R.string.action_jitter_speed_desc, parts.speed) { parts = parts.copy(speed = it) }
+        row(R.string.action_jitter_path, R.string.action_jitter_path_desc, parts.path) { parts = parts.copy(path = it) }
+        row(R.string.action_jitter_aim, R.string.action_jitter_aim_desc, parts.aim) { parts = parts.copy(aim = it) }
+        content.addView(ActionUi.note(this, getString(R.string.action_jitter_hint)), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        showManaged(ActionUi.modal(this, getString(R.string.action_edit_jitter), content = content, confirm = getString(R.string.action_edit_apply)) { dialog ->
+            try {
+                raw = if (parts == ActionHumanize.Parts.ALL) ActionEditorDocument(raw).withoutHeader("jitter")
+                    else ActionEditorDocument(raw).withHeader("jitter", parts.toString())
+                render(); dialog.dismiss()
+            } catch (e: Exception) { failure(e) }
+        })
     }
     private fun editHeader(key: String, title: Int, initial: String) {
         val field = ActionUi.field(this).apply {
