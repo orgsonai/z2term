@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.211 (versionCode 909)**: USB serial no longer raises the DTR / RTS lines on USB-UART bridge chips (CH340, CP210x, FTDI, PL2303). On boards such as the ESP8266 ones those lines drive reset and boot mode, and starting with them raised made the board reset over and over (about 50 times a second), so nothing could be read. CDC-ACM devices (Raspberry Pi Pico, …) still get them raised as before
+
 **1.0.210 (versionCode 908)**: For serial over the network, when the other end cuts an established connection (for example the relay restarts), the tab now says the connection was lost instead of "cannot connect". It still reconnects every 3 seconds
 
 **1.0.209 (versionCode 907)**: Serial now connects over the network too. In the connection editor, choose Network (TCP) next to USB and enter the address and port of a relay that passes a UART straight through over TCP. Put a Wi-Fi microcontroller next to a device and you can reach its console without walking over with a cable. If the connection drops the tab stays and reconnects every 3 seconds. The AI's serial tools work with it as they are. An example that turns a Raspberry Pi Pico 2 W into the relay is in `examples/pico-wifi-serial/`

@@ -8,6 +8,7 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.util.Log
+import com.hoho.android.usbserial.driver.CdcAcmSerialDriver
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.util.SerialInputOutputManager
 import com.zerotoship.z2term.usb.SerialDevices
@@ -213,9 +214,15 @@ class SerialChannel(
             p.open(connection)
             p.setParameters(config.baudRate, config.dataBits, stopBitsOf(config.stopBits), parityOf(config.parity))
             val flowOk = applyFlow(p, config.flow)
-            // 多くのマイコンボード (CDC-ACM) は DTR が立つまで送ってこない。
-            runCatching { p.dtr = true }
-            runCatching { p.rts = true }
+            // DTR / RTS は口の種類で分ける (1.0.211)。
+            // - CDC-ACM (マイコンが自分で USB を話す口): DTR は「端末が開いた」の合図。多くは DTR が立つまで送ってこない。
+            // - USB-UART 変換チップ (CH340・CP210x・FTDI・PL2303): DTR / RTS は線として基板へ出ていて、マイコンボードでは
+            //   リセットと書き込みの状態につながっていることが多い。立てたまま起動すると、リセットを繰り返す基板がある
+            //   (ESP8266 の基板で 1 秒に約 50 回)。触らずに落としたままにする (フロー制御の線はチップが動かす)。
+            if (candidate.driver is CdcAcmSerialDriver) {
+                runCatching { p.dtr = true }
+                runCatching { p.rts = true }
+            }
             port = p
             device = dev
             io = SerialInputOutputManager(p, object : SerialInputOutputManager.Listener {
