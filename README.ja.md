@@ -74,7 +74,7 @@ z2-when charge:start run '~/backup.sh && z2-notify "バックアップ完了"'
 <table>
   <tr>
     <td align="center" width="25%"><img src="docs/images/readme-terminal.png" width="180" alt="Arch Linux の端末と独自のキーボード"><br><sub>ターミナル</sub></td>
-    <td align="center" width="25%"><img src="docs/images/readme-gui.png" width="180" alt="Linux のデスクトップアプリ"><br><sub>Linux のデスクトップ</sub></td>
+    <td align="center" width="25%"><img src="docs/images/readme-gui.png" width="180" alt="Linux のデスクトップアプリ"><br><sub>Linux のデスクトップ<br>（モニター: <a href="examples/z2mon.py">z2mon</a>）</sub></td>
     <td align="center" width="25%"><img src="docs/images/readme-automation.png" width="180" alt="自動化ルールの一覧"><br><sub>自動化ルール</sub></td>
     <td align="center" width="25%"><img src="docs/images/readme-edge.png" width="180" alt="画面に浮かべたエッジパネル"><br><sub>エッジパネル</sub></td>
   </tr>

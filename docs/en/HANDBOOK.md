@@ -1938,6 +1938,8 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # on any ringe
 | `z2run <GUI app>` | Launch a GUI app and open the GUI tab with it |
 | `z2menu list` | List the GUI applications actually installed (name, command, description) |
 
+> **The system monitor in the README screenshot is an example script, not part of the app:** [examples/z2mon.py](../../examples/z2mon.py). Install Python with Pillow and Tk (Arch: `pacman -S python python-pillow tk` / Debian, Ubuntu: `apt install python3 python3-pil python3-tk` / Alpine: `apk add python3 py3-pillow python3-tkinter`), then run `z2run python3 z2mon.py`. Android does not let apps see the whole phone's CPU use, so its CPU LOAD counts only the processes in this Linux environment.
+
 > **The GUI tab never opens by itself (0.8.254).** There used to be a hook that opened it as soon as you ran something that looked like a GUI app, but **a text editor that merely talks to X for clipboard support tripped it too**, so it was removed. The GUI opens only when **you open the GUI tab yourself** or **you type `z2run`**.
 
 > **Long-press an empty part of the desktop and a menu appears (0.8.498).** "Applications" lists **only what is actually installed**, so every entry really starts something, and "Windows" brings an open window back to the front. ⚠ Up to 0.8.497 that menu — along with moving windows, resizing them and Alt+Tab — **did not work at all**, because z2term was replacing openbox's whole configuration.

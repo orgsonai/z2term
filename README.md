@@ -74,7 +74,7 @@ It keeps working with the app closed and across reboots.
 <table>
   <tr>
     <td align="center" width="25%"><img src="docs/images/readme-terminal.png" width="180" alt="An Arch Linux terminal with the custom keyboard"><br><sub>Terminal</sub></td>
-    <td align="center" width="25%"><img src="docs/images/readme-gui.png" width="180" alt="A Linux desktop app"><br><sub>Linux desktop</sub></td>
+    <td align="center" width="25%"><img src="docs/images/readme-gui.png" width="180" alt="A Linux desktop app"><br><sub>Linux desktop<br>(monitor: <a href="examples/z2mon.py">z2mon</a>)</sub></td>
     <td align="center" width="25%"><img src="docs/images/readme-automation.png" width="180" alt="The list of automation rules"><br><sub>Automation rules</sub></td>
     <td align="center" width="25%"><img src="docs/images/readme-edge.png" width="180" alt="An edge panel floating over the screen"><br><sub>Edge panel</sub></td>
   </tr>

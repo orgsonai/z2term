@@ -1929,6 +1929,8 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # マナーモ
 | `z2run <GUIアプリ>` | GUI アプリを起動し、GUI タブも開く |
 | `z2menu list` | いま入っている GUI アプリの一覧（名前・コマンド・説明）を出す |
 
+> **README のスクショに写っているシステムモニターは、アプリの機能ではなく例のスクリプトです:** [examples/z2mon.py](../../examples/z2mon.py)。Python と Pillow・Tk を入れて（Arch: `pacman -S python python-pillow tk` / Debian・Ubuntu: `apt install python3 python3-pil python3-tk` / Alpine: `apk add python3 py3-pillow python3-tkinter`）、`z2run python3 z2mon.py` で開きます。Android はアプリに端末全体の CPU 使用率を見せないため、CPU LOAD はこの Linux 環境の中のプロセスの分だけです。
+
 > **GUI タブが勝手に開くことはありません**（0.8.254）。以前は「GUI アプリらしいコマンドを打つと自動で GUI タブが開く」仕掛けがありましたが、**クリップボード連携のために X を使うだけのテキストエディタなどでも開いてしまう**ため廃止しました。GUI を開くのは **GUI タブを自分で開いたとき**か、**`z2run` と明示的に打ったとき**だけです。
 
 > **デスクトップの何もないところを長押しすると、メニューが出ます**（0.8.498）。「アプリ」に並ぶのは**いま入っているものだけ**なので、押せば必ず起動します。「窓」からは開いている窓を選んで前に出せます。⚠ 0.8.497 まではこのメニューも、窓の移動・大きさ変更・Alt+Tab も**まとめて効かなくなっていました**（z2term が openbox の設定を丸ごと置き換えていたためです）。
