@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.216 (versionCode 914)**: The terminal font Z2 Mono has taller lines. Its cells were wider than in other monospace fonts, so the `fastfetch` logo and text-drawn start-up art looked stretched sideways. Letter shapes and widths are unchanged, and box-drawing and block characters still join the lines above and below
+
 **1.0.215 (versionCode 913)**: Edge panels and their editor now use the language chosen in the app. Before, with the app set to English or another language, panels and the editor (gestures, taps, command fields and so on) stayed in the phone's own language. Panels opened after changing the language follow it
 
 **1.0.214 (versionCode 912)**: In the screen macros list, opening or closing a routine tree no longer makes the list flash back to the top for a moment. Reordering and refreshing also stay where you were
