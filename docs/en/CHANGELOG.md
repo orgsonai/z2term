@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.215 (versionCode 913)**: Edge panels and their editor now use the language chosen in the app. Before, with the app set to English or another language, panels and the editor (gestures, taps, command fields and so on) stayed in the phone's own language. Panels opened after changing the language follow it
+
 **1.0.214 (versionCode 912)**: In the screen macros list, opening or closing a routine tree no longer makes the list flash back to the top for a moment. Reordering and refreshing also stay where you were
 
 **1.0.213 (versionCode 911)**: Same as 1.0.212. The check that makes `read-colors` in screen macros refuse below Android 11 is now written in a form the build check (lint) recognises. Behaviour is unchanged

@@ -67,4 +67,14 @@ internal class EdgePaletteContext(base: Context, val palette: EdgePalette?) : Co
         palette.light -> android.R.style.Theme_DeviceDefault_Light
         else -> android.R.style.Theme_DeviceDefault
     },
-)
+) {
+    init {
+        // アプリで選んだ言語を当て直す (1.0.215)。
+        // ⚠ パネルの窓は createWindowContext で作る。窓の Context は Android から窓の構成を受け取り、その中の
+        // 言語は端末本体のものなので、Application で当てたアプリの言語が上書きされる。英語を選んでも
+        // パネルとその編集画面だけ端末の言語 (日本語など) で出ていた。言語だけを上書きし、
+        // 大きさや向きは窓のものを使う。システムのサービス (WindowManager) は base の窓の Context のまま。
+        val locale = java.util.Locale.forLanguageTag(com.zerotoship.z2term.settings.LocaleHelper.language(base))
+        applyOverrideConfiguration(android.content.res.Configuration().apply { setLocales(android.os.LocaleList(locale)) })
+    }
+}

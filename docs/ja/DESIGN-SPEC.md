@@ -2965,7 +2965,7 @@ ID は英数字・`_`・`-` の 1〜64 文字。板の更新先は `ID`、項目
 省略した既定値・コメント・実行時の状態は含めず、取得時に定義の更新や再読込は行わない。存在しない ID や不正な対象指定はエラー。
 
 - `EdgeStore`: 最大 64 パネル・各 64 項目。`panel.conf` は `handle=bar|button|off`、`side=left|right`、
-  `offset` / `length` / `x` / `y`（百分率）、`size`（保存値2〜96 dp、形状ごとに上記範囲へ丸める）、`open`、`alpha`、`bar-color=auto|white|black|gray|red|orange|yellow|green|cyan|blue|purple|pink|#RRGGBB`（既定auto。色を固定したときの縁取りはその色の上で見える白か黒。1.0.14）、`scheme=<端末テーマ名>`（そのパネルだけの配色。空は端末と同じ。タブは自分の `scheme`、無ければ親のものを使う。編集画面は常に端末の配色。配色は `EdgePaletteContext` がビューの context に載せて運び、色を返す関数が context から読む。1.0.14）、`label`、直接実行用 `run`。
+  `offset` / `length` / `x` / `y`（百分率）、`size`（保存値2〜96 dp、形状ごとに上記範囲へ丸める）、`open`、`alpha`、`bar-color=auto|white|black|gray|red|orange|yellow|green|cyan|blue|purple|pink|#RRGGBB`（既定auto。色を固定したときの縁取りはその色の上で見える白か黒。1.0.14）、`scheme=<端末テーマ名>`（そのパネルだけの配色。空は端末と同じ。タブは自分の `scheme`、無ければ親のものを使う。編集画面は常に端末の配色。配色は `EdgePaletteContext` がビューの context に載せて運び、色を返す関数が context から読む。`EdgePaletteContext` はアプリで選んだ言語も当て直す（1.0.215。`applyOverrideConfiguration` で言語だけ。パネルの窓は `createWindowContext` で作り、Android が渡す窓の構成に端末本体の言語が入るため、Application で当てたアプリの言語が上書きされ、パネルと編集画面だけ端末の言語で出ていた）。1.0.14）、`label`、直接実行用 `run`。
   メモの項目は `note-background` / `note-color`（#RRGGBB、不透明色のみ。未指定・空値で自動）を持つ。
   ドラッグしたボタンの座標は同じ定義へ書き戻す。項目は `order`、同値なら ID 順。
   `width` / `height` は `%` 付きで画面の利用可能領域比（0より大きく100%まで）、数値のみで dp（0より大きく10000まで）。
