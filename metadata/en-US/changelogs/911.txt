@@ -1,0 +1,8 @@
+1.0.213
+
+- Talk to microcontroller boards and router consoles over a USB cable (CDC-ACM, FTDI, CP210x, CH340, PL2303).
+- Serial also connects over the network through a Wi-Fi relay.
+- An AI connected over MCP can read and write serial tabs (you choose the permission in settings).
+- Screen macros gain a cleanup command on stop and show which macro they are in.
+- Resident servers start again by themselves after an app update.
+- z2-notify -l posts a quiet notification without sound.

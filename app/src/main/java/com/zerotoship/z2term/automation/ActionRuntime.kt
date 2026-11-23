@@ -425,7 +425,8 @@ internal object ActionRuntime {
             }
             is ActionDefinition.Step.Key -> { AndroidActions.command(run.context, listOf(step.name)); done(null) }
             is ActionDefinition.Step.ReadColors -> {
-                check(android.os.Build.VERSION.SDK_INT >= 30) { "read-colors requires Android 11 or later" }
+                // ⚠ check(...) では lint が版の確認と読まない (NewApi で release が止まった)。色の条件と同じく if で返す。
+                if (android.os.Build.VERSION.SDK_INT < 30) { done("read-colors requires Android 11 or later"); return {} }
                 val resolved = target(step.target)
                 run.target = resolved
                 checkDevice(run)
