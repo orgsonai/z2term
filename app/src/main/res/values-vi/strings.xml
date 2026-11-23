@@ -1372,6 +1372,7 @@ Phông chữ: %14$d</string>
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 Nối tiếp: đang chờ thiết bị USB. Cắm vào để kết nối.</string>
+    <string name="banner_serial_waiting_for">🔌 Nối tiếp: đang chờ %1$s. Cắm vào để kết nối. Để dùng thiết bị khác, nhấn “%2$s” trong phần sửa kết nối này.</string>
     <string name="banner_serial_ambiguous">⚠ Nối tiếp: có %1$d thiết bị khớp nên z2term không biết dùng cái nào. Hãy rút các thiết bị khác.</string>
     <string name="banner_serial_permission">🔌 Nối tiếp: hãy cho phép truy cập USB trong hộp thoại của Android.</string>
     <string name="banner_serial_denied">⚠ Nối tiếp: truy cập USB không được cho phép. Cắm lại cáp để được hỏi lại.</string>

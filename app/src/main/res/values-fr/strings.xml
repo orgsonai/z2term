@@ -1393,6 +1393,7 @@ Polices : %14$d</string>
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 Série : en attente du périphérique USB. Branchez-le pour vous connecter.</string>
+    <string name="banner_serial_waiting_for">🔌 Série : en attente de %1$s. Branchez-le pour vous connecter. Pour utiliser un autre périphérique, touchez « %2$s » dans l\'éditeur de cette connexion.</string>
     <string name="banner_serial_ambiguous">⚠ Série : %1$d périphériques correspondent, z2term ne sait pas lequel utiliser. Débranchez les autres.</string>
     <string name="banner_serial_permission">🔌 Série : autorisez l\'accès USB dans la demande d\'Android.</string>
     <string name="banner_serial_denied">⚠ Série : l\'accès USB n\'a pas été autorisé. Rebranchez le câble pour être de nouveau sollicité.</string>

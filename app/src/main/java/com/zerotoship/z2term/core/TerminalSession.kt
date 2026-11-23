@@ -1105,7 +1105,8 @@ class TerminalSession(
     }
 
     private fun serialBanner(event: SerialChannel.Event): String = when (event) {
-        SerialChannel.Event.Waiting -> appContext.getString(R.string.banner_serial_waiting)
+        is SerialChannel.Event.Waiting -> if (event.device.isEmpty()) appContext.getString(R.string.banner_serial_waiting)
+        else appContext.getString(R.string.banner_serial_waiting_for, event.device, appContext.getString(R.string.serial_device_forget))
         is SerialChannel.Event.Ambiguous -> appContext.getString(R.string.banner_serial_ambiguous, event.count)
         SerialChannel.Event.PermissionAsked -> appContext.getString(R.string.banner_serial_permission)
         SerialChannel.Event.PermissionDenied -> appContext.getString(R.string.banner_serial_denied)

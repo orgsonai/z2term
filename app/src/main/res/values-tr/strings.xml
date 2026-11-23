@@ -1382,6 +1382,7 @@ Yazı tipleri: %14$d</string>
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 Seri: USB aygıtı bekleniyor. Bağlanmak için takın.</string>
+    <string name="banner_serial_waiting_for">🔌 Seri: %1$s bekleniyor. Bağlanmak için takın. Başka bir aygıt kullanmak için bu bağlantının düzenleyicisinde “%2$s” öğesine dokunun.</string>
     <string name="banner_serial_ambiguous">⚠ Seri: %1$d aygıt eşleşiyor, z2term hangisini kullanacağını bilemiyor. Diğerlerini çıkarın.</string>
     <string name="banner_serial_permission">🔌 Seri: Android isteminde USB erişimine izin verin.</string>
     <string name="banner_serial_denied">⚠ Seri: USB erişimine izin verilmedi. Yeniden sorulması için kabloyu çıkarıp takın.</string>

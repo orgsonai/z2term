@@ -1482,6 +1482,7 @@ Fonts: %14$d</string>
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 Serial: waiting for the USB device. Plug it in to connect.</string>
+    <string name="banner_serial_waiting_for">🔌 Serial: waiting for %1$s. Plug it in to connect. To use a different device, tap “%2$s” in this connection\'s editor.</string>
     <string name="banner_serial_ambiguous">⚠ Serial: %1$d devices match, so z2term cannot tell which one to use. Unplug the others.</string>
     <string name="banner_serial_permission">🔌 Serial: allow USB access on the Android prompt.</string>
     <string name="banner_serial_denied">⚠ Serial: USB access was not allowed. Replug the cable to be asked again.</string>

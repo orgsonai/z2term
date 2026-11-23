@@ -1377,6 +1377,7 @@ SSH 연결: %3$d
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 시리얼: USB 기기를 기다리는 중입니다. 꽂으면 연결됩니다.</string>
+    <string name="banner_serial_waiting_for">🔌 시리얼: %1$s을(를) 기다리는 중입니다. 꽂으면 연결됩니다. 다른 기기를 쓰려면 이 연결의 편집 화면에서 “%2$s”을(를) 누르세요.</string>
     <string name="banner_serial_ambiguous">⚠ 시리얼: 해당하는 기기가 %1$d대라서 어느 것을 쓸지 정할 수 없습니다. 다른 기기를 뽑아 주세요.</string>
     <string name="banner_serial_permission">🔌 시리얼: Android 화면에서 USB 사용을 허용해 주세요.</string>
     <string name="banner_serial_denied">⚠ 시리얼: USB 사용이 허용되지 않았습니다. 다시 꽂으면 다시 묻습니다.</string>

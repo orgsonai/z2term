@@ -1396,6 +1396,7 @@ Fuentes: %14$d</string>
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 Serie: esperando el dispositivo USB. Conéctalo para enlazar.</string>
+    <string name="banner_serial_waiting_for">🔌 Serie: esperando %1$s. Conéctalo para enlazar. Para usar otro dispositivo, toca «%2$s» en el editor de esta conexión.</string>
     <string name="banner_serial_ambiguous">⚠ Serie: coinciden %1$d dispositivos y z2term no sabe cuál usar. Desconecta los demás.</string>
     <string name="banner_serial_permission">🔌 Serie: permite el acceso USB en el aviso de Android.</string>
     <string name="banner_serial_denied">⚠ Serie: no se permitió el acceso USB. Vuelve a conectar el cable para que se pregunte otra vez.</string>

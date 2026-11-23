@@ -64,6 +64,11 @@ data class SerialConfig(
     /** 1 つの機器に口が複数ある変換チップ (FT2232H など) の何番目か。0 始まり。 */
     val portIndex: Int = 0,
     /**
+     * 覚えた機器の製品名 (`Board in FS mode` など。1.0.212)。表示だけに使い、機器の見分けには使わない。
+     * 製品名を持たない機器と、1.0.211 以前に覚えた機器は、次につないだときに入るまで空。
+     */
+    val deviceName: String = "",
+    /**
      * つなぎ方 (1.0.209)。[SerialTransport.TCP] のときは [tcpHost] / [tcpPort] だけを使い、
      * 速さ・機器の欄は使わない (中継器の側で決まる)。
      * ⚠ 1.0.208 以前はこの項目を読まず USB として開く (ネットワークへは何も送らない)。
@@ -87,10 +92,12 @@ data class SerialConfig(
         }
     }
 
-    /** 覚えている機器を `1a86:7523` の形で。覚えていなければ空。 */
-    fun deviceLabel(): String =
-        if (!hasDevice) "" else "%04x:%04x".format(vendorId, productId) +
-            (if (portIndex > 0) " #${portIndex + 1}" else "")
+    /** 覚えている機器を `USB Serial · 1a86:7523` の形で (製品名が無ければ ID だけ)。覚えていなければ空。 */
+    fun deviceLabel(): String {
+        if (!hasDevice) return ""
+        val ids = "%04x:%04x".format(vendorId, productId) + (if (portIndex > 0) " #${portIndex + 1}" else "")
+        return if (deviceName.isBlank()) ids else "${deviceName.trim()} · $ids"
+    }
 
     fun toJson(): JSONObject = JSONObject().apply {
         put("baudRate", baudRate)
@@ -102,6 +109,7 @@ data class SerialConfig(
         put("productId", productId)
         put("serialNumber", serialNumber)
         put("portIndex", portIndex)
+        if (deviceName.isNotEmpty()) put("deviceName", deviceName)
         put("transport", transport.name)
         if (isTcp) {
             put("tcpHost", tcpHost)
@@ -133,6 +141,7 @@ data class SerialConfig(
                 productId = o.optInt("productId", 0),
                 serialNumber = o.optString("serialNumber"),
                 portIndex = o.optInt("portIndex", 0).coerceAtLeast(0),
+                deviceName = o.optString("deviceName"),
                 transport = runCatching { SerialTransport.valueOf(o.optString("transport")) }
                     .getOrDefault(SerialTransport.USB),
                 tcpHost = o.optString("tcpHost"),

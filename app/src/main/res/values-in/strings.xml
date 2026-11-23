@@ -1373,6 +1373,7 @@ Font: %14$d</string>
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 Serial: menunggu perangkat USB. Colokkan untuk menyambung.</string>
+    <string name="banner_serial_waiting_for">🔌 Serial: menunggu %1$s. Colokkan untuk menyambung. Untuk memakai perangkat lain, ketuk “%2$s” di editor sambungan ini.</string>
     <string name="banner_serial_ambiguous">⚠ Serial: %1$d perangkat cocok, z2term tidak bisa memilih yang mana. Cabut yang lain.</string>
     <string name="banner_serial_permission">🔌 Serial: izinkan akses USB pada permintaan Android.</string>
     <string name="banner_serial_denied">⚠ Serial: akses USB tidak diizinkan. Colok ulang kabel untuk ditanya lagi.</string>

@@ -1383,6 +1383,7 @@ Schriften: %14$d</string>
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 Seriell: Warte auf das USB-Gerät. Zum Verbinden einstecken.</string>
+    <string name="banner_serial_waiting_for">🔌 Seriell: Warte auf %1$s. Zum Verbinden einstecken. Für ein anderes Gerät im Editor dieser Verbindung auf „%2$s“ tippen.</string>
     <string name="banner_serial_ambiguous">⚠ Seriell: %1$d Geräte passen, z2term kann nicht entscheiden, welches verwendet wird. Ziehe die anderen ab.</string>
     <string name="banner_serial_permission">🔌 Seriell: Erlaube den USB-Zugriff in der Android-Abfrage.</string>
     <string name="banner_serial_denied">⚠ Seriell: USB-Zugriff wurde nicht erlaubt. Kabel neu einstecken, um erneut gefragt zu werden.</string>

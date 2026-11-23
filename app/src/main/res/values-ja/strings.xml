@@ -1462,6 +1462,7 @@ SSH 接続先 %3$d 件
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 シリアル: USB 機器を待っています。挿すとつながります。</string>
+    <string name="banner_serial_waiting_for">🔌 シリアル: %1$s を待っています。挿すとつながります。別の機器を使うときは、この接続先の編集で「%2$s」を押します。</string>
     <string name="banner_serial_ambiguous">⚠ シリアル: 当てはまる機器が %1$d 台あり、どれを使うか決められません。ほかの機器を抜いてください。</string>
     <string name="banner_serial_permission">🔌 シリアル: Android の画面で USB の使用を許可してください。</string>
     <string name="banner_serial_denied">⚠ シリアル: USB の使用が許可されませんでした。挿し直すともう一度聞きます。</string>

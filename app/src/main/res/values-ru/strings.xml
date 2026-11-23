@@ -1402,6 +1402,7 @@
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 Последовательный порт: ожидание USB-устройства. Подключите его.</string>
+    <string name="banner_serial_waiting_for">🔌 Последовательный порт: ожидание %1$s. Подключите его. Чтобы использовать другое устройство, нажмите «%2$s» в настройках этого подключения.</string>
     <string name="banner_serial_ambiguous">⚠ Последовательный порт: подходит устройств: %1$d, z2term не может выбрать. Отключите остальные.</string>
     <string name="banner_serial_permission">🔌 Последовательный порт: разрешите доступ к USB в запросе Android.</string>
     <string name="banner_serial_denied">⚠ Последовательный порт: доступ к USB не разрешён. Переподключите кабель, чтобы запрос появился снова.</string>

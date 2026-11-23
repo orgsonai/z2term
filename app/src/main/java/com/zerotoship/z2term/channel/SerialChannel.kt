@@ -42,8 +42,8 @@ class SerialChannel(
 ) : SerialLink {
 
     sealed class Event {
-        /** 当たる機器が挿されていない。挿されるのを待つ。 */
-        object Waiting : Event()
+        /** 当たる機器が挿されていない。挿されるのを待つ。[device] は覚えている機器 (覚えていなければ空。1.0.212)。 */
+        data class Waiting(val device: String) : Event()
         /** 当たる機器が 2 つ以上あり、どれか決められない。 */
         data class Ambiguous(val count: Int) : Event()
         object PermissionAsked : Event()
@@ -196,7 +196,7 @@ class SerialChannel(
     private fun tryOpen() {
         if (port != null || asking != null) return
         val candidate = when (val pick = SerialDevices.pick(manager, config)) {
-            SerialDevices.Pick.None -> return emit(Event.Waiting)
+            SerialDevices.Pick.None -> return emit(Event.Waiting(config.deviceLabel()))
             is SerialDevices.Pick.Ambiguous -> return emit(Event.Ambiguous(pick.candidates.size))
             is SerialDevices.Pick.Found -> pick.candidate
         }
@@ -255,8 +255,12 @@ class SerialChannel(
     /** 初めて繋いだ機器・まだ個体番号を知らない機器は、その場で覚える。 */
     private fun learn(candidate: SerialDevices.Candidate) {
         val serial = SerialDevices.serialOf(candidate)
+        val name = candidate.productName
         val learned = if (!config.hasDevice) candidate.remember(config).copy(serialNumber = serial)
-        else if (config.serialNumber.isEmpty() && serial.isNotEmpty()) config.copy(serialNumber = serial)
+        else if ((config.serialNumber.isEmpty() && serial.isNotEmpty()) || (config.deviceName.isEmpty() && name.isNotEmpty())) {
+            // 1.0.211 以前に覚えた機器には製品名が無い。つないだときに足す。
+            config.copy(serialNumber = config.serialNumber.ifEmpty { serial }, deviceName = config.deviceName.ifEmpty { name })
+        }
         else return
         config = learned
         runCatching { onLearned(learned) }

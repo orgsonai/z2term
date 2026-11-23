@@ -1384,6 +1384,7 @@ SSH 連線目標 %3$d 個
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 序列埠：正在等待 USB 裝置。插入即可連線。</string>
+    <string name="banner_serial_waiting_for">🔌 序列埠：正在等待 %1$s。插入即可連線。要使用其他裝置，請在此連線的編輯畫面按「%2$s」。</string>
     <string name="banner_serial_ambiguous">⚠ 序列埠：有 %1$d 個裝置符合條件，無法決定使用哪一個。請拔除其他裝置。</string>
     <string name="banner_serial_permission">🔌 序列埠：請在 Android 提示中允許使用 USB。</string>
     <string name="banner_serial_denied">⚠ 序列埠：未允許使用 USB。重新插入線材後會再次詢問。</string>

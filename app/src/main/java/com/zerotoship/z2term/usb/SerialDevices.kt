@@ -28,9 +28,13 @@ object SerialDevices {
             return if (product.isEmpty()) "$ids$port" else "$product · $ids$port"
         }
 
+        /** 製品名。持たない機器は空。 */
+        val productName: String get() = runCatching { driver.device.productName }.getOrNull()?.trim().orEmpty()
+
         /** この口を覚えた形 (個体番号は許可が出てからでないと読めないので、ここでは入れない)。 */
         fun remember(config: SerialConfig): SerialConfig =
-            config.copy(vendorId = vendorId, productId = productId, portIndex = portIndex, serialNumber = "")
+            config.copy(vendorId = vendorId, productId = productId, portIndex = portIndex, serialNumber = "",
+                deviceName = productName)
     }
 
     sealed class Pick {

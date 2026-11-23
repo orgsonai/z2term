@@ -1384,6 +1384,7 @@ SSH 连接目标 %3$d 个
 
     <!-- USB シリアル (1.0.201) -->
     <string name="banner_serial_waiting">🔌 串口：正在等待 USB 设备。插入即可连接。</string>
+    <string name="banner_serial_waiting_for">🔌 串口：正在等待 %1$s。插入即可连接。要使用其他设备，请在此连接的编辑界面点“%2$s”。</string>
     <string name="banner_serial_ambiguous">⚠ 串口：有 %1$d 个设备符合条件，无法确定使用哪一个。请拔下其他设备。</string>
     <string name="banner_serial_permission">🔌 串口：请在 Android 提示中允许使用 USB。</string>
     <string name="banner_serial_denied">⚠ 串口：未允许使用 USB。重新插入线缆后会再次询问。</string>
