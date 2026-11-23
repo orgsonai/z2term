@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.210 (versionCode 908)**: For serial over the network, when the other end cuts an established connection (for example the relay restarts), the tab now says the connection was lost instead of "cannot connect". It still reconnects every 3 seconds
+
 **1.0.209 (versionCode 907)**: Serial now connects over the network too. In the connection editor, choose Network (TCP) next to USB and enter the address and port of a relay that passes a UART straight through over TCP. Put a Wi-Fi microcontroller next to a device and you can reach its console without walking over with a cable. If the connection drops the tab stays and reconnects every 3 seconds. The AI's serial tools work with it as they are. An example that turns a Raspberry Pi Pico 2 W into the relay is in `examples/pico-wifi-serial/`
 
 **1.0.208 (versionCode 906)**: An AI connected over MCP can now use the serial tabs you opened (`serial_list` / `serial_read` / `serial_send`). It returns only what arrives after each send, so you can hand an AI jobs such as "read this switch's configuration" or "ask the microcontroller for its state". What the AI sends and what comes back appear in the tab. Choose Off (default), Read only, or Read and send under "AI and serial" in 📜 › Automation › AI

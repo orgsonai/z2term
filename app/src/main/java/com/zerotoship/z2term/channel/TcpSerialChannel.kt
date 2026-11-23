@@ -111,10 +111,13 @@ class TcpSerialChannel(
         while (!closed) {
             if (lastFailure == null) emit(Event.Connecting(target))
             val s = Socket()
+            // つながった後の失敗 (相手からの RST など) は「切れた」。「つなげない」はつなぐ前の失敗だけ。
+            var opened = false
             try {
                 s.tcpNoDelay = true
                 s.connect(InetSocketAddress(host, port), CONNECT_TIMEOUT_MS)
                 socket = s
+                opened = true
                 lastFailure = null
                 emit(Event.Connected(target))
                 val input = s.getInputStream()
@@ -135,10 +138,14 @@ class TcpSerialChannel(
                 socket = null
                 runCatching { s.close() }
                 if (closed) break
-                // 同じ失敗を 3 秒ごとに並べない (中継器の電源が切れている間、画面が埋まる)。
-                val message = e.message ?: e.javaClass.simpleName
-                if (message != lastFailure) emit(Event.Failed(message))
-                lastFailure = message
+                if (opened) {
+                    emit(Event.Lost)
+                } else {
+                    // 同じ失敗を 3 秒ごとに並べない (中継器の電源が切れている間、画面が埋まる)。
+                    val message = e.message ?: e.javaClass.simpleName
+                    if (message != lastFailure) emit(Event.Failed(message))
+                    lastFailure = message
+                }
             }
             try {
                 Thread.sleep(RETRY_MS)

@@ -68,6 +68,24 @@ class TcpSerialChannelTest {
         }
     }
 
+    @Test
+    fun aResetAfterConnectingIsReportedAsLostNotFailed() {
+        ServerSocket(0, 1, InetAddress.getLoopbackAddress()).use { server ->
+            val events = CopyOnWriteArrayList<TcpSerialChannel.Event>()
+            val ch = TcpSerialChannel("127.0.0.1", server.localPort) { events += it }
+            ch.start()
+            try {
+                server.soTimeout = 5_000
+                // 中継器の再起動と同じ形: つながった後に RST で切られる。
+                server.accept().apply { setSoLinger(true, 0) }.close()
+                waitUntil { events.any { it == TcpSerialChannel.Event.Lost } }
+                assertFalse(events.any { it is TcpSerialChannel.Event.Failed })
+            } finally {
+                ch.close()
+            }
+        }
+    }
+
     private fun waitUntil(timeoutMs: Long = 8_000, check: () -> Boolean) {
         val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs)
         while (!check()) {
