@@ -84,6 +84,8 @@ internal class ActionMacrosEditor(
     private val dialogs = mutableListOf<Dialog>()
     private var scrollView: NestedScrollView? = null
     private var renderedEditing = false
+    /** 前に描いたのが一覧か。一覧のまま描き直すときは枠を作り直さない ([render])。 */
+    private var renderedList = false
     private var editorScrollY = 0
     private val store get() = ActionRuntime.store(this)
 
@@ -255,11 +257,19 @@ internal class ActionMacrosEditor(
     })
     private fun render() {
         if (renderedEditing && scrollView?.isLaidOut == true) editorScrollY = scrollView?.scrollY ?: editorScrollY
-        // 一覧のまま描き直すとき (ルーチンの開閉・並べ替え・更新) は、見ていた位置を残す。
-        // ⚠ 残さないと、押すたびに一覧の先頭へ戻ってしまう (1.0.205)。
-        val listY = if (!renderedEditing && !editing && scrollView?.isLaidOut == true) scrollView?.scrollY ?: 0 else -1
+        val unlocked = AppLock.state.value == AppLock.State.UNLOCKED
+        // 一覧のまま描き直すとき (ルーチンの開閉・並べ替え・更新) は、スクロールの枠をそのまま使い、中身だけ入れ替える。
+        // ⚠ 枠を作り直すと、新しい枠は先頭から描かれる。1.0.205 は作り直した後で元の位置へ戻していたが、
+        // その間の 1 コマだけ先頭が見え、木を開閉するたびに一瞬上へ飛んで見えた (1.0.214)。
+        val keepFrame = renderedList && unlocked && !editing && scrollView?.parent === view
         // A lock screen has no editor scroll position to save over the retained draft.
-        renderedEditing = editing && AppLock.state.value == AppLock.State.UNLOCKED
+        renderedEditing = editing && unlocked
+        renderedList = unlocked && !editing
+        if (keepFrame) {
+            body.removeAllViews()
+            renderBody(unlocked)
+            return
+        }
         // The body of every command-sheet tab: 16dp sides, 10dp above, 24dp below, 10dp between items.
         body = column().apply { setPadding(dp(ActionUi.GUTTER), dp(10), dp(ActionUi.GUTTER), dp(24)) }
         val scroll = object : NestedScrollView(this) {
@@ -289,15 +299,17 @@ internal class ActionMacrosEditor(
         }
         view.removeAllViews()
         view.addView(scroll, FrameLayout.LayoutParams(-1, -1))
+        renderBody(unlocked)
+        if (renderedEditing) scrollView?.post { scrollView?.scrollTo(0, editorScrollY) }
+    }
+    /** 枠の中身 (見出しと、一覧・編集画面・鍵の案内のどれか)。 */
+    private fun renderBody(unlocked: Boolean) {
         statusView = null; stopButton = null; pauseButton = null
-        val unlocked = AppLock.state.value == AppLock.State.UNLOCKED
         header(unlocked)
         if (!unlocked) {
             stepDialog?.dismiss(); dialogs.toList().forEach { it.dismiss() }
             if (AppLock.state.value == AppLock.State.LOCKED) add(pill(R.string.lock_prompt_title, accent = true) { promptUnlock() })
         } else if (editing) renderEditor() else renderList()
-        if (renderedEditing) scrollView?.post { scrollView?.scrollTo(0, editorScrollY) }
-        else if (listY > 0 && !editing) scrollView?.post { scrollView?.scrollTo(0, listY) }
     }
     /** Title on the left, its actions on the right: the heading row of the other tabs. */
     private fun header(unlocked: Boolean) {

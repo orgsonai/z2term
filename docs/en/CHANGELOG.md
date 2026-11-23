@@ -2,6 +2,8 @@
 
 Changes in each version, newest first.
 
+**1.0.214 (versionCode 912)**: In the screen macros list, opening or closing a routine tree no longer makes the list flash back to the top for a moment. Reordering and refreshing also stay where you were
+
 **1.0.213 (versionCode 911)**: Same as 1.0.212. The check that makes `read-colors` in screen macros refuse below Android 11 is now written in a form the build check (lint) recognises. Behaviour is unchanged
 
 **1.0.212 (versionCode 910)**: When a USB serial connection is waiting for the device it remembered, the tab now names it, for example "waiting for Board in FS mode · 2e8a:0005". Before, it only said it was waiting for the USB device, so there was no clue why a different device did not connect. To use a different device, tap Forget in the connection's editor. Devices remembered by 1.0.211 or earlier get their name the next time they connect
