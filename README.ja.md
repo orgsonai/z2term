@@ -6,291 +6,114 @@
 [![License](https://img.shields.io/github/license/orgsonai/z2term)](LICENSE)
 ![Android 10+](https://img.shields.io/badge/Android-10%2B-3DDC84)
 
-### Android のターミナルであり、Android を操作する手段でもあるアプリ。
+**スマホの中で Linux が動くターミナル。しかも、そのシェルからスマホそのものを操作できます。** root 不要、APK 1 つで動きます。
 
-**Z2Term** (ズィートゥーターム) は Alpine / Ubuntu / Arch / Kali を **root 不要**で動かし、
-タブの中に **Linux のデスクトップ**を開き、シェルから端末そのものに手を伸ばせます —
-通知を読む、通知シェードの返信欄であなたに質問する、充電・ネットワーク・受信 SMS の変化で
-スクリプトを走らせる、といったことができます。
+**[ダウンロード（GitHub Releases）](https://github.com/orgsonai/z2term/releases/latest)** ・ **[F-Droid](https://f-droid.org/packages/com.zerotoship.z2term/)** ・ **[ブラウザで試す](https://orgsonai.github.io/z2term/index.ja.html)**（インストール不要。ブラウザの中のスマホの見本で、そのまま触れます）
 
-- **root も PC もセットアップスクリプトも不要。** APK を 1 つ入れれば `apk` / `apt` / `pacman` が使えるディストロがそのまま動きます。既定の実行エンジン (`z2root`) は本アプリ用に書いた ptrace ベースのユーザ空間実装です。
-- **シェルから Android に話しかけられる。** 約 40 個の `z2-*` コマンド（通知・クリップボード・センサー・ライト・Intent・アラーム・自端末への無線 `adb`）に加え、端末のイベントでスクリプトを起動する自動化ハブ `z2-when` を内蔵。**アプリを開かなくても、再起動をまたいで動き続けます。**
-- **コマンドを、端末を開かずに押せる。** `z2-edge` で作るエッジパネルは、他のアプリの上に浮かべる板です。コマンド・マクロ・アプリ起動をボタンとして並べ、メモや小さな端末も置けます。画面の端の取っ手には、6種類のジェスチャーごとにアプリ起動・待機・コマンド・スワイプ・オートスクロールを順番に割り当てられます。板も取っ手も画面から編集できます。[設定方法](docs/ja/HANDBOOK.md#96-画面に浮かべるエッジパネル)。
-- **シェルから画面を操作できる。** `z2-action` は画面のタップ・スワイプ・ジェスチャーを送ります。手順はテキストファイルで、繰り返し・条件分岐を書けます。画面での編集や、指でなぞっての記録でも作れます。[書式と例](docs/ja/ACTION-MACROS.md)。
-- **AI がほかのアプリを操作できる。** `z2-ui` は前面のアプリの画面を JSON で読み、番号で押し、文字を入れます。アプリ側に API が無くても使えます。既定は OFF で、アプリごとに「読むだけ」「毎回確認」などを選び、操作中は通知から一時停止・指示・停止ができます。MCP にも対応していて、PC の AI に `ssh <スマホ> z2-ui mcp` を登録すれば道具として使えます。[使い方](docs/ja/AI-BRIDGE.md)。
-- **日本語で使える。** かな漢字変換・予測・学習を備えた IME を内蔵し、**OS の入力メソッドとして有効化**して他アプリでも使えます。
+## できること
 
-> Zero to Ship プロジェクトの第5作目です。
+```
+z2term
+├── ターミナル
+│   ├── Linux ................. Alpine / Ubuntu / Arch / Kali（root 不要）
+│   ├── GUI ................... Linux のデスクトップをタブで開き、Linux のアプリを起動
+│   └── タブ .................. 分割表示、ブロードキャストで複数のタブへ同時に入力
+├── 接続
+│   ├── サーバー .............. SSH・SFTP・SMB・FTP・WebDAV
+│   ├── リモート画面 .......... VNC・RDP
+│   └── 機器 .................. USB シリアル、Wi-Fi 越しのシリアル
+├── 自動化
+│   ├── きっかけで実行 ........ 充電・時刻・Wi-Fi・SMS・通知などで、スクリプトを動かす
+│   ├── 画面操作マクロ ........ タップやスワイプを記録して再生
+│   └── AI に任せる ........... AI がほかのアプリの画面や、シリアルの機器を操作（MCP）
+├── Android を便利に
+│   ├── エッジパネル .......... 画面の端から、コマンドやアプリを呼ぶ
+│   ├── タイル・ウィジェット .. クイック設定とホーム画面からマクロを実行
+│   └── アイコン .............. 通知やタイルのアイコンを自分で描く
+└── 日本語入力
+    ├── かな漢字変換 .......... 予測・学習つき
+    └── OS のキーボード ....... ほかのアプリでも同じキーボードで打てる
 
-## スクリーンショット
+土台: z2-* コマンド ── 上のすべてを、シェルの 1 行から
+```
+
+## たとえば、こんなことができます
+
+- PC の前に行かずに、スマホから自宅のサーバーへ SSH で入って直す
+- 充電を始めたら自動でバックアップを取り、終わったら通知する
+- 毎朝アプリを開いて同じボタンを押す作業を、マクロで自動にする
+- API の無いアプリの操作を、AI に頼む
+- Wi-Fi 越しに、ルーターやマイコンのコンソールを操作する（ケーブル不要）
+- スマホから PC へキーボードとして打ち込む。ログイン前の画面にも打てる（Raspberry Pi Pico を使う例つき）
+- Linux のデスクトップアプリを、スマホのタブの中で動かす
+
+## z2-* コマンド: スマホの機能を、シェルの 1 行で
+
+ふつうはアプリのボタンでしかできないことが、コマンドでできます。約 40 個あり、`z2help` で一覧が出ます。
+
+| やりたいこと | コマンド |
+|---|---|
+| 通知を出す | `z2-notify "ビルドが終わりました"` |
+| 通知で質問して、答えを受け取る | `name=$(z2-ask "ブランチ名は？")` |
+| ライトを点ける | `z2-torch on` |
+| 電池の状態を読む | `z2-battery` |
+| しゃべらせる | `z2-say "おはようございます"` |
+| クリップボードに入れる | `z2-clip set "コピーする文字"` |
+
+組み合わせると、スマホの出来事で Linux のスクリプトを動かせます。
+
+```sh
+# 充電を始めたら、バックアップを取って、終わったら通知する
+z2-when charge:start run '~/backup.sh && z2-notify "バックアップ完了"'
+```
+
+アプリを開いていなくても、再起動をまたいでも動き続けます。
+
+## 画面
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/images/shot-terminal.png" width="280" alt="CUI: Arch Linux ARM 端末と独自キーボード"><br><sub>CUI — Arch Linux ARM 端末 + 独自キーボード</sub></td>
-    <td align="center" width="50%"><img src="docs/images/shot-gui.png" width="280" alt="GUI: Xvnc 上で動くデスクトップアプリ"><br><sub>GUI — Xvnc 上のデスクトップアプリ</sub></td>
+    <td align="center" width="25%"><img src="docs/images/readme-terminal.png" width="180" alt="Arch Linux の端末と独自のキーボード"><br><sub>ターミナル</sub></td>
+    <td align="center" width="25%"><img src="docs/images/readme-gui.png" width="180" alt="Linux のデスクトップアプリ"><br><sub>Linux のデスクトップ</sub></td>
+    <td align="center" width="25%"><img src="docs/images/readme-automation.png" width="180" alt="自動化ルールの一覧"><br><sub>自動化ルール</sub></td>
+    <td align="center" width="25%"><img src="docs/images/readme-edge.png" width="180" alt="画面に浮かべたエッジパネル"><br><sub>エッジパネル</sub></td>
   </tr>
 </table>
 
-## なぜもう一つターミナルアプリを作るのか
+## Termux との違い
 
-Android のターミナルには既に成熟した選択肢があり、**最大のパッケージ資産と実績**が欲しいなら
-Termux が正解です。Z2Term は別の問いから作られています —
-**ターミナルが「端末を操作する正面の手段」になり、しかも APK 1 つで完結したらどうなるか。**
+Android のターミナルで、いちばん多くのパッケージと実績が欲しいなら Termux が正解です。Z2Term は、**ターミナルをスマホを操作する手段にして、APK 1 つで完結させる**ことを目指しています。
 
 | | Z2Term | Termux + アドオン群 |
 |---|---|---|
-| Linux ディストロ | z2root で Alpine / Ubuntu / Arch / Kali を導入可 | `proot-distro` パッケージで導入 |
-| Linux GUI | **アプリ内に GUI タブ**（Xvnc + 内蔵 RFB クライアント）。音声・動画つき。同じビューアで**リモートの VNC / RDP** も開ける | 別途 X11 / VNC / RDP ビューアアプリ |
-| シェルから Android を操作 | **内蔵**（約 40 個の `z2-*`） | 別アプリ（コンパニオン）が必要 |
-| イベント駆動の自動化 | **内蔵**（`z2-when`: 充電・電池残量・時刻/cron・Wi-Fi・回線・起動・共有・SMS・センサー・通知・ファイル追加）。自動化タブ・実行ログ・一括停止つき | 別アプリ + 多くは市販の自動化アプリと併用 |
-| 日本語入力 | **IME 内蔵**（変換・予測・学習）。OS の入力メソッドとしても選べる | OS のキーボード |
-| SSH / SFTP・FTP・WebDAV・SMB クライアントと `sshd` | 内蔵。各サービスは既定で SSH ポートフォワードし、SSH 鍵は Android Keystore が保持 | 自分でパッケージを入れる |
-| 配布 | GitHub Releases（本リポジトリ）・F-Droid | F-Droid と独自リポジトリ |
+| Linux ディストロ | Alpine / Ubuntu / Arch / Kali を導入可 | `proot-distro` で導入 |
+| Linux の GUI | アプリ内の GUI タブ（音声・動画つき）。同じビューアでリモートの VNC / RDP も開ける | 別の X11 / VNC / RDP ビューアアプリ |
+| シェルから Android を操作 | 内蔵（約 40 個の `z2-*`） | 別のアプリが必要 |
+| イベントで自動実行 | 内蔵（`z2-when`）。自動化タブ・実行の記録・一括停止つき | 別のアプリ。多くは市販の自動化アプリと併用 |
+| 日本語入力 | IME を内蔵。OS のキーボードとしても選べる | OS のキーボード |
+| SSH / SFTP・FTP・WebDAV・SMB と `sshd` | 内蔵。SSH の鍵は Android Keystore が持つ | 自分でパッケージを入れる |
 
-どちらも GPL-3.0 で、どちらもテレメトリを取りません。既に満足している Termux 環境がある人にとって、
-Z2Term の存在理由は上の表の**2・3・4 行目**です。
+どちらも GPL-3.0 で、どちらも利用状況を集めません。
 
-キーボードの表示・非表示はツールバーの **⌨ ダブルタップ**で切り替えます。**設定 → キー配列（自分で作る）**には補助キーバーのトグルと編集があり、端末・GUI で同じ割り当てを使えます。GUI メニューの日本語表示には Android の既存フォントも利用します。更新後は GUI を開き直してください。
+## ダウンロードと更新
 
-## ダウンロード
+- **GitHub Releases**: <https://github.com/orgsonai/z2term/releases/latest> から `z2term-<版数>.apk` を落としてタップします（「提供元不明のアプリ」の許可が要ります）。Google Play では配布していません。
+- **F-Droid**: <https://f-droid.org/packages/com.zerotoship.z2term/>。F-Droid がソースからビルドし、F-Droid の鍵で署名しています。⚠ GitHub の APK とは署名が違うので、上書きはできません（乗り換えるときは一度アンインストールします。Linux 環境も消えます）。
 
-**最新の APK は GitHub Releases から直接ダウンロードできます**（ビルド不要）:
+初回は ⚙設定 › Linux環境 から使う OS を選んで取得します（公式の配布元から取得し、SHA-256 で検証します）。アプリを更新しても OS は取り直しません。
 
-- 最新版に飛ぶ: **<https://github.com/orgsonai/z2term/releases/latest>**
+更新は、合うものを選んでください。
+- **アプリ内で**: 設定 → アプリ情報 → 更新を確認。ボタンを押したときだけ GitHub に問い合わせます。端末からは `z2-update`。
+- **F-Droid**: F-Droid から入れた場合は F-Droid で。
+- **自動で**: [Obtainium](https://github.com/ImranR98/Obtainium) に `https://github.com/orgsonai/z2term` を登録すると、新しい版をワンタップで入れられます。
 
-各リリースに付く APK は `z2term-<版数>.apk` の 1 つだけです。サイズはリリースページで確認できます。
+## 詳しい説明
 
-OS も第三者 prebuilt も同梱していないので、初回は ⚙設定 › Linux環境 から使いたい OS を選んで
-取得します（公式配布元から取得して SHA-256 で検証。更新のたびに取り直すことはありません）。
-更新時にもOS本体を再取得する必要はありません。
-
-⚠ **0.8.358 までは Alpine を同梱した約 190MB の APK（`full`）も配っていましたが、0.8.359 で
-やめました。** 初回のダウンロードが省ける以外の違いが無いのに、どちらを落とすか迷わせるだけだった
-ためです。`full` を使っている場合は、この APK がそのまま上書き更新になります（package ID は同じ）。
-
-Android 端末で APK をタップ → 「提供元不明のアプリ」のインストールを許可するとインストールできます。
-（Google Play では配布していません）
-
-**F-Droid でも配信しています**: <https://f-droid.org/packages/com.zerotoship.z2term/>（2026-11-09 から。最初の版は 1.0.79）。
-F-Droid がこのリポジトリのソースからビルドし、F-Droid の鍵で署名して配っています。
-
-- ⚠ **GitHub の APK とは署名が違う**ので、互いに上書きインストールはできません。
-  乗り換えるときは一度アンインストールしてください（Linux 環境を含むアプリのデータも消えます）。
-- 新しい版のタグは F-Droid が自動で拾いますが、ビルドと配信は GitHub Releases より遅れて届きます。
-- F-Droid 版にはアプリを入れる権限が無いので、更新は F-Droid から行います（アプリ内の更新は使えません）。
-
-### アップデートの方法
-
-合うものを選んでください。
-
-- **アプリ内で更新** — *設定 → アプリ情報 → 更新を確認* →**「ダウンロードしてインストール」**。
-  **ボタンを押したときだけ** GitHub の最新版に問い合わせ（自動チェックは一切せず、押すまでネットワークにも
-  触れません）、新版の APK を落として**入れ替えの確認画面まで**出します。⚠ Android の決まりで**最後の 1 タップは
-  必ずご自身**です（アプリが黙って自分を入れ替えることはできません）。初回だけ「不明なアプリのインストール」の
-  許可が要ります。端末からは **`z2-update`**（`--check` / `--keep` / `--dir` あり）。落とした APK は既定で
-  入れ替え後に消えます。⚠ F-Droid など配布元から入れた版では断ります（更新はそちらから）。
-- **F-Droid** — F-Droid から入れた場合は、F-Droid アプリから更新します。
-- **手動** — Releases から新しい APK を落としてタップ（上書きインストールされ、データは残ります）。
-- **自動** — [Obtainium](https://github.com/ImranR98/Obtainium) に
-  `https://github.com/orgsonai/z2term` を登録します。Releases を監視し、新版が出ると**ワンタップで更新**（ストア不要）。
-
-## 更新履歴
-
-版ごとの変更点は [docs/ja/CHANGELOG.md](docs/ja/CHANGELOG.md) にまとめています。
-
-## 機能
-
-- **ターミナルエミュレータ** — VT100 / xterm、256色・トゥルーカラー、9 テーマ、検索付きスクロールバック、UTF-8 と East Asian Width、代替スクリーン、OSC 4 / 7 / 8 / 10 / 11 / 12 / 52。
-- **root 不要の Linux ディストロ** — ユーザ空間エンジン（既定は z2root。下の「実行エンジン」参照）で Alpine / Ubuntu / Arch / Kali を動かし、`apk` / `apt` / `pacman` で何でも導入。
-- **実行エンジン** — 非 root は z2root に完全移行。root 端末では裏機能の chroot も選択可能。
-- **USB Host ブリッジ** — スマホに挿した USB 機器を、通常の動的リンクされた Linux プログラムから利用できます。`z2-usb list` → `z2-usb allow [番号]` の順に実行して Android の機器許可を押すと、libusb や `/dev/bus/usb/...` を使うプログラムを修正せずに開けます。スマホが USB Host/OTG 対応で、充電専用ではない通常の USB-A → USB-C 変換アダプタやハブなら使えます。
-- **USB シリアル** — 接続先の一覧に SSH と並べて「シリアル」を登録すると、USB ケーブルでマイコンボード・ルーター・基板の UART とやりとりできます。Linux の OS を入れなくても使えます。CDC-ACM・FTDI・CP210x・CH340/CH341・PL2303 のチップに対応しています。速さの既定は 115200（8N1・フロー制御なし。ほかの設定は「詳細」の中）です。ケーブルを抜いてもタブは残り、同じ機器を挿し直すと Android の許可画面のあとにつなぎ直します。UART を TCP へ素通しにする中継器（Wi-Fi のマイコンなど）があれば、ネットワーク越しにもつなげます。MCP で繋いだ AI に、シリアルのタブを読ませる・打たせることもできます（既定は OFF）。⚠ 試験的な機能です。
-- **マルチタブ** — CUI / GUI タブ、ドラッグで並べ替え、タブ長押しで実行エンジンを確認。**見ていないタブで何か動いていれば小さな点**、**見ていない間に終わっていれば ✓** が付く。
-- **Linux GUI** — Xvnc + openbox と内蔵 RFB クライアント。`z2gui` でデスクトップを起動し、`z2run <アプリ>` で GUI アプリを起動（GUI タブも自動で開く）。音声・動画つき。**同じビューアでリモートの VNC / RDP サーバにも繋がります** — 保存した接続先に **[VNC]** / **[RDP]** ボタンが付き、そのサーバのデスクトップをタブで開けます（VNC は RFB 3.3〜3.8 / None・VNC パスワード認証、RDP はネットワークレベル認証 (NLA) と証明書の初回確認つき。RDP もマウス・キーボード操作とテキストのコピー共有に対応）。
-- **SSH / SFTP・FTP・WebDAV・SMB2/3** — SSH 接続先へ FTP / SMB / WebDAV / VNC / RDP をサービスとして追加でき、各ボタンは一覧で SSH / SFTP の外に並びます。サービス接続は既定で同じ SSH を踏み台にした一時ポートフォワード（ローカルポート空欄なら空き番号を自動選択）。チェックを外すとサービス個別ホストではなく SSH 接続先ホストへ直通し、SSH 暗号化が無くなる旨を確認してから切り替えます。FTP は受動データポートも接続ごとに自動転送します。SSH では公開鍵認証（**アプリ内で ed25519 鍵を作れて、公開鍵はその場でコピー/共有/この端末の sshd に登録**。秘匿フィールドは Android Keystore で暗号化）、known_hosts 確認、**両方向の手動ポート転送 (`-L` / `-R`) と、接続先タブを閉じても生き続ける常駐トンネル**、既定で localhost のみ bind する内蔵 `sshd`（dropbear）も利用できます。
-- **日本語・英語・簡体字中国語・繁体字中国語・スペイン語・韓国語・ポルトガル語（ブラジル）・ドイツ語・フランス語・インドネシア語・イタリア語・ロシア語・トルコ語・ベトナム語** — アプリの画面だけでなく **`z2-*` コマンドの表示も言語設定に追従**します（ヘルプ・usage・メッセージまで）。訳の無いところは英語で出ます。⚠ キーボードは別の話で、**中国語の入力方式とキリル文字の配列は内蔵していません** — 中国語やロシア語を打つときは OS の入力方法に切り替えてください。
-- **日本語 IME** — Viterbi かな漢字変換、予測、頻度/新しさ学習、独自オンスクリーンキーボード。**OS の入力方法としても出せる**ので、有効にすればアプリ内の入力欄でも他アプリでも同じキーボード・同じ変換で打てます（切り替えは OS のキーボード切替）。**自分の語をファイルで足せます**（SKK 形式の `よみ /候補/`）ので、人名や自分だけの略語も最初から変換に出せます。
-- **端末の修飾キー** — Alt／Ctrl／Shift＋矢印、Home／End、編集キー、F1〜F12 を内蔵・外付けキーボードから送れます。カスタム配列の同時押し指定と補助キーバーも同じ変換を使います。
-- **Android ブリッジ** — 端末から本体機能を呼ぶ: `z2-noti`（いま出ている通知を読む・読むだけ）/ `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-img`（端末にそのまま絵を出す）/ `z2-clip` / `z2-battery` / `z2-vibrate` / `z2-say` / `z2-torch` / `z2-media` / `z2-volume` / `z2-sensor` / `z2-intent` / `z2-state` / `z2-screen`（その時間だけ画面が自分で消えないようにする）/ `z2-usb` / `z2-tile`（クイック設定タイルにマクロを載せる・12 枠）/ `z2-icon`（ステータスバーとタイルのアイコンをドット絵で描き替える）/ `z2-alarm` / `z2-macro` / `z2-session`（アプリ自身のタブを操る）/ `z2-server`（登録済みの常駐サーバーを起こす・落とす）。
-- **人に聞ける** — `name=$(z2-ask "ブランチ名は?")` で**通知の返信欄**から答えを受け取れる（アプリを開かずシェードのまま。答えなければ非ゼロ終了なので「諦める」も書ける）。
-- **声を聞ける** — `text=$(z2-listen)` で話した内容を文字にして受け取れる。認識は**端末の中だけ**で、声をネットへ出さない（Android 12 以降）。`z2-listen -w "次の曲,止めて"` なら決まった言葉だけ受け付けるので、スクリプトを声で動かせる。
-- **自動化ハブ** — `z2-when <トリガー> run <コマンド>` で、Android 側の出来事をきっかけにスクリプトを自動実行: 充電の開始/停止、電池が一定値を跨いだとき、時刻（毎日 / 1 回 / N ごと / cron）、Wi‑Fi の接続/切断、**回線が通じた/途切れた・使う回線が切り替わった（`net:online` / `net:mobile` — モバイル回線も見る）**、**端末の起動（`boot`）**、**他アプリから共有されたとき（`share:ext=pdf` など）**、SMS 受信（OTP コード抽出つき）、センサー（振る / 照度しきい値 / 近接）、**通知が届いたとき（`notify:otp` は OTP コード抽出つき。ログ保存とは独立）**、**端末イベントを名前で指定（`event:headset_plugged` など約20種。`z2-when events` で一覧）**、**フォルダに新しいファイルが来た・書き換わった・消えたとき（`file:new=…` / `file:changed=…` / `file:deleted=…`）**、**Bluetooth 機器がつながった・切れたとき（`bt:connect=<名前>`）**、**そのアプリを開いた・離れたとき（`app:open=<アプリ>`）**、**電池の温度（`battery:temp>45`）**、**今日の歩数が届いたとき（`steps:reach=8000`）**。編集画面ではきっかけを「時刻・電源・つながり・アプリと通知・端末」の段から文で選べ、動かない理由（検知 OFF・許可なし）もその場に出る。**条件で絞り込める**（`if=ssid=Home` / `cooldown=1h` / `between=22:00-07:00` / `days=mon-fri` — どのトリガーにも同じように効き、見送った分も `skip:` として記録に残る）。ルールは `~/.z2term/when/` 配下のテキスト（git 同期可）で、アプリを開かなくても・再起動をまたいでも働く。**📜 の「自動化」タブ**で一覧・ON/OFF・実行ログ・きっかけを待たない「▶ いま試す」ができ、**全ルールの一時停止（キルスイッチ）と直近の発火**もここで見られる（端末からは `z2-when pause` / `resume` / `fired`）。
-- **常駐サーバー** — 任意の起動コマンドを *コマンド一覧 → サーバー*に登録すると、**アプリを開かなくても**バックグラウンドで動き続ける。小さな Web サーバー・同期デーモン・bot をスマホで常駐させられる。稼働数はホーム画面の状態ウィジェットに出て、登録したサーバーは端末の起動時に自動で復帰する。
-- **セルフ adb** — `z2adb` で端末自身のワイヤレスデバッグへ localhost 接続。PC・USB・root すべて不要。
-- **アプリロック** — 開くときに指紋・顔、または画面ロック（PIN／パターン）で本人確認します。掛かるまでの時間は **すぐ / 30秒後 / 1分後 / 5分後 / 起動時だけ** から選べ、離れている間は最近使ったアプリの縮小画像も隠します。⚠ **隠せるのは画面だけ**で、ロック中もセッション・常駐サーバー・`z2-session attach` は動き続けます（夜通しの作業を壊さないため）。
-- **内蔵ヘルプ** — `z2help`（または `z2term`）で全 `z2*` ヘルパーの分類済み早見表を表示。各コマンドは `--help` で詳しい説明を自分で出します（例: `z2-tile --help`）。`z2version` でアプリ版数とタブが実際に動いているエンジンを確認。
-- **`z2doctor`** — 「動きません」を 1 コマンドで切り分ける自己診断。版数・実行エンジン・空き容量・必要な許可・検知と自動化の状態を一覧し、**`NG` の行には必ず次の一手**が付きます。最後に**そのまま貼れる報告文**（`--share` / `--clip`）。SSID・IP・ホスト名は意図的に伏せます。
-- **脆弱性試験** — `z2scan self` が自端末/localhost を自己診断（公開ポート・sshd 設定・SSH 鍵の権限・world-writable/SUID・PATH）。外部ツール不要。`z2scan net/host/cve` は localhost に nmap/lynis/trivy をかける薄いラッパー（外部対象は明示許可制）。結果はローカルに留まります。
-- **端末ログ** — ツールバーの ⏺ を 1 回押すとそのタブの表示内容をテキストファイルに記録し、もう 1 回で停止。保存先は `~/z2term-log/` なので端末からも他アプリからもそのまま開ける。既定は色や画面制御を落とした読めるテキスト。
-- **ホーム画面ウィジェット 3 種** — *状態＋マクロ（マス目 / 一覧）*: 状態（ssh の接続先 / 常駐サーバー / 自動化ルール / 電池）を「稼働数 / 登録数」で出し、選んだマクロをタップで**アプリを開かずバックグラウンド実行**（実行中のマクロはもう一度タップで停止）。マクロは 2×2 のマスに 4 個か、中でスクロールする一覧に 30 個まで並べられ、それぞれ「実行中（経過時間）」「完了」「失敗（終了コード）」「停止」を開始〜終了の時刻つきで出します。*ライブ tail*: `~` の下のファイルの末尾または先頭をホーム画面に出し続けます（`tail` / `head` を選べます。中でスクロールしてさかのぼれ、長い行は折り返し、エラーの行は色が変わります）。
-- **通信量の上限** — 今期に**スマホ全体**が使ったモバイル通信量が決めた量に達したら、z2term 自身の通信（SSH・ダウンロード）を止めます。上限はつまみでも数字入力でも指定できます。⚠ 家の中（`192.168.x.x` など）への接続と Wi-Fi 経由はそのまま。ほかのアプリは止まりません（端末全体の通信量を読むために「使用状況へのアクセス」の許可を 1 度だけお願いします）。
-- **スニペットのグループ** — よく使うコマンドを「日常」「git」のような棚に分け、押した棚の中だけを並べます。増えても下に埋もれません。棚を消しても中のスニペットは消えません（未分類に戻ります）。
-- **持ち出し / 引き継ぎ** — 設定・SSH 接続先・スニペット・自動化ルール・マクロ・自作テーマ・タイルの割り当て・アイコン・ユーザー辞書・キーボードの学習を 1 ファイルにまとめて別の端末へ。OS 本体は含めません。**SSH の秘密は既定で含めず、含めるときは合言葉が必須**です。その場合は、秘密が入り得るスニペット・マクロ・学習履歴を含め、**目録以外のバックアップ全体を暗号化**します。**決まった日時に自動で積むこともできます**（間隔・時刻・保存先・残す世代を指定。自動で作ったぶんだけを古いものから片付け、手で作ったバックアップは消しません）。定期バックアップにも**合言葉を決めれば、秘密を含めないまま中身を暗号化**します（0.8.452。空のままなら従来どおり平文）。
-- **はじめの 3 枚** — 初回だけ小さなカードが 3 枚出ます（通知を出す／ライトを点ける／PC からつなぐ）。タップすると**入力欄に入るだけで、勝手には実行しません**。触ったら消え、二度と出ません。
-- **共有からの受け取り** — 他アプリの「共有」で z2term を選ぶと、テキストはそのまま、ファイルは `~/z2term-inbox/` に取り込んでパスを、端末の入力行に**入れるだけ**（実行はしない）。
-- **ツールバーの整理** — 出すボタンを設定で選べる（⚙ 設定は常に右端固定）。並べ替えは長押しドラッグで、**ツールバーからも設定画面からも**できる。
-- **OS本体は非同梱・APK は 1 つだけ** — 第三者 prebuilt を一切同梱せず、初回起動時にディストロを DL して SHA-256 で検証。
-
-### 未対応 / 今後の検討
-
-- mosh プロトコル対応 (UDP ベース)
-- リバース DNS / IPv6 接続のリトライ強化
-- z2root自前実装に完全移行し、第三者native prebuiltを同梱しない
-
-## ビルド要件
-
-| 項目 | バージョン |
-|---|---|
-| Android Studio | Ladybug 2024.3.1 以上 |
-| AGP | 9.1.1 |
-| Kotlin | 2.2.10 (AGP 内蔵) |
-| Gradle | 9.3.1 |
-| NDK | 27.0+ |
-| CMake | 3.22.1+ |
-| その他 | Python 3、curl、tar、sha256sum |
-| 最小 SDK | 29 (Android 10) |
-| ターゲット SDK | 35 (Android 15) |
-
-## セットアップ
-
-### 1. 同梱物を 1 コマンドで揃える
-
-APK に同梱されるが **git 管理外**の生成物がいくつかあります（`scripts/` が生成・取得）。
-clone や clean の直後には存在しないので、マスタースクリプトでまとめて揃えます。集め方をこれ 1 本に
-統一しています。ビルドはPC上で実行してください。
-
-```bash
-bash scripts/build-bundle.sh
-```
-
-2 つの生成スクリプトを順に実行し、最後に欠落がないか点検します。
-
-1. `build-z2root.sh` → `libz2root.so` / `libz2accept.so`（NDK が必要）
-2. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` の `-Regular.ttf`（1.0.4 から git に入っているので、ふだんは何もしません）
-
-最後の点検で同梱物の `OK` / `MISS` を表示します。rootfs は実行時取得なのでビルド入力ではありません。
-
-同梱物ごとの詳細: [app/src/main/assets/README.md](app/src/main/assets/README.md) · [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
-
-### 2. ビルド
-
-```bash
-./gradlew assembleRelease
-# 出力: app/build/outputs/apk/release/app-release.apk
-```
-
-(fork 側で署名鍵が無くても OK — `build.gradle.kts` は `keystore.properties` 不在時 debug 鍵にフォールバックします)
-
-### 3. インストール
-
-```bash
-adb install -r app/build/outputs/apk/release/app-release.apk
-```
-
-## プロジェクト構造
-
-```
-z2term/
-├── app/
-│   ├── build.gradle.kts
-│   └── src/main/
-│       ├── AndroidManifest.xml
-│       ├── assets/                  ← Alpine rootfs を配置
-│       ├── cpp/                     ← JNI ネイティブコード
-│       │   ├── CMakeLists.txt
-│       │   └── pty_jni.cpp
-│       ├── java/com/zerotoship/z2term/
-│       │   ├── Z2TermApplication.kt
-│       │   ├── MainActivity.kt
-│       │   ├── channel/             ← ProcessChannel / SshChannel (M5)
-│       │   ├── core/                ← TerminalSession + SessionManager
-│       │   ├── pty/                 ← PTY 抽象化
-│       │   ├── proot/               ← Linux起動（legacy package名）
-│       │   ├── distro/              ← rootfs 展開 (Alpine + Ubuntu)
-│       │   ├── emulator/            ← VT100/xterm エミュレータコア
-│       │   ├── settings/            ← DataStore 永続化
-│       │   ├── service/             ← TerminalService / AudioBridge (foreground + WakeLock)
-│       │   ├── gui/                  ← GUI (Xvnc + 内蔵 RFB クライアント / GuiSession)
-│       │   ├── saf/                  ← SAF DocumentsProvider
-│       │   └── ui/
-│       │       ├── theme/           ← ZTS Theme + カスタムフォント
-│       │       ├── settings/        ← 設定 UI
-│       │       ├── ssh/             ← SSH プロファイル UI (M5)
-│       │       └── terminal/        ← ターミナル UI + Renderer + キーマッパー
-│       ├── jniLibs/                 ← z2root生成物
-│       └── res/                     ← リソース
-├── build.gradle.kts
-├── settings.gradle.kts
-├── gradle/
-│   ├── libs.versions.toml
-│   └── wrapper/
-├── docs/
-│   ├── ja/                        ← 日本語ドキュメント
-│   │   ├── DESIGN-SPEC.md         ← 設計書 兼 仕様書（技術文書）
-│   │   └── HANDBOOK.md            ← 利用者向けハンドブック
-│   ├── en/                        ← English documentation
-│   │   ├── DESIGN-SPEC.md         ← design & specification
-│   │   └── HANDBOOK.md            ← getting started handbook
-│   ├── images/                    ← スクリーンショット等（共通）
-│   ├── RELEASE.md                 ← リリース手順
-│   ├── FDROID.md                  ← F-Droid 提出手順
-│   └── SSH-INTO-Z2TERM.md
-├── metadata/                     ← F-Droid メタデータ（店頭表示）
-└── .github/workflows/build.yml   ← CI (ビルド・lint・テスト・署名済み release APK)
-```
-
-## ビルドバリアント
-
-違いは build type だけです。配布フレーバー（`full` / `foss`）は 0.8.359 で廃止しました
-（全員が同じ 1 本を使い、rootfs は常に実行時取得）。
-
-| Build type | applicationId | ランチャー表示名 |
-|---|---|---|
-| `release` | `com.zerotoship.z2term` | `Z2Term` |
-| `debug` | `com.zerotoship.z2term.debug2` | `Z2Term dbg2` |
-
-接尾辞のおかげで debug を release の隣に入れられ、名前で見分けが付きます。
-
-```bash
-./gradlew assembleDebug
-```
-
-## 動作確認の流れ
-
-1. ビルド・インストールし、OSを選んで初回取得を完了する。
-2. `z2version` が `engine : z2root` を示すことと、各パッケージマネージャーの動作を確認する。
-
-### z2root コマンド群テスト（`scripts/z2root-cmdtest.sh`）
-
-「今後も *壊れやすいコマンド* がエラーなく動く」ことを確認する回帰スモーク。
-z2root の難所（ptrace/seccomp・fakeroot 偽装・パス変換・/proc 偽装・pty・大量
-fork/exec・ld.so reloc）を踏むコマンドに絞り、cd/ls のような自明系は入れない。
-狙いは「systemic な退行を *多数のコマンドが一斉に落ちる* 形で一発検知し、コマンド
-ごとの後追い修正をやらないで済む」こと。z2root タブのゲスト内でそのまま実行:
-
-```sh
-sh scripts/z2root-cmdtest.sh              # 標準（ネット/ビルド込み）
-SKIP_NET=1   sh scripts/z2root-cmdtest.sh # ネット/パッケージ系をスキップ
-SKIP_BUILD=1 sh scripts/z2root-cmdtest.sh # cc コンパイル等をスキップ
-RUN_SSHD=1   sh scripts/z2root-cmdtest.sh # dropbear ループバック ssh（z2root 単独だとセッションが落ちる可能性）
-RUN_PRIV=1   sh scripts/z2root-cmdtest.sh # losetup/mount など真に root が要る操作も実行（非 root では EPERM が正常）
-```
-
-POSIX sh／busybox ash 互換で、**未導入コマンドは fail でなく skip** するので
-どのディストリでも同じに走る＝各ゲストで回して「非ゼロ終了一覧が空」になれば
-OS 差なく健全、と読める。10 グループ: ①ランタイム実起動（claude headless と
-`--version` の対比・node spawn・python venv/mp/ssl・ripgrep）②VCS 重い操作
-（clone/gc/checkout＝hardlink/pack/rename）③パッケージ管理（apt/apk/dnf/pacman・
-pip/venv・npm）④pty/端末（script/tmux/stty・`/dev/pts`・任意で dropbear）
-⑤/proc・fakeroot 境界 ⑥ビルド（cc execve chain＋ld.so reloc）⑦パス変換/symlink
-canonicalize ⑧ディスク/FS（dd・mkfs・parted をファイル相手に。root 系は
-`RUN_PRIV`）⑨IPC/特殊 syscall（AF_UNIX・FIFO・flock・inotify・xattr・
-copy_file_range・nested ptrace(strace/gdb)・Go 生 syscall・sqlite3・rsync）
-⑩名前解決/TLS（getent・curl TLS・nslookup）。出力は画面と
-`/tmp/z2root-cmdtest-<時刻>.log`、末尾に非ゼロ終了一覧。
-
-注: `io_uring`（ptrace/seccomp を丸ごとバイパス）や `statx`/`openat2` のフック漏れ
-はコマンドテストでは捕まらない＝seccomp フィルタ側で確認すること。
+- [説明書（HANDBOOK）](docs/ja/HANDBOOK.md) ── 使い方のすべて
+- [機能の一覧](docs/ja/FEATURES.md) ── できることを 1 つの一覧に
+- [AI に操作させる](docs/ja/AI-BRIDGE.md) ・ [画面操作のマクロ](docs/ja/ACTION-MACROS.md)
+- [更新履歴](docs/ja/CHANGELOG.md)
+- [ビルドの方法](docs/ja/BUILD.md)
 
 ## ライセンス
 
@@ -332,7 +155,7 @@ Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://gith
 | チャネル | 状況 |
 |---|---|
 | **GitHub Releases / 直接 APK 配布** | 主たる配布経路。1 リリースにつき APK 1 つ |
-| **F-Droid** | 2026-11-09 から配信中（最初の版は 1.0.79）。F-Droid の鍵で署名: <https://f-droid.org/packages/com.zerotoship.z2term/>。rootfs は実行時取得、実行エンジンはソースビルド（`docs/FDROID.md`）|
+| **F-Droid** | 配信中。F-Droid の鍵で署名: <https://f-droid.org/packages/com.zerotoship.z2term/>。rootfs は実行時取得、実行エンジンはソースビルド（`docs/FDROID.md`）|
 | **Google Play** | 配布予定なし |
 
 ## SSH サーバ (sshd) の既定挙動

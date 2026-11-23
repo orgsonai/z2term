@@ -1,0 +1,5 @@
+1.0.216
+
+- The terminal font Z2 Mono has taller lines, so logos and text art no longer look stretched sideways.
+- Edge panels and their editor use the language chosen in the app.
+- In the screen macros list, opening or closing a routine tree no longer flashes back to the top.

@@ -6,299 +6,114 @@
 [![License](https://img.shields.io/github/license/orgsonai/z2term)](LICENSE)
 ![Android 10+](https://img.shields.io/badge/Android-10%2B-3DDC84)
 
-### A terminal for Android that is also a way to drive Android.
+**A terminal that runs Linux on your phone, and whose shell can drive the phone itself.** No root; one APK.
 
-Z2Term runs Alpine / Ubuntu / Arch / Kali **without root**, opens a **Linux desktop** in a tab,
-and lets the shell reach the phone itself — read a notification, ask you a question in the
-notification shade, or run a script when the battery, the network or an incoming SMS changes.
+**[Download (GitHub Releases)](https://github.com/orgsonai/z2term/releases/latest)** · **[F-Droid](https://f-droid.org/packages/com.zerotoship.z2term/)** · **[Try it in your browser](https://orgsonai.github.io/z2term/)** (nothing to install: a phone mock-up in the page runs it as it is)
 
-- **No root, no PC, no setup script.** Install one APK and you have a working distribution with `apk` / `apt` / `pacman`. The default execution engine (`z2root`) is a ptrace-based userspace implementation written for this app.
-- **The shell can talk to Android.** Around 40 `z2-*` helpers (notifications, clipboard, sensors, torch, intents, alarms, wireless `adb` to the device itself) plus `z2-when` — an automation hub that runs scripts on device events and keeps working after a reboot without the app being opened.
-- **Press a command without opening the terminal.** `z2-edge` builds edge panels that float over other apps: commands, macros and app launches as buttons, plus notes and a mini terminal. The handle at the screen edge takes a sequence of actions for each of six gestures. Both can be edited on screen. See [the handbook](docs/en/HANDBOOK.md#96-floating-edge-panels).
-- **The shell can drive the screen.** `z2-action` sends taps, swipes and gestures. Steps live in a plain text file with repeats and conditions, and can also be edited on screen or recorded by tracing with a finger. See [the format and examples](docs/en/ACTION-MACROS.md).
-- **An AI can operate other apps.** `z2-ui` reads the foreground app's screen as JSON, taps elements by number and enters text, even in apps without an API. It is off by default; each app can be set to read only, ask each time and so on, and a notification lets you pause, instruct or stop the AI while it works. It also speaks MCP: register `ssh <phone> z2-ui mcp` in your PC's AI to use it as tools. [How it works](docs/en/AI-BRIDGE.md).
-- **Usable in Japanese.** A built-in kana-kanji IME with prediction and learning, which can also be turned on as an OS-wide input method.
+## What it can do
 
-> The 5th project of the Zero to Ship initiative.
+```
+z2term
+├── Terminal
+│   ├── Linux ............ Alpine / Ubuntu / Arch / Kali, no root
+│   ├── GUI .............. a Linux desktop in a tab; launch Linux apps
+│   └── Tabs ............. split view; broadcast one input to several tabs
+├── Connect
+│   ├── Servers .......... SSH, SFTP, SMB, FTP, WebDAV
+│   ├── Remote screens ... VNC, RDP
+│   └── Devices .......... USB serial, serial over Wi-Fi
+├── Automate
+│   ├── Triggers ......... run scripts on charging, time, Wi-Fi, SMS, notifications ...
+│   ├── Screen macros .... record taps and swipes, play them back
+│   └── AI ............... let an AI operate other apps and serial devices (MCP)
+├── Android, handier
+│   ├── Edge panels ...... commands and apps from the edge of the screen
+│   ├── Tiles, widgets ... run macros from quick settings and the home screen
+│   └── Icons ............ draw your own notification and tile icons
+└── Japanese input
+    ├── Kana-kanji ....... conversion with prediction and learning
+    └── System keyboard .. the same keyboard in every app
 
-## Screenshots
+Underneath it all: z2-* commands, every item above from one line of shell
+```
+
+## Things you can do with it
+
+- Fix your home server over SSH from the phone, without walking to the PC
+- Start a backup when you plug in the charger and get a notification when it is done
+- Turn "open the app every morning and press the same buttons" into a macro
+- Ask an AI to work an app for you, even one with no API
+- Reach the console of a router or a microcontroller over Wi-Fi, no cable needed
+- Type into a PC from the phone, even on its login screen (example with a Raspberry Pi Pico included)
+- Run a Linux desktop app inside a tab on the phone
+
+## z2-* commands: the phone, from one line of shell
+
+Things that normally take an app's buttons become commands. There are about 40; `z2help` lists them.
+
+| To | Run |
+|---|---|
+| Post a notification | `z2-notify "Build finished"` |
+| Ask in the notification shade and get the answer | `name=$(z2-ask "Branch name?")` |
+| Turn on the torch | `z2-torch on` |
+| Read the battery | `z2-battery` |
+| Speak | `z2-say "Good morning"` |
+| Copy to the clipboard | `z2-clip set "some text"` |
+
+Put together, events on the phone run Linux scripts:
+
+```sh
+# when charging starts, back up, then post a notification
+z2-when charge:start run '~/backup.sh && z2-notify "Backup finished"'
+```
+
+It keeps working with the app closed and across reboots.
+
+## Screens
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/images/shot-terminal.png" width="280" alt="CUI: an Arch Linux ARM terminal with the custom keyboard"><br><sub>CUI — Arch Linux ARM terminal + custom keyboard</sub></td>
-    <td align="center" width="50%"><img src="docs/images/shot-gui.png" width="280" alt="GUI: a desktop application running on Xvnc"><br><sub>GUI — a desktop app on Xvnc</sub></td>
+    <td align="center" width="25%"><img src="docs/images/readme-terminal.png" width="180" alt="An Arch Linux terminal with the custom keyboard"><br><sub>Terminal</sub></td>
+    <td align="center" width="25%"><img src="docs/images/readme-gui.png" width="180" alt="A Linux desktop app"><br><sub>Linux desktop</sub></td>
+    <td align="center" width="25%"><img src="docs/images/readme-automation.png" width="180" alt="The list of automation rules"><br><sub>Automation rules</sub></td>
+    <td align="center" width="25%"><img src="docs/images/readme-edge.png" width="180" alt="An edge panel floating over the screen"><br><sub>Edge panel</sub></td>
   </tr>
 </table>
 
-## Why another terminal app?
+## Compared with Termux
 
-Android already has a mature terminal ecosystem, and Termux is the right answer if what you
-want is the largest package repository and the most battle-tested tooling. Z2Term is built
-around a different question: **what if the terminal were a first-class way to operate the
-phone, and everything came in one APK?**
+If you want the largest package repository and the most battle-tested tooling on Android, Termux is the right answer. Z2Term aims at something else: **a terminal that is a way to operate the phone, all in one APK.**
 
 | | Z2Term | Termux + its add-ons |
 |---|---|---|
-| Full Linux distribution | Alpine / Ubuntu / Arch / Kali on z2root | `proot-distro` package installs one |
-| Linux GUI | Built-in GUI tab (Xvnc + an RFB client inside the app), with audio and video. The same viewer also opens a **remote** VNC or RDP desktop | A separate X11, VNC or RDP viewer app |
-| Drive Android from the shell | Built in — ~40 `z2-*` helpers | A separate companion app |
-| Event-driven automation | Built in — `z2-when` (charging, battery level, time / cron, Wi-Fi, connectivity, boot, share, SMS, sensors, notifications, new files) with an Automation tab, logs and a kill switch | A separate companion app, usually paired with a third-party automation app |
-| Japanese input | Built-in IME (conversion, prediction, learning), also selectable as the OS input method | The OS keyboard |
-| SSH / SFTP, FTP, WebDAV and SMB clients, plus `sshd` | Built in; services use SSH port forwarding by default, SSH keys held by the Android Keystore | Install the packages yourself |
-| Distribution | GitHub Releases (this repo) and F-Droid | F-Droid and its own repository |
+| Linux distribution | Alpine / Ubuntu / Arch / Kali | `proot-distro` installs one |
+| Linux GUI | A GUI tab inside the app, with audio and video. The same viewer opens remote VNC / RDP desktops | A separate X11, VNC or RDP viewer app |
+| Drive Android from the shell | Built in (~40 `z2-*` helpers) | A separate companion app |
+| Run on device events | Built in (`z2-when`), with an Automation tab, run logs and a kill switch | A separate companion app, usually with a third-party automation app |
+| Japanese input | Built-in IME, also selectable as the system keyboard | The OS keyboard |
+| SSH / SFTP, FTP, WebDAV, SMB and `sshd` | Built in; SSH keys held by the Android Keystore | Install the packages yourself |
 
-Both are GPL-3.0 and neither collects telemetry. If you already have a Termux setup you are
-happy with, Z2Term's reason to exist is the second, third and fourth rows of that table.
+Both are GPL-3.0 and neither collects telemetry.
 
-Double-tap **⌨** in the toolbar to show or hide the keyboard. **Settings → Key layout (your own)** includes the OS-keyboard accessory bar toggle and an editor for its keys, shared by terminal and GUI tabs. Local GUI menus can use the Android device’s existing Japanese fonts; reopen GUI after updating.
+## Download and updates
 
-## Download
+- **GitHub Releases**: download `z2term-<version>.apk` from <https://github.com/orgsonai/z2term/releases/latest> and tap it (allow "Install unknown apps"). Not distributed on Google Play.
+- **F-Droid**: <https://f-droid.org/packages/com.zerotoship.z2term/>. F-Droid builds it from source and signs it with its own key. ⚠ The signature differs from the GitHub APK, so one cannot be installed over the other (uninstall first to switch; this removes the Linux environment too).
 
-**You can download the latest APK directly from GitHub Releases** (no build needed):
+On first launch, pick a distribution in Settings › Linux environment (fetched from the official source and verified by SHA-256). App updates never download it again.
 
-- Go to the latest: **<https://github.com/orgsonai/z2term/releases/latest>**
+To update, pick whichever fits:
+- **In the app**: Settings → App info → Check for updates. It asks GitHub only when you tap the button. From the terminal: `z2-update`.
+- **F-Droid**: if you installed from F-Droid, update there.
+- **Automatically**: add `https://github.com/orgsonai/z2term` to [Obtainium](https://github.com/ImranR98/Obtainium) to install new versions with one tap.
 
-Every release ships one APK: `z2term-<version>.apk`. See the release page for its size.
+## Documentation
 
-It bundles no OS and no third-party prebuilts, so **the first launch asks you to pick a distribution
-in Settings › Linux environment** (Alpine is fetched from the official CDN, verified by
-SHA-256, and updates never re-download it). Automatic updates (below) fetch the whole APK each time.
-
-⚠ **Up to 0.8.358 there was a second, ~190MB APK with Alpine bundled (the `full` flavor).
-0.8.359 dropped it** — it only saved that one first download, while making everyone choose between
-two files. If you are on a `full` install, this APK updates it in place (same package ID).
-
-Tap the APK on your Android device → allow "Install from unknown sources" to install.
-(Not distributed on Google Play.)
-
-**Also on F-Droid**: <https://f-droid.org/packages/com.zerotoship.z2term/> (since 2026-11-09, starting with 1.0.79).
-F-Droid builds the app from this repository's source and signs it with its own key.
-
-- ⚠ **The signature differs from the GitHub APK**, so you cannot install one over the other.
-  To switch between them, uninstall first (this removes the app's data, including the Linux environment).
-- F-Droid picks up new version tags on its own, but builds and publishes them later than GitHub Releases.
-- The F-Droid build does not have the install-packages permission, so updates come from F-Droid itself
-  (in-app update is not available there).
-
-### Keeping it updated
-
-Pick whichever fits:
-
-- **In-app update** — *Settings → App info → Check for updates* → **"Download and install"**.
-  It asks GitHub for the latest release **only when you tap the button** (nothing is checked
-  automatically, and no network is touched until then), downloads the new APK and takes you all the way
-  to the install screen. ⚠ Android always makes **the last tap yours** — no app can replace itself
-  silently. The first time, allow "Install unknown apps" for z2term. From the terminal it is
-  **`z2-update`** (`--check` / `--keep` / `--dir`). The downloaded APK is deleted after the update by
-  default. ⚠ Installed from F-Droid or a store? Then it refuses and points you back there.
-- **F-Droid** — if you installed from F-Droid, update from the F-Droid app.
-- **Manual** — download the newer APK from Releases and tap it (installs over the top; your data stays).
-- **Automatic** — add `https://github.com/orgsonai/z2term` to
-  [Obtainium](https://github.com/ImranR98/Obtainium). It watches these Releases and updates the app
-  with one tap when a new version appears — no app store involved. The Linux OS is not downloaded again.
-
-## Changelog
-
-Changes in each version are listed in [docs/en/CHANGELOG.md](docs/en/CHANGELOG.md).
-
-## Features
-
-- **Floating edge panels** — Six handle gestures share GUI-editable action sequences (app launch, waits, commands and single swipes), plus auto-scroll speed/reversal/position controls in the focused Android window. Taps stop scrolling. Thin bars restore after screen unlock and support configurable activation and hold-to-drag snapping; panels offer an app picker, custom macro/command slots with z2-icon selection, swipe tab switching, inline item editing, cancellable size/opacity previews, rotation-aware positioning and service toggling. `z2-edge` defines an edge bar or draggable button and panels with command buttons, text, toggles, lists and input fields. Shell commands supply the contents; `push` and `badge` update them from automation. `z2-key` exposes Android global actions through an optional accessibility service, and `z2-app` lists launchable apps and exports their icons. See [the handbook](docs/en/HANDBOOK.md#96-floating-edge-panels). Overlay permission is opt-in; no external helper app is required.
-- **Terminal emulator** — VT100 / xterm, 256-color and true color, 9 themes, scrollback with search, UTF-8 and East Asian Width, alternate screen, OSC 4 / 7 / 8 / 10 / 11 / 12 / 52.
-- **Linux distributions without root** — Alpine / Ubuntu / Arch / Kali on a userspace engine (z2root by default; see below). Install anything with `apk` / `apt` / `pacman`.
-- **Execution engine** — fully migrated to z2root for non-root use; rooted devices may optionally use the hidden chroot path.
-- **USB Host bridge** — use a USB device connected to the phone from ordinary dynamically linked Linux programs. Run `z2-usb list`, then `z2-usb allow [number]` and approve Android's device permission; programs using libusb or `/dev/bus/usb/...` can then open it without being patched. A normal data-capable USB-A-to-USB-C adapter or hub works when the phone supports USB Host/OTG.
-- **USB serial** — add a "Serial" connection next to your SSH hosts and talk to microcontroller boards, routers, or a board's UART over a USB cable, with no Linux distro needed. Works with CDC-ACM, FTDI, CP210x, CH340/CH341, and PL2303 chips. Default speed is 115200 (8N1, no flow control; the rest is under Details). If you unplug the cable, the tab stays open, and plugging the same device back in reconnects it after Android's permission prompt. With a relay that passes a UART straight through over TCP (a Wi-Fi microcontroller, for example), it also connects over the network. An AI connected over MCP can be allowed to read or type into serial tabs (off by default). ⚠ Experimental.
-- **Multi-tab** — CUI and GUI tabs, drag to reorder, long-press a tab to see the engine it runs on. An inactive tab shows a small dot while something is running in it, and a ✓ when it finished while you were looking elsewhere.
-- **Linux GUI** — Xvnc + openbox with a built-in RFB client; `z2gui` starts a desktop and `z2run <app>` launches a GUI app (opening the GUI tab for you), with audio and video. The same viewer also connects to a **remote VNC or RDP desktop**: a saved host gets **[VNC]** and **[RDP]** buttons that open that machine's desktop in a tab (VNC: RFB 3.3-3.8, None / VNC-password auth; RDP: Network Level Authentication with a first-use certificate check, mouse and keyboard input, text clipboard sharing, and **sharing one folder from the phone** as `\\tsclient\<name>`).
-- **SSH / SFTP, FTP, WebDAV and SMB2/3** — add FTP, SMB, WebDAV, VNC and RDP services to an SSH destination; their buttons sit beside, rather than inside, SSH/SFTP. Each service uses a temporary SSH local forward by default, and leaving its local port blank selects a free port automatically. Direct mode connects to the SSH destination host rather than the service-specific host and is available only after a warning that SSH encryption will be lost. FTP passive data ports are forwarded automatically per transfer. SSH also provides public-key auth (**create an ed25519 key in the app, then copy/share the public key or add it to this device's sshd**; secrets encrypted by the Android Keystore), known_hosts confirmation, **any number of jump hosts (`-J`) per destination** — they apply to the shell, SFTP, every attached service and resident tunnels alike — manual forwarding in both directions (`-L` / `-R`) that can **keep running after the Connections tab is closed**, and a built-in `sshd` (dropbear) that binds to localhost only by default.
-- **English, Japanese, Simplified and Traditional Chinese, Spanish, Korean, Brazilian Portuguese, German, French, Indonesian, Italian, Russian, Turkish and Vietnamese throughout** — the in-app UI *and* the `z2-*` command-line helpers follow the language setting, so the help text, usage lines and messages you get in the terminal are localized too. Both bodies of text are keyed by language code, so further languages drop in without touching the code that uses them; anything not translated yet falls back to English. ⚠ The keyboard is a separate matter: no Chinese input method and no Cyrillic layout are bundled, so type Chinese or Russian with your OS input method.
-- **Japanese IME** — Viterbi kana-kanji conversion, prediction, frequency/recency learning, and a custom on-screen keyboard. It can also be **offered as an OS input method**, so once enabled the same keyboard and conversion work in the app's own text fields and in other apps (switching is the OS keyboard switcher). **Your own words can be added from a file** (SKK format: `reading /candidate/`), so names and private abbreviations convert from the first keystroke.
-- **Modified terminal keys** — send Alt/Ctrl/Shift with arrows, Home/End, editing keys and F1–F12 from the built-in or physical keyboard. Custom key chords and the special-key bar share the same terminal encoding.
-- **Android bridge** — call host features from the shell: `z2-noti` (read the notifications on screen; read-only) / `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-img` (draw a picture straight in the terminal) / `z2-clip` / `z2-battery` / `z2-vibrate` / `z2-say` / `z2-torch` / `z2-media` / `z2-volume` / `z2-sensor` / `z2-intent` / `z2-state` / `z2-screen` (stop the screen turning off by itself, for a while) / `z2-usb` / `z2-tile` (put a macro on a quick-settings tile; 12 slots) / `z2-icon` (draw the status-bar and tile icons yourself) / `z2-alarm` / `z2-macro` / `z2-session` (drives the app's own tabs; `attach` stays connected to one and types in it) / `z2-server` (start/stop a registered resident server).
-- **It can ask you things** — `name=$(z2-ask "Branch name?")` takes the answer from a **notification reply field** (answerable from the shade without opening the app; no answer means a non-zero exit, so "give up" is expressible).
-- **It can listen** — `text=$(z2-listen)` turns what you say into text, **recognised on the device only** (your voice never goes to the network; Android 12+). `z2-listen -w "next,stop"` accepts only the listed words, so a script can be driven by voice.
-- **Automation hub** — `z2-when <trigger> run <cmd>` auto-runs a script on Android events: charge start/stop, battery crossing a level, a time (daily / once / every N / cron), Wi‑Fi connect/disconnect, **a usable connection appearing/going away or the link in use switching (`net:online` / `net:mobile` — mobile data counts too)**, **the device booting (`boot`)**, **something being shared to it from another app (`share:ext=pdf` …)**, an incoming SMS (incl. OTP code extraction), a sensor (shake / light threshold / proximity), **an arriving notification (`notify:otp` extracts the code; independent of whether notifications are logged)**, **any device event by name (`event:headset_plugged` and ~20 more; `z2-when events` lists them)**, **a file appearing in, being rewritten in or leaving a folder (`file:new=…` / `file:changed=…` / `file:deleted=…`)**, **a Bluetooth device connecting or disconnecting (`bt:connect=<name>`)**, **an app coming to the front or being left (`app:open=<app>`)**, **the battery temperature (`battery:temp>45`)**, or **today's steps reaching a goal (`steps:reach=8000`)**. In the editor, triggers are picked as sentences from rows (Time, Power, Connections, Apps & notifications, Device), and the reason a trigger cannot run (detection off, permission missing) is shown right there. Rules can be **narrowed with filters** (`if=ssid=Home` / `cooldown=1h` / `between=22:00-07:00` / `days=mon-fri` — they work the same for every trigger, and skipped runs stay in the log as `skip:`). Rules are plain text under `~/.z2term/when/` (git-syncable) and survive reboots without opening the app. The **Automation tab** (📜) lists them with on/off toggles, run logs and a **▶ run-now** that skips the trigger, plus a **kill switch that pauses every rule** and a list of recent fires (`z2-when pause` / `resume` / `fired` in the terminal).
-- **Resident servers** — register any start command under *Command list → Servers* and it keeps running in the background **without the app being open**: host a small web server, a sync daemon or a bot from the phone. The Status widget shows how many are up, and registered servers are restarted on boot.
-- **Self adb** — `z2adb` connects to the device's own wireless debugging over localhost. No PC, USB, or root.
-- **App lock** — asks for your fingerprint, face, or screen lock (PIN/pattern) before the screen appears. Choose when it locks (at once / after 30s / after 1 min / after 5 min / on launch only); while you are away the recent-apps thumbnail is hidden too. Sessions, resident servers and `z2-session attach` keep running while locked, so nothing left working overnight is broken.
-- **Built-in help** — `z2help` (or `z2term`) prints a categorized cheat sheet of every `z2*` helper, and every command explains itself with `--help` (e.g. `z2-tile --help`); `z2version` shows the app version and the engine the tab is really running on.
-- **`z2doctor`** — one command that answers "why isn't it working?": version, engine, free space, every permission the app needs, detection and automation state. **Each `NG` line carries the next step**, and the end is a short report you can paste into an issue (`--share` / `--clip`). SSIDs, IPs and host names are left out on purpose.
-- **Vulnerability testing** — `z2scan self` audits this device/localhost (open ports, sshd config, SSH key perms, world-writable/SUID, PATH) with no external tools; `z2scan net/host/cve` wrap nmap/lynis/trivy on localhost (a remote target requires explicit opt-in). Results stay local.
-- **Terminal log** — tap ⚪ in the toolbar once to start writing what the tab shows to a text file, tap again to stop. Files land in `~/z2term-log/`, so they open straight from the shell or from other apps. By default colors and screen control codes are stripped so the result reads as plain text.
-- **Home screen widgets** — *Status + macros (grid / list)*: shows the state as running/registered counts (ssh endpoint / resident servers / automation rules / battery) and runs a macro you picked **in the background with one tap, without opening the app**; tap a running macro again to stop it. Macros sit in a 2×2 grid of four, or in a scrolling list of up to 30, each showing "running (elapsed time)", "done", "failed (exit code)" or "stopped" with today's start–end time. *Live tail*: keeps the last or the first lines of any file under `~` on your home screen (`tail` or `head`, your choice; scroll inside to read further back, long lines wrap, error lines are coloured).
-- **Data limit** — once **the whole phone's** mobile usage for the period hits the amount you set, z2term's own traffic (SSH, downloads) stops. Set the limit with the slider or type it exactly. ⚠ Your home network (`192.168.x.x` and friends) and anything over Wi-Fi keep working, and other apps are untouched (reading the device-wide figure asks for the "usage access" permission once).
-- **Snippet groups** — sort the commands you use most onto shelves ("daily", "git", …) and list only what is on the shelf you tapped, so nothing sinks out of reach as they pile up. Deleting a shelf keeps its snippets (they move back to ungrouped).
-- **Take it with you** — bundle settings, SSH connections, snippets, automation rules, macros, your theme, tile assignments, icons, dictionaries and what the keyboard has learned into one file and restore them on another device. The OS image is excluded. **SSH secrets are left out by default; including them requires a passphrase.** In that case the **whole backup except its manifest is encrypted**, including snippets, macros and learned text that may themselves contain secrets. It can also **write one on a schedule** (interval, time, folder and generations to keep) — only the files it made are tidied up, never one you created by hand. Give the scheduled backup a **passphrase and its contents are encrypted too**, still without carrying any SSH secret (0.8.452; left empty it stays plaintext as before).
-- **First-run cards** — three small cards on the first launch (post a notification / flashlight / let a PC connect). Tapping one **puts the command on the input line — it never runs by itself**; they disappear once tapped and never return.
-- **Receive from Share** — pick z2term in another app's share sheet and the text (or, for files, a path under `~/z2term-inbox/`) is **inserted** on the terminal's input line — never executed.
-- **Tidy toolbar** — choose which buttons appear from settings (⚙ settings stays pinned to the right edge); long-press and drag to reorder, **either on the toolbar itself or in settings**.
-- **No prebuilts, one download** — a single APK that bundles no third-party prebuilts; the distribution is downloaded at first launch and verified by SHA-256.
-
-### Not yet supported / under consideration
-
-- mosh protocol support (UDP-based)
-- Reverse DNS / stronger IPv6 connection retry
-- Fully self-contained z2root engine with no third-party native prebuilts
-
-## Build requirements
-
-| Item | Version |
-|---|---|
-| Android Studio | Ladybug 2024.3.1 or later |
-| AGP | 9.1.1 |
-| Kotlin | 2.2.10 (bundled with AGP) |
-| Gradle | 9.3.1 |
-| NDK | 27.0+ |
-| CMake | 3.22.1+ |
-| Other tools | Python 3, curl, tar, sha256sum |
-| Min SDK | 29 (Android 10) |
-| Target SDK | 35 (Android 15) |
-
-## Setup
-
-### 1. Collect the git-ignored bundled artifacts (one command)
-
-Several artifacts are bundled into the APK but **kept out of git** (built/fetched by `scripts/`), so a fresh `clone` or a `clean` has none of them. Collect them with the master script on a PC:
-
-```bash
-bash scripts/build-bundle.sh
-```
-
-It runs two generators and verifies the common payload:
-
-1. `build-z2root.sh` → `libz2root.so` / `libz2accept.so` (needs an NDK)
-2. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` `-Regular.ttf` (tracked in git from 1.0.4, so this normally does nothing)
-
-A final manifest step prints `OK` / `MISS` per artifact. Linux rootfs archives are downloaded at runtime and are never APK build inputs.
-
-Per-artifact details: [app/src/main/assets/README.md](app/src/main/assets/README.md) · [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
-
-### 2. Build
-
-```bash
-./gradlew assembleRelease
-# Output: app/build/outputs/apk/release/app-release.apk
-```
-
-(No signing key required for forks — `build.gradle.kts` falls back to the debug key when `keystore.properties` is absent.)
-
-### 3. Install
-
-```bash
-adb install -r app/build/outputs/apk/release/app-release.apk
-```
-
-## Project structure
-
-```
-z2term/
-├── app/
-│   ├── build.gradle.kts
-│   └── src/main/
-│       ├── AndroidManifest.xml
-│       ├── assets/                  ← place the Alpine rootfs here
-│       ├── cpp/                     ← JNI native code
-│       │   ├── CMakeLists.txt
-│       │   └── pty_jni.cpp
-│       ├── java/com/zerotoship/z2term/
-│       │   ├── Z2TermApplication.kt
-│       │   ├── MainActivity.kt
-│       │   ├── channel/             ← ProcessChannel / SshChannel (M5)
-│       │   ├── core/                ← TerminalSession + SessionManager
-│       │   ├── pty/                 ← PTY abstraction
-│       │   ├── proot/               ← Linux launch (legacy package name)
-│       │   ├── distro/              ← rootfs deployment (Alpine + Ubuntu)
-│       │   ├── emulator/            ← VT100/xterm emulator core
-│       │   ├── settings/            ← DataStore persistence
-│       │   ├── service/             ← TerminalService / AudioBridge (foreground + WakeLock)
-│       │   ├── gui/                  ← GUI (Xvnc + built-in RFB client / GuiSession)
-│       │   ├── saf/                  ← SAF DocumentsProvider
-│       │   └── ui/
-│       │       ├── theme/           ← ZTS Theme + custom fonts
-│       │       ├── settings/        ← settings UI
-│       │       ├── ssh/             ← SSH profile UI (M5)
-│       │       └── terminal/        ← terminal UI + Renderer + key mapper
-│       ├── jniLibs/                 ← generated z2root binaries
-│       └── res/                     ← resources
-├── build.gradle.kts
-├── settings.gradle.kts
-├── gradle/
-│   ├── libs.versions.toml
-│   └── wrapper/
-├── docs/
-│   ├── ja/                        ← Japanese documentation
-│   │   ├── DESIGN-SPEC.md         ← design & specification (technical)
-│   │   ├── HANDBOOK.md            ← user handbook
-│   │   └── MACRO-GUIDE.md         ← phone-automation macro guide (AI-friendly)
-│   ├── en/                        ← English documentation
-│   │   ├── DESIGN-SPEC.md         ← design & specification
-│   │   ├── HANDBOOK.md            ← getting started handbook
-│   │   └── MACRO-GUIDE.md         ← phone-automation macro guide (AI-friendly)
-│   ├── images/                    ← screenshots etc. (shared)
-│   ├── RELEASE.md                 ← release steps
-│   ├── FDROID.md                  ← F-Droid submission steps
-│   └── SSH-INTO-Z2TERM.md
-├── metadata/                     ← F-Droid metadata (store listing)
-└── .github/workflows/build.yml   ← CI (build, lint, tests, signed release APK)
-```
-
-## Build variants
-
-Only build types differ. The distribution flavors (`full` / `foss`) were dropped in 0.8.359 —
-one build for everyone, with the rootfs always fetched at runtime.
-
-| Build type | applicationId | Launcher name |
-|---|---|---|
-| `release` | `com.zerotoship.z2term` | `Z2Term` |
-| `debug` | `com.zerotoship.z2term.debug2` | `Z2Term dbg2` |
-
-The suffix lets a debug build sit next to a release one, and the name tells them apart.
-
-```bash
-./gradlew assembleDebug
-```
-
-## Smoke-test flow
-
-1. Build and install; select an OS and complete the runtime download.
-2. Confirm `z2version` reports `engine : z2root`, then test the distro package manager.
-
-### z2root command-group test (`scripts/z2root-cmdtest.sh`)
-
-A regression smoke test for confirming that **fragile commands keep working
-going forward** on the z2root engine — focused on the hard paths (ptrace/seccomp,
-fakeroot fakery, path translation, `/proc` fakery, pty, heavy fork/exec, ld.so
-reloc), not trivial `cd`/`ls`. The point is to catch a systemic z2root regression
-as "many commands fail at once" instead of discovering each broken command later.
-Run it inside a started guest (any distro) on the z2root tab:
-
-```sh
-sh scripts/z2root-cmdtest.sh              # standard (incl. network/build)
-SKIP_NET=1   sh scripts/z2root-cmdtest.sh # skip network/package steps
-SKIP_BUILD=1 sh scripts/z2root-cmdtest.sh # skip cc compile etc.
-RUN_SSHD=1   sh scripts/z2root-cmdtest.sh # dropbear loopback ssh (may reset the session under z2root!)
-RUN_PRIV=1   sh scripts/z2root-cmdtest.sh # also run truly-root ops (losetup/mount); EPERM is normal on non-root z2root
-```
-
-It is POSIX `sh` / busybox-ash compatible and **skips missing commands rather than
-failing**, so it runs identically across distros — run it on each guest and a
-healthy engine yields an empty "non-zero exit" summary everywhere. 10 groups:
-① runtime real-launch (`claude` headless vs `--version`, node spawn, python
-venv/multiprocessing/ssl, ripgrep), ② heavy VCS (git clone/gc/checkout =
-hardlink/pack/rename), ③ package managers (apt/apk/dnf/pacman, pip/venv, npm =
-fakeroot/fork-exec/symlink), ④ pty/terminal (script/tmux/stty, `/dev/pts`,
-optional dropbear loopback), ⑤ `/proc`/fakeroot boundary, ⑥ build (cc execve
-chain + ld.so reloc), ⑦ path translation / symlink canonicalization, ⑧ disk/FS
-(dd, mkfs, parted on file images; root ops behind `RUN_PRIV`), ⑨ IPC / special
-syscalls (AF_UNIX, FIFO, flock, inotify, xattr, copy_file_range, nested ptrace
-via strace/gdb, Go raw syscalls, sqlite3, rsync), ⑩ name resolution / TLS
-(getent, curl TLS, nslookup). Output goes to the screen and
-`/tmp/z2root-cmdtest-<timestamp>.log`; a trailing summary lists any non-zero
-exits.
-
-Note: `io_uring` (bypasses ptrace/seccomp entirely) and `statx`/`openat2` hook
-gaps can't be caught by command tests — verify those at the seccomp-filter level.
+- [Handbook](docs/en/HANDBOOK.md): how to use everything
+- [Feature list](docs/en/FEATURES.md): everything it does, in one list
+- [Let an AI operate it](docs/en/AI-BRIDGE.md) · [Screen macros](docs/en/ACTION-MACROS.md)
+- [Changelog](docs/en/CHANGELOG.md)
+- [Building](docs/en/BUILD.md)
 
 ## License
 
@@ -340,7 +155,7 @@ From the settings screen → "OSS licenses / corresponding source", you can also
 | Channel | Status |
 |---|---|
 | **GitHub Releases / direct APK** | Primary channel; one APK per release |
-| **F-Droid** | Published since 2026-11-09 (first version 1.0.79), signed with F-Droid's key: <https://f-droid.org/packages/com.zerotoship.z2term/>. Runtime-downloaded rootfs; fully source-built engine (`docs/FDROID.md`) |
+| **F-Droid** | Published, signed with F-Droid's key: <https://f-droid.org/packages/com.zerotoship.z2term/>. Runtime-downloaded rootfs; fully source-built engine (`docs/FDROID.md`) |
 | **Google Play** | No distribution planned |
 
 ## Default behavior of the SSH server (sshd)
