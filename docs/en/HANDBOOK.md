@@ -502,9 +502,10 @@ You need: a Raspberry Pi Pico (Pico / Pico W / Pico 2 / Pico 2 W), a USB-TTL ada
 4. Plug the Pico into the PC and the adapter into the phone. Open a serial connection in z2term (speed **115200**) and `z2term keyboard ready (jis)` appears. Then just type.
 
 - It types letters, digits, symbols, Enter, Tab, Backspace, Esc, arrows, Home/End, PgUp/PgDn, Insert/Delete, F1–F12, Ctrl+letter (Ctrl+C …) and Alt+character. Ctrl / Shift / Alt can be combined with arrows and the like.
-- ⚠ **Characters outside ASCII cannot be sent as such** (a USB keyboard sends key numbers, not characters). Turn on the PC's input method and type in romaji for Japanese.
+- ⚠ **Characters outside ASCII cannot be sent as such** (a USB keyboard sends key numbers, not characters). Turn on the PC's input method and type in romaji for Japanese. To switch the PC's input method, press **Ctrl+Space** on the phone; the Pico types it as the Hankaku/Zenkaku key (as Ctrl+Space with `LAYOUT = "us"`). z2term's Hankaku/Zenkaku key sends nothing in a terminal tab, so use this instead.
 - ⚠ A very large paste can overflow the Pico's receive buffer (4 KB) and drop part of it; paste long text in pieces. Typing runs at a few dozen characters a second.
 - ⚠ If the PC misses keys, raise `KEY_GAP_MS` in `main.py`.
+- **A Pico W / Pico 2 W can also take the input over Wi-Fi (no wiring).** Change `SOURCE = "uart"` in `main.py` to `"wifi"`, fill in `SSID` and `PASSWORD`, and write it as in step 2. In z2term, open Serial → Network (TCP) to the Pico's address (printed to the REPL at start) and port 2000. ⚠ The line is not encrypted and whoever connects can type anything into the PC. Use it only on a network you trust, and limit which phones may connect with `ALLOW`.
 - Ctrl+H, Ctrl+I and Ctrl+M are the same characters as Backspace, Tab and Enter in a terminal, so they are typed as those.
 
 ### Open a remote machine's screen (VNC, 0.8.418)
